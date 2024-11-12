@@ -8,8 +8,9 @@ pub(crate) mod target;
 pub(crate) mod tools;
 pub(crate) mod utils;
 
-fn main() -> Result<()> {
-    Xtask::parse().run()
+#[tokio::main]
+async fn main() -> Result<()> {
+    Xtask::parse().run().await
 }
 
 #[derive(Debug, Parser)]
@@ -56,20 +57,18 @@ pub enum Command {
 }
 
 impl Xtask {
-    pub fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         match &self.command {
             Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
-            Command::Lint(command) => command.run(),
+            Command::Lint(command) => command.run().await,
             Command::UnitTest(command) => command.run(),
             Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
-            Command::Prep(command) => command.run(),
+            Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
-            Command::GithubActions(command) => {
-                tokio::runtime::Runtime::new()?.block_on(command.run())
-            }
+            Command::GithubActions(command) => command.run().await,
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

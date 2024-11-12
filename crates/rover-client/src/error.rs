@@ -1,8 +1,7 @@
+use apollo_federation_types::rover::BuildErrors;
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
-
-use apollo_federation_types::build::BuildErrors;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -236,6 +235,12 @@ pub enum RoverClientError {
 
     #[error("You've encountered a rate limit.")]
     RateLimitExceeded,
+
+    #[error("Invalid router config: {msg}")]
+    InvalidRouterConfig { msg: String },
+
+    #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
+    NonCloudGraphRef { graph_ref: GraphRef },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
@@ -295,6 +300,15 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         if let Some(proposals_response) = &check_response.maybe_proposals_response {
             if proposals_response.task_status == CheckTaskStatus::FAILED {
                 Some("proposal")
+            } else {
+                None
+            }
+        } else {
+            None
+        },
+        if let Some(custom_response) = &check_response.maybe_custom_response {
+            if custom_response.task_status == CheckTaskStatus::FAILED {
+                Some("custom")
             } else {
                 None
             }

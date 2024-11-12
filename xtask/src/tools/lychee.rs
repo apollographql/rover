@@ -2,11 +2,13 @@ use crate::utils::PKG_PROJECT_ROOT;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use futures::TryStreamExt;
 use http::StatusCode;
-use lychee_lib::{Client, ClientBuilder, Collector, FileType, Input, InputSource, Request, Uri};
+use lychee_lib::{
+    Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
+    Result as LycheeResult, Uri,
+};
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
-use tokio::runtime::Runtime;
+use tokio_stream::StreamExt;
 
 pub(crate) struct LycheeRunner {
     client: Client,
@@ -30,11 +32,14 @@ impl LycheeRunner {
         Ok(Self { client })
     }
 
-    pub(crate) fn lint(&self) -> Result<()> {
+    pub(crate) async fn lint(&self) -> Result<()> {
         crate::info!("Checking HTTP links in repository");
 
         let inputs: Vec<Input> = get_md_files()
             .iter()
+            // Skip the changelog to preserve history, but also to avoid checking hundreds of
+            // PR links and similar that don't need validation
+            .filter(|file| !file.to_string().contains("CHANGELOG"))
             .map(|file| Input {
                 source: InputSource::FsPath(PathBuf::from(file)),
                 file_type_hint: Some(FileType::Markdown),
@@ -42,51 +47,43 @@ impl LycheeRunner {
             })
             .collect();
 
-        let rt = Runtime::new()?;
-
         let lychee_client = self.client.clone();
 
-        rt.block_on(async move {
-            let links: Vec<Request> = Collector::new(None)
-                .collect_links(inputs)
-                .try_collect()
-                .await?;
+        let links: Vec<Request> = Collector::new(None)
+            .collect_links(inputs)
+            .collect::<LycheeResult<Vec<_>>>()
+            .await?;
 
-            let failed_link_futures: Vec<_> = links
-                .into_iter()
-                .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
-                .collect();
+        let failed_link_futures: Vec<_> = links
+            .into_iter()
+            .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
+            .collect();
 
-            let links_size = failed_link_futures.len();
+        let links_size = failed_link_futures.len();
 
-            let mut failed_checks = Vec::with_capacity(links_size);
-            for f in failed_link_futures.into_iter() {
-                if let Some(failure) = f.await.expect("unexpected error while processing links") {
-                    failed_checks.push(failure);
-                }
+        let mut failed_checks = Vec::with_capacity(links_size);
+        for f in failed_link_futures.into_iter() {
+            if let Some(failure) = f.await.expect("unexpected error while processing links") {
+                failed_checks.push(failure);
             }
+        }
 
-            crate::info!("{} links checked.", links_size);
+        crate::info!("{} links checked.", links_size);
 
-            if !failed_checks.is_empty() {
-                for failed_check in failed_checks {
-                    crate::info!(
-                        "❌ [Status Code: {}] {}",
-                        failed_check
-                            .1
-                            .map(|status_code| status_code.to_string())
-                            .unwrap_or("unknown".to_string()),
-                        failed_check.0.as_str()
-                    );
-                }
-
-                Err(anyhow!("Some links in markdown documentation are down."))
-            } else {
-                Ok(())
+        if !failed_checks.is_empty() {
+            for (uri, status_code) in failed_checks {
+                crate::info!(
+                    "❌ [Status Code: {}]: {}",
+                    status_code
+                        .map(|status_code| status_code.to_string())
+                        .unwrap_or("unknown".to_string()),
+                    uri
+                );
             }
-        })?;
-
-        Ok(())
+            Err(anyhow!("Some links in markdown documentation are down."))
+        } else {
+            Ok(())
+        }
     }
 }
 

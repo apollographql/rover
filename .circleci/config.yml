@@ -3,9 +3,10 @@ version: 2.1
 # Our CircleCI dependencies
 orbs:
   rust: circleci/rust@1.6.1
-  gh: circleci/github-cli@2.3.0
-  node: circleci/node@5.2.0
+  gh: circleci/github-cli@2.5.0
+  node: circleci/node@6.3.0
   secops: apollo/circleci-secops-orb@2.0.7
+  slack: circleci/slack@5.0.0
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -13,7 +14,9 @@ run_release: &run_release
     branches:
       ignore: /.*/
     tags:
-      only: /v.*/
+      # This regex is taken verbatim from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string and
+      # ensures we only ever run our release pipeline for Semver tags
+      only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 
 # You can uncomment the following alias, and comment the above alias when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
@@ -32,7 +35,7 @@ executors:
     docker:
       # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
       # glibc 2.17.
-      - image:  quay.io/pypa/manylinux2014_x86_64:2024.07.02-0
+      - image:  quay.io/pypa/manylinux2014_x86_64:2024.09.09-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -42,7 +45,7 @@ executors:
 
   arm_ubuntu: &arm_ubuntu_executor
     machine:
-      image: ubuntu-2004:2022.04.1
+      image: ubuntu-2004:2024.05.1
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
@@ -59,7 +62,7 @@ executors:
 
   amd_macos: &amd_macos_executor
     macos:
-      xcode: "14.2"
+      xcode: "15.0.0"
     resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
@@ -70,7 +73,7 @@ executors:
   # until there is official support for building on real ARM Macs
   arm_macos: &arm_macos_executor
     macos:
-      xcode: "14.2"
+      xcode: "15.0.0"
     resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
@@ -90,7 +93,7 @@ executors:
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
     machine:
-      image: ubuntu-2004:2022.04.1
+      image: ubuntu-2004:2024.05.1
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -104,15 +107,25 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
-  node_js:
+  node_js_nix:
     docker:
-      - image: node:lts
+      - image: node:20.18.0
     resource_class: medium
+
+  node_js_windows:
+    machine:
+      image: "windows-server-2019-vs2019:2022.08.1"
+      shell: powershell.exe -ExecutionPolicy Bypass
+    resource_class: windows.medium
 
 
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
-    pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
+    # This regex is adapted from the official one provided by the Semver Standard:
+    # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    # There is a v appended in the first instance and further everything after the `-` we can ignore hence the
+    # simplification.
+    pattern: "^v(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)-.+$"
     value: << parameters.release_tag >>
 
 # reusable parameters that can be used across jobs and workflows
@@ -133,6 +146,9 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+              options:
+                - | 
+                  --current-sha << pipeline.git.revision >>
   security_checks:
     jobs:
       - xtask:
@@ -161,7 +177,7 @@ workflows:
               command: [github-actions]
               options: 
               - |
-                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -171,16 +187,16 @@ workflows:
               rust_channel: [stable]
               command: [integration-test]
       - install_js:
-          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >> on << matrix.platform >>)
           matrix:
             parameters:
               package_manager: [npm, npm_global, pnpm]
+              platform: [windows, nix]
       - node/test:
           name: Test NPM Installer Scripts
           app-dir: "~/project/installers/npm"
           test-results-for: jest
           override-ci-command: npm install --ignore-scripts
-
   release:
     jobs:
       - xtask:
@@ -202,7 +218,7 @@ workflows:
           <<: *run_release
 
       - xtask:
-          name: Run studio integration tests in GitHub Actions (amd_macos)
+          name: Run studio integration tests in GitHub Actions for release (amd_macos)
           context:
             - github-orb
           matrix:
@@ -212,14 +228,15 @@ workflows:
               command: [ github-actions ]
               options:
                 - |
-                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                  --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.tag >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
-          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >> on << matrix.platform >>)
           matrix:
             parameters:
               package_manager: [ npm, npm_global, pnpm ]
+              platform: [windows, nix]
           <<: *run_release
 
       - node/test:
@@ -242,11 +259,14 @@ workflows:
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
-            - "Run studio integration tests in GitHub Actions (amd_macos)"
+            - "Run studio integration tests in GitHub Actions for release (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
-            - "Test installation for Javascript Package Managers (npm)"
-            - "Test installation for Javascript Package Managers (npm_global)"
-            - "Test installation for Javascript Package Managers (pnpm)"
+            - "Test installation for Javascript Package Managers (npm on nix)"
+            - "Test installation for Javascript Package Managers (npm_global on nix)"
+            - "Test installation for Javascript Package Managers (pnpm on nix)"
+            - "Test installation for Javascript Package Managers (npm on windows)"
+            - "Test installation for Javascript Package Managers (npm_global on windows)"
+            - "Test installation for Javascript Package Managers (pnpm on windows)"
             - "Test NPM Installer Scripts"
           <<: *run_release
 
@@ -278,18 +298,42 @@ workflows:
             - secops-oidc
             - github-orb
           git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
+  nightly-lint:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - xtask:
+          name: Lint (Nightly)
+          matrix:
+            parameters:
+              platform: [ volta ]
+              rust_channel: [ stable ]
+              command: [ lint ]
+              options:
+                - |
+                  --force
+      - notify_slack:
+          name: Send Slack Notification (On Failure)
+          requires:
+            - Lint (Nightly)
+
 jobs:
   xtask:
     parameters:
       rust_channel:
         type: enum
-        enum: ["stable", "nightly"]
+        enum: [ "stable", "nightly" ]
         default: stable
       platform:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package, security-checks, github-actions]
+        enum: [ lint, unit-test, integration-test, test, package, security-checks, github-actions ]
       options:
         type: string
         default: ""
@@ -300,7 +344,7 @@ jobs:
           platform: << parameters.platform >>
       - when:
           condition:
-            equal: ["security-checks", << parameters.command >>]
+            equal: [ "security-checks", << parameters.command >> ]
           steps:
             - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
@@ -309,8 +353,8 @@ jobs:
               # this wouldn't _have_ to be the macos executor, we just need
               # to copy the schema exactly one time and not worry about it
               # in other instances
-              - equal: [*amd_macos_executor, << parameters.platform >>]
-              - equal: ["package", << parameters.command >>]
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -319,8 +363,8 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [*amd_macos_executor, << parameters.platform >>]
-              - equal: ["package", << parameters.command >>]
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -347,16 +391,62 @@ jobs:
     parameters:
       package_manager:
         type: enum
-        enum: ["npm", "npm_global", "pnpm"]
-    executor: node_js
+        enum: [ "npm", "npm_global", "pnpm" ]
+      platform:
+        type: enum
+        enum: [ "nix", "windows" ]
+    executor: node_js_<<parameters.platform>>
     steps:
       - checkout:
           path: "rover"
-      - run:
-          name: "Invoke Install Scripts"
-          command: |
-            cd rover/.circleci/scripts
-            ./install_<< parameters.package_manager >>.sh
+      - when:
+          condition:
+            equal: [ "nix", <<parameters.platform>> ]
+          steps:
+            - run:
+                name: "Invoke Install Scripts (Unix)"
+                command: |
+                  cd rover/.circleci/scripts/<<parameters.platform>>
+                  ./install_<< parameters.package_manager >>.sh
+      - when:
+          condition:
+            equal: [ "windows", <<parameters.platform>> ]
+          steps:
+            - run:
+                name: "Invoke Install Scripts (Windows)"
+                command: |
+                  Write-Output "Installing Volta"
+                  choco install volta
+                  refreshenv
+                  Write-Output "Installing Node & NPM"
+                  volta install node@20.17.0
+                  Write-Output "Checking Node & NPM version"
+                  node --version
+                  npm --version
+                  
+                  $script_location=Join-Path rover\.circleci\scripts << parameters.platform >>
+                  Set-Location $script_location
+                  .\install_<< parameters.package_manager >>.ps1
+
+  notify_slack:
+    executor: amd_ubuntu
+    steps:
+      - slack/notify:
+          event: fail
+          channel: $LINT_ALERT_CHANNEL
+          custom: |
+            {
+              blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Nightly lint of `rover` docs has failed. To investigate see linter run here: $CIRCLE_BUILD_URL"
+                  }
+                }
+              ]
+            }
+
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -427,12 +517,21 @@ commands:
       - when:
           condition:
             or:
+              - equal: [*amd_windows_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install cmake & nasm
+                command: choco install cmake nasm
+
+      - when:
+          condition:
+            or:
               - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
             - run:
-                name: Install OpenSSL@1.1
-                command: brew install openssl@1.1
+                name: Install OpenSSL
+                command: brew install openssl@3
             - run:
                 name: Install p7zip
                 command: brew install p7zip

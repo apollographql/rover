@@ -5,10 +5,11 @@ use crate::{
 };
 
 use houston::{Credential, CredentialOrigin};
+use std::time::Duration;
 
 use graphql_client::GraphQLQuery;
-use reqwest::blocking::Client as ReqwestClient;
 use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::Client as ReqwestClient;
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
@@ -27,10 +28,11 @@ impl StudioClient {
         version: &str,
         is_sudo: bool,
         client: ReqwestClient,
+        retry_period: Option<Duration>,
     ) -> StudioClient {
         StudioClient {
             credential,
-            client: GraphQLClient::new(graphql_endpoint, client),
+            client: GraphQLClient::new(graphql_endpoint, client, retry_period),
             version: version.to_string(),
             is_sudo,
         }
@@ -40,26 +42,28 @@ impl StudioClient {
     ///
     /// Takes one argument, `variables`. Returns a Response or a RoverClientError.
     /// Automatically retries requests.
-    pub fn post<Q: GraphQLQuery>(
+    pub async fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
         self.client
             .post::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
+            .await
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
     ///
     /// Takes one argument, `variables`. Returns a Response or a RoverClientError.
     /// Does not automatically retry requests.
-    pub fn post_no_retry<Q: GraphQLQuery>(
+    pub async fn post_no_retry<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
         self.client
             .post_no_retry::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
+            .await
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making

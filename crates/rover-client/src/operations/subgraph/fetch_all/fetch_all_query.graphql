@@ -9,6 +9,31 @@ query SubgraphFetchAllQuery($graph_ref: ID!) {
           sdl
         }
       }
+      latestLaunch {
+        buildInput {
+          __typename
+          ... on CompositionBuildInput {
+            version
+          }
+        }
+      }
+      sourceVariant {
+        subgraphs {
+          name
+          url
+          activePartialSchema {
+            sdl
+          }
+        }
+        latestLaunch {
+          buildInput {
+            __typename
+            ... on CompositionBuildInput {
+              version
+            }
+          }
+        }
+      }
     }
   }
 }

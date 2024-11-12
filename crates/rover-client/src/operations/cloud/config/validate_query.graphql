@@ -1,0 +1,24 @@
+query CloudConfigValidateQuery($config: RouterConfigInput!, $ref: ID!) {
+  variant(ref: $ref) {
+    __typename
+    ... on GraphVariant {
+      validateRouter(config: $config) {
+        __typename
+        ... on CloudValidationSuccess {
+          message
+        }
+        ... on InvalidInputErrors {
+          errors {
+            argument
+            location
+            reason
+          }
+          message
+        }
+        ... on InternalServerError {
+          message
+        }
+      }
+    }
+  }
+}

@@ -15,12 +15,14 @@ use graphql_client::*;
 )]
 pub struct ResolvePersistedQueryListQuery;
 
-pub fn run(
+pub async fn run(
     input: ResolvePersistedQueryListInput,
     client: &StudioClient,
 ) -> Result<PersistedQueryList, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<ResolvePersistedQueryListQuery>(input.into())?;
+    let data = client
+        .post::<ResolvePersistedQueryListQuery>(input.into())
+        .await?;
     build_response(data, graph_ref)
 }
 

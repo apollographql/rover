@@ -17,7 +17,7 @@
     "graphql-tag": "^2"
   },
   "devDependencies": {
-    "concurrently": "8.2.2",
-    "nodemon": "3.1.4"
+    "concurrently": "9.0.1",
+    "nodemon": "3.1.7"
   }
 }

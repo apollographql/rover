@@ -19,9 +19,12 @@ use graphql_client::*;
 pub(crate) struct LicenseFetchQuery;
 
 /// The main function to be used from this module. This function fetches an offline license if permitted to do so.
-pub fn run(input: LicenseFetchInput, client: &StudioClient) -> Result<String, RoverClientError> {
+pub async fn run(
+    input: LicenseFetchInput,
+    client: &StudioClient,
+) -> Result<String, RoverClientError> {
     let graph_id = input.graph_id.clone();
-    let response_data = client.post::<LicenseFetchQuery>(input.into())?;
+    let response_data = client.post::<LicenseFetchQuery>(input.into()).await?;
     let license = get_license_response_from_data(response_data, &graph_id)?;
     Ok(license)
 }

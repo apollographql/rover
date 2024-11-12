@@ -1,17 +1,16 @@
-mod code;
-mod suggestion;
-
-pub use code::RoverErrorCode;
-pub use suggestion::RoverErrorSuggestion;
-
-use houston::HoustonProblem;
-use rover_client::{EndpointKind, RoverClientError};
-
-use crate::{options::JsonVersion, utils::env::RoverEnvKey};
-
 use std::env;
 
 use serde::Serialize;
+
+pub use code::RoverErrorCode;
+use houston::HoustonProblem;
+use rover_client::{EndpointKind, RoverClientError};
+pub use suggestion::RoverErrorSuggestion;
+
+use crate::{options::JsonVersion, utils::env::RoverEnvKey};
+
+mod code;
+mod suggestion;
 
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
@@ -316,6 +315,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
+                RoverClientError::InvalidRouterConfig { .. } => (None, None),
+                RoverClientError::NonCloudGraphRef { .. } => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

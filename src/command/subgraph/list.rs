@@ -18,7 +18,7 @@ pub struct List {
 }
 
 impl List {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         eprintln!(
@@ -32,7 +32,8 @@ impl List {
                 graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::SubgraphList(list_details))
     }

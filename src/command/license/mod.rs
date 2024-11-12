@@ -20,9 +20,9 @@ pub enum Command {
 }
 
 impl License {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(command) => command.run(client_config),
+            Command::Fetch(command) => command.run(client_config).await,
         }
     }
 }

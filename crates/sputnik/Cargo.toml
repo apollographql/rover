@@ -22,6 +22,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 wsl = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
 
 [dev-dependencies]
 assert_fs = { workspace = true }

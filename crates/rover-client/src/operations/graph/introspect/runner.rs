@@ -22,7 +22,7 @@ pub(crate) struct GraphIntrospectQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
-pub fn run(
+pub async fn run(
     input: GraphIntrospectInput,
     client: &GraphQLClient,
     should_retry: bool,
@@ -36,13 +36,17 @@ pub fn run(
         );
     }
     let response_data = if should_retry {
-        client.post::<GraphIntrospectQuery>(variables, &mut header_map, EndpointKind::Customer)
+        client
+            .post::<GraphIntrospectQuery>(variables, &mut header_map, EndpointKind::Customer)
+            .await
     } else {
-        client.post_no_retry::<GraphIntrospectQuery>(
-            variables,
-            &mut header_map,
-            EndpointKind::Customer,
-        )
+        client
+            .post_no_retry::<GraphIntrospectQuery>(
+                variables,
+                &mut header_map,
+                EndpointKind::Customer,
+            )
+            .await
     }?;
 
     build_response(response_data)

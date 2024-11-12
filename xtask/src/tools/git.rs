@@ -1,10 +1,11 @@
+use crate::tools::Runner;
 use std::{convert::TryFrom, fs};
 
-use crate::tools::Runner;
-
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use assert_fs::TempDir;
 use camino::Utf8PathBuf;
+
+const ROVER_DEFAULT_BRANCH: &str = "main";
 
 pub(crate) struct GitRunner {
     runner: Runner,
@@ -93,7 +94,7 @@ impl GitRunner {
     }
 
     pub(crate) fn checkout_rover_version(&self, rover_version: &str) -> Result<Utf8PathBuf> {
-        let repo_path = self.clone("apollographql", "rover", "main")?;
+        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
 
         self.runner.exec(
             &["checkout", &format!("tags/{}", rover_version)],
@@ -102,5 +103,64 @@ impl GitRunner {
         )?;
 
         Ok(repo_path)
+    }
+
+    pub(crate) fn checkout_rover_sha(&self, sha: &str) -> Result<Utf8PathBuf> {
+        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
+
+        self.runner.exec(&["checkout", sha], &repo_path, None)?;
+
+        Ok(repo_path)
+    }
+
+    pub(crate) fn get_changed_files(&self, current_sha: &str) -> Result<Vec<Utf8PathBuf>> {
+        let repo_path = self.checkout_rover_sha(current_sha)?;
+
+        let is_default_branch = self
+            .runner
+            .exec(
+                &["cherry", "-v", ROVER_DEFAULT_BRANCH, current_sha],
+                &repo_path,
+                None,
+            )?
+            .stdout
+            .is_empty();
+
+        let base_sha = if is_default_branch {
+            self.runner
+                .exec(
+                    &["rev-parse", &format!("{}~1", ROVER_DEFAULT_BRANCH)],
+                    &repo_path,
+                    None,
+                )?
+                .stdout
+        } else {
+            let list_output = self
+                .runner
+                .exec(
+                    &[
+                        "rev-list",
+                        "--boundary",
+                        &format!("{}...{}", current_sha, ROVER_DEFAULT_BRANCH),
+                    ],
+                    &repo_path,
+                    None,
+                )?
+                .stdout;
+            // Process the output, split it, find the line that starts with a `-` and then
+            // extract the commit contained in that line
+            let base_sha = list_output
+                .split("\n")
+                .find(|l| l.starts_with("-"))
+                .ok_or(anyhow!("could not find base commit"))?;
+            base_sha[1..base_sha.len()].to_string()
+        };
+
+        let output = self.runner.exec(
+            &["diff", "--name-only", current_sha, &base_sha],
+            &repo_path,
+            None,
+        )?;
+        Ok(output.stdout.split("\n").map(Utf8PathBuf::from).collect())
     }
 }

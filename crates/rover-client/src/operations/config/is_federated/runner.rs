@@ -19,12 +19,12 @@ use crate::RoverClientError;
 /// Snake case of this name is the mod name. i.e. publish_partial_schema_mutation
 pub(crate) struct IsFederatedGraph;
 
-pub(crate) fn run(
+pub(crate) async fn run(
     input: IsFederatedInput,
     client: &StudioClient,
 ) -> Result<bool, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<IsFederatedGraph>(input.into())?;
+    let data = client.post::<IsFederatedGraph>(input.into()).await?;
     build_response(data, graph_ref)
 }
 

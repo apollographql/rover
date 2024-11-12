@@ -3,39 +3,19 @@ use std::net::IpAddr;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use derive_getters::Getters;
+use rover_client::shared::GraphRef;
 use serde::Serialize;
 
-use rover_client::shared::GraphRef;
+use crate::{
+    options::{OptionalSubgraphOpts, PluginOpts},
+    utils::parsers::FileDescriptorType,
+};
 
-use crate::options::{OptionalSubgraphOpts, PluginOpts};
-use crate::utils::parsers::FileDescriptorType;
-
-#[cfg(feature = "composition-js")]
-mod compose;
-
-#[cfg(feature = "composition-js")]
-mod do_dev;
-
-#[cfg(feature = "composition-js")]
-mod introspect;
-
-#[cfg(feature = "composition-js")]
-mod protocol;
-
-#[cfg(feature = "composition-js")]
-mod router;
-
-#[cfg(feature = "composition-js")]
-mod schema;
-
-#[cfg(feature = "composition-js")]
-mod netstat;
-
-#[cfg(not(feature = "composition-js"))]
-mod no_dev;
-
-#[cfg(feature = "composition-js")]
-mod watcher;
+#[cfg(not(feature = "dev-next"))]
+pub mod legacy;
+#[cfg(feature = "dev-next")]
+pub mod next;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -55,7 +35,7 @@ pub struct DevOpts {
     pub supergraph_opts: SupergraphOpts,
 }
 
-#[derive(Debug, Parser, Serialize, Clone)]
+#[derive(Debug, Parser, Serialize, Clone, Getters)]
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///
@@ -87,7 +67,7 @@ pub struct SupergraphOpts {
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
     #[arg(
-        long = "supergraph-config", 
+        long = "supergraph-config",
         conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
     supergraph_config_path: Option<FileDescriptorType>,
@@ -104,6 +84,12 @@ pub struct SupergraphOpts {
     /// The version of Apollo Federation to use for composition
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
+
+    /// The path to an offline enterprise license file.
+    ///
+    /// For more information, please see https://www.apollographql.com/docs/router/enterprise-features/#offline-enterprise-license
+    #[arg(long)]
+    license: Option<Utf8PathBuf>,
 }
 
 lazy_static::lazy_static! {

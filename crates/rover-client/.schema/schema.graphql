@@ -551,6 +551,67 @@ type CheckSchemaResult {
   targetUrl: String
 }
 
+enum CheckStepStatus {
+  FAILURE
+  SUCCESS
+}
+
+"""An individual diagnostic violation of a custom check task."""
+type CheckViolation {
+  """
+  The schema coordinate of this rule violation as defined by RFC:
+  		https://github.com/graphql/graphql-wg/blob/main/rfcs/SchemaCoordinates.md
+  		Optional for violations that aren't specific to a single schema element
+  """
+  coordinate: String
+
+  """The violation level for the rule."""
+  level: ViolationLevel!
+
+  """
+  The human readable message describing the rule violation. Max character length is 512.
+  """
+  message: String!
+
+  """
+  The rule being violated. This is used to group multiple violations together in Studio. Max character length is 128.
+  """
+  rule: String!
+
+  """
+  The start and end position in the file of the rule violation. Used to display rule violations in the context of your schema diff.
+  """
+  sourceLocations: [FileLocation!]
+}
+
+"""An individual diagnostic violation of a custom check task."""
+input CheckViolationInput {
+  """
+  The schema coordinate of this rule violation as defined by RFC:
+  		https://github.com/graphql/graphql-wg/blob/main/rfcs/SchemaCoordinates.md
+  		Optional for violations that aren't specific to a single schema element
+  """
+  coordinate: String
+
+  """The violation level for the rule."""
+  level: ViolationLevel!
+
+  """
+  The human readable message describing the rule violation. Max character length is 512.
+  """
+  message: String!
+
+  """
+  The rule being violated. This is used to group multiple violations together in Studio. Max character length is 128.
+  """
+  rule: String!
+
+  """
+  The start and end position in the file of the rule violation. Used to display rule violations in the context of your schema diff.
+  """
+  sourceLocations: [FileLocationInput!]
+}
+
 type CheckWorkflow {
   """
   The variant provided as a base to check against. Only the differences from the
@@ -637,6 +698,18 @@ input ClientInfoFilter {
   version: String
 }
 
+"""Invalid input error"""
+type CloudInvalidInputError {
+  """Argument related to the error"""
+  argument: String!
+
+  """Location of the error"""
+  location: String
+
+  """Reason for the error"""
+  reason: String!
+}
+
 """Cloud Router tiers"""
 enum CloudTier {
   """Serverless tier"""
@@ -647,6 +720,14 @@ enum CloudTier {
 
   """Enterprise Cloud tier"""
   ENTERPRISE
+}
+
+"""Validation result"""
+union CloudValidationResult = CloudValidationSuccess | InvalidInputErrors | InternalServerError
+
+"""Config validation success"""
+type CloudValidationSuccess {
+  message: String!
 }
 
 enum CommentStatus {
@@ -851,6 +932,36 @@ input CreateProposalInput {
 
 union CreateProposalResult = CreateProposalError | GraphVariant | PermissionError | ValidationError
 
+input CustomCheckCallbackInput {
+  """
+  Sets the status of your check task. Setting this status to FAILURE will cause the entire check workflow to fail.
+  """
+  status: CheckStepStatus!
+  taskId: ID!
+
+  """The violations found by your check task. Max length is 1000"""
+  violations: [CheckViolationInput!]
+  workflowId: ID!
+}
+
+"""Result of a custom check task callback mutation."""
+union CustomCheckCallbackResult = CustomCheckResult | PermissionError | TaskError | ValidationError
+
+type CustomCheckResult {
+  violations: [CheckViolation!]!
+}
+
+type CustomCheckTask implements CheckWorkflowTask {
+  graphID: ID!
+  id: ID!
+  result: CustomCheckResult
+  completedAt: Timestamp
+  createdAt: Timestamp!
+  status: CheckWorkflowTaskStatus!
+  targetURL: String
+  workflow: CheckWorkflow!
+}
+
 """
 Implement the DateTime<Utc> scalar
 
@@ -1001,6 +1112,30 @@ type FieldChangeSummaryCounts {
   field changes.
   """
   edits: Int!
+}
+
+type FileCoordinate {
+  byteOffset: Int!
+  column: Int!
+  line: Int!
+}
+
+input FileCoordinateInput {
+  byteOffset: Int!
+  column: Int!
+  line: Int!
+}
+
+type FileLocation {
+  end: FileCoordinate!
+  start: FileCoordinate!
+  subgraphName: String
+}
+
+input FileLocationInput {
+  end: FileCoordinateInput!
+  start: FileCoordinateInput!
+  subgraphName: String
 }
 
 """
@@ -1446,6 +1581,9 @@ type GraphVariant {
   """Router associated with this graph variant"""
   router: Router
 
+  """Validate router configuration for this graph variant"""
+  validateRouter(config: RouterConfigInput!): CloudValidationResult!
+
   """The graph that this variant belongs to."""
   graph: Graph!
 
@@ -1520,6 +1658,7 @@ type GraphVariant {
   Returns the details of the subgraph with the provided `name`, or null if this variant doesn't include a subgraph with that name.
   """
   subgraph(name: ID!): GraphVariantSubgraph
+  routerConfig: String
 }
 
 """Result of looking up a variant by ref"""
@@ -1531,6 +1670,7 @@ Modifies a variant of a graph, also called a schema tag in parts of our product.
 type GraphVariantMutation {
   """Gets the router attached to a graph variant"""
   router: RouterMutation
+  customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
 
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
@@ -1574,6 +1714,7 @@ type GraphVariantMutation {
 
   """Delete the variant."""
   delete: GraphVariantDeletionResult!
+  upsertRouterConfig(configuration: String!): UpsertRouterResult
 }
 
 """
@@ -1731,6 +1872,14 @@ type InternalIdentity implements Identity {
   name: String!
   email: String
   accounts: [Organization!]!
+}
+
+"""
+Generic server error. This should only ever return 'internal server error' as a message
+"""
+type InternalServerError implements Error {
+  """Message related to the internal error"""
+  message: String!
 }
 
 input IntrospectionDirectiveInput {
@@ -1897,6 +2046,12 @@ An error caused by providing invalid input for a task, such as schema checks.
 """
 type InvalidInputError {
   """The error message."""
+  message: String!
+}
+
+"""Generic input error"""
+type InvalidInputErrors implements Error {
+  errors: [CloudInvalidInputError!]!
   message: String!
 }
 
@@ -3508,6 +3663,25 @@ type Router {
   gcus: Int
 }
 
+"""Router configuration input"""
+input RouterConfigInput {
+  """Router version for the Cloud Router"""
+  routerVersion: String
+
+  """Configuration for the Cloud Router"""
+  routerConfig: String
+
+  """Graph composition ID, also known as launch ID"""
+  graphCompositionId: String
+
+  """
+  Number of GCUs allocated for the Cloud Router
+  
+  This is ignored for serverless Cloud Routers
+  """
+  gcus: Int
+}
+
 """
 List of endpoints for Cloud Router
 
@@ -3560,7 +3734,7 @@ type RouterEndpoints {
 }
 
 """Represents the possible outcomes of an endpoint mutation"""
-union RouterEndpointsResult = RouterEndpointsSuccess
+union RouterEndpointsResult = RouterEndpointsSuccess | InvalidInputErrors | InternalServerError
 
 """Successe branch of  an addEndpoint or removeEndpoint mutation"""
 type RouterEndpointsSuccess {
@@ -3575,7 +3749,7 @@ type RouterLicense {
 }
 
 """Represents the possible outcomes of a setGcus mutation"""
-union RouterGcusResult = RouterGcusSuccess
+union RouterGcusResult = RouterGcusSuccess | InvalidInputErrors | InternalServerError
 
 """Success branch of a setGcus mutation"""
 type RouterGcusSuccess {
@@ -3606,7 +3780,7 @@ input RouterSecretsInput {
 }
 
 """Represents the possible outcomes of a RouterSecrets mutation"""
-union RouterSecretsResult = RouterSecretsSuccess
+union RouterSecretsResult = RouterSecretsSuccess | InvalidInputErrors | InternalServerError
 
 """Success branch of a RouterSecrets mutation."""
 type RouterSecretsSuccess {
@@ -3653,6 +3827,10 @@ enum RouterStatus {
   DELETED
 }
 
+type RouterUpsertFailure {
+  message: String!
+}
+
 """Router Version"""
 type RouterVersion {
   """Version identifier"""
@@ -3673,7 +3851,7 @@ type RouterVersion {
   """
   JSON schema for validating the router configuration for this router version
   """
-  configSchema(tier: CloudTier): String!
+  configSchema: String!
 }
 
 """A GraphQL schema document and associated metadata."""
@@ -3861,6 +4039,11 @@ type Graph implements Identity {
   """Get a GraphQL document by hash"""
   doc(hash: SHA256): GraphQLDoc
 
+  """
+  Get GraphQL documents by hash, max up to 100 can be requested per query
+  """
+  docs(hashes: [SHA256!]!): [GraphQLDoc]
+
   """Get a GraphQL document by hash"""
   document(hash: SHA256): GraphQLDocument @deprecated(reason: "Use doc instead")
 
@@ -4045,6 +4228,11 @@ Individual permissions for the current user when interacting with a particular S
 """
 type GraphRoles {
   """
+  Whether the currently authenticated user is permitted to perform schema checks (i.e., run `rover (sub)graph check`).
+  """
+  canCheckSchemas: Boolean!
+
+  """
   Whether the currently authenticated user is permitted to view details of the check configuration for this graph.
   """
   canQueryCheckConfiguration: Boolean!
@@ -4054,11 +4242,6 @@ type GraphRoles {
   """
   canWriteCheckConfiguration: Boolean!
   service: Graph!
-
-  """
-  Whether the currently authenticated user is permitted to perform schema checks (i.e., run `rover (sub)graph check`).
-  """
-  canCheckSchemas: Boolean!
 
   """
   Whether the currently authenticated user is permitted to create new graph variants.
@@ -4253,6 +4436,10 @@ input SubgraphSdlCheckInput {
   sdl: GraphQLDocument!
 }
 
+type TaskError {
+  message: String!
+}
+
 """
 ISO 8601, extended format with nanoseconds, Zulu (or "[+-]seconds" as a string or number relative to now)
 """
@@ -4343,6 +4530,8 @@ type SchemaPublicationResult {
   publication: SchemaPublication
 }
 
+union UpsertRouterResult = GraphVariant | RouterUpsertFailure
+
 """A registered Apollo Studio user."""
 type User implements Identity {
   """
@@ -4431,6 +4620,12 @@ enum UserPermission {
 type ValidationError implements Error {
   """The error's details."""
   message: String!
+}
+
+enum ViolationLevel {
+  ERROR
+  INFO
+  WARNING
 }
 
 """Always null"""

@@ -4,8 +4,9 @@ use std::{io, str::FromStr, time::Duration};
 use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
+use derive_getters::Getters;
 use houston as config;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
@@ -13,7 +14,7 @@ use serde::Serialize;
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
@@ -56,13 +57,18 @@ impl ClientBuilder {
         }
     }
 
-    pub(crate) fn build(self) -> reqwest::Result<Client> {
-        let client = Client::builder()
+    pub(crate) fn build(self) -> Result<Client> {
+        let mut builder = Client::builder()
             .gzip(true)
             .brotli(true)
             .danger_accept_invalid_certs(self.accept_invalid_certs)
-            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
-            .timeout(self.timeout)
+            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames);
+
+        if let Some(timeout) = self.timeout {
+            builder = builder.timeout(timeout);
+        }
+
+        let client = builder
             .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
             .build()?;
 
@@ -108,14 +114,17 @@ impl fmt::Display for ClientTimeout {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 pub struct StudioClientConfig {
+    #[getter(skip)]
     pub(crate) config: config::Config,
     client_builder: ClientBuilder,
     uri: String,
     version: String,
     is_sudo: bool,
     client: Option<Client>,
+    #[getter(skip)]
+    pub(crate) retry_period: Option<Duration>,
 }
 
 impl StudioClientConfig {
@@ -124,6 +133,7 @@ impl StudioClientConfig {
         config: config::Config,
         is_sudo: bool,
         client_builder: ClientBuilder,
+        retry_period: Option<Duration>,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
             format!("{} (dev)", PKG_VERSION)
@@ -138,10 +148,11 @@ impl StudioClientConfig {
             client_builder,
             is_sudo,
             client: None,
+            retry_period,
         }
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
         if let Some(client) = &self.client {
             Ok(client.clone())
         } else {
@@ -163,6 +174,7 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
+            self.retry_period,
         ))
     }
 }

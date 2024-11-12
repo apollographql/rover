@@ -6,7 +6,7 @@ description: Learn Rover CLI commands for fetching, composing, and managing supe
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
-A _supergraph_ (also called a federated graph) is a graph composed of multiple _subgraphs_:
+A supergraph is a graph composed of multiple subgraphs:
 
 ```mermaid
 graph BT;
@@ -17,7 +17,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-types/overview/).
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-schemas).
 
 ## Fetching a supergraph schema from GraphOS
 
@@ -25,13 +25,13 @@ Rover commands that interact with supergraphs begin with `rover supergraph`. The
 
 <AuthNotice />
 
-You can use Rover to fetch the supergraph schema of any federated Studio graph variant it has access to. Run the `supergraph fetch` command, like so:
+You can use Rover to fetch the supergraph schema of any federated GraphOS Studio variant it has access to. Run the `supergraph fetch` command, like so:
 
 ```bash
 rover supergraph fetch my-supergraph@my-variant
 ```
 
-To fetch a supergraph's API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/federated-types/overview/)
+To fetch a supergraph's API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/federated-schemas)
 
 The argument `my-supergraph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
@@ -56,6 +56,38 @@ You can also pass config via stdin:
 ```bash
 cat ./supergraph.yaml | rover supergraph compose --config -
 ```
+
+### From a Studio variant
+
+You can optionally pass a variant's graph ref to download each subgraph's SDL and compose the supergraph SDL like so:
+
+```bash
+rover supergraph compose --graph-ref platform@staging
+```
+
+You can optionally pass a [YAML configuration file](#yaml-configuration-file) to override specific subgraphs or add a new one.
+This is useful for testing new subgraph schemas before publishing them.
+
+For example, given a `supergraph_override.yaml` file like this:
+
+```yaml title="supergraph_override.yaml" showLineNumbers=false
+subgraphs:
+  products:
+    routing_url: http://localhost:4000
+    schema:
+      file: ./products.graphql
+```
+
+You can override a variant's published `products` subgraph like so:
+
+```bash showLineNumbers=false
+rover supergraph compose \
+  --graph-ref docs-example-graph@current \
+  --config path/to/supergraph_override.yaml
+
+```
+
+Note that you only need to set `routing_url` if you want to change it from the routing URL registered for the subgraph in GraphOS.
 
 ### YAML configuration file
 
@@ -110,7 +142,7 @@ The `supergraph.yaml` file supports variable expansion using [the same syntax as
 
 ### Output format
 
-By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/apollo-server/using-federation/api/apollo-gateway/) or the [🦀 GraphOS Router](/router/) on startup.
+By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-schemas) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/apollo-server/using-federation/api/apollo-gateway/) or the [🦀 GraphOS Router](/router/) on startup.
 
 <Caution>
 
@@ -195,5 +227,5 @@ We recommend updating to the latest version of Rover as soon as possible. If you
 
 |Rover version|Gateway version|
 |---|---|
-|<= v0.2.x|<= v0.38.x|
-|>= v0.3.x|>= v0.39.x|
+|&lt;= v0.2.x|&lt;= v0.38.x|
+|&gt;= v0.3.x|&gt;= v0.39.x|

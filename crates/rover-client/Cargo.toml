@@ -12,7 +12,7 @@ ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 apollo-encoder = { workspace = true }
-backoff = { workspace = true }
+backoff = { workspace = true, features = ["tokio", "futures"] }
 buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 derive-getters = { workspace = true }
@@ -40,6 +40,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 regex = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
 
 [build-dependencies]
 anyhow = { workspace = true }

@@ -31,17 +31,17 @@ serde = { workspace = true, features = ["derive"] }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-stream = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }
 zip = { workspace = true }
-octocrab = "0.39.0"
+octocrab = "0.41.0"
 
 [target.'cfg(not(windows))'.dependencies]
-lychee-lib = { version = "0.15", features = ["vendored-openssl"] }
+lychee-lib = { version = "0.16", features = ["vendored-openssl"] }
 
 [dev-dependencies]
-mockito = "1.4.0"
+mockito = "1.5.0"
 rstest = { workspace = true }
 speculoos = { workspace = true }

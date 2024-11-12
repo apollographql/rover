@@ -14,7 +14,7 @@
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-$package_version = 'v0.26.0-rc.0'
+$package_version = 'v0.26.2'
 
 function Install-Binary($rover_install_args) {
   $old_erroractionpreference = $ErrorActionPreference
@@ -48,7 +48,11 @@ function Download($version) {
 }
 
 function Invoke-Installer($tmp, $rover_install_args) {
-  & "$exe" "install" "$rover_install_args"
+  if (![string]::IsNullOrWhiteSpace($rover_install_args)) {
+    & "$exe" "install" "$rover_install_args"
+  } else {
+    & "$exe" "install"
+  }
   Remove-Item "$tmp" -Recurse -Force
 }
 

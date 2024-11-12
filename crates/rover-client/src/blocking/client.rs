@@ -2,31 +2,33 @@ use std::time::Duration;
 
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
-    blocking::{Client as ReqwestClient, Response},
     header::{HeaderMap, HeaderValue},
-    StatusCode,
+    Client as ReqwestClient, Response, StatusCode,
 };
 
 use crate::error::{EndpointKind, RoverClientError};
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 
-const MAX_ELAPSED_TIME: Option<Duration> =
-    Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
-
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
     graphql_endpoint: String,
     client: ReqwestClient,
+    retry_period: Option<Duration>,
 }
 
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(graphql_endpoint: &str, client: ReqwestClient) -> GraphQLClient {
+    pub fn new(
+        graphql_endpoint: &str,
+        client: ReqwestClient,
+        retry_period: Option<Duration>,
+    ) -> GraphQLClient {
         GraphQLClient {
             graphql_endpoint: graphql_endpoint.to_string(),
             client,
+            retry_period,
         }
     }
 
@@ -34,7 +36,7 @@ impl GraphQLClient {
     ///
     /// Takes one argument, `variables`. Returns an optional response.
     /// Automatically retries requests.
-    pub fn post<Q>(
+    pub async fn post<Q>(
         &self,
         variables: Q::Variables,
         header_map: &mut HeaderMap,
@@ -45,15 +47,17 @@ impl GraphQLClient {
     {
         let request_body = self.get_request_body::<Q>(variables)?;
         header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
-        let response = self.execute(request_body, header_map, true, endpoint_kind);
-        GraphQLClient::handle_response::<Q>(response?, endpoint_kind)
+        let response = self
+            .execute(request_body, header_map, true, endpoint_kind)
+            .await;
+        GraphQLClient::handle_response::<Q>(response?, endpoint_kind).await
     }
 
     /// Client method for making a GraphQL request.
     ///
     /// Takes one argument, `variables`. Returns an optional response.
     /// Does not automatically retry requests.
-    pub fn post_no_retry<Q>(
+    pub async fn post_no_retry<Q>(
         &self,
         variables: Q::Variables,
         header_map: &mut HeaderMap,
@@ -64,8 +68,10 @@ impl GraphQLClient {
     {
         let request_body = self.get_request_body::<Q>(variables)?;
         header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
-        let response = self.execute(request_body, header_map, false, endpoint_kind);
-        GraphQLClient::handle_response::<Q>(response?, endpoint_kind)
+        let response = self
+            .execute(request_body, header_map, false, endpoint_kind)
+            .await;
+        GraphQLClient::handle_response::<Q>(response?, endpoint_kind).await
     }
 
     fn get_request_body<Q: GraphQLQuery>(
@@ -76,24 +82,25 @@ impl GraphQLClient {
         Ok(serde_json::to_string(&body)?)
     }
 
-    fn execute(
+    async fn execute(
         &self,
         request_body: String,
         header_map: &HeaderMap,
         should_retry: bool,
         endpoint_kind: EndpointKind,
     ) -> Result<Response, RoverClientError> {
-        use backoff::{retry, Error as BackoffError, ExponentialBackoff};
+        use backoff::{future::retry, Error as BackoffError, ExponentialBackoff};
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
-        let graphql_operation = || {
+        let graphql_operation = || async {
             let response = self
                 .client
                 .post(&self.graphql_endpoint)
                 .headers(header_map.clone())
                 .body(request_body.clone())
-                .send();
+                .send()
+                .await;
 
             match response {
                 Err(client_error) => {
@@ -129,7 +136,7 @@ impl GraphQLClient {
                                 || response_status.is_redirection()
                             {
                                 if matches!(response_status, StatusCode::BAD_REQUEST) {
-                                    if let Ok(text) = success.text() {
+                                    if let Ok(text) = success.text().await {
                                         tracing::debug!("{}", text);
                                     }
                                     Err(BackoffError::Permanent(status_error))
@@ -151,22 +158,18 @@ impl GraphQLClient {
 
         if should_retry {
             let backoff_strategy = ExponentialBackoff {
-                max_elapsed_time: MAX_ELAPSED_TIME,
+                max_elapsed_time: self.retry_period,
                 ..Default::default()
             };
 
-            retry(backoff_strategy, graphql_operation).map_err(|e| match e {
-                BackoffError::Permanent(reqwest_error)
-                | BackoffError::Transient {
-                    err: reqwest_error,
-                    retry_after: _,
-                } => RoverClientError::SendRequest {
-                    source: reqwest_error,
+            retry(backoff_strategy, graphql_operation)
+                .await
+                .map_err(|e| RoverClientError::SendRequest {
+                    source: e,
                     endpoint_kind,
-                },
-            })
+                })
         } else {
-            graphql_operation().map_err(|e| match e {
+            graphql_operation().await.map_err(|e| match e {
                 BackoffError::Permanent(reqwest_error)
                 | BackoffError::Transient {
                     err: reqwest_error,
@@ -187,13 +190,13 @@ impl GraphQLClient {
     /// body.data, it will also error, as this shouldn't be possible.
     ///
     /// If successful, it will return body.data, unwrapped
-    pub(crate) fn handle_response<Q: GraphQLQuery>(
+    pub(crate) async fn handle_response<Q: GraphQLQuery>(
         response: Response,
         endpoint_kind: EndpointKind,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let response_status = response.status();
         tracing::debug!(response_status = ?response_status, response_headers = ?response.headers());
-        match response.json::<GraphQLResponse<Q::ResponseData>>() {
+        match response.json::<GraphQLResponse<Q::ResponseData>>().await {
             Ok(response_body) => {
                 if let Some(response_body_errors) = response_body.errors {
                     handle_graphql_body_errors(response_body_errors)?;
@@ -313,8 +316,8 @@ mod tests {
         assert_eq!(actual_error, expected_error);
     }
 
-    #[test]
-    fn test_successful_response() {
+    #[tokio::test]
+    async fn test_successful_response() {
         let server = MockServer::start();
         let success_path = "/throw-me-a-frickin-bone-here";
         let success_mock = server.mock(|when, then| {
@@ -323,14 +326,20 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(success_path), client);
-
-        let response = graphql_client.execute(
-            "{}".to_string(),
-            &HeaderMap::new(),
-            true,
-            EndpointKind::ApolloStudio,
+        let graphql_client = GraphQLClient::new(
+            &server.url(success_path),
+            client,
+            Some(Duration::from_secs(3)),
         );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::ApolloStudio,
+            )
+            .await;
 
         let mock_hits = success_mock.hits();
 
@@ -338,8 +347,8 @@ mod tests {
         assert!(response.is_ok())
     }
 
-    #[test]
-    fn test_unrecoverable_server_error() {
+    #[tokio::test]
+    async fn test_unrecoverable_server_error() {
         let server = MockServer::start();
         let internal_server_error_path = "/this-is-me-in-a-nutshell";
         let internal_server_error_mock = server.mock(|when, then| {
@@ -348,14 +357,20 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(internal_server_error_path), client);
-
-        let response = graphql_client.execute(
-            "{}".to_string(),
-            &HeaderMap::new(),
-            true,
-            EndpointKind::ApolloStudio,
+        let graphql_client = GraphQLClient::new(
+            &server.url(internal_server_error_path),
+            client,
+            Some(Duration::from_secs(3)),
         );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::ApolloStudio,
+            )
+            .await;
 
         let mock_hits = internal_server_error_mock.hits();
 
@@ -363,8 +378,8 @@ mod tests {
         assert!(response.is_err());
     }
 
-    #[test]
-    fn test_unrecoverable_client_error() {
+    #[tokio::test]
+    async fn test_unrecoverable_client_error() {
         let server = MockServer::start();
         let not_found_path = "/austin-powers-the-musical";
         let not_found_mock = server.mock(|when, then| {
@@ -373,14 +388,20 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(not_found_path), client);
-
-        let response = graphql_client.execute(
-            "{}".to_string(),
-            &HeaderMap::new(),
-            true,
-            EndpointKind::ApolloStudio,
+        let graphql_client = GraphQLClient::new(
+            &server.url(not_found_path),
+            client,
+            Some(Duration::from_secs(3)),
         );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::ApolloStudio,
+            )
+            .await;
 
         let mock_hits = not_found_mock.hits();
 
@@ -390,8 +411,8 @@ mod tests {
         assert!(error.to_string().contains("Not Found"));
     }
 
-    #[test]
-    fn test_timeout_error() {
+    #[tokio::test]
+    async fn test_timeout_error() {
         let server = MockServer::start();
         let timeout_path = "/i-timeout-easily";
         let timeout_mock = server.mock(|when, then| {
@@ -401,18 +422,24 @@ mod tests {
                 .delay(Duration::from_secs(3));
         });
 
-        let client = reqwest::blocking::ClientBuilder::new()
+        let client = reqwest::ClientBuilder::new()
             .timeout(Duration::from_secs(1))
             .build()
             .unwrap();
-        let graphql_client = GraphQLClient::new(&server.url(timeout_path), client);
-
-        let response = graphql_client.execute(
-            "{}".to_string(),
-            &HeaderMap::new(),
-            true,
-            EndpointKind::ApolloStudio,
+        let graphql_client = GraphQLClient::new(
+            &server.url(timeout_path),
+            client,
+            Some(Duration::from_secs(3)),
         );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::ApolloStudio,
+            )
+            .await;
 
         let mock_hits = timeout_mock.hits();
 

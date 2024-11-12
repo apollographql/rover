@@ -6,9 +6,18 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const MockAdapter = require("axios-mock-adapter");
 const axios = require("axios");
+const {getPlatform} = require("../binary");
 
 var mock = new MockAdapter(axios);
-mock.onGet(new RegExp("https://rover\.apollo\.dev.*")).reply(function (_) {
+mock.onGet(new RegExp("https://rover\.apollo\.dev/tar/rover/x86_64-pc-windows-msvc/.*")).reply(function (_) {
+  return [
+    200,
+    fs.createReadStream(
+        path.join(__dirname, "fake_tarballs", "rover-fake-windows.tar.gz"),
+    ),
+  ];
+});
+mock.onGet(new RegExp("https://rover\.apollo\.dev/tar/rover/.*")).reply(function (_) {
   return [
     200,
     fs.createReadStream(
@@ -16,6 +25,7 @@ mock.onGet(new RegExp("https://rover\.apollo\.dev.*")).reply(function (_) {
     ),
   ];
 });
+
 
 test("getBinary should be created with correct name and URL", () => {
   fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
@@ -126,6 +136,21 @@ test("install renames binary properly", async () => {
     directory_entries.filter(
       (d) => d.isFile() && d.name === `rover-${pjson.version}`,
     ),
+  ).toHaveLength(1);
+});
+
+test("install renames binary properly (Windows)", async () => {
+  // Establish temporary directory
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
+  // Create a Binary object
+  const bin = binary.getBinary(directory, getPlatform("Windows_NT", "x64"));
+  const directory_entries = await bin.install({}, true).then(async () => {
+    return fs.readdirSync(directory, { withFileTypes: true });
+  });
+  expect(
+      directory_entries.filter(
+          (d) => d.isFile() && d.name === `rover-${pjson.version}.exe`,
+      ),
   ).toHaveLength(1);
 });
 

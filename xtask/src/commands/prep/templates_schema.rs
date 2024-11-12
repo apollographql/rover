@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use std::process::Command;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::Client;
 
 use rover_client::{
     blocking::GraphQLClient,
@@ -20,21 +20,25 @@ const QUERIES_PATH: &str = "./src/command/template/queries.graphql";
 /// If the user is offline and the schema already exists in the file system, the script does nothing.
 ///
 /// The URL to fetch the schema can be overridden with the APOLLO_GRAPHQL_SCHEMA_URL environment variable.
-pub fn update() -> Result<()> {
-    let sdl = introspect()?;
+pub async fn update() -> Result<()> {
+    let sdl = introspect().await?;
 
     let schema_path = Utf8PathBuf::from(SCHEMA_PATH);
     Fs::write_file(schema_path, sdl)?;
     regenerate_queries()
 }
 
-fn introspect() -> Result<String> {
+async fn introspect() -> Result<String> {
     let graphql_endpoint = "https://rover.apollo.dev/templates";
     crate::info!(
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
     );
-    let graphql_client = GraphQLClient::new(graphql_endpoint, Client::new());
+    let graphql_client = GraphQLClient::new(
+        graphql_endpoint,
+        Client::new(),
+        Some(Duration::from_secs(10)),
+    );
     introspect::run(
         GraphIntrospectInput {
             headers: HashMap::new(),
@@ -42,6 +46,7 @@ fn introspect() -> Result<String> {
         &graphql_client,
         false,
     )
+    .await
     .map(|response| response.schema_sdl)
     .map_err(|err| err.into())
 }

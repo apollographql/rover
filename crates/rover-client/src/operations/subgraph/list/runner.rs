@@ -22,12 +22,12 @@ type Timestamp = String;
 pub(crate) struct SubgraphListQuery;
 
 /// Fetches list of subgraphs for a given graph, returns name & url of each
-pub fn run(
+pub async fn run(
     input: SubgraphListInput,
     client: &StudioClient,
 ) -> Result<SubgraphListResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<SubgraphListQuery>(input.into())?;
+    let response_data = client.post::<SubgraphListQuery>(input.into()).await?;
     let root_url = response_data.frontend_url_root.clone();
     let subgraphs = get_subgraphs_from_response_data(response_data, graph_ref.clone())?;
     Ok(SubgraphListResponse {

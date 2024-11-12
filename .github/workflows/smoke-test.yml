@@ -19,9 +19,9 @@ jobs:
       matrix:
         compile_target:
           - target: x86_64-apple-darwin
-            compiles_on: macos-14
+            compiles_on: macos-13-xlarge
           - target: aarch64-apple-darwin
-            compiles_on: macos-14
+            compiles_on: macos-13-xlarge
           - target: x86_64-pc-windows-msvc
             compiles_on: windows-2022
           - target: x86_64-unknown-linux-gnu
@@ -66,21 +66,22 @@ jobs:
           if-no-files-found: error
           retention-days: 5
   smoke_tests:
+    timeout-minutes: 15
     needs: build_binaries
     name: Run smoke tests
     strategy:
-      max-parallel: 8
+      fail-fast: false
       matrix:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
         router-version: ${{ fromJSON(inputs.router-versions) }}
         testing_target:
           - run_test_on: windows-2022
             binary_under_test: x86_64-pc-windows-msvc
-          - run_test_on: macos-12
-            binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-13
             binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-14-large
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-15-large
             binary_under_test: x86_64-apple-darwin
           - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
@@ -88,9 +89,10 @@ jobs:
             binary_under_test: aarch64-apple-darwin
           - run_test_on: macos-14
             binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-15
+            binary_under_test: aarch64-apple-darwin
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
@@ -108,6 +110,7 @@ jobs:
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          APOLLO_ELV2_LICENSE: accept
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
         run: |
@@ -126,3 +129,23 @@ jobs:
           $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
           Write-Output "Found '$E2E_BINARY'"
           & $E2E_BINARY --ignored --nocapture
+  # It appears as though GitHub Actions mechanisms for handling errors within matrix job runs are... less than
+  # intuitive. There's an answer here (https://github.com/orgs/community/discussions/26822) that describes the
+  # fact that if any of the jobs in the matrix succeeds then the job is marked successful as well. So we
+  # have to intervene manually to ensure this job actually fails if any of the branches of the matrix fails.
+  #
+  # It might be the case we can simplify this as future GitHub Actions changes may render this obsolete, but for
+  # now this appears to be the only solution.
+  results:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    name: Final Results
+    needs: [ smoke_tests ]
+    steps:
+      - run: exit 1
+        if: >-
+          ${{
+               contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+            || contains(needs.*.result, 'skipped')
+          }}

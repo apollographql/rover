@@ -10,7 +10,8 @@ use clap::Parser;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Fs, Style};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{cli::RoverOutputFormatKind, RoverError, RoverOutput, RoverResult};
 
@@ -31,8 +32,7 @@ impl RoverPrinter for RoverOutput {
             match &output_opts.output_file {
                 Some(path) => {
                     let success_heading = Style::Heading.paint(format!(
-                        "{}{} was printed to",
-                        Emoji::Memo,
+                        "{} was printed to",
                         self.descriptor().unwrap_or("The output")
                     ));
                     let path_text = Style::Path.paint(path);
@@ -64,8 +64,7 @@ impl RoverPrinter for RoverError {
                 let json = JsonOutput::from(self);
                 match &output_opts.output_file {
                     Some(file) => {
-                        let success_heading = Style::Heading
-                            .paint(format!("{}Error JSON was printed to", Emoji::Memo,));
+                        let success_heading = Style::Heading.paint("Error JSON was printed to");
                         Fs::write_file(file, json.to_string())?;
                         stderrln!("{} {}", success_heading, file)?;
                     }
@@ -79,15 +78,25 @@ impl RoverPrinter for RoverError {
     }
 }
 
-#[derive(Debug, Parser, Serialize)]
+/// The output expected by the channel used for OutputOpts
+pub enum OutputChannelKind {
+    /// SDL as a String, often via introspection
+    Sdl(String),
+}
+
+#[derive(Debug, Parser, Serialize, Default)]
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true, default_value_t)]
-    format_kind: RoverOutputFormatKind,
+    pub format_kind: RoverOutputFormatKind,
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
-    output_file: Option<Utf8PathBuf>,
+    pub output_file: Option<Utf8PathBuf>,
+
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    pub channel: Option<UnboundedSender<OutputChannelKind>>,
 }
 
 impl OutputOpts {

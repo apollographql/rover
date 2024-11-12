@@ -1,0 +1,35 @@
+[package]
+name = "rover-http"
+version = "0.0.0"
+edition = "2021"
+
+publish = false
+
+[dependencies]
+buildstructor = { workspace = true }
+bytes = "1.8.0"
+derive-getters = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+reqwest = { workspace = true, features = [
+    "blocking",
+    "brotli",
+    "gzip",
+    "json",
+    "native-tls-vendored",
+    "socks",
+] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tap = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+httpmock = { workspace = true }
+rstest = { workspace = true }
+speculoos = { workspace = true }

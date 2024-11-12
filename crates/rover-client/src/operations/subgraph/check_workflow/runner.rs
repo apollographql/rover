@@ -1,25 +1,26 @@
 use std::time::{Duration, Instant};
 
-use apollo_federation_types::build::BuildError;
+use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
 
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
-    CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
-    RelatedProposal, SchemaChange,
+    CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse, GraphRef,
+    LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+    ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
 };
 use crate::RoverClientError;
 
 use super::types::*;
 
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
+    CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
     ProposalsCheckTask,
 };
 use self::subgraph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
+    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
@@ -42,7 +43,7 @@ pub(crate) struct SubgraphCheckWorkflowQuery;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: CheckWorkflowInput,
     subgraph: String,
     client: &StudioClient,
@@ -51,7 +52,9 @@ pub fn run(
     let mut url: Option<String> = None;
     let now = Instant::now();
     loop {
-        let result = client.post::<SubgraphCheckWorkflowQuery>(input.clone().into());
+        let result = client
+            .post::<SubgraphCheckWorkflowQuery>(input.clone().into())
+            .await;
         match result {
             Ok(data) => {
                 let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
@@ -109,6 +112,12 @@ fn get_check_response_from_data(
     let mut proposals_result: Option<ProposalsCheckTaskUnion> = None;
     let mut proposals_target_url = None;
 
+    let mut custom_status = None;
+    let mut custom_result: Option<
+        SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
+    > = None;
+    let mut custom_target_url = None;
+
     let mut downstream_status = None;
     let mut downstream_target_url = None;
     let mut downstream_result: Option<
@@ -155,6 +164,11 @@ fn get_check_response_from_data(
                 proposals_status = Some(task.status);
                 proposals_target_url = task.target_url;
                 proposals_result = Some(typed_task);
+            }
+            CustomCheckTask(typed_task) => {
+                custom_status = Some(task.status);
+                custom_target_url = task.target_url;
+                custom_result = typed_task.result;
             }
             DownstreamCheckTask(typed_task) => {
                 downstream_status = Some(task.status);
@@ -210,6 +224,11 @@ fn get_check_response_from_data(
             proposals_target_url,
             proposals_status,
             proposals_result,
+        ),
+        maybe_custom_response: get_custom_response_from_result(
+            custom_status,
+            custom_target_url,
+            custom_result,
         ),
         maybe_downstream_response: get_downstream_response_from_result(
             downstream_status,
@@ -379,6 +398,44 @@ fn get_proposals_response_from_result(
                 severity_level: severity,
                 proposal_coverage: coverage,
                 related_proposals,
+            })
+        }
+        None => None,
+    }
+}
+
+fn get_custom_response_from_result(
+    task_status: Option<CheckWorkflowTaskStatus>,
+    target_url: Option<String>,
+    results: Option<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult>,
+) -> Option<CustomCheckResponse> {
+    match results {
+        Some(result) => {
+            let violations: Vec<Violation> = result
+                .violations
+                .iter()
+                .map(|violation| {
+                    let start_line = if let Some(source_locations) = &violation.source_locations {
+                        if !source_locations.is_empty() {
+                            Some(source_locations[0].start.line)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    Violation {
+                        level: violation.level.to_string(),
+                        message: violation.message.clone(),
+                        start_line,
+                        rule: violation.rule.clone(),
+                    }
+                })
+                .collect();
+            Some(CustomCheckResponse {
+                task_status: task_status.into(),
+                target_url,
+                violations,
             })
         }
         None => None,

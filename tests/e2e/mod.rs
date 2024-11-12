@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::env;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::path::Path;
-use std::process::Command;
+use std::path::PathBuf;
+use std::process::ChildStderr;
 use std::time::Duration;
-use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Error;
 use camino::Utf8PathBuf;
@@ -10,17 +13,23 @@ use dircpy::CopyBuilder;
 use duct::cmd;
 use git2::Repository;
 use portpicker::pick_unused_port;
+use regex::Regex;
 use reqwest::Client;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
+use tokio::process::Child;
+use tokio::process::Command;
 use tokio::time::timeout;
-use tracing::{info, warn};
+use tracing::info;
+use tracing::warn;
 
 mod config;
 mod dev;
 mod graph;
+mod install;
+mod options;
 mod subgraph;
 mod supergraph;
 
@@ -55,7 +64,7 @@ impl RetailSupergraph<'_> {
         self.retail_supergraph_config
             .subgraphs
             .keys()
-            .map(|name| name.clone())
+            .cloned()
             .collect()
     }
 
@@ -89,11 +98,12 @@ fn run_subgraphs_retail_supergraph(
     // Although the retail supergraph package.json has a `dev:subgraphs` script, windows can't
     // recognize the `NODE_ENV=dev` preprended variable; so, we have to remake that command in a
     // way that windows can understand
-    let mut cmd = Command::new("npx");
-    cmd.env("NODE_ENV", "dev");
-    cmd.args(["nodemon", "index.js"])
-        .current_dir(retail_supergraph.get_working_directory());
-    cmd.spawn().expect("Could not spawn subgraph process");
+    Command::new("npx")
+        .env("NODE_ENV", "dev")
+        .args(["nodemon", "index.js"])
+        .current_dir(retail_supergraph.get_working_directory())
+        .spawn()
+        .expect("Could not spawn subgraph process");
 
     println!("Finding subgraph URLs");
     let subgraph_urls = retail_supergraph.get_subgraph_urls();
@@ -143,8 +153,16 @@ fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSu
     }
 }
 
+struct SingleMutableSubgraph {
+    subgraph_url: String,
+    directory: TempDir,
+    schema_file_name: String,
+    #[allow(dead_code)]
+    task_handle: Child,
+}
+
 #[fixture]
-async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
+async fn run_single_mutable_subgraph() -> SingleMutableSubgraph {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
     let cargo_manifest_dir =
@@ -159,26 +177,32 @@ async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
 
     info!("Installing subgraph dependencies");
     cmd!("npm", "run", "clean")
-        .dir(&target.path())
+        .dir(target.path())
         .run()
         .expect("Could not clean directory");
     cmd!("npm", "install")
-        .dir(&target.path())
+        .dir(target.path())
         .run()
         .expect("Could not install subgraph dependencies");
-    info!("Kicking off subgraphs");
-    let mut cmd = Command::new("npm");
     let port = pick_unused_port().expect("No free ports");
-    let url = format!("http://localhost:{}", port);
-    cmd.args(["run", "start", "--", &port.to_string()])
-        .current_dir(&target.path());
-    cmd.spawn().expect("Could not spawn subgraph process");
+    let subgraph_url = format!("http://localhost:{}", port);
+    let task_handle = Command::new("npm")
+        .args(["run", "start", "--", &port.to_string()])
+        .current_dir(target.path())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("Could not spawn subgraph process");
     info!("Testing subgraph connectivity");
     let client = Client::new();
-    test_graphql_connection(&client, &url, GRAPHQL_TIMEOUT_DURATION)
+    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)
         .await
         .expect("Could not execute connectivity check");
-    (url, target, String::from("pandas.graphql"))
+    SingleMutableSubgraph {
+        subgraph_url,
+        directory: target,
+        schema_file_name: String::from("pandas.graphql"),
+        task_handle,
+    }
 }
 
 async fn test_graphql_connection(
@@ -211,13 +235,40 @@ async fn test_graphql_connection(
     Ok(())
 }
 
+fn find_matching_log_line(reader: &mut BufReader<ChildStderr>, matcher: &Regex) {
+    info!("Waiting for matching log line...");
+    let mut introspection_line = String::new();
+    loop {
+        reader
+            .read_line(&mut introspection_line)
+            .expect("Could not read line from console process");
+        info!("Line read from spawned process '{introspection_line}'");
+        if matcher.is_match(&introspection_line) {
+            break;
+        } else {
+            introspection_line.clear();
+        }
+    }
+}
+
 #[fixture]
 fn remote_supergraph_graphref() -> String {
-    String::from("rover-e2e-tests")
+    String::from("rover-e2e-tests@current")
+}
+
+#[fixture]
+fn remote_supergraph_publish_test_variant_graphref() -> String {
+    String::from("rover-e2e-tests@publish-test")
 }
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
         env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
     PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
+}
+
+#[fixture]
+#[once]
+fn introspection_log_line_prefix() -> Regex {
+    Regex::new("Introspection Response").unwrap()
 }

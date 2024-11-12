@@ -3,7 +3,7 @@ use crate::operations::subgraph::delete::types::*;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
-use apollo_federation_types::build::{BuildError, BuildErrors};
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 
 use graphql_client::*;
 
@@ -23,12 +23,12 @@ pub(crate) struct SubgraphDeleteMutation;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
-pub fn run(
+pub async fn run(
     input: SubgraphDeleteInput,
     client: &StudioClient,
 ) -> Result<SubgraphDeleteResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<SubgraphDeleteMutation>(input.into())?;
+    let response_data = client.post::<SubgraphDeleteMutation>(input.into()).await?;
     let data = get_delete_data_from_response(response_data, graph_ref)?;
     Ok(build_response(data))
 }

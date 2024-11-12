@@ -19,12 +19,12 @@ use graphql_client::*;
 pub(crate) struct SubgraphRoutingUrlQuery;
 
 /// Fetches a subgraph's routing URL (String)
-pub fn run(
+pub async fn run(
     input: SubgraphRoutingUrlInput,
     client: &StudioClient,
 ) -> Result<String, RoverClientError> {
     let variables = input.clone().into();
-    let response_data = client.post::<SubgraphRoutingUrlQuery>(variables)?;
+    let response_data = client.post::<SubgraphRoutingUrlQuery>(variables).await?;
     get_routing_url_from_response_data(input, response_data)
 }
 

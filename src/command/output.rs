@@ -97,6 +97,12 @@ pub enum RoverOutput {
         jwt: String,
     },
     EmptySuccess,
+    CloudConfigFetchResponse {
+        config: String,
+    },
+    MessageResponse {
+        msg: String,
+    },
 }
 
 impl RoverOutput {
@@ -443,6 +449,8 @@ impl RoverOutput {
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
+            RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
+            RoverOutput::MessageResponse { msg } => Some(msg.into()),
         })
     }
 
@@ -561,6 +569,12 @@ impl RoverOutput {
             RoverOutput::LicenseResponse { jwt, .. } => {
                 json!({"jwt": jwt })
             }
+            RoverOutput::CloudConfigFetchResponse { config } => {
+                json!({ "config": config })
+            }
+            RoverOutput::MessageResponse { msg } => {
+                json!({ "message": msg })
+            }
         }
     }
 
@@ -652,10 +666,11 @@ mod tests {
     use std::collections::BTreeMap;
 
     use anyhow::anyhow;
-    use apollo_federation_types::build::{BuildError, BuildErrors};
+    use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
 
+    use console::strip_ansi_codes;
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
@@ -666,9 +681,10 @@ mod tests {
             },
         },
         shared::{
-            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
-            OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-            ProposalsCoverage, RelatedProposal, SchemaChange, Sdl, SdlType,
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+            SdlType, Violation,
         },
     };
 
@@ -997,6 +1013,18 @@ mod tests {
                     display_name: "Mock Proposal".to_string(),
                 }],
             }),
+            maybe_custom_response: Some(CustomCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/custom/1".to_string()),
+                violations:  vec![
+                    Violation {
+                        rule: "NAMING_CONVENTION".to_string(),
+                        level: "WARNING".to_string(),
+                        message: "Fields must use camelCase.".to_string(),
+                        start_line: Some(1),
+                    },
+                ],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1009,6 +1037,18 @@ mod tests {
                 "success": true,
                 "core_schema_modified": true,
                 "tasks": {
+                    "custom": {
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
+                        "task_status": "PASSED",
+                        "violations": [
+                            {
+                                "level": "WARNING",
+                                "message": "Fields must use camelCase.",
+                                "rule": "NAMING_CONVENTION",
+                                "start_line": 1
+                            },
+                        ],
+                    },
                     "operations": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
@@ -1061,6 +1101,56 @@ mod tests {
             "error": null
         });
         assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn check_success_response_with_empty_lint_and_custom_violations_text() {
+        let mock_check_response = CheckWorkflowResponse {
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
+                    .to_string(),
+            maybe_core_schema_modified: Some(true),
+            maybe_operations_response: None,
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1"
+                        .to_string(),
+                ),
+                diagnostics: vec![],
+                errors_count: 0,
+                warnings_count: 0,
+            }),
+            maybe_proposals_response: None,
+            maybe_custom_response: Some(CustomCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1"
+                        .to_string(),
+                ),
+                violations: vec![],
+            }),
+            maybe_downstream_response: None,
+        };
+
+        let actual_text = RoverOutput::CheckWorkflowResponse(mock_check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        let expected_text = "
+There were no changes detected in the composed API schema, but the core schema was modified.
+
+Linter Check [PASSED]:
+No linting errors or warnings found.
+View linter check details at: https://studio.apollographql.com/graph/my-graph/variant/current/lint/1
+
+Custom Check [PASSED]:
+No custom check violations found.
+View custom check details at: https://studio.apollographql.com/graph/my-graph/variant/current/custom/1";
+
+        assert_eq!(actual_text, expected_text);
     }
 
     #[test]
@@ -1129,6 +1219,18 @@ mod tests {
                     display_name: "Mock Proposal".to_string(),
                 }],
             }),
+            maybe_custom_response: Some(CustomCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/custom/1".to_string()),
+                violations:  vec![
+                    Violation {
+                        rule: "NAMING_CONVENTION".to_string(),
+                        level: "ERROR".to_string(),
+                        message: "Fields must use camelCase.".to_string(),
+                        start_line: Some(2),
+                    },
+                ],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1144,6 +1246,18 @@ mod tests {
                 "success": false,
                 "core_schema_modified": false,
                 "tasks": {
+                    "custom": {
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
+                        "task_status": "FAILED",
+                        "violations": [
+                            {
+                                "level": "ERROR",
+                                "message": "Fields must use camelCase.",
+                                "rule": "NAMING_CONVENTION",
+                                "start_line": 2
+                            },
+                        ],
+                    },
                     "operations": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
@@ -1203,7 +1317,7 @@ mod tests {
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation, linter and proposal checks to fail.",
+                "message": "The changes in the schema you proposed caused operation, linter, proposal and custom checks to fail.",
                 "code": "E043",
             }
         });
