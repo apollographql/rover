@@ -29,7 +29,7 @@ ignore = [
     "RUSTSEC-2024-0320",
     # `instant` is now unmaintained. We depend on this in two ways, once via notify and then also via backoff.
     # Notify have already merged a PR to produce a version that does not contain this vulnerability, but
-    # we need to wait till this is released before we can upgradel Until then we can safely ignore
+    # we need to wait till this is released before we can upgrade. Until then we can safely ignore
     # this.
     "RUSTSEC-2024-0384"
 ]
