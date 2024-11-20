@@ -242,9 +242,16 @@ mod tests {
         assert_that!(subject.version())
             .is_equal_to(&SupergraphVersion::new(Version::from_str("2.9.0")?));
 
+        let bin_name = if cfg!(windows) {
+            "supergraph-v2.9.0.exe"
+        } else {
+            "supergraph-v2.9.0"
+        };
+
         let installed_binary_path = override_install_path
             .path()
-            .join(".rover/bin/supergraph-v2.9.0");
+            .join(".rover/bin")
+            .join(bin_name);
         assert_that!(subject.exe())
             .is_equal_to(&Utf8PathBuf::from_path_buf(installed_binary_path.clone()).unwrap());
         assert_that!(installed_binary_path.exists()).is_equal_to(true);
