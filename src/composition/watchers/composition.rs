@@ -10,7 +10,10 @@ use tokio_stream::StreamExt;
 use crate::{
     composition::{
         events::CompositionEvent,
-        supergraph::{binary::SupergraphBinary, config::resolve::FullyResolvedSubgraphs},
+        supergraph::{
+            binary::{OutputTarget, SupergraphBinary},
+            config::resolve::FullyResolvedSubgraphs,
+        },
         watchers::{subgraphs::SubgraphEvent, subtask::SubtaskHandleStream},
     },
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
@@ -20,6 +23,7 @@ use crate::{
 pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
     subgraphs: FullyResolvedSubgraphs,
     supergraph_binary: SupergraphBinary,
+    output_target: OutputTarget,
     exec_command: ExecC,
     read_file: ReadF,
     write_file: WriteF,
@@ -86,7 +90,12 @@ where
 
                     let output = self
                         .supergraph_binary
-                        .compose(&self.exec_command, &self.read_file, target_file.clone())
+                        .compose(
+                            &self.exec_command,
+                            &self.read_file,
+                            &self.output_target,
+                            target_file.clone(),
+                        )
                         .await;
 
                     match output {
@@ -166,7 +175,6 @@ mod tests {
         let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
 
         let supergraph_binary = SupergraphBinary::builder()
-            .output_target(OutputTarget::Stdout)
             .version(supergraph_version)
             .exe(Utf8PathBuf::from_str("some/binary").unwrap())
             .build();
@@ -220,6 +228,7 @@ mod tests {
             .read_file(mock_read_file)
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
+            .output_target(OutputTarget::Stdout)
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {

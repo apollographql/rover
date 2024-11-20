@@ -4,78 +4,16 @@ use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildOutput, BuildResult},
 };
-use async_trait::async_trait;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
-use rover_std::RoverStdError;
 use tap::TapFallible;
 
 use crate::{
-    command::{install::Plugin, Install},
     composition::{CompositionError, CompositionSuccess},
-    options::LicenseAccepter,
-    utils::{
-        client::StudioClientConfig,
-        effect::{exec::ExecCommand, read_file::ReadFile},
-    },
+    utils::effect::{exec::ExecCommand, read_file::ReadFile},
 };
 
 use super::version::SupergraphVersion;
-
-/// This trait allows us to mock the installation of the supergraph binary
-#[cfg_attr(test, mockall::automock(type Error = MockInstallSupergraphBinaryError;))]
-#[async_trait]
-pub trait InstallSupergraphBinary {
-    type Error: std::error::Error + Send + 'static;
-
-    async fn install(&self) -> Result<Utf8PathBuf, Self::Error>;
-}
-
-#[async_trait]
-impl InstallSupergraphBinary for InstallSupergraph {
-    type Error = RoverStdError;
-
-    async fn install(&self) -> Result<Utf8PathBuf, Self::Error> {
-        if self.federation_version.is_fed_two() {
-            self.elv2_license_accepter
-                .require_elv2_license(&self.studio_client_config)
-                .map_err(|_err| RoverStdError::LicenseNotAccepted)?
-        }
-
-        let plugin = Plugin::Supergraph(self.federation_version.clone());
-
-        let install_command = Install {
-            force: false,
-            plugin: Some(plugin),
-            elv2_license_accepter: self.elv2_license_accepter,
-        };
-
-        let exe = install_command
-            .get_versioned_plugin(
-                self.override_install_path.clone(),
-                self.studio_client_config.clone(),
-                self.skip_update,
-            )
-            .await
-            .map_err(|err| RoverStdError::MissingDependency {
-                err: err.to_string(),
-            })?;
-
-        Ok(exe)
-    }
-}
-
-/// The installer for the supergraph binary. It implements InstallSupergraphBinary and has an
-/// `install()` method for the actual installation. Use the installed binary path when building the
-/// SupergraphBinary struct
-#[derive(Builder)]
-pub struct InstallSupergraph {
-    federation_version: FederationVersion,
-    elv2_license_accepter: LicenseAccepter,
-    studio_client_config: StudioClientConfig,
-    override_install_path: Option<Utf8PathBuf>,
-    skip_update: bool,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputTarget {
@@ -118,22 +56,22 @@ impl From<std::io::Error> for CompositionError {
     }
 }
 
-#[cfg_attr(test, derive(thiserror::Error, Debug))]
-#[cfg_attr(test, error("MockInstallSupergraphBinaryError"))]
-pub struct MockInstallSupergraphBinaryError {}
-
 #[derive(Builder, Debug, Clone)]
+#[cfg_attr(test, derive(derive_getters::Getters))]
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
-    output_target: OutputTarget,
     version: SupergraphVersion,
 }
 
 impl SupergraphBinary {
-    fn prepare_compose_args(&self, supergraph_config_path: &Utf8PathBuf) -> Vec<String> {
+    fn prepare_compose_args(
+        &self,
+        output_target: &OutputTarget,
+        supergraph_config_path: &Utf8PathBuf,
+    ) -> Vec<String> {
         let mut args = vec!["compose".to_string(), supergraph_config_path.to_string()];
 
-        if let OutputTarget::File(output_path) = &self.output_target {
+        if let OutputTarget::File(output_path) = output_target {
             args.push(output_path.to_string());
         }
 
@@ -144,9 +82,11 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         read_file_impl: &impl ReadFile,
+        output_target: &OutputTarget,
         supergraph_config_path: Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
-        let args = self.prepare_compose_args(&supergraph_config_path);
+        let args = self.prepare_compose_args(output_target, &supergraph_config_path);
+
         let output = exec_impl
             .exec_command(&self.exe, &args)
             .await
@@ -155,7 +95,7 @@ impl SupergraphBinary {
                 error: format!("{:?}", err),
             })?;
 
-        let output = match &self.output_target {
+        let output = match output_target {
             OutputTarget::File(path) => {
                 read_file_impl
                     .read_file(path)
@@ -338,11 +278,11 @@ mod tests {
 
         let supergraph_binary = SupergraphBinary::builder()
             .exe(Utf8PathBuf::from_str("some/binary").unwrap())
-            .output_target(test_output_target)
             .version(supergraph_version)
             .build();
 
-        let args = supergraph_binary.prepare_compose_args(&supergraph_config_path);
+        let args =
+            supergraph_binary.prepare_compose_args(&test_output_target, &supergraph_config_path);
 
         assert_eq!(args, expected_args);
     }
@@ -358,7 +298,6 @@ mod tests {
 
         let supergraph_binary = SupergraphBinary::builder()
             .exe(binary_path.clone())
-            .output_target(OutputTarget::Stdout)
             .version(supergraph_version)
             .build();
 
@@ -388,7 +327,12 @@ mod tests {
             });
 
         let result = supergraph_binary
-            .compose(&mock_exec, &mock_read_file, temp_supergraph_config_path)
+            .compose(
+                &mock_exec,
+                &mock_read_file,
+                &OutputTarget::Stdout,
+                temp_supergraph_config_path,
+            )
             .await;
 
         assert_that!(result).is_ok().is_equal_to(composition_output);
