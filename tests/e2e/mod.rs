@@ -162,9 +162,7 @@ struct SingleMutableSubgraph {
 }
 
 #[fixture]
-async fn run_single_mutable_subgraph(
-    test_artifacts_directory: PathBuf
-) -> SingleMutableSubgraph {
+async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> SingleMutableSubgraph {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
     CopyBuilder::new(test_artifacts_directory.join("pandas"), &target)
