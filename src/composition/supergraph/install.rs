@@ -26,9 +26,9 @@ pub enum InstallSupergraphError {
     SupergraphVersion(#[from] SupergraphVersionError),
 }
 
-/// The installer for the supergraph binary. It implements InstallSupergraphBinary and has an
+/// The installer for the supergraph binary. It implements [`InstallSupergraph`] and has an
 /// `install()` method for the actual installation. Use the installed binary path when building the
-/// SupergraphBinary struct
+/// [`SupergraphBinary`] struct
 pub struct InstallSupergraph {
     federation_version: FederationVersion,
     studio_client_config: StudioClientConfig,
