@@ -205,7 +205,11 @@ mod tests {
         let mut archive = tar::Builder::new(enc);
         let contents = b"supergraph";
         let mut header = tar::Header::new_gnu();
-        header.set_path("dist/supergraph")?;
+        if cfg!(windows) {
+            header.set_path("dist/supergraph.exe")?;
+        } else {
+            header.set_path("dist/supergraph")?;
+        }
         header.set_size(contents.len().try_into().unwrap());
         header.set_cksum();
         archive.append(&header, &contents[..]).unwrap();
