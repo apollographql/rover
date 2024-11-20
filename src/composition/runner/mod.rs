@@ -110,6 +110,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
 
 impl Runner<state::SetupCompositionWatcher> {
     /// Configures the composition watcher
+    #[allow(clippy::too_many_arguments)]
     pub fn setup_composition_watcher<ReadF, ExecC, WriteF>(
         self,
         subgraphs: FullyResolvedSubgraphs,
