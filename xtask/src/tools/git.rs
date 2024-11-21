@@ -85,10 +85,6 @@ impl GitRunner {
         Ok(path)
     }
 
-    pub(crate) fn clone_supergraph_demo(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
-        self.clone(org, "supergraph-demo", branch)
-    }
-
     pub(crate) fn clone_docs(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
         self.clone(org, "docs", branch)
     }

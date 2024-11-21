@@ -1,3 +1,6 @@
-# `schemas`
+# Examples
 
-This directory contains some example GraphQL schemas to operate on. This is primarily useful for testing Rover commands that take a `--schema` argument.
+Apollo publishes a repo called [retail-supergraph](https://github.com/apollosolutions/retail-supergraph/blob/main/DEV.md)
+which demonstrates running a supergraph using Rover.
+
+Follow the instructions contained in the link above to run an example of a supergraph with `rover dev`.
