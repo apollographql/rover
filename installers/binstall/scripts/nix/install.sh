@@ -15,7 +15,7 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="${APOLLO_ROVER_BINARY_REMOTE:="https://github.com/apollographql/rover/releases/download"}"
+BINARY_DOWNLOAD_PREFIX="${APOLLO_ROVER_DOWNLOAD_GITHUB_HOST:="https://github.com/apollographql/rover/releases/download"}"
 
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically

@@ -48,7 +48,7 @@ iwr 'https://rover.apollo.dev/win/v0.26.2' | iex
 
 #### Installing from a binary mirror using the bash and powershell scripts
 
-Both the bash and powershell scripts support the `APOLLO_ROVER_BINARY_REMOTE` environment variable,
+Both the bash and powershell scripts support the `APOLLO_ROVER_DOWNLOAD_GITHUB_HOST` environment variable,
 which defaults to `https://github.com/apollographql/rover/releases/download`.
 
 This can be set in your environment to specify a remote mirror or proxy to github release download
@@ -60,14 +60,14 @@ In a bash shell:
 
 ```bash
 # for bash (Mac/Linux)
-export APOLLO_ROVER_BINARY_REMOTE="https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
+export APOLLO_ROVER_DOWNLOAD_GITHUB_HOST="https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
 ```
 
 Or from a PowerShell:
 
 ```powershell
 # for PowerShell (Windows)
-$env:APOLLO_ROVER_BINARY_REMOTE = "https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
+$env:APOLLO_ROVER_DOWNLOAD_GITHUB_HOST = "https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
 ```
 
 This variable also supports basic authentication, but be aware that the password/token will appear in the output
