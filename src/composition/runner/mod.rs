@@ -9,11 +9,11 @@ use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
 
 use crate::{
-    composition::watchers::{
-        subtask::{Subtask, SubtaskRunUnit},
-        watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
+    composition::watchers::watcher::{
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
     options::ProfileOpt,
+    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
         effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
@@ -31,9 +31,7 @@ use super::{
             LazilyResolvedSupergraphConfig,
         },
     },
-    watchers::{
-        composition::CompositionWatcher, subgraphs::SubgraphWatchers, subtask::SubtaskRunStream,
-    },
+    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 
 mod state;

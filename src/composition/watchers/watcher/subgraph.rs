@@ -6,8 +6,7 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
 use crate::{
-    composition::watchers::subtask::SubtaskHandleUnit, options::ProfileOpt,
-    utils::client::StudioClientConfig, RoverError,
+    options::ProfileOpt, subtask::SubtaskHandleUnit, utils::client::StudioClientConfig, RoverError,
 };
 
 use super::{

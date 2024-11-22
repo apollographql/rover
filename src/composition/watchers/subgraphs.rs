@@ -8,15 +8,14 @@ use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::{
     composition::supergraph::config::resolve::subgraph::LazilyResolvedSubgraph,
-    options::ProfileOpt, utils::client::StudioClientConfig,
+    options::ProfileOpt,
+    subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
+    utils::client::StudioClientConfig,
 };
 
-use super::{
-    subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-    watcher::{
-        subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
-        supergraph_config::SupergraphConfigDiff,
-    },
+use super::watcher::{
+    subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
+    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
