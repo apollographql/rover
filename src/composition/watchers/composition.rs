@@ -14,8 +14,9 @@ use crate::{
             binary::{OutputTarget, SupergraphBinary},
             config::resolve::FullyResolvedSubgraphs,
         },
-        watchers::{subgraphs::SubgraphEvent, subtask::SubtaskHandleStream},
+        watchers::subgraphs::SubgraphEvent,
     },
+    subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
@@ -147,11 +148,9 @@ mod tests {
                 version::SupergraphVersion,
             },
             test::{default_composition_json, default_composition_success},
-            watchers::{
-                subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
-                subtask::{Subtask, SubtaskRunStream},
-            },
+            watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
         },
+        subtask::{Subtask, SubtaskRunStream},
         utils::effect::{
             exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
         },

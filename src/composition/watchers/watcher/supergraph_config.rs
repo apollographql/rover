@@ -7,9 +7,9 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::composition::{
-    supergraph::config::resolve::LazilyResolvedSupergraphConfig,
-    watchers::subtask::SubtaskHandleUnit,
+use crate::{
+    composition::supergraph::config::resolve::LazilyResolvedSupergraphConfig,
+    subtask::SubtaskHandleUnit,
 };
 
 use super::file::FileWatcher;

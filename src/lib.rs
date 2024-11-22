@@ -4,6 +4,7 @@ pub mod command;
 pub mod composition;
 mod error;
 mod options;
+mod subtask;
 pub mod utils;
 
 pub use command::RoverOutput;
