@@ -73,6 +73,8 @@ apollo-encoder = "0.8"
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.14.1"
 
+apollo-language-server = { version = "0.3.0", default-features = false, features = ["tokio"] }
+
 # crates.io dependencies
 anyhow = "1"
 ariadne = "0.5"
@@ -168,6 +170,7 @@ zip = "2.0"
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
 async-trait = { workspace = true }
+apollo-language-server = { workspace = true}
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
