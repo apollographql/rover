@@ -2,9 +2,13 @@
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use futures::StreamExt;
+use router::watchers::FileWatcher;
+use tap::TapFallible;
 
 use crate::{
     command::Dev,
+    subtask::{Subtask, SubtaskHandleUnit, SubtaskRunUnit},
     utils::{client::StudioClientConfig, effect::read_file::FsReadFile},
     RoverError, RoverOutput, RoverResult,
 };
@@ -33,6 +37,61 @@ impl Dev {
             )
             .await
             .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
+
+        // FIXME: unwrap, re-usability with above
+        let path = self
+            .opts
+            .supergraph_opts
+            .router_config_path
+            .as_ref()
+            .unwrap()
+            .clone();
+
+        let file_watcher = FileWatcher::new(path);
+        let router_config_watcher = RouterConfigWatcher::new(file_watcher);
+
+        // FIXME: remove explicit typing
+        let (_events, subtask) = Subtask::<
+            RouterConfigWatcher,
+            ReplaceMeWithProperRouterEventsStruct,
+        >::new(router_config_watcher);
+
+        // TODO: abort handle
+        let _abort_handle = subtask.run();
+
         Ok(RoverOutput::EmptySuccess)
+    }
+}
+
+/// Watches for router config changes
+struct RouterConfigWatcher {
+    file_watcher: FileWatcher,
+}
+
+impl RouterConfigWatcher {
+    fn new(file_watcher: FileWatcher) -> Self {
+        Self { file_watcher }
+    }
+}
+
+// FIXME: use proper struct
+struct ReplaceMeWithProperRouterEventsStruct {
+    router_config: String,
+}
+
+impl SubtaskHandleUnit for RouterConfigWatcher {
+    type Output = ReplaceMeWithProperRouterEventsStruct;
+    fn handle(
+        self,
+        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
+    ) -> tokio::task::AbortHandle {
+        tokio::spawn(async move {
+            while let Some(router_config) = self.file_watcher.clone().watch().next().await {
+                let _ = sender
+                    .send(ReplaceMeWithProperRouterEventsStruct { router_config })
+                    .tap_err(|err| tracing::error!("{:?}", err));
+            }
+        })
+        .abort_handle()
     }
 }
