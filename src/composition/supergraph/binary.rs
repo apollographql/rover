@@ -161,10 +161,11 @@ impl SupergraphBinary {
             .map(|build_output| CompositionSuccess {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
-                federation_version,
+                federation_version: federation_version.clone(),
             })
             .map_err(|build_errors| CompositionError::Build {
                 source: build_errors,
+                federation_version,
             })
     }
 

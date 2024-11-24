@@ -861,6 +861,7 @@ mod tests {
             (
                 sdl_subgraph_name.clone(),
                 LazilyResolvedSubgraph::builder()
+                    .name(sdl_subgraph_name.clone())
                     .schema(SchemaSource::Sdl {
                         sdl: sdl_subgraph_scenario.sdl.clone(),
                     })
@@ -876,6 +877,7 @@ mod tests {
                             .join(file_subgraph_scenario.schema_file_path)
                             .canonicalize_utf8()?,
                     })
+                    .name(file_subgraph_name.clone())
                     .routing_url(file_subgraph_scenario.routing_url)
                     .name(file_subgraph_name.to_string())
                     .build(),
@@ -887,6 +889,7 @@ mod tests {
                         graphref: remote_subgraph_scenario.graph_ref.to_string(),
                         subgraph: remote_subgraph_scenario.subgraph_name.clone(),
                     })
+                    .name(remote_subgraph_name.clone())
                     .routing_url(remote_subgraph_scenario.routing_url.clone())
                     .name(remote_subgraph_name.to_string())
                     .build(),
@@ -902,6 +905,7 @@ mod tests {
                             introspect_subgraph_scenario.introspection_headers.clone(),
                         ),
                     })
+                    .name(introspect_subgraph_name.clone())
                     .routing_url(introspect_subgraph_scenario.routing_url.clone())
                     .name(introspect_subgraph_name.to_string())
                     .build(),

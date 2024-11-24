@@ -134,6 +134,7 @@ impl Runner<state::SetupCompositionWatcher> {
         read_file: ReadF,
         write_file: WriteF,
         temp_dir: Utf8PathBuf,
+        compose_on_initialisation: bool,
     ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -148,6 +149,7 @@ impl Runner<state::SetupCompositionWatcher> {
             .read_file(read_file)
             .write_file(write_file)
             .temp_dir(temp_dir)
+            .compose_on_initialisation(compose_on_initialisation)
             .build();
         Runner {
             state: state::Run {
