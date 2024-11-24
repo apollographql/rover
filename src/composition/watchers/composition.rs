@@ -1,3 +1,4 @@
+use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -7,6 +8,7 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 
+use crate::composition::{CompositionSubgraphAdded, CompositionSubgraphRemoved};
 use crate::{
     composition::{
         events::CompositionEvent,
@@ -54,11 +56,28 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            subgraphs.upsert_subgraph(name.to_string(), sdl.to_string());
+                            if subgraphs
+                                .upsert_subgraph(name.to_string(), sdl.to_string())
+                                .is_none()
+                            {
+                                let _ = sender
+                                    .send(CompositionEvent::SubgraphAdded(
+                                        CompositionSubgraphAdded {
+                                            name: name.clone(),
+                                            schema_source: Sdl { sdl: sdl.clone() },
+                                        },
+                                    ))
+                                    .tap_err(|err| tracing::error!("{:?}", err));
+                            }
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
                             subgraphs.remove_subgraph(name);
+                            let _ = sender
+                                .send(CompositionEvent::SubgraphRemoved(
+                                    CompositionSubgraphRemoved { name: name.clone() },
+                                ))
+                                .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
 
@@ -128,6 +147,7 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::SchemaSource::Sdl;
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
@@ -139,6 +159,8 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
+    use super::CompositionWatcher;
+    use crate::composition::CompositionSubgraphAdded;
     use crate::{
         composition::{
             events::CompositionEvent,
@@ -155,8 +177,6 @@ mod tests {
             exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
         },
     };
-
-    use super::CompositionWatcher;
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -236,6 +256,17 @@ mod tests {
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
+
+        // Assert we always get a subgraph added event.
+        let next_message = composition_messages.next().await;
+        assert_that!(next_message)
+            .is_some()
+            .is_equal_to(CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {
+                name: String::from("subgraph-name"),
+                schema_source: Sdl {
+                    sdl: String::from("type Query { test: String! }"),
+                },
+            }));
 
         // Assert we always get a composition started event.
         let next_message = composition_messages.next().await;
