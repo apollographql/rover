@@ -1,16 +1,22 @@
 use std::collections::BTreeMap;
 
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream, StreamExt};
+use futures::future::join_all;
+use futures::TryFutureExt;
 use itertools::Itertools;
 
+use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::full::{
+    FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+};
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
-
-use super::LazilyResolvedSubgraph;
+use crate::utils::effect::fetch_remote_subgraph::FetchRemoteSubgraph;
+use crate::utils::effect::introspect::IntrospectSubgraph;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -28,7 +34,7 @@ impl LazilyResolvedSupergraphConfig {
     pub async fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<LazilyResolvedSupergraphConfig, BTreeMap<String, ResolveSubgraphError>> {
+    ) -> Result<LazilyResolvedSupergraphConfig, Vec<ResolveSubgraphError>> {
         let subgraphs = stream::iter(
             unresolved_supergraph_config
                 .subgraphs()
@@ -39,12 +45,12 @@ impl LazilyResolvedSupergraphConfig {
                         supergraph_config_root,
                         unresolved_subgraph.clone(),
                     )
-                    .map_err(|err| (name.to_string(), err))?;
+                        .map_err(|err| (name.to_string(), err))?;
                     Ok((name.to_string(), result))
                 }),
         )
-        .buffer_unordered(50)
-        .collect::<Vec<Result<(String, LazilyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
+            .buffer_unordered(50)
+            .collect::<Vec<Result<(String, LazilyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
         #[allow(clippy::type_complexity)]
         let (subgraphs, errors): (
@@ -59,6 +65,40 @@ impl LazilyResolvedSupergraphConfig {
             })
         } else {
             Err(BTreeMap::from_iter(errors.into_iter()))
+        }
+    }
+
+    /// Transforms a [`LazilyResolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
+    /// consuming self in the process
+    pub async fn fully_resolve(
+        self,
+        introspect_subgraph_impl: &impl IntrospectSubgraph,
+        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+    ) -> Result<FullyResolvedSupergraphConfig, Vec<ResolveSubgraphError>> {
+        let subgraphs = join_all(self.subgraphs().iter().map(
+            |(name, lazily_resolved_subgraph)| {
+                FullyResolvedSubgraph::fully_resolve(
+                    introspect_subgraph_impl,
+                    fetch_remote_subgraph_impl,
+                    lazily_resolved_subgraph.clone(),
+                )
+                .map_ok(|result| (name.to_string(), result))
+            },
+        ))
+        .await;
+        let (subgraphs, errors): (
+            Vec<(String, FullyResolvedSubgraph)>,
+            Vec<ResolveSubgraphError>,
+        ) = subgraphs.into_iter().partition_result();
+        if errors.is_empty() {
+            let subgraphs = BTreeMap::from_iter(subgraphs);
+            Ok(FullyResolvedSupergraphConfig {
+                origin_path: self.origin_path,
+                subgraphs,
+                federation_version: self.federation_version.unwrap_or(LatestFedTwo),
+            })
+        } else {
+            Err(errors)
         }
     }
 }

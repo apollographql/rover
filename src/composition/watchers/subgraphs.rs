@@ -7,6 +7,11 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
+use super::watcher::{
+    subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
+    supergraph_config::SupergraphConfigDiff,
+};
+use crate::composition::watchers::watcher::subgraph::NonRepeatingFetch;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
@@ -14,11 +19,6 @@ use crate::{
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
-};
-
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
-    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -375,13 +375,12 @@ mod tests {
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
 
+    use super::SubgraphWatchers;
     use crate::{
         composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
         utils::client::{ClientBuilder, StudioClientConfig},
     };
-
-    use super::SubgraphWatchers;
 
     #[test]
     fn test_subgraphwatchers_new() {
@@ -392,6 +391,7 @@ mod tests {
                     .schema(SchemaSource::File {
                         file: "/path/to/file".into(),
                     })
+                    .name("file".to_string())
                     .build(),
             ),
             (
@@ -401,6 +401,7 @@ mod tests {
                         subgraph_url: "http://subgraph_url".try_into().unwrap(),
                         introspection_headers: None,
                     })
+                    .name("introspection".to_string())
                     .build(),
             ),
             (
@@ -410,6 +411,7 @@ mod tests {
                         graphref: "graphref".to_string(),
                         subgraph: "subgraph".to_string(),
                     })
+                    .name("subgraph".to_string())
                     .build(),
             ),
             (
@@ -418,6 +420,7 @@ mod tests {
                     .schema(SchemaSource::Sdl {
                         sdl: "sdl".to_string(),
                     })
+                    .name("sdl".to_string())
                     .build(),
             ),
         ]
