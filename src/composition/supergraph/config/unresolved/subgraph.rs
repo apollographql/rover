@@ -38,6 +38,7 @@ impl UnresolvedSubgraph {
                 subgraph_name: self.name.to_string(),
                 supergraph_config_path: root.clone(),
                 path: path.as_std_path().to_path_buf(),
+                joined_path: joined_path.as_std_path().to_path_buf(),
                 source: err,
             }),
         }

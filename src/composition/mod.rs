@@ -1,11 +1,18 @@
 use std::fmt::Debug;
+use std::path::PathBuf;
 
+use anyhow::Error;
+use apollo_federation_types::config::SchemaSource;
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildHint},
 };
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
+
+use crate::composition::supergraph::config::resolver::{
+    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
+};
 
 pub mod events;
 pub mod pipeline;
@@ -20,9 +27,9 @@ mod watchers;
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {
-    supergraph_sdl: String,
-    hints: Vec<BuildHint>,
-    federation_version: FederationVersion,
+    pub(crate) supergraph_sdl: String,
+    pub(crate) hints: Vec<BuildHint>,
+    pub(crate) federation_version: FederationVersion,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -50,7 +57,35 @@ pub enum CompositionError {
         error: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    Build { source: BuildErrors },
+    Build {
+        source: BuildErrors,
+        federation_version: FederationVersion,
+    },
     #[error("Serialization error.\n{}", .0)]
     SerdeYaml(#[from] serde_yaml::Error),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphAdded {
+    pub(crate) name: String,
+    pub(crate) schema_source: SchemaSource,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphRemoved {
+    pub(crate) name: String,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SupergraphConfigResolutionError {
+    #[error("Could not instantiate Studio Client")]
+    StudioClientInitialisationFailed(#[from] Error),
+    #[error("Could not load remote subgraphs")]
+    LoadRemoteSubgraphsFailed(#[from] LoadRemoteSubgraphsError),
+    #[error("Could not load supergraph config from local file")]
+    LoadLocalSupergraphConfigFailed(#[from] LoadSupergraphConfigError),
+    #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
+    ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
+    #[error("Path `{0}` does not point to a file")]
+    PathDoesNotPointToAFile(PathBuf),
 }

@@ -12,6 +12,7 @@ use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
 use tower::ServiceExt;
 
+use crate::composition::supergraph::binary::OutputTarget;
 use crate::{
     command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
@@ -161,6 +162,8 @@ impl Dev {
                 fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
+                OutputTarget::Stdout,
+                false,
             )
             .await?;
 
