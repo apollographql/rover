@@ -27,7 +27,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::env::temp_dir;
 use std::io::stdin;
-use tokio::task::JoinHandle;
 use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
 use tracing::debug;
@@ -105,7 +104,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
         HashMap::from_iter(
             lazily_resolved_supergraph_config
                 .subgraphs()
-                .into_iter()
+                .iter()
                 .map(|(a, b)| (a.to_string(), b.schema().clone())),
         ),
     );
@@ -113,7 +112,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
     let language_server = service.inner().clone();
 
     // Spawn a separate thread to handle composition and passing that data to the language server
-    let _: JoinHandle<Result<(), Error>> = tokio::spawn(async move {
+    tokio::spawn(async move {
         // Create a supergraph binary
         // TODO: Check defaulting behaviour here and see if we need to centralise
         let federation_version = lazily_resolved_supergraph_config
@@ -220,7 +219,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                 }
             }
         }
-        Ok(())
+        Ok::<(), Error>(())
     });
 
     let stdin = tokio::io::stdin();
