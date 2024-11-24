@@ -78,6 +78,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             }
         })
         .ok_or_else(|| anyhow!("Could not find supergraph.yaml file."))?;
+    let supergraph_content_root = supergraph_yaml_path.parent().unwrap().to_path_buf();
 
     let studio_client = client_config.get_authenticated_client(&lsp_opts.plugin_opts.profile)?;
 
@@ -90,18 +91,13 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             Some(&FileDescriptorType::File(supergraph_yaml_path.clone())),
         )?;
     let lazily_resolved_supergraph_config = supergraph_config
-        .lazily_resolve_subgraphs(&supergraph_yaml_path)
+        .lazily_resolve_subgraphs(&supergraph_content_root)
         .await?;
-
-    let root_uri = supergraph_yaml_path
-        .parent()
-        .map(|path| path.to_string())
-        .unwrap_or_default();
 
     // Build the service to spin up the language server
     let (service, socket, _receiver) = ApolloLanguageServer::build_service(
         Config {
-            root_uri,
+            root_uri: supergraph_content_root.to_string(),
             enable_auto_composition: false,
             force_federation: false,
             disable_telemetry: false,
