@@ -1,3 +1,4 @@
+use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -7,6 +8,7 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 
+use crate::composition::{CompositionSubgraphAdded, CompositionSubgraphRemoved};
 use crate::{
     composition::{
         events::CompositionEvent,
@@ -54,11 +56,25 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            subgraphs.upsert_subgraph(name.to_string(), sdl.to_string());
+                            if subgraphs.upsert_subgraph(name.to_string(), sdl.to_string()) {
+                                let _ = sender
+                                    .send(CompositionEvent::SubgraphAdded(
+                                        CompositionSubgraphAdded {
+                                            name: name.clone(),
+                                            schema_source: Sdl { sdl: sdl.clone() },
+                                        },
+                                    ))
+                                    .tap_err(|err| tracing::error!("{:?}", err));
+                            }
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
                             subgraphs.remove_subgraph(name);
+                            let _ = sender
+                                .send(CompositionEvent::SubgraphRemoved(
+                                    CompositionSubgraphRemoved { name: name.clone() },
+                                ))
+                                .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
 

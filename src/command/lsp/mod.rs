@@ -5,7 +5,9 @@ use crate::composition::supergraph::config::{
     ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use crate::composition::supergraph::install::InstallSupergraph;
-use crate::composition::{CompositionError, CompositionSuccess};
+use crate::composition::{
+    CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+};
 use crate::utils::effect::exec::TokioCommand;
 use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::FsReadFile;
@@ -134,7 +136,6 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                 .await?;
 
         // Spin up Runner
-        //TODO: We need to implement some kind of From that takes us from a LazilyResolved -> FullyResolvedSubgraphs
         let mut stream = Runner::default()
             .setup_subgraph_watchers(
                 lazily_resolved_supergraph_config.subgraphs().clone(),
@@ -210,27 +211,21 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
                         .await;
                 }
+                CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {
+                    name,
+                    schema_source,
+                }) => {
+                    debug!("Subgraph {} added", name);
+                    language_server.add_subgraph(name, schema_source).await;
+                }
+                CompositionEvent::SubgraphRemoved(CompositionSubgraphRemoved { name }) => {
+                    debug!("Subgraph {} removed", name);
+                    language_server.remove_subgraph(&name).await;
+                }
             }
         }
         Ok(())
     });
-
-    // Event::SubgraphAdded {
-    //     subgraph_name,
-    //     schema_source,
-    // } => {
-    //     debug!("Subgraph {} added", subgraph_name);
-    //     language_server
-    //         .add_subgraph(subgraph_name, schema_source)
-    //         .await;
-    // }
-    // Event::SubgraphRemoved { subgraph_name } => {
-    //     debug!("Subgraph {} removed", subgraph_name);
-    //     language_server.remove_subgraph(&subgraph_name).await;
-    // }
-    // Event::StartedWatchingSubgraph(watcher) => {
-    //     debug!("Started watching subgraph {watcher:?}"); // TODO: hand off between real-time and on-save
-    // }
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();

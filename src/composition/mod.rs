@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use apollo_federation_types::config::SchemaSource;
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildHint},
@@ -36,4 +37,15 @@ pub enum CompositionError {
     ReadFile { path: Utf8PathBuf, error: String },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
     Build { source: BuildErrors },
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphAdded {
+    pub(crate) name: String,
+    pub(crate) schema_source: SchemaSource,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphRemoved {
+    pub(crate) name: String,
 }

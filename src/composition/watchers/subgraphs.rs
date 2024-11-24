@@ -136,7 +136,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
             // Wait for supergraph diff events received from the input stream.
             while let Some(diff) = input.next().await {
                 // If we detect additional diffs, start a new subgraph subtask.
-                // Adding the abort handle to the currentl collection of handles.
+                // Adding the abort handle to the current collection of handles.
                 for (subgraph_name, subgraph_config) in diff.added() {
                     if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
                         subgraph_config.schema.clone(),
