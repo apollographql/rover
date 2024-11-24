@@ -19,9 +19,9 @@ mod watchers;
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {
-    supergraph_sdl: String,
-    hints: Vec<BuildHint>,
-    federation_version: FederationVersion,
+    pub(crate) supergraph_sdl: String,
+    pub(crate) hints: Vec<BuildHint>,
+    pub(crate) federation_version: FederationVersion,
 }
 
 #[derive(thiserror::Error, Debug, Eq, PartialEq)]

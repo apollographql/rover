@@ -154,9 +154,9 @@ checksum = "10f00e1f6e58a40e807377c75c6a7f97bf9044fab57816f2414e6f5f4499d7b8"
 
 [[package]]
 name = "apollo-compiler"
-version = "1.0.0-beta.24"
+version = "1.0.0-beta.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71153ad85c85f7aa63f0e0a5868912c220bb48e4c764556f5841d37fc17b0103"
+checksum = "875f39060728ac3e775fc3fe5421225d6df92c4d5155a9524cdb198f05006d36"
 dependencies = [
  "ahash 0.8.11",
  "apollo-parser 0.8.2",
@@ -173,13 +173,13 @@ dependencies = [
 
 [[package]]
 name = "apollo-composition"
-version = "0.1.5"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9020a1abf3e03cfd81792c9503c673a8369937174cae0ddab8c2c87e22662b49"
+checksum = "6864cf58167a074ac909b387cebdbc0a6957d7eb95b6e4cdaf7df8c9cd46108a"
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
- "apollo-federation-types 0.15.0",
+ "apollo-federation-types",
  "either",
 ]
 
@@ -195,9 +195,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation"
-version = "2.0.0-preview.1"
+version = "2.0.0-alpha.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c87a5a622646520e2e7df15ed33de1558e9d6eaaa7834eeafd02a8378cd73d2"
+checksum = "b327840a1c216f7a1e6ac1a4fee347a9dee4fe7e3db94f5f9756337f5754969c"
 dependencies = [
  "apollo-compiler",
  "derive_more",
@@ -206,13 +206,10 @@ dependencies = [
  "indexmap 2.5.0",
  "itertools 0.13.0",
  "lazy_static",
- "line-col",
  "multimap",
  "nom",
  "nom_locate",
- "once_cell",
  "petgraph",
- "regex",
  "serde",
  "serde_json",
  "serde_json_bytes",
@@ -242,22 +239,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "apollo-federation-types"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c2cbf0cdfdb2506012037bb9d881df6fe83e2120b257eb0d9ce64d7c270dbff"
-dependencies = [
- "log",
- "semver",
- "serde",
- "serde_json",
- "serde_with",
- "serde_yaml 0.8.26",
- "thiserror",
- "url",
-]
-
-[[package]]
 name = "apollo-language-server"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -266,7 +247,7 @@ dependencies = [
  "apollo-compiler",
  "apollo-composition",
  "apollo-federation",
- "apollo-federation-types 0.14.1",
+ "apollo-federation-types",
  "apollo-parser 0.8.2",
  "debounced",
  "futures",
@@ -3337,7 +3318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -3362,12 +3343,6 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
-
-[[package]]
-name = "line-col"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e69cdf6b85b5c8dce514f694089a2cf8b1a702f6cd28607bcb3cf296c9778db"
 
 [[package]]
 name = "linked-hash-map"
@@ -4880,7 +4855,7 @@ name = "rover"
 version = "0.26.2"
 dependencies = [
  "anyhow",
- "apollo-federation-types 0.14.1",
+ "apollo-federation-types",
  "apollo-language-server",
  "apollo-parser 0.8.2",
  "assert-json-diff",
@@ -4955,6 +4930,7 @@ dependencies = [
  "tokio-stream",
  "toml",
  "tower 0.5.1",
+ "tower-lsp",
  "tracing",
  "tracing-test",
  "url",
@@ -4968,7 +4944,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo-encoder",
- "apollo-federation-types 0.14.1",
+ "apollo-federation-types",
  "apollo-parser 0.8.2",
  "ariadne 0.5.0",
  "backoff",
@@ -5735,7 +5711,7 @@ version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38d1e02fca405f6280643174a50c942219f0bbf4dbf7d480f1dd864d6f211ae5"
 dependencies = [
- "heck 0.5.0",
+ "heck 0.4.1",
  "proc-macro2",
  "quote",
  "syn 2.0.79",
@@ -7288,7 +7264,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "apollo-federation-types 0.14.1",
+ "apollo-federation-types",
  "assert_fs",
  "base64 0.22.1",
  "camino",
