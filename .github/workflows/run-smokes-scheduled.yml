@@ -48,12 +48,10 @@ jobs:
     steps:
       - name: Send custom JSON data to Slack workflow
         id: slack
-        uses: slackapi/slack-github-action@v1.27.1
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
-            {
-              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_E2E_TEST_FAILURE_WEBHOOK_URL }}
+            run_url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          webhook: ${{ secrets.SLACK_E2E_TEST_FAILURE_WEBHOOK_URL }}
+          webhook-type: webhook-trigger
