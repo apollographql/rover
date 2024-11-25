@@ -109,36 +109,52 @@ impl RunRouterConfig<RunRouterConfigDefault> {
 }
 
 impl RunRouterConfig<RunRouterConfigReadConfig> {
-    pub async fn with_config<ReadF: ReadFile>(
+    pub async fn with_config<ReadF: ReadFile<Error = RoverStdError>>(
         self,
         read_file_impl: &ReadF,
-        path: Option<Utf8PathBuf>,
+        path: &Utf8PathBuf,
     ) -> Result<RunRouterConfig<RunRouterConfigFinal>, ReadRouterConfigError> {
-        let state = if let Some(path) = path {
-            Fs::assert_path_exists(&path).map_err(ReadRouterConfigError::Fs)?;
-            let contents = read_file_impl.read_file(&path).await.map_err(|err| {
-                ReadRouterConfigError::ReadFile {
+        Fs::assert_path_exists(&path).map_err(ReadRouterConfigError::Fs)?;
+
+        let state = match read_file_impl.read_file(&path).await {
+            Ok(contents) => {
+                let yaml = serde_yaml::from_str(&contents).map_err(|err| {
+                    ReadRouterConfigError::Deserialization {
+                        path: path.clone(),
+                        source: err,
+                    }
+                })?;
+
+                let router_config = RouterConfigParser::new(&yaml);
+                let address = router_config.address()?;
+                let address = address
+                    .map(RouterAddress::from)
+                    .unwrap_or(self.state.router_address);
+                let health_check = router_config.health_check();
+                let listen_path = router_config.listen_path()?;
+
+                RunRouterConfigFinal {
+                    listen_path,
+                    address,
+                    health_check,
+                }
+            }
+            Err(RoverStdError::EmptyFile { .. }) => {
+                // TODO: assumption to check; I'm not writing to the temp file because we don't
+                // need to yet, we only need to return the in-memory RunRouterConfigFinal and
+                // somewhere down the line of actually running the router will we write to file
+                // (that we're watching, which will emit a new router config event)
+                let default_config = RunRouterConfigFinal::default();
+                default_config
+            }
+            Err(err) => {
+                return Err(ReadRouterConfigError::ReadFile {
                     path: path.clone(),
                     source: Box::new(err),
-                }
-            })?;
-            let yaml = serde_yaml::from_str(&contents)
-                .map_err(|err| ReadRouterConfigError::Deserialization { path, source: err })?;
-            let router_config = RouterConfigParser::new(&yaml);
-            let address = router_config.address()?;
-            let address = address
-                .map(RouterAddress::from)
-                .unwrap_or(self.state.router_address);
-            let health_check = router_config.health_check();
-            let listen_path = router_config.listen_path()?;
-            RunRouterConfigFinal {
-                listen_path,
-                address,
-                health_check,
+                })
             }
-        } else {
-            RunRouterConfigFinal::default()
         };
+
         Ok(RunRouterConfig { state })
     }
 }
