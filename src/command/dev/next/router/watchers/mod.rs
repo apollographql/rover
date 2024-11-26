@@ -5,7 +5,7 @@ use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-/// File watcher specifically for files related to composition
+/// File watcher specifically for files related to router configs
 #[derive(Clone, Debug)]
 pub struct FileWatcher {
     /// The filepath to watch
@@ -21,7 +21,7 @@ impl FileWatcher {
     /// Watch a file
     ///
     /// When a file is removed, the internal rover-std::fs filewatcher will be cancelled. The
-    /// composition filewatcher's stream will still be active, however
+    /// router config's filewatcher's stream will still be active, however
     ///
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
