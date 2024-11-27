@@ -1,0 +1,27 @@
+scalar _FieldSet
+scalar _Any
+type Query {
+    allPandas: [Panda]
+    panda(name: ID!): Panda
+    _service: _Service!
+}
+type Panda {
+    name: ID!
+    favoriteFood: String
+}
+type _Service {
+    sdl: String
+}
+directive @tag(name: String!) on FIELD_DEFINITION
+directive @key(fields: _FieldSet!, resolvable: Boolean = true) on OBJECT | INTERFACE
+directive @requires(fields: _FieldSet!) on FIELD_DEFINITION
+directive @provides(fields: _FieldSet!) on FIELD_DEFINITION
+directive @external(reason: String) on OBJECT | FIELD_DEFINITION
+directive @extends on OBJECT | INTERFACE
+"Exposes a URL that specifies the behavior of this scalar."
+directive @specifiedBy(
+    "The URL that specifies the behavior of this scalar."
+    url: String!
+) on SCALAR
+"Indicates exactly one field must be supplied and this field must not be `null`."
+directive @oneOf on INPUT_OBJECT

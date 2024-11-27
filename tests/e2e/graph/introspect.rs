@@ -17,8 +17,7 @@ use tracing_test::traced_test;
 
 use crate::e2e::{
     find_matching_log_line, introspection_log_line_prefix, run_single_mutable_subgraph,
-    run_subgraphs_retail_supergraph, test_artifacts_directory, RetailSupergraph,
-    SingleMutableSubgraph,
+    test_artifacts_directory, SingleMutableSubgraph,
 };
 
 #[rstest]
@@ -26,16 +25,11 @@ use crate::e2e::{
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_graph_introspect(
-    run_subgraphs_retail_supergraph: &RetailSupergraph<'_>,
+    #[from(run_single_mutable_subgraph)]
+    #[future(awt)]
+    subgraph: SingleMutableSubgraph,
     test_artifacts_directory: PathBuf,
 ) {
-    // Extract the inventory URL from the supergraph.yaml
-    let url = run_subgraphs_retail_supergraph
-        .get_subgraph_urls()
-        .into_iter()
-        .find(|url| url.contains("inventory"))
-        .expect("failed to find the inventory routing URL");
-
     // Set up the command to output
     let out_file = Builder::new()
         .suffix(".json")
@@ -45,7 +39,7 @@ async fn e2e_test_rover_graph_introspect(
     cmd.args([
         "graph",
         "introspect",
-        &url,
+        &subgraph.subgraph_url,
         "--format",
         "json",
         "--output",
@@ -59,8 +53,9 @@ async fn e2e_test_rover_graph_introspect(
     let actual_schema = response["data"]["introspection_response"]
         .as_str()
         .expect("Could not extract schema from response");
-    let expected_schema = read_to_string(test_artifacts_directory.join("graph/inventory.graphql"))
-        .expect("Could not read in canonical schema");
+    let expected_schema =
+        read_to_string(test_artifacts_directory.join("graph/pandas_introspect.graphql"))
+            .expect("Could not read in canonical schema");
 
     let changes = diff(actual_schema, &expected_schema).unwrap();
 

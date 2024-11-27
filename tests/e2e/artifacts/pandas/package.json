@@ -4,7 +4,7 @@
   "description": "",
   "main": "pandas.mjs",
   "scripts": {
-    "start": "nodemon -e mjs,graphql pandas.mjs",
+    "start": "nodemon -e mjs,graphql --delay 1 pandas.mjs",
     "dev": "cargo rover dev --name pandas --url http://localhost:4003",
     "clean": "rm -rf node_modules package-lock.json"
   },

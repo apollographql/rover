@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::ChildStderr;
 use std::time::Duration;
@@ -155,10 +154,10 @@ fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSu
 
 struct SingleMutableSubgraph {
     subgraph_url: String,
-    directory: TempDir,
-    schema_file_name: String,
     #[allow(dead_code)]
     task_handle: Child,
+    directory: TempDir,
+    schema_file_name: String,
 }
 
 #[fixture]
