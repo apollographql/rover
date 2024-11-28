@@ -1,5 +1,4 @@
-use std::fs::{read_to_string, OpenOptions};
-use std::io::{BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -12,6 +11,8 @@ use serde_json::Value;
 use speculoos::assert_that;
 use speculoos::prelude::{asserting, VecAssertions};
 use tempfile::Builder;
+use tokio::fs::{read_to_string, rename, File};
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 use tracing_test::traced_test;
 
@@ -55,6 +56,7 @@ async fn e2e_test_rover_graph_introspect(
         .expect("Could not extract schema from response");
     let expected_schema =
         read_to_string(test_artifacts_directory.join("graph/pandas_introspect.graphql"))
+            .await
             .expect("Could not read in canonical schema");
 
     let changes = diff(actual_schema, &expected_schema).unwrap();
@@ -120,16 +122,21 @@ async fn e2e_test_rover_graph_introspect_watch(
         .directory
         .path()
         .join(subgraph.schema_file_name.clone());
-    let schema = read_to_string(&schema_path).expect("Could not read schema file");
+    let schema = read_to_string(&schema_path)
+        .await
+        .expect("Could not read schema file");
     let new_schema = schema.replace("allPandas", "getMeAllThePandas");
-    let mut schema_file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(schema_path)
-        .expect("Cannot open schema file");
+    let temp_schema_path = subgraph.directory.path().join("temp_schema.graphql");
+    let mut schema_file = File::create(temp_schema_path.clone())
+        .await
+        .expect("Could not create temporary schema file");
     schema_file
         .write_all(new_schema.as_bytes())
+        .await
         .expect("Could not update schema");
+    rename(temp_schema_path, schema_path)
+        .await
+        .expect("Could not rename file for atomic write");
 
     // Wait for the next introspection log line so we know the response has been received.
     find_matching_log_line(&mut reader, introspection_log_line_prefix);
@@ -153,6 +160,7 @@ async fn e2e_test_rover_graph_introspect_watch(
         .expect("Could not extract schema from response");
     let expected_new_schema =
         read_to_string(test_artifacts_directory.join("graph/pandas_changed_introspect.graphql"))
+            .await
             .expect("Could not read in canonical schema");
 
     info!("Check new schema is as expected...");
