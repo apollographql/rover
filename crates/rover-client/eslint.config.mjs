@@ -13,8 +13,10 @@ export default [
         languageOptions: {
             parser: graphqlESLint,
             parserOptions:{
-                schema: "./.schema/schema.graphql",
-                operations: ["./src/operations/**/*.graphql"]
+                graphQLConfig: {
+                    schema: "./.schema/schema.graphql",
+                    documents: ["./src/operations/**/*.graphql"]
+                }
             }
         },
         rules: {
@@ -31,7 +33,6 @@ export default [
             "@graphql-eslint/known-type-names": 2,
             "@graphql-eslint/lone-anonymous-operation": 2,
             "@graphql-eslint/no-anonymous-operations": 2,
-            "@graphql-eslint/no-case-insensitive-enum-values-duplicates": 2,
             "@graphql-eslint/no-deprecated": 2,
             "@graphql-eslint/no-fragment-cycles": 2,
             "@graphql-eslint/no-hashtag-description": 2,
