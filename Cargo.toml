@@ -45,7 +45,7 @@ default = ["composition-js"]
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
-dev-next = []
+dev-next = ["composition-rewrite"]
 composition-rewrite = []
 
 ### cross-workspace dependencies
@@ -197,7 +197,10 @@ os_info = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
+rover-graphql = { workspace = true }
+rover-http = { workspace = true }
 rover-std = { workspace = true }
+rover-studio = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
