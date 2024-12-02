@@ -16,7 +16,6 @@ type Timestamp = String;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-
 pub struct ReadmePublishMutation;
 
 pub async fn run(

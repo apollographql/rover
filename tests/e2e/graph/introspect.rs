@@ -87,6 +87,7 @@ async fn e2e_test_rover_graph_introspect_watch(
         .expect("Could not create output file");
     // Create the Rover command to run the introspection in `--watch` mode
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+
     let mut child = cmd
         .args([
             "graph",
@@ -141,6 +142,7 @@ async fn e2e_test_rover_graph_introspect_watch(
     info!("Killing rover process...");
     // Kill the watch process to ensure the file doesn't change again now
     child.kill().expect("Could not kill rover process");
+    child.wait().expect("Wait for rover process to finish");
 
     info!("Extract new value from file...");
     // Get the new result from the file
