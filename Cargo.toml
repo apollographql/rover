@@ -156,6 +156,7 @@ tower-test = "0.4.0"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = "0.3"
+tracing-test = "0.2.5"
 which = "7"
 wsl = "0.1"
 uuid = "1"
@@ -246,5 +247,5 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
-tracing-test = "0.2.5"
+tracing-test = { workspace = true }
 temp-env = { version = "0.3.6", features = ["async_closure"] }
