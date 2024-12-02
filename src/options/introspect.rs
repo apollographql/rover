@@ -22,9 +22,9 @@ pub struct IntrospectOpts {
     /// Headers to pass to the endpoint. Values must be key:value pairs.
     /// If a value has a space in it, use quotes around the pair,
     /// ex. -H "Auth:some key"
-
-    // The `value_name` here is for the help text and error messages, to print like
-    // --header <KEY:VALUE> rather than the plural field name --header <headers>
+    ///
+    /// The `value_name` here is for the help text and error messages, to print like
+    /// --header <KEY:VALUE> rather than the plural field name --header <headers>
     #[arg(value_name="KEY:VALUE", long="header", short='H', value_parser = parse_header)]
     #[serde(skip_serializing)]
     pub headers: Option<Vec<(String, String)>>,

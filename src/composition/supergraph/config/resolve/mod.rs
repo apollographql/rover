@@ -222,6 +222,7 @@ pub struct FullyResolvedSubgraphs {
 
 impl FullyResolvedSubgraphs {
     #[cfg(test)]
+    /// Used to create a new set of FullyResolvedSubgraphs for testing purposes
     pub fn new(subgraphs: BTreeMap<String, String>) -> FullyResolvedSubgraphs {
         FullyResolvedSubgraphs { subgraphs }
     }
@@ -278,7 +279,6 @@ impl From<FullyResolvedSubgraphs> for SupergraphConfig {
 
 #[cfg(test)]
 mod tests {
-
     use std::{
         collections::{BTreeMap, HashSet},
         str::FromStr,
