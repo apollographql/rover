@@ -210,7 +210,7 @@ mod tests {
     use bytes::Bytes;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::body::body_to_bytes;
+    use rover_http::{body::body_to_bytes, HttpRequest, HttpResponse, HttpServiceError};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
@@ -247,14 +247,16 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn test_successful_request() -> Result<()> {
-        let endpoint = Url::parse("http://example.com/graphql")?;
-        let (mut service, mut handle) = mock::spawn_with(|inner| {
-            ServiceBuilder::new()
-                .layer(GraphQLLayer::new(endpoint.clone()))
-                .service(inner)
-        });
-        assert_ready_ok!(service.poll_ready::<GraphQLRequest<TestQuery>>());
+    pub async fn test_successful_request() {
+        let endpoint = Url::parse("http://example.com/graphql").unwrap();
+        let (mock_service, mut handle) = mock::spawn::<HttpRequest, HttpResponse>();
+        let mut service = ServiceBuilder::new()
+            .layer(GraphQLLayer::new(endpoint.clone()))
+            .map_err(HttpServiceError::Unexpected)
+            .service(mock_service.into_inner());
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
+            .await
+            .unwrap();
 
         let variables = TestQueryVariables { variable: 7 };
         let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);
@@ -297,12 +299,14 @@ mod tests {
     #[tokio::test]
     pub async fn test_error_no_data() -> Result<()> {
         let endpoint = Url::parse("http://example.com/graphql")?;
-        let (mut service, mut handle) = mock::spawn_with(|inner| {
-            ServiceBuilder::new()
-                .layer(GraphQLLayer::new(endpoint.clone()))
-                .service(inner)
-        });
-        assert_ready_ok!(service.poll_ready::<GraphQLRequest<TestQuery>>());
+        let (mock_service, mut handle) = mock::spawn::<HttpRequest, HttpResponse>();
+        let mut service = ServiceBuilder::new()
+            .layer(GraphQLLayer::new(endpoint.clone()))
+            .map_err(HttpServiceError::Unexpected)
+            .service(mock_service.into_inner());
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
+            .await
+            .unwrap();
 
         let variables = TestQueryVariables { variable: 7 };
         let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);
@@ -366,16 +370,16 @@ mod tests {
     #[case::ok(StatusCode::OK)]
     #[case::internal_server_error(StatusCode::INTERNAL_SERVER_ERROR)]
     #[tokio::test]
-    pub async fn test_json_deserialization_error(
-        #[case] expected_status_code: StatusCode,
-    ) -> Result<()> {
-        let endpoint = Url::parse("http://example.com/graphql")?;
-        let (mut service, mut handle) = mock::spawn_with(|inner| {
-            ServiceBuilder::new()
-                .layer(GraphQLLayer::new(endpoint.clone()))
-                .service(inner)
-        });
-        assert_ready_ok!(service.poll_ready::<GraphQLRequest<TestQuery>>());
+    pub async fn test_json_deserialization_error(#[case] expected_status_code: StatusCode) {
+        let endpoint = Url::parse("http://example.com/graphql").unwrap();
+        let (mock_service, mut handle) = mock::spawn::<HttpRequest, HttpResponse>();
+        let mut service = ServiceBuilder::new()
+            .layer(GraphQLLayer::new(endpoint.clone()))
+            .map_err(HttpServiceError::Unexpected)
+            .service(mock_service.into_inner());
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
+            .await
+            .unwrap();
 
         let variables = TestQueryVariables { variable: 7 };
         let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);

@@ -76,7 +76,7 @@ impl Service<ExecCommandConfig> for TokioSpawn {
     }
 }
 
-fn build_command<'a>(command: &'a mut Command, config: ExecCommandConfig) -> &'a mut Command {
+fn build_command(command: &mut Command, config: ExecCommandConfig) -> &mut Command {
     let command = command
         .args(config.args.unwrap_or_default())
         .envs(config.env.unwrap_or_default());
