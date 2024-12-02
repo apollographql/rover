@@ -96,6 +96,9 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         .expect("Could not create output file");
     // Create the Rover command to run the introspection in `--watch` mode
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    // TODO: We should return to this once Clippy have stabilised their linting on this issue:
+    // https://github.com/rust-lang/rust-clippy/pull/13760
+    #[allow(clippy::zombie_processes)]
     let mut child = cmd
         .args([
             "subgraph",
@@ -158,6 +161,9 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     info!("Killing rover process...");
     // Kill the watch process to ensure the file doesn't change again now
     child.kill().expect("Could not kill rover process");
+    child
+        .wait()
+        .expect("Could not wait for rover process to finish");
 
     info!("Extract new value from file...");
     // Get the new result from the file

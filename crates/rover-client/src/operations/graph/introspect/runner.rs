@@ -14,7 +14,6 @@ use std::convert::{Into, TryFrom};
     response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. graph_introspect_query

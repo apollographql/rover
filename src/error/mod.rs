@@ -104,14 +104,14 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        return match self.error.downcast_ref::<RoverClientError>() {
+        match self.error.downcast_ref::<RoverClientError>() {
             Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
             }) => check_response.get_json(),
             Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
             _ => Value::Null,
-        };
+        }
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
