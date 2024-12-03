@@ -13,7 +13,10 @@ use crate::{
     RoverError, RoverOutput, RoverResult,
 };
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use self::router::{
+    config::{RouterAddress, RouterConfig, RunRouterConfig},
+    hot_reload::RouterUpdateEvent,
+};
 
 mod router;
 
@@ -67,14 +70,8 @@ impl RouterConfigWatcher {
     }
 }
 
-// FIXME: use proper struct once we have it from the work for running the router binary
-struct ReplaceMeWithProperRouterEventsStruct {
-    #[allow(dead_code)]
-    router_config: String,
-}
-
 impl SubtaskHandleUnit for RouterConfigWatcher {
-    type Output = ReplaceMeWithProperRouterEventsStruct;
+    type Output = RouterUpdateEvent;
     fn handle(
         self,
         sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
@@ -82,7 +79,9 @@ impl SubtaskHandleUnit for RouterConfigWatcher {
         tokio::spawn(async move {
             while let Some(router_config) = self.file_watcher.clone().watch().next().await {
                 let _ = sender
-                    .send(ReplaceMeWithProperRouterEventsStruct { router_config })
+                    .send(RouterUpdateEvent::ConfigChanged {
+                        config: RouterConfig::new(router_config),
+                    })
                     .tap_err(|err| tracing::error!("{:?}", err));
             }
         })

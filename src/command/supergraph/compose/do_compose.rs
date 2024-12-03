@@ -275,8 +275,8 @@ impl Compose {
                 &exec_command,
                 &read_file,
                 &output_file
-                    .map(|path| OutputTarget::File(path))
-                    .unwrap_or_else(|| OutputTarget::Stdout),
+                    .map(OutputTarget::File)
+                    .unwrap_or(OutputTarget::Stdout),
                 supergraph_config_filepath,
             )
             .await?;
