@@ -5,18 +5,36 @@ use crate::{
 };
 
 use houston::{Credential, CredentialOrigin};
-use std::time::Duration;
+use rover_graphql::{GraphQLLayer, GraphQLService};
+use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
+use rover_studio::{HttpStudioServiceError, HttpStudioServiceLayer};
+use std::{str::FromStr, time::Duration};
+use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder};
 
 use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client as ReqwestClient;
+use url::Url;
+
+#[derive(thiserror::Error, Debug)]
+pub enum InitStudioServiceError {
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    StudioService(#[from] HttpStudioServiceError),
+}
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
     pub credential: Credential,
+    graphql_endpoint: String,
     client: GraphQLClient,
+    reqwest_client: ReqwestClient,
     version: String,
     is_sudo: bool,
+    retry_period: Option<Duration>,
 }
 
 impl StudioClient {
@@ -32,9 +50,12 @@ impl StudioClient {
     ) -> StudioClient {
         StudioClient {
             credential,
+            graphql_endpoint: graphql_endpoint.to_string(),
+            reqwest_client: client.clone(),
             client: GraphQLClient::new(graphql_endpoint, client, retry_period),
             version: version.to_string(),
             is_sudo,
+            retry_period,
         }
     }
 
@@ -101,5 +122,23 @@ impl StudioClient {
 
     pub fn get_credential_origin(&self) -> CredentialOrigin {
         self.credential.origin.clone()
+    }
+
+    pub fn service(&self) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let service = ServiceBuilder::new()
+            .layer(GraphQLLayer::default())
+            .layer(BoxCloneServiceLayer::new(HttpStudioServiceLayer::new(
+                Url::from_str(&self.graphql_endpoint)?,
+                self.credential.clone(),
+                self.version.to_string(),
+                self.is_sudo,
+            )?))
+            .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
+        Ok(service)
     }
 }

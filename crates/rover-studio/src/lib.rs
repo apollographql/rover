@@ -2,17 +2,32 @@
 
 //! Provides middleware that injects studio headers into all requests
 
+use std::str::FromStr;
+
 use buildstructor::buildstructor;
 use houston::Credential;
-use http::{HeaderMap, HeaderValue};
-use rover_http::extend_headers::ExtendHeaders;
-use tower::Layer;
+use http::{HeaderMap, HeaderValue, Uri};
+use rover_http::HttpRequest;
+use tower::{Layer, Service};
+use url::Url;
 
 const CLIENT_NAME: &str = "rover-client";
+
+/// Errors occur when a HttpStudioService fails to be created
+#[derive(thiserror::Error, Debug)]
+pub enum HttpStudioServiceError {
+    /// Caused when a HttpStudioService fails to build due to an invalid [`HeaderValue`]
+    #[error(transparent)]
+    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
+    /// Caused when a HttpStudioService fails to build due to an invalid [`Uri`]
+    #[error(transparent)]
+    InvalidUri(#[from] http::uri::InvalidUri),
+}
 
 /// Layer providing middleware that injects studio headers to all requests
 pub struct HttpStudioServiceLayer {
     headers: HeaderMap,
+    uri: Uri,
 }
 
 #[buildstructor]
@@ -20,10 +35,11 @@ impl HttpStudioServiceLayer {
     /// Constructs a new [`HttpStudioServiceLayer`]
     #[builder]
     pub fn new(
+        url: Url,
         credential: Credential,
         client_version: String,
         is_sudo: bool,
-    ) -> Result<HttpStudioServiceLayer, http::header::InvalidHeaderValue> {
+    ) -> Result<HttpStudioServiceLayer, HttpStudioServiceError> {
         let mut headers = HeaderMap::new();
 
         // The headers "apollographql-client-name" and "apollographql-client-version"
@@ -46,20 +62,58 @@ impl HttpStudioServiceLayer {
         if is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_static("true"));
         }
-        Ok(HttpStudioServiceLayer { headers })
+        let uri = Uri::from_str(url.as_ref())?;
+        Ok(HttpStudioServiceLayer { headers, uri })
     }
 }
 
 impl<S: Clone> Layer<S> for HttpStudioServiceLayer {
-    type Service = ExtendHeaders<S>;
+    type Service = HttpStudioService<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        ExtendHeaders::new(self.headers.clone(), inner)
+        HttpStudioService {
+            headers: self.headers.clone(),
+            uri: self.uri.clone(),
+            inner,
+        }
+    }
+}
+
+/// Service that embeds required headers and endpoint into HTTP Requests to Apollo Studio
+#[derive(Clone)]
+pub struct HttpStudioService<S: Clone> {
+    headers: HeaderMap,
+    uri: Uri,
+    inner: S,
+}
+
+impl<S> Service<HttpRequest> for HttpStudioService<S>
+where
+    S: Service<HttpRequest> + Clone,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+    fn call(&mut self, mut req: HttpRequest) -> Self::Future {
+        *req.uri_mut() = self.uri.clone();
+        let headers = req.headers_mut();
+        for (name, value) in self.headers.iter() {
+            headers.insert(name.clone(), value.clone());
+        }
+        self.inner.call(req)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use anyhow::Result;
     use bytes::Bytes;
     use houston::{Credential, CredentialOrigin};
@@ -72,6 +126,7 @@ mod tests {
     use tokio_test::assert_ready_ok;
     use tower::ServiceBuilder;
     use tower_test::mock::{self, Mock};
+    use url::Url;
 
     use crate::HttpStudioServiceLayer;
 
@@ -88,11 +143,17 @@ mod tests {
         "client_version".to_string()
     }
 
+    #[fixture]
+    fn studio_endpoint() -> Url {
+        Url::from_str("https://example.com").unwrap()
+    }
+
     #[rstest]
     #[case::is_sudo(true)]
     #[case::is_not_sudo(false)]
     #[tokio::test]
     pub async fn test_studio_layer(
+        studio_endpoint: Url,
         credential: Credential,
         client_version: String,
         #[case] is_sudo: bool,
@@ -103,6 +164,7 @@ mod tests {
                 ServiceBuilder::new()
                     .layer(
                         HttpStudioServiceLayer::new(
+                            studio_endpoint.clone(),
                             credential.clone(),
                             client_version.to_string(),
                             is_sudo,

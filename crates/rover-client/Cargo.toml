@@ -24,6 +24,7 @@ graphql_client = { workspace = true }
 houston = { workspace = true }
 humantime = { workspace = true }
 hyper = { workspace = true }
+itertools = { workspace = true }
 prettytable-rs = { workspace = true }
 reqwest = { workspace = true, features = [
     "blocking",
@@ -33,14 +34,19 @@ reqwest = { workspace = true, features = [
     "native-tls-vendored",
     "socks",
 ] }
+rover-graphql = { workspace = true }
+rover-http = { workspace = true }
 rover-std = { workspace = true }
+rover-studio = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tower = { workspace = true }
 tracing = { workspace = true }
 regex = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
+url = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -57,5 +63,9 @@ reqwest = { workspace = true, features = [
 indoc = { workspace = true}
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
-strip-ansi-escapes = { workspace = true }
 rstest = { workspace = true }
+speculoos = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+tower-test = { workspace = true }
+tokio-test = { workspace = true }
+tracing-test = { workspace = true }

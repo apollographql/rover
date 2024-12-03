@@ -17,6 +17,7 @@ rover-http = { workspace = true }
 tower = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
