@@ -185,7 +185,7 @@ mod tests {
         mock_exec
             .expect_exec_command()
             .times(1)
-            .returning(move |_, _| {
+            .returning(move |_| {
                 Ok(Output {
                     status: ExitStatus::default(),
                     stdout: composition_output.as_bytes().into(),

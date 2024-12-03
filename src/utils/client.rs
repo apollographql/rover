@@ -9,7 +9,11 @@ use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
+use rover_http::{HttpService, ReqwestService};
+use rover_studio::HttpStudioServiceLayer;
 use serde::Serialize;
+use tower::{ServiceBuilder, ServiceExt};
+use url::Url;
 
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
@@ -176,5 +180,20 @@ impl StudioClientConfig {
             self.get_reqwest_client()?,
             self.retry_period,
         ))
+    }
+
+    pub fn authenticated_service(&self, profile_opt: &ProfileOpt) -> Result<HttpService> {
+        let client = self.get_reqwest_client()?;
+        let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
+        let service = ServiceBuilder::new()
+            .layer(HttpStudioServiceLayer::new(
+                Url::from_str(&self.uri)?,
+                credential,
+                self.version.clone(),
+                self.is_sudo,
+            )?)
+            .service(ReqwestService::builder().client(client).build()?)
+            .boxed_clone();
+        Ok(service)
     }
 }

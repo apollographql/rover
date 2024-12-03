@@ -133,7 +133,11 @@ impl StudioClient {
                 self.version.to_string(),
                 self.is_sudo,
             )?))
+<<<<<<< HEAD
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+=======
+            .layer(RetryLayer::new(RetryPolicy::new(self.retry_period.clone())))
+>>>>>>> 81617c54 (Run router binary)
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
