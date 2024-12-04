@@ -26,9 +26,9 @@ use super::{
     events::CompositionEvent,
     supergraph::{
         binary::{OutputTarget, SupergraphBinary},
-        config::resolve::{
-            subgraph::LazilyResolvedSubgraph, FullyResolvedSubgraphs,
-            LazilyResolvedSupergraphConfig,
+        config::{
+            full::FullyResolvedSubgraphs,
+            lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
