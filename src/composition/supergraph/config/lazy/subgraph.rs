@@ -24,7 +24,7 @@ impl LazilyResolvedSubgraph {
     ) -> Result<LazilyResolvedSubgraph, ResolveSubgraphError> {
         match unresolved_subgraph.schema() {
             SchemaSource::File { file } => {
-                let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, &file)?;
+                let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 Ok(LazilyResolvedSubgraph {
                     routing_url: unresolved_subgraph.routing_url().clone(),
                     schema: SchemaSource::File { file },

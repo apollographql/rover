@@ -51,7 +51,7 @@ impl FullyResolvedSubgraph {
             SchemaSource::File { file } => {
                 let supergraph_config_root =
                     supergraph_config_root.ok_or(ResolveSubgraphError::SupergraphConfigMissing)?;
-                let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, &file)?;
+                let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, bfile)?;
                 let schema =
                     Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
                 let is_fed_two = schema_contains_link_directive(&schema);
@@ -90,7 +90,7 @@ impl FullyResolvedSubgraph {
                 graphref: graph_ref,
                 subgraph,
             } => {
-                let graph_ref = GraphRef::from_str(&graph_ref).map_err(|err| {
+                let graph_ref = GraphRef::from_str(graph_ref).map_err(|err| {
                     ResolveSubgraphError::InvalidGraphRef {
                         graph_ref: graph_ref.clone(),
                         source: Box::new(err),
@@ -115,7 +115,7 @@ impl FullyResolvedSubgraph {
                 })
             }
             SchemaSource::Sdl { sdl } => {
-                let is_fed_two = schema_contains_link_directive(&sdl);
+                let is_fed_two = schema_contains_link_directive(sdl);
                 Ok(FullyResolvedSubgraph {
                     routing_url: None,
                     schema: sdl.to_string(),

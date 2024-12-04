@@ -45,7 +45,7 @@ impl FullyResolvedSupergraphConfig {
         supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().into_iter().map(
+        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
             |(name, unresolved_subgraph)| {
                 FullyResolvedSubgraph::resolve(
                     introspect_subgraph_impl,
