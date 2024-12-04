@@ -1,6 +1,16 @@
 //! This module provides an object that can either produce a [`LazilyResolvedsupergraphConfig`] or a
 //! [`FullyResolvedSupergraphConfig`] and uses the typestate pattern to enforce the order
 //! in which certain steps must happen.
+//!
+//! The process that is outlined by this pattern is the following:
+//!   1. Load remote subgraphs (if a [`GraphRef`] is provided)
+//!   2. Load subgraphs from local config (if a supergraph config file is provided)
+//!   3. Resolve subgraphs into one of: [`LazilyResolvedsupergraphConfig`] or [`FullyResolvedSupergraphConfig`]
+//!      a. [`LazilyResolvedsupergraphConfig`] is used to spin up a [`SubgraphWatchers`] object, which
+//!         provides SDL updates as subgraphs change
+//!      b. [`FullyResolvedSupergraphConfig`] is used to produce a composition result
+//!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
+//!         by [`SupergraphConfig`]
 
 use std::collections::BTreeMap;
 
@@ -194,15 +204,15 @@ pub enum ResolveSupergraphConfigError {
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
     pub async fn fully_resolve_subgraphs(
-        self,
+        &self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .subgraphs(self.state.subgraphs)
-                .and_federation_version(self.state.federation_version)
+                .subgraphs(self.state.subgraphs.clone())
+                .and_federation_version(self.state.federation_version.clone())
                 .build();
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
                 introspect_subgraph_impl,
@@ -221,13 +231,13 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// are valid and relative to the supergraph config file (or working directory, if the supergraph
     /// config is piped through stdin
     pub async fn lazily_resolve_subgraphs(
-        self,
+        &self,
         supergraph_config_root: &Utf8PathBuf,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .subgraphs(self.state.subgraphs)
-                .and_federation_version(self.state.federation_version)
+                .subgraphs(self.state.subgraphs.clone())
+                .and_federation_version(self.state.federation_version.clone())
                 .build();
             let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
                 supergraph_config_root,
