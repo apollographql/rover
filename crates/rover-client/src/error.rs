@@ -247,7 +247,7 @@ pub enum RoverClientError {
     NonCloudGraphRef { graph_ref: GraphRef },
 
     #[error("Could not instantiate the service.")]
-    ServiceError(Box<dyn std::error::Error + Send + Sync>),
+    ServiceError(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {

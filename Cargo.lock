@@ -4793,7 +4793,6 @@ dependencies = [
  "tower 0.5.1",
  "tower-test",
  "tracing",
- "tracing-test",
  "url",
 ]
 

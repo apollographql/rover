@@ -147,10 +147,8 @@ where
 mod tests {
     use serde_json::json;
     use speculoos::prelude::*;
-    use tokio::task;
     use tower::{ServiceBuilder, ServiceExt};
-    use tower_test::mock;
-    use tracing_test::traced_test;
+    use tower_test::{assert_request_eq, mock};
 
     use super::*;
 
@@ -181,11 +179,11 @@ mod tests {
         let response_data: config_who_am_i_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
 
-        let resp_task = task::spawn(async move {
-            let (req, send_response) = handle.next_request().await.unwrap();
-            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
-            send_response.send_response(response_data);
-        });
+        assert_request_eq!(
+            handle,
+            GraphQLRequest::new(config_who_am_i_query::Variables {})
+        )
+        .send_response(response_data);
 
         let output = response.await;
 
@@ -196,11 +194,9 @@ mod tests {
             credential_origin: CredentialOrigin::EnvVar,
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
-        resp_task.await.unwrap()
     }
 
     #[tokio::test]
-    #[traced_test]
     async fn get_identity_from_response_data_works_for_services() {
         let (service, mut handle) =
             mock::spawn::<GraphQLRequest<ConfigWhoAmIQuery>, config_who_am_i_query::ResponseData>();
@@ -227,11 +223,11 @@ mod tests {
         let response_data: config_who_am_i_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
 
-        let resp_task = task::spawn(async move {
-            let (req, send_response) = handle.next_request().await.unwrap();
-            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
-            send_response.send_response(response_data);
-        });
+        assert_request_eq!(
+            handle,
+            GraphQLRequest::new(config_who_am_i_query::Variables {})
+        )
+        .send_response(response_data);
 
         let output = response.await;
 
@@ -243,6 +239,5 @@ mod tests {
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);
-        resp_task.await.unwrap()
     }
 }

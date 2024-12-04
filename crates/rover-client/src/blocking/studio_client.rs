@@ -52,7 +52,7 @@ impl StudioClient {
             credential,
             graphql_endpoint: graphql_endpoint.to_string(),
             reqwest_client: client.clone(),
-            client: GraphQLClient::new(graphql_endpoint, client, retry_period),
+            client: GraphQLClient::new(graphql_endpoint, client, retry_period.clone()),
             version: version.to_string(),
             is_sudo,
             retry_period,
@@ -133,7 +133,7 @@ impl StudioClient {
                 self.version.to_string(),
                 self.is_sudo,
             )?))
-            .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            .layer(RetryLayer::new(RetryPolicy::new(self.retry_period.clone())))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
