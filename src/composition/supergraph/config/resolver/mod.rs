@@ -35,8 +35,14 @@ use crate::{
 use self::state::ResolveSubgraphs;
 
 use super::{
-    error::ResolveSubgraphError, full::FullyResolvedSupergraphConfig,
-    lazy::LazilyResolvedSupergraphConfig, unresolved::UnresolvedSupergraphConfig,
+    error::ResolveSubgraphError,
+    federation::{
+        FederationVersionMismatch, FederationVersionResolver,
+        FederationVersionResolverFromSupergraphConfig,
+    },
+    full::FullyResolvedSupergraphConfig,
+    lazy::LazilyResolvedSupergraphConfig,
+    unresolved::UnresolvedSupergraphConfig,
 };
 
 mod state;
@@ -53,7 +59,9 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     ) -> SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
         SupergraphConfigResolver {
             state: state::LoadRemoteSubgraphs {
-                federation_version: Some(federation_version),
+                federation_version_resolver: FederationVersionResolverFromSupergraphConfig::new(
+                    federation_version,
+                ),
             },
         }
     }
@@ -63,7 +71,7 @@ impl Default for SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     fn default() -> Self {
         SupergraphConfigResolver {
             state: state::LoadRemoteSubgraphs {
-                federation_version: None,
+                federation_version_resolver: FederationVersionResolver::default(),
             },
         }
     }
@@ -95,14 +103,14 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 })?;
             Ok(SupergraphConfigResolver {
                 state: state::LoadSupergraphConfig {
-                    federation_version: self.state.federation_version,
+                    federation_version_resolver: self.state.federation_version_resolver,
                     subgraphs: remote_subgraphs,
                 },
             })
         } else {
             Ok(SupergraphConfigResolver {
                 state: state::LoadSupergraphConfig {
-                    federation_version: self.state.federation_version,
+                    federation_version_resolver: self.state.federation_version_resolver,
                     subgraphs: BTreeMap::default(),
                 },
             })
@@ -141,10 +149,10 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                 FileDescriptorType::File(file) => Some(file.clone()),
                 FileDescriptorType::Stdin => None,
             };
-            let federation_version = self
+            let federation_version_resolver = self
                 .state
-                .federation_version
-                .or_else(|| supergraph_config.get_federation_version());
+                .federation_version_resolver
+                .from_supergraph_config(&supergraph_config);
             let mut merged_subgraphs = self.state.subgraphs;
             for (name, subgraph_config) in supergraph_config.into_iter() {
                 let subgraph_config = SubgraphConfig {
@@ -160,7 +168,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     origin_path,
-                    federation_version,
+                    federation_version_resolver,
                     subgraphs: merged_subgraphs,
                 },
             })
@@ -168,7 +176,10 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     origin_path: None,
-                    federation_version: self.state.federation_version,
+                    federation_version_resolver: self
+                        .state
+                        .federation_version_resolver
+                        .skip_supergraph_resolution(),
                     subgraphs: self.state.subgraphs,
                 },
             })
@@ -188,17 +199,8 @@ pub enum ResolveSupergraphConfigError {
     ResolveSubgraphs(Vec<ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the
     /// subgraphs use the `@link` directive, which requires Federation 2
-    #[error(
-        "The 'federation_version' specified ({}) is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}",
-        specified_federation_version,
-        subgraph_names.join(", ")
-    )]
-    FederationVersionMismatch {
-        /// The user specified federation version
-        specified_federation_version: FederationVersion,
-        /// The subgraph names that have requested Federation 2 features
-        subgraph_names: Vec<String>,
-    },
+    #[error(transparent)]
+    FederationVersionMismatch(#[from] FederationVersionMismatch),
 }
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
@@ -212,7 +214,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
-                .and_federation_version(self.state.federation_version.clone())
+                .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
                 introspect_subgraph_impl,
@@ -237,7 +239,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
-                .and_federation_version(self.state.federation_version.clone())
+                .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
             let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
                 supergraph_config_root,
