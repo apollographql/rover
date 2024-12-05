@@ -38,7 +38,7 @@ pub enum ReadRouterConfigError {
     Parse(#[from] ParseRouterConfigError),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, derive_getters::Getters)]
 pub struct RouterAddress {
     host: IpAddr,
     port: u16,

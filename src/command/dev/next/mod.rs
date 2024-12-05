@@ -1,16 +1,22 @@
 #![warn(missing_docs)]
 
+use std::time::Duration;
+
 use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
+use chrono::Duration;
 use futures::task::Spawn;
 use houston::{Config, Profile};
+use http::StatusCode;
+use reqwest::Request;
 use router::{
     install::InstallRouter,
     run::RunRouter,
     watchers::{file::FileWatcher, router_config::RouterConfigWatcher},
 };
 use rover_client::operations::config::who_am_i::{self, WhoAmI};
+use tokio::time::sleep;
 use tower::ServiceBuilder;
 
 use crate::{
@@ -137,6 +143,33 @@ impl Dev {
         // watch_for_changes() wants a config.yaml in there, but I'm not sure it exists yet unless
         // written out by some internal logic
         run_router.watch_for_changes(write_file_impl, TokioSpawn::default(), &tmp_config_dir_path);
+
+        // TODO: this should actually come from the config if we have it; eg, the difference
+        // between /health, the default, and a custom /healthz
+        // see: https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks
+        let mut healthcheck_endpoint = router_address.host().to_string();
+        healthcheck_endpoint.push_str(":8088/health");
+
+        // FIXME: unwrap
+        let healthcheck_client = client_config.get_reqwest_client().unwrap();
+
+        let healthcheck_request = healthcheck_client
+            .get(healthcheck_endpoint)
+            .build()
+            .unwrap();
+
+        // Wait for the router to become healthy before continuing by checking its health endpoint
+        while !healthcheck_client
+            .execute(healthcheck_request)
+            .await
+            .unwrap()
+            .status()
+            .is_success()
+        {
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        // TODO: more stuff with dev, the router is alive
 
         Ok(RoverOutput::EmptySuccess)
     }
