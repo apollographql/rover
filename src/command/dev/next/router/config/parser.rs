@@ -18,6 +18,8 @@ pub enum ParseRouterConfigError {
         path: &'static str,
         source: InvalidUri,
     },
+    #[error("Invalid Uri when combining the health_check address, port, and path. Error: {:?}", .source)]
+    HealthCheckEndpoint { source: InvalidUri },
 }
 
 pub struct RouterConfigParser<'a> {
@@ -49,7 +51,7 @@ impl<'a> RouterConfigParser<'a> {
                 source: err,
             })
     }
-    pub fn health_check(&self) -> bool {
+    pub fn health_check_enabled(&self) -> bool {
         self.yaml
             .get("health_check")
             .or_else(|| self.yaml.get("health-check"))
@@ -70,6 +72,40 @@ impl<'a> RouterConfigParser<'a> {
                 path: "supergraph.path",
                 source: err,
             })
+    }
+    pub fn health_check_endpoint(&self) -> Result<Uri, ParseRouterConfigError> {
+        let addr_and_port = self
+            .yaml
+            .get("health_check")
+            .or_else(|| self.yaml.get("health-check"))
+            .and_then(|health_check| health_check.as_mapping())
+            .and_then(|health_check| health_check.get("listen"))
+            .and_then(|addr_and_port| addr_and_port.as_str())
+            .and_then(|addr_and_port| Some(Uri::from_str(addr_and_port)))
+            // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
+            // defaults
+            .unwrap_or(Uri::from_str("127.0.0.1:8088"))
+            .map_err(|err| ParseRouterConfigError::ListenPath {
+                path: "health_check.listen",
+                source: err,
+            })?;
+
+        let path = self
+            .yaml
+            .get("health_check")
+            .or_else(|| self.yaml.get("health-check"))
+            .and_then(|health_check| health_check.as_mapping())
+            .and_then(|health_check| health_check.get("path"))
+            .and_then(|path| path.as_str())
+            // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
+            // defaults
+            .unwrap_or("/health");
+
+        let mut health_check_endpoint = addr_and_port.to_string();
+        health_check_endpoint.push_str(path);
+
+        Ok(Uri::from_str(&health_check_endpoint)
+            .map_err(|err| ParseRouterConfigError::HealthCheckEndpoint { source: err })?)
     }
 }
 
