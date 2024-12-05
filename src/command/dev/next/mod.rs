@@ -2,22 +2,17 @@
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use futures::StreamExt;
-use router::watchers::FileWatcher;
-use tap::TapFallible;
+use router::watchers::{file::FileWatcher, router_config::RouterConfigWatcher};
 
 use crate::{
     command::Dev,
     composition::runner::OneShotComposition,
-    subtask::{Subtask, SubtaskHandleUnit, SubtaskRunUnit},
+    subtask::{Subtask, SubtaskRunUnit},
     utils::{client::StudioClientConfig, effect::read_file::FsReadFile},
     RoverError, RoverOutput, RoverResult,
 };
 
-use self::router::{
-    config::{RouterAddress, RouterConfig, RunRouterConfig},
-    hot_reload::RouterUpdateEvent,
-};
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -79,35 +74,5 @@ impl Dev {
         let _composition_output = one_off_composition.compose().await?;
 
         Ok(RoverOutput::EmptySuccess)
-    }
-}
-
-/// Watches for router config changes
-struct RouterConfigWatcher {
-    file_watcher: FileWatcher,
-}
-
-impl RouterConfigWatcher {
-    fn new(file_watcher: FileWatcher) -> Self {
-        Self { file_watcher }
-    }
-}
-
-impl SubtaskHandleUnit for RouterConfigWatcher {
-    type Output = RouterUpdateEvent;
-    fn handle(
-        self,
-        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-    ) -> tokio::task::AbortHandle {
-        tokio::spawn(async move {
-            while let Some(router_config) = self.file_watcher.clone().watch().next().await {
-                let _ = sender
-                    .send(RouterUpdateEvent::ConfigChanged {
-                        config: RouterConfig::new(router_config),
-                    })
-                    .tap_err(|err| tracing::error!("{:?}", err));
-            }
-        })
-        .abort_handle()
     }
 }
