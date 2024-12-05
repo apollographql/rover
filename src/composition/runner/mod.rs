@@ -19,7 +19,7 @@ use tempfile::tempdir;
 use crate::{
     command::supergraph::compose::CompositionOutput,
     composition::{
-        supergraph::{config::SupergraphConfigResolver, install::InstallSupergraph},
+        supergraph::install::InstallSupergraph,
         watchers::watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
     },
     options::{LicenseAccepter, ProfileOpt},
@@ -46,6 +46,7 @@ use super::{
         config::{
             full::FullyResolvedSubgraphs,
             lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
+            resolver::SupergraphConfigResolver,
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
