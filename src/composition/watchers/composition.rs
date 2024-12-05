@@ -56,7 +56,10 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            if subgraphs.upsert_subgraph(name.to_string(), sdl.to_string()) {
+                            if subgraphs
+                                .upsert_subgraph(name.to_string(), sdl.to_string())
+                                .is_none()
+                            {
                                 let _ = sender
                                     .send(CompositionEvent::SubgraphAdded(
                                         CompositionSubgraphAdded {

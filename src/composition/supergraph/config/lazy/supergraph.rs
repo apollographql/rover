@@ -59,7 +59,11 @@ impl LazilyResolvedSupergraphConfig {
     }
 
     /// Fully resolves a [`LazilyResolvedSupergraphConfig`] into a [`FullyResolvedSubgraphs`]
-    /// by retrieving all the schemas as strings
+    /// by retrieving all the schemas as strings that represent the SDL.
+    ///
+    /// This is a one-way conversion by design as FullyResolvedSubgraphs are just SDL representations
+    /// of whatever source was used to produce them. As such it's impossible to go backwards once
+    /// you are left with the bare SDL representation of the subgraph.
     pub async fn fully_resolve_subgraphs(
         self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
