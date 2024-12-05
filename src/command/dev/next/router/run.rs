@@ -12,7 +12,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::Service;
 
 use crate::{
-    command::dev::next::RouterConfigWatcher,
+    command::dev::next::FileWatcher,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
@@ -29,7 +29,7 @@ use super::{
     config::{remote::RemoteRouterConfig, ReadRouterConfigError, RouterAddress, RunRouterConfig},
     hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
     install::{InstallRouter, InstallRouterError},
-    watchers::FileWatcher,
+    watchers::router_config::RouterConfigWatcher,
 };
 
 pub struct RunRouter<S> {
