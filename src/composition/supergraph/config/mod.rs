@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod federation;
 pub mod full;
 pub mod lazy;
 pub mod resolver;

@@ -49,7 +49,7 @@ impl LazilyResolvedSupergraphConfig {
             Ok(LazilyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs: BTreeMap::from_iter(subgraphs),
-                federation_version: unresolved_supergraph_config.federation_version().clone(),
+                federation_version: unresolved_supergraph_config.target_federation_version(),
             })
         } else {
             Err(errors)
