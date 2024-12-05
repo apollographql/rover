@@ -27,7 +27,7 @@ pub enum ReadRouterConfigError {
     #[error("Failed to read file at {}", .path)]
     ReadFile {
         path: Utf8PathBuf,
-        source: Box<dyn std::error::Error>,
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("{} is not valid yaml", .path)]
     Deserialization {
@@ -38,6 +38,7 @@ pub enum ReadRouterConfigError {
     Parse(#[from] ParseRouterConfigError),
 }
 
+#[derive(Copy, Clone)]
 pub struct RouterAddress {
     host: IpAddr,
     port: u16,
