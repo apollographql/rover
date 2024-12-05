@@ -6,11 +6,13 @@ use derive_getters::Getters;
 use futures::{stream, StreamExt};
 use itertools::Itertools;
 
+use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::full::{FullyResolvedSubgraph, FullyResolvedSubgraphs};
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
-
-use super::LazilyResolvedSubgraph;
+use crate::utils::effect::fetch_remote_subgraph::FetchRemoteSubgraph;
+use crate::utils::effect::introspect::IntrospectSubgraph;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -51,6 +53,39 @@ impl LazilyResolvedSupergraphConfig {
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version: unresolved_supergraph_config.federation_version().clone(),
             })
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Fully resolves a [`LazilyResolvedSupergraphConfig`] into a [`FullyResolvedSubgraphs`]
+    /// by retrieving all the schemas as strings
+    pub async fn fully_resolve_subgraphs(
+        self,
+        introspect_subgraph_impl: &impl IntrospectSubgraph,
+        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+    ) -> Result<FullyResolvedSubgraphs, Vec<ResolveSubgraphError>> {
+        let subgraphs = stream::iter(self.subgraphs.into_iter().map(
+            |(name, lazily_resolved_subgraph)| async {
+                let result = FullyResolvedSubgraph::fully_resolve(
+                    introspect_subgraph_impl,
+                    fetch_remote_subgraph_impl,
+                    lazily_resolved_subgraph,
+                    name.clone(),
+                )
+                .await?;
+                Ok((name, result))
+            },
+        ))
+        .buffer_unordered(50)
+        .collect::<Vec<Result<(String, FullyResolvedSubgraph), ResolveSubgraphError>>>()
+        .await;
+        let (subgraphs, errors): (
+            Vec<(String, FullyResolvedSubgraph)>,
+            Vec<ResolveSubgraphError>,
+        ) = subgraphs.into_iter().partition_result();
+        if errors.is_empty() {
+            Ok(subgraphs.into())
         } else {
             Err(errors)
         }

@@ -217,7 +217,7 @@ mod tests {
             indoc::indoc! {
                 r#"subgraphs:
                      {}:
-                       routing_url: localhost
+                       routing_url: null
                        schema:
                          sdl: '{}'
                    federation_version: null

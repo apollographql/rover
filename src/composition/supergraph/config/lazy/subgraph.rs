@@ -11,8 +11,8 @@ use crate::composition::supergraph::config::{
 /// confirmed to be relative to a supergraph config file
 #[derive(Clone, Debug, Eq, PartialEq, Getters, Builder)]
 pub struct LazilyResolvedSubgraph {
-    routing_url: Option<String>,
-    schema: SchemaSource,
+    pub(crate) routing_url: Option<String>,
+    pub(crate) schema: SchemaSource,
 }
 
 impl LazilyResolvedSubgraph {

@@ -1,7 +1,7 @@
 use crate::composition::events::CompositionEvent;
 use crate::composition::runner::Runner;
 use crate::composition::supergraph::binary::OutputTarget;
-use crate::composition::supergraph::config::{
+use crate::composition::supergraph::config::resolver::{
     ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use crate::composition::supergraph::install::InstallSupergraph;

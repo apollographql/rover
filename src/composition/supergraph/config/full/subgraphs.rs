@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
 use thiserror::Error;
 
@@ -23,8 +24,8 @@ impl FullyResolvedSubgraphs {
     }
 
     /// Used to upsert a fully resolved subgraph into this object's definitions
-    pub fn upsert_subgraph(&mut self, name: String, schema: String) {
-        self.subgraphs.insert(name, schema);
+    pub fn upsert_subgraph(&mut self, name: String, schema: String) -> bool {
+        self.subgraphs.insert(name, schema).is_none()
     }
 
     /// Removes a subgraph from this object's definitions
@@ -53,6 +54,17 @@ impl TryFrom<SupergraphConfig> for FullyResolvedSubgraphs {
             })
         } else {
             Err(errors)
+        }
+    }
+}
+
+impl From<Vec<(String, FullyResolvedSubgraph)>> for FullyResolvedSubgraphs {
+    fn from(value: Vec<(String, FullyResolvedSubgraph)>) -> Self {
+        Self {
+            subgraphs: value
+                .into_iter()
+                .map(|(name, frs)| (name, frs.schema().clone()))
+                .collect(),
         }
     }
 }
