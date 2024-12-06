@@ -5,9 +5,7 @@
 //! the supergraph binary expects.
 
 mod subgraph;
-mod subgraphs;
 mod supergraph;
 
 pub use subgraph::*;
-pub use subgraphs::*;
 pub use supergraph::*;

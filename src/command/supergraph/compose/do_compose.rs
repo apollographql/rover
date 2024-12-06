@@ -42,9 +42,7 @@ use crate::{
         supergraph::{
             binary::{OutputTarget, SupergraphBinary},
             config::{
-                full::{
-                    FullyResolvedSubgraph, FullyResolvedSubgraphs, FullyResolvedSupergraphConfig,
-                },
+                full::{FullyResolvedSubgraph, FullyResolvedSupergraphConfig},
                 resolver::SupergraphConfigResolver,
                 unresolved::UnresolvedSupergraphConfig,
             },

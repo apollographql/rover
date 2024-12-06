@@ -1,3 +1,4 @@
+use futures::StreamExt;
 mod errors;
 
 use crate::command::lsp::errors::SupergraphConfigLazyResolutionError;
@@ -27,7 +28,6 @@ use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config};
 use camino::Utf8PathBuf;
 use clap::Parser;
-use futures::StreamExt;
 use rover_client::blocking::StudioClient;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -207,7 +207,7 @@ async fn start_composition(
             .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
             .setup_composition_watcher(
                 lazily_resolved_supergraph_config
-                    .fully_resolve_subgraphs(&client_config, &studio_client)
+                    .extract_subgraphs_as_sdls(&client_config, &studio_client)
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
                 supergraph_binary,

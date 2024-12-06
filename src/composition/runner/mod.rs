@@ -3,10 +3,29 @@
 
 #![warn(missing_docs)]
 
-use std::{collections::BTreeMap, env::current_dir, fmt::Debug, io::stdin};
-
-//use std::{env::current_dir, fs::File, process::Command, str};
-
+use self::state::SetupSubgraphWatchers;
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::resolver::SupergraphConfigResolver;
+use crate::composition::supergraph::install::InstallSupergraph;
+use crate::options::LicenseAccepter;
+use crate::utils::effect::exec::TokioCommand;
+use crate::utils::effect::install::InstallBinary;
+use crate::utils::effect::read_file::FsReadFile;
+use crate::utils::effect::write_file::FsWriteFile;
+use crate::utils::parsers::FileDescriptorType;
+use crate::{
+    composition::watchers::watcher::{
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
+    },
+    options::ProfileOpt,
+    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
+    utils::{
+        client::StudioClientConfig,
+        effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
+    },
+    RoverError, RoverResult,
+};
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
@@ -14,40 +33,16 @@ use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
 use rover_client::shared::GraphRef;
 use rover_std::warnln;
+use std::env::current_dir;
+use std::io::stdin;
+use std::{collections::BTreeMap, fmt::Debug};
 use tempfile::tempdir;
-
-use crate::{
-    command::supergraph::compose::CompositionOutput,
-    composition::{
-        supergraph::install::InstallSupergraph,
-        watchers::watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
-    },
-    options::{LicenseAccepter, ProfileOpt},
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::{ExecCommand, TokioCommand},
-            install::InstallBinary,
-            read_file::{FsReadFile, ReadFile},
-            write_file::{FsWriteFile, WriteFile},
-        },
-        parsers::FileDescriptorType,
-    },
-    RoverError, RoverResult,
-};
-
-use self::state::SetupSubgraphWatchers;
 
 use super::{
     events::CompositionEvent,
     supergraph::{
         binary::{OutputTarget, SupergraphBinary},
-        config::{
-            full::FullyResolvedSubgraphs,
-            lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-            resolver::SupergraphConfigResolver,
-        },
+        config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
@@ -259,7 +254,7 @@ impl Runner<state::SetupCompositionWatcher> {
     #[allow(clippy::too_many_arguments)]
     pub fn setup_composition_watcher<ReadF, ExecC, WriteF>(
         self,
-        subgraphs: FullyResolvedSubgraphs,
+        subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
         supergraph_binary: SupergraphBinary,
         exec_command: ExecC,
         read_file: ReadF,
