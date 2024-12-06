@@ -55,7 +55,22 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            let routing_url = subgraph_schema_changed.routing_url();
+                            // This handling is a bit complex, however the key is two facts:
+                            //  - The semantics of watching the SupergraphConfig are such that
+                            //  if a routing_url is changed, this constitutes a removal & an add.
+                            // - Any other change to a Schema is limited to it's SDL, not the
+                            // name or routing URL.
+                            //
+                            // With that in mind, if we are not tracking the subgraph already
+                            // then the routing URL must be included in the change event. Thus,
+                            // we can extract it without issue. If that isn't the case then
+                            // it further must be true that the routing URL hasn't changed
+                            // so we can simply extract it and re-use it.
+                            let routing_url = if subgraphs.contains_key(name) {
+                                subgraphs[name].routing_url()
+                            } else {
+                                subgraph_schema_changed.routing_url()
+                            };
                             if subgraphs
                                 .insert(
                                     name.clone(),
@@ -88,7 +103,7 @@ where
                         }
                     }
 
-                    let supergraph_config = convert_to_supergraph_config(subgraphs.clone());
+                    let supergraph_config = dbg!(convert_to_supergraph_config(subgraphs.clone()));
                     let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
 
                     let supergraph_config_yaml = match supergraph_config_yaml {

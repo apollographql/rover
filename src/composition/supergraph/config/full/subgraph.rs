@@ -21,7 +21,6 @@ use crate::{
 /// Represents a [`SubgraphConfig`] that has been resolved down to an SDL
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
-    #[getter(skip)]
     routing_url: Option<String>,
     schema: String,
     is_fed_two: bool,
