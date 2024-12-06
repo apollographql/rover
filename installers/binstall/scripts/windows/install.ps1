@@ -37,12 +37,16 @@ function Install-Binary($rover_install_args) {
 }
 
 function Download($version) {
-  $base_url = $env:APOLLO_ROVER_BINARY_REMOTE
-  if (-not $base_url) {
-    $base_url = "https://github.com/apollographql/rover/releases/download"
+  $binary_download_prefix = $env:APOLLO_ROVER_DOWNLOAD_GITHUB_HOST
+  if (-not $binary_download_prefix) {
+    $binary_download_prefix = "https://github.com/apollographql/rover/releases/download"
   }
-  $url = "$base_url/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
-  "Downloading Rover from $url" | Out-Host
+  $url = "$binary_download_prefix/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
+
+  # Remove credentials from the URL for logging
+  $safe_url = $url -replace "https://[^@]+@", "https://"
+
+  "Downloading Rover from $safe_url" | Out-Host
   $tmp = New-Temp-Dir
   $dir_path = "$tmp\rover.tar.gz"
   $wc = New-Object Net.Webclient

@@ -63,13 +63,15 @@ download_binary_and_run_installer() {
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
+    local _safe_url
 
-    say "downloading rover from $_url" 1>&2
+    _safe_url=$(echo "$_url" | sed  -E 's|https://[^@]+@|https://|')
+    say "downloading rover from $_safe_url" 1>&2
 
     ensure mkdir -p "$_dir"
     downloader "$_url" "$_file"
     if [ $? != 0 ]; then
-      say "failed to download $_url"
+      say "failed to download $_safe_url"
       say "this may be a standard network error, but it may also indicate"
       say "that rover's release process is not working. When in doubt"
       say "please feel free to open an issue!"
