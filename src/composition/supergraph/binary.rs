@@ -10,7 +10,10 @@ use tap::TapFallible;
 
 use crate::{
     composition::{CompositionError, CompositionSuccess},
-    utils::effect::{exec::ExecCommand, read_file::ReadFile},
+    utils::effect::{
+        exec::{ExecCommand, ExecCommandConfig},
+        read_file::ReadFile,
+    },
 };
 
 use super::version::SupergraphVersion;
@@ -88,7 +91,12 @@ impl SupergraphBinary {
         let args = self.prepare_compose_args(output_target, &supergraph_config_path);
 
         let output = exec_impl
-            .exec_command(&self.exe, &args)
+            .exec_command(
+                ExecCommandConfig::builder()
+                    .exe(self.exe.clone())
+                    .args(args)
+                    .build(),
+            )
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
@@ -311,13 +319,15 @@ mod tests {
         mock_exec
             .expect_exec_command()
             .times(1)
-            .withf(move |actual_binary_path, actual_arguments| {
-                println!("actual bin path: {actual_binary_path:?}");
-                println!("actual args: {actual_arguments:?}");
-                actual_binary_path == &binary_path
-                    && actual_arguments == ["compose", "/tmp/target/supergraph_config.yaml"]
+            .withf(move |actual_config| {
+                actual_config.exe() == &binary_path
+                    && actual_config.args()
+                        == &Some(vec![
+                            "compose".to_string(),
+                            "/tmp/target/supergraph_config.yaml".to_string(),
+                        ])
             })
-            .returning(move |_, _| {
+            .returning(move |_| {
                 let stdout = serde_json::to_string(&default_composition_json()).unwrap();
                 Ok(Output {
                     status: ExitStatus::default(),

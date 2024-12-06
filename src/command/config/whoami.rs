@@ -1,9 +1,7 @@
 use anyhow::anyhow;
 use clap::Parser;
 use rover_client::blocking::StudioClient;
-use rover_client::operations::config::who_am_i::{
-    self, Actor, ConfigWhoAmIInput, RegistryIdentity,
-};
+use rover_client::operations::config::who_am_i::{self, Actor, RegistryIdentity};
 use serde::Serialize;
 
 use houston::{mask_key, CredentialOrigin};
@@ -34,7 +32,7 @@ impl WhoAmI {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = who_am_i::run(ConfigWhoAmIInput {}, &client).await?;
+        let identity = who_am_i::run(&client).await?;
 
         if !self.is_valid_actor_type(&identity) {
             return Err(RoverError::from(anyhow!(

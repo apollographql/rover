@@ -12,7 +12,7 @@ use crate::{
         events::CompositionEvent,
         supergraph::{
             binary::{OutputTarget, SupergraphBinary},
-            config::resolve::FullyResolvedSubgraphs,
+            config::full::FullyResolvedSubgraphs,
         },
         watchers::subgraphs::SubgraphEvent,
     },
@@ -144,7 +144,7 @@ mod tests {
             events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
-                config::resolve::FullyResolvedSubgraphs,
+                config::full::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
             test::{default_composition_json, default_composition_success},
@@ -185,7 +185,7 @@ mod tests {
         mock_exec
             .expect_exec_command()
             .times(1)
-            .returning(move |_, _| {
+            .returning(move |_| {
                 Ok(Output {
                     status: ExitStatus::default(),
                     stdout: composition_output.as_bytes().into(),

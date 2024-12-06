@@ -7,7 +7,7 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::{
-    composition::supergraph::config::resolve::subgraph::LazilyResolvedSubgraph,
+    composition::supergraph::config::lazy::LazilyResolvedSubgraph,
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
@@ -262,7 +262,7 @@ mod tests {
     use camino::Utf8PathBuf;
 
     use crate::{
-        composition::supergraph::config::resolve::subgraph::LazilyResolvedSubgraph,
+        composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
         utils::client::{ClientBuilder, StudioClientConfig},
     };

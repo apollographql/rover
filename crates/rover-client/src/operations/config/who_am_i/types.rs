@@ -1,12 +1,10 @@
 use std::fmt::{Display, Formatter, Result};
 
-use super::runner::config_who_am_i_query;
+use super::service::config_who_am_i_query;
 
 use houston::CredentialOrigin;
 
-pub(crate) type QueryResponseData = config_who_am_i_query::ResponseData;
 pub(crate) type QueryVariables = config_who_am_i_query::Variables;
-pub(crate) type QueryActorType = config_who_am_i_query::ActorType;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RegistryIdentity {

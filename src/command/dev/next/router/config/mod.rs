@@ -14,6 +14,7 @@ use self::{
 };
 
 mod parser;
+pub mod remote;
 mod state;
 
 const DEFAULT_ROUTER_IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
@@ -137,6 +138,7 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                     listen_path,
                     address,
                     health_check,
+                    raw_config: contents.to_string(),
                 }
             }
             Err(RoverStdError::EmptyFile { .. }) => {
@@ -151,7 +153,7 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                 return Err(ReadRouterConfigError::ReadFile {
                     path: path.clone(),
                     source: Box::new(err),
-                })
+                });
             }
         };
 
@@ -173,5 +175,25 @@ impl RunRouterConfig<RunRouterConfigFinal> {
     #[allow(unused)]
     pub fn health_check(&self) -> bool {
         self.state.health_check
+    }
+
+    pub fn router_config(&self) -> RouterConfig {
+        RouterConfig(self.state.raw_config.to_string())
+    }
+}
+
+pub type RouterConfigFinal = RunRouterConfig<RunRouterConfigFinal>;
+
+pub struct RouterConfig(String);
+
+impl RouterConfig {
+    pub fn new(s: impl Into<String>) -> RouterConfig {
+        RouterConfig(s.into())
+    }
+}
+
+impl RouterConfig {
+    pub fn inner(&self) -> &str {
+        &self.0
     }
 }

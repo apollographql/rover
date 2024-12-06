@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::ChildStderr;
 use std::time::Duration;

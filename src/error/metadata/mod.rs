@@ -317,6 +317,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 }
                 RoverClientError::InvalidRouterConfig { .. } => (None, None),
                 RoverClientError::NonCloudGraphRef { .. } => (None, None),
+                RoverClientError::ServiceError(_) => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

@@ -4716,7 +4716,10 @@ dependencies = [
  "reqwest 0.12.7",
  "robot-panic",
  "rover-client",
+ "rover-graphql",
+ "rover-http",
  "rover-std",
+ "rover-studio",
  "rstest",
  "semver",
  "serde",
@@ -4769,19 +4772,29 @@ dependencies = [
  "humantime",
  "hyper 1.4.1",
  "indoc",
+ "itertools 0.13.0",
  "pretty_assertions",
  "prettytable-rs",
  "regex",
  "reqwest 0.12.7",
+ "rover-graphql",
+ "rover-http",
  "rover-std",
+ "rover-studio",
  "rstest",
  "semver",
  "serde",
  "serde_json",
+ "speculoos",
  "strip-ansi-escapes",
  "thiserror",
  "tokio",
+ "tokio-test",
+ "tower 0.5.1",
+ "tower-test",
  "tracing",
+ "tracing-test",
+ "url",
 ]
 
 [[package]]
@@ -4875,6 +4888,7 @@ dependencies = [
  "tower 0.5.1",
  "tower-test",
  "tracing",
+ "url",
 ]
 
 [[package]]

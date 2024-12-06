@@ -8,7 +8,7 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
 use crate::{
-    composition::supergraph::config::resolve::LazilyResolvedSupergraphConfig,
+    composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig,
     subtask::SubtaskHandleUnit,
 };
 

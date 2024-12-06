@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use crossbeam_channel::Sender;
-use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
+use rover_client::operations::config::who_am_i::{self, Actor};
 use rover_std::warnln;
 
 use crate::options::ProfileOpt;
@@ -60,7 +60,7 @@ impl BackgroundTask {
                     );
                 })
             {
-                if let Some(api_key) =   who_am_i::run(ConfigWhoAmIInput {}, &client).await.map_or_else(|err| {
+                if let Some(api_key) =   who_am_i::run(&client).await.map_or_else(|err| {
                     warnln!("Could not determine the type of configured credentials, Router may fail to start if Enterprise features are enabled: {err}");
                     Some(client.credential.api_key.clone())
                 }, |identity| {
