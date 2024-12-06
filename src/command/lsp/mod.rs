@@ -1,5 +1,22 @@
 mod errors;
 
+use std::collections::HashMap;
+use std::env::temp_dir;
+use std::io::stdin;
+
+use anyhow::{anyhow, Error};
+use apollo_federation_types::config::FederationVersion;
+use apollo_language_server::{ApolloLanguageServer, Config};
+use camino::Utf8PathBuf;
+use clap::Parser;
+use futures::StreamExt;
+use rover_client::blocking::StudioClient;
+use serde::Serialize;
+use tower_lsp::lsp_types::{Diagnostic, Range};
+use tower_lsp::Server;
+use tracing::debug;
+use url::Url;
+
 use crate::command::lsp::errors::SupergraphConfigLazyResolutionError;
 use crate::command::lsp::errors::SupergraphConfigLazyResolutionError::PathDoesNotPointToAFile;
 use crate::composition::events::CompositionEvent;
@@ -22,21 +39,6 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
     RoverOutput, RoverResult,
 };
-use anyhow::{anyhow, Error};
-use apollo_federation_types::config::FederationVersion;
-use apollo_language_server::{ApolloLanguageServer, Config};
-use camino::Utf8PathBuf;
-use clap::Parser;
-use futures::StreamExt;
-use rover_client::blocking::StudioClient;
-use serde::Serialize;
-use std::collections::HashMap;
-use std::env::temp_dir;
-use std::io::stdin;
-use tower_lsp::lsp_types::{Diagnostic, Range};
-use tower_lsp::Server;
-use tracing::debug;
-use url::Url;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Lsp {
@@ -207,7 +209,7 @@ async fn start_composition(
             .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
             .setup_composition_watcher(
                 lazily_resolved_supergraph_config
-                    .fully_resolve_subgraphs(&client_config, &studio_client)
+                    .extract_subgraphs_as_sdls(&client_config, &studio_client)
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
                 supergraph_binary,

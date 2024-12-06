@@ -6,7 +6,6 @@ use apollo_federation_types::{
     rover::{BuildErrors, BuildHint},
 };
 use camino::Utf8PathBuf;
-use derive_getters::Getters;
 
 pub mod events;
 pub mod runner;
@@ -18,11 +17,11 @@ pub mod types;
 #[cfg(feature = "composition-js")]
 mod watchers;
 
-#[derive(Getters, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {
-    pub(crate) supergraph_sdl: String,
-    pub(crate) hints: Vec<BuildHint>,
-    pub(crate) federation_version: FederationVersion,
+    pub supergraph_sdl: String,
+    pub hints: Vec<BuildHint>,
+    pub federation_version: FederationVersion,
 }
 
 #[derive(thiserror::Error, Debug, Eq, PartialEq)]

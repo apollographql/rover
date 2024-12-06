@@ -7,7 +7,7 @@ use futures::{stream, StreamExt};
 use itertools::Itertools;
 
 use super::LazilyResolvedSubgraph;
-use crate::composition::supergraph::config::full::{FullyResolvedSubgraph, FullyResolvedSubgraphs};
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
@@ -58,17 +58,13 @@ impl LazilyResolvedSupergraphConfig {
         }
     }
 
-    /// Fully resolves a [`LazilyResolvedSupergraphConfig`] into a [`FullyResolvedSubgraphs`]
-    /// by retrieving all the schemas as strings that represent the SDL.
-    ///
-    /// This is a one-way conversion by design as FullyResolvedSubgraphs are just SDL representations
-    /// of whatever source was used to produce them. As such it's impossible to go backwards once
-    /// you are left with the bare SDL representation of the subgraph.
-    pub async fn fully_resolve_subgraphs(
+    /// Fully resolves a [`LazilyResolvedSupergraphConfig`] into a [`BTreeMap<String, FullyResolvedSubgraph>`]
+    /// by retrieving all the schemas as strings
+    pub async fn extract_subgraphs_as_sdls(
         self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
-    ) -> Result<FullyResolvedSubgraphs, Vec<ResolveSubgraphError>> {
+    ) -> Result<BTreeMap<String, FullyResolvedSubgraph>, Vec<ResolveSubgraphError>> {
         let subgraphs = stream::iter(self.subgraphs.into_iter().map(
             |(name, lazily_resolved_subgraph)| async {
                 let result = FullyResolvedSubgraph::fully_resolve(
@@ -89,7 +85,7 @@ impl LazilyResolvedSupergraphConfig {
             Vec<ResolveSubgraphError>,
         ) = subgraphs.into_iter().partition_result();
         if errors.is_empty() {
-            Ok(subgraphs.into())
+            Ok(subgraphs.into_iter().collect())
         } else {
             Err(errors)
         }
