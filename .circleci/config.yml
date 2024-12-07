@@ -4,7 +4,7 @@ version: 2.1
 orbs:
   rust: circleci/rust@1.6.1
   gh: circleci/github-cli@2.6.0
-  node: circleci/node@6.3.0
+  node: circleci/node@7.0.0
   secops: apollo/circleci-secops-orb@2.0.7
   slack: circleci/slack@5.1.1
 
