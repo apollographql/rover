@@ -152,7 +152,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
             let federation_version_resolver = self
                 .state
                 .federation_version_resolver
-                .from_supergraph_config(&supergraph_config);
+                .from_supergraph_config(Some(&supergraph_config));
             let mut merged_subgraphs = self.state.subgraphs;
             for (name, subgraph_config) in supergraph_config.into_iter() {
                 let subgraph_config = SubgraphConfig {
@@ -179,7 +179,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                     federation_version_resolver: self
                         .state
                         .federation_version_resolver
-                        .skip_supergraph_resolution(),
+                        .from_supergraph_config(None),
                     subgraphs: self.state.subgraphs,
                 },
             })
