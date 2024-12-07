@@ -69,22 +69,22 @@ impl FederationVersionResolver<state::FromSupergraphConfig> {
     /// from a [`SupergraphConfig`] (if it has one)
     pub fn from_supergraph_config(
         self,
-        supergraph_config: &SupergraphConfig,
+        supergraph_config: Option<&SupergraphConfig>,
     ) -> FederationVersionResolver<state::FromSubgraphs> {
-        let federation_version = self
-            .federation_version
-            .or(supergraph_config.get_federation_version());
-        FederationVersionResolver {
-            state: PhantomData::<state::FromSubgraphs>,
-            federation_version,
-        }
-    }
-
-    /// Skips [`SupergraphConfig`] resolution, presumably because there is none
-    pub fn skip_supergraph_resolution(self) -> FederationVersionResolver<state::FromSubgraphs> {
-        FederationVersionResolver {
-            state: PhantomData::<state::FromSubgraphs>,
-            federation_version: self.federation_version,
+        match supergraph_config {
+            Some(supergraph_config) => {
+                let federation_version = self
+                    .federation_version
+                    .or(supergraph_config.get_federation_version());
+                FederationVersionResolver {
+                    state: PhantomData::<state::FromSubgraphs>,
+                    federation_version,
+                }
+            }
+            None => FederationVersionResolver {
+                state: PhantomData::<state::FromSubgraphs>,
+                federation_version: self.federation_version,
+            },
         }
     }
 
