@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::StreamExt;
@@ -7,12 +9,15 @@ use rover_client::{
     shared::GraphRef,
 };
 use rover_std::RoverStdError;
-use tokio::process::Child;
+use tokio::{
+    process::Child,
+    time::{sleep, Instant},
+};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::Service;
 
 use crate::{
-    command::dev::next::RouterConfigWatcher,
+    command::dev::next::FileWatcher,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
@@ -29,7 +34,7 @@ use super::{
     config::{remote::RemoteRouterConfig, ReadRouterConfigError, RouterAddress, RunRouterConfig},
     hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
     install::{InstallRouter, InstallRouterError},
-    watchers::FileWatcher,
+    watchers::router_config::RouterConfigWatcher,
 };
 
 pub struct RunRouter<S> {
@@ -120,12 +125,14 @@ impl RunRouter<state::LoadRemoteConfig> {
 }
 
 impl RunRouter<state::Run> {
-    pub async fn watch_for_changes<WriteF, Spawn>(
+    pub async fn run<WriteF, Spawn>(
         self,
-        write_file_impl: WriteF,
         spawn: Spawn,
         temp_router_dir: &Utf8Path,
-    ) where
+        studio_client_config: StudioClientConfig,
+        router_address: &RouterAddress,
+    ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
+    where
         WriteF: WriteFile + Send + Clone + 'static,
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
         Spawn::Error: std::error::Error + Send + Sync,
@@ -134,39 +141,130 @@ impl RunRouter<state::Run> {
         let config_path = temp_router_dir.join("config.yaml");
         let schema_path = temp_router_dir.join("supergraph.graphql");
 
-        let config_watcher = RouterConfigWatcher::new(FileWatcher::new(self.state.config_path));
+        let run_router_binary = RunRouterBinary::builder()
+            .router_binary(self.state.binary)
+            .config_path(config_path.clone())
+            .supergraph_schema_path(schema_path.clone())
+            .and_remote_config(self.state.remote_config)
+            .spawn(spawn)
+            .build();
+
+        let (_router_log_events, run_router_binary_subtask): (
+            UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
+            _,
+        ) = Subtask::new(run_router_binary);
+
+        let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
+
+        Self::wait_for_healthy_router(&studio_client_config, router_address).await?;
+
+        Ok(RunRouter {
+            state: state::Watch {
+                abort_router,
+                config_path,
+                schema_path,
+            },
+        })
+    }
+
+    async fn wait_for_healthy_router(
+        studio_client_config: &StudioClientConfig,
+        router_address: &RouterAddress,
+    ) -> Result<(), RunRouterBinaryError> {
+        // TODO: this should actually come from the config if we have it; eg, the difference
+        // between /health, the default, and a custom /healthz
+        // see: https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks
+        let mut healthcheck_endpoint = router_address.host().to_string();
+        healthcheck_endpoint.push_str(":8088/health");
+
+        // FIXME: unwrap
+        let healthcheck_client = studio_client_config.get_reqwest_client().unwrap();
+
+        let healthcheck_request = healthcheck_client
+            .get(healthcheck_endpoint)
+            .build()
+            .unwrap();
+
+        let ten_secs = Duration::from_secs(10);
+        let start_time = Instant::now();
+
+        // Wait for the router to become healthy before continuing by checking its health endpoint
+        while healthcheck_client
+            // FIXME: unwrap
+            .execute(healthcheck_request.try_clone().unwrap())
+            .await
+            .unwrap()
+            .status()
+            .is_success()
+            // We'll only wait for 10s before moving on
+            && Instant::now().duration_since(start_time).le(&ten_secs)
+        {
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        let res = healthcheck_client
+            .execute(healthcheck_request.try_clone().unwrap())
+            .await
+            .unwrap();
+
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            let status_code = res.status().to_string();
+            let text = res.text().await.unwrap_or(
+                "No error message in the body of the response from the router".to_string(),
+            );
+
+            Err(RunRouterBinaryError::HealthCheck { status_code, text })
+        }
+    }
+}
+
+impl RunRouter<state::Watch> {
+    pub async fn watch_for_changes<WriteF, Spawn>(
+        self,
+        write_file_impl: WriteF,
+    ) -> RunRouter<state::Abort>
+    where
+        WriteF: WriteFile + Send + Clone + 'static,
+        Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
+        Spawn::Error: std::error::Error + Send + Sync,
+        Spawn::Future: Send,
+    {
+        let config_watcher =
+            RouterConfigWatcher::new(FileWatcher::new(self.state.config_path.clone()));
         let (router_config_updates, config_watcher_subtask): (
             UnboundedReceiverStream<RouterUpdateEvent>,
             _,
         ) = Subtask::new(config_watcher);
 
         let hot_reload_watcher = HotReloadWatcher::builder()
-            .config(config_path.clone())
-            .schema(schema_path.clone())
+            .config(self.state.config_path)
+            .schema(self.state.schema_path)
             .write_file_impl(write_file_impl)
             .build();
+
         let (_hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-        let run_router_binary = RunRouterBinary::builder()
-            .router_binary(self.state.binary)
-            .config_path(config_path)
-            .supergraph_schema_path(schema_path)
-            .and_remote_config(self.state.remote_config)
-            .spawn(spawn)
-            .build();
-        let (_router_log_events, run_router_binary_subtask): (
-            UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
-            _,
-        ) = Subtask::new(run_router_binary);
-        let _abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
-        let _abort_hot_reload =
+
+        let abort_hot_reload =
             SubtaskRunStream::run(hot_reload_subtask, router_config_updates.boxed());
-        let _abort_config_watcher = SubtaskRunUnit::run(config_watcher_subtask);
+
+        let abort_config_watcher = SubtaskRunUnit::run(config_watcher_subtask);
+
+        RunRouter {
+            state: state::Abort {
+                abort_router: self.state.abort_router,
+                abort_hot_reload,
+                abort_config_watcher,
+            },
+        }
     }
 }
 
 mod state {
     use camino::Utf8PathBuf;
+    use tokio::task::AbortHandle;
 
     use crate::command::dev::next::router::{
         binary::RouterBinary,
@@ -188,5 +286,15 @@ mod state {
         pub config: RouterConfigFinal,
         pub config_path: Utf8PathBuf,
         pub remote_config: Option<RemoteRouterConfig>,
+    }
+    pub struct Watch {
+        pub abort_router: AbortHandle,
+        pub config_path: Utf8PathBuf,
+        pub schema_path: Utf8PathBuf,
+    }
+    pub struct Abort {
+        pub abort_router: AbortHandle,
+        pub abort_config_watcher: AbortHandle,
+        pub abort_hot_reload: AbortHandle,
     }
 }
