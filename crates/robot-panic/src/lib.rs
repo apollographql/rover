@@ -93,7 +93,7 @@ macro_rules! setup_panic {
         #[cfg(not(debug_assertions))]
         match ::std::env::var("RUST_BACKTRACE") {
             Err(_) => {
-                panic::set_hook(Box::new(move |info: &PanicInfo| {
+                panic::set_hook(Box::new(move |info: &PanicHookInfo| {
                     let crash_report = get_report(&$meta, info);
                     print_msg(&crash_report, &$meta)
                         .expect("robot-panic: printing error message to console failed");
@@ -105,7 +105,7 @@ macro_rules! setup_panic {
 
     () => {
         #[allow(unused_imports)]
-        use std::panic::{self, PanicInfo};
+        use std::panic::{self, PanicHookInfo};
         #[allow(unused_imports)]
         use $crate::{get_report, print_msg, Metadata};
 
@@ -120,7 +120,7 @@ macro_rules! setup_panic {
                     repository: env!("CARGO_PKG_REPOSITORY").into(),
                 };
 
-                panic::set_hook(Box::new(move |info: &PanicInfo| {
+                panic::set_hook(Box::new(move |info: &PanicHookInfo| {
                     let crash_report = get_report(&meta, info);
                     print_msg(&crash_report, &meta)
                         .expect("robot-panic: printing error message to console failed");

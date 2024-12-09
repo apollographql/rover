@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
+use apollo_federation_types::config::SchemaSource;
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildHint},
 };
 use camino::Utf8PathBuf;
-use derive_getters::Getters;
 
 pub mod events;
 pub mod runner;
@@ -17,11 +17,11 @@ pub mod types;
 #[cfg(feature = "composition-js")]
 mod watchers;
 
-#[derive(Getters, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {
-    supergraph_sdl: String,
-    hints: Vec<BuildHint>,
-    federation_version: FederationVersion,
+    pub supergraph_sdl: String,
+    pub hints: Vec<BuildHint>,
+    pub federation_version: FederationVersion,
 }
 
 #[derive(thiserror::Error, Debug, Eq, PartialEq)]
@@ -36,4 +36,15 @@ pub enum CompositionError {
     ReadFile { path: Utf8PathBuf, error: String },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
     Build { source: BuildErrors },
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphAdded {
+    pub(crate) name: String,
+    pub(crate) schema_source: SchemaSource,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct CompositionSubgraphRemoved {
+    pub(crate) name: String,
 }

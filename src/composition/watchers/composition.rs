@@ -1,19 +1,20 @@
+use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
 use rover_std::errln;
+use std::collections::BTreeMap;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::{CompositionSubgraphAdded, CompositionSubgraphRemoved};
 use crate::{
     composition::{
         events::CompositionEvent,
-        supergraph::{
-            binary::{OutputTarget, SupergraphBinary},
-            config::full::FullyResolvedSubgraphs,
-        },
+        supergraph::binary::{OutputTarget, SupergraphBinary},
         watchers::subgraphs::SubgraphEvent,
     },
     subtask::SubtaskHandleStream,
@@ -22,7 +23,7 @@ use crate::{
 
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
-    subgraphs: FullyResolvedSubgraphs,
+    subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
     supergraph_binary: SupergraphBinary,
     output_target: OutputTarget,
     exec_command: ExecC,
@@ -54,15 +55,55 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            subgraphs.upsert_subgraph(name.to_string(), sdl.to_string());
+                            // This handling is a bit complex, however the key is two facts:
+                            //  - The semantics of watching the SupergraphConfig are such that
+                            //  if a routing_url is changed, this constitutes a removal & an add.
+                            // - Any other change to a Schema is limited to it's SDL, not the
+                            // name or routing URL.
+                            //
+                            // With that in mind, if we are not tracking the subgraph already
+                            // then the routing URL must be included in the change event. Thus,
+                            // we can extract it without issue. If that isn't the case then
+                            // it further must be true that the routing URL hasn't changed
+                            // so we can simply extract it and re-use it.
+                            let routing_url = if subgraphs.contains_key(name) {
+                                subgraphs[name].routing_url()
+                            } else {
+                                subgraph_schema_changed.routing_url()
+                            };
+                            if subgraphs
+                                .insert(
+                                    name.clone(),
+                                    FullyResolvedSubgraph::new(
+                                        sdl.clone(),
+                                        routing_url.clone(),
+                                        None,
+                                    ),
+                                )
+                                .is_none()
+                            {
+                                let _ = sender
+                                    .send(CompositionEvent::SubgraphAdded(
+                                        CompositionSubgraphAdded {
+                                            name: name.clone(),
+                                            schema_source: Sdl { sdl: sdl.clone() },
+                                        },
+                                    ))
+                                    .tap_err(|err| tracing::error!("{:?}", err));
+                            }
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
-                            subgraphs.remove_subgraph(name);
+                            subgraphs.remove(name);
+                            let _ = sender
+                                .send(CompositionEvent::SubgraphRemoved(
+                                    CompositionSubgraphRemoved { name: name.clone() },
+                                ))
+                                .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
 
-                    let supergraph_config = SupergraphConfig::from(subgraphs.clone());
+                    let supergraph_config = dbg!(convert_to_supergraph_config(subgraphs.clone()));
                     let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
 
                     let supergraph_config_yaml = match supergraph_config_yaml {
@@ -118,6 +159,15 @@ where
     }
 }
 
+fn convert_to_supergraph_config(
+    _subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
+) -> SupergraphConfig {
+    SupergraphConfig::new(
+        _subgraphs.into_iter().map(|(k, v)| (k, v.into())).collect(),
+        None,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -128,6 +178,7 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::SchemaSource::Sdl;
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
@@ -139,24 +190,24 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
+    use super::CompositionWatcher;
+    use crate::composition::CompositionSubgraphAdded;
+    use crate::subtask::SubtaskRunStream;
     use crate::{
         composition::{
             events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
-                config::full::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
             test::{default_composition_json, default_composition_success},
             watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
         },
-        subtask::{Subtask, SubtaskRunStream},
+        subtask::Subtask,
         utils::effect::{
             exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
         },
     };
-
-    use super::CompositionWatcher;
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -170,7 +221,7 @@ mod tests {
         let temp_dir = assert_fs::TempDir::new()?;
         let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
 
-        let subgraphs = FullyResolvedSubgraphs::new(BTreeMap::new());
+        let subgraphs = BTreeMap::new();
         let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
 
         let supergraph_binary = SupergraphBinary::builder()
@@ -231,11 +282,26 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
-            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(subgraph_name, subgraph_sdl))
+            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+                subgraph_name,
+                subgraph_sdl,
+                None,
+            ))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
+
+        // Assert we always get a subgraph added event.
+        let next_message = composition_messages.next().await;
+        assert_that!(next_message)
+            .is_some()
+            .is_equal_to(CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {
+                name: String::from("subgraph-name"),
+                schema_source: Sdl {
+                    sdl: String::from("type Query { test: String! }"),
+                },
+            }));
 
         // Assert we always get a composition started event.
         let next_message = composition_messages.next().await;
