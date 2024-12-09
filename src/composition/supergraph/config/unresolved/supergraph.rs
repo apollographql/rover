@@ -6,6 +6,8 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
+use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
+
 use super::UnresolvedSubgraph;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
@@ -13,7 +15,7 @@ use super::UnresolvedSubgraph;
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
-    federation_version: Option<FederationVersion>,
+    federation_version_resolver: FederationVersionResolverFromSubgraphs,
 }
 
 #[buildstructor]
@@ -23,7 +25,7 @@ impl UnresolvedSupergraphConfig {
     pub fn new(
         origin_path: Option<Utf8PathBuf>,
         subgraphs: BTreeMap<String, SubgraphConfig>,
-        federation_version: Option<FederationVersion>,
+        federation_version_resolver: FederationVersionResolverFromSubgraphs,
     ) -> UnresolvedSupergraphConfig {
         let subgraphs = BTreeMap::from_iter(
             subgraphs
@@ -33,8 +35,13 @@ impl UnresolvedSupergraphConfig {
         UnresolvedSupergraphConfig {
             origin_path,
             subgraphs,
-            federation_version,
+            federation_version_resolver,
         }
+    }
+
+    /// Provides the target federation version provided by the user
+    pub fn target_federation_version(&self) -> Option<FederationVersion> {
+        self.federation_version_resolver.target_federation_version()
     }
 }
 
@@ -56,6 +63,7 @@ mod tests {
 
     use crate::{
         composition::supergraph::config::{
+            federation::FederationVersionResolverFromSubgraphs,
             full::{FullyResolvedSubgraph, FullyResolvedSupergraphConfig},
             lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
             resolver::ResolveSupergraphConfigError,
@@ -279,7 +287,9 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: None,
             subgraphs: unresolved_subgraphs,
-            federation_version: target_federation_version,
+            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(
+                target_federation_version,
+            ),
         };
 
         let RemoteSubgraphScenario {
@@ -484,7 +494,9 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: None,
             subgraphs: unresolved_subgraphs,
-            federation_version: Some(target_federation_version.clone()),
+            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(Some(
+                target_federation_version.clone(),
+            )),
         };
 
         let RemoteSubgraphScenario {
@@ -576,13 +588,10 @@ mod tests {
         }
 
         let err = assert_that!(result).is_err().subject;
-        if let ResolveSupergraphConfigError::FederationVersionMismatch {
-            specified_federation_version,
-            subgraph_names,
-        } = err
-        {
-            let subgraph_names = HashSet::from_iter(subgraph_names.iter().cloned());
-            assert_that!(specified_federation_version).is_equal_to(&target_federation_version);
+        if let ResolveSupergraphConfigError::FederationVersionMismatch(err) = err {
+            let subgraph_names = HashSet::from_iter(err.subgraph_names().iter().cloned());
+            assert_that!(err.specified_federation_version())
+                .is_equal_to(&target_federation_version);
             assert_that!(subgraph_names).is_equal_to(&fed_two_subgraph_names);
         } else {
             panic!("Result contains the wrong type of error: {:?}", err);
@@ -631,7 +640,7 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: Some(supergraph_config_origin_path),
             subgraphs: unresolved_subgraphs,
-            federation_version: None,
+            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(None),
         };
 
         let result = LazilyResolvedSupergraphConfig::resolve(
