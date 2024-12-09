@@ -7,12 +7,11 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
+use super::file::FileWatcher;
 use crate::{
     composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig,
     subtask::SubtaskHandleUnit,
 };
-
-use super::file::FileWatcher;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
@@ -98,8 +97,8 @@ impl SupergraphConfigDiff {
             .collect();
 
         // Compare the old and new subgraph names to find removals.
-        let removed_names: HashSet<String> = new_subgraph_names_and_urls
-            .difference(&old_subgraph_names_and_urls)
+        let removed_names: HashSet<String> = old_subgraph_names_and_urls
+            .difference(&new_subgraph_names_and_urls)
             .map(|(a, _)| a.clone())
             .collect();
 
@@ -138,10 +137,10 @@ impl SupergraphConfigDiff {
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
     use std::collections::BTreeMap;
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+    use rstest::rstest;
 
     use super::SupergraphConfigDiff;
 
