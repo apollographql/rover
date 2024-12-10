@@ -1,7 +1,7 @@
 use crate::tools::Runner;
 use std::{convert::TryFrom, fs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use assert_fs::TempDir;
 use camino::Utf8PathBuf;
 
@@ -101,28 +101,17 @@ impl GitRunner {
         Ok(repo_path)
     }
 
-    pub(crate) fn checkout_rover_sha(&self, sha: &str) -> Result<Utf8PathBuf> {
-        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
-
-        self.runner.exec(&["checkout", sha], &repo_path, None)?;
-
-        Ok(repo_path)
-    }
-
     pub(crate) fn get_changed_files() -> Result<Vec<Utf8PathBuf>> {
         let apollo_main = GitRunner::tmp()?;
-        let apollo_main_path = apollo_main.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
 
         let current_dir = std::env::current_dir()?;
         let current_dir = Utf8PathBuf::from_path_buf(current_dir).unwrap();
 
         let output = apollo_main.runner.exec(
             &[
+                &format!("--work-tree={}", current_dir),
                 "diff",
                 "--name-only",
-                "--no-index",
-                &current_dir.to_string(),
-                &apollo_main_path.to_string(),
             ],
             &current_dir,
             None,
