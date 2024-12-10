@@ -41,3 +41,12 @@ impl UnresolvedSubgraph {
         }
     }
 }
+
+impl From<UnresolvedSubgraph> for SubgraphConfig {
+    fn from(value: UnresolvedSubgraph) -> Self {
+        SubgraphConfig {
+            routing_url: value.routing_url,
+            schema: value.schema,
+        }
+    }
+}
