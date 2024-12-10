@@ -267,6 +267,8 @@ workflows:
 
 jobs:
   param-test:
+    docker:
+      - image: cimg/base:2024.12
     steps:
       - run: |
           echo "<< pipeline.project.git_url >>"
