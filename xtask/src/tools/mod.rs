@@ -1,5 +1,5 @@
 pub(crate) use cargo::CargoRunner;
-pub(crate) use git::GitRunner;
+pub(crate) use git::{GitRunner, GithubRepo};
 #[cfg(not(windows))]
 pub(crate) use lychee::LycheeRunner;
 pub(crate) use npm::NpmRunner;

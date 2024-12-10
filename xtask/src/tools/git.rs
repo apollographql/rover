@@ -1,9 +1,12 @@
-use crate::tools::Runner;
-use std::{convert::TryFrom, fs};
+use std::{convert::TryFrom, fs, str::FromStr};
 
 use anyhow::{anyhow, Context, Result};
 use assert_fs::TempDir;
+use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
+use url::Url;
+
+use crate::tools::Runner;
 
 const ROVER_DEFAULT_BRANCH: &str = "main";
 
@@ -12,6 +15,7 @@ pub(crate) struct GitRunner {
 
     // we store _temp_dir here since its Drop implementation deletes the directory
     repo: RepoLocation,
+    remote: GithubRepo,
 }
 
 enum RepoLocation {
@@ -28,21 +32,72 @@ struct TmpRepo {
     _handle: TempDir,
 }
 
+#[derive(Debug, Clone)]
+pub struct GithubRepo {
+    org: String,
+    name: String,
+}
+
+#[buildstructor]
+impl GithubRepo {
+    #[builder]
+    pub fn new(org: Option<String>, name: Option<String>) -> GithubRepo {
+        let org = org.unwrap_or_else(|| "apollographql".to_string());
+        let name = name.unwrap_or_else(|| "rover".to_string());
+        GithubRepo { org, name }
+    }
+}
+
+impl Default for GithubRepo {
+    fn default() -> Self {
+        GithubRepo::builder().build()
+    }
+}
+
+impl TryFrom<&GithubRepo> for Url {
+    type Error = url::ParseError;
+    fn try_from(value: &GithubRepo) -> Result<Self, Self::Error> {
+        Url::parse(&format!("https://github.com/{}/{}", value.org, value.name))
+    }
+}
+
+impl FromStr for GithubRepo {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let url = Url::parse(s).map_err(|err| anyhow!("Invalid Url. {:?}", err))?;
+        let mut path = url
+            .path_segments()
+            .ok_or_else(|| anyhow!("Could not extract path from Url"))?;
+        let org = path
+            .next()
+            .ok_or_else(|| anyhow!("Could not extract org from Url path"))?;
+        let name = path
+            .next()
+            .ok_or_else(|| anyhow!("Could not extract repo from Url path"))?;
+        Ok(GithubRepo {
+            org: org.to_string(),
+            name: name.to_string(),
+        })
+    }
+}
+
 impl GitRunner {
-    pub(crate) fn new(path: &Utf8PathBuf) -> Result<Self> {
+    pub(crate) fn new(remote: GithubRepo, path: &Utf8PathBuf) -> Result<Self> {
         let runner = Runner::new("git");
         Ok(GitRunner {
             runner,
+            remote,
             repo: RepoLocation::Local(LocalRepo { path: path.clone() }),
         })
     }
-    pub(crate) fn tmp() -> Result<Self> {
+    pub(crate) fn tmp(remote: GithubRepo) -> Result<Self> {
         let runner = Runner::new("git");
         let temp_dir = TempDir::new().with_context(|| "Could not create temp directory")?;
         let temp_dir_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())
             .with_context(|| "Temp directory was not valid Utf-8")?;
 
         Ok(GitRunner {
+            remote,
             runner,
             repo: RepoLocation::Tmp(TmpRepo {
                 path: temp_dir_path,
@@ -63,8 +118,7 @@ impl GitRunner {
         Ok(path)
     }
 
-    fn clone(&self, org: &str, name: &str, branch: &str) -> Result<Utf8PathBuf> {
-        let url = format!("https://github.com/{}/{}", org, name);
+    pub fn clone(&self, branch: &str) -> Result<Utf8PathBuf> {
         let path = self.get_path()?;
         if let RepoLocation::Local(local) = &self.repo {
             if fs::metadata(local.path.join(".git")).is_ok() {
@@ -76,8 +130,10 @@ impl GitRunner {
             }
         }
 
+        let url = Url::try_from(&self.remote)?;
+
         self.runner.exec(
-            &["clone", &url, "--branch", branch, path.as_ref()],
+            &["clone", url.as_str(), "--branch", branch, path.as_ref()],
             &crate::utils::PKG_PROJECT_ROOT,
             None,
         )?;
@@ -85,12 +141,8 @@ impl GitRunner {
         Ok(path)
     }
 
-    pub(crate) fn clone_docs(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
-        self.clone(org, "docs", branch)
-    }
-
     pub(crate) fn checkout_rover_version(&self, rover_version: &str) -> Result<Utf8PathBuf> {
-        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
+        let repo_path = self.clone(ROVER_DEFAULT_BRANCH)?;
 
         self.runner.exec(
             &["checkout", &format!("tags/{}", rover_version)],
@@ -102,7 +154,7 @@ impl GitRunner {
     }
 
     pub(crate) fn checkout_rover_sha(&self, sha: &str) -> Result<Utf8PathBuf> {
-        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
+        let repo_path = self.clone(ROVER_DEFAULT_BRANCH)?;
 
         self.runner.exec(&["checkout", sha], &repo_path, None)?;
 

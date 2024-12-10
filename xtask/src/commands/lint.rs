@@ -1,15 +1,18 @@
-#[cfg(not(windows))]
-use crate::tools::LycheeRunner;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::tools::{CargoRunner, GitRunner, NpmRunner};
+#[cfg(not(windows))]
+use crate::tools::LycheeRunner;
+use crate::tools::{CargoRunner, GitRunner, GithubRepo, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct Lint {
     /// The current (most recent SHA) to use for comparison
     #[arg(long = "current-sha", default_value = "main")]
     pub(crate) current_sha: String,
+
+    #[arg(long)]
+    pub(crate) git_remote: Option<GithubRepo>,
 
     #[arg(long, short, action)]
     pub(crate) force: bool,
@@ -19,14 +22,19 @@ impl Lint {
     pub async fn run(&self) -> Result<()> {
         CargoRunner::new()?.lint()?;
         NpmRunner::new()?.lint()?;
-        lint_links(&self.current_sha, self.force).await
+        lint_links(
+            self.git_remote.clone().unwrap_or_default(),
+            &self.current_sha,
+            self.force,
+        )
+        .await
     }
 }
 
 #[cfg(not(windows))]
-async fn lint_links(current_sha: &str, force: bool) -> Result<()> {
+async fn lint_links(remote: GithubRepo, current_sha: &str, force: bool) -> Result<()> {
     if force
-        || GitRunner::tmp()?
+        || GitRunner::tmp(remote)?
             .get_changed_files(current_sha)?
             .iter()
             .any(|path| path.extension().unwrap_or_default() == "md")
