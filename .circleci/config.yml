@@ -144,6 +144,7 @@ workflows:
           command: security-checks
   test:
     jobs:
+      - param-test
       - xtask:
           name: Run cargo unit + integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
@@ -265,6 +266,10 @@ workflows:
             - Lint (Nightly)
 
 jobs:
+  param-test:
+    steps:
+      - run: |
+          echo "<< pipeline.project.git_url >>"
   xtask:
     parameters:
       rust_channel:
