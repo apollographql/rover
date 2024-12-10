@@ -1,16 +1,13 @@
-#[cfg(not(windows))]
-use crate::tools::LycheeRunner;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::tools::{CargoRunner, GitRunner, NpmRunner};
+#[cfg(not(windows))]
+use crate::tools::{GitRunner, LycheeRunner};
+
+use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct Lint {
-    /// The current (most recent SHA) to use for comparison
-    #[arg(long = "current-sha", default_value = "main")]
-    pub(crate) current_sha: String,
-
     #[arg(long, short, action)]
     pub(crate) force: bool,
 }
@@ -19,15 +16,14 @@ impl Lint {
     pub async fn run(&self) -> Result<()> {
         CargoRunner::new()?.lint()?;
         NpmRunner::new()?.lint()?;
-        lint_links(&self.current_sha, self.force).await
+        lint_links(self.force).await
     }
 }
 
 #[cfg(not(windows))]
-async fn lint_links(current_sha: &str, force: bool) -> Result<()> {
+async fn lint_links(force: bool) -> Result<()> {
     if force
-        || GitRunner::tmp()?
-            .get_changed_files(current_sha)?
+        || GitRunner::get_changed_files()?
             .iter()
             .any(|path| path.extension().unwrap_or_default() == "md")
     {
@@ -39,7 +35,7 @@ async fn lint_links(current_sha: &str, force: bool) -> Result<()> {
 }
 
 #[cfg(windows)]
-async fn lint_links(branch_name: &str, force: bool) -> Result<()> {
+async fn lint_links(force: bool) -> Result<()> {
     eprintln!("Skipping the lint checker.");
 
     Ok(())
