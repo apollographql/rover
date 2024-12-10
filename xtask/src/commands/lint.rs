@@ -1,9 +1,10 @@
-#[cfg(not(windows))]
-use crate::tools::LycheeRunner;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::tools::{CargoRunner, GitRunner, NpmRunner};
+#[cfg(not(windows))]
+use crate::tools::{GitRunner, LycheeRunner};
+
+use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct Lint {
@@ -34,7 +35,7 @@ async fn lint_links(force: bool) -> Result<()> {
 }
 
 #[cfg(windows)]
-async fn lint_links(branch_name: &str, force: bool) -> Result<()> {
+async fn lint_links(force: bool) -> Result<()> {
     eprintln!("Skipping the lint checker.");
 
     Ok(())
