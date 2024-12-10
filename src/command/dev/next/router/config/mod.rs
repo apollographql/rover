@@ -132,13 +132,15 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                 let address = address
                     .map(RouterAddress::from)
                     .unwrap_or(self.state.router_address);
-                let health_check = router_config.health_check();
+                let health_check_enabled = router_config.health_check_enabled();
+                let health_check_endpoint = router_config.health_check_endpoint()?;
                 let listen_path = router_config.listen_path()?;
 
                 RunRouterConfigFinal {
                     listen_path,
                     address,
-                    health_check,
+                    health_check_enabled,
+                    health_check_endpoint,
                     raw_config: contents.to_string(),
                 }
             }
@@ -173,9 +175,12 @@ impl RunRouterConfig<RunRouterConfigFinal> {
         &self.state.address
     }
 
-    #[allow(unused)]
-    pub fn health_check(&self) -> bool {
-        self.state.health_check
+    pub fn health_check_enabled(&self) -> bool {
+        self.state.health_check_enabled
+    }
+
+    pub fn health_check_endpoint(&self) -> &Uri {
+        &self.state.health_check_endpoint
     }
 
     pub fn router_config(&self) -> RouterConfig {

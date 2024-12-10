@@ -31,12 +31,10 @@ pub enum RunRouterBinaryError {
     },
     #[error("Failed to watch {descriptor} for logs")]
     OutputCapture { descriptor: String },
-    #[error(
-        "Failed healthcheck for router. Status code: {:?}.\n{:?}",
-        status_code,
-        text
-    )]
-    HealthCheck { status_code: String, text: String },
+    #[error("Failed healthcheck for router")]
+    HealthCheckFailed,
+    #[error("Something went wrong with an internal dependency, {}: {}", .dependency, .error)]
+    Internal { dependency: String, error: String },
 }
 
 #[derive(Clone, Debug)]

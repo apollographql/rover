@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::StreamExt;
@@ -15,6 +16,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::Service;
+use tracing::info;
 
 use crate::{
     command::dev::next::FileWatcher,
@@ -125,7 +127,7 @@ impl RunRouter<state::LoadRemoteConfig> {
 }
 
 impl RunRouter<state::Run> {
-    pub async fn run<WriteF, Spawn>(
+    pub async fn run<Spawn>(
         self,
         spawn: Spawn,
         temp_router_dir: &Utf8Path,
@@ -133,7 +135,6 @@ impl RunRouter<state::Run> {
         router_address: &RouterAddress,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
-        WriteF: WriteFile + Send + Clone + 'static,
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
         Spawn::Error: std::error::Error + Send + Sync,
         Spawn::Future: Send,
@@ -142,10 +143,10 @@ impl RunRouter<state::Run> {
         let schema_path = temp_router_dir.join("supergraph.graphql");
 
         let run_router_binary = RunRouterBinary::builder()
-            .router_binary(self.state.binary)
+            .router_binary(self.state.binary.clone())
             .config_path(config_path.clone())
             .supergraph_schema_path(schema_path.clone())
-            .and_remote_config(self.state.remote_config)
+            .and_remote_config(self.state.remote_config.clone())
             .spawn(spawn)
             .build();
 
@@ -156,7 +157,7 @@ impl RunRouter<state::Run> {
 
         let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
 
-        Self::wait_for_healthy_router(&studio_client_config, router_address).await?;
+        self.wait_for_healthy_router(&studio_client_config).await?;
 
         Ok(RunRouter {
             state: state::Watch {
@@ -168,68 +169,64 @@ impl RunRouter<state::Run> {
     }
 
     async fn wait_for_healthy_router(
+        self,
         studio_client_config: &StudioClientConfig,
-        router_address: &RouterAddress,
     ) -> Result<(), RunRouterBinaryError> {
-        // TODO: this should actually come from the config if we have it; eg, the difference
-        // between /health, the default, and a custom /healthz
-        // see: https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks
-        let mut healthcheck_endpoint = router_address.host().to_string();
-        healthcheck_endpoint.push_str(":8088/health");
+        if !self.state.config.health_check_enabled() {
+            info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+            return Ok(());
+        }
 
-        // FIXME: unwrap
-        let healthcheck_client = studio_client_config.get_reqwest_client().unwrap();
+        let healthcheck_endpoint = self.state.config.health_check_endpoint();
+
+        let healthcheck_client = studio_client_config.get_reqwest_client().map_err(|err| {
+            RunRouterBinaryError::Internal {
+                dependency: "Reqwest Client".to_string(),
+                error: format!("Failed to get client: {err}"),
+            }
+        })?;
 
         let healthcheck_request = healthcheck_client
-            .get(healthcheck_endpoint)
+            .get(healthcheck_endpoint.to_string())
             .build()
-            .unwrap();
+            .map_err(|err| RunRouterBinaryError::Internal {
+                dependency: "Reqwest Client".to_string(),
+                error: format!("Failed to build healthcheck request: {err}"),
+            })?;
 
         let ten_secs = Duration::from_secs(10);
         let start_time = Instant::now();
+        let mut success = false;
 
-        // Wait for the router to become healthy before continuing by checking its health endpoint
-        while healthcheck_client
-            // FIXME: unwrap
-            .execute(healthcheck_request.try_clone().unwrap())
-            .await
-            .unwrap()
-            .status()
-            .is_success()
-            // We'll only wait for 10s before moving on
-            && Instant::now().duration_since(start_time).le(&ten_secs)
-        {
+        // Wait for the router to become healthy before continuing by checking its health endpoint,
+        // waiting only 10s
+        while !success && Instant::now().duration_since(start_time).le(&ten_secs) {
             sleep(Duration::from_millis(100)).await;
+
+            let Some(request) = healthcheck_request.try_clone() else {
+                return Err(RunRouterBinaryError::Internal {
+                    dependency: "Reqwest Client".to_string(),
+                    error: "Failed to clone healthcheck request".to_string(),
+                });
+            };
+
+            if let Ok(res) = healthcheck_client.execute(request).await {
+                success = res.status().is_success()
+            }
         }
 
-        let res = healthcheck_client
-            .execute(healthcheck_request.try_clone().unwrap())
-            .await
-            .unwrap();
-
-        if res.status().is_success() {
+        if success {
             Ok(())
         } else {
-            let status_code = res.status().to_string();
-            let text = res.text().await.unwrap_or(
-                "No error message in the body of the response from the router".to_string(),
-            );
-
-            Err(RunRouterBinaryError::HealthCheck { status_code, text })
+            Err(RunRouterBinaryError::HealthCheckFailed)
         }
     }
 }
 
 impl RunRouter<state::Watch> {
-    pub async fn watch_for_changes<WriteF, Spawn>(
-        self,
-        write_file_impl: WriteF,
-    ) -> RunRouter<state::Abort>
+    pub async fn watch_for_changes<WriteF>(self, write_file_impl: WriteF) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
-        Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
-        Spawn::Error: std::error::Error + Send + Sync,
-        Spawn::Future: Send,
     {
         let config_watcher =
             RouterConfigWatcher::new(FileWatcher::new(self.state.config_path.clone()));

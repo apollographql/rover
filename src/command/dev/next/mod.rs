@@ -78,7 +78,7 @@ impl Dev {
             .skip_update(skip_update)
             .output_file(composition_output)
             .and_federation_version(federation_version)
-            .and_graph_ref(graph_ref)
+            .and_graph_ref(graph_ref.clone())
             .and_supergraph_yaml(supergraph_yaml)
             .and_override_install_path(override_install_path.clone())
             .build();
@@ -91,24 +91,15 @@ impl Dev {
         // opt
         let router_version = RouterVersion::Latest;
 
-        // TODO: better; weird to call config, weird to get credential this way
-        // FIXME: unwraps
-        let credential =
-        // FIXME: error over first None, the override home arg
-        // 1. type annotations needed
-        //    multiple `impl`s satisfying `_: AsRef<Utf8Path>` found in the `camino` crate:
-        //    - impl AsRef<Utf8Path> for Utf8Path;
-        //    - impl AsRef<Utf8Path> for camino::Utf8PathBuf;
-        //    - impl AsRef<Utf8Path> for std::string::String;
-        //    - impl AsRef<Utf8Path> for str; [E0283]
-        //  2. required by a bound introduced by this call [E0283]
-        //  3. consider specifying the generic argument: `::<&_>` [E0283]
-            Profile::get_credential(&profile.profile_name, &Config::new(None, None).unwrap())
-                .unwrap();
+        let credential = Profile::get_credential(
+            &profile.profile_name,
+            &Config::new(None::<&String>, None).unwrap(),
+        )?;
+
         let service = client_config
             .get_authenticated_client(&profile)?
             .service()?;
-        let mut service = WhoAmI::new(service);
+        let service = WhoAmI::new(service);
 
         RunRouter::default()
             .install::<InstallRouter>(
@@ -121,8 +112,6 @@ impl Dev {
             .await?
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
-            // TODO: figure out if I can just pass None instead for the credential and let the
-            // internal workings of it sort it out
             .load_remote_config(service, graph_ref, Some(credential))
             .await
             .run(
@@ -132,7 +121,8 @@ impl Dev {
                 &router_address,
             )
             .await?
-            .watch_for_changes(write_file_impl);
+            .watch_for_changes(write_file_impl)
+            .await;
 
         // TODO: more stuff with dev, the router is alive
 
