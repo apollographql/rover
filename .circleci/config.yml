@@ -138,8 +138,9 @@ workflows:
               rust_channel: [stable]
               command: [lint]
               options:
-                - | 
-                  --current-sha << pipeline.git.revision >>
+                - |
+                  --current-sha << pipeline.git.revision >> \
+                  --git-remote << pipeline.project.git_url >>
   security_checks:
     jobs:
       - xtask:
