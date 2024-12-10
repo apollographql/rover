@@ -5,7 +5,7 @@ use camino::Utf8PathBuf;
 
 use crate::commands::version::RoverVersion;
 use crate::target::Target;
-use crate::tools::{GitRunner, Runner};
+use crate::tools::{GitRunner, GithubRepo, Runner};
 use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
 
 pub(crate) struct CargoRunner {
@@ -31,7 +31,7 @@ impl CargoRunner {
         version: Option<&RoverVersion>,
     ) -> Result<Utf8PathBuf> {
         if let Some(version) = version {
-            let git_runner = GitRunner::tmp()?;
+            let git_runner = GitRunner::tmp(GithubRepo::default())?;
             let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
             let versioned_schema_url = format!(
                     "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
