@@ -126,7 +126,7 @@ impl FederationVersionResolver<state::FromSubgraphs> {
     /// Resolves the [`FederationVersion`] against user input and the subgraph SDLs provided
     pub fn resolve<'a>(
         &self,
-        subgraphs: &'a mut impl Iterator<Item = (&'a String, &'a FullyResolvedSubgraph)>,
+        subgraphs: impl Iterator<Item = (&'a String, &'a FullyResolvedSubgraph)>,
     ) -> Result<FederationVersion, FederationVersionMismatch> {
         let fed_two_subgraphs = subgraphs
             .filter_map(|(subgraph_name, subgraph)| {
@@ -156,5 +156,119 @@ impl FederationVersionResolver<state::FromSubgraphs> {
             }
             None => Ok(FederationVersion::LatestFedTwo),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+    use speculoos::prelude::*;
+
+    use crate::composition::supergraph::config::{full::FullyResolvedSubgraph, scenario::*};
+
+    use super::FederationVersionResolverFromSupergraphConfig;
+
+    /// Test showing that federation version is selected from the user-specified fed version
+    /// over local supergraph config or resolved subgraphs
+    #[test]
+    fn test_resolve_from_user_selection() {
+        let subgraph_name = subgraph_name();
+        let subgraph_scenario = sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name.to_string(),
+            SubgraphFederationVersion::One,
+        );
+        let unresolved_subgraphs = BTreeMap::from_iter([(
+            subgraph_name.to_string(),
+            SubgraphConfig::from(subgraph_scenario.unresolved_subgraph.clone()),
+        )]);
+        let federation_version_resolver =
+            FederationVersionResolverFromSupergraphConfig::new(FederationVersion::LatestFedTwo);
+        let supergraph_config =
+            SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedOne));
+
+        let resolved_subgraphs = vec![(
+            subgraph_name.to_string(),
+            FullyResolvedSubgraph::builder()
+                .schema(subgraph_scenario.sdl)
+                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .is_fed_two(false)
+                .build(),
+        )];
+        let federation_version = federation_version_resolver
+            .from_supergraph_config(Some(&supergraph_config))
+            .resolve(resolved_subgraphs.iter().map(|(k, v)| (k, v)));
+        assert_that!(federation_version)
+            .is_ok()
+            .is_equal_to(FederationVersion::LatestFedTwo);
+    }
+
+    /// Test showing that federation version is selected from the supergraph config
+    /// over resolved subgraphs when it is not specified by the user
+    #[test]
+    fn test_resolve_from_supergraph_config() {
+        let subgraph_name = subgraph_name();
+        let subgraph_scenario = sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name.to_string(),
+            SubgraphFederationVersion::One,
+        );
+        let unresolved_subgraphs = BTreeMap::from_iter([(
+            subgraph_name.to_string(),
+            SubgraphConfig::from(subgraph_scenario.unresolved_subgraph.clone()),
+        )]);
+        let federation_version_resolver = FederationVersionResolverFromSupergraphConfig::default();
+        let supergraph_config =
+            SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedTwo));
+
+        let resolved_subgraphs = vec![(
+            subgraph_name.to_string(),
+            FullyResolvedSubgraph::builder()
+                .schema(subgraph_scenario.sdl)
+                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .is_fed_two(false)
+                .build(),
+        )];
+        let federation_version = federation_version_resolver
+            .from_supergraph_config(Some(&supergraph_config))
+            .resolve(resolved_subgraphs.iter().map(|(k, v)| (k, v)));
+        assert_that!(federation_version)
+            .is_ok()
+            .is_equal_to(FederationVersion::LatestFedTwo);
+    }
+
+    /// Test showing that federation version is selected from resolved subgraphs
+    /// when it is not specified by the user or in a supergraph config
+    #[test]
+    fn test_resolve_from_resolved_subgraphs() {
+        let subgraph_name = subgraph_name();
+        let subgraph_scenario = sdl_subgraph_scenario(
+            sdl_fed2(sdl()),
+            subgraph_name.to_string(),
+            SubgraphFederationVersion::Two,
+        );
+        let unresolved_subgraphs = BTreeMap::from_iter([(
+            subgraph_name.to_string(),
+            SubgraphConfig::from(subgraph_scenario.unresolved_subgraph.clone()),
+        )]);
+        let federation_version_resolver = FederationVersionResolverFromSupergraphConfig::default();
+        let supergraph_config = SupergraphConfig::new(unresolved_subgraphs, None);
+
+        let resolved_subgraphs = vec![(
+            subgraph_name.to_string(),
+            FullyResolvedSubgraph::builder()
+                .schema(subgraph_scenario.sdl)
+                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .is_fed_two(true)
+                .build(),
+        )];
+        let federation_version = federation_version_resolver
+            .from_supergraph_config(Some(&supergraph_config))
+            .resolve(resolved_subgraphs.iter().map(|(k, v)| (k, v)));
+        assert_that!(federation_version)
+            .is_ok()
+            .is_equal_to(FederationVersion::LatestFedTwo);
     }
 }
