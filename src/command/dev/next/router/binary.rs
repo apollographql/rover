@@ -27,10 +27,14 @@ pub enum RouterLog {
 pub enum RunRouterBinaryError {
     #[error("Failed to run router command: {:?}", err)]
     Spawn {
-        err: Box<dyn std::error::Error + Send>,
+        err: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Failed to watch {descriptor} for logs")]
     OutputCapture { descriptor: String },
+    #[error("Failed healthcheck for router")]
+    HealthCheckFailed,
+    #[error("Something went wrong with an internal dependency, {}: {}", .dependency, .error)]
+    Internal { dependency: String, error: String },
 }
 
 #[derive(Clone, Debug)]
