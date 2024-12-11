@@ -132,14 +132,9 @@ workflows:
     jobs:
       - xtask:
           name: Lint
-          matrix:
-            parameters:
-              platform: [volta]
-              rust_channel: [stable]
-              command: [lint]
-              options:
-                - | 
-                  --current-sha << pipeline.git.revision >>
+          platform: volta
+          rust_channel: stable
+          command: lint
   security_checks:
     jobs:
       - xtask:
