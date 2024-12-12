@@ -41,6 +41,11 @@ pub struct Publish {
     #[arg(long, value_enum, default_value_t = PersistedQueriesManifestFormat::Apollo)]
     manifest_format: PersistedQueriesManifestFormat,
 
+    /// If provided, overrides the `clientName` field in all operations in
+    /// the manifest file.
+    #[arg(long)]
+    for_client_name: Option<String>,
+
     #[clap(flatten)]
     profile: ProfileOpt,
 }
@@ -57,7 +62,7 @@ impl Publish {
             format!("JSON in {manifest} did not match '--manifest-format {format}'")
         };
 
-        let operation_manifest = match self.manifest_format {
+        let mut operation_manifest = match self.manifest_format {
             PersistedQueriesManifestFormat::Apollo => {
                 serde_json::from_str::<ApolloPersistedQueryManifest>(&raw_manifest)
                     .with_context(|| invalid_json_err(&self.manifest, "apollo"))?
@@ -68,6 +73,14 @@ impl Publish {
                     .try_into()?
             }
         };
+
+        // Override any client names provided in the manifest (which is the only way to
+        // provide client names for the Relay format).
+        if let Some(for_client_name) = &self.for_client_name {
+            for op in &mut operation_manifest.operations {
+                op.client_name = Some(for_client_name.to_string());
+            }
+        }
 
         let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {
