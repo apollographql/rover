@@ -65,10 +65,9 @@ impl FullyResolvedSupergraphConfig {
         ) = subgraphs.into_iter().partition_result();
         if errors.is_empty() {
             let subgraphs = BTreeMap::from_iter(subgraphs);
-            let federation_version = Self::resolve_federation_version(
-                unresolved_supergraph_config.federation_version().as_ref(),
-                &mut subgraphs.iter(),
-            )?;
+            let federation_version = unresolved_supergraph_config
+                .federation_version_resolver()
+                .resolve(subgraphs.iter())?;
             Ok(FullyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs,
@@ -76,40 +75,6 @@ impl FullyResolvedSupergraphConfig {
             })
         } else {
             Err(ResolveSupergraphConfigError::ResolveSubgraphs(errors))
-        }
-    }
-
-    fn resolve_federation_version<'a>(
-        specified_federation_version: Option<&FederationVersion>,
-        subgraphs: &'a mut impl Iterator<Item = (&'a String, &'a FullyResolvedSubgraph)>,
-    ) -> Result<FederationVersion, ResolveSupergraphConfigError> {
-        let fed_two_subgraphs = subgraphs
-            .filter_map(|(subgraph_name, subgraph)| {
-                if *subgraph.is_fed_two() {
-                    Some(subgraph_name.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        let contains_fed_two_subgraphs = !fed_two_subgraphs.is_empty();
-        match specified_federation_version {
-            Some(specified_federation_version) => {
-                let specified_federation_version = specified_federation_version.clone();
-                if specified_federation_version.is_fed_one() {
-                    if contains_fed_two_subgraphs {
-                        Err(ResolveSupergraphConfigError::FederationVersionMismatch {
-                            specified_federation_version,
-                            subgraph_names: fed_two_subgraphs,
-                        })
-                    } else {
-                        Ok(specified_federation_version)
-                    }
-                } else {
-                    Ok(specified_federation_version)
-                }
-            }
-            None => Ok(FederationVersion::LatestFedTwo),
         }
     }
 }
