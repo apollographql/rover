@@ -18,13 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.26.3] (unreleased) - 2024-12-dd
+# [0.26.3] - 2024-12-16
 
 ## 🐛 Fixes
 
-- **`rover persisted-queries publish` supports `clientName` for operations - @glasser #2239**
+- **`rover persisted-queries publish` publishes `clientName`s in persisted query manifests - @glasser #2239**
 
-  If the JSON manifest file provided to `rover persisted-queries publish` sets the `clientName` on individual operations, these client names are included in the publish instead of ignored. Additionally, the new `--for-client-name` option overrides the `clientName` field for all operations in the manifest file.
+When using `rover persisted-queries publish`, if the JSON manifest file includes `clientName` fields on operations, those client names are now published instead of ignored. You can use the new `--for-client-name` option to set or override the `clientName` field for all operations in a persisted query manifest.
 
 # [0.26.2] - 2024-09-10
 
