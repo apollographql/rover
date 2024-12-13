@@ -45,25 +45,13 @@ impl Dev {
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
-        let router_config_path = match self.opts.supergraph_opts.router_config_path.as_ref() {
-            Some(path) => path.to_owned(),
-            None => {
-                let tmp_router_config_path = tmp_config_dir_path.join("router.yaml");
-                tmp_router_config_path
-            }
-        };
+        let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
         let _config = RunRouterConfig::default()
             .with_address(router_address)
-            .with_config(&read_file_impl, &router_config_path)
+            .with_config(&read_file_impl, router_config_path.as_ref())
             .await
             .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
-
-        let file_watcher = FileWatcher::new(router_config_path.clone());
-        let router_config_watcher = RouterConfigWatcher::new(file_watcher);
-
-        let (_events, subtask) = Subtask::new(router_config_watcher);
-        let _abort_handle = subtask.run();
 
         let supergraph_yaml = self.opts.supergraph_opts.clone().supergraph_config_path;
         let federation_version = self.opts.supergraph_opts.federation_version.clone();
@@ -113,7 +101,12 @@ impl Dev {
             .await?
             .load_remote_config(service, graph_ref, Some(credential))
             .await
-            .run(TokioSpawn::default(), &tmp_config_dir_path, client_config)
+            .run(
+                FsWriteFile::default(),
+                TokioSpawn::default(),
+                &tmp_config_dir_path,
+                client_config,
+            )
             .await?
             .watch_for_changes(write_file_impl)
             .await;
