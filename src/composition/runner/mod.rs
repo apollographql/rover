@@ -3,11 +3,37 @@
 
 #![warn(missing_docs)]
 
+use std::env::current_dir;
+use std::io::stdin;
+use std::{collections::BTreeMap, fmt::Debug};
+
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use buildstructor::Builder;
+use camino::Utf8PathBuf;
+use futures::stream::{BoxStream, StreamExt};
+use rover_client::shared::GraphRef;
+use rover_std::warnln;
+use tempfile::tempdir;
+use tracing::debug;
+
 use self::state::SetupSubgraphWatchers;
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use super::{
+    events::CompositionEvent,
+    supergraph::{
+        binary::{OutputTarget, SupergraphBinary},
+        config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
+    },
+    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
+    CompositionSuccess,
+};
+use crate::composition::runner::errors::RunCompositionError;
+use crate::composition::runner::errors::RunCompositionError::ParsingFederationVersionFailed;
+use crate::composition::supergraph::config::full::{
+    FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+};
 use crate::composition::supergraph::config::resolver::SupergraphConfigResolver;
 use crate::composition::supergraph::install::InstallSupergraph;
+use crate::composition::SupergraphConfigResolutionError;
 use crate::options::LicenseAccepter;
 use crate::utils::effect::exec::TokioCommand;
 use crate::utils::effect::install::InstallBinary;
@@ -24,29 +50,9 @@ use crate::{
         client::StudioClientConfig,
         effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
     },
-    RoverError, RoverResult,
-};
-use anyhow::anyhow;
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
-use buildstructor::Builder;
-use camino::Utf8PathBuf;
-use futures::stream::{BoxStream, StreamExt};
-use rover_client::shared::GraphRef;
-use rover_std::warnln;
-use std::env::current_dir;
-use std::io::stdin;
-use std::{collections::BTreeMap, fmt::Debug};
-use tempfile::tempdir;
-
-use super::{
-    events::CompositionEvent,
-    supergraph::{
-        binary::{OutputTarget, SupergraphBinary},
-        config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-    },
-    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 
+pub mod errors;
 mod state;
 
 /// A struct for configuring and running subtasks for watching for both supergraph and subgraph
@@ -80,47 +86,12 @@ pub struct OneShotComposition {
 
 impl OneShotComposition {
     /// Runs composition
-    pub async fn compose(self) -> RoverResult<CompositionOutput> {
-        let mut stdin = stdin();
+    pub async fn compose(self) -> Result<CompositionSuccess, RunCompositionError> {
         let write_file = FsWriteFile::default();
         let read_file = FsReadFile::default();
         let exec_command = TokioCommand::default();
 
-        let supergraph_root = self.supergraph_yaml.clone().and_then(|file| match file {
-            FileDescriptorType::File(file) => {
-                let mut current_dir = current_dir().expect("Unable to get current directory path");
-
-                current_dir.push(file);
-                let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
-                let parent = path.parent().unwrap().to_path_buf();
-                Some(parent)
-            }
-            FileDescriptorType::Stdin => None,
-        });
-
-        let studio_client = self
-            .client_config
-            .get_authenticated_client(&self.profile.clone())?;
-
-        // Get a FullyResolvedSupergraphConfig from first loading in any remote subgraphs and then
-        // a local supergraph config (if present) and then combining them into a fully resolved
-        // supergraph config
-        let resolver = SupergraphConfigResolver::default()
-            .load_remote_subgraphs(&studio_client, self.graph_ref.as_ref())
-            .await?
-            .load_from_file_descriptor(&mut stdin, self.supergraph_yaml.as_ref())?
-            .fully_resolve_subgraphs(
-                &self.client_config,
-                &studio_client,
-                supergraph_root.as_ref(),
-            )
-            .await?;
-
-        // We convert the FullyResolvedSupergraphConfig into a Supergraph because it makes using
-        // Serde easier (said differently: we're using the Federation-rs types here for
-        // compatability with Federation-rs tooling later on when we use their supergraph binary to
-        // actually run composition)
-        let supergraph_config: SupergraphConfig = resolver.clone().into();
+        let (resolver, supergraph_config) = self.create_supergraph_config().await?;
 
         // Convert the FullyResolvedSupergraphConfig to yaml before we save it
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
@@ -147,14 +118,12 @@ impl OneShotComposition {
             .unwrap_or(resolver.federation_version());
 
         // We care about the exact version of the federation version because certain options aren't
-        // available before 2.9.0 and we gate on that version below
+        // available before 2.9.0, and we gate on that version below
         let exact_version = fed_version
             .get_exact()
             // This should be impossible to get to because we convert to a FederationVersion a few
             // lines above and so _should_ have an exact version
-            .ok_or(RoverError::new(anyhow!(
-                "failed to get exact Federation version"
-            )))?;
+            .ok_or(ParsingFederationVersionFailed(fed_version.clone()))?;
 
         // Making the output file mutable allows us to change it if we're using a version of the
         // supergraph binary that can't write to file (ie, anything pre-2.9.0)
@@ -190,7 +159,50 @@ impl OneShotComposition {
             )
             .await?;
 
-        Ok(result.into())
+        Ok(result)
+    }
+
+    async fn create_supergraph_config(
+        &self,
+    ) -> Result<(FullyResolvedSupergraphConfig, SupergraphConfig), SupergraphConfigResolutionError>
+    {
+        let mut stdin = stdin();
+        let supergraph_root = self.supergraph_yaml.clone().and_then(|file| match file {
+            FileDescriptorType::File(file) => {
+                let mut current_dir = current_dir().expect("Unable to get current directory path");
+
+                current_dir.push(file);
+                let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
+                let parent = path.parent().unwrap().to_path_buf();
+                Some(parent)
+            }
+            FileDescriptorType::Stdin => None,
+        });
+
+        let studio_client = self
+            .client_config
+            .get_authenticated_client(&self.profile.clone())?;
+
+        // Get a FullyResolvedSupergraphConfig from first loading in any remote subgraphs and then
+        // a local supergraph config (if present) and then combining them into a fully resolved
+        // supergraph config
+        let resolver = SupergraphConfigResolver::default()
+            .load_remote_subgraphs(&studio_client, self.graph_ref.as_ref())
+            .await?
+            .load_from_file_descriptor(&mut stdin, self.supergraph_yaml.as_ref())?
+            .fully_resolve_subgraphs(
+                &self.client_config,
+                &studio_client,
+                supergraph_root.as_ref(),
+            )
+            .await?;
+
+        // We convert the FullyResolvedSupergraphConfig into a Supergraph because it makes using
+        // Serde easier (said differently: we're using the Federation-rs types here for
+        // compatability with Federation-rs tooling later on when we use their supergraph binary to
+        // actually run composition)
+        let supergraph_config: SupergraphConfig = resolver.clone().into();
+        Ok((resolver, supergraph_config))
     }
 }
 
@@ -234,10 +246,12 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
         // We could return None here if we received a supergraph config directly from stdin. In
         // that case, we don't want to configure a watcher.
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
+            debug!("Configuring supergraph file watcher for: {}", origin_path);
             let f = FileWatcher::new(origin_path.clone());
             let watcher = SupergraphConfigWatcher::new(f, supergraph_config);
             Some(watcher)
         } else {
+            debug!("Not configuring supergraph file watcher");
             None
         };
         Runner {
@@ -261,6 +275,7 @@ impl Runner<state::SetupCompositionWatcher> {
         write_file: WriteF,
         output_target: OutputTarget,
         temp_dir: Utf8PathBuf,
+        compose_on_initialisation: bool,
     ) -> Runner<state::Run<ReadF, ExecC, WriteF>>
     where
         ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -276,6 +291,7 @@ impl Runner<state::SetupCompositionWatcher> {
             .write_file(write_file)
             .output_target(output_target)
             .temp_dir(temp_dir)
+            .compose_on_initialisation(compose_on_initialisation)
             .build();
         Runner {
             state: state::Run {

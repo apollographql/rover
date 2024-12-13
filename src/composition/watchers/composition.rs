@@ -1,16 +1,20 @@
+use std::collections::BTreeMap;
+
 use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
 use rover_std::errln;
-use std::collections::BTreeMap;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
+use tracing::error;
 
 use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
-use crate::composition::{CompositionSubgraphAdded, CompositionSubgraphRemoved};
+use crate::composition::{
+    CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+};
 use crate::{
     composition::{
         events::CompositionEvent,
@@ -30,6 +34,7 @@ pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
     read_file: ReadF,
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
+    compose_on_initialisation: bool,
 }
 
 impl<ReadF, ExecC, WriteF> SubtaskHandleStream for CompositionWatcher<ReadF, ExecC, WriteF>
@@ -49,7 +54,33 @@ where
         tokio::task::spawn({
             let mut subgraphs = self.subgraphs.clone();
             let target_file = self.temp_dir.join("supergraph.yaml");
+
             async move {
+                if self.compose_on_initialisation {
+                    if let Err(err) = self
+                        .setup_temporary_supergraph_yaml(subgraphs.clone(), &target_file)
+                        .await
+                    {
+                        error!("Could not setup initial supergraph schema: {}", err);
+                    };
+                    let _ = sender
+                        .send(CompositionEvent::Started)
+                        .tap_err(|err| error!("{:?}", err));
+                    let output = self.run_composition(&target_file).await;
+                    match output {
+                        Ok(success) => {
+                            let _ = sender
+                                .send(CompositionEvent::Success(success))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                        Err(err) => {
+                            let _ = sender
+                                .send(CompositionEvent::Error(err))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                    }
+                }
+
                 while let Some(event) = input.next().await {
                     match event {
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
@@ -102,44 +133,17 @@ where
                                 .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
-
-                    let supergraph_config = dbg!(convert_to_supergraph_config(subgraphs.clone()));
-                    let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
-
-                    let supergraph_config_yaml = match supergraph_config_yaml {
-                        Ok(supergraph_config_yaml) => supergraph_config_yaml,
-                        Err(err) => {
-                            errln!("Failed to serialize supergraph config into yaml");
-                            tracing::error!("{:?}", err);
-                            continue;
-                        }
-                    };
-
-                    let write_file_result = self
-                        .write_file
-                        .write_file(&target_file, supergraph_config_yaml.as_bytes())
-                        .await;
-
-                    if let Err(err) = write_file_result {
-                        errln!("Failed to write the supergraph config to disk");
-                        tracing::error!("{:?}", err);
+                    if let Err(err) = self
+                        .setup_temporary_supergraph_yaml(subgraphs.clone(), &target_file)
+                        .await
+                    {
+                        error!("Could not setup supergraph schema: {}", err);
                         continue;
-                    }
-
+                    };
                     let _ = sender
                         .send(CompositionEvent::Started)
-                        .tap_err(|err| tracing::error!("{:?}", err));
-
-                    let output = self
-                        .supergraph_binary
-                        .compose(
-                            &self.exec_command,
-                            &self.read_file,
-                            &self.output_target,
-                            target_file.clone(),
-                        )
-                        .await;
-
+                        .tap_err(|err| error!("{:?}", err));
+                    let output = self.run_composition(&target_file).await;
                     match output {
                         Ok(success) => {
                             let _ = sender
@@ -156,6 +160,62 @@ where
             }
         })
         .abort_handle()
+    }
+}
+
+impl<ReadF, ExecC, WriteF> CompositionWatcher<ReadF, ExecC, WriteF>
+where
+    ExecC: 'static + ExecCommand + Send + Sync,
+    ReadF: 'static + ReadFile + Send + Sync,
+    WriteF: 'static + Send + Sync + WriteFile,
+{
+    async fn run_composition(
+        &self,
+        target_file: &Utf8PathBuf,
+    ) -> Result<CompositionSuccess, CompositionError> {
+        self.supergraph_binary
+            .compose(
+                &self.exec_command,
+                &self.read_file,
+                &self.output_target,
+                target_file.clone(),
+            )
+            .await
+    }
+
+    async fn setup_temporary_supergraph_yaml(
+        &self,
+        subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
+        target_file: &Utf8PathBuf,
+    ) -> Result<(), CompositionError> {
+        let supergraph_config = convert_to_supergraph_config(subgraphs.clone());
+        let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
+
+        let supergraph_config_yaml = match supergraph_config_yaml {
+            Ok(supergraph_config_yaml) => supergraph_config_yaml,
+            Err(err) => {
+                errln!("Failed to serialize supergraph config into yaml");
+                tracing::error!("{:?}", err);
+                return Err(CompositionError::SupergraphYamlSerialisationFailed {
+                    error: err.to_string(),
+                });
+            }
+        };
+
+        let write_file_result = self
+            .write_file
+            .write_file(target_file, supergraph_config_yaml.as_bytes())
+            .await;
+
+        if let Err(err) = write_file_result {
+            errln!("Failed to write the supergraph config to disk");
+            tracing::error!("{:?}", err);
+            Err(CompositionError::SupergraphSchemaTemporaryFileWriteFailed {
+                error: err.to_string(),
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -279,6 +339,7 @@ mod tests {
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
             .output_target(OutputTarget::Stdout)
+            .compose_on_initialisation(false)
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
