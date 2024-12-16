@@ -117,7 +117,7 @@ impl FullyResolvedSubgraph {
             SchemaSource::Sdl { sdl } => {
                 let is_fed_two = schema_contains_link_directive(sdl);
                 Ok(FullyResolvedSubgraph {
-                    routing_url: None,
+                    routing_url: unresolved_subgraph.routing_url().clone(),
                     schema: sdl.to_string(),
                     is_fed_two,
                 })

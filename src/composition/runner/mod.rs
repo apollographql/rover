@@ -27,10 +27,7 @@ use crate::{
     utils::{
         client::StudioClientConfig,
         effect::{
-            exec::{ExecCommand, TokioCommand},
-            install::InstallBinary,
-            read_file::{FsReadFile, ReadFile},
-            write_file::{FsWriteFile, WriteFile},
+            exec::ExecCommand, install::InstallBinary, read_file::ReadFile, write_file::WriteFile,
         },
         parsers::FileDescriptorType,
     },
@@ -85,11 +82,13 @@ pub struct OneShotComposition {
 
 impl OneShotComposition {
     /// Runs composition
-    pub async fn compose(self) -> RoverResult<CompositionOutput> {
+    pub async fn compose<ReadF: ReadFile, WriteF: WriteFile, Exec: ExecCommand>(
+        self,
+        read_file_impl: &ReadF,
+        write_file_impl: &WriteF,
+        exec_command_impl: &Exec,
+    ) -> RoverResult<CompositionOutput> {
         let mut stdin = stdin();
-        let write_file = FsWriteFile::default();
-        let read_file = FsReadFile::default();
-        let exec_command = TokioCommand::default();
 
         let supergraph_root = self.supergraph_yaml.clone().and_then(|file| match file {
             FileDescriptorType::File(file) => {
@@ -136,8 +135,10 @@ impl OneShotComposition {
             Utf8PathBuf::from_path_buf(tempdir()?.path().join("supergraph.yaml"))
                 .expect("Unable to parse path");
 
+        tracing::debug!("{:?}", supergraph_config_yaml);
+
         // Write the supergraph config to disk
-        write_file
+        write_file_impl
             .write_file(
                 &supergraph_config_filepath,
                 supergraph_config_yaml.as_bytes(),
@@ -186,8 +187,8 @@ impl OneShotComposition {
 
         let result = supergraph_binary
             .compose(
-                &exec_command,
-                &read_file,
+                exec_command_impl,
+                read_file_impl,
                 &output_file
                     .map(OutputTarget::File)
                     .unwrap_or(OutputTarget::Stdout),

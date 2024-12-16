@@ -15,7 +15,7 @@ pub struct MockWriteFileError {}
 #[cfg_attr(test, mockall::automock(type Error = MockWriteFileError;))]
 #[async_trait]
 pub trait WriteFile {
-    type Error: std::error::Error + Send + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
     async fn write_file(&self, path: &Utf8PathBuf, contents: &[u8]) -> Result<(), Self::Error>;
 }
 

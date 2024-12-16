@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use apollo_federation_types::{
     config::FederationVersion,
@@ -102,6 +102,15 @@ impl SupergraphBinary {
             .map_err(|err| CompositionError::Binary {
                 error: format!("{:?}", err),
             })?;
+
+        let exit_code = output.status.code();
+        if exit_code != Some(0) && exit_code != Some(1) {
+            return Err(CompositionError::BinaryExit {
+                exit_code,
+                stdout: String::from_utf8(output.stdout).unwrap(),
+                stderr: String::from_utf8(output.stderr).unwrap(),
+            });
+        }
 
         let output = match output_target {
             OutputTarget::File(path) => {
