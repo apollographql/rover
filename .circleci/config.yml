@@ -5,7 +5,6 @@ orbs:
   rust: circleci/rust@1.6.1
   gh: circleci/github-cli@2.6.0
   node: circleci/node@7.0.0
-  secops: apollo/circleci-secops-orb@2.0.7
   slack: circleci/slack@5.1.1
 
 # These filters are used in all of the jobs for our release workflow
@@ -225,21 +224,6 @@ workflows:
             - "Build and bundle release artifacts (arm_macos)"
             - "Build and bundle release artifacts (amd_windows)"
           <<: *run_release
-  security-scans:
-    jobs:
-      - secops/gitleaks:
-          context:
-            - platform-docker-ro
-            - github-orb
-            - secops-oidc
-          git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
-          git-revision: << pipeline.git.revision >>
-
-      - secops/semgrep:
-          context:
-            - secops-oidc
-            - github-orb
-          git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
   nightly-lint:
     triggers:
       - schedule:
