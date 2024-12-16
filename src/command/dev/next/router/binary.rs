@@ -25,6 +25,10 @@ pub enum RouterLog {
 
 #[derive(thiserror::Error, Debug)]
 pub enum RunRouterBinaryError {
+    #[error("Service failed to come into a ready state: {:?}", .err)]
+    ServiceReadyError {
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Failed to run router command: {:?}", err)]
     Spawn {
         err: Box<dyn std::error::Error + Send + Sync>,
@@ -33,8 +37,13 @@ pub enum RunRouterBinaryError {
     OutputCapture { descriptor: String },
     #[error("Failed healthcheck for router")]
     HealthCheckFailed,
-    #[error("Something went wrong with an internal dependency, {}: {}", .dependency, .error)]
-    Internal { dependency: String, error: String },
+    #[error("Something went wrong with an internal dependency, {}: {}", .dependency, .err)]
+    Internal { dependency: String, err: String },
+    #[error("Failed to write file to path: {}. {}", .path, .err)]
+    WriteFileError {
+        path: Utf8PathBuf,
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 #[derive(Clone, Debug)]
