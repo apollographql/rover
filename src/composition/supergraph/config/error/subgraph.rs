@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Error;
 use camino::Utf8PathBuf;
 
 /// Errors that may occur as a result of resolving subgraphs
@@ -50,7 +51,10 @@ pub enum ResolveSubgraphError {
         /// The source error
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    /// Occurs when a supergraph config filepath waqs expected but not found
+    /// Occurs when a supergraph config filepath was expected but not found
     #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
     SupergraphConfigMissing,
+    /// Occurs when a authenticated client to studio could not be constructed
+    #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
+    AuthenticationToStudioFailed(#[from] Error),
 }

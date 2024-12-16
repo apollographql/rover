@@ -11,6 +11,8 @@ use rover_std::Fs;
 use url::Url;
 
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::options::ProfileOpt;
+use crate::utils::client::StudioClientConfig;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
@@ -87,8 +89,8 @@ impl FullyResolvedSubgraph {
 
     /// Fully resolves a [`LazilyResolvedSubgraph`] to a [`FullyResolvedSubgraph`]
     pub async fn fully_resolve(
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        client_config: StudioClientConfig,
+        profile: ProfileOpt,
         lazily_resolved_subgraph: LazilyResolvedSubgraph,
         subgraph_name: String,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
@@ -101,7 +103,7 @@ impl FullyResolvedSubgraph {
                 introspection_headers,
             } => {
                 Self::resolve_subgraph_introspection(
-                    introspect_subgraph_impl,
+                    &client_config,
                     subgraph_name,
                     lazily_resolved_subgraph.routing_url,
                     subgraph_url,
@@ -113,8 +115,9 @@ impl FullyResolvedSubgraph {
                 graphref: graph_ref,
                 subgraph,
             } => {
+                let studio_client = client_config.get_authenticated_client(&profile)?;
                 Self::resolve_subgraph(
-                    fetch_remote_subgraph_impl,
+                    &studio_client,
                     lazily_resolved_subgraph.routing_url,
                     graph_ref,
                     subgraph,

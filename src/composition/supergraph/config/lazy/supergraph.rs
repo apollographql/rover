@@ -11,8 +11,8 @@ use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
-use crate::utils::effect::fetch_remote_subgraph::FetchRemoteSubgraph;
-use crate::utils::effect::introspect::IntrospectSubgraph;
+use crate::options::ProfileOpt;
+use crate::utils::client::StudioClientConfig;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -62,14 +62,14 @@ impl LazilyResolvedSupergraphConfig {
     /// by retrieving all the schemas as strings
     pub async fn extract_subgraphs_as_sdls(
         self,
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        client_config: StudioClientConfig,
+        profile: ProfileOpt,
     ) -> Result<BTreeMap<String, FullyResolvedSubgraph>, Vec<ResolveSubgraphError>> {
         let subgraphs = stream::iter(self.subgraphs.into_iter().map(
             |(name, lazily_resolved_subgraph)| async {
                 let result = FullyResolvedSubgraph::fully_resolve(
-                    introspect_subgraph_impl,
-                    fetch_remote_subgraph_impl,
+                    client_config.clone(),
+                    profile.clone(),
                     lazily_resolved_subgraph,
                     name.clone(),
                 )
