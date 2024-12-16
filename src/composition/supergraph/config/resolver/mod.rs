@@ -195,7 +195,7 @@ pub enum ResolveSupergraphConfigError {
     NoSource,
     /// Occurs when the underlying resolver strategy can't resolve one or more
     /// of the subgraphs described in the supergraph config
-    #[error("Unable to resolve subgraphs")]
+    #[error("Unable to resolve subgraphs.\n{}", ::itertools::join(.0, "\n"))]
     ResolveSubgraphs(Vec<ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the
     /// subgraphs use the `@link` directive, which requires Federation 2

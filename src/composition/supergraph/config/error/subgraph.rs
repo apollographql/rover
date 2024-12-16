@@ -41,7 +41,7 @@ pub enum ResolveSubgraphError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     /// Occurs when fetching a remote subgraph fails
-    #[error("Failed to fetch the sdl for subgraph `{subgraph_name}` from remote")]
+    #[error("Failed to fetch the sdl for subgraph `{}` from remote.\n {}", .subgraph_name, .source)]
     FetchRemoteSdlError {
         /// The name of the subgraph that failed to be resolved
         subgraph_name: String,
