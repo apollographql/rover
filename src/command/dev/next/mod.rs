@@ -67,7 +67,6 @@ impl Dev {
         let federation_version = self.opts.supergraph_opts.federation_version.clone();
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_opts.graph_ref.clone();
-        let composition_output = tmp_config_dir_path.join("supergraph.graphql");
 
         let one_shot_composition = OneShotComposition::builder()
             .client_config(client_config.clone())
