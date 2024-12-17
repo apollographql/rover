@@ -122,11 +122,8 @@ impl Dev {
 
         while let Some(router_log) = run_router.router_logs().next().await {
             match router_log {
-                Ok(RouterLog::Stdout(router_log)) => {
-                    tracing::info!("{}", router_log);
-                }
-                Ok(RouterLog::Stderr(router_log)) => {
-                    tracing::error!("{:?}", router_log);
+                Ok(router_log) => {
+                    eprintln!("{}", router_log);
                 }
                 Err(err) => {
                     tracing::error!("{:?}", err);

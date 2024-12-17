@@ -193,53 +193,6 @@ impl RunRouter<state::Run> {
             _,
         ) = Subtask::new(run_router_binary);
 
-        // Start a background process that listens for router log events and displays them to the
-        // user.
-        let warn_prefix = Style::WarningPrefix.paint("WARN:");
-        let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-        let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
-        tokio::task::spawn(async move {
-            while let Some(event) = router_log_events.next().await {
-                if let Ok(log) = event {
-                    match log {
-                        RouterLog::Stdout(stdout) => {
-                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                                let fields = &parsed["fields"];
-                                let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
-                                let message = fields["message"]
-                                    .as_str()
-                                    .or_else(|| {
-                                        // Message is in a slightly different location depending on the
-                                        // version of Router
-                                        parsed["message"].as_str()
-                                    })
-                                    .unwrap_or(&stdout);
-
-                                match level {
-                                    "INFO" => tracing::info!(%message),
-                                    "DEBUG" => tracing::debug!(%message),
-                                    "TRACE" => tracing::trace!(%message),
-                                    "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                    "ERROR" => {
-                                        eprintln!("{} {}", error_prefix, &message)
-                                    }
-                                    "UNKNOWN" => {
-                                        eprintln!("{} {}", unknown_prefix, &message)
-                                    }
-                                    _ => {}
-                                }
-                            } else {
-                                eprintln!("{} {}", warn_prefix, &stdout)
-                            }
-                        }
-                        RouterLog::Stderr(stderr) => {
-                            eprintln!("{} {}", error_prefix, &stderr)
-                        }
-                    };
-                }
-            }
-        });
-
         let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
 
         self.wait_for_healthy_router(&studio_client_config).await?;
