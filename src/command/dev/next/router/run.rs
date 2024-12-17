@@ -198,7 +198,7 @@ impl RunRouter<state::Run> {
         tokio::task::spawn(async move {
             while let Some(event) = router_log_events.next().await {
                 if let Ok(log) = event {
-                    println!("{}", log);
+                    eprintln!("{}", log);
                 }
             }
         });
