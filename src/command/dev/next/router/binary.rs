@@ -1,8 +1,9 @@
-use std::{collections::HashMap, process::Stdio};
+use std::{collections::HashMap, fmt, process::Stdio};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
+use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
 use tokio::{
@@ -21,6 +22,46 @@ use super::config::remote::RemoteRouterConfig;
 pub enum RouterLog {
     Stdout(String),
     Stderr(String),
+}
+
+impl fmt::Display for RouterLog {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let warn_prefix = Style::WarningPrefix.paint("WARN:");
+        let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+        let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
+        match self {
+            Self::Stdout(stdout) => {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(stdout) {
+                    let fields = &parsed["fields"];
+                    let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
+                    let message = fields["message"]
+                        .as_str()
+                        .or_else(|| {
+                            // Message is in a slightly different location depending on the
+                            // version of Router
+                            parsed["message"].as_str()
+                        })
+                        .unwrap_or(stdout);
+
+                    match level {
+                        "INFO" => tracing::info!(%message),
+                        "DEBUG" => tracing::debug!(%message),
+                        "TRACE" => tracing::trace!(%message),
+                        "WARN" => write!(f, "{} {}", warn_prefix, &message)?,
+                        "ERROR" => write!(f, "{} {}", error_prefix, &message)?,
+                        "UNKNOWN" => write!(f, "{} {}", unknown_prefix, &message)?,
+                        _ => write!(f, "{} {}", unknown_prefix, &message)?,
+                    };
+                    Ok(())
+                } else {
+                    write!(f, "{} {}", warn_prefix, &stdout)
+                }
+            }
+            Self::Stderr(stderr) => {
+                write!(f, "{} {}", error_prefix, &stderr)
+            }
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
