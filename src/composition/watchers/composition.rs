@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+
+use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -6,14 +9,16 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
+use tracing::error;
 
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::{
+    CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+};
 use crate::{
     composition::{
         events::CompositionEvent,
-        supergraph::{
-            binary::{OutputTarget, SupergraphBinary},
-            config::full::FullyResolvedSubgraphs,
-        },
+        supergraph::binary::{OutputTarget, SupergraphBinary},
         watchers::subgraphs::SubgraphEvent,
     },
     subtask::SubtaskHandleStream,
@@ -22,13 +27,14 @@ use crate::{
 
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
-    subgraphs: FullyResolvedSubgraphs,
+    subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
     supergraph_binary: SupergraphBinary,
     output_target: OutputTarget,
     exec_command: ExecC,
     read_file: ReadF,
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
+    compose_on_initialisation: bool,
 }
 
 impl<ReadF, ExecC, WriteF> SubtaskHandleStream for CompositionWatcher<ReadF, ExecC, WriteF>
@@ -48,57 +54,96 @@ where
         tokio::task::spawn({
             let mut subgraphs = self.subgraphs.clone();
             let target_file = self.temp_dir.join("supergraph.yaml");
+
             async move {
+                if self.compose_on_initialisation {
+                    if let Err(err) = self
+                        .setup_temporary_supergraph_yaml(subgraphs.clone(), &target_file)
+                        .await
+                    {
+                        error!("Could not setup initial supergraph schema: {}", err);
+                    };
+                    let _ = sender
+                        .send(CompositionEvent::Started)
+                        .tap_err(|err| error!("{:?}", err));
+                    let output = self.run_composition(&target_file).await;
+                    match output {
+                        Ok(success) => {
+                            let _ = sender
+                                .send(CompositionEvent::Success(success))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                        Err(err) => {
+                            let _ = sender
+                                .send(CompositionEvent::Error(err))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                    }
+                }
+
                 while let Some(event) = input.next().await {
                     match event {
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            subgraphs.upsert_subgraph(name.to_string(), sdl.to_string());
+                            // This handling is a bit complex, however the key is two facts:
+                            //  - The semantics of watching the SupergraphConfig are such that
+                            //  if a routing_url is changed, this constitutes a removal & an add.
+                            // - Any other change to a Schema is limited to it's SDL, not the
+                            // name or routing URL.
+                            //
+                            // With that in mind, if we are not tracking the subgraph already
+                            // then the routing URL must be included in the change event. Thus,
+                            // we can extract it without issue. If that isn't the case then
+                            // it further must be true that the routing URL hasn't changed
+                            // so we can simply extract it and re-use it.
+                            let routing_url = if subgraphs.contains_key(name) {
+                                subgraphs[name].routing_url()
+                            } else {
+                                subgraph_schema_changed.routing_url()
+                            };
+                            if subgraphs
+                                .insert(
+                                    name.clone(),
+                                    FullyResolvedSubgraph::new(
+                                        sdl.clone(),
+                                        routing_url.clone(),
+                                        None,
+                                    ),
+                                )
+                                .is_none()
+                            {
+                                let _ = sender
+                                    .send(CompositionEvent::SubgraphAdded(
+                                        CompositionSubgraphAdded {
+                                            name: name.clone(),
+                                            schema_source: Sdl { sdl: sdl.clone() },
+                                        },
+                                    ))
+                                    .tap_err(|err| tracing::error!("{:?}", err));
+                            }
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
-                            subgraphs.remove_subgraph(name);
+                            subgraphs.remove(name);
+                            let _ = sender
+                                .send(CompositionEvent::SubgraphRemoved(
+                                    CompositionSubgraphRemoved { name: name.clone() },
+                                ))
+                                .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
-
-                    let supergraph_config = SupergraphConfig::from(subgraphs.clone());
-                    let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
-
-                    let supergraph_config_yaml = match supergraph_config_yaml {
-                        Ok(supergraph_config_yaml) => supergraph_config_yaml,
-                        Err(err) => {
-                            errln!("Failed to serialize supergraph config into yaml");
-                            tracing::error!("{:?}", err);
-                            continue;
-                        }
-                    };
-
-                    let write_file_result = self
-                        .write_file
-                        .write_file(&target_file, supergraph_config_yaml.as_bytes())
-                        .await;
-
-                    if let Err(err) = write_file_result {
-                        errln!("Failed to write the supergraph config to disk");
-                        tracing::error!("{:?}", err);
+                    if let Err(err) = self
+                        .setup_temporary_supergraph_yaml(subgraphs.clone(), &target_file)
+                        .await
+                    {
+                        error!("Could not setup supergraph schema: {}", err);
                         continue;
-                    }
-
+                    };
                     let _ = sender
                         .send(CompositionEvent::Started)
-                        .tap_err(|err| tracing::error!("{:?}", err));
-
-                    let output = self
-                        .supergraph_binary
-                        .compose(
-                            &self.exec_command,
-                            &self.read_file,
-                            &self.output_target,
-                            target_file.clone(),
-                        )
-                        .await;
-
+                        .tap_err(|err| error!("{:?}", err));
+                    let output = self.run_composition(&target_file).await;
                     match output {
                         Ok(success) => {
                             let _ = sender
@@ -118,6 +163,71 @@ where
     }
 }
 
+impl<ReadF, ExecC, WriteF> CompositionWatcher<ReadF, ExecC, WriteF>
+where
+    ExecC: 'static + ExecCommand + Send + Sync,
+    ReadF: 'static + ReadFile + Send + Sync,
+    WriteF: 'static + Send + Sync + WriteFile,
+{
+    async fn run_composition(
+        &self,
+        target_file: &Utf8PathBuf,
+    ) -> Result<CompositionSuccess, CompositionError> {
+        self.supergraph_binary
+            .compose(
+                &self.exec_command,
+                &self.read_file,
+                &self.output_target,
+                target_file.clone(),
+            )
+            .await
+    }
+
+    async fn setup_temporary_supergraph_yaml(
+        &self,
+        subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
+        target_file: &Utf8PathBuf,
+    ) -> Result<(), CompositionError> {
+        let supergraph_config = convert_to_supergraph_config(subgraphs.clone());
+        let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
+
+        let supergraph_config_yaml = match supergraph_config_yaml {
+            Ok(supergraph_config_yaml) => supergraph_config_yaml,
+            Err(err) => {
+                errln!("Failed to serialize supergraph config into yaml");
+                tracing::error!("{:?}", err);
+                return Err(CompositionError::SupergraphYamlSerialisationFailed {
+                    error: err.to_string(),
+                });
+            }
+        };
+
+        let write_file_result = self
+            .write_file
+            .write_file(target_file, supergraph_config_yaml.as_bytes())
+            .await;
+
+        if let Err(err) = write_file_result {
+            errln!("Failed to write the supergraph config to disk");
+            tracing::error!("{:?}", err);
+            Err(CompositionError::SupergraphSchemaTemporaryFileWriteFailed {
+                error: err.to_string(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn convert_to_supergraph_config(
+    _subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
+) -> SupergraphConfig {
+    SupergraphConfig::new(
+        _subgraphs.into_iter().map(|(k, v)| (k, v.into())).collect(),
+        None,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -128,6 +238,7 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::SchemaSource::Sdl;
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
@@ -139,24 +250,24 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
+    use super::CompositionWatcher;
+    use crate::composition::CompositionSubgraphAdded;
+    use crate::subtask::SubtaskRunStream;
     use crate::{
         composition::{
             events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
-                config::full::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
             test::{default_composition_json, default_composition_success},
             watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
         },
-        subtask::{Subtask, SubtaskRunStream},
+        subtask::Subtask,
         utils::effect::{
             exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
         },
     };
-
-    use super::CompositionWatcher;
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -170,7 +281,7 @@ mod tests {
         let temp_dir = assert_fs::TempDir::new()?;
         let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
 
-        let subgraphs = FullyResolvedSubgraphs::new(BTreeMap::new());
+        let subgraphs = BTreeMap::new();
         let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
 
         let supergraph_binary = SupergraphBinary::builder()
@@ -228,14 +339,30 @@ mod tests {
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
             .output_target(OutputTarget::Stdout)
+            .compose_on_initialisation(false)
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
-            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(subgraph_name, subgraph_sdl))
+            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+                subgraph_name,
+                subgraph_sdl,
+                None,
+            ))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
+
+        // Assert we always get a subgraph added event.
+        let next_message = composition_messages.next().await;
+        assert_that!(next_message)
+            .is_some()
+            .is_equal_to(CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {
+                name: String::from("subgraph-name"),
+                schema_source: Sdl {
+                    sdl: String::from("type Query { test: String! }"),
+                },
+            }));
 
         // Assert we always get a composition started event.
         let next_message = composition_messages.next().await;

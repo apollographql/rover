@@ -7,9 +7,9 @@ use crate::composition::supergraph::config::error::ResolveSubgraphError;
 /// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
 #[derive(Clone, Debug, Getters)]
 pub struct UnresolvedSubgraph {
-    name: String,
-    schema: SchemaSource,
-    routing_url: Option<String>,
+    pub(crate) name: String,
+    pub(crate) schema: SchemaSource,
+    pub(crate) routing_url: Option<String>,
 }
 
 impl UnresolvedSubgraph {
@@ -36,6 +36,7 @@ impl UnresolvedSubgraph {
                 subgraph_name: self.name.to_string(),
                 supergraph_config_path: root.clone(),
                 path: path.as_std_path().to_path_buf(),
+                joined_path: joined_path.as_std_path().to_path_buf(),
                 source: err,
             }),
         }

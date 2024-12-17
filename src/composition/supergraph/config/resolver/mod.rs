@@ -20,6 +20,15 @@ use apollo_federation_types::config::{
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 
+use self::state::ResolveSubgraphs;
+use super::{
+    error::ResolveSubgraphError, full::FullyResolvedSupergraphConfig,
+    lazy::LazilyResolvedSupergraphConfig, unresolved::UnresolvedSupergraphConfig,
+};
+use crate::composition::supergraph::config::federation::{
+    FederationVersionMismatch, FederationVersionResolver,
+    FederationVersionResolverFromSupergraphConfig,
+};
 use crate::{
     utils::{
         effect::{
@@ -30,19 +39,6 @@ use crate::{
         parsers::FileDescriptorType,
     },
     RoverError,
-};
-
-use self::state::ResolveSubgraphs;
-
-use super::{
-    error::ResolveSubgraphError,
-    federation::{
-        FederationVersionMismatch, FederationVersionResolver,
-        FederationVersionResolverFromSupergraphConfig,
-    },
-    full::FullyResolvedSupergraphConfig,
-    lazy::LazilyResolvedSupergraphConfig,
-    unresolved::UnresolvedSupergraphConfig,
 };
 
 mod state;
@@ -235,11 +231,13 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         &self,
         supergraph_config_root: &Utf8PathBuf,
+        supergraph_yaml_path: &Utf8PathBuf,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
+                .origin_path(supergraph_yaml_path)
                 .build();
             let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
                 supergraph_config_root,
@@ -272,6 +270,7 @@ mod tests {
     use semver::Version;
     use speculoos::prelude::*;
 
+    use super::SupergraphConfigResolver;
     use crate::{
         composition::supergraph::config::scenario::*,
         utils::{
@@ -284,8 +283,6 @@ mod tests {
             parsers::FileDescriptorType,
         },
     };
-
-    use super::SupergraphConfigResolver;
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config, remote composition version, or version inferred from

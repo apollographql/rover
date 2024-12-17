@@ -8,6 +8,8 @@ mod graph;
 mod info;
 pub(crate) mod install;
 mod license;
+#[cfg(feature = "composition-js")]
+mod lsp;
 pub(crate) mod output;
 mod persisted_queries;
 mod readme;
@@ -26,6 +28,8 @@ pub use graph::Graph;
 pub use info::Info;
 pub use install::Install;
 pub use license::License;
+#[cfg(feature = "composition-js")]
+pub use lsp::Lsp;
 pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;

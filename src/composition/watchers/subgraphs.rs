@@ -1,21 +1,20 @@
 use std::collections::{BTreeMap, HashMap};
 
-use apollo_federation_types::config::SubgraphConfig;
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use futures::stream::BoxStream;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
+use super::watcher::{
+    subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
+    supergraph_config::SupergraphConfigDiff,
+};
 use crate::{
     composition::supergraph::config::lazy::LazilyResolvedSubgraph,
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
-};
-
-use super::watcher::{
-    subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
-    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -43,6 +42,12 @@ impl SubgraphWatchers {
     ) -> SubgraphWatchers {
         let watchers = subgraphs
             .into_iter()
+            .filter(|(_, resolved_subgraph)| {
+                matches!(
+                    resolved_subgraph.schema,
+                    SchemaSource::File { .. } | SchemaSource::SubgraphIntrospection { .. }
+                )
+            })
             .filter_map(|(name, resolved_subgraph)| {
                 let subgraph_config = SubgraphConfig::from(resolved_subgraph);
                 SubgraphWatcher::from_schema_source(
@@ -83,12 +88,18 @@ pub struct SubgraphSchemaChanged {
     name: String,
     /// SDL with changes
     sdl: String,
+    /// Routing URL
+    routing_url: Option<String>,
 }
 
 impl SubgraphSchemaChanged {
     #[cfg(test)]
-    pub fn new(name: String, sdl: String) -> SubgraphSchemaChanged {
-        SubgraphSchemaChanged { name, sdl }
+    pub fn new(name: String, sdl: String, routing_url: Option<String>) -> SubgraphSchemaChanged {
+        SubgraphSchemaChanged {
+            name,
+            sdl,
+            routing_url,
+        }
     }
 }
 
@@ -124,6 +135,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                             .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
                                 name: subgraph_name_c.clone(),
                                 sdl: change.sdl().to_string(),
+                                routing_url: None,
                             }))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
@@ -136,8 +148,9 @@ impl SubtaskHandleStream for SubgraphWatchers {
             // Wait for supergraph diff events received from the input stream.
             while let Some(diff) = input.next().await {
                 // If we detect additional diffs, start a new subgraph subtask.
-                // Adding the abort handle to the currentl collection of handles.
+                // Adding the abort handle to the current collection of handles.
                 for (subgraph_name, subgraph_config) in diff.added() {
+                    let subgraph_config = subgraph_config.clone();
                     if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
                         subgraph_config.schema.clone(),
                         &self.profile,
@@ -169,6 +182,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                             SubgraphSchemaChanged {
                                                 name: subgraph_name.to_string(),
                                                 sdl,
+                                                routing_url: subgraph_config.routing_url.clone(),
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));
@@ -188,6 +202,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                             SubgraphSchemaChanged {
                                                 name: subgraph_name_c.to_string(),
                                                 sdl: change.sdl().to_string(),
+                                                routing_url: subgraph_config.routing_url.clone(),
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));
@@ -225,6 +240,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                             SubgraphSchemaChanged {
                                                 name: name.to_string(),
                                                 sdl,
+                                                routing_url: subgraph_config.routing_url.clone(),
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));
@@ -261,13 +277,12 @@ mod tests {
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
 
+    use super::SubgraphWatchers;
     use crate::{
         composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
         utils::client::{ClientBuilder, StudioClientConfig},
     };
-
-    use super::SubgraphWatchers;
 
     #[test]
     fn test_subgraphwatchers_new() {
@@ -327,10 +342,8 @@ mod tests {
 
         let subgraph_watchers = SubgraphWatchers::new(subgraphs, &profile, &client_config, 1);
 
-        assert_eq!(4, subgraph_watchers.watchers.len());
+        assert_eq!(2, subgraph_watchers.watchers.len());
         assert!(subgraph_watchers.watchers.contains_key("file"));
         assert!(subgraph_watchers.watchers.contains_key("introspection"));
-        assert!(subgraph_watchers.watchers.contains_key("sdl"));
-        assert!(subgraph_watchers.watchers.contains_key("subgraph"));
     }
 }
