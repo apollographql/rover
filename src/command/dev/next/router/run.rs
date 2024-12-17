@@ -193,16 +193,6 @@ impl RunRouter<state::Run> {
             _,
         ) = Subtask::new(run_router_binary);
 
-        // Start a background process that listens for router log events and displays them to the
-        // user.
-        tokio::task::spawn(async move {
-            while let Some(event) = router_log_events.next().await {
-                if let Ok(log) = event {
-                    eprintln!("{}", log);
-                }
-            }
-        });
-
         let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
 
         self.wait_for_healthy_router(&studio_client_config).await?;
