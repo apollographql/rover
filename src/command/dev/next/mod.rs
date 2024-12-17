@@ -10,6 +10,7 @@ use router::{
     watchers::{file::FileWatcher, router_config::RouterConfigWatcher},
 };
 use rover_client::operations::config::who_am_i::WhoAmI;
+use tower::{Service, ServiceExt};
 
 use crate::{
     command::Dev,
@@ -17,7 +18,11 @@ use crate::{
     subtask::{Subtask, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
-        effect::{exec::TokioSpawn, read_file::FsReadFile, write_file::FsWriteFile},
+        effect::{
+            exec::{TokioCommand, TokioSpawn},
+            read_file::FsReadFile,
+            write_file::{FsWriteFile, WriteFileRequest},
+        },
     },
     RoverError, RoverOutput, RoverResult,
 };
@@ -36,7 +41,8 @@ impl Dev {
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
-        let write_file_impl = FsWriteFile::default();
+        let mut write_file_impl = FsWriteFile::default();
+        let exec_command_impl = TokioCommand::default();
         let router_address = RouterAddress::new(
             self.opts.supergraph_opts.supergraph_address,
             self.opts.supergraph_opts.supergraph_port,
@@ -58,6 +64,15 @@ impl Dev {
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_opts.graph_ref.clone();
         let composition_output = tmp_config_dir_path.join("supergraph.graphql");
+        write_file_impl
+            .ready()
+            .await?
+            .call(
+                WriteFileRequest::builder()
+                    .path(composition_output.clone())
+                    .build(),
+            )
+            .await?;
 
         let one_shot_composition = OneShotComposition::builder()
             .client_config(client_config.clone())
@@ -74,7 +89,9 @@ impl Dev {
         // The router binary will know where to find the composition result; we compose initially
         // for the router to have a properly composed schema when starting
         // TODO: produce a filepath instead and pass that along to make this clearer
-        one_shot_composition.compose().await?;
+        one_shot_composition
+            .compose(&read_file_impl, &write_file_impl, &exec_command_impl)
+            .await?;
 
         // TODO: figure out how to actually get this; maybe based on fed version? didn't see a cli
         // opt

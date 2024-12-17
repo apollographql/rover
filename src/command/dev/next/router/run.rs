@@ -145,6 +145,10 @@ impl RunRouter<state::Run> {
             .await
             .map_err(|err| RunRouterBinaryError::ServiceReadyError { err: Box::new(err) })?;
         let hot_reload_config_path = temp_router_dir.join("config.yaml");
+        tracing::debug!(
+            "Creating temporary router config path at {}",
+            hot_reload_config_path
+        );
         write_file
             .call(
                 WriteFileRequest::builder()
@@ -157,6 +161,10 @@ impl RunRouter<state::Run> {
                 err: Box::new(err),
             })?;
         let hot_reload_schema_path = temp_router_dir.join("supergraph.graphql");
+        tracing::debug!(
+            "Creating temporary schema path at {}",
+            hot_reload_schema_path
+        );
         write_file
             .call(
                 WriteFileRequest::builder()

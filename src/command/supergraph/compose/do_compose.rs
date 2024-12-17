@@ -163,6 +163,9 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
+        let read_file_impl = FsReadFile::default();
+        let write_file_impl = FsWriteFile::default();
+        let exec_command_impl = TokioCommand::default();
         let supergraph_yaml = self
             .opts
             .clone()
@@ -187,7 +190,9 @@ impl Compose {
             .build();
 
         Ok(RoverOutput::CompositionResult(
-            one_shot_composition.compose().await?,
+            one_shot_composition
+                .compose(&read_file_impl, &write_file_impl, &exec_command_impl)
+                .await?,
         ))
     }
 

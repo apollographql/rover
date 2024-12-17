@@ -35,9 +35,9 @@ pub trait FetchRemoteSubgraph {
 
 #[derive(thiserror::Error, Debug)]
 pub enum StudioFetchRemoteSdlError {
-    #[error("Failed to build the client")]
+    #[error("Failed to build the client.\n{}", .0)]
     Reqwest(RoverError),
-    #[error("Failed to fetch the subgraph from remote")]
+    #[error("Failed to fetch the subgraph from remote.\n{}", .0)]
     FetchSubgraph(#[from] RoverClientError),
     #[error("Got an invalid SDL type: {:?}", .0)]
     InvalidSdlType(SdlType),

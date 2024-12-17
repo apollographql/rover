@@ -28,11 +28,17 @@ pub struct CompositionSuccess {
 pub enum CompositionError {
     #[error("Failed to run the composition binary")]
     Binary { error: String },
+    #[error("The composition binary exited with errors.\nStdout: {}\nStderr: {}", .stdout, .stderr)]
+    BinaryExit {
+        exit_code: Option<i32>,
+        stdout: String,
+        stderr: String,
+    },
     #[error("Failed to parse output of `{binary} compose`")]
     InvalidOutput { binary: Utf8PathBuf, error: String },
     #[error("Invalid input for `{binary} compose`")]
     InvalidInput { binary: Utf8PathBuf, error: String },
-    #[error("Failed to read the file at: {path}")]
+    #[error("Failed to read the file at: {path}.\n{error}")]
     ReadFile { path: Utf8PathBuf, error: String },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
     Build { source: BuildErrors },
