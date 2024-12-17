@@ -8,7 +8,7 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::{RoverStdError, Style};
+use rover_std::RoverStdError;
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
