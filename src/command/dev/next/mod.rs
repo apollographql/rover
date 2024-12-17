@@ -3,6 +3,7 @@
 use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
+use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{
     install::InstallRouter,
@@ -27,7 +28,10 @@ use crate::{
     RoverError, RoverOutput, RoverResult,
 };
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use self::router::{
+    binary::RouterLog,
+    config::{RouterAddress, RunRouterConfig},
+};
 
 mod router;
 
@@ -64,34 +68,22 @@ impl Dev {
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_opts.graph_ref.clone();
         let composition_output = tmp_config_dir_path.join("supergraph.graphql");
-        write_file_impl
-            .ready()
-            .await?
-            .call(
-                WriteFileRequest::builder()
-                    .path(composition_output.clone())
-                    .build(),
-            )
-            .await?;
 
         let one_shot_composition = OneShotComposition::builder()
             .client_config(client_config.clone())
             .profile(profile.clone())
             .elv2_license_accepter(elv2_license_accepter)
             .skip_update(skip_update)
-            .output_file(composition_output)
             .and_federation_version(federation_version)
             .and_graph_ref(graph_ref.clone())
             .and_supergraph_yaml(supergraph_yaml)
             .and_override_install_path(override_install_path.clone())
             .build();
 
-        // The router binary will know where to find the composition result; we compose initially
-        // for the router to have a properly composed schema when starting
-        // TODO: produce a filepath instead and pass that along to make this clearer
-        one_shot_composition
+        let supergraph_schema = one_shot_composition
             .compose(&read_file_impl, &write_file_impl, &exec_command_impl)
-            .await?;
+            .await?
+            .supergraph_sdl;
 
         // TODO: figure out how to actually get this; maybe based on fed version? didn't see a cli
         // opt
@@ -105,7 +97,7 @@ impl Dev {
             .service()?;
         let service = WhoAmI::new(service);
 
-        RunRouter::default()
+        let mut run_router = RunRouter::default()
             .install::<InstallRouter>(
                 router_version,
                 client_config.clone(),
@@ -123,12 +115,25 @@ impl Dev {
                 TokioSpawn::default(),
                 &tmp_config_dir_path,
                 client_config,
+                supergraph_schema,
             )
             .await?
             .watch_for_changes(write_file_impl)
             .await;
 
-        // TODO: more stuff with dev, the router is alive
+        while let Some(router_log) = run_router.router_logs().next().await {
+            match router_log {
+                Ok(RouterLog::Stdout(router_log)) => {
+                    tracing::info!("{}", router_log);
+                }
+                Ok(RouterLog::Stderr(router_log)) => {
+                    tracing::error!("{:?}", router_log);
+                }
+                Err(err) => {
+                    tracing::error!("{:?}", err);
+                }
+            }
+        }
 
         Ok(RoverOutput::EmptySuccess)
     }

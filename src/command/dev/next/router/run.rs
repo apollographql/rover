@@ -131,6 +131,7 @@ impl RunRouter<state::Run> {
         spawn: Spawn,
         temp_router_dir: &Utf8Path,
         studio_client_config: StudioClientConfig,
+        supergraph_schema: String,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -160,15 +161,17 @@ impl RunRouter<state::Run> {
                 path: hot_reload_config_path.clone(),
                 err: Box::new(err),
             })?;
+
         let hot_reload_schema_path = temp_router_dir.join("supergraph.graphql");
         tracing::debug!(
-            "Creating temporary schema path at {}",
+            "Creating temporary supergraph schema path at {}",
             hot_reload_schema_path
         );
         write_file
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_schema_path.clone())
+                    .contents(supergraph_schema.into_bytes())
                     .build(),
             )
             .await
@@ -185,7 +188,7 @@ impl RunRouter<state::Run> {
             .spawn(spawn)
             .build();
 
-        let (_router_log_events, run_router_binary_subtask): (
+        let (router_logs, run_router_binary_subtask): (
             UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
             _,
         ) = Subtask::new(run_router_binary);
@@ -200,6 +203,7 @@ impl RunRouter<state::Run> {
                 config_path: self.state.config_path,
                 hot_reload_config_path,
                 hot_reload_schema_path,
+                router_logs,
             },
         })
     }
@@ -277,7 +281,7 @@ impl RunRouter<state::Watch> {
             .write_file_impl(write_file_impl)
             .build();
 
-        let (_hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
+        let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
 
         let router_config_updates = router_config_updates
@@ -286,26 +290,37 @@ impl RunRouter<state::Watch> {
 
         let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_config_updates);
 
-        let abort_config_watcher = config_watcher_subtask
-            .map(|config_watcher_subtask| SubtaskRunUnit::run(config_watcher_subtask));
+        let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
 
         RunRouter {
             state: state::Abort {
                 abort_router: self.state.abort_router,
                 abort_hot_reload,
                 abort_config_watcher,
+                hot_reload_events,
+                router_logs: self.state.router_logs,
             },
         }
+    }
+}
+
+impl RunRouter<state::Abort> {
+    pub fn router_logs(
+        &mut self,
+    ) -> &mut UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>> {
+        &mut self.state.router_logs
     }
 }
 
 mod state {
     use camino::Utf8PathBuf;
     use tokio::task::AbortHandle;
+    use tokio_stream::wrappers::UnboundedReceiverStream;
 
     use crate::command::dev::next::router::{
-        binary::RouterBinary,
+        binary::{RouterBinary, RouterLog, RunRouterBinaryError},
         config::{remote::RemoteRouterConfig, RouterConfigFinal},
+        hot_reload::HotReloadEvent,
     };
 
     #[derive(Default)]
@@ -329,8 +344,11 @@ mod state {
         pub config_path: Option<Utf8PathBuf>,
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
+        pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
     }
     pub struct Abort {
+        pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
+        pub hot_reload_events: UnboundedReceiverStream<HotReloadEvent>,
         pub abort_router: AbortHandle,
         pub abort_config_watcher: Option<AbortHandle>,
         pub abort_hot_reload: AbortHandle,
