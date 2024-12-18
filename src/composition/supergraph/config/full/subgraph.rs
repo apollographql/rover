@@ -20,7 +20,6 @@ use crate::{
 pub struct FullyResolvedSubgraph {
     #[getter(skip)]
     routing_url: Option<String>,
-    #[getter(skip)]
     schema: String,
     is_fed_two: bool,
 }
@@ -123,6 +122,10 @@ impl FullyResolvedSubgraph {
                 })
             }
         }
+    }
+
+    pub fn update_schema(&mut self, schema: String) {
+        self.schema = schema;
     }
 }
 

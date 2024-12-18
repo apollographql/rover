@@ -120,6 +120,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 let subgraph_name_c = subgraph_name.clone();
                 let messages_abort_handle = tokio::task::spawn(async move {
                     while let Some(change) = messages.next().await {
+                        tracing::info!("Subgraph change detected: {:?}", change);
                         let _ = sender
                             .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
                                 name: subgraph_name_c.clone(),
@@ -204,6 +205,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 }
 
                 for (name, subgraph_config) in diff.changed() {
+                    eprintln!("Change detected for subgraph: `{}`", name);
                     if let Ok(watcher) = SubgraphWatcher::from_schema_source(
                         subgraph_config.schema.clone(),
                         &self.profile,

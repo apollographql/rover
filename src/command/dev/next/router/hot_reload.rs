@@ -7,10 +7,8 @@ use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
 use super::config::RouterConfig;
 
-pub struct SupergraphSchema(String);
-
 pub enum RouterUpdateEvent {
-    SchemaChanged { schema: SupergraphSchema },
+    SchemaChanged { schema: String },
     ConfigChanged { config: RouterConfig },
 }
 
@@ -44,7 +42,7 @@ where
                 match router_update_event {
                     RouterUpdateEvent::SchemaChanged { schema } => {
                         match write_file_impl
-                            .write_file(&self.schema, schema.0.as_bytes())
+                            .write_file(&self.schema, schema.as_bytes())
                             .await
                         {
                             Ok(_) => {

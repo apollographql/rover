@@ -15,7 +15,7 @@ use super::UnresolvedSubgraph;
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
-    federation_version_resolver: FederationVersionResolverFromSubgraphs,
+    federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
 }
 
 #[buildstructor]
@@ -25,7 +25,7 @@ impl UnresolvedSupergraphConfig {
     pub fn new(
         origin_path: Option<Utf8PathBuf>,
         subgraphs: BTreeMap<String, SubgraphConfig>,
-        federation_version_resolver: FederationVersionResolverFromSubgraphs,
+        federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
     ) -> UnresolvedSupergraphConfig {
         let subgraphs = BTreeMap::from_iter(
             subgraphs
@@ -41,7 +41,9 @@ impl UnresolvedSupergraphConfig {
 
     /// Provides the target federation version provided by the user
     pub fn target_federation_version(&self) -> Option<FederationVersion> {
-        self.federation_version_resolver.target_federation_version()
+        self.federation_version_resolver
+            .clone()
+            .and_then(|resolver| resolver.target_federation_version())
     }
 }
 

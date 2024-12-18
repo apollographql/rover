@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
-use futures::{stream, StreamExt};
+use futures::{
+    stream::{self, BoxStream},
+    StreamExt,
+};
 use houston::Credential;
 use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
@@ -16,6 +19,7 @@ use tracing::info;
 
 use crate::{
     command::dev::next::FileWatcher,
+    composition::events::CompositionEvent,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
@@ -131,7 +135,7 @@ impl RunRouter<state::Run> {
         spawn: Spawn,
         temp_router_dir: &Utf8Path,
         studio_client_config: StudioClientConfig,
-        supergraph_schema: String,
+        supergraph_schema: &str,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -171,7 +175,7 @@ impl RunRouter<state::Run> {
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_schema_path.clone())
-                    .contents(supergraph_schema.into_bytes())
+                    .contents(supergraph_schema.as_bytes().to_vec())
                     .build(),
             )
             .await
@@ -260,10 +264,15 @@ impl RunRouter<state::Run> {
 }
 
 impl RunRouter<state::Watch> {
-    pub async fn watch_for_changes<WriteF>(self, write_file_impl: WriteF) -> RunRouter<state::Abort>
+    pub async fn watch_for_changes<WriteF>(
+        self,
+        write_file_impl: WriteF,
+        composition_messages: BoxStream<'static, CompositionEvent>,
+    ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
     {
+        tracing::info!("Watching for subgraph changes");
         let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
             self.state.config_path
         {
@@ -275,9 +284,22 @@ impl RunRouter<state::Watch> {
             (None, None)
         };
 
+        let composition_messages =
+            tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
+                CompositionEvent::Started => None,
+                CompositionEvent::Error(err) => {
+                    tracing::error!("Composition error {:?}", err);
+                    None
+                }
+                CompositionEvent::Success(success) => Some(RouterUpdateEvent::SchemaChanged {
+                    schema: success.supergraph_sdl().to_string(),
+                }),
+            })
+            .boxed();
+
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
-            .schema(self.state.hot_reload_schema_path)
+            .schema(self.state.hot_reload_schema_path.clone())
             .write_file_impl(write_file_impl)
             .build();
 
@@ -285,10 +307,13 @@ impl RunRouter<state::Watch> {
             Subtask::new(hot_reload_watcher);
 
         let router_config_updates = router_config_updates
-            .map(|stream| stream.boxed())
+            .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
 
-        let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_config_updates);
+        let router_updates =
+            tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
+
+        let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
 
         let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
 
@@ -299,6 +324,7 @@ impl RunRouter<state::Watch> {
                 abort_config_watcher,
                 hot_reload_events,
                 router_logs: self.state.router_logs,
+                hot_reload_schema_path: self.state.hot_reload_schema_path,
             },
         }
     }
@@ -352,5 +378,6 @@ mod state {
         pub abort_router: AbortHandle,
         pub abort_config_watcher: Option<AbortHandle>,
         pub abort_hot_reload: AbortHandle,
+        pub hot_reload_schema_path: Utf8PathBuf,
     }
 }

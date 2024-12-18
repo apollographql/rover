@@ -1,7 +1,7 @@
 use std::{marker::Send, pin::Pin};
 
 use apollo_federation_types::config::SchemaSource;
-use futures::{Stream, StreamExt};
+use futures::{stream::BoxStream, Stream, StreamExt};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
@@ -99,11 +99,14 @@ impl SubgraphWatcherKind {
     ///
     /// Development note: this is a stream of Strings, but in the future we might want something
     /// more flexible to get type safety.
-    async fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
+    fn watch(&self) -> Option<BoxStream<String>> {
         match self {
-            Self::File(file_watcher) => file_watcher.clone().watch(),
-            Self::Introspect(introspection) => introspection.watch(),
-            kind => unimplemented!("{kind:?} is not a watcher"),
+            Self::File(file_watcher) => Some(file_watcher.clone().watch()),
+            Self::Introspect(introspection) => Some(introspection.watch()),
+            kind => {
+                tracing::debug!("{kind:?} is not watchable. Skipping");
+                None
+            }
         }
     }
 }
@@ -120,11 +123,13 @@ impl SubtaskHandleUnit for SubgraphWatcher {
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
-            let mut watcher = self.watcher.watch().await;
-            while let Some(sdl) = watcher.next().await {
-                let _ = sender
-                    .send(WatchedSdlChange { sdl })
-                    .tap_err(|err| tracing::error!("{:?}", err));
+            let watcher = self.watcher.watch();
+            if let Some(mut watcher) = watcher {
+                while let Some(sdl) = watcher.next().await {
+                    let _ = sender
+                        .send(WatchedSdlChange { sdl })
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                }
             }
         })
         .abort_handle()

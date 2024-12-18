@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
 use thiserror::Error;
 
+use super::FullyResolvedSupergraphConfig;
+
 /// Error that occurs when a subgraph schema source is invalid
 #[derive(Error, Debug)]
 #[error("Invalid schema source: {:?}", .schema_source)]
@@ -69,5 +71,17 @@ impl From<FullyResolvedSubgraphs> for SupergraphConfig {
             )
         }));
         SupergraphConfig::new(subgraphs, None)
+    }
+}
+
+impl From<FullyResolvedSupergraphConfig> for FullyResolvedSubgraphs {
+    fn from(value: FullyResolvedSupergraphConfig) -> Self {
+        let subgraphs = value
+            .subgraphs()
+            .clone()
+            .into_iter()
+            .map(|(name, subgraph)| (name, subgraph.schema().clone()))
+            .collect();
+        FullyResolvedSubgraphs { subgraphs }
     }
 }

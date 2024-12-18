@@ -12,7 +12,7 @@ use crate::{
         events::CompositionEvent,
         supergraph::{
             binary::{OutputTarget, SupergraphBinary},
-            config::full::FullyResolvedSubgraphs,
+            config::full::FullyResolvedSupergraphConfig,
         },
         watchers::subgraphs::SubgraphEvent,
     },
@@ -21,20 +21,19 @@ use crate::{
 };
 
 #[derive(Builder, Debug)]
-pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
-    subgraphs: FullyResolvedSubgraphs,
+pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
+    supergraph_config: FullyResolvedSupergraphConfig,
     supergraph_binary: SupergraphBinary,
-    output_target: OutputTarget,
     exec_command: ExecC,
     read_file: ReadF,
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
 }
 
-impl<ReadF, ExecC, WriteF> SubtaskHandleStream for CompositionWatcher<ReadF, ExecC, WriteF>
+impl<ExecC, ReadF, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, ReadF, WriteF>
 where
-    ReadF: ReadFile + Send + Sync + 'static,
     ExecC: ExecCommand + Send + Sync + 'static,
+    ReadF: ReadFile + Send + Sync + 'static,
     WriteF: WriteFile + Send + Sync + 'static,
 {
     type Input = SubgraphEvent;
@@ -46,7 +45,7 @@ where
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
         tokio::task::spawn({
-            let mut subgraphs = self.subgraphs.clone();
+            let mut supergraph_config = self.supergraph_config.clone();
             let target_file = self.temp_dir.join("supergraph.yaml");
             async move {
                 while let Some(event) = input.next().await {
@@ -54,15 +53,17 @@ where
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
                             let sdl = subgraph_schema_changed.sdl();
-                            subgraphs.upsert_subgraph(name.to_string(), sdl.to_string());
+                            tracing::info!("Schema change detected for subgraph: {}", name);
+                            supergraph_config.update_subgraph_schema(name, sdl.to_string());
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
-                            subgraphs.remove_subgraph(name);
+                            tracing::info!("Subgraph removed: {}", name);
+                            supergraph_config.remove_subgraph(name);
                         }
                     }
 
-                    let supergraph_config = SupergraphConfig::from(subgraphs.clone());
+                    let supergraph_config = SupergraphConfig::from(supergraph_config.clone());
                     let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
 
                     let supergraph_config_yaml = match supergraph_config_yaml {
@@ -94,7 +95,7 @@ where
                         .compose(
                             &self.exec_command,
                             &self.read_file,
-                            &self.output_target,
+                            &OutputTarget::Stdout,
                             target_file.clone(),
                         )
                         .await;
@@ -227,7 +228,6 @@ mod tests {
             .read_file(mock_read_file)
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
-            .output_target(OutputTarget::Stdout)
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {

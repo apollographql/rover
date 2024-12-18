@@ -67,6 +67,8 @@ impl FullyResolvedSupergraphConfig {
             let subgraphs = BTreeMap::from_iter(subgraphs);
             let federation_version = unresolved_supergraph_config
                 .federation_version_resolver()
+                .clone()
+                .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
                 .resolve(subgraphs.iter())?;
             Ok(FullyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
@@ -76,5 +78,15 @@ impl FullyResolvedSupergraphConfig {
         } else {
             Err(ResolveSupergraphConfigError::ResolveSubgraphs(errors))
         }
+    }
+
+    pub fn update_subgraph_schema(&mut self, name: &str, schema: String) {
+        if let Some(subgraph) = self.subgraphs.get_mut(name) {
+            subgraph.update_schema(schema);
+        }
+    }
+
+    pub fn remove_subgraph(&mut self, name: &str) {
+        self.subgraphs.remove(name);
     }
 }

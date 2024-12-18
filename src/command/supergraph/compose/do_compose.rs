@@ -38,7 +38,7 @@ use crate::{
     },
     composition::{
         events::CompositionEvent,
-        runner::{OneShotComposition, Runner},
+        runner::Runner,
         supergraph::{
             binary::{OutputTarget, SupergraphBinary},
             config::{
@@ -163,6 +163,8 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
+        use crate::composition::pipeline::CompositionPipeline;
+
         let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
@@ -173,27 +175,40 @@ impl Compose {
             .clone()
             .supergraph_yaml;
 
-        let federation_version = self.opts.federation_version.clone();
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_config_source.graph_ref.clone();
 
-        let one_shot_composition = OneShotComposition::builder()
-            .client_config(client_config)
-            .profile(profile)
-            .elv2_license_accepter(self.opts.plugin_opts.elv2_license_accepter)
-            .skip_update(self.opts.plugin_opts.skip_update)
-            .and_federation_version(federation_version)
-            .and_graph_ref(graph_ref)
-            .and_supergraph_yaml(supergraph_yaml)
-            .and_override_install_path(override_install_path)
-            .and_output_file(output_file)
-            .build();
+        let composition_pipeline = CompositionPipeline::default()
+            .init(
+                &mut stdin(),
+                &client_config.get_authenticated_client(&profile)?,
+                supergraph_yaml,
+                graph_ref.clone(),
+            )
+            .await?
+            .resolve_federation_version(
+                &client_config,
+                &client_config.get_authenticated_client(&profile)?,
+                self.opts.federation_version.clone(),
+            )
+            .await?
+            .install_supergraph_binary(
+                client_config.clone(),
+                override_install_path.clone(),
+                self.opts.plugin_opts.elv2_license_accepter,
+                self.opts.plugin_opts.skip_update,
+            )
+            .await?;
+        let composition_success = composition_pipeline
+            .compose(
+                &exec_command_impl,
+                &read_file_impl,
+                &write_file_impl,
+                output_file,
+            )
+            .await?;
 
-        Ok(RoverOutput::CompositionResult(
-            one_shot_composition
-                .compose(&read_file_impl, &write_file_impl, &exec_command_impl)
-                .await?,
-        ))
+        Ok(RoverOutput::CompositionResult(composition_success.into()))
     }
 
     #[cfg(not(feature = "composition-rewrite"))]
