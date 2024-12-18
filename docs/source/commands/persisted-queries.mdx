@@ -50,7 +50,8 @@ rover persisted-queries publish \
 
 1. Publishes all operations in the provided manifest file to the PQL linked to the specified variant, or to the specified PQL.
     - Publishing a manifest to a PQL is additive. Any existing entries in the PQL remain.
-    - If you publish an operation with the same `id` but different details from an existing entry in the PQL, the entire publish command fails with an error.
+    - You can use the `--for-client-name CLIENT-NAME` option to [associate all operations in the manifest with a given client name](/graphos/platform/security/persisted-queries#associating-operations-with-clients), or you can specify `clientName` on each operation in the JSON file.
+    - If you publish an operation with the same `id` and `clientName` but different details from an existing entry in the PQL, the entire publish command fails with an error.
 
 2. Updates any other variants that the PQL is applied to so that routers associated with those variants can fetch their updated PQL.
 
