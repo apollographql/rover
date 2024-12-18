@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl OptionalSubgraphOpts {
-    pub fn get_subgraph_watcher(
+    fn get_subgraph_watcher(
         &self,
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,

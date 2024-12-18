@@ -12,15 +12,21 @@
 //!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!         by [`SupergraphConfig`]
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, io::Error, io::IsTerminal};
 
+use anyhow::Context;
 use apollo_federation_types::config::{
     ConfigError, FederationVersion, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
+use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
+use dialoguer::Input;
+use futures::io;
 use rover_client::shared::GraphRef;
+use url::Url;
 
 use crate::{
+    cli::Rover,
     utils::{
         effect::{
             fetch_remote_subgraph::FetchRemoteSubgraph,
@@ -233,6 +239,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
+            println!("B");
+            let url = self.prompt_for_subgraph_url().unwrap();
             Err(ResolveSupergraphConfigError::NoSource)
         }
     }
@@ -264,7 +272,34 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
             Ok(resolved_supergraph_config)
         } else {
+            println!("A");
             Err(ResolveSupergraphConfigError::NoSource)
+        }
+    }
+
+    fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError> {
+        let url_context = |input| format!("'{}' is not a valid subgraph URL.", &input);
+        if std::io::stderr().is_terminal() {
+            let input: String = Input::new()
+                .with_prompt("what URL is your subgraph running on?")
+                .interact_text()
+                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                    input: err.to_string(),
+                })?;
+
+            Ok(input
+                .parse()
+                .with_context(|| url_context(&input))
+                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                    input: err.to_string(),
+                })?)
+        } else {
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "--url <SUBGRAPH_URL> is required when not attached to a TTY",
+            )
+            .exit();
         }
     }
 }
