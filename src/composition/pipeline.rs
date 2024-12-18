@@ -1,19 +1,18 @@
-use std::{env::current_dir, fmt::Debug, fs::canonicalize};
+use std::{collections::BTreeMap, env::current_dir, fmt::Debug, fs::canonicalize};
 
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use tempfile::tempdir;
+use tower::MakeService;
 
 use crate::{
     options::{LicenseAccepter, ProfileOpt},
     utils::{
         client::StudioClientConfig,
         effect::{
-            exec::ExecCommand, fetch_remote_subgraph::FetchRemoteSubgraph,
-            fetch_remote_subgraphs::FetchRemoteSubgraphs, install::InstallBinary,
-            introspect::IntrospectSubgraph, read_file::ReadFile, read_stdin::ReadStdin,
-            write_file::WriteFile,
+            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
+            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
         },
         parsers::FileDescriptorType,
     },
@@ -24,6 +23,8 @@ use super::{
     supergraph::{
         binary::OutputTarget,
         config::resolver::{
+            fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+            fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
             LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
             SupergraphConfigResolver,
         },
@@ -64,13 +65,21 @@ impl Default for CompositionPipeline<state::Init> {
 }
 
 impl CompositionPipeline<state::Init> {
-    pub async fn init(
+    pub async fn init<S>(
         self,
         read_stdin_impl: &mut impl ReadStdin,
-        fetch_remote_subgraphs_impl: &impl FetchRemoteSubgraphs,
+        fetch_remote_subgraphs_factory: S,
         supergraph_yaml: Option<FileDescriptorType>,
         graph_ref: Option<GraphRef>,
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
+    where
+        S: MakeService<
+            (),
+            FetchRemoteSubgraphsRequest,
+            Response = BTreeMap<String, SubgraphConfig>,
+        >,
+        S::MakeError: std::error::Error + Send + Sync + 'static,
+        S::Error: std::error::Error + Send + Sync + 'static,
     {
         let supergraph_yaml = supergraph_yaml.and_then(|supergraph_yaml| match supergraph_yaml {
             FileDescriptorType::File(file) => canonicalize(file)
@@ -90,7 +99,7 @@ impl CompositionPipeline<state::Init> {
             FileDescriptorType::Stdin => None,
         });
         let resolver = SupergraphConfigResolver::default()
-            .load_remote_subgraphs(fetch_remote_subgraphs_impl, graph_ref.as_ref())
+            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
             .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
         Ok(CompositionPipeline {
@@ -103,12 +112,18 @@ impl CompositionPipeline<state::Init> {
 }
 
 impl CompositionPipeline<state::ResolveFederationVersion> {
-    pub async fn resolve_federation_version(
+    pub async fn resolve_federation_version<MakeFetchSubgraph>(
         self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
         federation_version: Option<FederationVersion>,
-    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
+    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError>
+    where
+        MakeFetchSubgraph:
+            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
         let fully_resolved_supergraph_config = self
             .state
             .resolver
