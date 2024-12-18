@@ -194,7 +194,6 @@ mod tests {
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
                 .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
-                .is_fed_two(false)
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -228,7 +227,6 @@ mod tests {
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
                 .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
-                .is_fed_two(false)
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -261,7 +259,6 @@ mod tests {
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
                 .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
-                .is_fed_two(true)
                 .build(),
         )];
         let federation_version = federation_version_resolver

@@ -19,6 +19,7 @@ use super::FullyResolvedSubgraph;
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
+#[cfg_attr(test, derive(buildstructor::Builder))]
 pub struct FullyResolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
@@ -67,6 +68,8 @@ impl FullyResolvedSupergraphConfig {
             let subgraphs = BTreeMap::from_iter(subgraphs);
             let federation_version = unresolved_supergraph_config
                 .federation_version_resolver()
+                .clone()
+                .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
                 .resolve(subgraphs.iter())?;
             Ok(FullyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
@@ -76,5 +79,15 @@ impl FullyResolvedSupergraphConfig {
         } else {
             Err(ResolveSupergraphConfigError::ResolveSubgraphs(errors))
         }
+    }
+
+    /// Updates the subgraph with the provided name using the provided schema
+    pub fn update_subgraph_schema(&mut self, name: String, subgraph: FullyResolvedSubgraph) {
+        self.subgraphs.insert(name, subgraph);
+    }
+
+    /// Removes the subgraph with the name provided
+    pub fn remove_subgraph(&mut self, name: &str) {
+        self.subgraphs.remove(name);
     }
 }

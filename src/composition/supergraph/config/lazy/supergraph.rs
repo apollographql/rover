@@ -29,15 +29,19 @@ impl LazilyResolvedSupergraphConfig {
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
     ) -> Result<LazilyResolvedSupergraphConfig, Vec<ResolveSubgraphError>> {
-        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
-            |(name, unresolved_subgraph)| async {
-                let result = LazilyResolvedSubgraph::resolve(
-                    supergraph_config_root,
-                    unresolved_subgraph.clone(),
-                )?;
-                Ok((name.to_string(), result))
-            },
-        ))
+        let subgraphs = stream::iter(
+            unresolved_supergraph_config
+                .subgraphs()
+                .clone()
+                .into_iter()
+                .map(|(name, unresolved_subgraph)| async move {
+                    let result = LazilyResolvedSubgraph::resolve(
+                        supergraph_config_root,
+                        unresolved_subgraph.clone(),
+                    )?;
+                    Ok((name.to_string(), result))
+                }),
+        )
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, LazilyResolvedSubgraph), ResolveSubgraphError>>>()
         .await;

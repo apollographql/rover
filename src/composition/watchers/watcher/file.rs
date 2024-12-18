@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt};
 use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
@@ -6,7 +7,7 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 /// File watcher specifically for files related to composition
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Getters)]
 pub struct FileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,

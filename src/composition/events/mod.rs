@@ -1,7 +1,7 @@
 use super::{CompositionError, CompositionSuccess};
 
 /// Events emitted from composition
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum CompositionEvent {
     /// The composition has started and may not have finished yet. This is useful for letting users
     /// know composition is running

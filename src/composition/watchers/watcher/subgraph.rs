@@ -1,7 +1,5 @@
-use std::{marker::Send, pin::Pin};
-
 use apollo_federation_types::config::SchemaSource;
-use futures::{Stream, StreamExt};
+use futures::{stream::BoxStream, StreamExt};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
@@ -24,6 +22,7 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 pub struct SubgraphWatcher {
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
+    routing_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +59,7 @@ pub enum SubgraphWatcherKind {
 impl SubgraphWatcher {
     /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
     pub fn from_schema_source(
+        routing_url: Option<String>,
         schema_source: SchemaSource,
         profile: &ProfileOpt,
         client_config: &StudioClientConfig,
@@ -70,6 +70,7 @@ impl SubgraphWatcher {
         match schema_source {
             SchemaSource::File { file } => Ok(Self {
                 watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
+                routing_url,
             }),
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
@@ -81,14 +82,17 @@ impl SubgraphWatcher {
                     client_config,
                     introspection_polling_interval,
                 )),
+                routing_url,
             }),
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
                     RemoteSchema::new(graphref, subgraph, profile, client_config),
                 )),
+                routing_url,
             }),
             SchemaSource::Sdl { sdl } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::Sdl(Sdl::new(sdl))),
+                routing_url,
             }),
         }
     }
@@ -99,11 +103,14 @@ impl SubgraphWatcherKind {
     ///
     /// Development note: this is a stream of Strings, but in the future we might want something
     /// more flexible to get type safety.
-    async fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
+    fn watch(&self) -> Option<BoxStream<String>> {
         match self {
-            Self::File(file_watcher) => file_watcher.clone().watch(),
-            Self::Introspect(introspection) => introspection.watch(),
-            kind => unimplemented!("{kind:?} is not a watcher"),
+            Self::File(file_watcher) => Some(file_watcher.clone().watch()),
+            Self::Introspect(introspection) => Some(introspection.watch()),
+            kind => {
+                tracing::debug!("{kind:?} is not watchable. Skipping");
+                None
+            }
         }
     }
 }
@@ -120,11 +127,13 @@ impl SubtaskHandleUnit for SubgraphWatcher {
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
-            let mut watcher = self.watcher.watch().await;
-            while let Some(sdl) = watcher.next().await {
-                let _ = sender
-                    .send(WatchedSdlChange { sdl })
-                    .tap_err(|err| tracing::error!("{:?}", err));
+            let watcher = self.watcher.watch();
+            if let Some(mut watcher) = watcher {
+                while let Some(sdl) = watcher.next().await {
+                    let _ = sender
+                        .send(WatchedSdlChange { sdl })
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                }
             }
         })
         .abort_handle()

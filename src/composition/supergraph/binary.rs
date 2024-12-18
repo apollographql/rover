@@ -6,6 +6,7 @@ use apollo_federation_types::{
 };
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+use rover_std::warnln;
 use tap::TapFallible;
 
 use crate::{
@@ -31,7 +32,7 @@ impl OutputTarget {
                 if version.supports_output_flag() {
                     OutputTarget::File(path)
                 } else {
-                    tracing::warn!("This version of supergraph does not support the `--output flag`. Defaulting to `stdout`");
+                    warnln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", version);
                     OutputTarget::Stdout
                 }
             }
@@ -59,8 +60,7 @@ impl From<std::io::Error> for CompositionError {
     }
 }
 
-#[derive(Builder, Debug, Clone)]
-#[cfg_attr(test, derive(derive_getters::Getters))]
+#[derive(Builder, Debug, Clone, derive_getters::Getters)]
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
@@ -119,7 +119,7 @@ impl SupergraphBinary {
                     .await
                     .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
-                        error: format!("{:?}", err),
+                        error: Box::new(err),
                     })?
             }
             OutputTarget::Stdout => std::str::from_utf8(&output.stdout)

@@ -201,7 +201,15 @@ pub enum ResolveSupergraphConfigError {
     /// subgraphs use the `@link` directive, which requires Federation 2
     #[error(transparent)]
     FederationVersionMismatch(#[from] FederationVersionMismatch),
+    /// Occurs when a `FederationVersionResolver` was not supplied to an `UnresolvedSupergraphConfig`
+    /// and federation version resolution was attempted
+    #[error("Unable to resolve federation version")]
+    MissingFederationVersionResolver,
 }
+
+/// Public alias for [`SupergraphConfigResolver<ResolveSubgraphs>`]
+/// This state of [`SupergraphConfigResolver`] is ready to resolve subgraphs fully or lazily
+pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<ResolveSubgraphs>;
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
@@ -234,10 +242,17 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// config is piped through stdin
     pub async fn lazily_resolve_subgraphs(
         &self,
-        supergraph_config_root: &Utf8PathBuf,
+        supergraph_config_root: Option<&Utf8PathBuf>,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+        let supergraph_config_root = supergraph_config_root.ok_or_else(|| {
+            ResolveSupergraphConfigError::ResolveSubgraphs(vec![
+                ResolveSubgraphError::SupergraphConfigMissing,
+            ])
+        })?;
+
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .and_origin_path(self.state.origin_path.clone())
                 .subgraphs(self.state.subgraphs.clone())
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();

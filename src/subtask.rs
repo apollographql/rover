@@ -107,6 +107,10 @@ impl<T, Output> Subtask<T, Output> {
             Subtask { inner, sender: tx },
         )
     }
+
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
 }
 
 impl<T: SubtaskHandleUnit<Output = Output>, Output> SubtaskRunUnit for Subtask<T, Output> {
