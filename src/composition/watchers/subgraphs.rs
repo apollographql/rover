@@ -78,7 +78,7 @@ pub enum SubgraphEvent {
 }
 /// An event denoting that the subgraph has changed, emitting its name and the SDL reflecting that
 /// change
-#[derive(derive_getters::Getters, Eq, PartialEq)]
+#[derive(derive_getters::Getters, Eq, PartialEq, Debug)]
 pub struct SubgraphSchemaChanged {
     /// Subgraph name
     name: String,

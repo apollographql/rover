@@ -80,9 +80,9 @@ impl FullyResolvedSubgraph {
                 let routing_url = unresolved_subgraph
                     .routing_url()
                     .clone()
-                    .or_else(|| Some(subgraph_url.to_string()));
+                    .unwrap_or_else(|| subgraph_url.to_string());
                 Ok(FullyResolvedSubgraph::builder()
-                    .and_routing_url(routing_url)
+                    .routing_url(routing_url)
                     .schema(schema)
                     .build())
             }

@@ -77,12 +77,12 @@ impl SubgraphWatcher {
                 introspection_headers,
             } => Ok(Self {
                 watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
-                    subgraph_url,
+                    subgraph_url.clone(),
                     introspection_headers.map(|header_map| header_map.into_iter().collect()),
                     client_config,
                     introspection_polling_interval,
                 )),
-                routing_url,
+                routing_url: Some(subgraph_url.to_string()),
             }),
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
