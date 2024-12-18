@@ -23,12 +23,9 @@ use super::{
     runner::{CompositionRunner, Runner},
     supergraph::{
         binary::OutputTarget,
-        config::{
-            full::FullyResolvedSubgraphs,
-            resolver::{
-                LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-                SupergraphConfigResolver,
-            },
+        config::resolver::{
+            LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
+            SupergraphConfigResolver,
         },
         install::{InstallSupergraph, InstallSupergraphError},
     },
@@ -201,6 +198,7 @@ impl CompositionPipeline<state::Run> {
         Ok(result)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn runner<ExecC, ReadF, WriteF>(
         &self,
         exec_command: ExecC,

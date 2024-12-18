@@ -124,6 +124,7 @@ impl FullyResolvedSubgraph {
         }
     }
 
+    /// Mutably updates this subgraph's schema
     pub fn update_schema(&mut self, schema: String) {
         self.schema = schema;
     }

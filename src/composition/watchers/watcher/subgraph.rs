@@ -1,7 +1,5 @@
-use std::{marker::Send, pin::Pin};
-
 use apollo_federation_types::config::SchemaSource;
-use futures::{stream::BoxStream, Stream, StreamExt};
+use futures::{stream::BoxStream, StreamExt};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 

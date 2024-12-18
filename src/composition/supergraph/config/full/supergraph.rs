@@ -80,12 +80,14 @@ impl FullyResolvedSupergraphConfig {
         }
     }
 
+    /// Updates the subgraph with the provided name using the provided schema
     pub fn update_subgraph_schema(&mut self, name: &str, schema: String) {
         if let Some(subgraph) = self.subgraphs.get_mut(name) {
             subgraph.update_schema(schema);
         }
     }
 
+    /// Removes the subgraph with the name provided
     pub fn remove_subgraph(&mut self, name: &str) {
         self.subgraphs.remove(name);
     }

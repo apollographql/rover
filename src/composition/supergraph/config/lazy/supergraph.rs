@@ -36,7 +36,7 @@ impl LazilyResolvedSupergraphConfig {
                 .into_iter()
                 .map(|(name, unresolved_subgraph)| async move {
                     let result = LazilyResolvedSubgraph::resolve(
-                        &supergraph_config_root,
+                        supergraph_config_root,
                         unresolved_subgraph.clone(),
                     )?;
                     Ok((name.to_string(), result))
