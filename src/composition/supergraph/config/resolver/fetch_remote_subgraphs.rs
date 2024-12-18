@@ -6,27 +6,30 @@ use apollo_federation_types::config::SubgraphConfig;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::{
-    operations::subgraph::{
-        fetch::SubgraphFetch,
-        fetch_all::{SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse},
+    operations::subgraph::fetch_all::{
+        SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse,
     },
     shared::GraphRef,
     RoverClientError,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;
-use tower::{service_fn, Service, ServiceBuilder};
+use tower::{Service, ServiceBuilder};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 
+/// Errors that occur when constructing a [`FetchRemoteSubgraphs`] service
 #[derive(thiserror::Error, Debug)]
 pub enum MakeFetchRemoteSubgraphsError {
+    /// Occurs when the factory service fails to be ready
     #[error("Service failed to reach a ready state.\n{}", .0)]
     ReadyFailed(Box<dyn std::error::Error + Send + Sync>),
+    /// Occurs when the [`FetchRemoteSubgraphs`] service cannot be created
     #[error("Failed to create the FetchRemoteSubgraphsService.\n{}", .0)]
     StudioClient(anyhow::Error),
 }
 
+/// Factory that creates a [`FetchRemoteSubgraphs`] service
 #[derive(Builder, Clone)]
 pub struct MakeFetchRemoteSubgraphs {
     studio_client_config: StudioClientConfig,
@@ -82,6 +85,7 @@ pub struct FetchRemoteSubgraphs<S> {
 }
 
 impl<S> FetchRemoteSubgraphs<S> {
+    /// Creates a new [`FetchRemoteSubgraphs`]
     pub fn new(inner: S) -> FetchRemoteSubgraphs<S> {
         FetchRemoteSubgraphs { inner }
     }

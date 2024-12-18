@@ -1,3 +1,5 @@
+//! Service and objects related to fetching a subgraph from Studio
+
 use std::{convert::Infallible, pin::Pin};
 
 use buildstructor::Builder;
@@ -14,14 +16,18 @@ use tower::{Service, ServiceBuilder};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 
+/// Errors that occur when constructing a [`FetchRemoteSubgraph`] service
 #[derive(thiserror::Error, Debug)]
 pub enum MakeFetchRemoteSubgraphError {
+    /// Occurs when the factory service fails to be ready
     #[error("Service failed to reach a ready state.\n{}", .0)]
     ReadyFailed(Box<dyn std::error::Error + Send + Sync>),
+    /// Occurs when the [`FetchRemoteSubgraph`] service cannot be created
     #[error("Failed to create the FetchRemoteSubgraphService.\n{}", .0)]
     StudioClient(anyhow::Error),
 }
 
+/// Factory that creates a [`FetchRemoteSubgraph`] service
 #[derive(Builder, Clone)]
 pub struct MakeFetchRemoteSubgraph {
     studio_client_config: StudioClientConfig,
@@ -58,6 +64,7 @@ impl Service<()> for MakeFetchRemoteSubgraph {
     }
 }
 
+/// Represents a subgraph fetched from Studio
 #[derive(Clone, Debug, Eq, PartialEq, Builder, Getters)]
 pub struct RemoteSubgraph {
     name: String,
@@ -65,16 +72,21 @@ pub struct RemoteSubgraph {
     schema: String,
 }
 
+/// Errors that occur when fetching a subgraph from Studio
 #[derive(thiserror::Error, Debug)]
 pub enum FetchRemoteSubgraphError {
+    /// Errors originating from [`rover_client`]
     #[error(transparent)]
     RoverClient(#[from] RoverClientError),
+    /// Occurs when rover gets an SDL type that it doesn't recognize
     #[error("Response contained an invalid SDL type: {:?}", .0)]
     InvalidSdlType(SdlType),
+    /// Error that occurs when the inner service fails to become ready
     #[error("Inner service failed to become ready.\n{}", .0)]
     Service(Box<dyn std::error::Error + Send + Sync>),
 }
 
+/// Request that fetches a subgraph from Studio by graph ref and name
 #[derive(Builder)]
 pub struct FetchRemoteSubgraphRequest {
     subgraph_name: String,
@@ -90,11 +102,13 @@ impl From<FetchRemoteSubgraphRequest> for SubgraphFetchRequest {
     }
 }
 
+/// Service that is able to fetch a subgraph from Studio
 pub struct FetchRemoteSubgraph<S> {
     inner: S,
 }
 
 impl<S> FetchRemoteSubgraph<S> {
+    /// Creates a new [`FetchRemoteSubgraph`]
     pub fn new(inner: S) -> FetchRemoteSubgraph<S> {
         FetchRemoteSubgraph { inner }
     }
