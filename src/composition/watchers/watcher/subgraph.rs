@@ -22,6 +22,7 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 pub struct SubgraphWatcher {
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
+    routing_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +59,7 @@ pub enum SubgraphWatcherKind {
 impl SubgraphWatcher {
     /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
     pub fn from_schema_source(
+        routing_url: Option<String>,
         schema_source: SchemaSource,
         profile: &ProfileOpt,
         client_config: &StudioClientConfig,
@@ -68,6 +70,7 @@ impl SubgraphWatcher {
         match schema_source {
             SchemaSource::File { file } => Ok(Self {
                 watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
+                routing_url,
             }),
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
@@ -79,14 +82,17 @@ impl SubgraphWatcher {
                     client_config,
                     introspection_polling_interval,
                 )),
+                routing_url,
             }),
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
                     RemoteSchema::new(graphref, subgraph, profile, client_config),
                 )),
+                routing_url,
             }),
             SchemaSource::Sdl { sdl } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::Sdl(Sdl::new(sdl))),
+                routing_url,
             }),
         }
     }

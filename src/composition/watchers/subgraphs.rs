@@ -7,7 +7,7 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::{
-    composition::supergraph::config::lazy::LazilyResolvedSubgraph,
+    composition::supergraph::config::{full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph},
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
@@ -46,6 +46,7 @@ impl SubgraphWatchers {
             .filter_map(|(name, resolved_subgraph)| {
                 let subgraph_config = SubgraphConfig::from(resolved_subgraph);
                 SubgraphWatcher::from_schema_source(
+                    subgraph_config.routing_url,
                     subgraph_config.schema,
                     profile,
                     client_config,
@@ -83,12 +84,26 @@ pub struct SubgraphSchemaChanged {
     name: String,
     /// SDL with changes
     sdl: String,
+    routing_url: Option<String>,
 }
 
 impl SubgraphSchemaChanged {
     #[cfg(test)]
-    pub fn new(name: String, sdl: String) -> SubgraphSchemaChanged {
-        SubgraphSchemaChanged { name, sdl }
+    pub fn new(name: String, sdl: String, routing_url: Option<String>) -> SubgraphSchemaChanged {
+        SubgraphSchemaChanged {
+            name,
+            sdl,
+            routing_url,
+        }
+    }
+}
+
+impl From<SubgraphSchemaChanged> for FullyResolvedSubgraph {
+    fn from(value: SubgraphSchemaChanged) -> Self {
+        FullyResolvedSubgraph::builder()
+            .schema(value.sdl)
+            .and_routing_url(value.routing_url)
+            .build()
     }
 }
 
@@ -118,13 +133,16 @@ impl SubtaskHandleStream for SubgraphWatchers {
             for (subgraph_name, (mut messages, subtask)) in self.watchers.into_iter() {
                 let sender = sender.clone();
                 let subgraph_name_c = subgraph_name.clone();
+                let routing_url = subtask.inner().routing_url().clone();
                 let messages_abort_handle = tokio::task::spawn(async move {
                     while let Some(change) = messages.next().await {
+                        let routing_url = routing_url.clone();
                         tracing::info!("Subgraph change detected: {:?}", change);
                         let _ = sender
                             .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
                                 name: subgraph_name_c.clone(),
                                 sdl: change.sdl().to_string(),
+                                routing_url,
                             }))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
@@ -140,6 +158,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 // Adding the abort handle to the currentl collection of handles.
                 for (subgraph_name, subgraph_config) in diff.added() {
                     if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
+                        subgraph_config.routing_url.clone(),
                         subgraph_config.schema.clone(),
                         &self.profile,
                         &self.client_config,
@@ -170,6 +189,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                             SubgraphSchemaChanged {
                                                 name: subgraph_name.to_string(),
                                                 sdl,
+                                                routing_url: subgraph_watcher.routing_url().clone(),
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));
@@ -182,13 +202,16 @@ impl SubtaskHandleStream for SubgraphWatchers {
 
                             let sender = sender.clone();
                             let subgraph_name_c = subgraph_name.clone();
+                            let routing_url = subtask.inner().routing_url().clone();
                             let messages_abort_handle = tokio::spawn(async move {
                                 while let Some(change) = messages.next().await {
+                                    let routing_url = routing_url.clone();
                                     let _ = sender
                                         .send(SubgraphEvent::SubgraphChanged(
                                             SubgraphSchemaChanged {
                                                 name: subgraph_name_c.to_string(),
                                                 sdl: change.sdl().to_string(),
+                                                routing_url,
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));
@@ -207,6 +230,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 for (name, subgraph_config) in diff.changed() {
                     eprintln!("Change detected for subgraph: `{}`", name);
                     if let Ok(watcher) = SubgraphWatcher::from_schema_source(
+                        subgraph_config.routing_url.clone(),
                         subgraph_config.schema.clone(),
                         &self.profile,
                         &self.client_config,
@@ -227,6 +251,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                             SubgraphSchemaChanged {
                                                 name: name.to_string(),
                                                 sdl,
+                                                routing_url: watcher.routing_url().clone(),
                                             },
                                         ))
                                         .tap_err(|err| tracing::error!("{:?}", err));

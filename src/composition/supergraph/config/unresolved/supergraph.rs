@@ -289,9 +289,9 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: None,
             subgraphs: unresolved_subgraphs,
-            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(
+            federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(
                 target_federation_version,
-            ),
+            )),
         };
 
         let RemoteSubgraphScenario {
@@ -363,11 +363,6 @@ mod tests {
                 sdl_subgraph_name.clone(),
                 FullyResolvedSubgraph::builder()
                     .schema(sdl_subgraph_scenario.sdl.clone())
-                    .is_fed_two(
-                        sdl_subgraph_scenario
-                            .subgraph_federation_version
-                            .is_fed_two(),
-                    )
                     .build(),
             ),
             (
@@ -375,11 +370,6 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(file_subgraph_scenario.routing_url.clone())
                     .schema(file_subgraph_scenario.sdl.clone())
-                    .is_fed_two(
-                        file_subgraph_scenario
-                            .subgraph_federation_version
-                            .is_fed_two(),
-                    )
                     .build(),
             ),
             (
@@ -387,11 +377,6 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(remote_subgraph_routing_url.clone())
                     .schema(remote_subgraph_scenario.sdl.clone())
-                    .is_fed_two(
-                        remote_subgraph_scenario
-                            .subgraph_federation_version
-                            .is_fed_two(),
-                    )
                     .build(),
             ),
             (
@@ -399,11 +384,6 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(introspect_subgraph_routing_url.clone())
                     .schema(introspect_subgraph_scenario.sdl.clone())
-                    .is_fed_two(
-                        introspect_subgraph_scenario
-                            .subgraph_federation_version
-                            .is_fed_two(),
-                    )
                     .build(),
             ),
         ]);
@@ -496,9 +476,9 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: None,
             subgraphs: unresolved_subgraphs,
-            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(Some(
+            federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(Some(
                 target_federation_version.clone(),
-            )),
+            ))),
         };
 
         let RemoteSubgraphScenario {
@@ -642,7 +622,7 @@ mod tests {
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: Some(supergraph_config_origin_path),
             subgraphs: unresolved_subgraphs,
-            federation_version_resolver: FederationVersionResolverFromSubgraphs::new(None),
+            federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
         };
 
         let result = LazilyResolvedSupergraphConfig::resolve(

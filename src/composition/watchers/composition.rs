@@ -52,9 +52,11 @@ where
                     match event {
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
-                            let sdl = subgraph_schema_changed.sdl();
                             tracing::info!("Schema change detected for subgraph: {}", name);
-                            supergraph_config.update_subgraph_schema(name, sdl.to_string());
+                            supergraph_config.update_subgraph_schema(
+                                name.to_string(),
+                                subgraph_schema_changed.into(),
+                            );
                         }
                         SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
                             let name = subgraph_removed.name();
@@ -144,8 +146,7 @@ mod tests {
         composition::{
             events::CompositionEvent,
             supergraph::{
-                binary::{OutputTarget, SupergraphBinary},
-                config::full::FullyResolvedSubgraphs,
+                binary::SupergraphBinary, config::full::FullyResolvedSupergraphConfig,
                 version::SupergraphVersion,
             },
             test::{default_composition_json, default_composition_success},
@@ -171,8 +172,13 @@ mod tests {
         let temp_dir = assert_fs::TempDir::new()?;
         let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
 
-        let subgraphs = FullyResolvedSubgraphs::new(BTreeMap::new());
-        let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
+        let federation_version = Version::from_str("2.8.0").unwrap();
+
+        let subgraphs = FullyResolvedSupergraphConfig::builder()
+            .subgraphs(BTreeMap::new())
+            .federation_version(FederationVersion::ExactFedTwo(federation_version.clone()))
+            .build();
+        let supergraph_version = SupergraphVersion::new(federation_version.clone());
 
         let supergraph_binary = SupergraphBinary::builder()
             .version(supergraph_version)
@@ -201,13 +207,13 @@ mod tests {
             indoc::indoc! {
                 r#"subgraphs:
                      {}:
-                       routing_url: null
+                       routing_url: https://example.com
                        schema:
                          sdl: '{}'
-                   federation_version: null
+                   federation_version: ={}
 "#
             },
-            subgraph_name, subgraph_sdl
+            subgraph_name, subgraph_sdl, federation_version
         );
         let expected_supergraph_sdl_bytes = expected_supergraph_sdl.into_bytes();
 
@@ -222,7 +228,7 @@ mod tests {
             .returning(|_, _| Ok(()));
 
         let composition_handler = CompositionWatcher::builder()
-            .subgraphs(subgraphs)
+            .supergraph_config(subgraphs)
             .supergraph_binary(supergraph_binary)
             .exec_command(mock_exec)
             .read_file(mock_read_file)
@@ -231,7 +237,11 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
-            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(subgraph_name, subgraph_sdl))
+            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+                subgraph_name,
+                subgraph_sdl,
+                Some("https://example.com".to_string()),
+            ))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
@@ -241,16 +251,21 @@ mod tests {
         let next_message = composition_messages.next().await;
         assert_that!(next_message)
             .is_some()
-            .is_equal_to(CompositionEvent::Started);
+            .matches(|event| matches!(event, CompositionEvent::Started));
 
         // Assert we get the expected final composition event.
         if !composition_error {
             let next_message = composition_messages.next().await;
-            assert_that!(next_message)
-                .is_some()
-                .is_equal_to(CompositionEvent::Success(default_composition_success(
-                    FederationVersion::ExactFedTwo(Version::from_str("2.8.0")?),
-                )));
+            assert_that!(next_message).is_some().matches(|event| {
+                if let CompositionEvent::Success(success) = event {
+                    success
+                        == &default_composition_success(FederationVersion::ExactFedTwo(
+                            Version::from_str("2.8.0").unwrap(),
+                        ))
+                } else {
+                    false
+                }
+            });
         } else {
             assert!(matches!(
                 composition_messages.next().await.unwrap(),

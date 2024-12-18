@@ -28,15 +28,12 @@ pub struct FullyResolvedSubgraph {
 impl FullyResolvedSubgraph {
     /// Hook for [`buildstructor::buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
     #[builder]
-    pub fn new(
-        schema: String,
-        routing_url: Option<String>,
-        is_fed_two: Option<bool>,
-    ) -> FullyResolvedSubgraph {
+    pub fn new(schema: String, routing_url: Option<String>) -> FullyResolvedSubgraph {
+        let is_fed_two = schema_contains_link_directive(&schema);
         FullyResolvedSubgraph {
             schema,
             routing_url,
-            is_fed_two: is_fed_two.unwrap_or_default(),
+            is_fed_two,
         }
     }
     /// Resolves a [`UnresolvedSubgraph`] to a [`FullyResolvedSubgraph`]
@@ -53,12 +50,10 @@ impl FullyResolvedSubgraph {
                 let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 let schema =
                     Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
-                let is_fed_two = schema_contains_link_directive(&schema);
-                Ok(FullyResolvedSubgraph {
-                    routing_url: unresolved_subgraph.routing_url().clone(),
-                    schema,
-                    is_fed_two,
-                })
+                Ok(FullyResolvedSubgraph::builder()
+                    .and_routing_url(unresolved_subgraph.routing_url().clone())
+                    .schema(schema)
+                    .build())
             }
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
@@ -78,12 +73,10 @@ impl FullyResolvedSubgraph {
                     .routing_url()
                     .clone()
                     .or_else(|| Some(subgraph_url.to_string()));
-                let is_fed_two = schema_contains_link_directive(&schema);
-                Ok(FullyResolvedSubgraph {
-                    routing_url,
-                    schema,
-                    is_fed_two,
-                })
+                Ok(FullyResolvedSubgraph::builder()
+                    .and_routing_url(routing_url)
+                    .schema(schema)
+                    .build())
             }
             SchemaSource::Subgraph {
                 graphref: graph_ref,
@@ -103,24 +96,20 @@ impl FullyResolvedSubgraph {
                         source: Box::new(err),
                     })?;
                 let schema = remote_subgraph.schema().clone();
-                let is_fed_two = schema_contains_link_directive(&schema);
-                Ok(FullyResolvedSubgraph {
-                    routing_url: unresolved_subgraph
-                        .routing_url()
-                        .clone()
-                        .or(Some(remote_subgraph.routing_url().to_string())),
-                    schema,
-                    is_fed_two,
-                })
+                Ok(FullyResolvedSubgraph::builder()
+                    .routing_url(
+                        unresolved_subgraph
+                            .routing_url()
+                            .clone()
+                            .unwrap_or_else(|| remote_subgraph.routing_url().to_string()),
+                    )
+                    .schema(schema)
+                    .build())
             }
-            SchemaSource::Sdl { sdl } => {
-                let is_fed_two = schema_contains_link_directive(sdl);
-                Ok(FullyResolvedSubgraph {
-                    routing_url: unresolved_subgraph.routing_url().clone(),
-                    schema: sdl.to_string(),
-                    is_fed_two,
-                })
-            }
+            SchemaSource::Sdl { sdl } => Ok(FullyResolvedSubgraph::builder()
+                .and_routing_url(unresolved_subgraph.routing_url().clone())
+                .schema(sdl.to_string())
+                .build()),
         }
     }
 
