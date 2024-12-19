@@ -100,8 +100,12 @@ impl FullyResolvedSupergraphConfig {
     }
 
     /// Updates the subgraph with the provided name using the provided schema
-    pub fn update_subgraph_schema(&mut self, name: String, subgraph: FullyResolvedSubgraph) {
-        self.subgraphs.insert(name, subgraph);
+    pub fn update_subgraph_schema(
+        &mut self,
+        name: String,
+        subgraph: FullyResolvedSubgraph,
+    ) -> Option<FullyResolvedSubgraph> {
+        self.subgraphs.insert(name, subgraph)
     }
 
     /// Removes the subgraph with the name provided
