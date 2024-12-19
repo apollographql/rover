@@ -46,6 +46,7 @@ impl Dev {
         let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
+
         let router_address = RouterAddress::new(
             self.opts.supergraph_opts.supergraph_address,
             self.opts.supergraph_opts.supergraph_port,

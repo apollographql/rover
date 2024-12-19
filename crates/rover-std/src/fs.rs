@@ -347,6 +347,7 @@ impl Fs {
                         // fn, and thereby dropping the poll_watcher and ending the background
                         // thread's synchronous loop
                         cancellation_token_c.cancelled().await;
+                        tracing::debug!("Dropping file watcher for: {:?}", path);
                     }
                     // If we fail to watch the file for some reason, don't panic, but let the user know
                     // that something went wrong
