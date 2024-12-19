@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
+
 use super::{
     runner::{CompositionRunner, Runner},
     supergraph::{
@@ -17,6 +18,10 @@ use super::{
     },
     CompositionError, CompositionSuccess,
 };
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+    FetchRemoteSubgraphRequest, RemoteSubgraph,
+};
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use crate::{
     options::{LicenseAccepter, ProfileOpt},
     utils::{

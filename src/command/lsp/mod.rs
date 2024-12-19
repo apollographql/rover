@@ -1,19 +1,15 @@
 mod errors;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::env::temp_dir;
 use std::io::stdin;
 
 use anyhow::Error;
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::SubgraphConfig;
 use apollo_language_server::{ApolloLanguageServer, Config};
-use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use futures::StreamExt;
-use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
 use serde::Serialize;
 use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
@@ -25,6 +21,8 @@ use crate::command::lsp::errors::StartCompositionError::SupergraphYamlUrlConvers
 use crate::composition::events::CompositionEvent;
 use crate::composition::runner::Runner;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
 use crate::composition::supergraph::config::resolver::{
     ResolveSupergraphConfigError, SubgraphPrompt, SupergraphConfigResolver,
 };
@@ -34,8 +32,8 @@ use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
     SupergraphConfigResolutionError,
 };
+use crate::options::ProfileOpt;
 use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::fetch_remote_subgraphs::FetchRemoteSubgraphs;
 use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
@@ -104,8 +102,12 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
         }
         Some(supergraph_yaml_path) => {
             // Resolve Supergraph Config -> Lazy
-            let lazily_resolved_supergraph_config =
-                generate_lazily_resolved_supergraph_config(supergraph_yaml_path.clone()).await?;
+            let lazily_resolved_supergraph_config = generate_lazily_resolved_supergraph_config(
+                supergraph_yaml_path.clone(),
+                client_config.clone(),
+                lsp_opts.plugin_opts.profile.clone(),
+            )
+            .await?;
             let supergraph_yaml_url = Url::from_file_path(supergraph_yaml_path.clone())
                 .map_err(|_| SupergraphYamlUrlConversionFailed(supergraph_yaml_path.clone()))?;
             debug!("Supergraph Config Root: {:?}", supergraph_yaml_url);
@@ -146,10 +148,16 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
 
 async fn generate_lazily_resolved_supergraph_config(
     supergraph_yaml_path: Utf8PathBuf,
+    client_config: StudioClientConfig,
+    profile: ProfileOpt,
 ) -> Result<LazilyResolvedSupergraphConfig, SupergraphConfigResolutionError> {
+    let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+        .studio_client_config(client_config)
+        .profile(profile)
+        .build();
     // Get the SupergraphConfig in a form we can use
     let supergraph_config = SupergraphConfigResolver::default()
-        .load_remote_subgraphs(&NullFetchRemoteSubgraphs {}, None)
+        .load_remote_subgraphs(make_fetch_remote_subgraphs, None)
         .await?
         .load_from_file_descriptor(
             &mut stdin(),
@@ -190,6 +198,11 @@ async fn start_composition(
                 )
                 .await?;
 
+        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+            .studio_client_config(client_config.clone())
+            .profile(lsp_opts.plugin_opts.profile.clone())
+            .build();
+
         // Spin up Runner
         let mut stream = Runner::default()
             .setup_subgraph_watchers(
@@ -201,10 +214,7 @@ async fn start_composition(
             .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
             .setup_composition_watcher(
                 lazily_resolved_supergraph_config
-                    .fully_resolve(
-                        &client_config,
-                        &client_config.get_authenticated_client(&lsp_opts.plugin_opts.profile)?,
-                    )
+                    .fully_resolve(&client_config, make_fetch_remote_subgraph)
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
                 supergraph_binary,
@@ -284,18 +294,4 @@ async fn start_composition(
         Ok::<(), Error>(())
     });
     Ok(())
-}
-
-struct NullFetchRemoteSubgraphs {}
-
-#[async_trait]
-impl FetchRemoteSubgraphs for NullFetchRemoteSubgraphs {
-    type Error = RoverClientError;
-
-    async fn fetch_remote_subgraphs(
-        &self,
-        _: &GraphRef,
-    ) -> Result<BTreeMap<String, SubgraphConfig>, Self::Error> {
-        Ok(BTreeMap::new())
-    }
 }

@@ -46,7 +46,7 @@ impl FullyResolvedSubgraph {
     /// Resolves a [`UnresolvedSubgraph`] to a [`FullyResolvedSubgraph`]
     pub async fn resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_subgraph: UnresolvedSubgraph,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
@@ -94,9 +94,9 @@ impl FullyResolvedSubgraph {
     }
 
     /// Resolves a [`LazilyResolvedSubgraph`] to a [`FullyResolvedSubgraph`]
-    pub async fn fully_resolve(
+    pub async fn fully_resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
         lazily_resolved_subgraph: LazilyResolvedSubgraph,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
     where
@@ -168,17 +168,22 @@ impl FullyResolvedSubgraph {
                 source: Box::new(err),
             })?;
         Ok(FullyResolvedSubgraph::builder()
-            .and_routing_url(routing_url)
+            .and_routing_url(routing_url.or(Some(subgraph_url.to_string())))
             .schema(schema)
             .build())
     }
 
-    async fn resolve_subgraph(
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+    async fn resolve_subgraph<MakeFetchSubgraph>(
+        mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
         routing_url: Option<String>,
         graph_ref: &String,
         subgraph: &String,
-    ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
+    ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
+    where
+        MakeFetchSubgraph: MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph>,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
         let graph_ref =
             GraphRef::from_str(graph_ref).map_err(|err| ResolveSubgraphError::InvalidGraphRef {
                 graph_ref: graph_ref.clone(),
@@ -210,7 +215,7 @@ impl FullyResolvedSubgraph {
             })?;
         let schema = remote_subgraph.schema().clone();
         Ok(FullyResolvedSubgraph::builder()
-            .and_routing_url(routing_url)
+            .routing_url(routing_url.unwrap_or(remote_subgraph.routing_url().to_string()))
             .schema(schema)
             .build())
     }
