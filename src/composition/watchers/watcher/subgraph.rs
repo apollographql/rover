@@ -82,7 +82,7 @@ impl SubgraphWatcher {
                     client_config,
                     introspection_polling_interval,
                 )),
-                routing_url: Some(subgraph_url.to_string()),
+                routing_url: routing_url.or_else(|| Some(subgraph_url.to_string())),
             }),
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
