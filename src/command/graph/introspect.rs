@@ -66,7 +66,11 @@ impl Introspect {
         retry_period: Option<Duration>,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(client, false, retry_period),
+                output_opts,
+                false,
+            )
             .await
     }
 }

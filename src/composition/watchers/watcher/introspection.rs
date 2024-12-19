@@ -86,6 +86,7 @@ impl SubgraphIntrospection {
                 },
                 // TODO: impl retries (at least for dev from cli flag)
                 None,
+                true, // hide the output
             )
             .await;
         });

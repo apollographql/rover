@@ -70,6 +70,7 @@ impl Subgraph {
                         client_config.get_reqwest_client()?,
                         output_opts,
                         client_config.retry_period,
+                        false, // don't hide the output
                     )
                     .await
             }
