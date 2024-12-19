@@ -14,20 +14,18 @@
 
 use std::{
     collections::{BTreeMap, HashSet},
-    io::{Error, IsTerminal},
+    io::IsTerminal,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use apollo_federation_types::config::{
     ConfigError, FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
-use futures::io;
 use rover_client::shared::GraphRef;
-use rover_std::{Fs, Style};
 use url::{Host, Url};
 
 use crate::{
@@ -41,7 +39,7 @@ use crate::{
         },
         parsers::FileDescriptorType,
     },
-    RoverError, RoverErrorSuggestion,
+    RoverError,
 };
 
 use self::state::ResolveSubgraphs;
@@ -230,9 +228,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
+        prompter: &impl Prompt,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        let mut router_urls: Option<Vec<Url>> = None;
-
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
@@ -247,41 +244,14 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
-            // NOTE: so far as I can tell, legacy dev only asks for one subgraph; so, we'll
-            // do that here too
-            // FIXME: unwrap
-            let subgraph_url_from_prompt = self.prompt_for_subgraph_url().unwrap();
-            let subgraph_urls = normalize_loopback_urls(&subgraph_url_from_prompt);
-            let router_urls = if let None = router_urls {
-                let router_url_from_prompt = &self.prompt_for_supergraph_url().unwrap();
-                // TODO: better formatting
-                let url = Url::parse(&format!("http://{}", router_url_from_prompt)).unwrap();
-                let urls = normalize_loopback_urls(&url);
-                router_urls = Some(urls.clone());
-                urls
-            } else {
-                // FIXME: unwrap
-                router_urls.unwrap()
-            };
+            let subgraph_url_from_prompt = prompter
+                .prompt_for_subgraph_url()
+                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
-            for subgraph_url in &subgraph_urls {
-                for router_url in &router_urls {
-                    if router_url == subgraph_url {
-                        //                        let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--supergraph-port {}`", &subgraph_url_from_prompt, router_url.port().unwrap()));
-                        //
-                        //                        err.set_suggestion(RoverErrorSuggestion::Adhoc::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()));
-                        //                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()));
-                        //
-                        //return Err(err);
-                        // FIXME: remove, and figure out the how to get the above messages
-                        // back to the user
-                        panic!("at the disco")
-                    }
-                }
-            }
+            let name = prompter
+                .prompt_for_name()
+                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
-            // FIXME: unwrap
-            let name = self.prompt_for_name().unwrap();
             let schema_source = SchemaSource::SubgraphIntrospection {
                 subgraph_url: subgraph_url_from_prompt.clone(),
                 introspection_headers: None,
@@ -297,7 +267,6 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             );
 
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                // NOTE: nb the subgraphs; schemasource::introspection
                 .subgraphs(subgraphs)
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
@@ -310,9 +279,6 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
 
             Ok(resolved_supergraph_config)
-
-            // TODO: figure out if there's another use of NoSource in this logic
-            //Err(ResolveSupergraphConfigError::NoSource)
         }
     }
 
@@ -347,6 +313,45 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             Err(ResolveSupergraphConfigError::NoSource)
         }
     }
+}
+
+/// A trait for prompting the user for input, primarily for subgraph URL and name. Exists for ease
+/// of testing
+pub trait Prompt {
+    /// Prompts user for the subgraph name
+    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError>;
+    /// Prompts user for the subgraph url
+    fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError>;
+}
+
+/// Prompts for subgraph URL and name. Implements [Prompt] for ease of testing
+#[derive(Default)]
+pub struct SubgraphPrompt {}
+
+impl Prompt for SubgraphPrompt {
+    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError> {
+        if std::io::stderr().is_terminal() {
+            let mut input = Input::new().with_prompt("what is the name of this subgraph?");
+            if let Some(dirname) = maybe_name_from_dir() {
+                input = input.default(dirname);
+            }
+            let name: String =
+                input
+                    .interact_text()
+                    .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                        input: err.to_string(),
+                    })?;
+
+            Ok(name)
+        } else {
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "--name <SUBGRAPH_NAME> is required when not attached to a TTY",
+            )
+            .exit();
+        }
+    }
 
     fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError> {
         let url_context = |input| format!("'{}' is not a valid subgraph URL.", &input);
@@ -373,59 +378,6 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .exit();
         }
     }
-
-    // NOTE: this should really be taken from the supergraph config or some other way; doing
-    // it the quick and dirty way to get parity with the old dev
-    // TODO: get supergraph/router url in a better way
-    fn prompt_for_supergraph_url(&self) -> Result<Url, ResolveSubgraphError> {
-        let url_context = |input| format!("'{}' is not a valid supergraph URL.", &input);
-        if std::io::stderr().is_terminal() {
-            let input: String = Input::new()
-                .with_prompt("what URL is your supergraph (i.e., router) running on?")
-                .interact_text()
-                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
-                    input: err.to_string(),
-                })?;
-
-            Ok(input
-                .parse()
-                .with_context(|| url_context(&input))
-                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
-                    input: err.to_string(),
-                })?)
-        } else {
-            let mut cmd = Rover::command();
-            cmd.error(
-                ClapErrorKind::MissingRequiredArgument,
-                "--supergraph-address <SUPERGRAPH_ADDRESS> is required when not attached to a TTY",
-            )
-            .exit();
-        }
-    }
-
-    pub fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError> {
-        if std::io::stderr().is_terminal() {
-            let mut input = Input::new().with_prompt("what is the name of this subgraph?");
-            if let Some(dirname) = maybe_name_from_dir() {
-                input = input.default(dirname);
-            }
-            let name: String =
-                input
-                    .interact_text()
-                    .map_err(|err| ResolveSubgraphError::InvalidCliInput {
-                        input: err.to_string(),
-                    })?;
-
-            Ok(name)
-        } else {
-            let mut cmd = Rover::command();
-            cmd.error(
-                ClapErrorKind::MissingRequiredArgument,
-                "--name <SUBGRAPH_NAME> is required when not attached to a TTY",
-            )
-            .exit();
-        }
-    }
 }
 
 fn maybe_name_from_dir() -> Option<String> {
@@ -434,7 +386,7 @@ fn maybe_name_from_dir() -> Option<String> {
         .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_lowercase()))
 }
 
-// NOTE: this had no tests that I could (easily) find
+// TODO: tests! ported from subgraphopts, but no tests there
 fn normalize_loopback_urls(url: &SubgraphUrl) -> Vec<SubgraphUrl> {
     let hosts = match url.host() {
         Some(host) => match host {

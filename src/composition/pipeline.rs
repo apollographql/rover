@@ -25,7 +25,7 @@ use super::{
         binary::OutputTarget,
         config::resolver::{
             LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-            SupergraphConfigResolver,
+            SubgraphPrompt, SupergraphConfigResolver,
         },
         install::{InstallSupergraph, InstallSupergraphError},
     },
@@ -116,6 +116,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 introspect_subgraph_impl,
                 fetch_remote_subgraph_impl,
                 self.state.supergraph_root.as_ref(),
+                &SubgraphPrompt::default(),
             )
             .await?;
         let federation_version = federation_version.unwrap_or_else(|| {
