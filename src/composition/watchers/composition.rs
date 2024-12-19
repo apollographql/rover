@@ -151,7 +151,7 @@ where
 
         let write_file_result = self
             .write_file
-            .write_file(&target_file, supergraph_config_yaml.as_bytes())
+            .write_file(target_file, supergraph_config_yaml.as_bytes())
             .await;
 
         if let Err(err) = write_file_result {
@@ -169,16 +169,14 @@ where
         &self,
         target_file: &Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
-        let output = self
-            .supergraph_binary
+        self.supergraph_binary
             .compose(
                 &self.exec_command,
                 &self.read_file,
                 &OutputTarget::Stdout,
                 target_file.clone(),
             )
-            .await;
-        output
+            .await
     }
 }
 

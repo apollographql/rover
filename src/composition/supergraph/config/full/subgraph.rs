@@ -106,7 +106,7 @@ impl FullyResolvedSubgraph {
     {
         match lazily_resolved_subgraph.schema() {
             SchemaSource::File { file } => {
-                Self::resolve_file(lazily_resolved_subgraph.routing_url().clone(), &file)
+                Self::resolve_file(lazily_resolved_subgraph.routing_url().clone(), file)
             }
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
@@ -143,7 +143,7 @@ impl FullyResolvedSubgraph {
         routing_url: Option<String>,
         file: &Utf8PathBuf,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
-        let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
+        let schema = Fs::read_file(file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
         Ok(FullyResolvedSubgraph::builder()
             .and_routing_url(routing_url)
             .schema(schema)
@@ -176,7 +176,7 @@ impl FullyResolvedSubgraph {
     async fn resolve_subgraph<MakeFetchSubgraph>(
         mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
         routing_url: Option<String>,
-        graph_ref: &String,
+        graph_ref: &str,
         subgraph: &String,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
     where
@@ -186,7 +186,7 @@ impl FullyResolvedSubgraph {
     {
         let graph_ref =
             GraphRef::from_str(graph_ref).map_err(|err| ResolveSubgraphError::InvalidGraphRef {
-                graph_ref: graph_ref.clone(),
+                graph_ref: graph_ref.to_owned(),
                 source: Box::new(err),
             })?;
         let remote_subgraph = fetch_remote_subgraph_impl
