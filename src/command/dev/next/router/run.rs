@@ -11,7 +11,8 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::RoverStdError;
+use rover_std::{infoln, RoverStdError};
+use tap::Conv;
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
@@ -204,6 +205,7 @@ impl RunRouter<state::Run> {
         Ok(RunRouter {
             state: state::Watch {
                 abort_router,
+                address: *self.state.config.address(),
                 config_path: self.state.config_path,
                 hot_reload_config_path,
                 hot_reload_schema_path,
@@ -317,6 +319,12 @@ impl RunRouter<state::Watch> {
 
         let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
 
+        infoln!(
+            "Your supergraph is running! head to http://{}:{} to query your supergraph",
+            self.state.address.host(),
+            self.state.address.port()
+        );
+
         RunRouter {
             state: state::Abort {
                 abort_router: self.state.abort_router,
@@ -345,7 +353,7 @@ mod state {
 
     use crate::command::dev::next::router::{
         binary::{RouterBinary, RouterLog, RunRouterBinaryError},
-        config::{remote::RemoteRouterConfig, RouterConfigFinal},
+        config::{remote::RemoteRouterConfig, RouterAddress, RouterConfigFinal},
         hot_reload::HotReloadEvent,
     };
 
@@ -367,6 +375,7 @@ mod state {
     }
     pub struct Watch {
         pub abort_router: AbortHandle,
+        pub address: RouterAddress,
         pub config_path: Option<Utf8PathBuf>,
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
