@@ -233,7 +233,10 @@ impl CompositionPipeline<state::Run> {
         let lazily_resolved_supergraph_config = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(self.state.supergraph_root.as_ref())
+            .lazily_resolve_subgraphs(
+                self.state.supergraph_root.as_ref(),
+                &SubgraphPrompt::default(),
+            )
             .await?;
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
         let runner = Runner::default()

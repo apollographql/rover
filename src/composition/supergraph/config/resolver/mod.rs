@@ -12,11 +12,7 @@
 //!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!         by [`SupergraphConfig`]
 
-use std::{
-    collections::{BTreeMap, HashSet},
-    io::IsTerminal,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
-};
+use std::{collections::BTreeMap, io::IsTerminal};
 
 use anyhow::Context;
 use apollo_federation_types::config::{
@@ -27,11 +23,10 @@ use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
-use url::{Host, Url};
+use url::Url;
 
 use crate::{
     cli::Rover,
-    composition::types::SubgraphUrl,
     utils::{
         effect::{introspect::IntrospectSubgraph, read_stdin::ReadStdin},
         parsers::FileDescriptorType,
@@ -245,7 +240,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
-        prompter: &impl Prompt,
+        prompt: &impl Prompt,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
     where
         MakeFetchSubgraph:
@@ -267,11 +262,11 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
-            let subgraph_url = prompter
+            let subgraph_url = prompt
                 .prompt_for_subgraph_url()
                 .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
-            let name = prompter
+            let name = prompt
                 .prompt_for_name()
                 .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
@@ -312,6 +307,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         &self,
         supergraph_config_root: Option<&Utf8PathBuf>,
+        prompt: &impl Prompt,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         let supergraph_config_root = supergraph_config_root.ok_or_else(|| {
             ResolveSupergraphConfigError::ResolveSubgraphs(vec![
@@ -333,8 +329,40 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
             Ok(resolved_supergraph_config)
         } else {
-            println!("A");
-            Err(ResolveSupergraphConfigError::NoSource)
+            let subgraph_url = prompt
+                .prompt_for_subgraph_url()
+                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+
+            let name = prompt
+                .prompt_for_name()
+                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+
+            let schema_source = SchemaSource::SubgraphIntrospection {
+                subgraph_url: subgraph_url.clone(),
+                introspection_headers: None,
+            };
+
+            let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
+            subgraphs.insert(
+                name,
+                SubgraphConfig {
+                    routing_url: Some(subgraph_url.to_string()),
+                    schema: schema_source,
+                },
+            );
+
+            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .subgraphs(subgraphs)
+                .federation_version_resolver(self.state.federation_version_resolver.clone())
+                .build();
+
+            let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                supergraph_config_root,
+                unresolved_supergraph_config,
+            )
+            .await
+            .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+            Ok(resolved_supergraph_config)
         }
     }
 }
