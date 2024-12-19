@@ -68,6 +68,8 @@ impl Runner<state::SetupSubgraphWatchers> {
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
     ) -> Runner<state::SetupSupergraphConfigWatcher> {
+        // TODO: add input from user for subgraph data
+        println!("howdy");
         let subgraph_watchers = SubgraphWatchers::new(
             subgraphs,
             profile,
