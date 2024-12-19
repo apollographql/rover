@@ -67,7 +67,7 @@ impl Service<()> for MakeFetchRemoteSubgraphs {
 }
 
 /// Request to fetch subgraphs from Studio
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FetchRemoteSubgraphsRequest {
     graph_ref: GraphRef,
 }

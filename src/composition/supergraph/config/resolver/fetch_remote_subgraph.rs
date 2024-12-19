@@ -87,7 +87,7 @@ pub enum FetchRemoteSubgraphError {
 }
 
 /// Request that fetches a subgraph from Studio by graph ref and name
-#[derive(Builder)]
+#[derive(Clone, Debug, Builder, PartialEq, Eq)]
 pub struct FetchRemoteSubgraphRequest {
     subgraph_name: String,
     graph_ref: GraphRef,
