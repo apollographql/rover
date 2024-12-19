@@ -7,6 +7,7 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
+use super::file::BasicFileWatcher;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
@@ -14,8 +15,6 @@ use crate::{
     },
     subtask::SubtaskHandleUnit,
 };
-
-use super::file::BasicFileWatcher;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
@@ -126,27 +125,32 @@ impl SupergraphConfigDiff {
         old: &SupergraphConfig,
         new: SupergraphConfig,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
-        let old_subgraph_names: HashSet<String> = old
+        let old_subgraph_names_and_urls: HashSet<(String, Option<String>)> = old
             .clone()
             .into_iter()
-            .map(|(name, _config)| name)
+            .map(|(name, config)| (name, config.routing_url))
             .collect();
 
-        let new_subgraph_names: HashSet<String> = new
+        let new_subgraph_names_and_urls: HashSet<(String, Option<String>)> = new
             .clone()
             .into_iter()
-            .map(|(name, _config)| name)
+            .map(|(name, config)| (name, config.routing_url))
             .collect();
 
         // Collect the subgraph definitions from the new supergraph config.
         let new_subgraphs: BTreeMap<String, SubgraphConfig> = new.clone().into_iter().collect();
 
         // Compare the old and new subgraph names to find additions.
-        let added_names: HashSet<String> =
-            HashSet::from_iter(new_subgraph_names.difference(&old_subgraph_names).cloned());
+        let added_names: HashSet<String> = new_subgraph_names_and_urls
+            .difference(&old_subgraph_names_and_urls)
+            .map(|(a, _)| a.clone())
+            .collect();
 
         // Compare the old and new subgraph names to find removals.
-        let removed_names = old_subgraph_names.difference(&new_subgraph_names);
+        let removed_names: HashSet<String> = old_subgraph_names_and_urls
+            .difference(&new_subgraph_names_and_urls)
+            .map(|(a, _)| a.clone())
+            .collect();
 
         // Filter the added and removed subgraphs from the new supergraph config.
         let added = new_subgraphs
@@ -154,7 +158,7 @@ impl SupergraphConfigDiff {
             .into_iter()
             .filter(|(name, _)| added_names.contains(name))
             .collect::<Vec<_>>();
-        let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
+        let removed = removed_names.into_iter().collect::<Vec<_>>();
 
         // Find any in-place changes (eg, SDL, SchemaSource::Subgraph)
         let changed = old
@@ -183,10 +187,10 @@ impl SupergraphConfigDiff {
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
     use std::collections::BTreeMap;
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+    use rstest::rstest;
 
     use super::SupergraphConfigDiff;
 
