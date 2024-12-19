@@ -5,13 +5,18 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream, StreamExt, TryFutureExt};
 use itertools::Itertools;
+use tower::MakeService;
 
 use crate::{
     composition::supergraph::config::{
-        error::ResolveSubgraphError, resolver::ResolveSupergraphConfigError,
+        error::ResolveSubgraphError,
+        resolver::{
+            fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+            ResolveSupergraphConfigError,
+        },
         unresolved::UnresolvedSupergraphConfig,
     },
-    utils::effect::{fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph},
+    utils::effect::introspect::IntrospectSubgraph,
 };
 
 use super::FullyResolvedSubgraph;
@@ -40,14 +45,21 @@ impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
 impl FullyResolvedSupergraphConfig {
     /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
     /// by resolving the individual subgraphs concurrently and calculating the [`FederationVersion`]
-    pub async fn resolve(
+    pub async fn resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
+    where
+        MakeFetchSubgraph:
+            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
         let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
-            |(name, unresolved_subgraph)| {
+            move |(name, unresolved_subgraph)| {
+                let fetch_remote_subgraph_impl = fetch_remote_subgraph_impl.clone();
                 FullyResolvedSubgraph::resolve(
                     introspect_subgraph_impl,
                     fetch_remote_subgraph_impl,

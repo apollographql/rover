@@ -26,23 +26,18 @@ use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
+use tower::{MakeService, Service, ServiceExt};
 use url::{Host, Url};
 
 use crate::{
     cli::Rover,
     composition::types::SubgraphUrl,
     utils::{
-        effect::{
-            fetch_remote_subgraph::FetchRemoteSubgraph,
-            fetch_remote_subgraphs::FetchRemoteSubgraphs, introspect::IntrospectSubgraph,
-            read_stdin::ReadStdin,
-        },
+        effect::{introspect::IntrospectSubgraph, read_stdin::ReadStdin},
         parsers::FileDescriptorType,
     },
     RoverError,
 };
-
-use self::state::ResolveSubgraphs;
 
 use super::{
     error::ResolveSubgraphError,
@@ -55,6 +50,14 @@ use super::{
     unresolved::UnresolvedSupergraphConfig,
 };
 
+use self::{
+    fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
+    state::ResolveSubgraphs,
+};
+
+pub mod fetch_remote_subgraph;
+pub mod fetch_remote_subgraphs;
 mod state;
 
 /// This is a state-based resolver for the different stages of resolving a supergraph config
@@ -98,15 +101,29 @@ pub enum LoadRemoteSubgraphsError {
 impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     /// Optionally loads subgraphs from the Studio API using the contents of the `--graph-ref` flag
     /// and an implementation of [`FetchRemoteSubgraphs`]
-    pub async fn load_remote_subgraphs(
+    pub async fn load_remote_subgraphs<S>(
         self,
-        fetch_remote_subgraphs_impl: &impl FetchRemoteSubgraphs,
+        mut fetch_remote_subgraphs_factory: S,
         graph_ref: Option<&GraphRef>,
     ) -> Result<SupergraphConfigResolver<state::LoadSupergraphConfig>, LoadRemoteSubgraphsError>
+    where
+        S: MakeService<
+            (),
+            FetchRemoteSubgraphsRequest,
+            Response = BTreeMap<String, SubgraphConfig>,
+        >,
+        S::MakeError: std::error::Error + Send + Sync + 'static,
+        S::Error: std::error::Error + Send + Sync + 'static,
     {
         if let Some(graph_ref) = graph_ref {
-            let remote_subgraphs = fetch_remote_subgraphs_impl
-                .fetch_remote_subgraphs(graph_ref)
+            let remote_subgraphs = fetch_remote_subgraphs_factory
+                .make_service(())
+                .await
+                .map_err(|err| LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)))?
+                .ready()
+                .await
+                .map_err(|err| LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)))?
+                .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
@@ -223,13 +240,19 @@ pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<ResolveS
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
-    pub async fn fully_resolve_subgraphs(
+    pub async fn fully_resolve_subgraphs<MakeFetchSubgraph>(
         &self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
         prompter: &impl Prompt,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
+    where
+        MakeFetchSubgraph:
+            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
@@ -244,7 +267,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
-            let subgraph_url_from_prompt = prompter
+            let subgraph_url = prompter
                 .prompt_for_subgraph_url()
                 .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
@@ -253,7 +276,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
 
             let schema_source = SchemaSource::SubgraphIntrospection {
-                subgraph_url: subgraph_url_from_prompt.clone(),
+                subgraph_url: subgraph_url.clone(),
                 introspection_headers: None,
             };
 
@@ -261,7 +284,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             subgraphs.insert(
                 name,
                 SubgraphConfig {
-                    routing_url: Some(subgraph_url_from_prompt.to_string()),
+                    routing_url: Some(subgraph_url.to_string()),
                     schema: schema_source,
                 },
             );
@@ -270,6 +293,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .subgraphs(subgraphs)
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
+
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
                 introspect_subgraph_impl,
                 fetch_remote_subgraph_impl,
@@ -317,6 +341,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
 
 /// A trait for prompting the user for input, primarily for subgraph URL and name. Exists for ease
 /// of testing
+#[cfg_attr(test, mockall::automock)]
 pub trait Prompt {
     /// Prompts user for the subgraph name
     fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError>;
@@ -386,61 +411,6 @@ fn maybe_name_from_dir() -> Option<String> {
         .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_lowercase()))
 }
 
-// TODO: tests! ported from subgraphopts, but no tests there
-fn normalize_loopback_urls(url: &SubgraphUrl) -> Vec<SubgraphUrl> {
-    let hosts = match url.host() {
-        Some(host) => match host {
-            Host::Ipv4(ip) => {
-                if &ip.to_string() == "::" {
-                    vec![
-                        IpAddr::V4(ip).to_string(),
-                        IpAddr::V4(Ipv4Addr::LOCALHOST).to_string(),
-                    ]
-                } else {
-                    vec![IpAddr::V4(ip).to_string()]
-                }
-            }
-            Host::Ipv6(ip) => {
-                if &ip.to_string() == "::" || &ip.to_string() == "::1" {
-                    vec![
-                        IpAddr::V6(ip).to_string(),
-                        IpAddr::V6(Ipv6Addr::LOCALHOST).to_string(),
-                    ]
-                } else {
-                    vec![IpAddr::V6(ip).to_string()]
-                }
-            }
-            Host::Domain(domain) => {
-                if domain == "localhost" {
-                    vec![
-                        IpAddr::V4(Ipv4Addr::LOCALHOST).to_string(),
-                        IpAddr::V6(Ipv6Addr::LOCALHOST).to_string(),
-                        "[::]".to_string(),
-                        "0.0.0.0".to_string(),
-                    ]
-                } else {
-                    vec![domain.to_string()]
-                }
-            }
-        },
-        None => Vec::new(),
-    };
-    if hosts.is_empty() {
-        vec![url.clone()]
-    } else {
-        Vec::from_iter(
-            hosts
-                .iter()
-                .map(|host| {
-                    let mut url = url.clone();
-                    let _ = url.set_host(Some(host));
-                    url
-                })
-                .collect::<HashSet<Url>>(),
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{collections::BTreeMap, str::FromStr};
@@ -458,21 +428,23 @@ mod tests {
     use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
+    use tower::ServiceBuilder;
+    use tower_test::mock::Handle;
 
     use crate::{
         composition::supergraph::config::scenario::*,
         utils::{
-            effect::{
-                fetch_remote_subgraph::{MockFetchRemoteSubgraph, RemoteSubgraph},
-                fetch_remote_subgraphs::MockFetchRemoteSubgraphs,
-                introspect::MockIntrospectSubgraph,
-                read_stdin::MockReadStdin,
-            },
+            effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
             parsers::FileDescriptorType,
+            service::test::{FakeError, FakeMakeService},
         },
     };
 
-    use super::SupergraphConfigResolver;
+    use super::{
+        fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+        fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
+        MockPrompt, SupergraphConfigResolver,
+    };
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config, remote composition version, or version inferred from
@@ -560,15 +532,18 @@ mod tests {
             FederationVersion::ExactFedTwo(Version::from_str("2.7.1").unwrap());
         let mut subgraphs = BTreeMap::new();
 
-        let mut mock_fetch_remote_subgraphs = MockFetchRemoteSubgraphs::new();
-        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
+            );
+        let (fetch_remote_subgraph_service, fetch_remote_subgraph_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
-            &mut mock_fetch_remote_subgraphs,
-            &mut mock_fetch_remote_subgraph,
+            fetch_remote_subgraphs_handle,
+            fetch_remote_subgraph_handle,
         );
 
         setup_sdl_subgraph_scenario(sdl_subgraph_scenario.as_ref(), &mut subgraphs);
@@ -609,30 +584,39 @@ mod tests {
                 }
             });
 
+        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraphs_service.into_inner()),
+        );
+
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
+            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        // validate that the correct effect has been invoked
-        mock_fetch_remote_subgraphs.checkpoint();
+        let make_fetch_remote_subgraph_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraph_service.into_inner()),
+        );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
-                &mock_fetch_remote_subgraph,
+                make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
 
         // validate that the correct effects have been invoked
         mock_introspect_subgraph.checkpoint();
-        mock_fetch_remote_subgraph.checkpoint();
 
         // validate that the federation version is correct
         assert_that!(fully_resolved_supergraph_config.federation_version())
@@ -725,15 +709,18 @@ mod tests {
 
         let mut subgraphs = BTreeMap::new();
 
-        let mut mock_fetch_remote_subgraphs = MockFetchRemoteSubgraphs::new();
-        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
+            );
+        let (fetch_remote_subgraph_service, fetch_remote_subgraph_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
-            &mut mock_fetch_remote_subgraphs,
-            &mut mock_fetch_remote_subgraph,
+            fetch_remote_subgraphs_handle,
+            fetch_remote_subgraph_handle,
         );
 
         setup_sdl_subgraph_scenario(sdl_subgraph_scenario.as_ref(), &mut subgraphs);
@@ -774,30 +761,39 @@ mod tests {
                 }
             });
 
+        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraphs_service.into_inner()),
+        );
+
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
+            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        // validate that the correct effect has been invoked
-        mock_fetch_remote_subgraphs.checkpoint();
+        let make_fetch_remote_subgraph_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraph_service.into_inner()),
+        );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
-                &mock_fetch_remote_subgraph,
+                make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
 
         // validate that the correct effects have been invoked
         mock_introspect_subgraph.checkpoint();
-        mock_fetch_remote_subgraph.checkpoint();
 
         // validate that the federation version is correct
         assert_that!(fully_resolved_supergraph_config.federation_version())
@@ -886,15 +882,18 @@ mod tests {
     ) -> Result<()> {
         let mut subgraphs = BTreeMap::new();
 
-        let mut mock_fetch_remote_subgraphs = MockFetchRemoteSubgraphs::new();
-        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
+            );
+        let (fetch_remote_subgraph_service, fetch_remote_subgraph_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
-            &mut mock_fetch_remote_subgraphs,
-            &mut mock_fetch_remote_subgraph,
+            fetch_remote_subgraphs_handle,
+            fetch_remote_subgraph_handle,
         );
 
         setup_sdl_subgraph_scenario(sdl_subgraph_scenario.as_ref(), &mut subgraphs);
@@ -934,30 +933,36 @@ mod tests {
                 }
             });
 
+        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraphs_service.into_inner()),
+        );
+
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
+            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        // validate that the correct effect has been invoked
-        mock_fetch_remote_subgraphs.checkpoint();
+        let make_fetch_remote_subgraph_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraph_service.into_inner()),
+        );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
-                &mock_fetch_remote_subgraph,
+                make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
-
-        // validate that the correct effects have been invoked
-        mock_introspect_subgraph.checkpoint();
-        mock_fetch_remote_subgraph.checkpoint();
 
         // validate that the federation version is correct
         assert_that!(fully_resolved_supergraph_config.federation_version())
@@ -987,8 +992,11 @@ mod tests {
         fetch_remote_subgraph_from_config: bool,
         remote_subgraph_scenario: Option<&RemoteSubgraphScenario>,
         local_subgraphs: &mut BTreeMap<String, SubgraphConfig>,
-        mock_fetch_remote_subgraphs: &mut MockFetchRemoteSubgraphs,
-        mock_fetch_remote_subgraph: &mut MockFetchRemoteSubgraph,
+        mut fetch_remote_subgraphs_handle: Handle<
+            FetchRemoteSubgraphsRequest,
+            BTreeMap<String, SubgraphConfig>,
+        >,
+        mut fetch_remote_subgraph_handle: Handle<FetchRemoteSubgraphRequest, RemoteSubgraph>,
     ) {
         if let Some(remote_subgraph_scenario) = remote_subgraph_scenario {
             let schema_source = SchemaSource::Subgraph {
@@ -1002,55 +1010,57 @@ mod tests {
             // If the remote subgraph scenario exists, add a SubgraphConfig for it to the supergraph config
             if fetch_remote_subgraph_from_config {
                 local_subgraphs.insert("remote-subgraph".to_string(), subgraph_config);
-                mock_fetch_remote_subgraphs
-                    .expect_fetch_remote_subgraphs()
-                    .times(0);
+                fetch_remote_subgraphs_handle.allow(0);
             }
             // Otherwise, fetch it by --graph_ref
             else {
-                mock_fetch_remote_subgraphs
-                    .expect_fetch_remote_subgraphs()
-                    .times(1)
-                    .with(predicate::eq(remote_subgraph_scenario.graph_ref.clone()))
-                    .returning({
+                fetch_remote_subgraphs_handle.allow(1);
+                tokio::spawn({
+                    let remote_subgraph_scenario = remote_subgraph_scenario.clone();
+                    async move {
+                        let (req, send_response) =
+                            fetch_remote_subgraphs_handle.next_request().await.unwrap();
+                        assert_that!(req).is_equal_to(FetchRemoteSubgraphsRequest::new(
+                            remote_subgraph_scenario.graph_ref.clone(),
+                        ));
                         let subgraph_name = remote_subgraph_scenario.subgraph_name.to_string();
-                        move |_| {
-                            Ok(BTreeMap::from_iter([(
-                                subgraph_name.to_string(),
-                                subgraph_config.clone(),
-                            )]))
-                        }
-                    });
+                        send_response.send_response(BTreeMap::from_iter([(
+                            subgraph_name.to_string(),
+                            subgraph_config.clone(),
+                        )]));
+                    }
+                });
             }
 
             // we always fetch the SDLs from remote
-            mock_fetch_remote_subgraph
-                .expect_fetch_remote_subgraph()
-                .times(1)
-                .with(
-                    predicate::eq(remote_subgraph_scenario.graph_ref.clone()),
-                    predicate::eq(remote_subgraph_scenario.subgraph_name.clone()),
-                )
-                .returning({
+            fetch_remote_subgraph_handle.allow(1);
+            tokio::spawn({
+                let remote_subgraph_scenario = remote_subgraph_scenario.clone();
+                async move {
+                    let (req, send_response) =
+                        fetch_remote_subgraph_handle.next_request().await.unwrap();
+                    assert_that!(req).is_equal_to(
+                        FetchRemoteSubgraphRequest::builder()
+                            .graph_ref(remote_subgraph_scenario.graph_ref.clone())
+                            .subgraph_name(remote_subgraph_scenario.subgraph_name.clone())
+                            .build(),
+                    );
                     let subgraph_name = remote_subgraph_scenario.subgraph_name.to_string();
                     let routing_url = remote_subgraph_scenario.routing_url.to_string();
                     let sdl = remote_subgraph_scenario.sdl.to_string();
-                    move |_, _| {
-                        Ok(RemoteSubgraph::builder()
+                    send_response.send_response(
+                        RemoteSubgraph::builder()
                             .name(subgraph_name.to_string())
                             .routing_url(routing_url.to_string())
                             .schema(sdl.to_string())
-                            .build())
-                    }
-                });
+                            .build(),
+                    )
+                }
+            });
         } else {
             // if no remote subgraph schemas exist, don't expect them to fetched
-            mock_fetch_remote_subgraphs
-                .expect_fetch_remote_subgraphs()
-                .times(0);
-            mock_fetch_remote_subgraph
-                .expect_fetch_remote_subgraph()
-                .times(0);
+            fetch_remote_subgraphs_handle.allow(0);
+            fetch_remote_subgraph_handle.allow(0);
         }
     }
 
