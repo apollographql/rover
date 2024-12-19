@@ -9,7 +9,8 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
 use crate::{
     composition::supergraph::config::{
-        lazy::LazilyResolvedSupergraphConfig, unresolved::UnresolvedSupergraphConfig,
+        error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
+        unresolved::UnresolvedSupergraphConfig,
     },
     subtask::SubtaskHandleUnit,
 };
@@ -35,69 +36,77 @@ impl SupergraphConfigWatcher {
 }
 
 impl SubtaskHandleUnit for SupergraphConfigWatcher {
-    type Output = SupergraphConfigDiff;
+    type Output = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
+        tracing::warn!("Running SupergraphConfigWatcher");
         let supergraph_config_path = self.file_watcher.path().clone();
-        tokio::spawn({
+        tokio::spawn(
             async move {
                 let supergraph_config_path = supergraph_config_path.clone();
-            let mut latest_supergraph_config = self.supergraph_config.clone();
-            let file_watcher = self.file_watcher.clone();
-            while let Some(contents) = file_watcher.clone().watch().next().await {
-                eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
-                tracing::info!(
-                    "{} changed. Parsing it as a `SupergraphConfig`",
-                    supergraph_config_path
-                );
-                match SupergraphConfig::new_from_yaml(&contents) {
-                    Ok(supergraph_config) => {
-                        let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
-                        let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                            .origin_path(supergraph_config_path.clone())
-                            .subgraphs(subgraphs)
-                            .build();
-                        let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
-                            &supergraph_config_path.parent().unwrap().to_path_buf(),
-                            unresolved_supergraph_config,
-                        )
-                            .await.map(SupergraphConfig::from);
+                let mut latest_supergraph_config = self.supergraph_config.clone();
+                let mut stream = self.file_watcher.watch();
+                while let Some(contents) = stream.next().await {
+                    eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
+                    tracing::info!(
+                        "{} changed. Parsing it as a `SupergraphConfig`",
+                        supergraph_config_path
+                    );
+                    match SupergraphConfig::new_from_yaml(&contents) {
+                        Ok(supergraph_config) => {
+                            let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
+                            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                                .origin_path(supergraph_config_path.clone())
+                                .subgraphs(subgraphs)
+                                .build();
+                            let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                                &supergraph_config_path.parent().unwrap().to_path_buf(),
+                                unresolved_supergraph_config,
+                            ).await.map(SupergraphConfig::from);
 
-                        match supergraph_config {
-                            Ok(supergraph_config) => {
-                                let supergraph_config_diff = SupergraphConfigDiff::new(
-                                    &latest_supergraph_config,
-                                    supergraph_config.clone(),
-                                );
-                                match supergraph_config_diff {
-                                    Ok(supergraph_config_diff) =>  {
-                                        let _ = sender
-                                            .send(supergraph_config_diff)
-                                            .tap_err(|err| tracing::error!("{:?}", err));
+                            match supergraph_config {
+                                Ok(supergraph_config) => {
+                                    let supergraph_config_diff = SupergraphConfigDiff::new(
+                                        &latest_supergraph_config,
+                                        supergraph_config.clone(),
+                                    );
+                                    match supergraph_config_diff {
+                                        Ok(supergraph_config_diff) =>  {
+                                            let _ = sender
+                                                .send(Ok(supergraph_config_diff))
+                                                .tap_err(|err| tracing::error!("{:?}", err));
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
+                                        }
                                     }
-                                    Err(err) => {
-                                        tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
-                                    }
+
+                                    latest_supergraph_config = supergraph_config;
                                 }
-
-                                latest_supergraph_config = supergraph_config;
-                            }
-                            Err(err) => {
-                                errln!(
-                                    "Failed to lazily resolve the supergraph config at {}.\n{}",
-                                    self.file_watcher.path(),
-                                    itertools::join(err, "\n")
-                                );
+                                Err(err) => {
+                                    errln!(
+                                        "Failed to lazily resolve the supergraph config at {}.\n{}",
+                                        supergraph_config_path,
+                                        itertools::join(
+                                            err
+                                                .iter()
+                                                .map(
+                                                    |(name, err)| format!("{}: {}", name, err)
+                                                ),
+                                            "\n")
+                                    );
+                                    let _ = sender
+                                        .send(Err(err))
+                                        .tap_err(|err| tracing::error!("{:?}", err));
+                                }
                             }
                         }
-                    }
-                    Err(err) => {
-                        tracing::error!("could not parse supergraph config file: {:?}", err);
-                        errln!("Could not parse supergraph config file.\n{}", err);
+                        Err(err) => {
+                            tracing::error!("could not parse supergraph config file: {:?}", err);
+                            errln!("Could not parse supergraph config file.\n{}", err);
+                        }
                     }
                 }
-            }
-                      }
         })
         .abort_handle()
     }
@@ -155,12 +164,6 @@ impl SupergraphConfigDiff {
             .filter_map(|(old_name, old_subgraph)| {
                 new_subgraphs.get(&old_name).and_then(|new_subgraph| {
                     let new_subgraph = new_subgraph.clone();
-                    tracing::info!(
-                        "old:\n{:?}\nnew:\n{:?}\neq:{}",
-                        old_subgraph,
-                        new_subgraph,
-                        old_subgraph == new_subgraph
-                    );
                     if old_subgraph == new_subgraph {
                         None
                     } else {

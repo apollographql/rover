@@ -28,7 +28,7 @@ impl LazilyResolvedSupergraphConfig {
     pub async fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<LazilyResolvedSupergraphConfig, Vec<ResolveSubgraphError>> {
+    ) -> Result<LazilyResolvedSupergraphConfig, BTreeMap<String, ResolveSubgraphError>> {
         let subgraphs = stream::iter(
             unresolved_supergraph_config
                 .subgraphs()
@@ -38,16 +38,17 @@ impl LazilyResolvedSupergraphConfig {
                     let result = LazilyResolvedSubgraph::resolve(
                         supergraph_config_root,
                         unresolved_subgraph.clone(),
-                    )?;
+                    )
+                    .map_err(|err| (name.to_string(), err))?;
                     Ok((name.to_string(), result))
                 }),
         )
         .buffer_unordered(50)
-        .collect::<Vec<Result<(String, LazilyResolvedSubgraph), ResolveSubgraphError>>>()
+        .collect::<Vec<Result<(String, LazilyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
         let (subgraphs, errors): (
             Vec<(String, LazilyResolvedSubgraph)>,
-            Vec<ResolveSubgraphError>,
+            Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
         if errors.is_empty() {
             Ok(LazilyResolvedSupergraphConfig {
@@ -56,7 +57,7 @@ impl LazilyResolvedSupergraphConfig {
                 federation_version: unresolved_supergraph_config.target_federation_version(),
             })
         } else {
-            Err(errors)
+            Err(BTreeMap::from_iter(errors.into_iter()))
         }
     }
 }

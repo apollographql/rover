@@ -4886,6 +4886,7 @@ dependencies = [
  "timber",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "toml",
  "tower 0.5.1",
  "tower-test",
