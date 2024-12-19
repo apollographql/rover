@@ -23,9 +23,10 @@ impl Introspect {
         client: Client,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
+        hide_output: bool,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, output_opts, retry_period)
+            self.exec_and_watch(&client, output_opts, retry_period, hide_output)
                 .await
         } else {
             let sdl = self.exec(&client, true, retry_period).await?;
@@ -61,9 +62,14 @@ impl Introspect {
         client: &Client,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
+        hide_output: bool,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(client, false, retry_period),
+                output_opts,
+                hide_output,
+            )
             .await
     }
 }
