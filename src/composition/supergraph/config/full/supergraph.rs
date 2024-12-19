@@ -73,6 +73,7 @@ impl FullyResolvedSupergraphConfig {
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, FullyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
+        #[allow(clippy::type_complexity)]
         let (subgraphs, errors): (
             Vec<(String, FullyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,

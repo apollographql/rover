@@ -249,7 +249,7 @@ impl SubgraphHandles {
             // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
             // has for Sdls
             if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
-                self.add_oneshot_subgraph_to_session(subgraph, &subgraph_watcher, &subgraph_config)
+                self.add_oneshot_subgraph_to_session(subgraph, &subgraph_watcher, subgraph_config)
                     .await;
             } else {
                 // When we have a SchemaSource that's watchable, we start a new subtask

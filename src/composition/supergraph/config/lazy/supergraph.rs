@@ -46,6 +46,7 @@ impl LazilyResolvedSupergraphConfig {
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, LazilyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
+        #[allow(clippy::type_complexity)]
         let (subgraphs, errors): (
             Vec<(String, LazilyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,
