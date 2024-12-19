@@ -67,14 +67,16 @@ impl FullyResolvedSupergraphConfig {
                     unresolved_subgraph.clone(),
                 )
                 .map_ok(|result| (name.to_string(), result))
+                .map_err(|err| (name.to_string(), err))
             },
         ))
         .buffer_unordered(50)
-        .collect::<Vec<Result<(String, FullyResolvedSubgraph), ResolveSubgraphError>>>()
+        .collect::<Vec<Result<(String, FullyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
+        #[allow(clippy::type_complexity)]
         let (subgraphs, errors): (
             Vec<(String, FullyResolvedSubgraph)>,
-            Vec<ResolveSubgraphError>,
+            Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
         if errors.is_empty() {
             let subgraphs = BTreeMap::from_iter(subgraphs);
@@ -89,7 +91,9 @@ impl FullyResolvedSupergraphConfig {
                 federation_version,
             })
         } else {
-            Err(ResolveSupergraphConfigError::ResolveSubgraphs(errors))
+            Err(ResolveSupergraphConfigError::ResolveSubgraphs(
+                BTreeMap::from_iter(errors.into_iter()),
+            ))
         }
     }
 

@@ -43,7 +43,7 @@ impl NonRepeatingFetch {
 /// The kind of watcher attached to the subgraph. This may be either file watching, when we're
 /// paying attention to a particular subgraph's SDL file, or introspection, when we get the SDL by
 /// polling an endpoint that has introspection enabled
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum SubgraphWatcherKind {
     /// Watch a file on disk.
     File(FileWatcher),
@@ -105,7 +105,10 @@ impl SubgraphWatcherKind {
     /// more flexible to get type safety.
     fn watch(&self) -> Option<BoxStream<String>> {
         match self {
-            Self::File(file_watcher) => Some(file_watcher.clone().watch()),
+            Self::File(file_watcher) => {
+                tracing::warn!("Watching subgraph file {:?}", file_watcher.path());
+                Some(file_watcher.watch())
+            }
             Self::Introspect(introspection) => Some(introspection.watch()),
             kind => {
                 tracing::debug!("{kind:?} is not watchable. Skipping");

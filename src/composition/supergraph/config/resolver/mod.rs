@@ -215,10 +215,16 @@ pub enum ResolveSupergraphConfigError {
     /// Occurs when the caller neither loads a remote supergraph config nor a local one
     #[error("No source found for supergraph config")]
     NoSource,
+    /// Occurs when supergraph resolution is attempted without a supergraph root
+    #[error("Unable to resolve supergraph config. Suprgraph config oot is missing")]
+    MissingSupergraphConfigRoot,
     /// Occurs when the underlying resolver strategy can't resolve one or more
     /// of the subgraphs described in the supergraph config
-    #[error("Unable to resolve subgraphs.\n{}", ::itertools::join(.0, "\n"))]
-    ResolveSubgraphs(Vec<ResolveSubgraphError>),
+    #[error(
+        "Unable to resolve subgraphs.\n{}",
+        ::itertools::join(.0.iter().map(|(n, e)| format!("{}: {}", n, e)), "\n")
+    )]
+    ResolveSubgraphs(BTreeMap<String, ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the
     /// subgraphs use the `@link` directive, which requires Federation 2
     #[error(transparent)]
@@ -309,11 +315,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         supergraph_config_root: Option<&Utf8PathBuf>,
         prompt: &impl Prompt,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        let supergraph_config_root = supergraph_config_root.ok_or_else(|| {
-            ResolveSupergraphConfigError::ResolveSubgraphs(vec![
-                ResolveSubgraphError::SupergraphConfigMissing,
-            ])
-        })?;
+        let supergraph_config_root = supergraph_config_root
+            .ok_or_else(|| ResolveSupergraphConfigError::MissingSupergraphConfigRoot)?;
 
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()

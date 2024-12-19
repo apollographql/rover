@@ -219,6 +219,7 @@ termimad = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "sync"] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
