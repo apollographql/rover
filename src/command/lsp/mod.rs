@@ -6,7 +6,7 @@ use std::io::stdin;
 
 use anyhow::Error;
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_language_server::{ApolloLanguageServer, Config};
+use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use futures::StreamExt;
@@ -95,6 +95,10 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                     enable_auto_composition: false,
                     force_federation: false,
                     disable_telemetry: false,
+                    max_spec_versions: MaxSpecVersions {
+                        connect: None,
+                        federation: None,
+                    },
                 },
                 HashMap::new(),
             );
@@ -118,6 +122,10 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                     enable_auto_composition: false,
                     force_federation: false,
                     disable_telemetry: false,
+                    max_spec_versions: MaxSpecVersions {
+                        connect: None,
+                        federation: None,
+                    },
                 },
                 HashMap::from_iter(
                     lazily_resolved_supergraph_config
