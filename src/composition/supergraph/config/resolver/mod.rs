@@ -12,16 +12,21 @@
 //!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!         by [`SupergraphConfig`]
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, io::IsTerminal};
 
+use anyhow::Context;
 use apollo_federation_types::config::{
-    ConfigError, FederationVersion, SubgraphConfig, SupergraphConfig,
+    ConfigError, FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
+use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
+use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
+use url::Url;
 
 use crate::{
+    cli::Rover,
     utils::{
         effect::{introspect::IntrospectSubgraph, read_stdin::ReadStdin},
         parsers::FileDescriptorType,
@@ -241,6 +246,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
+        prompt: &impl Prompt,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
     where
         MakeFetchSubgraph:
@@ -262,7 +268,46 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
-            Err(ResolveSupergraphConfigError::NoSource)
+            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
+
+            let name = prompt.prompt_for_name().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
+
+            let schema_source = SchemaSource::SubgraphIntrospection {
+                subgraph_url: subgraph_url.clone(),
+                introspection_headers: None,
+            };
+
+            let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
+            subgraphs.insert(
+                name,
+                SubgraphConfig {
+                    routing_url: Some(subgraph_url.to_string()),
+                    schema: schema_source,
+                },
+            );
+
+            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .subgraphs(subgraphs)
+                .federation_version_resolver(self.state.federation_version_resolver.clone())
+                .build();
+
+            let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
+                introspect_subgraph_impl,
+                fetch_remote_subgraph_impl,
+                supergraph_config_root,
+                unresolved_supergraph_config,
+            )
+            .await?;
+
+            Ok(resolved_supergraph_config)
         }
     }
 
@@ -272,6 +317,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         &self,
         supergraph_config_root: Option<&Utf8PathBuf>,
+        prompt: &impl Prompt,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         let supergraph_config_root = supergraph_config_root
             .ok_or_else(|| ResolveSupergraphConfigError::MissingSupergraphConfigRoot)?;
@@ -290,9 +336,118 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
             Ok(resolved_supergraph_config)
         } else {
-            Err(ResolveSupergraphConfigError::NoSource)
+            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
+
+            let name = prompt.prompt_for_name().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
+
+            let schema_source = SchemaSource::SubgraphIntrospection {
+                subgraph_url: subgraph_url.clone(),
+                introspection_headers: None,
+            };
+
+            let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
+            subgraphs.insert(
+                name,
+                SubgraphConfig {
+                    routing_url: Some(subgraph_url.to_string()),
+                    schema: schema_source,
+                },
+            );
+
+            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .subgraphs(subgraphs)
+                .federation_version_resolver(self.state.federation_version_resolver.clone())
+                .build();
+
+            let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                supergraph_config_root,
+                unresolved_supergraph_config,
+            )
+            .await
+            .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+            Ok(resolved_supergraph_config)
         }
     }
+}
+
+/// A trait for prompting the user for input, primarily for subgraph URL and name. Exists for ease
+/// of testing
+#[cfg_attr(test, mockall::automock)]
+pub trait Prompt {
+    /// Prompts user for the subgraph name
+    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError>;
+    /// Prompts user for the subgraph url
+    fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError>;
+}
+
+/// Prompts for subgraph URL and name. Implements [Prompt] for ease of testing
+#[derive(Default)]
+pub struct SubgraphPrompt {}
+
+impl Prompt for SubgraphPrompt {
+    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError> {
+        if std::io::stderr().is_terminal() {
+            let mut input = Input::new().with_prompt("what is the name of this subgraph?");
+            if let Some(dirname) = maybe_name_from_dir() {
+                input = input.default(dirname);
+            }
+            let name: String =
+                input
+                    .interact_text()
+                    .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                        input: err.to_string(),
+                    })?;
+
+            Ok(name)
+        } else {
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "--name <SUBGRAPH_NAME> is required when not attached to a TTY",
+            )
+            .exit();
+        }
+    }
+
+    fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError> {
+        let url_context = |input| format!("'{}' is not a valid subgraph URL.", &input);
+        if std::io::stderr().is_terminal() {
+            let input: String = Input::new()
+                .with_prompt("what URL is your subgraph running on?")
+                .interact_text()
+                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                    input: err.to_string(),
+                })?;
+
+            Ok(input
+                .parse()
+                .with_context(|| url_context(&input))
+                .map_err(|err| ResolveSubgraphError::InvalidCliInput {
+                    input: err.to_string(),
+                })?)
+        } else {
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "--url <SUBGRAPH_URL> is required when not attached to a TTY",
+            )
+            .exit();
+        }
+    }
+}
+
+fn maybe_name_from_dir() -> Option<String> {
+    std::env::current_dir()
+        .ok()
+        .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_lowercase()))
 }
 
 #[cfg(test)]
@@ -327,7 +482,7 @@ mod tests {
     use super::{
         fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
         fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-        SupergraphConfigResolver,
+        MockPrompt, SupergraphConfigResolver,
     };
 
     /// Test showing that federation version is selected from the user-specified fed version
@@ -495,6 +650,7 @@ mod tests {
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
 
@@ -671,6 +827,7 @@ mod tests {
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
 
@@ -842,6 +999,7 @@ mod tests {
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
                 Some(&local_supergraph_config_path),
+                &MockPrompt::default(),
             )
             .await?;
 

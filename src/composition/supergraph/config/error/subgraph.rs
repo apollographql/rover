@@ -51,4 +51,10 @@ pub enum ResolveSubgraphError {
     /// Occurs when a supergraph config filepath waqs expected but not found
     #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
     SupergraphConfigMissing,
+    /// Invalid input from the user in response to prompting
+    #[error("Invalid input: {input}")]
+    InvalidCliInput {
+        /// The invalid input from the user
+        input: String,
+    },
 }

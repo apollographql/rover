@@ -26,7 +26,7 @@ use super::{
             fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
             fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
             LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-            SupergraphConfigResolver,
+            SubgraphPrompt, SupergraphConfigResolver,
         },
         install::{InstallSupergraph, InstallSupergraphError},
     },
@@ -131,6 +131,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 introspect_subgraph_impl,
                 fetch_remote_subgraph_impl,
                 self.state.supergraph_root.as_ref(),
+                &SubgraphPrompt::default(),
             )
             .await?;
         let federation_version = federation_version.unwrap_or_else(|| {
@@ -232,7 +233,10 @@ impl CompositionPipeline<state::Run> {
         let lazily_resolved_supergraph_config = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(self.state.supergraph_root.as_ref())
+            .lazily_resolve_subgraphs(
+                self.state.supergraph_root.as_ref(),
+                &SubgraphPrompt::default(),
+            )
             .await?;
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
         let runner = Runner::default()
