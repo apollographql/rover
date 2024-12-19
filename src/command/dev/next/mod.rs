@@ -12,7 +12,13 @@ use rover_client::operations::config::who_am_i::WhoAmI;
 
 use crate::{
     command::Dev,
-    composition::pipeline::CompositionPipeline,
+    composition::{
+        pipeline::CompositionPipeline,
+        supergraph::config::resolver::{
+            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+        },
+    },
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -24,10 +30,7 @@ use crate::{
     RoverError, RoverOutput, RoverResult,
 };
 
-use self::router::{
-    binary::RouterLog,
-    config::{RouterAddress, RunRouterConfig},
-};
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -66,17 +69,26 @@ impl Dev {
         let service = client_config.get_authenticated_client(profile)?.service()?;
         let service = WhoAmI::new(service);
 
+        let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+            .studio_client_config(client_config.clone())
+            .profile(profile.clone())
+            .build();
+        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+            .studio_client_config(client_config.clone())
+            .profile(profile.clone())
+            .build();
+
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
-                &client_config.get_authenticated_client(profile)?,
+                make_fetch_remote_subgraphs,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
             )
             .await?
             .resolve_federation_version(
                 &client_config,
-                &client_config.get_authenticated_client(profile)?,
+                make_fetch_remote_subgraph,
                 self.opts.supergraph_opts.federation_version.clone(),
             )
             .await?

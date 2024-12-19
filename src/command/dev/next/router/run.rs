@@ -374,10 +374,15 @@ mod state {
     }
     pub struct Abort {
         pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
+        #[allow(unused)]
         pub hot_reload_events: UnboundedReceiverStream<HotReloadEvent>,
+        #[allow(unused)]
         pub abort_router: AbortHandle,
+        #[allow(unused)]
         pub abort_config_watcher: Option<AbortHandle>,
+        #[allow(unused)]
         pub abort_hot_reload: AbortHandle,
+        #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
     }
 }

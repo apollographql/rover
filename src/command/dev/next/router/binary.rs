@@ -91,6 +91,7 @@ pub enum RunRouterBinaryError {
 #[cfg_attr(test, derive(derive_getters::Getters))]
 pub struct RouterBinary {
     exe: Utf8PathBuf,
+    #[allow(unused)]
     version: Version,
 }
 

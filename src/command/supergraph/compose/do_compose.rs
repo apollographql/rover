@@ -57,7 +57,6 @@ use crate::{
         client::StudioClientConfig,
         effect::{
             exec::TokioCommand,
-            fetch_remote_subgraph::RemoteSubgraph,
             install::InstallBinary,
             read_file::FsReadFile,
             write_file::{FsWriteFile, WriteFile},
@@ -163,7 +162,13 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        use crate::composition::pipeline::CompositionPipeline;
+        use crate::composition::{
+            pipeline::CompositionPipeline,
+            supergraph::config::resolver::{
+                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            },
+        };
 
         let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
@@ -178,17 +183,27 @@ impl Compose {
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_config_source.graph_ref.clone();
 
+        let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+            .studio_client_config(client_config.clone())
+            .profile(profile.clone())
+            .build();
+
+        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+            .studio_client_config(client_config.clone())
+            .profile(profile.clone())
+            .build();
+
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
-                &client_config.get_authenticated_client(&profile)?,
+                make_fetch_remote_subgraphs,
                 supergraph_yaml,
                 graph_ref.clone(),
             )
             .await?
             .resolve_federation_version(
                 &client_config,
-                &client_config.get_authenticated_client(&profile)?,
+                make_fetch_remote_subgraph,
                 self.opts.federation_version.clone(),
             )
             .await?

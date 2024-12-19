@@ -14,8 +14,8 @@ pub enum RouterUpdateEvent {
 
 #[derive(Debug)]
 pub enum HotReloadEvent {
-    ConfigWritten(Result<(), Box<dyn std::error::Error + Send>>),
-    SchemaWritten(Result<(), Box<dyn std::error::Error + Send>>),
+    ConfigWritten(#[allow(unused)] Result<(), Box<dyn std::error::Error + Send>>),
+    SchemaWritten(#[allow(unused)] Result<(), Box<dyn std::error::Error + Send>>),
 }
 
 #[derive(Builder)]

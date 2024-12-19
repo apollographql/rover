@@ -7,12 +7,15 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use rover_std::Fs;
+use tower::{MakeService, Service, ServiceExt};
 
 use crate::{
     composition::supergraph::config::{
-        error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
+        error::ResolveSubgraphError,
+        resolver::fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+        unresolved::UnresolvedSubgraph,
     },
-    utils::effect::{fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph},
+    utils::effect::introspect::IntrospectSubgraph,
 };
 
 /// Represents a [`SubgraphConfig`] that has been resolved down to an SDL
@@ -37,12 +40,17 @@ impl FullyResolvedSubgraph {
         }
     }
     /// Resolves a [`UnresolvedSubgraph`] to a [`FullyResolvedSubgraph`]
-    pub async fn resolve(
+    pub async fn resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
+        mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_subgraph: UnresolvedSubgraph,
-    ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
+    ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
+    where
+        MakeFetchSubgraph: MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph>,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
         match unresolved_subgraph.schema() {
             SchemaSource::File { file } => {
                 let supergraph_config_root =
@@ -72,9 +80,9 @@ impl FullyResolvedSubgraph {
                 let routing_url = unresolved_subgraph
                     .routing_url()
                     .clone()
-                    .or_else(|| Some(subgraph_url.to_string()));
+                    .unwrap_or_else(|| subgraph_url.to_string());
                 Ok(FullyResolvedSubgraph::builder()
-                    .and_routing_url(routing_url)
+                    .routing_url(routing_url)
                     .schema(schema)
                     .build())
             }
@@ -89,7 +97,24 @@ impl FullyResolvedSubgraph {
                     }
                 })?;
                 let remote_subgraph = fetch_remote_subgraph_impl
-                    .fetch_remote_subgraph(graph_ref, subgraph.to_string())
+                    .make_service(())
+                    .await
+                    .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
+                        subgraph_name: subgraph.to_string(),
+                        source: Box::new(err),
+                    })?
+                    .ready()
+                    .await
+                    .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
+                        subgraph_name: subgraph.to_string(),
+                        source: Box::new(err),
+                    })?
+                    .call(
+                        FetchRemoteSubgraphRequest::builder()
+                            .graph_ref(graph_ref)
+                            .subgraph_name(subgraph.to_string())
+                            .build(),
+                    )
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                         subgraph_name: subgraph.to_string(),
