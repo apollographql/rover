@@ -268,13 +268,17 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
-            let subgraph_url = prompt
-                .prompt_for_subgraph_url()
-                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
 
-            let name = prompt
-                .prompt_for_name()
-                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+            let name = prompt.prompt_for_name().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
 
             let schema_source = SchemaSource::SubgraphIntrospection {
                 subgraph_url: subgraph_url.clone(),
@@ -332,13 +336,17 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
             Ok(resolved_supergraph_config)
         } else {
-            let subgraph_url = prompt
-                .prompt_for_subgraph_url()
-                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
 
-            let name = prompt
-                .prompt_for_name()
-                .map_err(|err| ResolveSupergraphConfigError::ResolveSubgraphs(vec![err]))?;
+            let name = prompt.prompt_for_name().map_err(|err| {
+                let mut map = BTreeMap::new();
+                map.insert("NAME UNKNOWN".to_string(), err);
+                ResolveSupergraphConfigError::ResolveSubgraphs(map)
+            })?;
 
             let schema_source = SchemaSource::SubgraphIntrospection {
                 subgraph_url: subgraph_url.clone(),
