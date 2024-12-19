@@ -1,6 +1,4 @@
 pub mod exec;
-pub mod fetch_remote_subgraph;
-pub mod fetch_remote_subgraphs;
 pub mod install;
 pub mod introspect;
 pub mod read_file;
