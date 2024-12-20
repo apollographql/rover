@@ -3,7 +3,6 @@
 use std::io::stdin;
 
 use anyhow::anyhow;
-use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
@@ -96,11 +95,7 @@ impl Dev {
             .resolve_federation_version(
                 &client_config,
                 make_fetch_remote_subgraph,
-                self.opts
-                    .supergraph_opts
-                    .federation_version
-                    .clone()
-                    .or(Some(LatestFedTwo)),
+                self.opts.supergraph_opts.federation_version.clone(),
             )
             .await?
             .install_supergraph_binary(
@@ -155,7 +150,7 @@ impl Dev {
             .await?
             .load_remote_config(service, graph_ref.clone(), Some(credential))
             .await;
-        let router_address = run_router.state.config.address().clone();
+        let router_address = *run_router.state.config.address();
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
