@@ -89,17 +89,26 @@ impl CompositionPipeline<state::Init> {
                 .map(|file| FileDescriptorType::File(Utf8PathBuf::from_path_buf(file).unwrap())),
             FileDescriptorType::Stdin => Some(FileDescriptorType::Stdin),
         });
-        let supergraph_root = supergraph_yaml.clone().and_then(|file| match file {
-            FileDescriptorType::File(file) => {
-                let mut current_dir = current_dir().expect("Unable to get current directory path");
+        let supergraph_root = supergraph_yaml
+            .clone()
+            .and_then(|file| match file {
+                FileDescriptorType::File(file) => {
+                    let mut current_dir =
+                        current_dir().expect("Unable to get current directory path");
 
-                current_dir.push(file);
-                let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
-                let parent = path.parent().unwrap().to_path_buf();
-                Some(parent)
-            }
-            FileDescriptorType::Stdin => None,
-        });
+                    current_dir.push(file);
+                    let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
+                    let parent = path.parent().unwrap().to_path_buf();
+                    Some(parent)
+                }
+                FileDescriptorType::Stdin => None,
+            })
+            .unwrap_or_else(|| {
+                Utf8PathBuf::from_path_buf(
+                    current_dir().expect("Unable to get current directory path"),
+                )
+                .unwrap()
+            });
         eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
@@ -134,7 +143,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             .fully_resolve_subgraphs(
                 introspect_subgraph_impl,
                 fetch_remote_subgraph_impl,
-                self.state.supergraph_root.as_ref(),
+                &self.state.supergraph_root,
                 &SubgraphPrompt::default(),
             )
             .await?;
@@ -253,10 +262,7 @@ impl CompositionPipeline<state::Run> {
         let lazily_resolved_supergraph_config = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(
-                self.state.supergraph_root.as_ref(),
-                &SubgraphPrompt::default(),
-            )
+            .lazily_resolve_subgraphs(&self.state.supergraph_root, &SubgraphPrompt::default())
             .await?;
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
         let runner = Runner::default()
@@ -293,17 +299,17 @@ mod state {
     pub struct Init;
     pub struct ResolveFederationVersion {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
     }
     pub struct InstallSupergraph {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
         pub fully_resolved_supergraph_config: FullyResolvedSupergraphConfig,
         pub federation_version: FederationVersion,
     }
     pub struct Run {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
         pub fully_resolved_supergraph_config: FullyResolvedSupergraphConfig,
         pub supergraph_binary: SupergraphBinary,
     }
