@@ -4,11 +4,12 @@ use std::collections::HashMap;
 use std::env::temp_dir;
 use std::io::stdin;
 
-use anyhow::Error;
+use apollo_federation_types::config::FederationVersion;
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
+use futures::stream::BoxStream;
 use futures::StreamExt;
 use serde::Serialize;
 use tower_lsp::lsp_types::{Diagnostic, Range};
@@ -197,44 +198,24 @@ async fn start_composition(
 
     // Spawn a separate thread to handle composition and passing that data to the language server
     tokio::spawn(async move {
-        // TODO: Let the supergraph binary exist inside its own task that can respond to being re-installed etc.
-        let supergraph_binary =
-            InstallSupergraph::new(federation_version.clone(), client_config.clone())
-                .install(
-                    None,
-                    lsp_opts.plugin_opts.elv2_license_accepter,
-                    lsp_opts.plugin_opts.skip_update,
-                )
-                .await?;
-
-        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
-            .studio_client_config(client_config.clone())
-            .profile(lsp_opts.plugin_opts.profile.clone())
-            .build();
-
-        // Spin up Runner
-        let mut stream = Runner::default()
-            .setup_subgraph_watchers(
-                lazily_resolved_supergraph_config.subgraphs().clone(),
-                &lsp_opts.plugin_opts.profile,
-                &client_config,
-                500,
-            )
-            .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
-            .setup_composition_watcher(
-                lazily_resolved_supergraph_config
-                    .fully_resolve(&client_config, make_fetch_remote_subgraph)
-                    .await
-                    .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
-                supergraph_binary,
-                TokioCommand::default(),
-                FsReadFile::default(),
-                FsWriteFile::default(),
-                Utf8PathBuf::try_from(temp_dir())?,
-                true,
-                OutputTarget::InMemory,
-            )
-            .run();
+        let mut stream = match create_composition_stream(
+            lazily_resolved_supergraph_config,
+            client_config,
+            lsp_opts,
+            federation_version,
+        )
+        .await
+        {
+            Ok(stream) => stream,
+            Err(e) => {
+                let message = format!("Could not initialise composition process: {e}");
+                let diagnostic = Diagnostic::new_simple(Range::default(), message);
+                language_server
+                    .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
+                    .await;
+                return Err(e);
+            }
+        };
 
         while let Some(event) = stream.next().await {
             match event {
@@ -263,7 +244,10 @@ async fn start_composition(
                         )
                         .await;
                 }
-                CompositionEvent::Error(CompositionError::Build { source: errors }) => {
+                CompositionEvent::Error(CompositionError::Build {
+                    source: errors,
+                    federation_version,
+                }) => {
                     debug!(
                         ?errors,
                         "Composition {federation_version} completed with errors"
@@ -281,8 +265,8 @@ async fn start_composition(
                         .await
                 }
                 CompositionEvent::Error(err) => {
-                    debug!("Composition {federation_version} failed: {err}");
-                    let message = format!("Failed run composition {federation_version}: {err}",);
+                    debug!("Composition failed: {err}");
+                    let message = format!("Failed run composition: {err}",);
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
@@ -301,7 +285,54 @@ async fn start_composition(
                 }
             }
         }
-        Ok::<(), Error>(())
+        Ok::<(), StartCompositionError>(())
     });
     Ok(())
+}
+
+async fn create_composition_stream(
+    lazily_resolved_supergraph_config: LazilyResolvedSupergraphConfig,
+    client_config: StudioClientConfig,
+    lsp_opts: LspOpts,
+    federation_version: FederationVersion,
+) -> Result<BoxStream<'static, CompositionEvent>, StartCompositionError> {
+    // TODO: Let the supergraph binary exist inside its own task that can respond to being re-installed etc.
+    let supergraph_binary =
+        InstallSupergraph::new(federation_version.clone(), client_config.clone())
+            .install(
+                None,
+                lsp_opts.plugin_opts.elv2_license_accepter,
+                lsp_opts.plugin_opts.skip_update,
+            )
+            .await?;
+
+    let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+        .studio_client_config(client_config.clone())
+        .profile(lsp_opts.plugin_opts.profile.clone())
+        .build();
+
+    // Spin up Runner
+    let stream = Runner::default()
+        .setup_subgraph_watchers(
+            lazily_resolved_supergraph_config.subgraphs().clone(),
+            &lsp_opts.plugin_opts.profile,
+            &client_config,
+            500,
+        )
+        .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
+        .setup_composition_watcher(
+            lazily_resolved_supergraph_config
+                .fully_resolve(&client_config, make_fetch_remote_subgraph)
+                .await
+                .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
+            supergraph_binary,
+            TokioCommand::default(),
+            FsReadFile::default(),
+            FsWriteFile::default(),
+            Utf8PathBuf::try_from(temp_dir())?,
+            true,
+            OutputTarget::InMemory,
+        )
+        .run();
+    Ok(stream)
 }

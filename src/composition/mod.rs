@@ -57,7 +57,10 @@ pub enum CompositionError {
         error: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    Build { source: BuildErrors },
+    Build {
+        source: BuildErrors,
+        federation_version: FederationVersion,
+    },
     #[error("Serialization error.\n{}", .0)]
     SerdeYaml(#[from] serde_yaml::Error),
 }

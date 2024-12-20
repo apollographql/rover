@@ -1,5 +1,7 @@
-use camino::Utf8PathBuf;
+use camino::{FromPathBufError, Utf8PathBuf};
 
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::CompositionError;
 
 #[derive(thiserror::Error, Debug)]
@@ -8,4 +10,10 @@ pub enum StartCompositionError {
     SupergraphYamlUrlConversionFailed(Utf8PathBuf),
     #[error("Could not run initial composition")]
     InitialCompositionFailed(#[from] CompositionError),
+    #[error("Could not install supergraph plugin")]
+    InstallSupergraphPluginFailed(#[from] InstallSupergraphError),
+    #[error("Could not resolve Supergraph Config")]
+    ResolvingSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
+    #[error("Could not establish temporary directory")]
+    TemporaryDirectoryCouldNotBeEstablished(#[from] FromPathBufError),
 }
