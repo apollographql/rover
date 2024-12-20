@@ -348,7 +348,7 @@ impl RoverOutput {
                 let readme = Style::Path.paint("README.md");
                 let forum_call_to_action = Style::CallToAction.paint(
                     "Have a question or suggestion about templates? Let us know at \
-                    https://discord.gg/graphos",
+                    https://community.apollographql.com/",
                 );
                 Some(format!("Successfully created a new project from the '{}' template in {}\n Read the generated '{}' file for next steps.\n{}",
                 template_id,
