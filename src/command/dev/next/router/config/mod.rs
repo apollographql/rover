@@ -191,6 +191,10 @@ impl RunRouterConfig<RunRouterConfigFinal> {
         &self.state.health_check_endpoint
     }
 
+    pub fn raw_config(&self) -> String {
+        self.state.raw_config.clone()
+    }
+
     #[allow(unused)]
     pub fn router_config(&self) -> RouterConfig {
         RouterConfig(self.state.raw_config.to_string())

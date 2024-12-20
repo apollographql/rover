@@ -163,6 +163,7 @@ impl RunRouter<state::Run> {
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
+                    .contents(Vec::from(self.state.config.raw_config()))
                     .build(),
             )
             .await
