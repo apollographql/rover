@@ -9,7 +9,9 @@ use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
+use rover_std::infoln;
 
+use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
     command::Dev,
     composition::{
@@ -29,8 +31,6 @@ use crate::{
     },
     RoverError, RoverOutput, RoverResult,
 };
-
-use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -65,6 +65,9 @@ impl Dev {
 
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
+        if let Some(graph_ref) = graph_ref {
+            eprintln!("retrieving subgraphs remotely from {graph_ref}")
+        }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
 
         let service = client_config.get_authenticated_client(profile)?.service()?;

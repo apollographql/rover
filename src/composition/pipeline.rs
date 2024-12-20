@@ -6,18 +6,6 @@ use rover_client::shared::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
 
-use crate::{
-    options::{LicenseAccepter, ProfileOpt},
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
-            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
-        },
-        parsers::FileDescriptorType,
-    },
-};
-
 use super::{
     runner::{CompositionRunner, Runner},
     supergraph::{
@@ -31,6 +19,17 @@ use super::{
         install::{InstallSupergraph, InstallSupergraphError},
     },
     CompositionError, CompositionSuccess,
+};
+use crate::{
+    options::{LicenseAccepter, ProfileOpt},
+    utils::{
+        client::StudioClientConfig,
+        effect::{
+            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
+            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
+        },
+        parsers::FileDescriptorType,
+    },
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -98,10 +97,12 @@ impl CompositionPipeline<state::Init> {
             }
             FileDescriptorType::Stdin => None,
         });
+        eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
             .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {
             state: state::ResolveFederationVersion {
                 resolver,
