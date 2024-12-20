@@ -13,16 +13,7 @@ use futures::stream::{BoxStream, StreamExt};
 use rover_http::HttpService;
 use tower::ServiceExt;
 
-use crate::{
-    composition::watchers::watcher::{
-        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
-    },
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-};
-
 use self::state::SetupSubgraphWatchers;
-
 use super::{
     events::CompositionEvent,
     supergraph::{
@@ -35,6 +26,14 @@ use super::{
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
+};
+use crate::composition::supergraph::binary::OutputTarget;
+use crate::{
+    composition::watchers::watcher::{
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
+    },
+    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
+    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
 mod state;
