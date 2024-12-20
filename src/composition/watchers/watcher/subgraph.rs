@@ -1,6 +1,6 @@
 use apollo_federation_types::config::SchemaSource;
 use futures::{stream::BoxStream, StreamExt};
-use rover_std::{errln, infoln};
+use rover_std::infoln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 

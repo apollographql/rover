@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use buildstructor::buildstructor;
@@ -6,12 +7,11 @@ use http::Uri;
 use rover_std::{Fs, RoverStdError};
 use thiserror::Error;
 
-use crate::utils::effect::read_file::ReadFile;
-
 use self::{
     parser::{ParseRouterConfigError, RouterConfigParser},
     state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig},
 };
+use crate::utils::effect::read_file::ReadFile;
 
 mod parser;
 pub mod remote;
@@ -51,6 +51,19 @@ impl RouterAddress {
         let host = host.unwrap_or(DEFAULT_ROUTER_IP_ADDR);
         let port = port.unwrap_or(DEFAULT_ROUTER_PORT);
         RouterAddress { host, port }
+    }
+}
+
+impl Display for RouterAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let host = self
+            .host
+            .to_string()
+            .replace("127.0.0.1", "localhost")
+            .replace("0.0.0.0", "localhost")
+            .replace("[::]", "localhost")
+            .replace("[::1]", "localhost");
+        write!(f, "http://{}:{}", host, self.port)
     }
 }
 

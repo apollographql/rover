@@ -41,7 +41,7 @@ use crate::{
 };
 
 pub struct RunRouter<S> {
-    state: S,
+    pub(crate) state: S,
 }
 
 impl Default for RunRouter<state::Install> {

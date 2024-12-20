@@ -6,6 +6,7 @@ use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
+use tokio::io::AsyncWriteExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
@@ -130,7 +131,12 @@ impl Dev {
 
         let composition_messages = composition_runner.run();
 
-        let mut run_router = RunRouter::default()
+        eprintln!(
+            "composing supergraph with Federation {}",
+            composition_pipeline.state.supergraph_binary.version()
+        );
+
+        let run_router = RunRouter::default()
             .install::<InstallRouter>(
                 router_version,
                 client_config.clone(),
@@ -142,7 +148,9 @@ impl Dev {
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
             .load_remote_config(service, graph_ref.clone(), Some(credential))
-            .await
+            .await;
+        let router_address = run_router.state.config.address().clone();
+        let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
                 TokioSpawn::default(),
@@ -154,6 +162,12 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages)
             .await;
 
+        warnln!(
+            "Do not run this command in production! It is intended for local development only."
+        );
+
+        infoln!("your supergraph is running! head to {router_address} to query your supergraph");
+
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
@@ -164,7 +178,9 @@ impl Dev {
                 Some(router_log) = run_router.router_logs().next() => {
                     match router_log {
                         Ok(router_log) => {
-                            eprintln!("{}", router_log);
+                            if !router_log.to_string().is_empty() {
+                        eprintln!("{}", router_log);
+                    }
                         }
                         Err(err) => {
                             tracing::error!("{:?}", err);
@@ -174,11 +190,6 @@ impl Dev {
                 else => break,
             }
         }
-
-        warnln!(
-            "Do not run this command in production! It is intended for local development only."
-        );
-
         Ok(RoverOutput::EmptySuccess)
     }
 }

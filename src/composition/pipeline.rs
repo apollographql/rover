@@ -54,7 +54,7 @@ pub enum CompositionPipelineError {
 }
 
 pub struct CompositionPipeline<State> {
-    state: State,
+    pub(crate) state: State,
 }
 
 impl Default for CompositionPipeline<state::Init> {
