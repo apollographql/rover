@@ -257,6 +257,7 @@ impl CompositionPipeline<state::Run> {
                 write_file,
                 output_dir,
                 compose_on_initialisation,
+                OutputTarget::Stdout,
             );
         Ok(runner)
     }
