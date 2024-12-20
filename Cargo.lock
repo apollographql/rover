@@ -618,7 +618,7 @@ dependencies = [
  "rustversion",
  "serde",
  "sync_wrapper 1.0.1",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-layer",
  "tower-service",
 ]
@@ -4888,7 +4888,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "toml",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-test",
  "tracing",
  "tracing-test",
@@ -4915,6 +4915,7 @@ dependencies = [
  "git2",
  "graphql_client",
  "houston",
+ "http 1.1.0",
  "httpmock",
  "humantime",
  "hyper 1.4.1",
@@ -4937,7 +4938,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-test",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-test",
  "tracing",
  "tracing-test",
@@ -4964,7 +4965,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-test",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-test",
  "url",
 ]
@@ -4988,7 +4989,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-http 0.6.1",
  "tracing",
 ]
@@ -5032,7 +5033,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-test",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-test",
  "tracing",
  "url",
@@ -6291,14 +6292,14 @@ dependencies = [
 
 [[package]]
 name = "tower"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2873938d487c3cfb9aed7546dc9f2711d867c9f90c46b889989a2cb84eba6b4f"
+checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
 dependencies = [
  "futures-core",
  "futures-util",
  "pin-project-lite",
- "sync_wrapper 0.1.2",
+ "sync_wrapper 1.0.1",
  "tokio",
  "tower-layer",
  "tower-service",
@@ -6337,7 +6338,7 @@ dependencies = [
  "http-body 1.0.1",
  "iri-string",
  "pin-project-lite",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-layer",
  "tower-service",
  "tracing",

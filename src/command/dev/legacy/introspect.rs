@@ -32,7 +32,7 @@ impl UnknownIntrospectRunner {
 
     pub async fn run(
         &self,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
@@ -108,7 +108,7 @@ pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
-    retry_period: Option<Duration>,
+    retry_period: Duration,
 }
 
 impl SubgraphIntrospectRunner {
@@ -137,7 +137,7 @@ pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
-    retry_period: Option<Duration>,
+    retry_period: Duration,
 }
 
 impl GraphIntrospectRunner {

@@ -26,6 +26,10 @@ impl FileWatcher {
         }
     }
 
+    pub fn fetch(&self) -> Result<String, RoverStdError> {
+        Fs::read_file(self.path.clone())
+    }
+
     /// Watch a file
     ///
     /// When a file is removed, the internal rover-std::fs filewatcher will be cancelled. The

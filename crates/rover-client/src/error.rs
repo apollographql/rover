@@ -246,8 +246,14 @@ pub enum RoverClientError {
     #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
     NonCloudGraphRef { graph_ref: GraphRef },
 
-    #[error("Could not instantiate the service.")]
-    ServiceError(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Service failed to become ready")]
+    ServiceReady(Box<dyn std::error::Error + Send + Sync>),
+
+    #[error("{}", .source)]
+    Service {
+        source: Box<dyn std::error::Error + Send + Sync>,
+        endpoint_kind: EndpointKind,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {

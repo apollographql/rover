@@ -16,11 +16,11 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{cli::RoverOutputFormatKind, RoverError, RoverOutput, RoverResult};
 
 pub trait RoverPrinter {
-    fn write_or_print(self, output_opts: &OutputOpts, hide_output: bool) -> RoverResult<()>;
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()>;
 }
 
 impl RoverPrinter for RoverOutput {
-    fn write_or_print(self, output_opts: &OutputOpts, hide_output: bool) -> RoverResult<()> {
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
         // Format the RoverOutput as either plain text or JSON.
         let output = match output_opts.format_kind {
             RoverOutputFormatKind::Plain => self.get_stdout(),
@@ -40,9 +40,6 @@ impl RoverPrinter for RoverOutput {
                     stderrln!("{} {}", success_heading, path_text)?;
                 }
                 None => {
-                    if hide_output {
-                        return Ok(());
-                    }
                     // Call the appropriate method based on the variant of RoverOutput.
                     if let RoverOutput::GraphPublishResponse { .. } = self {
                         self.print_one_line_descriptor()?;
@@ -60,10 +57,7 @@ impl RoverPrinter for RoverOutput {
 }
 
 impl RoverPrinter for RoverError {
-    fn write_or_print(self, output_opts: &OutputOpts, hide_output: bool) -> RoverResult<()> {
-        if hide_output {
-            return Ok(());
-        }
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
         match output_opts.format_kind {
             RoverOutputFormatKind::Plain => self.print(),
             RoverOutputFormatKind::Json => {
@@ -118,7 +112,7 @@ impl OutputOpts {
     where
         T: RoverPrinter,
     {
-        rover_command_output.write_or_print(self, false)
+        rover_command_output.write_or_print(self)
     }
 
     /// Handle the parsing of output file to ensure we get an absolute path every time

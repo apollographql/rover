@@ -22,6 +22,7 @@ git2 = { workspace = true, features = [
 ] }
 graphql_client = { workspace = true }
 houston = { workspace = true }
+http = { workspace = true }
 humantime = { workspace = true }
 hyper = { workspace = true }
 itertools = { workspace = true }

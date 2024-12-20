@@ -259,7 +259,7 @@ impl Rover {
             config,
             is_sudo,
             self.get_reqwest_client_builder(),
-            Some(self.client_timeout.get_duration()),
+            self.client_timeout,
         ))
     }
 

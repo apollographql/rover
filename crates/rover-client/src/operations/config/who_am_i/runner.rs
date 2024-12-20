@@ -11,8 +11,8 @@ use super::service::{WhoAmI, WhoAmIRequest};
 pub async fn run(client: &StudioClient) -> Result<RegistryIdentity, RoverClientError> {
     let mut service = WhoAmI::new(
         client
-            .service()
-            .map_err(|err| RoverClientError::ServiceError(Box::new(err)))?,
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
     );
     let service = service.ready().await?;
     let identity = service
