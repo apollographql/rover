@@ -4,13 +4,14 @@ use std::collections::HashMap;
 use std::env::temp_dir;
 use std::io::stdin;
 
-use anyhow::Error;
-use apollo_federation_types::config::FederationVersion::LatestFedTwo;
+use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
+use futures::stream::BoxStream;
 use futures::StreamExt;
 use serde::Serialize;
+use tower::ServiceExt;
 use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
 use tracing::debug;
@@ -19,15 +20,13 @@ use url::Url;
 use crate::command::lsp::errors::StartCompositionError;
 use crate::command::lsp::errors::StartCompositionError::SupergraphYamlUrlConversionFailed;
 use crate::composition::events::CompositionEvent;
-use crate::composition::runner::Runner;
+use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{
-    ResolveSupergraphConfigError, SubgraphPrompt, SupergraphConfigResolver,
-};
-use crate::composition::supergraph::install::InstallSupergraph;
+use crate::composition::supergraph::config::resolver::{SubgraphPrompt, SupergraphConfigResolver};
 use crate::composition::SupergraphConfigResolutionError::PathDoesNotPointToAFile;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -35,7 +34,6 @@ use crate::composition::{
 };
 use crate::options::ProfileOpt;
 use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
 use crate::{
@@ -65,7 +63,8 @@ impl Lsp {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         self.opts
             .plugin_opts
-            .prompt_for_license_accept(&client_config)?;
+            .elv2_license_accepter
+            .require_elv2_license(&client_config)?;
 
         run_lsp(client_config, self.opts.clone()).await?;
         Ok(RoverOutput::EmptySuccess)
@@ -137,8 +136,11 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             );
             // Start running composition
             start_composition(
-                lazily_resolved_supergraph_config,
+                supergraph_yaml_path,
                 supergraph_yaml_url,
+                lazily_resolved_supergraph_config
+                    .federation_version()
+                    .clone(),
                 client_config,
                 lsp_opts,
                 service.inner().to_owned(),
@@ -174,7 +176,7 @@ async fn generate_lazily_resolved_supergraph_config(
         )?;
     if let Some(parent) = supergraph_yaml_path.parent() {
         Ok(supergraph_config
-            .lazily_resolve_subgraphs(Some(&parent.to_owned()), &SubgraphPrompt::default())
+            .lazily_resolve_subgraphs(&parent.to_owned(), &SubgraphPrompt::default())
             .await?)
     } else {
         Err(PathDoesNotPointToAFile(
@@ -184,58 +186,35 @@ async fn generate_lazily_resolved_supergraph_config(
 }
 
 async fn start_composition(
-    lazily_resolved_supergraph_config: LazilyResolvedSupergraphConfig,
+    supergraph_config_path: Utf8PathBuf,
     supergraph_yaml_url: Url,
+    federation_version: Option<FederationVersion>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
     language_server: ApolloLanguageServer,
 ) -> Result<(), StartCompositionError> {
-    let federation_version = lazily_resolved_supergraph_config
-        .federation_version()
-        .clone()
-        .unwrap_or(LatestFedTwo);
+    let federation_version = federation_version.clone();
+    let mut stream = match create_composition_stream(
+        supergraph_config_path,
+        federation_version,
+        client_config,
+        lsp_opts,
+    )
+    .await
+    {
+        Ok(stream) => stream,
+        Err(e) => {
+            let message = format!("Could not initialise composition process: {e}");
+            let diagnostic = Diagnostic::new_simple(Range::default(), message);
+            language_server
+                .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
+                .await;
+            return Err(e);
+        }
+    };
 
     // Spawn a separate thread to handle composition and passing that data to the language server
     tokio::spawn(async move {
-        // TODO: Let the supergraph binary exist inside its own task that can respond to being re-installed etc.
-        let supergraph_binary =
-            InstallSupergraph::new(federation_version.clone(), client_config.clone())
-                .install(
-                    None,
-                    lsp_opts.plugin_opts.elv2_license_accepter,
-                    lsp_opts.plugin_opts.skip_update,
-                )
-                .await?;
-
-        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
-            .studio_client_config(client_config.clone())
-            .profile(lsp_opts.plugin_opts.profile.clone())
-            .build();
-
-        // Spin up Runner
-        let mut stream = Runner::default()
-            .setup_subgraph_watchers(
-                lazily_resolved_supergraph_config.subgraphs().clone(),
-                &lsp_opts.plugin_opts.profile,
-                &client_config,
-                500,
-            )
-            .setup_supergraph_config_watcher(lazily_resolved_supergraph_config.clone())
-            .setup_composition_watcher(
-                lazily_resolved_supergraph_config
-                    .fully_resolve(&client_config, make_fetch_remote_subgraph)
-                    .await
-                    .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?,
-                supergraph_binary,
-                TokioCommand::default(),
-                FsReadFile::default(),
-                FsWriteFile::default(),
-                Utf8PathBuf::try_from(temp_dir())?,
-                true,
-                OutputTarget::InMemory,
-            )
-            .run();
-
         while let Some(event) = stream.next().await {
             match event {
                 CompositionEvent::Started => {
@@ -263,7 +242,10 @@ async fn start_composition(
                         )
                         .await;
                 }
-                CompositionEvent::Error(CompositionError::Build { source: errors }) => {
+                CompositionEvent::Error(CompositionError::Build {
+                    source: errors,
+                    federation_version,
+                }) => {
                     debug!(
                         ?errors,
                         "Composition {federation_version} completed with errors"
@@ -281,8 +263,8 @@ async fn start_composition(
                         .await
                 }
                 CompositionEvent::Error(err) => {
-                    debug!("Composition {federation_version} failed: {err}");
-                    let message = format!("Failed run composition {federation_version}: {err}",);
+                    debug!("Composition failed: {err}");
+                    let message = format!("Failed run composition: {err}",);
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
@@ -301,7 +283,64 @@ async fn start_composition(
                 }
             }
         }
-        Ok::<(), Error>(())
+        Ok::<(), StartCompositionError>(())
     });
     Ok(())
+}
+
+async fn create_composition_stream(
+    supergraph_config_path: Utf8PathBuf,
+    federation_version: Option<FederationVersion>,
+    client_config: StudioClientConfig,
+    lsp_opts: LspOpts,
+) -> Result<BoxStream<'static, CompositionEvent>, StartCompositionError> {
+    let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
+        .studio_client_config(client_config.clone())
+        .profile(lsp_opts.plugin_opts.profile.clone())
+        .build();
+    let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
+        .studio_client_config(client_config.clone())
+        .profile(lsp_opts.plugin_opts.profile.clone())
+        .build()
+        .boxed_clone();
+    let resolve_introspect_subgraph_factory =
+        MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
+
+    let composition_pipeline = CompositionPipeline::default()
+        .init(
+            &mut stdin(),
+            fetch_remote_subgraphs_factory,
+            Some(FileDescriptorType::File(supergraph_config_path.clone())),
+            None,
+        )
+        .await?
+        .resolve_federation_version(
+            resolve_introspect_subgraph_factory.clone(),
+            fetch_remote_subgraph_factory.clone(),
+            federation_version,
+        )
+        .await?
+        .install_supergraph_binary(
+            client_config.clone(),
+            None,
+            lsp_opts.plugin_opts.elv2_license_accepter,
+            lsp_opts.plugin_opts.skip_update,
+        )
+        .await?;
+
+    // Spin up Runner
+    Ok(composition_pipeline
+        .runner(
+            TokioCommand::default(),
+            FsReadFile::default(),
+            FsWriteFile::default(),
+            client_config.service()?,
+            fetch_remote_subgraph_factory.boxed_clone(),
+            1,
+            Utf8PathBuf::try_from(temp_dir())?,
+            OutputTarget::InMemory,
+            true,
+        )
+        .await?
+        .run())
 }
