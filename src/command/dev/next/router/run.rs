@@ -336,6 +336,14 @@ impl RunRouter<state::Abort> {
     ) -> &mut UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>> {
         &mut self.state.router_logs
     }
+
+    pub fn shutdown(&mut self) {
+        self.state.abort_router.abort();
+        self.state.abort_hot_reload.abort();
+        if let Some(abort) = self.state.abort_config_watcher.take() {
+            abort.abort();
+        };
+    }
 }
 
 mod state {

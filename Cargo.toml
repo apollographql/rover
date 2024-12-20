@@ -145,7 +145,7 @@ tap = "1.0.1"
 tar = "0.4"
 termimad = "0.31"
 tempfile = "3.8"
-tokio = "1.38"
+tokio = { version = "1.38", features = ["signal"] }
 tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
