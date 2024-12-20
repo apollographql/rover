@@ -216,7 +216,7 @@ pub enum ResolveSupergraphConfigError {
     #[error("No source found for supergraph config")]
     NoSource,
     /// Occurs when supergraph resolution is attempted without a supergraph root
-    #[error("Unable to resolve supergraph config. Suprgraph config root is missing")]
+    #[error("Unable to resolve supergraph config. Supergraph config root is missing")]
     MissingSupergraphConfigRoot,
     /// Occurs when the underlying resolver strategy can't resolve one or more
     /// of the subgraphs described in the supergraph config
