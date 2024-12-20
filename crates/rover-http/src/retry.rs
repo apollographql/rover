@@ -122,7 +122,7 @@ mod tests {
 
     #[fixture]
     pub fn retry_policy() -> RetryPolicy {
-        RetryPolicy::new(Some(Duration::from_secs(1)))
+        RetryPolicy::new(Duration::from_secs(1))
     }
 
     #[fixture]
