@@ -487,7 +487,7 @@ mod test_get_supergraph_config {
         let supergraph_config_path = third_level_folder.path().join("supergraph.yaml");
         fs::write(
             supergraph_config_path.clone(),
-            &supergraph_config.into_bytes(),
+            supergraph_config.into_bytes(),
         )
         .expect("Could not write supergraph.yaml");
 
@@ -568,8 +568,9 @@ fn merge_supergraph_configs(
 
 #[cfg(test)]
 mod test_merge_supergraph_configs {
-    use super::*;
     use rstest::{fixture, rstest};
+
+    use super::*;
 
     #[fixture]
     #[once]
@@ -1048,6 +1049,7 @@ mod test_resolve_supergraph_yaml {
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    use houston::Config;
     use httpmock::MockServer;
     use indoc::indoc;
     use rstest::{fixture, rstest};
@@ -1056,13 +1058,10 @@ mod test_resolve_supergraph_yaml {
     use speculoos::assert_that;
     use speculoos::prelude::{ResultAssertions, VecAssertions};
 
-    use houston::Config;
-
+    use super::*;
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
-
-    use super::*;
 
     #[fixture]
     fn profile_opt() -> ProfileOpt {
@@ -1185,7 +1184,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
       file: ./people.graphql"#,
-            latest_fed2_version.to_string()
+            latest_fed2_version
         );
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1225,7 +1224,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
         file: ../../people.graphql"#,
-            latest_fed2_version.to_string()
+            latest_fed2_version
         );
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1279,7 +1278,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
         file: ../../people.graphql"#,
-            latest_fed2_version.to_string()
+            latest_fed2_version
         );
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();

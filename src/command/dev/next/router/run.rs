@@ -11,12 +11,19 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::RoverStdError;
+use rover_std::{infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
 use tracing::info;
 
+use super::{
+    binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
+    config::{remote::RemoteRouterConfig, ReadRouterConfigError, RouterAddress, RunRouterConfig},
+    hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
+    install::{InstallRouter, InstallRouterError},
+    watchers::router_config::RouterConfigWatcher,
+};
 use crate::{
     command::dev::next::FileWatcher,
     composition::events::CompositionEvent,
@@ -33,16 +40,8 @@ use crate::{
     },
 };
 
-use super::{
-    binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
-    config::{remote::RemoteRouterConfig, ReadRouterConfigError, RouterAddress, RunRouterConfig},
-    hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
-    install::{InstallRouter, InstallRouterError},
-    watchers::router_config::RouterConfigWatcher,
-};
-
 pub struct RunRouter<S> {
-    state: S,
+    pub(crate) state: S,
 }
 
 impl Default for RunRouter<state::Install> {
@@ -86,6 +85,12 @@ impl RunRouter<state::LoadLocalConfig> {
             .with_address(router_address)
             .with_config(read_file_impl, config_path.as_ref())
             .await?;
+        if let Some(config_path) = config_path.clone() {
+            infoln!(
+                "Watching {} for changes",
+                config_path.as_std_path().display()
+            );
+        }
         Ok(RunRouter {
             state: state::LoadRemoteConfig {
                 binary: self.state.binary,
@@ -158,6 +163,7 @@ impl RunRouter<state::Run> {
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
+                    .contents(Vec::from(self.state.config.raw_config()))
                     .build(),
             )
             .await

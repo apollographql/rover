@@ -3,13 +3,16 @@
 use std::io::stdin;
 
 use anyhow::anyhow;
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
+use rover_std::{infoln, warnln};
 
+use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
     command::Dev,
     composition::{
@@ -29,8 +32,6 @@ use crate::{
     },
     RoverError, RoverOutput, RoverResult,
 };
-
-use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -65,6 +66,9 @@ impl Dev {
 
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
+        if let Some(graph_ref) = graph_ref {
+            eprintln!("retrieving subgraphs remotely from {graph_ref}")
+        }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
 
         let service = client_config.get_authenticated_client(profile)?.service()?;
@@ -90,7 +94,11 @@ impl Dev {
             .resolve_federation_version(
                 &client_config,
                 make_fetch_remote_subgraph,
-                self.opts.supergraph_opts.federation_version.clone(),
+                self.opts
+                    .supergraph_opts
+                    .federation_version
+                    .clone()
+                    .or(Some(LatestFedTwo)),
             )
             .await?
             .install_supergraph_binary(
@@ -100,6 +108,7 @@ impl Dev {
                 skip_update,
             )
             .await?;
+
         let composition_success = composition_pipeline
             .compose(&exec_command_impl, &read_file_impl, &write_file_impl, None)
             .await?;
@@ -126,7 +135,12 @@ impl Dev {
 
         let composition_messages = composition_runner.run();
 
-        let mut run_router = RunRouter::default()
+        eprintln!(
+            "composing supergraph with Federation {}",
+            composition_pipeline.state.supergraph_binary.version()
+        );
+
+        let run_router = RunRouter::default()
             .install::<InstallRouter>(
                 router_version,
                 client_config.clone(),
@@ -138,7 +152,9 @@ impl Dev {
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
             .load_remote_config(service, graph_ref.clone(), Some(credential))
-            .await
+            .await;
+        let router_address = run_router.state.config.address().clone();
+        let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
                 TokioSpawn::default(),
@@ -150,6 +166,12 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages)
             .await;
 
+        warnln!(
+            "Do not run this command in production! It is intended for local development only."
+        );
+
+        infoln!("your supergraph is running! head to {router_address} to query your supergraph");
+
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
@@ -160,7 +182,9 @@ impl Dev {
                 Some(router_log) = run_router.router_logs().next() => {
                     match router_log {
                         Ok(router_log) => {
-                            eprintln!("{}", router_log);
+                            if !router_log.to_string().is_empty() {
+                        eprintln!("{}", router_log);
+                    }
                         }
                         Err(err) => {
                             tracing::error!("{:?}", err);
@@ -170,7 +194,6 @@ impl Dev {
                 else => break,
             }
         }
-
         Ok(RoverOutput::EmptySuccess)
     }
 }

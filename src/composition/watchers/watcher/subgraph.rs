@@ -1,14 +1,14 @@
 use apollo_federation_types::config::SchemaSource;
 use futures::{stream::BoxStream, StreamExt};
+use rover_std::infoln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::{
-    options::ProfileOpt, subtask::SubtaskHandleUnit, utils::client::StudioClientConfig, RoverError,
-};
-
 use super::{
     file::FileWatcher, introspection::SubgraphIntrospection, remote::RemoteSchema, sdl::Sdl,
+};
+use crate::{
+    options::ProfileOpt, subtask::SubtaskHandleUnit, utils::client::StudioClientConfig, RoverError,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -64,26 +64,34 @@ impl SubgraphWatcher {
         profile: &ProfileOpt,
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
+        subgraph_name: String,
     ) -> Result<Self, Box<UnsupportedSchemaSource>> {
+        eprintln!("starting a session with the '{subgraph_name}' subgraph");
         // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
         // directives from introspection (but not when the source is a file)
         match schema_source {
-            SchemaSource::File { file } => Ok(Self {
-                watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
-                routing_url,
-            }),
+            SchemaSource::File { file } => {
+                infoln!("Watching {} for changes", file.as_std_path().display());
+                Ok(Self {
+                    watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
+                    routing_url,
+                })
+            }
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
                 introspection_headers,
-            } => Ok(Self {
-                watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
-                    subgraph_url.clone(),
-                    introspection_headers.map(|header_map| header_map.into_iter().collect()),
-                    client_config,
-                    introspection_polling_interval,
-                )),
-                routing_url: routing_url.or_else(|| Some(subgraph_url.to_string())),
-            }),
+            } => {
+                eprintln!("polling {subgraph_url} every {introspection_polling_interval} seconds");
+                Ok(Self {
+                    watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
+                        subgraph_url.clone(),
+                        introspection_headers.map(|header_map| header_map.into_iter().collect()),
+                        client_config,
+                        introspection_polling_interval,
+                    )),
+                    routing_url: routing_url.or_else(|| Some(subgraph_url.to_string())),
+                })
+            }
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
                     RemoteSchema::new(graphref, subgraph, profile, client_config),

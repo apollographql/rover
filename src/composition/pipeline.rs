@@ -6,18 +6,6 @@ use rover_client::shared::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
 
-use crate::{
-    options::{LicenseAccepter, ProfileOpt},
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
-            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
-        },
-        parsers::FileDescriptorType,
-    },
-};
-
 use super::{
     runner::{CompositionRunner, Runner},
     supergraph::{
@@ -31,6 +19,18 @@ use super::{
         install::{InstallSupergraph, InstallSupergraphError},
     },
     CompositionError, CompositionSuccess,
+};
+use crate::composition::pipeline::CompositionPipelineError::FederationOneWithFederationTwoSubgraphs;
+use crate::{
+    options::{LicenseAccepter, ProfileOpt},
+    utils::{
+        client::StudioClientConfig,
+        effect::{
+            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
+            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
+        },
+        parsers::FileDescriptorType,
+    },
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -52,10 +52,12 @@ pub enum CompositionPipelineError {
     },
     #[error("Failed to install the supergraph binary.\n{}", .0)]
     InstallSupergraph(#[from] InstallSupergraphError),
+    #[error("Federation 1 version specified, but supergraph schema includes Federation 2 subgraphs: {0:?}")]
+    FederationOneWithFederationTwoSubgraphs(Vec<String>),
 }
 
 pub struct CompositionPipeline<State> {
-    state: State,
+    pub(crate) state: State,
 }
 
 impl Default for CompositionPipeline<state::Init> {
@@ -98,10 +100,12 @@ impl CompositionPipeline<state::Init> {
             }
             FileDescriptorType::Stdin => None,
         });
+        eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
             .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {
             state: state::ResolveFederationVersion {
                 resolver,
@@ -134,11 +138,27 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 &SubgraphPrompt::default(),
             )
             .await?;
-        let federation_version = federation_version.unwrap_or_else(|| {
+        let fed_two_subgraphs = fully_resolved_supergraph_config
+            .subgraphs()
+            .iter()
+            .filter_map(|(name, subgraph)| {
+                if subgraph.is_fed_two {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<String>>();
+        let federation_version = if let Some(fed_version) = federation_version {
+            if !fed_two_subgraphs.is_empty() && fed_version.is_fed_one() {
+                return Err(FederationOneWithFederationTwoSubgraphs(fed_two_subgraphs));
+            }
+            fed_version
+        } else {
             fully_resolved_supergraph_config
                 .federation_version()
                 .clone()
-        });
+        };
         Ok(CompositionPipeline {
             state: state::InstallSupergraph {
                 resolver: self.state.resolver,

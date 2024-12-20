@@ -84,7 +84,7 @@ impl<'a> RouterConfigParser<'a> {
             .and_then(|addr_and_port| Some(Uri::from_str(addr_and_port)))
             // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
             // defaults
-            .unwrap_or(Uri::from_str("127.0.0.1:8088"))
+            .unwrap_or(Uri::from_str("http://127.0.0.1:8088"))
             .map_err(|err| ParseRouterConfigError::ListenPath {
                 path: "health_check.listen",
                 source: err,
@@ -161,8 +161,8 @@ health_check:
         );
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.health_check();
-        assert_that!(health_check).is_equal_to(is_health_check_enabled);
+        let health_check = router_config.health_check_endpoint();
+        assert_that!(health_check.is_ok()).is_equal_to(is_health_check_enabled);
         Ok(())
     }
 
@@ -174,9 +174,8 @@ health_check:
         };
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.health_check();
-        assert_that!(health_check).is_false();
-        Ok(())
+        let health_check = router_config.health_check_endpoint();
+        assert_that!(health_check).is_equal_to(Ok(Uri::from_str("http://127.0.0.1:8088/health")?))
     }
 
     #[rstest]
