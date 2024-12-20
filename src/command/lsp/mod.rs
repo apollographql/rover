@@ -20,6 +20,7 @@ use crate::command::lsp::errors::StartCompositionError;
 use crate::command::lsp::errors::StartCompositionError::SupergraphYamlUrlConversionFailed;
 use crate::composition::events::CompositionEvent;
 use crate::composition::runner::Runner;
+use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
@@ -231,6 +232,7 @@ async fn start_composition(
                 FsWriteFile::default(),
                 Utf8PathBuf::try_from(temp_dir())?,
                 true,
+                OutputTarget::InMemory,
             )
             .run();
 
