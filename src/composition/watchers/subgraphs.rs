@@ -7,10 +7,6 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
-    supergraph_config::SupergraphConfigDiff,
-};
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
@@ -18,6 +14,14 @@ use crate::{
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
+};
+
+use super::watcher::{
+    subgraph::{
+        NonRepeatingFetch, SubgraphFetchError, SubgraphWatcher, SubgraphWatcherKind,
+        WatchedSdlChange,
+    },
+    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -255,8 +259,10 @@ impl SubgraphHandles {
             } else {
                 // When we have a SchemaSource that's watchable, we start a new subtask
                 // and add it to our list of subtasks
-                self.add_streaming_subgraph_to_session(subgraph, subgraph_watcher)
-                    .await;
+                let _ = self
+                    .add_streaming_subgraph_to_session(subgraph, subgraph_watcher)
+                    .await
+                    .tap_err(|err| tracing::error!("{:?}", err));
             }
         }
     }
@@ -340,11 +346,20 @@ impl SubgraphHandles {
         &mut self,
         subgraph: &str,
         subgraph_watcher: SubgraphWatcher,
-    ) {
+    ) -> Result<(), SubgraphFetchError> {
+        let sdl = subgraph_watcher.watcher().fetch().await?;
         let (mut messages, subtask) =
             Subtask::<SubgraphWatcher, WatchedSdlChange>::new(subgraph_watcher);
-
         let routing_url = subtask.inner().routing_url().clone();
+        let _ = self
+            .sender
+            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
+                name: subgraph.to_string(),
+                sdl,
+                routing_url: routing_url.clone(),
+            }))
+            .tap_err(|err| tracing::error!("{:?}", err));
+
         let messages_abort_handle = tokio::spawn({
             let sender = self.sender.clone();
             let subgraph_name = subgraph.to_string();
@@ -367,6 +382,7 @@ impl SubgraphHandles {
             subgraph.to_string(),
             (messages_abort_handle, subtask_abort_handle),
         );
+        Ok(())
     }
 }
 
@@ -381,7 +397,7 @@ mod tests {
     use crate::{
         composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
-        utils::client::{ClientBuilder, StudioClientConfig},
+        utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     };
 
     #[test]
@@ -433,7 +449,7 @@ mod tests {
             },
             false,
             ClientBuilder::new(),
-            None,
+            ClientTimeout::default(),
         );
 
         let profile = ProfileOpt {

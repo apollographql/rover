@@ -11,7 +11,7 @@ use apollo_federation_types::rover::{BuildError, BuildErrors};
 use apollo_parser::{cst, Parser};
 use camino::Utf8PathBuf;
 use futures::future::join_all;
-use rover_client::blocking::{GraphQLClient, StudioClient};
+use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::operations::subgraph::fetch_all::{
@@ -188,7 +188,6 @@ mod test_get_supergraph_config {
     use std::io::Write;
     use std::path::PathBuf;
     use std::str::FromStr;
-    use std::time::Duration;
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SupergraphConfig};
@@ -205,7 +204,7 @@ mod test_get_supergraph_config {
     use tempfile::{NamedTempFile, TempDir};
 
     use crate::options::ProfileOpt;
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
     use crate::utils::supergraph_config::{get_supergraph_config, resolve_federation_version};
 
@@ -335,7 +334,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let actual_result = if let Some(name) = local_subgraph {
@@ -496,7 +495,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let sc_config = get_supergraph_config(
@@ -827,20 +826,16 @@ pub(crate) async fn resolve_supergraph_yaml(
                     let client = client_config
                         .get_reqwest_client()
                         .map_err(RoverError::from)?;
-                    let client = GraphQLClient::new(
-                        subgraph_url.as_ref(),
-                        client,
-                        client_config.retry_period,
-                    );
-
                     // given a federated introspection URL, use subgraph introspect to
                     // obtain SDL and add it to subgraph_definition.
                     introspect::run(
                         SubgraphIntrospectInput {
                             headers: introspection_headers.clone().unwrap_or_default(),
+                            endpoint: subgraph_url.clone(),
+                            should_retry: false,
+                            retry_period: client_config.client_timeout().get_duration(),
                         },
                         &client,
-                        false,
                     )
                     .await
                     .map(|introspection_response| {
@@ -1060,7 +1055,7 @@ mod test_resolve_supergraph_yaml {
 
     use super::*;
     use crate::options::ProfileOpt;
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
 
     #[fixture]
@@ -1099,7 +1094,7 @@ mod test_resolve_supergraph_yaml {
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            Duration::from_secs(3).into(),
         )
     }
 
@@ -1543,7 +1538,7 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let mut supergraph_config_path = tempfile::NamedTempFile::new()?;

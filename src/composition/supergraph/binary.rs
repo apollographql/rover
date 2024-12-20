@@ -203,7 +203,7 @@ mod tests {
         command::supergraph::compose::do_compose::SupergraphComposeOpts,
         composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
         utils::{
-            client::{ClientBuilder, StudioClientConfig},
+            client::{ClientBuilder, ClientTimeout, StudioClientConfig},
             effect::{exec::MockExecCommand, read_file::MockReadFile},
         },
     };
@@ -240,7 +240,13 @@ mod tests {
             home: Utf8PathBuf::from_path_buf(home.path().to_path_buf()).unwrap(),
             override_api_key: None,
         };
-        StudioClientConfig::new(None, config, false, ClientBuilder::default(), None)
+        StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        )
     }
 
     #[fixture]

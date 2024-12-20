@@ -81,18 +81,18 @@ impl ClientBuilder {
 }
 
 #[derive(Debug, Copy, Clone, Serialize)]
-pub(crate) struct ClientTimeout {
+pub struct ClientTimeout {
     duration: Duration,
 }
 
 impl ClientTimeout {
-    pub(crate) fn new(duration_in_seconds: u64) -> ClientTimeout {
+    pub fn new(duration_in_seconds: u64) -> ClientTimeout {
         ClientTimeout {
             duration: Duration::from_secs(duration_in_seconds),
         }
     }
 
-    pub(crate) fn get_duration(&self) -> Duration {
+    pub fn get_duration(&self) -> Duration {
         self.duration
     }
 }
@@ -118,6 +118,12 @@ impl fmt::Display for ClientTimeout {
     }
 }
 
+impl From<Duration> for ClientTimeout {
+    fn from(value: Duration) -> Self {
+        ClientTimeout::new(value.as_secs())
+    }
+}
+
 #[derive(Debug, Clone, Getters)]
 pub struct StudioClientConfig {
     #[getter(skip)]
@@ -127,8 +133,7 @@ pub struct StudioClientConfig {
     version: String,
     is_sudo: bool,
     client: Option<Client>,
-    #[getter(skip)]
-    pub(crate) retry_period: Option<Duration>,
+    client_timeout: ClientTimeout,
 }
 
 impl StudioClientConfig {
@@ -137,7 +142,7 @@ impl StudioClientConfig {
         config: config::Config,
         is_sudo: bool,
         client_builder: ClientBuilder,
-        retry_period: Option<Duration>,
+        client_timeout: ClientTimeout,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
             format!("{} (dev)", PKG_VERSION)
@@ -152,7 +157,7 @@ impl StudioClientConfig {
             client_builder,
             is_sudo,
             client: None,
-            retry_period,
+            client_timeout,
         }
     }
 
@@ -170,6 +175,14 @@ impl StudioClientConfig {
         self.client_builder
     }
 
+    pub fn service(&self) -> Result<HttpService> {
+        let client = self.get_reqwest_client()?;
+        Ok(ReqwestService::builder()
+            .client(client)
+            .build()?
+            .boxed_clone())
+    }
+
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
         let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
         Ok(StudioClient::new(
@@ -178,7 +191,7 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
-            self.retry_period,
+            self.client_timeout.get_duration(),
         ))
     }
 
@@ -195,5 +208,9 @@ impl StudioClientConfig {
             .service(ReqwestService::builder().client(client).build()?)
             .boxed_clone();
         Ok(service)
+    }
+
+    pub fn retry_period(&self) -> Duration {
+        self.client_timeout.get_duration()
     }
 }

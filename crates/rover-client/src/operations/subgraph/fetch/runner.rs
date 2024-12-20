@@ -14,8 +14,8 @@ pub async fn run(
 ) -> Result<FetchResponse, RoverClientError> {
     let mut service = SubgraphFetch::new(
         client
-            .service()
-            .map_err(|err| RoverClientError::ServiceError(Box::new(err)))?,
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
     );
     let service = service.ready().await?;
     let fetch_response = service.call(SubgraphFetchRequest::from(input)).await?;

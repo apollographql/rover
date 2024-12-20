@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use apollo_federation_types::config::SchemaSource;
 use futures::{stream::BoxStream, StreamExt};
-use rover_std::infoln;
+use rover_client::operations::subgraph::introspect::SubgraphIntrospectError;
+use rover_std::{infoln, RoverStdError};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
@@ -10,6 +13,16 @@ use super::{
 use crate::{
     options::ProfileOpt, subtask::SubtaskHandleUnit, utils::client::StudioClientConfig, RoverError,
 };
+
+#[derive(thiserror::Error, Debug)]
+pub enum SubgraphFetchError {
+    #[error(transparent)]
+    File(#[from] RoverStdError),
+    #[error(transparent)]
+    Introspect(#[from] SubgraphIntrospectError),
+    #[error("Cannot fetch with this subgraph watcher kind: {}", .0)]
+    SubgraphWatcherKind(String),
+}
 
 #[derive(thiserror::Error, Debug)]
 #[error("Unsupported subgraph introspection source: {:?}", .0)]
@@ -86,8 +99,8 @@ impl SubgraphWatcher {
                     watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
                         subgraph_url.clone(),
                         introspection_headers.map(|header_map| header_map.into_iter().collect()),
-                        client_config,
-                        introspection_polling_interval,
+                        client_config.clone(),
+                        Duration::from_secs(introspection_polling_interval),
                     )),
                     routing_url: routing_url.or_else(|| Some(subgraph_url.to_string())),
                 })
@@ -113,15 +126,23 @@ impl SubgraphWatcherKind {
     /// more flexible to get type safety.
     fn watch(&self) -> Option<BoxStream<String>> {
         match self {
-            Self::File(file_watcher) => {
-                tracing::warn!("Watching subgraph file {:?}", file_watcher.path());
-                Some(file_watcher.watch())
-            }
+            Self::File(file_watcher) => Some(file_watcher.watch()),
             Self::Introspect(introspection) => Some(introspection.watch()),
             kind => {
                 tracing::debug!("{kind:?} is not watchable. Skipping");
                 None
             }
+        }
+    }
+
+    pub async fn fetch(&self) -> Result<String, SubgraphFetchError> {
+        match self {
+            Self::File(file_watcher) => Ok(file_watcher.fetch()?),
+            Self::Introspect(introspection) => Ok(introspection.fetch().await?),
+            kind => Err(SubgraphFetchError::SubgraphWatcherKind(format!(
+                "{:?}",
+                kind
+            ))),
         }
     }
 }

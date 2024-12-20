@@ -5,7 +5,7 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::{shared::GraphRef, RoverClientError};
+use crate::{shared::GraphRef, EndpointKind, RoverClientError};
 
 use super::{types::Subgraph, SubgraphFetchAllResponse};
 
@@ -79,7 +79,7 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         tower::Service::<GraphQLRequest<SubgraphFetchAllQuery>>::poll_ready(&mut self.inner, cx)
-            .map_err(|err| RoverClientError::ServiceError(Box::new(err)))
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))
     }
 
     fn call(&mut self, req: SubgraphFetchAllRequest) -> Self::Future {
@@ -92,7 +92,10 @@ where
             inner
                 .call(GraphQLRequest::<SubgraphFetchAllQuery>::new(variables))
                 .await
-                .map_err(|err| RoverClientError::ServiceError(Box::new(err)))
+                .map_err(|err| RoverClientError::Service {
+                    source: Box::new(err),
+                    endpoint_kind: EndpointKind::ApolloStudio,
+                })
                 .and_then(|response_data| {
                     get_subgraphs_from_response_data(req.graph_ref, response_data)
                 })

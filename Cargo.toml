@@ -150,7 +150,7 @@ tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
 toml = "0.8"
-tower = { version = "0.5.1", features = ["make", "retry", "timeout"] }
+tower = { version = "0.5.2", features = ["make", "retry", "timeout"] }
 tower-http = "0.6.1"
 tower-test = "0.4.0"
 tracing = "0.1"

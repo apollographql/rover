@@ -71,7 +71,9 @@ impl Dev {
         }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
 
-        let service = client_config.get_authenticated_client(profile)?.service()?;
+        let service = client_config
+            .get_authenticated_client(profile)?
+            .studio_graphql_service()?;
         let service = WhoAmI::new(service);
 
         let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()

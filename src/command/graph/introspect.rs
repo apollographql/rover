@@ -24,7 +24,7 @@ impl Introspect {
         &self,
         client: Client,
         output_opts: &OutputOpts,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts, retry_period)
@@ -39,7 +39,7 @@ impl Introspect {
         &self,
         client: &Client,
         should_retry: bool,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<String> {
         let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone(), retry_period);
 
@@ -63,14 +63,10 @@ impl Introspect {
         client: &Client,
         output_opts: &OutputOpts,
 
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> ! {
         self.opts
-            .exec_and_watch(
-                || self.exec(client, false, retry_period),
-                output_opts,
-                false,
-            )
+            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
             .await
     }
 }

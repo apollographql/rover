@@ -13,8 +13,8 @@ pub async fn run(
 ) -> Result<SubgraphFetchAllResponse, RoverClientError> {
     let mut service = SubgraphFetchAll::new(
         client
-            .service()
-            .map_err(|err| RoverClientError::ServiceError(Box::new(err)))?,
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
     );
     let service = service.ready().await?;
     let subgraphs = service

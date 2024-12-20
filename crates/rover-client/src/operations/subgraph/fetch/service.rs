@@ -77,7 +77,7 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         tower::Service::<GraphQLRequest<SubgraphFetchQuery>>::poll_ready(&mut self.inner, cx)
-            .map_err(|err| RoverClientError::ServiceError(Box::new(err)))
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))
     }
 
     fn call(&mut self, req: SubgraphFetchRequest) -> Self::Future {

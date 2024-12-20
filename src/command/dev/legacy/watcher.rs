@@ -163,7 +163,7 @@ impl SubgraphSchemaWatcher {
 
     pub async fn get_subgraph_definition_and_maybe_new_runner(
         &self,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
         let (name, url) = self.subgraph_key.clone();
         let (sdl, refresher) = match &self.schema_watcher_kind {
@@ -208,7 +208,7 @@ impl SubgraphSchemaWatcher {
     async fn update_subgraph(
         &mut self,
         last_message: Option<&String>,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<Option<String>> {
         let maybe_update_message = match self
             .get_subgraph_definition_and_maybe_new_runner(retry_period)
@@ -272,10 +272,7 @@ impl SubgraphSchemaWatcher {
     ///
     /// This function will block forever for `SubgraphSchemaWatcherKind` that poll for changes—so it
     /// should be started in a separate thread.
-    pub async fn watch_subgraph_for_changes(
-        &mut self,
-        retry_period: Option<Duration>,
-    ) -> RoverResult<()> {
+    pub async fn watch_subgraph_for_changes(&mut self, retry_period: Duration) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {

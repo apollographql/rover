@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use rover_client::{blocking::GraphQLClient, operations::subgraph::introspect, RoverClientError};
+use rover_client::{operations::subgraph::introspect, RoverClientError};
 use url::Url;
 
 use crate::{utils::client::StudioClientConfig, RoverError};
@@ -42,11 +42,14 @@ impl IntrospectSubgraph for StudioClientConfig {
             .get_reqwest_client()
             .map_err(RoverError::from)
             .map_err(RoverIntrospectSubgraphError::Build)?;
-        let client = GraphQLClient::new(endpoint.as_ref(), client, self.retry_period);
         let response = introspect::run(
-            introspect::SubgraphIntrospectInput { headers },
+            introspect::SubgraphIntrospectInput {
+                headers,
+                endpoint: endpoint.clone(),
+                should_retry: false,
+                retry_period: self.retry_period(),
+            },
             &client,
-            false,
         )
         .await?;
         Ok(response.result.to_string())
@@ -67,7 +70,7 @@ mod test {
     use speculoos::prelude::*;
 
     use crate::utils::{
-        client::{ClientBuilder, StudioClientConfig},
+        client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         effect::test::SUBGRAPH_INTROSPECTION_QUERY,
     };
 
@@ -114,8 +117,13 @@ mod test {
             home: Utf8PathBuf::from_path_buf(home.path().to_path_buf()).unwrap(),
             override_api_key: None,
         };
-        let studio_client_config =
-            StudioClientConfig::new(None, config, false, ClientBuilder::default(), None);
+        let studio_client_config = StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
         let headers = HashMap::from_iter([("x-test-name".to_string(), "x-test-value".to_string())]);
         let result = studio_client_config
             .introspect_subgraph(endpoint, headers)
