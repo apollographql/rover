@@ -9,7 +9,7 @@ use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
-use rover_std::infoln;
+use rover_std::{infoln, warnln};
 
 use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
@@ -103,6 +103,7 @@ impl Dev {
                 skip_update,
             )
             .await?;
+
         let composition_success = composition_pipeline
             .compose(&exec_command_impl, &read_file_impl, &write_file_impl, None)
             .await?;
@@ -173,6 +174,10 @@ impl Dev {
                 else => break,
             }
         }
+
+        warnln!(
+            "Do not run this command in production! It is intended for local development only."
+        );
 
         Ok(RoverOutput::EmptySuccess)
     }

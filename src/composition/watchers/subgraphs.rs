@@ -7,6 +7,10 @@ use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
+use super::watcher::{
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
+    supergraph_config::SupergraphConfigDiff,
+};
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
@@ -14,11 +18,6 @@ use crate::{
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
-};
-
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
-    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -54,6 +53,7 @@ impl SubgraphWatchers {
                     profile,
                     client_config,
                     introspection_polling_interval,
+                    name.clone(),
                 )
                 .tap_err(|err| tracing::warn!("Skipping subgraph {}: {:?}", name, err))
                 .ok()
@@ -241,6 +241,7 @@ impl SubgraphHandles {
             profile,
             client_config,
             introspection_polling_interval,
+            subgraph.to_string(),
         )
         .tap_err(|err| tracing::warn!("Cannot configure new subgraph for {subgraph}: {:?}", err))
         {
@@ -275,6 +276,7 @@ impl SubgraphHandles {
             profile,
             client_config,
             introspection_polling_interval,
+            subgraph.to_string(),
         )
         .tap_err(|err| tracing::error!("Unable to get watcher: {err:?}"))
         {
@@ -375,13 +377,12 @@ mod tests {
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
 
+    use super::SubgraphWatchers;
     use crate::{
         composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
         utils::client::{ClientBuilder, StudioClientConfig},
     };
-
-    use super::SubgraphWatchers;
 
     #[test]
     fn test_subgraphwatchers_new() {
