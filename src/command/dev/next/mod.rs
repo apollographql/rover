@@ -24,10 +24,7 @@ use crate::{
     RoverError, RoverOutput, RoverResult,
 };
 
-use self::router::{
-    binary::RouterLog,
-    config::{RouterAddress, RunRouterConfig},
-};
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -137,14 +134,24 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages)
             .await;
 
-        while let Some(router_log) = run_router.router_logs().next().await {
-            match router_log {
-                Ok(router_log) => {
-                    eprintln!("{}", router_log);
-                }
-                Err(err) => {
-                    tracing::error!("{:?}", err);
-                }
+        loop {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    eprintln!("received shutdown signal, stopping `rover dev` processes...");
+                    run_router.shutdown();
+                    break
+                },
+                Some(router_log) = run_router.router_logs().next() => {
+                    match router_log {
+                        Ok(router_log) => {
+                            eprintln!("{}", router_log);
+                        }
+                        Err(err) => {
+                            tracing::error!("{:?}", err);
+                        }
+                    }
+                },
+                else => break,
             }
         }
 
