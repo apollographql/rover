@@ -20,6 +20,7 @@ use super::{
     },
     CompositionError, CompositionSuccess,
 };
+use crate::composition::pipeline::CompositionPipelineError::FederationOneWithFederationTwoSubgraphs;
 use crate::{
     options::{LicenseAccepter, ProfileOpt},
     utils::{
@@ -51,6 +52,8 @@ pub enum CompositionPipelineError {
     },
     #[error("Failed to install the supergraph binary.\n{}", .0)]
     InstallSupergraph(#[from] InstallSupergraphError),
+    #[error("Federation 1 version specified, but supergraph schema includes Federation 2 subgraphs: {0:?}")]
+    FederationOneWithFederationTwoSubgraphs(Vec<String>),
 }
 
 pub struct CompositionPipeline<State> {
@@ -135,11 +138,27 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 &SubgraphPrompt::default(),
             )
             .await?;
-        let federation_version = federation_version.unwrap_or_else(|| {
+        let fed_two_subgraphs = fully_resolved_supergraph_config
+            .subgraphs()
+            .iter()
+            .filter_map(|(name, subgraph)| {
+                if subgraph.is_fed_two {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<String>>();
+        let federation_version = if let Some(fed_version) = federation_version {
+            if !fed_two_subgraphs.is_empty() && fed_version.is_fed_one() {
+                return Err(FederationOneWithFederationTwoSubgraphs(fed_two_subgraphs));
+            }
+            fed_version
+        } else {
             fully_resolved_supergraph_config
                 .federation_version()
                 .clone()
-        });
+        };
         Ok(CompositionPipeline {
             state: state::InstallSupergraph {
                 resolver: self.state.resolver,

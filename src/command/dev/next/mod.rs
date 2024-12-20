@@ -3,6 +3,7 @@
 use std::io::stdin;
 
 use anyhow::anyhow;
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
@@ -94,7 +95,11 @@ impl Dev {
             .resolve_federation_version(
                 &client_config,
                 make_fetch_remote_subgraph,
-                self.opts.supergraph_opts.federation_version.clone(),
+                self.opts
+                    .supergraph_opts
+                    .federation_version
+                    .clone()
+                    .or(Some(LatestFedTwo)),
             )
             .await?
             .install_supergraph_binary(

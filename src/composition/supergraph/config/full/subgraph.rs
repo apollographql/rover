@@ -24,7 +24,7 @@ pub struct FullyResolvedSubgraph {
     #[getter(skip)]
     routing_url: Option<String>,
     schema: String,
-    is_fed_two: bool,
+    pub(crate) is_fed_two: bool,
 }
 
 #[buildstructor]
