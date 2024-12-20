@@ -49,7 +49,7 @@ impl SubgraphIntrospection {
         let service = self.service(false);
 
         let watch = Watch::builder()
-            .polling_interval(self.polling_interval.clone())
+            .polling_interval(self.polling_interval)
             .service(service)
             .build();
         let (watch_messages, watch_subtask) = Subtask::new(watch);
@@ -57,7 +57,7 @@ impl SubgraphIntrospection {
 
         // Stream any subgraph changes, filtering out empty responses (None) while passing along
         // the sdl changes
-        // this skips the first event, since the inner function always produces a result when it's
+        // This skips the first event, since the inner function always produces a result when it's
         // initialized
         watch_messages
             .skip(1)
@@ -80,7 +80,7 @@ impl SubgraphIntrospection {
         let http_service = self.client_config.service().unwrap();
         let introspect_layer = SubgraphIntrospectLayer::new(
             self.endpoint.clone(),
-            HashMap::from_iter(self.headers.clone().into_iter()),
+            HashMap::from_iter(self.headers.clone()),
             should_retry,
             self.client_config.retry_period(),
         )
