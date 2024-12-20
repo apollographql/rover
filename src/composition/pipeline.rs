@@ -259,6 +259,7 @@ impl CompositionPipeline<state::Run> {
         make_fetch_remote_subgraph: FetchRemoteSubgraphFactory,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
+        output_target: OutputTarget,
         compose_on_initialisation: bool,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
     where
@@ -291,6 +292,7 @@ impl CompositionPipeline<state::Run> {
                 write_file,
                 output_dir,
                 compose_on_initialisation,
+                output_target,
             );
         Ok(runner)
     }
