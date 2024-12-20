@@ -7,7 +7,6 @@ use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
-use tokio::io::AsyncWriteExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
