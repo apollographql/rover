@@ -7,6 +7,7 @@ use futures::{stream, StreamExt, TryFutureExt};
 use itertools::Itertools;
 use tower::MakeService;
 
+use super::FullyResolvedSubgraph;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
@@ -19,16 +20,14 @@ use crate::{
     utils::effect::introspect::IntrospectSubgraph,
 };
 
-use super::FullyResolvedSubgraph;
-
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 #[cfg_attr(test, derive(buildstructor::Builder))]
 pub struct FullyResolvedSupergraphConfig {
-    origin_path: Option<Utf8PathBuf>,
-    subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
-    federation_version: FederationVersion,
+    pub(crate) origin_path: Option<Utf8PathBuf>,
+    pub(crate) subgraphs: BTreeMap<String, FullyResolvedSubgraph>,
+    pub(crate) federation_version: FederationVersion,
 }
 
 impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
@@ -98,8 +97,12 @@ impl FullyResolvedSupergraphConfig {
     }
 
     /// Updates the subgraph with the provided name using the provided schema
-    pub fn update_subgraph_schema(&mut self, name: String, subgraph: FullyResolvedSubgraph) {
-        self.subgraphs.insert(name, subgraph);
+    pub fn update_subgraph_schema(
+        &mut self,
+        name: String,
+        subgraph: FullyResolvedSubgraph,
+    ) -> Option<FullyResolvedSubgraph> {
+        self.subgraphs.insert(name, subgraph)
     }
 
     /// Removes the subgraph with the name provided

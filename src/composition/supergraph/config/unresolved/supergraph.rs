@@ -6,9 +6,8 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
-
 use super::UnresolvedSubgraph;
+use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
 #[derive(Getters)]
@@ -49,7 +48,6 @@ impl UnresolvedSupergraphConfig {
 
 #[cfg(test)]
 mod tests {
-
     use std::{
         collections::{BTreeMap, HashSet},
         str::FromStr,
@@ -627,22 +625,31 @@ mod tests {
 
         file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
         let mut unresolved_subgraphs = BTreeMap::new();
-        let sdl_subgraph_name = "sdl_subgraph".to_string();
+        let sdl_subgraph_name = sdl_subgraph_scenario.unresolved_subgraph.name().to_string();
         unresolved_subgraphs.insert(
             sdl_subgraph_name.clone(),
             sdl_subgraph_scenario.unresolved_subgraph,
         );
-        let remote_subgraph_name = "remote_subgraph".to_string();
+        let remote_subgraph_name = remote_subgraph_scenario
+            .unresolved_subgraph
+            .name()
+            .to_string();
         unresolved_subgraphs.insert(
             remote_subgraph_name.clone(),
             remote_subgraph_scenario.unresolved_subgraph,
         );
-        let introspect_subgraph_name = "introspect_subgraph".to_string();
+        let introspect_subgraph_name = introspect_subgraph_scenario
+            .unresolved_subgraph
+            .name()
+            .to_string();
         unresolved_subgraphs.insert(
             introspect_subgraph_name.clone(),
             introspect_subgraph_scenario.unresolved_subgraph,
         );
-        let file_subgraph_name = "file_subgraph".to_string();
+        let file_subgraph_name = file_subgraph_scenario
+            .unresolved_subgraph
+            .name()
+            .to_string();
         unresolved_subgraphs.insert(
             file_subgraph_name.clone(),
             file_subgraph_scenario.unresolved_subgraph,
@@ -667,6 +674,7 @@ mod tests {
             (
                 sdl_subgraph_name.clone(),
                 LazilyResolvedSubgraph::builder()
+                    .name(sdl_subgraph_name.clone())
                     .schema(SchemaSource::Sdl {
                         sdl: sdl_subgraph_scenario.sdl.clone(),
                     })
@@ -680,6 +688,7 @@ mod tests {
                             .join(file_subgraph_scenario.schema_file_path)
                             .canonicalize_utf8()?,
                     })
+                    .name(file_subgraph_name.clone())
                     .routing_url(file_subgraph_scenario.routing_url)
                     .build(),
             ),
@@ -690,6 +699,7 @@ mod tests {
                         graphref: remote_subgraph_scenario.graph_ref.to_string(),
                         subgraph: remote_subgraph_scenario.subgraph_name.clone(),
                     })
+                    .name(remote_subgraph_name.clone())
                     .routing_url(remote_subgraph_scenario.routing_url.clone())
                     .build(),
             ),
@@ -704,6 +714,7 @@ mod tests {
                             introspect_subgraph_scenario.introspection_headers.clone(),
                         ),
                     })
+                    .name(introspect_subgraph_name.clone())
                     .routing_url(introspect_subgraph_scenario.routing_url.clone())
                     .build(),
             ),

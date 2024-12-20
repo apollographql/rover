@@ -1,16 +1,25 @@
 use std::collections::BTreeMap;
 
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
+use futures::future::join_all;
 use futures::{stream, StreamExt};
 use itertools::Itertools;
+use tower::MakeService;
 
+use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::full::{
+    FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+};
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+    FetchRemoteSubgraphRequest, RemoteSubgraph,
+};
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
-
-use super::LazilyResolvedSubgraph;
+use crate::utils::effect::introspect::IntrospectSubgraph;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -56,6 +65,58 @@ impl LazilyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version: unresolved_supergraph_config.target_federation_version(),
+            })
+        } else {
+            Err(BTreeMap::from_iter(errors.into_iter()))
+        }
+    }
+
+    /// Transforms a [`LazilyResolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
+    /// consuming self in the process
+    pub async fn fully_resolve<MakeFetchSubgraph>(
+        self,
+        introspect_subgraph_impl: &impl IntrospectSubgraph,
+        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+    ) -> Result<FullyResolvedSupergraphConfig, BTreeMap<String, ResolveSubgraphError>>
+    where
+        MakeFetchSubgraph:
+            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
+        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
+        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+    {
+        let subgraphs = join_all(self.subgraphs().iter().map(
+            |(name, lazily_resolved_subgraph)| {
+                let fetch_remote_subgraph_impl = fetch_remote_subgraph_impl.clone();
+                async move {
+                    match FullyResolvedSubgraph::fully_resolve(
+                        introspect_subgraph_impl,
+                        fetch_remote_subgraph_impl,
+                        lazily_resolved_subgraph.clone(),
+                    )
+                    .await
+                    {
+                        Ok(fully_resolved_subgraph) => {
+                            Ok((name.to_owned(), fully_resolved_subgraph))
+                        }
+                        Err(resolve_subgraph_error) => {
+                            Err((name.to_owned(), resolve_subgraph_error))
+                        }
+                    }
+                }
+            },
+        ))
+        .await;
+        #[allow(clippy::type_complexity)]
+        let (subgraphs, errors): (
+            Vec<(String, FullyResolvedSubgraph)>,
+            Vec<(String, ResolveSubgraphError)>,
+        ) = subgraphs.into_iter().partition_result();
+        if errors.is_empty() {
+            let subgraphs = BTreeMap::from_iter(subgraphs);
+            Ok(FullyResolvedSupergraphConfig {
+                origin_path: self.origin_path,
+                subgraphs,
+                federation_version: self.federation_version.unwrap_or(LatestFedTwo),
             })
         } else {
             Err(BTreeMap::from_iter(errors.into_iter()))

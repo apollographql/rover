@@ -6,6 +6,22 @@ use rover_client::shared::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
 
+use super::{
+    runner::{CompositionRunner, Runner},
+    supergraph::{
+        binary::OutputTarget,
+        config::resolver::{
+            LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
+            SubgraphPrompt, SupergraphConfigResolver,
+        },
+        install::{InstallSupergraph, InstallSupergraphError},
+    },
+    CompositionError, CompositionSuccess,
+};
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+    FetchRemoteSubgraphRequest, RemoteSubgraph,
+};
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use crate::{
     options::{LicenseAccepter, ProfileOpt},
     utils::{
@@ -16,21 +32,6 @@ use crate::{
         },
         parsers::FileDescriptorType,
     },
-};
-
-use super::{
-    runner::{CompositionRunner, Runner},
-    supergraph::{
-        binary::OutputTarget,
-        config::resolver::{
-            fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-            fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-            LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-            SubgraphPrompt, SupergraphConfigResolver,
-        },
-        install::{InstallSupergraph, InstallSupergraphError},
-    },
-    CompositionError, CompositionSuccess,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -224,6 +225,7 @@ impl CompositionPipeline<state::Run> {
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
+        compose_on_initialisation: bool,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
     where
         ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -254,6 +256,8 @@ impl CompositionPipeline<state::Run> {
                 read_file,
                 write_file,
                 output_dir,
+                compose_on_initialisation,
+                OutputTarget::Stdout,
             );
         Ok(runner)
     }

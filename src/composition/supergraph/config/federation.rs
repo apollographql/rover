@@ -6,9 +6,8 @@ use std::marker::PhantomData;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use derive_getters::Getters;
 
-use crate::command::supergraph::compose::do_compose::SupergraphComposeOpts;
-
 use super::full::FullyResolvedSubgraph;
+use crate::command::supergraph::compose::do_compose::SupergraphComposeOpts;
 
 mod state {
     #[derive(Clone, Debug)]
@@ -166,9 +165,8 @@ mod tests {
     use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
     use speculoos::prelude::*;
 
-    use crate::composition::supergraph::config::{full::FullyResolvedSubgraph, scenario::*};
-
     use super::FederationVersionResolverFromSupergraphConfig;
+    use crate::composition::supergraph::config::{full::FullyResolvedSubgraph, scenario::*};
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config or resolved subgraphs
@@ -189,7 +187,7 @@ mod tests {
         let supergraph_config =
             SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedOne));
 
-        let resolved_subgraphs = vec![(
+        let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
@@ -222,7 +220,7 @@ mod tests {
         let supergraph_config =
             SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedTwo));
 
-        let resolved_subgraphs = vec![(
+        let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
@@ -254,7 +252,7 @@ mod tests {
         let federation_version_resolver = FederationVersionResolverFromSupergraphConfig::default();
         let supergraph_config = SupergraphConfig::new(unresolved_subgraphs, None);
 
-        let resolved_subgraphs = vec![(
+        let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)

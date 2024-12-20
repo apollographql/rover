@@ -8,20 +8,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
 
-use crate::{
-    composition::watchers::watcher::{
-        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
-    },
-    options::ProfileOpt,
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::{
-        client::StudioClientConfig,
-        effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-    },
-};
-
 use self::state::SetupSubgraphWatchers;
-
 use super::{
     events::CompositionEvent,
     supergraph::{
@@ -32,6 +19,18 @@ use super::{
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
+};
+use crate::composition::supergraph::binary::OutputTarget;
+use crate::{
+    composition::watchers::watcher::{
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
+    },
+    options::ProfileOpt,
+    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
+    utils::{
+        client::StudioClientConfig,
+        effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
+    },
 };
 
 mod state;
@@ -125,6 +124,8 @@ impl Runner<state::SetupCompositionWatcher> {
         read_file: ReadF,
         write_file: WriteF,
         temp_dir: Utf8PathBuf,
+        compose_on_initialisation: bool,
+        output_target: OutputTarget,
     ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -139,6 +140,8 @@ impl Runner<state::SetupCompositionWatcher> {
             .read_file(read_file)
             .write_file(write_file)
             .temp_dir(temp_dir)
+            .compose_on_initialisation(compose_on_initialisation)
+            .output_target(output_target)
             .build();
         Runner {
             state: state::Run {
