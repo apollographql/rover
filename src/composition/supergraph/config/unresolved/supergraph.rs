@@ -62,19 +62,23 @@ mod tests {
     use mockall::predicate;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
+    use tower::ServiceBuilder;
 
     use crate::{
         composition::supergraph::config::{
             federation::FederationVersionResolverFromSubgraphs,
             full::{FullyResolvedSubgraph, FullyResolvedSupergraphConfig},
             lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-            resolver::ResolveSupergraphConfigError,
+            resolver::{
+                fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+                ResolveSupergraphConfigError,
+            },
             scenario::*,
             unresolved::UnresolvedSupergraphConfig,
         },
-        utils::effect::{
-            fetch_remote_subgraph::{MockFetchRemoteSubgraph, RemoteSubgraph},
-            introspect::MockIntrospectSubgraph,
+        utils::{
+            effect::introspect::MockIntrospectSubgraph,
+            service::test::{FakeError, FakeMakeService},
         },
     };
 
@@ -302,25 +306,33 @@ mod tests {
             ..
         } = remote_subgraph_scenario;
 
-        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph
-            .expect_fetch_remote_subgraph()
-            .times(1)
-            .with(
-                predicate::eq(remote_subgraph_graph_ref.clone()),
-                predicate::eq(remote_subgraph_subgraph_name.to_string()),
-            )
-            .returning({
+        let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
+        fetch_remote_subgraph_handle.allow(1);
+        tokio::spawn({
+            let remote_subgraph_sdl = remote_subgraph_sdl.clone();
+            let remote_subgraph_routing_url = remote_subgraph_routing_url.clone();
+            async move {
+                let (req, send_response) =
+                    fetch_remote_subgraph_handle.next_request().await.unwrap();
+                let subgraph_name = remote_subgraph_subgraph_name.to_string();
+                assert_that!(req).is_equal_to(
+                    FetchRemoteSubgraphRequest::builder()
+                        .graph_ref(remote_subgraph_graph_ref.clone())
+                        .subgraph_name(subgraph_name.to_string())
+                        .build(),
+                );
                 let remote_subgraph_sdl = remote_subgraph_sdl.to_string();
                 let remote_subgraph_routing_url = remote_subgraph_routing_url.to_string();
-                move |_, name| {
-                    Ok(RemoteSubgraph::builder()
-                        .name(name.to_string())
+                send_response.send_response(
+                    RemoteSubgraph::builder()
+                        .name(subgraph_name)
                         .routing_url(remote_subgraph_routing_url.to_string())
                         .schema(remote_subgraph_sdl.to_string())
-                        .build())
-                }
-            });
+                        .build(),
+                )
+            }
+        });
 
         let IntrospectSubgraphScenario {
             sdl: ref introspect_subgraph_sdl,
@@ -342,9 +354,15 @@ mod tests {
                 move |_, _| Ok(introspect_subgraph_sdl.to_string())
             });
 
+        let make_fetch_remote_subgraph_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraph_service.into_inner()),
+        );
+
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
-            &mock_fetch_remote_subgraph,
+            make_fetch_remote_subgraph_service,
             Some(
                 &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
                     .unwrap(),
@@ -353,7 +371,6 @@ mod tests {
         )
         .await;
 
-        mock_fetch_remote_subgraph.checkpoint();
         mock_introspect_subgraph.checkpoint();
 
         let resolved_supergraph_config = assert_that!(result).is_ok().subject;
@@ -489,25 +506,38 @@ mod tests {
             ..
         } = remote_subgraph_scenario;
 
-        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph
-            .expect_fetch_remote_subgraph()
-            .times(1)
-            .with(
-                predicate::eq(remote_subgraph_graph_ref.clone()),
-                predicate::eq(remote_subgraph_subgraph_name.to_string()),
-            )
-            .returning({
+        let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
+
+        fetch_remote_subgraph_handle.allow(1);
+        tokio::spawn({
+            let remote_subgraph_sdl = remote_subgraph_sdl.clone();
+            async move {
+                let (req, send_response) =
+                    fetch_remote_subgraph_handle.next_request().await.unwrap();
+                assert_that!(req).is_equal_to(
+                    FetchRemoteSubgraphRequest::builder()
+                        .graph_ref(remote_subgraph_graph_ref.clone())
+                        .subgraph_name(remote_subgraph_subgraph_name.to_string())
+                        .build(),
+                );
                 let remote_subgraph_sdl = remote_subgraph_sdl.to_string();
                 let remote_subgraph_routing_url = remote_subgraph_routing_url.to_string();
-                move |_, name| {
-                    Ok(RemoteSubgraph::builder()
-                        .name(name.to_string())
+                send_response.send_response(
+                    RemoteSubgraph::builder()
+                        .name(remote_subgraph_subgraph_name.to_string().to_string())
                         .routing_url(remote_subgraph_routing_url.to_string())
                         .schema(remote_subgraph_sdl.to_string())
-                        .build())
-                }
-            });
+                        .build(),
+                );
+            }
+        });
+
+        let make_fetch_remote_subgraph_service = FakeMakeService::new(
+            ServiceBuilder::new()
+                .map_err(FakeError::from)
+                .service(fetch_remote_subgraph_service.into_inner()),
+        );
 
         let IntrospectSubgraphScenario {
             sdl: ref introspect_subgraph_sdl,
@@ -531,7 +561,7 @@ mod tests {
 
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
-            &mock_fetch_remote_subgraph,
+            make_fetch_remote_subgraph_service,
             Some(
                 &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
                     .unwrap(),
@@ -540,7 +570,6 @@ mod tests {
         )
         .await;
 
-        mock_fetch_remote_subgraph.checkpoint();
         mock_introspect_subgraph.checkpoint();
 
         let mut fed_two_subgraph_names = HashSet::new();

@@ -2,19 +2,22 @@ use std::collections::{BTreeMap, HashMap};
 
 use apollo_federation_types::config::SubgraphConfig;
 use futures::stream::BoxStream;
+use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::{
-    composition::supergraph::config::{full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph},
+    composition::supergraph::config::{
+        error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
+    },
     options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
     utils::client::StudioClientConfig,
 };
 
 use super::watcher::{
-    subgraph::{SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind, WatchedSdlChange},
     supergraph_config::SupergraphConfigDiff,
 };
 
@@ -78,7 +81,7 @@ pub enum SubgraphEvent {
 }
 /// An event denoting that the subgraph has changed, emitting its name and the SDL reflecting that
 /// change
-#[derive(derive_getters::Getters, Eq, PartialEq)]
+#[derive(derive_getters::Getters, Eq, PartialEq, Debug)]
 pub struct SubgraphSchemaChanged {
     /// Subgraph name
     name: String,
@@ -115,7 +118,7 @@ pub struct SubgraphSchemaRemoved {
 }
 
 impl SubtaskHandleStream for SubgraphWatchers {
-    type Input = SupergraphConfigDiff;
+    type Input = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
     type Output = SubgraphEvent;
 
     fn handle(
@@ -124,160 +127,244 @@ impl SubtaskHandleStream for SubgraphWatchers {
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
         tokio::task::spawn(async move {
-            let mut abort_handles: HashMap<String, (AbortHandle, AbortHandle)> = HashMap::new();
-            // Start a background task for each of the subtask watchers that listens for change
-            // events and send each event to the parent sender to be consumed by the composition
-            // handler.
-            // We also collect the abort handles for each background task in order to gracefully
-            // shut down.
-            for (subgraph_name, (mut messages, subtask)) in self.watchers.into_iter() {
-                let sender = sender.clone();
-                let subgraph_name_c = subgraph_name.clone();
-                let routing_url = subtask.inner().routing_url().clone();
-                let messages_abort_handle = tokio::task::spawn(async move {
-                    while let Some(change) = messages.next().await {
-                        let routing_url = routing_url.clone();
-                        tracing::info!("Subgraph change detected: {:?}", change);
-                        let _ = sender
-                            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                                name: subgraph_name_c.clone(),
-                                sdl: change.sdl().to_string(),
-                                routing_url,
-                            }))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
-                })
-                .abort_handle();
-                let subtask_abort_handle = subtask.run();
-                abort_handles.insert(subgraph_name, (messages_abort_handle, subtask_abort_handle));
-            }
+            let mut subgraph_handles = SubgraphHandles::new(sender.clone(), self.watchers.into_iter());
 
             // Wait for supergraph diff events received from the input stream.
             while let Some(diff) = input.next().await {
-                // If we detect additional diffs, start a new subgraph subtask.
-                // Adding the abort handle to the currentl collection of handles.
-                for (subgraph_name, subgraph_config) in diff.added() {
-                    if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
-                        subgraph_config.routing_url.clone(),
-                        subgraph_config.schema.clone(),
-                        &self.profile,
-                        &self.client_config,
-                        self.introspection_polling_interval,
-                    )
-                    .tap_err(|err| {
-                        tracing::warn!(
-                            "Cannot configure new subgraph for {subgraph_name}: {:?}",
-                            err
-                        )
-                    }) {
-                        // If a SchemaSource::Subgraph or SchemaSource::Sdl was added, we don't
-                        // want to spin up watchers; rather, we emit a SubgraphSchemaChanged event with
-                        // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
-                        // has for Sdls
-                        if let SubgraphWatcherKind::Once(non_repeating_fetch) =
-                            subgraph_watcher.watcher()
-                        {
-                            let _ = non_repeating_fetch
-                                .run()
-                                .await
-                                .tap_err(|err| {
-                                    tracing::error!("failed to get {subgraph_name}'s SDL: {err:?}")
-                                })
-                                .map(|sdl| {
-                                    let _ = sender
-                                        .send(SubgraphEvent::SubgraphChanged(
-                                            SubgraphSchemaChanged {
-                                                name: subgraph_name.to_string(),
-                                                sdl,
-                                                routing_url: subgraph_watcher.routing_url().clone(),
-                                            },
-                                        ))
-                                        .tap_err(|err| tracing::error!("{:?}", err));
-                                });
-                        // When we have a SchemaSource that's watchable, we start a new subtask
-                        // and add it to our list of subtasks
-                        } else {
-                            let (mut messages, subtask) =
-                                Subtask::<SubgraphWatcher, WatchedSdlChange>::new(subgraph_watcher);
+                match diff {
+                    Ok(diff) => {
+                        // If we detect additional diffs, start a new subgraph subtask.
+                        // Adding the abort handle to the currentl collection of handles.
+                        for (subgraph_name, subgraph_config) in diff.added() {
+                            subgraph_handles.add(
+                                subgraph_name,
+                                subgraph_config,
+                                &self.profile,
+                                &self.client_config,
+                                self.introspection_polling_interval
+                            ).await;
+                        }
 
-                            let sender = sender.clone();
-                            let subgraph_name_c = subgraph_name.clone();
-                            let routing_url = subtask.inner().routing_url().clone();
-                            let messages_abort_handle = tokio::spawn(async move {
-                                while let Some(change) = messages.next().await {
-                                    let routing_url = routing_url.clone();
-                                    let _ = sender
-                                        .send(SubgraphEvent::SubgraphChanged(
-                                            SubgraphSchemaChanged {
-                                                name: subgraph_name_c.to_string(),
-                                                sdl: change.sdl().to_string(),
-                                                routing_url,
-                                            },
-                                        ))
-                                        .tap_err(|err| tracing::error!("{:?}", err));
-                                }
-                            })
-                            .abort_handle();
-                            let subtask_abort_handle = subtask.run();
-                            abort_handles.insert(
-                                subgraph_name.to_string(),
-                                (messages_abort_handle, subtask_abort_handle),
-                            );
+                        for (subgraph_name, subgraph_config) in diff.changed() {
+                            subgraph_handles.update(subgraph_name,
+                                subgraph_config,
+                                &self.profile,
+                                &self.client_config,
+                                self.introspection_polling_interval
+                            ).await;
+                        }
+
+                        // If we detect removal diffs, stop the subtask for the removed subgraph.
+                        for subgraph_name in diff.removed() {
+                            eprintln!("Removing subgraph from session: `{}`", subgraph_name);
+                            subgraph_handles.remove(subgraph_name);
                         }
                     }
-                }
-
-                for (name, subgraph_config) in diff.changed() {
-                    eprintln!("Change detected for subgraph: `{}`", name);
-                    if let Ok(watcher) = SubgraphWatcher::from_schema_source(
-                        subgraph_config.routing_url.clone(),
-                        subgraph_config.schema.clone(),
-                        &self.profile,
-                        &self.client_config,
-                        self.introspection_polling_interval,
-                    )
-                    .tap_err(|err| tracing::error!("Unable to get watcher: {err:?}"))
-                    {
-                        if let SubgraphWatcherKind::Once(non_repeating_fetch) = watcher.watcher() {
-                            let _ = non_repeating_fetch
-                                .run()
-                                .await
-                                .tap_err(|err| {
-                                    tracing::error!("failed to get {name}'s SDL: {err:?}")
-                                })
-                                .map(|sdl| {
-                                    let _ = sender
-                                        .send(SubgraphEvent::SubgraphChanged(
-                                            SubgraphSchemaChanged {
-                                                name: name.to_string(),
-                                                sdl,
-                                                routing_url: watcher.routing_url().clone(),
-                                            },
-                                        ))
-                                        .tap_err(|err| tracing::error!("{:?}", err));
-                                });
+                    Err(errs) => {
+                        for (subgraph_name, _) in errs {
+                            errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
+                            subgraph_handles.remove(&subgraph_name);
                         }
-                    }
-                }
-
-                // If we detect removal diffs, stop the subtask for the removed subgraph.
-                for name in diff.removed() {
-                    if let Some((messages_abort_handle, subtask_abort_handle)) =
-                        abort_handles.get(name)
-                    {
-                        messages_abort_handle.abort();
-                        subtask_abort_handle.abort();
-                        abort_handles.remove(name);
-                        let _ = sender
-                            .send(SubgraphEvent::SubgraphRemoved(SubgraphSchemaRemoved {
-                                name: name.to_string(),
-                            }))
-                            .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
             }
         })
         .abort_handle()
+    }
+}
+
+struct SubgraphHandles {
+    abort_handles: HashMap<String, (AbortHandle, AbortHandle)>,
+    sender: UnboundedSender<SubgraphEvent>,
+}
+
+impl SubgraphHandles {
+    pub fn new(
+        sender: UnboundedSender<SubgraphEvent>,
+        watchers: impl Iterator<
+            Item = (
+                String,
+                (
+                    UnboundedReceiverStream<WatchedSdlChange>,
+                    Subtask<SubgraphWatcher, WatchedSdlChange>,
+                ),
+            ),
+        >,
+    ) -> SubgraphHandles {
+        let mut abort_handles = HashMap::new();
+        // Start a background task for each of the subtask watchers that listens for change
+        // events and send each event to the parent sender to be consumed by the composition
+        // handler.
+        // We also collect the abort handles for each background task in order to gracefully
+        // shut down.
+        for (subgraph_name, (mut messages, subtask)) in watchers {
+            let messages_abort_handle = tokio::task::spawn({
+                let subgraph_name = subgraph_name.to_string();
+                let sender = sender.clone();
+                let routing_url = subtask.inner().routing_url().clone();
+                async move {
+                    while let Some(change) = messages.next().await {
+                        let routing_url = routing_url.clone();
+                        tracing::info!("Subgraph change detected: {:?}", change);
+                        let _ = sender
+                            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
+                                name: subgraph_name.to_string(),
+                                sdl: change.sdl().to_string(),
+                                routing_url,
+                            }))
+                            .tap_err(|err| tracing::error!("{:?}", err));
+                    }
+                }
+            })
+            .abort_handle();
+            let subtask_abort_handle = subtask.run();
+            abort_handles.insert(subgraph_name, (messages_abort_handle, subtask_abort_handle));
+        }
+        SubgraphHandles {
+            sender,
+            abort_handles,
+        }
+    }
+
+    pub async fn add(
+        &mut self,
+        subgraph: &str,
+        subgraph_config: &SubgraphConfig,
+        profile: &ProfileOpt,
+        client_config: &StudioClientConfig,
+        introspection_polling_interval: u64,
+    ) {
+        eprintln!("Adding subgraph to session: `{}`", subgraph);
+        if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
+            subgraph_config.routing_url.clone(),
+            subgraph_config.schema.clone(),
+            profile,
+            client_config,
+            introspection_polling_interval,
+        )
+        .tap_err(|err| tracing::warn!("Cannot configure new subgraph for {subgraph}: {:?}", err))
+        {
+            // If a SchemaSource::Subgraph or SchemaSource::Sdl was added, we don't
+            // want to spin up watchers; rather, we emit a SubgraphSchemaChanged event with
+            // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
+            // has for Sdls
+            if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
+                self.add_oneshot_subgraph_to_session(subgraph, &subgraph_watcher, subgraph_config)
+                    .await;
+            } else {
+                // When we have a SchemaSource that's watchable, we start a new subtask
+                // and add it to our list of subtasks
+                self.add_streaming_subgraph_to_session(subgraph, subgraph_watcher)
+                    .await;
+            }
+        }
+    }
+
+    pub async fn update(
+        &mut self,
+        subgraph: &str,
+        subgraph_config: &SubgraphConfig,
+        profile: &ProfileOpt,
+        client_config: &StudioClientConfig,
+        introspection_polling_interval: u64,
+    ) {
+        eprintln!("Change detected for subgraph: `{}`", subgraph);
+        if let Ok(watcher) = SubgraphWatcher::from_schema_source(
+            subgraph_config.routing_url.clone(),
+            subgraph_config.schema.clone(),
+            profile,
+            client_config,
+            introspection_polling_interval,
+        )
+        .tap_err(|err| tracing::error!("Unable to get watcher: {err:?}"))
+        {
+            if let SubgraphWatcherKind::Once(non_repeating_fetch) = watcher.watcher() {
+                let _ = non_repeating_fetch
+                    .run()
+                    .await
+                    .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
+                    .map(|sdl| {
+                        let _ = self
+                            .sender
+                            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
+                                name: subgraph.to_string(),
+                                sdl,
+                                routing_url: watcher.routing_url().clone(),
+                            }))
+                            .tap_err(|err| tracing::error!("{:?}", err));
+                    });
+            }
+        }
+    }
+
+    pub fn remove(&mut self, subgraph: &str) {
+        if let Some(abort_handle) = self.abort_handles.get(subgraph) {
+            abort_handle.0.abort();
+            abort_handle.1.abort();
+            self.abort_handles.remove(subgraph);
+        }
+
+        let _ = self
+            .sender
+            .send(SubgraphEvent::SubgraphRemoved(SubgraphSchemaRemoved {
+                name: subgraph.to_string(),
+            }))
+            .tap_err(|err| tracing::error!("{:?}", err));
+    }
+
+    async fn add_oneshot_subgraph_to_session(
+        &mut self,
+        subgraph: &str,
+        subgraph_watcher: &SubgraphWatcher,
+        non_repeating_fetch: &NonRepeatingFetch,
+    ) {
+        let _ = non_repeating_fetch
+            .run()
+            .await
+            .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
+            .map(|sdl| {
+                let _ = self
+                    .sender
+                    .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
+                        name: subgraph.to_string(),
+                        sdl,
+                        routing_url: subgraph_watcher.routing_url().clone(),
+                    }))
+                    .tap_err(|err| tracing::error!("{:?}", err));
+            });
+    }
+
+    async fn add_streaming_subgraph_to_session(
+        &mut self,
+        subgraph: &str,
+        subgraph_watcher: SubgraphWatcher,
+    ) {
+        let (mut messages, subtask) =
+            Subtask::<SubgraphWatcher, WatchedSdlChange>::new(subgraph_watcher);
+
+        let routing_url = subtask.inner().routing_url().clone();
+        let messages_abort_handle = tokio::spawn({
+            let sender = self.sender.clone();
+            let subgraph_name = subgraph.to_string();
+            async move {
+                while let Some(change) = messages.next().await {
+                    let routing_url = routing_url.clone();
+                    let _ = sender
+                        .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
+                            name: subgraph_name.to_string(),
+                            sdl: change.sdl().to_string(),
+                            routing_url,
+                        }))
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                }
+            }
+        })
+        .abort_handle();
+        let subtask_abort_handle = subtask.run();
+        self.abort_handles.insert(
+            subgraph.to_string(),
+            (messages_abort_handle, subtask_abort_handle),
+        );
     }
 }
 

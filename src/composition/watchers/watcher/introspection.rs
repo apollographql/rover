@@ -86,13 +86,17 @@ impl SubgraphIntrospection {
                 },
                 // TODO: impl retries (at least for dev from cli flag)
                 None,
+                true, // hide the output
             )
             .await;
         });
 
         // Stream any subgraph changes, filtering out empty responses (None) while passing along
         // the sdl changes
+        // this skips the first event, since the inner function always produces a result when it's
+        // initialized
         rx_stream
+            .skip(1)
             .filter_map(|change| async move {
                 match change {
                     OutputChannelKind::Sdl(sdl) => Some(sdl),

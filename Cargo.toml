@@ -219,6 +219,7 @@ termimad = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "sync"] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
@@ -247,5 +248,6 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
+tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "0.3.6", features = ["async_closure"] }
