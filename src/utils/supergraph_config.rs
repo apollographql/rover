@@ -188,7 +188,6 @@ mod test_get_supergraph_config {
     use std::io::Write;
     use std::path::PathBuf;
     use std::str::FromStr;
-    use std::time::Duration;
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SupergraphConfig};
@@ -205,7 +204,7 @@ mod test_get_supergraph_config {
     use tempfile::{NamedTempFile, TempDir};
 
     use crate::options::ProfileOpt;
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
     use crate::utils::supergraph_config::{get_supergraph_config, resolve_federation_version};
 
@@ -335,7 +334,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let actual_result = if let Some(name) = local_subgraph {
@@ -496,7 +495,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let sc_config = get_supergraph_config(
@@ -1056,7 +1055,7 @@ mod test_resolve_supergraph_yaml {
 
     use super::*;
     use crate::options::ProfileOpt;
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
 
     #[fixture]
@@ -1539,7 +1538,7 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
-            Some(Duration::from_secs(3)),
+            ClientTimeout::default(),
         );
 
         let mut supergraph_config_path = tempfile::NamedTempFile::new()?;

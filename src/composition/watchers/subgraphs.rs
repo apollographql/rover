@@ -397,7 +397,7 @@ mod tests {
     use crate::{
         composition::supergraph::config::lazy::LazilyResolvedSubgraph,
         options::ProfileOpt,
-        utils::client::{ClientBuilder, StudioClientConfig},
+        utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     };
 
     #[test]
@@ -449,7 +449,7 @@ mod tests {
             },
             false,
             ClientBuilder::new(),
-            None,
+            ClientTimeout::default(),
         );
 
         let profile = ProfileOpt {

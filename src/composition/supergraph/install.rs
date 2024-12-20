@@ -112,7 +112,7 @@ mod tests {
         composition::supergraph::version::SupergraphVersion,
         options::LicenseAccepter,
         utils::{
-            client::{ClientBuilder, StudioClientConfig},
+            client::{ClientBuilder, ClientTimeout, StudioClientConfig},
             effect::install::InstallBinary,
         },
     };
@@ -166,7 +166,7 @@ mod tests {
             config,
             false,
             ClientBuilder::default(),
-            None,
+            ClientTimeout::default(),
         )
     }
 

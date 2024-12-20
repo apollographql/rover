@@ -70,7 +70,7 @@ mod test {
     use speculoos::prelude::*;
 
     use crate::utils::{
-        client::{ClientBuilder, StudioClientConfig},
+        client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         effect::test::SUBGRAPH_INTROSPECTION_QUERY,
     };
 
@@ -117,8 +117,13 @@ mod test {
             home: Utf8PathBuf::from_path_buf(home.path().to_path_buf()).unwrap(),
             override_api_key: None,
         };
-        let studio_client_config =
-            StudioClientConfig::new(None, config, false, ClientBuilder::default(), None);
+        let studio_client_config = StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
         let headers = HashMap::from_iter([("x-test-name".to_string(), "x-test-value".to_string())]);
         let result = studio_client_config
             .introspect_subgraph(endpoint, headers)

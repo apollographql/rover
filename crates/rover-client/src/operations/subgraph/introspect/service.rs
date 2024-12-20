@@ -106,7 +106,7 @@ impl Layer<HttpService> for SubgraphIntrospectLayer {
     type Service = SubgraphIntrospect<GraphQLService<HttpService>>;
     fn layer(&self, inner: HttpService) -> Self::Service {
         let retry_layer = if self.should_retry {
-            Some(RetryLayer::new(RetryPolicy::new(self.retry_period.clone())))
+            Some(RetryLayer::new(RetryPolicy::new(self.retry_period)))
         } else {
             None
         };
