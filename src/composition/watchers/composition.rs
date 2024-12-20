@@ -34,6 +34,7 @@ pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
     compose_on_initialisation: bool,
+    output_target: OutputTarget,
 }
 
 impl<ExecC, ReadF, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, ReadF, WriteF>
@@ -64,7 +65,9 @@ where
                     let _ = sender
                         .send(CompositionEvent::Started)
                         .tap_err(|err| error!("{:?}", err));
-                    let output = self.run_composition(&target_file).await;
+                    let output = self
+                        .run_composition(&target_file, &self.output_target)
+                        .await;
                     match output {
                         Ok(success) => {
                             let _ = sender
@@ -128,7 +131,9 @@ where
                         .send(CompositionEvent::Started)
                         .tap_err(|err| error!("{:?}", err));
 
-                    let output = self.run_composition(&target_file).await;
+                    let output = self
+                        .run_composition(&target_file, &self.output_target)
+                        .await;
 
                     match output {
                         Ok(success) => {
@@ -193,12 +198,13 @@ where
     async fn run_composition(
         &self,
         target_file: &Utf8PathBuf,
+        output_target: &OutputTarget,
     ) -> Result<CompositionSuccess, CompositionError> {
         self.supergraph_binary
             .compose(
                 &self.exec_command,
                 &self.read_file,
-                &OutputTarget::Stdout,
+                output_target,
                 target_file.clone(),
             )
             .await
@@ -227,6 +233,7 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::CompositionWatcher;
+    use crate::composition::supergraph::binary::OutputTarget;
     use crate::composition::CompositionSubgraphAdded;
     use crate::{
         composition::{
@@ -319,6 +326,7 @@ mod tests {
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
             .compose_on_initialisation(false)
+            .output_target(OutputTarget::Stdout)
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {

@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::process::Stdio;
 
 use apollo_federation_types::{
     config::FederationVersion,
@@ -9,6 +10,8 @@ use camino::Utf8PathBuf;
 use rover_std::warnln;
 use tap::TapFallible;
 
+use super::version::SupergraphVersion;
+use crate::utils::effect::exec::ExecCommandOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
     utils::effect::{
@@ -17,12 +20,14 @@ use crate::{
     },
 };
 
-use super::version::SupergraphVersion;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputTarget {
+    /// Output to a file, given by the parameter
     File(Utf8PathBuf),
+    /// Output to stdout (inappropriate for LSP usage because stdout is reserved for the LSP itself)
     Stdout,
+    /// Produce an output that only exists in memory, for passing to events
+    InMemory,
 }
 
 impl OutputTarget {
@@ -37,6 +42,7 @@ impl OutputTarget {
                 }
             }
             OutputTarget::Stdout => OutputTarget::Stdout,
+            OutputTarget::InMemory => OutputTarget::InMemory,
         }
     }
 }
@@ -89,14 +95,20 @@ impl SupergraphBinary {
         supergraph_config_path: Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
         let args = self.prepare_compose_args(output_target, &supergraph_config_path);
+        let config = match output_target {
+            OutputTarget::File(_) | OutputTarget::Stdout => ExecCommandConfig::builder()
+                .exe(self.exe.clone())
+                .args(args)
+                .build(),
+            OutputTarget::InMemory => ExecCommandConfig::builder()
+                .exe(self.exe.clone())
+                .args(args)
+                .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
+                .build(),
+        };
 
         let output = exec_impl
-            .exec_command(
-                ExecCommandConfig::builder()
-                    .exe(self.exe.clone())
-                    .args(args)
-                    .build(),
-            )
+            .exec_command(config)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
@@ -122,7 +134,7 @@ impl SupergraphBinary {
                         error: Box::new(err),
                     })?
             }
-            OutputTarget::Stdout => std::str::from_utf8(&output.stdout)
+            OutputTarget::Stdout | OutputTarget::InMemory => std::str::from_utf8(&output.stdout)
                 .map_err(|err| CompositionError::InvalidOutput {
                     binary: self.exe.clone(),
                     error: format!("{:?}", err),
@@ -200,6 +212,7 @@ mod tests {
     use semver::Version;
     use speculoos::prelude::*;
 
+    use super::{CompositionSuccess, OutputTarget, SupergraphBinary};
     use crate::{
         command::supergraph::compose::do_compose::SupergraphComposeOpts,
         composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
@@ -208,8 +221,6 @@ mod tests {
             effect::{exec::MockExecCommand, read_file::MockReadFile},
         },
     };
-
-    use super::{CompositionSuccess, OutputTarget, SupergraphBinary};
 
     fn fed_one() -> Version {
         Version::from_str("1.0.0").unwrap()
