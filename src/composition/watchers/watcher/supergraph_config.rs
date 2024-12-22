@@ -7,9 +7,12 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::composition::{
-    supergraph::config::resolve::LazilyResolvedSupergraphConfig,
-    watchers::subtask::SubtaskHandleUnit,
+use crate::{
+    composition::supergraph::config::{
+        error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
+        unresolved::UnresolvedSupergraphConfig,
+    },
+    subtask::SubtaskHandleUnit,
 };
 
 use super::file::FileWatcher;
@@ -33,36 +36,83 @@ impl SupergraphConfigWatcher {
 }
 
 impl SubtaskHandleUnit for SupergraphConfigWatcher {
-    type Output = SupergraphConfigDiff;
+    type Output = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
-        tokio::spawn(async move {
-            let mut latest_supergraph_config = self.supergraph_config.clone();
-            while let Some(contents) = self.file_watcher.clone().watch().next().await {
-                match SupergraphConfig::new_from_yaml(&contents) {
-                    Ok(supergraph_config) => {
-                        if let Ok(supergraph_config_diff) = SupergraphConfigDiff::new(
-                            &latest_supergraph_config,
-                            supergraph_config.clone(),
-                        ) {
-                            let _ = sender
-                                .send(supergraph_config_diff)
-                                .tap_err(|err| tracing::error!("{:?}", err));
+        tracing::warn!("Running SupergraphConfigWatcher");
+        let supergraph_config_path = self.file_watcher.path().clone();
+        tokio::spawn(
+            async move {
+                let supergraph_config_path = supergraph_config_path.clone();
+                let mut latest_supergraph_config = self.supergraph_config.clone();
+                let mut stream = self.file_watcher.watch();
+                while let Some(contents) = stream.next().await {
+                    eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
+                    tracing::info!(
+                        "{} changed. Parsing it as a `SupergraphConfig`",
+                        supergraph_config_path
+                    );
+                    match SupergraphConfig::new_from_yaml(&contents) {
+                        Ok(supergraph_config) => {
+                            let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
+                            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                                .origin_path(supergraph_config_path.clone())
+                                .subgraphs(subgraphs)
+                                .build();
+                            let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                                &supergraph_config_path.parent().unwrap().to_path_buf(),
+                                unresolved_supergraph_config,
+                            ).await.map(SupergraphConfig::from);
+
+                            match supergraph_config {
+                                Ok(supergraph_config) => {
+                                    let supergraph_config_diff = SupergraphConfigDiff::new(
+                                        &latest_supergraph_config,
+                                        supergraph_config.clone(),
+                                    );
+                                    match supergraph_config_diff {
+                                        Ok(supergraph_config_diff) =>  {
+                                            let _ = sender
+                                                .send(Ok(supergraph_config_diff))
+                                                .tap_err(|err| tracing::error!("{:?}", err));
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
+                                        }
+                                    }
+
+                                    latest_supergraph_config = supergraph_config;
+                                }
+                                Err(err) => {
+                                    errln!(
+                                        "Failed to lazily resolve the supergraph config at {}.\n{}",
+                                        supergraph_config_path,
+                                        itertools::join(
+                                            err
+                                                .iter()
+                                                .map(
+                                                    |(name, err)| format!("{}: {}", name, err)
+                                                ),
+                                            "\n")
+                                    );
+                                    let _ = sender
+                                        .send(Err(err))
+                                        .tap_err(|err| tracing::error!("{:?}", err));
+                                }
+                            }
                         }
-                        latest_supergraph_config = supergraph_config;
-                    }
-                    Err(err) => {
-                        tracing::error!("could not parse supergraph config file: {:?}", err);
-                        errln!("could not parse supergraph config file: {:?}", err);
+                        Err(err) => {
+                            tracing::error!("could not parse supergraph config file: {:?}", err);
+                            errln!("Could not parse supergraph config file.\n{}", err);
+                        }
                     }
                 }
-            }
         })
         .abort_handle()
     }
 }
 
-#[derive(Getters)]
+#[derive(Getters, Debug)]
 pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     changed: Vec<(String, SubgraphConfig)>,
@@ -100,28 +150,28 @@ impl SupergraphConfigDiff {
 
         // Filter the added and removed subgraphs from the new supergraph config.
         let added = new_subgraphs
+            .clone()
             .into_iter()
             .filter(|(name, _)| added_names.contains(name))
             .collect::<Vec<_>>();
         let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
 
         // Find any in-place changes (eg, SDL, SchemaSource::Subgraph)
-        let mut changed = vec![];
-        for (old_name, old_config) in old.clone().into_iter() {
-            // Exclude any removed subgraphs
-            if !removed.contains(&old_name) {
-                let found_new = new
-                    .clone()
-                    .into_iter()
-                    .find(|(sub_name, _sub_config)| *sub_name == old_name);
-
-                if let Some((old_name, new_config)) = found_new {
-                    if new_config != old_config {
-                        changed.push((old_name, new_config));
+        let changed = old
+            .clone()
+            .into_iter()
+            .filter(|(old_name, _)| !removed.contains(old_name))
+            .filter_map(|(old_name, old_subgraph)| {
+                new_subgraphs.get(&old_name).and_then(|new_subgraph| {
+                    let new_subgraph = new_subgraph.clone();
+                    if old_subgraph == new_subgraph {
+                        None
+                    } else {
+                        Some((old_name, new_subgraph))
                     }
-                }
-            }
-        }
+                })
+            })
+            .collect::<Vec<_>>();
 
         Ok(SupergraphConfigDiff {
             added,

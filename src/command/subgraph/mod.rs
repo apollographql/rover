@@ -69,7 +69,7 @@ impl Subgraph {
                     .run(
                         client_config.get_reqwest_client()?,
                         output_opts,
-                        client_config.retry_period,
+                        client_config.client_timeout().get_duration(),
                     )
                     .await
             }

@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.26.2"
+version = "0.26.3"
 default-run = "rover"
 
 publish = false
@@ -45,7 +45,7 @@ default = ["composition-js"]
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
-dev-next = []
+dev-next = ["composition-rewrite"]
 composition-rewrite = []
 
 ### cross-workspace dependencies
@@ -145,17 +145,18 @@ tap = "1.0.1"
 tar = "0.4"
 termimad = "0.31"
 tempfile = "3.8"
-tokio = "1.38"
+tokio = { version = "1.38", features = ["signal"] }
 tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
 toml = "0.8"
-tower = { version = "0.5.1", features = ["make", "retry", "timeout"] }
+tower = { version = "0.5.2", features = ["make", "retry", "timeout"] }
 tower-http = "0.6.1"
 tower-test = "0.4.0"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = "0.3"
+tracing-test = "0.2.5"
 which = "7"
 wsl = "0.1"
 uuid = "1"
@@ -197,7 +198,10 @@ os_info = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
+rover-graphql = { workspace = true }
+rover-http = { workspace = true }
 rover-std = { workspace = true }
+rover-studio = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -215,6 +219,7 @@ termimad = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "sync"] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
@@ -243,4 +248,6 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
-tracing-test = "0.2.5"
+tower-test = { workspace = true }
+tracing-test = { workspace = true }
+temp-env = { version = "0.3.6", features = ["async_closure"] }

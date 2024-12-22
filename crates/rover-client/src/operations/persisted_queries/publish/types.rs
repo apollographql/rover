@@ -32,11 +32,13 @@ pub struct ApolloPersistedQueryManifest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
+#[serde(rename_all = "camelCase")]
 pub struct PersistedQueryOperation {
     pub name: String,
     pub r#type: PersistedQueryOperationType,
     pub body: String,
     pub id: String,
+    pub client_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Ord, PartialOrd)]
@@ -96,6 +98,7 @@ impl From<PersistedQueriesPublishInput> for QueryVariables {
                         name: operation.name,
                         body: operation.body,
                         id: operation.id,
+                        client_name: operation.client_name,
                         type_: match operation.r#type {
                             PersistedQueryOperationType::Mutation => {
                                 RoverClientOperationType::MUTATION
@@ -183,6 +186,10 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                         r#type: operation_type,
                         body: body.to_string(),
                         id: id.to_string(),
+                        // Relay format has no way to include client names in
+                        // the manifest file; you can still use the
+                        // `--for-client-name` flag.
+                        client_name: None,
                     });
                 } else {
                     // `apollo-parser` may sometimes be able to detect an operation name
@@ -324,7 +331,8 @@ mod tests {
                 name: "NewsfeedQuery".to_string(),
                 r#type: PersistedQueryOperationType::Query,
                 id: id.to_string(),
-                body: body.to_string()
+                body: body.to_string(),
+                client_name: None,
             }
         );
     }
@@ -344,7 +352,8 @@ mod tests {
                 name: "NewsfeedQuery".to_string(),
                 r#type: PersistedQueryOperationType::Query,
                 id: id.to_string(),
-                body: body.to_string()
+                body: body.to_string(),
+                client_name: None,
             }
         );
     }
@@ -370,6 +379,7 @@ mod tests {
                 name: "NamedMutation".to_string(),
                 r#type: PersistedQueryOperationType::Mutation,
                 id: id_two.to_string(),
+                client_name: None,
                 body: body_two.to_string()
             }
         );
@@ -380,6 +390,7 @@ mod tests {
                 name: "NewsfeedQuery".to_string(),
                 r#type: PersistedQueryOperationType::Query,
                 id: id_one.to_string(),
+                client_name: None,
                 body: body_one.to_string()
             }
         );

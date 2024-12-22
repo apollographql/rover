@@ -1,25 +1,24 @@
-use std::{marker::Send, pin::Pin, time::Duration};
+use std::{collections::HashMap, marker::Send, pin::Pin, time::Duration};
 
 use futures::{Stream, StreamExt};
-use tap::TapFallible;
-use tokio::sync::mpsc::unbounded_channel;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use rover_client::operations::subgraph::introspect::{
+    SubgraphIntrospectError, SubgraphIntrospectLayer, SubgraphIntrospectResponse,
+};
+use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
 use crate::{
-    cli::RoverOutputFormatKind,
-    command::subgraph::introspect::Introspect as SubgraphIntrospect,
     composition::types::SubgraphUrl,
-    options::{IntrospectOpts, OutputChannelKind, OutputOpts},
+    subtask::{Subtask, SubtaskRunUnit},
     utils::client::StudioClientConfig,
+    watch::Watch,
 };
 
 /// Subgraph introspection
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospection {
     endpoint: SubgraphUrl,
-    // TODO: ticket using a hashmap, not a tuple, in introspect opts as eventual cleanup
-    headers: Option<Vec<(String, String)>>,
     client_config: StudioClientConfig,
+    headers: Vec<(String, String)>,
     polling_interval: Duration,
 }
 
@@ -28,76 +27,67 @@ impl SubgraphIntrospection {
     pub fn new(
         endpoint: SubgraphUrl,
         headers: Option<Vec<(String, String)>>,
-        client_config: &StudioClientConfig,
-        polling_interval: u64,
+        client_config: StudioClientConfig,
+        polling_interval: Duration,
     ) -> Self {
         Self {
             endpoint,
-            headers,
-            client_config: client_config.clone(),
-            polling_interval: Duration::from_secs(polling_interval),
+            client_config,
+            headers: headers.unwrap_or_default(),
+            polling_interval,
         }
+    }
+
+    pub async fn fetch(&self) -> Result<String, SubgraphIntrospectError> {
+        let resp = self.service(true).ready().await?.call(()).await?;
+        Ok(resp.result)
     }
 
     // TODO: better typing so that it's over some impl, not string; makes all watch() fns require
     // returning a string
     pub fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
-        let client = self
-            .client_config
-            .get_builder()
-            // TODO: this was the previous subgraph watching implementation's default timeout, but
-            // we might want to let users control it (or at least override it if they pass in a
-            // timeout)
-            .with_timeout(Duration::from_secs(5))
-            .build()
-            .tap_err(|err| {
-                tracing::error!(
-                    "Something went wrong when trying to construct a Studio client: {err:?}"
-                )
-            })
-            // TODO: we need to do something better than panicking here
-            .expect("Failed to construct a Studio client");
+        let service = self.service(false);
 
-        let endpoint = self.endpoint.clone();
-        let headers = self.headers.clone();
-        let polling_interval = self.polling_interval;
-
-        let (tx, rx) = unbounded_channel();
-        let rx_stream = UnboundedReceiverStream::new(rx);
-
-        // Spawn a tokio task in the background to watch for subgraph changes
-        tokio::spawn(async move {
-            // TODO: handle errors?
-            let _ = SubgraphIntrospect {
-                opts: IntrospectOpts {
-                    endpoint,
-                    headers,
-                    watch: true,
-                    polling_interval,
-                },
-            }
-            .run(
-                client,
-                &OutputOpts {
-                    format_kind: RoverOutputFormatKind::default(),
-                    output_file: None,
-                    // Attach a transmitter to stream back any subgraph changes
-                    channel: Some(tx),
-                },
-                // TODO: impl retries (at least for dev from cli flag)
-                None,
-            )
-            .await;
-        });
+        let watch = Watch::builder()
+            .polling_interval(self.polling_interval)
+            .service(service)
+            .build();
+        let (watch_messages, watch_subtask) = Subtask::new(watch);
+        watch_subtask.run();
 
         // Stream any subgraph changes, filtering out empty responses (None) while passing along
         // the sdl changes
-        rx_stream
+        // This skips the first event, since the inner function always produces a result when it's
+        // initialized
+        watch_messages
+            .skip(1)
             .filter_map(|change| async move {
                 match change {
-                    OutputChannelKind::Sdl(sdl) => Some(sdl),
+                    Ok(sdl) => Some(sdl.result),
+                    Err(err) => {
+                        tracing::error!("{:?}", err);
+                        None
+                    }
                 }
             })
             .boxed()
+    }
+
+    fn service(
+        &self,
+        should_retry: bool,
+    ) -> BoxCloneService<(), SubgraphIntrospectResponse, SubgraphIntrospectError> {
+        let http_service = self.client_config.service().unwrap();
+        let introspect_layer = SubgraphIntrospectLayer::new(
+            self.endpoint.clone(),
+            HashMap::from_iter(self.headers.clone()),
+            should_retry,
+            self.client_config.retry_period(),
+        )
+        .unwrap();
+        let service = ServiceBuilder::new()
+            .layer(introspect_layer)
+            .service(http_service);
+        service.boxed_clone()
     }
 }

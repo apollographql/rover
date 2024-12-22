@@ -5,18 +5,42 @@ use crate::{
 };
 
 use houston::{Credential, CredentialOrigin};
-use std::time::Duration;
+use rover_graphql::{GraphQLLayer, GraphQLService};
+use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
+use rover_studio::{HttpStudioServiceError, HttpStudioServiceLayer};
+use std::{str::FromStr, time::Duration};
+use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
 
 use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client as ReqwestClient;
+use url::Url;
+
+#[derive(thiserror::Error, Debug)]
+pub enum InitStudioServiceError {
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    StudioService(#[from] HttpStudioServiceError),
+}
+
+impl From<InitStudioServiceError> for RoverClientError {
+    fn from(value: InitStudioServiceError) -> Self {
+        RoverClientError::ServiceReady(Box::new(value))
+    }
+}
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
     pub credential: Credential,
+    graphql_endpoint: String,
     client: GraphQLClient,
+    reqwest_client: ReqwestClient,
     version: String,
     is_sudo: bool,
+    retry_period: Duration,
 }
 
 impl StudioClient {
@@ -28,13 +52,16 @@ impl StudioClient {
         version: &str,
         is_sudo: bool,
         client: ReqwestClient,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> StudioClient {
         StudioClient {
             credential,
+            graphql_endpoint: graphql_endpoint.to_string(),
+            reqwest_client: client.clone(),
             client: GraphQLClient::new(graphql_endpoint, client, retry_period),
             version: version.to_string(),
             is_sudo,
+            retry_period,
         }
     }
 
@@ -101,5 +128,33 @@ impl StudioClient {
 
     pub fn get_credential_origin(&self) -> CredentialOrigin {
         self.credential.origin.clone()
+    }
+
+    pub fn studio_graphql_service(
+        &self,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let service = ServiceBuilder::new()
+            .layer(GraphQLLayer::default())
+            .layer(BoxCloneServiceLayer::new(HttpStudioServiceLayer::new(
+                Url::from_str(&self.graphql_endpoint)?,
+                self.credential.clone(),
+                self.version.to_string(),
+                self.is_sudo,
+            )?))
+            .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
+        Ok(service)
+    }
+
+    pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
+        let service = ReqwestService::builder()
+            .client(self.reqwest_client.clone())
+            .build()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?;
+        Ok(service.boxed_clone())
     }
 }

@@ -1,7 +1,7 @@
 use crate::tools::Runner;
 use std::{convert::TryFrom, fs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use assert_fs::TempDir;
 use camino::Utf8PathBuf;
 
@@ -85,10 +85,6 @@ impl GitRunner {
         Ok(path)
     }
 
-    pub(crate) fn clone_supergraph_demo(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
-        self.clone(org, "supergraph-demo", branch)
-    }
-
     pub(crate) fn clone_docs(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
         self.clone(org, "docs", branch)
     }
@@ -105,60 +101,19 @@ impl GitRunner {
         Ok(repo_path)
     }
 
-    pub(crate) fn checkout_rover_sha(&self, sha: &str) -> Result<Utf8PathBuf> {
-        let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
+    pub(crate) fn get_changed_files() -> Result<Vec<Utf8PathBuf>> {
+        let apollo_main = GitRunner::tmp()?;
 
-        self.runner.exec(&["checkout", sha], &repo_path, None)?;
+        let current_dir = std::env::current_dir()?;
+        let current_dir = Utf8PathBuf::from_path_buf(current_dir).unwrap();
 
-        Ok(repo_path)
-    }
-
-    pub(crate) fn get_changed_files(&self, current_sha: &str) -> Result<Vec<Utf8PathBuf>> {
-        let repo_path = self.checkout_rover_sha(current_sha)?;
-
-        let is_default_branch = self
-            .runner
-            .exec(
-                &["cherry", "-v", ROVER_DEFAULT_BRANCH, current_sha],
-                &repo_path,
-                None,
-            )?
-            .stdout
-            .is_empty();
-
-        let base_sha = if is_default_branch {
-            self.runner
-                .exec(
-                    &["rev-parse", &format!("{}~1", ROVER_DEFAULT_BRANCH)],
-                    &repo_path,
-                    None,
-                )?
-                .stdout
-        } else {
-            let list_output = self
-                .runner
-                .exec(
-                    &[
-                        "rev-list",
-                        "--boundary",
-                        &format!("{}...{}", current_sha, ROVER_DEFAULT_BRANCH),
-                    ],
-                    &repo_path,
-                    None,
-                )?
-                .stdout;
-            // Process the output, split it, find the line that starts with a `-` and then
-            // extract the commit contained in that line
-            let base_sha = list_output
-                .split("\n")
-                .find(|l| l.starts_with("-"))
-                .ok_or(anyhow!("could not find base commit"))?;
-            base_sha[1..base_sha.len()].to_string()
-        };
-
-        let output = self.runner.exec(
-            &["diff", "--name-only", current_sha, &base_sha],
-            &repo_path,
+        let output = apollo_main.runner.exec(
+            &[
+                &format!("--work-tree={}", current_dir),
+                "diff",
+                "--name-only",
+            ],
+            &current_dir,
             None,
         )?;
         Ok(output.stdout.split("\n").map(Utf8PathBuf::from).collect())

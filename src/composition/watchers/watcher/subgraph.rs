@@ -1,18 +1,28 @@
-use std::{marker::Send, pin::Pin};
+use std::time::Duration;
 
 use apollo_federation_types::config::SchemaSource;
-use futures::{Stream, StreamExt};
+use futures::{stream::BoxStream, StreamExt};
+use rover_client::operations::subgraph::introspect::SubgraphIntrospectError;
+use rover_std::{infoln, RoverStdError};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
-
-use crate::{
-    composition::watchers::subtask::SubtaskHandleUnit, options::ProfileOpt,
-    utils::client::StudioClientConfig, RoverError,
-};
 
 use super::{
     file::FileWatcher, introspection::SubgraphIntrospection, remote::RemoteSchema, sdl::Sdl,
 };
+use crate::{
+    options::ProfileOpt, subtask::SubtaskHandleUnit, utils::client::StudioClientConfig, RoverError,
+};
+
+#[derive(thiserror::Error, Debug)]
+pub enum SubgraphFetchError {
+    #[error(transparent)]
+    File(#[from] RoverStdError),
+    #[error(transparent)]
+    Introspect(#[from] SubgraphIntrospectError),
+    #[error("Cannot fetch with this subgraph watcher kind: {}", .0)]
+    SubgraphWatcherKind(String),
+}
 
 #[derive(thiserror::Error, Debug)]
 #[error("Unsupported subgraph introspection source: {:?}", .0)]
@@ -25,6 +35,7 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 pub struct SubgraphWatcher {
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
+    routing_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +56,7 @@ impl NonRepeatingFetch {
 /// The kind of watcher attached to the subgraph. This may be either file watching, when we're
 /// paying attention to a particular subgraph's SDL file, or introspection, when we get the SDL by
 /// polling an endpoint that has introspection enabled
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum SubgraphWatcherKind {
     /// Watch a file on disk.
     File(FileWatcher),
@@ -61,35 +72,48 @@ pub enum SubgraphWatcherKind {
 impl SubgraphWatcher {
     /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
     pub fn from_schema_source(
+        routing_url: Option<String>,
         schema_source: SchemaSource,
         profile: &ProfileOpt,
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
+        subgraph_name: String,
     ) -> Result<Self, Box<UnsupportedSchemaSource>> {
+        eprintln!("starting a session with the '{subgraph_name}' subgraph");
         // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
         // directives from introspection (but not when the source is a file)
         match schema_source {
-            SchemaSource::File { file } => Ok(Self {
-                watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
-            }),
+            SchemaSource::File { file } => {
+                infoln!("Watching {} for changes", file.as_std_path().display());
+                Ok(Self {
+                    watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
+                    routing_url,
+                })
+            }
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
                 introspection_headers,
-            } => Ok(Self {
-                watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
-                    subgraph_url,
-                    introspection_headers.map(|header_map| header_map.into_iter().collect()),
-                    client_config,
-                    introspection_polling_interval,
-                )),
-            }),
+            } => {
+                eprintln!("polling {subgraph_url} every {introspection_polling_interval} seconds");
+                Ok(Self {
+                    watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
+                        subgraph_url.clone(),
+                        introspection_headers.map(|header_map| header_map.into_iter().collect()),
+                        client_config.clone(),
+                        Duration::from_secs(introspection_polling_interval),
+                    )),
+                    routing_url: routing_url.or_else(|| Some(subgraph_url.to_string())),
+                })
+            }
             SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
                     RemoteSchema::new(graphref, subgraph, profile, client_config),
                 )),
+                routing_url,
             }),
             SchemaSource::Sdl { sdl } => Ok(Self {
                 watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::Sdl(Sdl::new(sdl))),
+                routing_url,
             }),
         }
     }
@@ -100,11 +124,25 @@ impl SubgraphWatcherKind {
     ///
     /// Development note: this is a stream of Strings, but in the future we might want something
     /// more flexible to get type safety.
-    async fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
+    fn watch(&self) -> Option<BoxStream<String>> {
         match self {
-            Self::File(file_watcher) => file_watcher.clone().watch(),
-            Self::Introspect(introspection) => introspection.watch(),
-            kind => unimplemented!("{kind:?} is not a watcher"),
+            Self::File(file_watcher) => Some(file_watcher.watch()),
+            Self::Introspect(introspection) => Some(introspection.watch()),
+            kind => {
+                tracing::debug!("{kind:?} is not watchable. Skipping");
+                None
+            }
+        }
+    }
+
+    pub async fn fetch(&self) -> Result<String, SubgraphFetchError> {
+        match self {
+            Self::File(file_watcher) => Ok(file_watcher.fetch()?),
+            Self::Introspect(introspection) => Ok(introspection.fetch().await?),
+            kind => Err(SubgraphFetchError::SubgraphWatcherKind(format!(
+                "{:?}",
+                kind
+            ))),
         }
     }
 }
@@ -121,11 +159,13 @@ impl SubtaskHandleUnit for SubgraphWatcher {
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
-            let mut watcher = self.watcher.watch().await;
-            while let Some(sdl) = watcher.next().await {
-                let _ = sender
-                    .send(WatchedSdlChange { sdl })
-                    .tap_err(|err| tracing::error!("{:?}", err));
+            let watcher = self.watcher.watch();
+            if let Some(mut watcher) = watcher {
+                while let Some(sdl) = watcher.next().await {
+                    let _ = sender
+                        .send(WatchedSdlChange { sdl })
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                }
             }
         })
         .abort_handle()

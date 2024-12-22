@@ -9,11 +9,11 @@ use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
 
 use crate::{
-    composition::watchers::{
-        subtask::{Subtask, SubtaskRunUnit},
-        watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
+    composition::watchers::watcher::{
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
     options::ProfileOpt,
+    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
         effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
@@ -26,14 +26,12 @@ use super::{
     events::CompositionEvent,
     supergraph::{
         binary::SupergraphBinary,
-        config::resolve::{
-            subgraph::LazilyResolvedSubgraph, FullyResolvedSubgraphs,
-            LazilyResolvedSupergraphConfig,
+        config::{
+            full::FullyResolvedSupergraphConfig,
+            lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
         },
     },
-    watchers::{
-        composition::CompositionWatcher, subgraphs::SubgraphWatchers, subtask::SubtaskRunStream,
-    },
+    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 
 mod state;
@@ -92,6 +90,14 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
         // events.
         // We could return None here if we received a supergraph config directly from stdin. In
         // that case, we don't want to configure a watcher.
+        tracing::info!(
+            "Setting up SupergraphConfigWatcher from origin: {}",
+            supergraph_config
+                .origin_path()
+                .as_ref()
+                .map(|x| x.to_string())
+                .unwrap_or_default()
+        );
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
             let f = FileWatcher::new(origin_path.clone());
             let watcher = SupergraphConfigWatcher::new(f, supergraph_config);
@@ -110,23 +116,24 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
 
 impl Runner<state::SetupCompositionWatcher> {
     /// Configures the composition watcher
-    pub fn setup_composition_watcher<ReadF, ExecC, WriteF>(
+    #[allow(clippy::too_many_arguments)]
+    pub fn setup_composition_watcher<ExecC, ReadF, WriteF>(
         self,
-        subgraphs: FullyResolvedSubgraphs,
+        supergraph_config: FullyResolvedSupergraphConfig,
         supergraph_binary: SupergraphBinary,
         exec_command: ExecC,
         read_file: ReadF,
         write_file: WriteF,
         temp_dir: Utf8PathBuf,
-    ) -> Runner<state::Run<ReadF, ExecC, WriteF>>
+    ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
     where
-        ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
+        ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
         // Create a handler for supergraph composition events.
         let composition_watcher = CompositionWatcher::builder()
-            .subgraphs(subgraphs)
+            .supergraph_config(supergraph_config)
             .supergraph_binary(supergraph_binary)
             .exec_command(exec_command)
             .read_file(read_file)
@@ -143,25 +150,35 @@ impl Runner<state::SetupCompositionWatcher> {
     }
 }
 
-impl<ReadF, ExecC, WriteF> Runner<state::Run<ReadF, ExecC, WriteF>>
+/// Alias for a [`Runner`] that is ready to be run
+pub type CompositionRunner<ExecC, ReadF, WriteF> = Runner<state::Run<ExecC, ReadF, WriteF>>;
+
+impl<ExecC, ReadF, WriteF> Runner<state::Run<ExecC, ReadF, WriteF>>
 where
-    ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
+    ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {
-        let (supergraph_config_stream, supergraph_config_subtask) =
-            if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
-                let (supergraph_config_stream, supergraph_config_subtask) =
-                    Subtask::new(supergraph_config_watcher);
-                (
-                    supergraph_config_stream.boxed(),
-                    Some(supergraph_config_subtask),
-                )
-            } else {
-                (tokio_stream::empty().boxed(), None)
-            };
+        let (supergraph_config_stream, supergraph_config_subtask) = if let Some(
+            supergraph_config_watcher,
+        ) =
+            self.state.supergraph_config_watcher
+        {
+            tracing::info!("Watching subgraphs for changes...");
+            let (supergraph_config_stream, supergraph_config_subtask) =
+                Subtask::new(supergraph_config_watcher);
+            (
+                supergraph_config_stream.boxed(),
+                Some(supergraph_config_subtask),
+            )
+        } else {
+            tracing::warn!(
+                    "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
+                );
+            (tokio_stream::empty().boxed(), None)
+        };
 
         let (subgraph_change_stream, subgraph_watcher_subtask) =
             Subtask::new(self.state.subgraph_watchers);

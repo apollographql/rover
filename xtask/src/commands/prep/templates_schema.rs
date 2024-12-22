@@ -34,11 +34,8 @@ async fn introspect() -> Result<String> {
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
     );
-    let graphql_client = GraphQLClient::new(
-        graphql_endpoint,
-        Client::new(),
-        Some(Duration::from_secs(10)),
-    );
+    let graphql_client =
+        GraphQLClient::new(graphql_endpoint, Client::new(), Duration::from_secs(10));
     introspect::run(
         GraphIntrospectInput {
             headers: HashMap::new(),

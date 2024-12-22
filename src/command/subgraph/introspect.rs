@@ -3,10 +3,7 @@ use reqwest::Client;
 use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
 
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::subgraph::introspect::{self, SubgraphIntrospectInput},
-};
+use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 
 use crate::options::{IntrospectOpts, OutputOpts};
 use crate::{RoverOutput, RoverResult};
@@ -22,7 +19,7 @@ impl Introspect {
         &self,
         client: Client,
         output_opts: &OutputOpts,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts, retry_period)
@@ -37,10 +34,8 @@ impl Introspect {
         &self,
         client: &Client,
         should_retry: bool,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> RoverResult<String> {
-        let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone(), retry_period);
-
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();
         if let Some(arg_headers) = &self.opts.headers {
@@ -49,9 +44,17 @@ impl Introspect {
             }
         };
 
-        let sdl = introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
-            .await?
-            .result;
+        let sdl = introspect::run(
+            SubgraphIntrospectInput {
+                headers,
+                should_retry,
+                retry_period,
+                endpoint: self.opts.endpoint.clone(),
+            },
+            client,
+        )
+        .await?
+        .result;
 
         Ok(sdl)
     }
@@ -60,7 +63,7 @@ impl Introspect {
         &self,
         client: &Client,
         output_opts: &OutputOpts,
-        retry_period: Option<Duration>,
+        retry_period: Duration,
     ) -> ! {
         self.opts
             .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)

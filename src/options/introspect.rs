@@ -62,6 +62,7 @@ impl IntrospectOpts {
                     if was_updated {
                         let sdl = sdl.to_string();
                         let output = RoverOutput::Introspection(sdl.clone());
+
                         let _ = output.write_or_print(output_opts).map_err(|e| e.print());
                         if let Some(channel) = &output_opts.channel {
                             // TODO: error handling

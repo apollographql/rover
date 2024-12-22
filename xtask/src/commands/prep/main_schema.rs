@@ -4,7 +4,6 @@ use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use reqwest::Client;
 use rover_std::Fs;
-use uuid::Uuid;
 
 const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 
@@ -17,8 +16,6 @@ const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 pub async fn update() -> Result<()> {
     let schema_dir = Utf8PathBuf::from(SCHEMA_DIR);
     Fs::create_dir_all(&schema_dir)?;
-    let last_run_uuid = Uuid::new_v4().to_string();
-    Fs::write_file(schema_dir.join("last_run.uuid"), last_run_uuid)?;
 
     let hash_path = schema_dir.join("hash.id");
 

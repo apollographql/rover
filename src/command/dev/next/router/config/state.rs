@@ -14,6 +14,8 @@ pub struct RunRouterConfigFinal {
     pub listen_path: Option<Uri>,
     #[allow(unused)]
     pub address: RouterAddress,
+    pub health_check_enabled: bool,
+    pub health_check_endpoint: Uri,
     #[allow(unused)]
-    pub health_check: bool,
+    pub raw_config: String,
 }

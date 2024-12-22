@@ -23,13 +23,13 @@ use super::HttpServiceError;
 #[derive(Clone, Debug)]
 pub struct RetryPolicy {
     start_time: OnceCell<Instant>,
-    max_elapsed_time: Option<Duration>,
+    max_elapsed_time: Duration,
     backoff: ExponentialBackoff,
 }
 
 impl RetryPolicy {
     /// Constructs a new [`RetryPolicy`]
-    pub fn new(max_elapsed_time: Option<Duration>) -> RetryPolicy {
+    pub fn new(max_elapsed_time: Duration) -> RetryPolicy {
         let backoff = ExponentialBackoffMaker::new(
             Duration::from_millis(500),
             Duration::from_millis(60000),
@@ -48,12 +48,7 @@ impl RetryPolicy {
 
     /// Dictates whether a request can be retried, based on an optional maximum elapsed time
     pub fn can_retry(&self) -> bool {
-        match self.max_elapsed_time {
-            Some(max_elapsed_time) => {
-                self.start_time.get_or_init(Instant::now).elapsed() < max_elapsed_time
-            }
-            None => true,
-        }
+        self.start_time.get_or_init(Instant::now).elapsed() < self.max_elapsed_time
     }
 }
 
@@ -127,7 +122,7 @@ mod tests {
 
     #[fixture]
     pub fn retry_policy() -> RetryPolicy {
-        RetryPolicy::new(Some(Duration::from_secs(1)))
+        RetryPolicy::new(Duration::from_secs(1))
     }
 
     #[fixture]

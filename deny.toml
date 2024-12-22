@@ -26,7 +26,12 @@ ignore = [
     # `yaml-rust`, a dependency of `apollo-federation-types` via `serde_yaml`, is unmaintained. Represents no
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
-    "RUSTSEC-2024-0320"
+    "RUSTSEC-2024-0320",
+    # `instant` is now unmaintained. We depend on this in two ways, once via notify and then also via backoff.
+    # Notify have already merged a PR to produce a version that does not contain this vulnerability, but
+    # we need to wait till this is released before we can upgrade. Until then we can safely ignore
+    # this.
+    "RUSTSEC-2024-0384"
 ]
 
 # This section is considered when running `cargo deny check licenses`
@@ -47,7 +52,8 @@ allow = [
     "ISC",
     "MIT",
     "MPL-2.0",
-    "Unicode-DFS-2016"
+    "Unicode-DFS-2016",
+    "Unicode-3.0"
 ]
 confidence-threshold = 0.8
 private = { ignore = true }

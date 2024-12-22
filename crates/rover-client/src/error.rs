@@ -1,4 +1,8 @@
+use std::fmt::Debug;
+
 use apollo_federation_types::rover::BuildErrors;
+use itertools::Itertools;
+use rover_graphql::GraphQLServiceError;
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
@@ -241,6 +245,15 @@ pub enum RoverClientError {
 
     #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
     NonCloudGraphRef { graph_ref: GraphRef },
+
+    #[error("Service failed to become ready")]
+    ServiceReady(Box<dyn std::error::Error + Send + Sync>),
+
+    #[error("{}", .source)]
+    Service {
+        source: Box<dyn std::error::Error + Send + Sync>,
+        endpoint_kind: EndpointKind,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
@@ -334,6 +347,25 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
                 "The changes in the schema you proposed caused {} and {} checks to fail.",
                 all_but_last, last[0]
             )
+        }
+    }
+}
+
+impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
+    fn from(value: GraphQLServiceError<T>) -> Self {
+        match value {
+            GraphQLServiceError::NoData(_) => RoverClientError::GraphQl {
+                msg: value.to_string(),
+            },
+            GraphQLServiceError::PartialError { errors, .. } => {
+                let errors = errors.iter().map(|err| err.to_string()).join("\n");
+                RoverClientError::GraphQl {
+                    msg: format!("Response returned with errors:\n{}", errors),
+                }
+            }
+            _ => RoverClientError::ClientError {
+                msg: value.to_string(),
+            },
         }
     }
 }

@@ -117,11 +117,14 @@ impl Dev {
                         .map(|watcher| vec![watcher])
                 })?;
 
-            let futs = subgraph_watchers.into_iter().map(|mut watcher| async move {
-                let _ = watcher
-                    .watch_subgraph_for_changes(client_config.retry_period)
-                    .await
-                    .map_err(log_err_and_continue);
+            let futs = subgraph_watchers.into_iter().map(|mut watcher| {
+                let client_config = client_config.clone();
+                async move {
+                    let _ = watcher
+                        .watch_subgraph_for_changes(client_config.clone().retry_period())
+                        .await
+                        .map_err(log_err_and_continue);
+                }
             });
             tokio::join!(join_all(futs), subgraph_watcher_handle.map(|_| ()));
         } else {
@@ -158,7 +161,7 @@ impl Dev {
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
             subgraph_refresher
-                .watch_subgraph_for_changes(client_config.retry_period)
+                .watch_subgraph_for_changes(client_config.retry_period())
                 .await?;
         }
 

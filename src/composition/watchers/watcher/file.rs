@@ -1,21 +1,33 @@
+use std::sync::OnceLock;
+
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt};
 use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_util::sync::DropGuard;
 
 /// File watcher specifically for files related to composition
-#[derive(Clone, Debug)]
+#[derive(Debug, Getters)]
 pub struct FileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
+    drop_guard: OnceLock<DropGuard>,
 }
 
 impl FileWatcher {
     /// Create a new filewatcher
     pub fn new(path: Utf8PathBuf) -> Self {
-        Self { path }
+        Self {
+            path,
+            drop_guard: OnceLock::new(),
+        }
+    }
+
+    pub fn fetch(&self) -> Result<String, RoverStdError> {
+        Fs::read_file(self.path.clone())
     }
 
     /// Watch a file
@@ -26,34 +38,38 @@ impl FileWatcher {
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
     /// indefinitely loop on a close filewatcher
-    pub fn watch(self) -> BoxStream<'static, String> {
-        let path = self.path;
+    pub fn watch(&self) -> BoxStream<'static, String> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(path.as_path().into(), file_tx);
+        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx);
+        self.drop_guard
+            .set(cancellation_token.clone().drop_guard())
+            .unwrap();
 
         output
-            .filter_map(move |result| {
-                let path = path.clone();
-                let cancellation_token = cancellation_token.clone();
-                async move {
-                    // We cancel the filewatching when the file has been removed because it
-                    // can no longer be watched
-                    if let Err(RoverStdError::FileRemoved { file }) = &result {
-                        println!("in file removed");
-                        tracing::error!("Closing file watcher for {file}");
-                        errln!("Closing file watcher for {file:?}");
-                        cancellation_token.cancel();
-                    }
+            .filter_map({
+                let path = self.path.clone();
+                move |result| {
+                    let cancellation_token = cancellation_token.clone();
+                    let path = path.clone();
+                    async move {
+                        // We cancel the filewatching when the file has been removed because it
+                        // can no longer be watched
+                        if let Err(RoverStdError::FileRemoved { file }) = &result {
+                            tracing::error!("Closing file watcher for {file}");
+                            errln!("Closing file watcher for {file:?}");
+                            cancellation_token.cancel();
+                        }
 
-                    result
-                        .and_then(|_| {
-                            Fs::read_file(path.clone()).tap_err(|err| {
-                                tracing::error!("Could not read file: {:?}", err);
-                                errln!("error reading file: {:?}", err);
+                        result
+                            .and_then(|_| {
+                                Fs::read_file(path.clone()).tap_err(|err| {
+                                    tracing::error!("Could not read file: {:?}", err);
+                                    errln!("error reading file: {:?}", err);
+                                })
                             })
-                        })
-                        .ok()
+                            .ok()
+                    }
                 }
             })
             .boxed()

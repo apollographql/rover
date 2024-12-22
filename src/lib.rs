@@ -4,7 +4,9 @@ pub mod command;
 pub mod composition;
 mod error;
 mod options;
+mod subtask;
 pub mod utils;
+mod watch;
 
 pub use command::RoverOutput;
 pub use error::{RoverError, RoverErrorCode, RoverErrorSuggestion, RoverResult};

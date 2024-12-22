@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::ChildStderr;
 use std::time::Duration;
@@ -162,18 +161,13 @@ struct SingleMutableSubgraph {
 }
 
 #[fixture]
-async fn run_single_mutable_subgraph() -> SingleMutableSubgraph {
+async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> SingleMutableSubgraph {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
-    let cargo_manifest_dir =
-        env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
-    CopyBuilder::new(
-        Path::new(&cargo_manifest_dir).join("examples/supergraph-demo/pandas"),
-        &target,
-    )
-    .with_include_filter(".")
-    .run()
-    .expect("Could not perform copy");
+    CopyBuilder::new(test_artifacts_directory.join("pandas"), &target)
+        .with_include_filter(".")
+        .run()
+        .expect("Could not perform copy");
 
     info!("Installing subgraph dependencies");
     cmd!("npm", "run", "clean")
