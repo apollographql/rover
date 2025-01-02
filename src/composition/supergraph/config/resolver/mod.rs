@@ -646,7 +646,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
@@ -823,7 +823,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
@@ -995,7 +995,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
