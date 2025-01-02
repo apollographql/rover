@@ -3,22 +3,26 @@
 use std::{io::stdin, str::FromStr};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::RouterVersion;
+use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
-use rover_std::{infoln, warnln};
+use rover_std::{errln, infoln, warnln};
+use tap::TapFallible;
 
 use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
-    command::{dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
+    command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
-        supergraph::config::resolver::{
-            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+        supergraph::{
+            config::resolver::{
+                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            },
+            version::SupergraphVersion,
         },
     },
     utils::{
@@ -84,6 +88,31 @@ impl Dev {
             .profile(profile.clone())
             .build();
 
+        // We resolve supergraph binary overrides (ie, composition version) in this order:
+        //
+        // 1) cli option
+        // 2) env var override
+        // 3) what's in the supergraph config (represented here as None)
+        let federation_version = self
+            .opts
+            .supergraph_opts
+            .federation_version
+            .clone()
+            .or_else(|| {
+                let version = &OVERRIDE_DEV_COMPOSITION_VERSION
+                    .clone()
+                    .and_then(|version| match FederationVersion::from_str(&version) {
+                        Ok(version) => Some(version),
+                        Err(err) => {
+                            errln!("{err}");
+                            tracing::error!("{:?}", err);
+                            None
+                        }
+                    });
+
+                version.clone()
+            });
+
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
@@ -95,7 +124,7 @@ impl Dev {
             .resolve_federation_version(
                 &client_config,
                 make_fetch_remote_subgraph,
-                self.opts.supergraph_opts.federation_version.clone(),
+                federation_version,
             )
             .await?
             .install_supergraph_binary(
