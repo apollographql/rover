@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 
-use std::io::stdin;
+use std::{io::stdin, str::FromStr};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
@@ -13,7 +13,7 @@ use rover_std::{infoln, warnln};
 
 use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
-    command::Dev,
+    command::{dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
         supergraph::config::resolver::{
@@ -111,9 +111,10 @@ impl Dev {
             .await?;
         let supergraph_schema = composition_success.supergraph_sdl();
 
-        // TODO: figure out how to actually get this; maybe based on fed version? didn't see a cli
-        // opt
-        let router_version = RouterVersion::Latest;
+        let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
+            Some(version) => RouterVersion::from_str(version)?,
+            None => RouterVersion::Latest,
+        };
 
         let credential =
             Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
