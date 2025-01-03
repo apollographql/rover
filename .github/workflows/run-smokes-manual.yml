@@ -17,4 +17,12 @@ jobs:
     with:
       composition-versions: ${{ inputs.composition-versions }}
       router-versions: ${{ inputs.router-versions }}
+      dev-next: false
+    secrets: inherit
+  run-smokes-dev-next:
+    uses: ./.github/workflows/smoke-test.yml
+    with:
+      composition-versions: ${{ inputs.composition-versions }}
+      router-versions: ${{ inputs.router-versions }}
+      dev-next: true
     secrets: inherit
