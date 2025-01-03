@@ -51,7 +51,7 @@ When you start your first `rover dev` process:
 2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema(s).
 3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
 4. Rover starts watching the provided subgraph schema(s) for changes, recomposing the supergraph schema whenever it detects a change. This automatically reloads the router.
-4. If provided via the `--router-config` CLI option, Rover starts watching the router config for changes, automatically reloading the router whenever it detects a change.
+5. If provided via the `--router-config` CLI option, Rover starts watching the router config for changes, automatically reloading the router whenever it detects a change.
 
 ### Starting a session with multiple subgraphs
 
