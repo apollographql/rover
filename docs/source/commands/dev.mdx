@@ -47,16 +47,15 @@ You don't have to provide a locally running subgraph. You can point to any Graph
 
 When you start your first `rover dev` process:
 
-1. Rover obtains the subgraph schema you provide via either introspection or file path.
-2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema.
+1. Rover obtains the subgraph schema(s) you provide via either introspection or the [supergraph config file](./supergraphs#yaml-configuration-file).
+2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema(s).
 3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
-4. Rover starts watching the provided subgraph schema for changes, and it recomposes the supergraph schema whenever it detects a change. This automatically reloads the router.
-
-After you start a local router session with your first `rover dev` process, you can run additional `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
+4. Rover starts watching the provided subgraph schema(s) for changes, recomposing the supergraph schema whenever it detects a change. This automatically reloads the router.
+4. If provided via the `--router-config` CLI option, Rover starts watching the router config for changes, automatically reloading the router whenever it detects a change.
 
 ### Starting a session with multiple subgraphs
 
-If you have a standard set of subgraphs that you're always developing with, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) to add all of them to your local router session with a single `rover dev` command.
+If you work with a standard set of subgraphs, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) and add all of them to your local router session with a single `rover dev` command.
 
 For example, this `supergraph.yaml` file provides the necessary details for two subgraphs:
 
@@ -87,7 +86,7 @@ If you do, a router session starts with one of the subgraphs listed, then adds t
 
 Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
 
-If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you can't provide another config file.
+Rover watches the `supergraph.yaml` for changes, allowing you to add, remove, or update subgraphs, making those changes available to the router instance. Only one config file may be used at a time for the `rover dev` session.
 
 ### Starting a session from a GraphOS Studio variant
 
@@ -111,8 +110,8 @@ To pass a graph ref, you need a personal API key or graph API key configured in 
 </Note>
 
 When you include a graph ref, Rover uses the associated variant's subgraph routing URLs and schemas from Studio as the supergraph config.
-This information is stored in memory and not saved to disk.
 You can view a variant's subgraphs, including their routing URLs and schemas, on the variant's **Subgraphs** page in Studio.
+You may also use remote subgraphs in your `supergraph.yaml`. See the `actors` subgraph in the `supergraph.yaml` example above for the syntax.
 
 #### Overriding variant subgraphs
 
@@ -159,33 +158,11 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-## Adding a subgraph to a session
+Or by passing the `--federation-version` option. If both are provided, the CLI option takes precedence.
 
-After you start a router session with your first `rover dev` command, you can then add other subgraphs to that same session.
+## Adding, removing, or updating subgraphs in a `rover dev` session
 
-To add a subgraph, open a new terminal window and run `rover dev` again, this time providing the details of the subgraph to add. For example, this command adds a `users` subgraph:
-
-```bash showLineNumbers=false
-rover dev --name users --url http://localhost:4002
-```
-
-Rover detects your existing session and attaches this new process to it.
-
-When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router so you can query all added subgraphs via the single router endpoint.
-
-<Note>
-
-Rover uses the port of the running router to identify an existing session. If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the same port for all `rover dev` processes that you want to attach to the same session.
-
-</Note>
-
-## Stopping a session
-
-If you stop your initial `rover dev` process (by pressing `CTRL+C`), it shuts down the local router session. This also shuts down any secondary `rover dev` processes attached to that same session.
-
-## Removing a subgraph
-
-If you stop a secondary `rover dev` process (by pressing `CTRL+C`), its associated router session recomposes its supergraph schema without the corresponding subgraph and reloads the router.
+While running `rover dev`, it's possible to add, remove, and update subgraphs by updating the `supergraph.yaml` file. If you're not using a `supergraph.yaml` file, but are using introspection to get the subgraph's schema, changes to that subgraph will be reflected in the router without the need to write a `supergraph.yaml` file.
 
 ## Health check
 
@@ -195,21 +172,21 @@ By default, the router's health check endpoint is disabled in `rover dev`. You c
 
 To configure advanced router functionality like CORS settings or header passthrough for subgraphs, you can pass a valid [router configuration YAML file](/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument.
 
-Note that only the main `rover dev` process uses this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes need to pass the same values to `--supergraph-port` and `--supergraph-address`, and/or pass the same router configuration file path via `--router-config`.
-
 ### Enterprise features
 
 If you want to use [enterprise router features](/router/enterprise-features/), you must provide both:
 
-1. A graph ref via the `APOLLO_GRAPH_REF` environment variable.
+1. A graph ref via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option.
 2. A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
 
 ## Federation 2 ELv2 license
 
 The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
+## Plugins
+
 The ELv2-licensed plugins, `supergraph` (built from [this source](https://github.com/apollographql/federation-rs)) and `router` (built from [this source](https://github.com/apollographql/router)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
 ## Versioning
 
-By default, `rover dev` uses a recent version of the router and composition to use for you. This is currently configured in the Rover GitHub repo, however, you can override these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0` and/or `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`. By default, `rover dev` will always use a composition library with a major version of v2, and a router with a major version of v1. If you already have the plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
+By default, `rover dev` uses the latest version of the router and composition to use for you. This is currently configured in the Rover GitHub repo, however, you can override either of these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0` and `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`.
