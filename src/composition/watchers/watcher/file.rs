@@ -12,7 +12,7 @@ use tower::{Service, ServiceExt};
 
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError,
-    full::{FullyResolveSubgraph, FullyResolvedSubgraph},
+    full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
 };
 
 /// File watcher specifically for files related to composition
@@ -88,13 +88,13 @@ impl FileWatcher {
 pub struct SubgraphFileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
-    resolver: FullyResolveSubgraph,
+    resolver: FullyResolveSubgraphService,
     drop_guard: Arc<Mutex<Option<DropGuard>>>,
 }
 
 impl SubgraphFileWatcher {
     /// Create a new filewatcher
-    pub fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraph) -> Self {
+    pub fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraphService) -> Self {
         Self {
             path,
             resolver,

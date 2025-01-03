@@ -10,7 +10,7 @@ use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
 use tempfile::tempdir;
-use tower::{MakeService, Service};
+use tower::MakeService;
 
 use super::{
     runner::{CompositionRunner, Runner},
@@ -18,13 +18,12 @@ use super::{
         binary::OutputTarget,
         config::{
             error::ResolveSubgraphError,
+            full::introspect::ResolveIntrospectSubgraphFactory,
             resolver::{
-                fetch_remote_subgraph::{
-                    BoxCloneMakeFetchRemoteSubgraph, FetchRemoteSubgraphRequest, RemoteSubgraph,
-                },
-                fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-                LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-                SubgraphPrompt, SupergraphConfigResolver,
+                fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+                fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, LoadRemoteSubgraphsError,
+                LoadSupergraphConfigError, ResolveSupergraphConfigError, SubgraphPrompt,
+                SupergraphConfigResolver,
             },
         },
         install::{InstallSupergraph, InstallSupergraphError},
@@ -33,7 +32,7 @@ use super::{
 };
 use crate::composition::pipeline::CompositionPipelineError::FederationOneWithFederationTwoSubgraphs;
 use crate::{
-    options::{LicenseAccepter, ProfileOpt},
+    options::LicenseAccepter,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -138,32 +137,18 @@ impl CompositionPipeline<state::Init> {
 }
 
 impl CompositionPipeline<state::ResolveFederationVersion> {
-    pub async fn resolve_federation_version<MakeFetchSubgraph, FetchSubgraph>(
+    pub async fn resolve_federation_version(
         self,
-        http_service: HttpService,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         federation_version: Option<FederationVersion>,
-    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError>
-    where
-        MakeFetchSubgraph: MakeService<
-                (),
-                FetchRemoteSubgraphRequest,
-                Response = RemoteSubgraph,
-                Service = FetchSubgraph,
-            > + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph:
-            Service<FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone + Send + 'static,
-        FetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph::Future: Send,
-    {
+    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
         let fully_resolved_supergraph_config = self
             .state
             .resolver
             .fully_resolve_subgraphs(
-                http_service,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 &self.state.supergraph_root,
                 &SubgraphPrompt::default(),
             )
@@ -271,7 +256,7 @@ impl CompositionPipeline<state::Run> {
         read_file: ReadF,
         write_file: WriteF,
         http_service: HttpService,
-        make_fetch_remote_subgraph: BoxCloneMakeFetchRemoteSubgraph,
+        make_fetch_remote_subgraph: FetchRemoteSubgraphFactory,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>

@@ -10,16 +10,21 @@ use rover_client::{
     shared::{FetchResponse, GraphRef, SdlType},
     RoverClientError,
 };
-use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::HttpService;
+use rover_graphql::GraphQLLayer;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 
-pub type BoxCloneFetchRemoteSubgraph =
+/// Alias for a [`tower::Service`] that fetches a remote subgraph from Apollo Studio
+pub type FetchRemoteSubgraphService =
     BoxCloneService<FetchRemoteSubgraphRequest, RemoteSubgraph, FetchRemoteSubgraphError>;
-pub type BoxCloneMakeFetchRemoteSubgraph =
-    BoxCloneService<(), BoxCloneFetchRemoteSubgraph, MakeFetchRemoteSubgraphError>;
+
+/// Alias for a [`tower::Service`] that produces a service that fetches a remote subgraph
+/// from Apollo Studio. This is necessary so that we can defer remote credential validation
+/// until necessary. Specifically, so that we don't validate credentials when resolving
+/// a [`SupergraphConfig`] when there are no remote subgraphs defined
+pub type FetchRemoteSubgraphFactory =
+    BoxCloneService<(), FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError>;
 
 /// Errors that occur when constructing a [`FetchRemoteSubgraph`] service
 #[derive(thiserror::Error, Debug)]
@@ -40,7 +45,7 @@ pub struct MakeFetchRemoteSubgraph {
 }
 
 impl Service<()> for MakeFetchRemoteSubgraph {
-    type Response = BoxCloneFetchRemoteSubgraph;
+    type Response = FetchRemoteSubgraphService;
     type Error = MakeFetchRemoteSubgraphError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 

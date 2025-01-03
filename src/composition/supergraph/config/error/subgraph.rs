@@ -58,10 +58,19 @@ pub enum ResolveSubgraphError {
         /// The invalid input from the user
         input: String,
     },
-    #[error("Subgraph `{subgraph}` is missing a routing Url")]
-    MissingRoutingUrl { subgraph: String },
+    /// Error that occurs when a subgraph is missing a mandatory routing url
+    #[error("Subgraph `{subgraph}` is missing a routing url")]
+    MissingRoutingUrl {
+        /// The name of the subgraph that is missing a routing url
+        subgraph: String,
+    },
+    /// Pass-through for [`http::InvalidHeaderName`]
     #[error(transparent)]
     HeaderName(#[from] InvalidHeaderName),
+    /// Pass-through for [`http::InvalidHeaderValue`]
     #[error(transparent)]
     HeaderValue(#[from] InvalidHeaderValue),
+    /// Pass-through error for when a [`tower::Service`] fails to be ready
+    #[error(transparent)]
+    ServiceReady(#[from] Box<dyn std::error::Error + Send + Sync>),
 }

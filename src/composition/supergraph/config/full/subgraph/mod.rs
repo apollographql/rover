@@ -5,27 +5,27 @@ use apollo_parser::{cst, Parser};
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use http::{HeaderMap, HeaderName, HeaderValue};
-use rover_client::{operations::subgraph::introspect::SubgraphIntrospect, shared::GraphRef};
-use rover_graphql::GraphQLLayer;
-use rover_http::{extend_headers::ExtendHeadersLayer, HttpService};
-use tower::{service_fn, util::BoxCloneService, MakeService, Service, ServiceBuilder, ServiceExt};
+use rover_client::shared::GraphRef;
+use tower::{service_fn, util::BoxCloneService, MakeService, Service, ServiceExt};
 
 mod file;
-mod introspect;
+pub mod introspect;
 mod remote;
 
 use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError,
-    resolver::fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
+    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
     unresolved::UnresolvedSubgraph,
 };
 
 use self::{
-    file::ResolveFileSubgraph, introspect::ResolveIntrospectSubgraph, remote::ResolveRemoteSubgraph,
+    file::ResolveFileSubgraph,
+    introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory},
+    remote::ResolveRemoteSubgraph,
 };
 
-pub type FullyResolveSubgraph = BoxCloneService<(), FullyResolvedSubgraph, ResolveSubgraphError>;
+/// Alias for a [`tower::Service`] that fully resolves a subgraph
+pub type FullyResolveSubgraphService =
+    BoxCloneService<(), FullyResolvedSubgraph, ResolveSubgraphError>;
 
 /// Represents a [`SubgraphConfig`] that has been resolved down to an SDL
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
@@ -51,26 +51,12 @@ impl FullyResolvedSubgraph {
     }
 
     /// Resolves a [`UnresolvedSubgraph`] to a [`FullyResolvedSubgraph`]
-    pub async fn resolver<MakeFetchSubgraph, FetchSubgraph>(
-        http_service: HttpService,
-        mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
+    pub async fn resolver(
+        mut resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        mut fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_subgraph: impl Into<UnresolvedSubgraph>,
-    ) -> Result<FullyResolveSubgraph, ResolveSubgraphError>
-    where
-        MakeFetchSubgraph: MakeService<
-            (),
-            FetchRemoteSubgraphRequest,
-            Response = RemoteSubgraph,
-            Service = FetchSubgraph,
-        >,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph:
-            Service<FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone + Send + 'static,
-        FetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph::Future: Send,
-    {
+    ) -> Result<FullyResolveSubgraphService, ResolveSubgraphError> {
         let unresolved_subgraph = unresolved_subgraph.into();
         let schema = unresolved_subgraph.schema().clone();
         match schema {
@@ -88,33 +74,14 @@ impl FullyResolvedSubgraph {
                 subgraph_url,
                 introspection_headers,
             } => {
-                let mut header_map = HeaderMap::new();
-
-                for (header_key, header_value) in
-                    introspection_headers.clone().unwrap_or_default().iter()
-                {
-                    header_map.insert(
-                        HeaderName::from_bytes(header_key.as_bytes())?,
-                        HeaderValue::from_str(&header_value)?,
-                    );
-                }
-                let introspect_service = ServiceBuilder::new()
-                    .boxed_clone()
-                    .layer_fn(SubgraphIntrospect::new)
-                    .layer(GraphQLLayer::new(subgraph_url.clone()))
-                    .layer(ExtendHeadersLayer::new(header_map))
-                    .service(http_service);
-
-                let service = ResolveIntrospectSubgraph::builder()
-                    .inner(introspect_service)
+                let request = MakeResolveIntrospectSubgraphRequest::builder()
+                    .headers(introspection_headers.clone().unwrap_or_default())
+                    .endpoint(subgraph_url.clone())
+                    .and_routing_url(unresolved_subgraph.routing_url().clone())
                     .subgraph_name(unresolved_subgraph.name().to_string())
-                    .routing_url(
-                        unresolved_subgraph
-                            .routing_url()
-                            .clone()
-                            .unwrap_or_else(|| subgraph_url.to_string()),
-                    )
                     .build();
+                let service = resolve_introspect_subgraph_factory.ready().await?;
+                let service = service.call(request).await?;
                 Ok(service.boxed_clone())
             }
             SchemaSource::Subgraph {
@@ -128,7 +95,7 @@ impl FullyResolvedSubgraph {
                     }
                 })?;
 
-                let inner = fetch_remote_subgraph_impl
+                let inner = fetch_remote_subgraph_factory
                     .make_service(())
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {

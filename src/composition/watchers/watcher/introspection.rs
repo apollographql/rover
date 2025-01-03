@@ -1,15 +1,12 @@
-use std::{collections::HashMap, marker::Send, pin::Pin, time::Duration};
+use std::{marker::Send, pin::Pin, time::Duration};
 
 use futures::{Stream, StreamExt};
-use rover_client::operations::subgraph::introspect::{
-    SubgraphIntrospectError, SubgraphIntrospectResponse,
-};
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceExt};
 
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
-        full::{FullyResolveSubgraph, FullyResolvedSubgraph},
+        full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
     },
     subtask::{Subtask, SubtaskRunUnit},
     watch::Watch,
@@ -18,13 +15,13 @@ use crate::{
 /// Subgraph introspection
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospection {
-    resolver: FullyResolveSubgraph,
+    resolver: FullyResolveSubgraphService,
     polling_interval: Duration,
 }
 
 //TODO: impl retry (needed at least for dev)
 impl SubgraphIntrospection {
-    pub fn new(resolver: FullyResolveSubgraph, polling_interval: Duration) -> Self {
+    pub fn new(resolver: FullyResolveSubgraphService, polling_interval: Duration) -> Self {
         Self {
             resolver,
             polling_interval,

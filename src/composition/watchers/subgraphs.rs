@@ -4,16 +4,16 @@ use apollo_federation_types::config::SubgraphConfig;
 use camino::Utf8PathBuf;
 use futures::stream::{self, BoxStream, StreamExt};
 use itertools::Itertools;
-use rover_http::HttpService;
 use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
-use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{
     composition::supergraph::config::{
-        error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
-        resolver::fetch_remote_subgraph::BoxCloneMakeFetchRemoteSubgraph,
+        error::ResolveSubgraphError,
+        full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph},
+        lazy::LazilyResolvedSubgraph,
+        resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
         unresolved::UnresolvedSubgraph,
     },
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
@@ -29,8 +29,8 @@ use super::watcher::{
 pub struct SubgraphWatchers {
     introspection_polling_interval: u64,
     watchers: HashMap<String, SubgraphWatcher>,
-    http_service: HttpService,
-    fetch_remote_subgraph_impl: BoxCloneMakeFetchRemoteSubgraph,
+    resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+    fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     supergraph_config_root: Option<Utf8PathBuf>,
 }
 
@@ -38,19 +38,19 @@ impl SubgraphWatchers {
     /// Create a set of watchers from the subgraph definitions of a supergraph config.
     pub async fn new(
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
-        http_service: HttpService,
-        fetch_remote_subgraph_impl: BoxCloneMakeFetchRemoteSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: Option<&Utf8PathBuf>,
         introspection_polling_interval: u64,
     ) -> Result<SubgraphWatchers, HashMap<String, ResolveSubgraphError>> {
         let watchers = stream::iter(subgraphs.into_iter().map(|(name, resolved_subgraph)| {
-            let http_service = http_service.clone();
-            let fetch_remote_subgraph_impl = fetch_remote_subgraph_impl.clone();
+            let resolve_introspect_subgraph_factory = resolve_introspect_subgraph_factory.clone();
+            let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
             let resolved_subgraph = resolved_subgraph.clone();
             async move {
                 let resolver = FullyResolvedSubgraph::resolver(
-                    http_service,
-                    fetch_remote_subgraph_impl,
+                    resolve_introspect_subgraph_factory,
+                    fetch_remote_subgraph_factory,
                     supergraph_config_root,
                     resolved_subgraph.clone(),
                 )
@@ -78,8 +78,8 @@ impl SubgraphWatchers {
             Ok(SubgraphWatchers {
                 introspection_polling_interval,
                 watchers: HashMap::from_iter(watchers),
-                http_service,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 supergraph_config_root: supergraph_config_root.cloned(),
             })
         } else {
@@ -159,8 +159,8 @@ impl SubtaskHandleStream for SubgraphWatchers {
             let mut subgraph_handles = SubgraphHandles::new(
                 sender.clone(),
                 self.watchers.clone(),
-                self.http_service.clone(),
-                self.fetch_remote_subgraph_impl.clone(),
+                self.resolve_introspect_subgraph_factory.clone(),
+                self.fetch_remote_subgraph_factory.clone(),
                 self.supergraph_config_root.clone()
             );
 
@@ -208,8 +208,8 @@ impl SubtaskHandleStream for SubgraphWatchers {
 struct SubgraphHandles {
     abort_handles: HashMap<String, (AbortHandle, AbortHandle)>,
     sender: UnboundedSender<SubgraphEvent>,
-    http_service: HttpService,
-    fetch_remote_subgraph_impl: BoxCloneMakeFetchRemoteSubgraph,
+    resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+    fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     supergraph_config_root: Option<Utf8PathBuf>,
 }
 
@@ -217,8 +217,8 @@ impl SubgraphHandles {
     pub fn new(
         sender: UnboundedSender<SubgraphEvent>,
         watchers: HashMap<String, SubgraphWatcher>,
-        http_service: HttpService,
-        fetch_remote_subgraph_impl: BoxCloneMakeFetchRemoteSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: Option<Utf8PathBuf>,
     ) -> SubgraphHandles {
         let mut abort_handles = HashMap::new();
@@ -247,8 +247,8 @@ impl SubgraphHandles {
         SubgraphHandles {
             sender,
             abort_handles,
-            http_service,
-            fetch_remote_subgraph_impl,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
             supergraph_config_root,
         }
     }
@@ -267,8 +267,8 @@ impl SubgraphHandles {
             unresolved_subgraph,
         )?;
         let resolver = FullyResolvedSubgraph::resolver(
-            self.http_service.clone(),
-            self.fetch_remote_subgraph_impl.clone(),
+            self.resolve_introspect_subgraph_factory.clone(),
+            self.fetch_remote_subgraph_factory.clone(),
             self.supergraph_config_root.as_ref(),
             lazily_resolved_subgraph.clone(),
         )
@@ -311,8 +311,8 @@ impl SubgraphHandles {
             unresolved_subgraph,
         )?;
         let resolver = FullyResolvedSubgraph::resolver(
-            self.http_service.clone(),
-            self.fetch_remote_subgraph_impl.clone(),
+            self.resolve_introspect_subgraph_factory.clone(),
+            self.fetch_remote_subgraph_factory.clone(),
             self.supergraph_config_root.as_ref(),
             lazily_resolved_subgraph.clone(),
         )

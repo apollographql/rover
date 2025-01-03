@@ -22,7 +22,6 @@ use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
-use rover_http::HttpService;
 use tower::{MakeService, Service, ServiceExt};
 use url::Url;
 
@@ -38,15 +37,14 @@ use super::{
         FederationVersionMismatch, FederationVersionResolver,
         FederationVersionResolverFromSupergraphConfig,
     },
-    full::FullyResolvedSupergraphConfig,
+    full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSupergraphConfig},
     lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
 };
 
 use self::{
-    fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-    state::ResolveSubgraphs,
+    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
 };
 
 pub mod fetch_remote_subgraph;
@@ -239,35 +237,21 @@ pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<ResolveS
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
-    pub async fn fully_resolve_subgraphs<MakeFetchSubgraph, FetchSubgraph>(
+    pub async fn fully_resolve_subgraphs(
         &self,
-        http_service: HttpService,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         prompt: &impl Prompt,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
-    where
-        MakeFetchSubgraph: MakeService<
-                (),
-                FetchRemoteSubgraphRequest,
-                Service = FetchSubgraph,
-                Response = RemoteSubgraph,
-            > + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph:
-            Service<FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone + Send + 'static,
-        FetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph::Future: Send,
-    {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                http_service,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 supergraph_config_root,
                 unresolved_supergraph_config,
             )
@@ -306,8 +290,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .build();
 
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                http_service,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 supergraph_config_root,
                 unresolved_supergraph_config,
             )

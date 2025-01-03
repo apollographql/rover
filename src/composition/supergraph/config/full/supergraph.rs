@@ -5,19 +5,15 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream, StreamExt, TryFutureExt};
 use itertools::Itertools;
-use rover_http::HttpService;
-use tower::{MakeService, Service, ServiceExt};
+use tower::{Service, ServiceExt};
 
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError,
-    resolver::{
-        fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-        ResolveSupergraphConfigError,
-    },
+    resolver::{fetch_remote_subgraph::FetchRemoteSubgraphFactory, ResolveSupergraphConfigError},
     unresolved::UnresolvedSupergraphConfig,
 };
 
-use super::FullyResolvedSubgraph;
+use super::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph};
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
@@ -43,32 +39,18 @@ impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
 impl FullyResolvedSupergraphConfig {
     /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
     /// by resolving the individual subgraphs concurrently and calculating the [`FederationVersion`]
-    pub async fn resolve<MakeFetchSubgraph, FetchSubgraph>(
-        http_service: HttpService,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+    pub async fn resolve(
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
-    where
-        MakeFetchSubgraph: MakeService<
-                (),
-                FetchRemoteSubgraphRequest,
-                Response = RemoteSubgraph,
-                Service = FetchSubgraph,
-            > + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph:
-            Service<FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone + Send + 'static,
-        FetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-        FetchSubgraph::Future: Send,
-    {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
             move |(name, unresolved_subgraph)| {
-                let fetch_remote_subgraph_impl = fetch_remote_subgraph_impl.clone();
+                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
                 FullyResolvedSubgraph::resolver(
-                    http_service.clone(),
-                    fetch_remote_subgraph_impl,
+                    resolve_introspect_subgraph_factory.clone(),
+                    fetch_remote_subgraph_factory,
                     supergraph_config_root,
                     unresolved_subgraph.clone(),
                 )

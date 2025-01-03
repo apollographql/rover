@@ -12,13 +12,10 @@ use super::{file::SubgraphFileWatcher, introspection::SubgraphIntrospection};
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
-        full::{FullyResolveSubgraph, FullyResolvedSubgraph},
+        full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
         lazy::LazilyResolvedSubgraph,
     },
-    options::ProfileOpt,
     subtask::SubtaskHandleUnit,
-    utils::client::StudioClientConfig,
-    RoverError,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -27,8 +24,6 @@ pub enum SubgraphFetchError {
     File(#[from] RoverStdError),
     #[error(transparent)]
     Introspect(#[from] SubgraphIntrospectError),
-    #[error("Cannot fetch with this subgraph watcher kind: {}", .0)]
-    SubgraphWatcherKind(String),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -45,7 +40,7 @@ pub struct SubgraphWatcher {
 }
 
 #[derive(Debug, Clone)]
-pub struct NonRepeatingFetch(FullyResolveSubgraph);
+pub struct NonRepeatingFetch(FullyResolveSubgraphService);
 
 impl NonRepeatingFetch {
     pub async fn run(self) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
@@ -75,7 +70,7 @@ impl SubgraphWatcher {
     /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
     pub fn new(
         subgraph: LazilyResolvedSubgraph,
-        resolver: FullyResolveSubgraph,
+        resolver: FullyResolveSubgraphService,
         // routing_url: Option<String>,
         // schema_source: SchemaSource,
         // profile: &ProfileOpt,
@@ -142,13 +137,6 @@ impl SubgraphWatcherKind {
             }
         }
     }
-}
-
-/// A unit struct denoting a change to a subgraph, used by composition to know whether to
-/// recompose.
-#[derive(Debug, derive_getters::Getters)]
-pub struct WatchedSdlChange {
-    sdl: String,
 }
 
 impl SubtaskHandleUnit for SubgraphWatcher {

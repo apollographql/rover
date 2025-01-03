@@ -11,18 +11,14 @@ use std::{
 use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
 use rover_http::HttpService;
+use tower::ServiceExt;
 
 use crate::{
     composition::watchers::watcher::{
-        file::{FileWatcher, SubgraphFileWatcher},
-        supergraph_config::SupergraphConfigWatcher,
+        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
-    options::ProfileOpt,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::{
-        client::StudioClientConfig,
-        effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-    },
+    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
 use self::state::SetupSubgraphWatchers;
@@ -33,9 +29,9 @@ use super::{
         binary::SupergraphBinary,
         config::{
             error::ResolveSubgraphError,
-            full::FullyResolvedSupergraphConfig,
+            full::{introspect::MakeResolveIntrospectSubgraph, FullyResolvedSupergraphConfig},
             lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-            resolver::fetch_remote_subgraph::BoxCloneMakeFetchRemoteSubgraph,
+            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
@@ -72,15 +68,17 @@ impl Runner<state::SetupSubgraphWatchers> {
         self,
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
         http_service: HttpService,
-        fetch_remote_subgraph_impl: BoxCloneMakeFetchRemoteSubgraph,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: Option<Utf8PathBuf>,
         introspection_polling_interval: u64,
     ) -> Result<Runner<state::SetupSupergraphConfigWatcher>, HashMap<String, ResolveSubgraphError>>
     {
+        let resolve_introspect_subgraph_factory =
+            MakeResolveIntrospectSubgraph::new(http_service).boxed_clone();
         let subgraph_watchers = SubgraphWatchers::new(
             subgraphs,
-            http_service,
-            fetch_remote_subgraph_impl,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
             supergraph_config_root.as_ref(),
             introspection_polling_interval,
         )
