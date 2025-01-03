@@ -11,7 +11,6 @@ on:
         type: string
       dev-next:
         description: 'Compile with the dev-next flag'
-        required: true
         type: boolean
 
 #TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
