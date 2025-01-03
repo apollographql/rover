@@ -149,13 +149,15 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                             .unwrap_or(self.state.router_address);
                         let health_check_enabled = router_config.health_check_enabled();
                         let health_check_endpoint = router_config.health_check_endpoint()?;
-                        let listen_path = router_config.listen_path()?;
+                        let health_check_path = router_config.health_check_path();
+                        let listen_path = router_config.listen_path();
 
                         Ok(RunRouterConfigFinal {
                             listen_path,
                             address,
                             health_check_enabled,
                             health_check_endpoint,
+                            health_check_path,
                             raw_config: contents.to_string(),
                         })
                     }
@@ -174,8 +176,8 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
 
 impl RunRouterConfig<RunRouterConfigFinal> {
     #[allow(unused)]
-    pub fn listen_path(&self) -> Option<&Uri> {
-        self.state.listen_path.as_ref()
+    pub fn listen_path(&self) -> Option<String> {
+        self.state.listen_path.clone()
     }
 
     #[allow(unused)]
@@ -187,8 +189,12 @@ impl RunRouterConfig<RunRouterConfigFinal> {
         self.state.health_check_enabled
     }
 
-    pub fn health_check_endpoint(&self) -> &Uri {
-        &self.state.health_check_endpoint
+    pub fn health_check_endpoint(&self) -> Option<&SocketAddr> {
+        self.state.health_check_endpoint.as_ref()
+    }
+
+    pub fn health_check_path(&self) -> String {
+        self.state.health_check_path.clone()
     }
 
     pub fn raw_config(&self) -> String {
