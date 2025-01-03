@@ -38,8 +38,6 @@ jobs:
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
-        env:
-          FEATURES: ${{ inputs.dev-next && 'dev-next' || 'default' }}
         with:
           image: ${{ matrix.compile_target.container }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
@@ -49,14 +47,16 @@ jobs:
             yum -y install perl-core gcc openssl-devel openssl git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
-            cargo build --features ${{ env.FEATURES }} --target ${{ matrix.compile_target.target }} --test e2e
+            cargo build \
+              --features ${{ inputs.dev-next && 'dev-next' || 'default' }} \
+              --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
-        env:
-          FEATURES: ${{ inputs.dev-next && 'dev-next' || 'default' }}
         run: |
           rustup target add ${{ matrix.compile_target.target }}
-          cargo build --features ${{ env.FEATURES }} --target ${{ matrix.compile_target.target }} --test e2e
+          cargo build \
+              --features ${{ inputs.dev-next && 'dev-next' || 'default' }} \
+              --target ${{ matrix.compile_target.target }} --test e2e
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
