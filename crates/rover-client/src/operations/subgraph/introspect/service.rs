@@ -1,14 +1,8 @@
-use std::{collections::HashMap, future::Future, pin::Pin, time::Duration};
+use std::{future::Future, pin::Pin};
 
-use buildstructor::buildstructor;
 use graphql_client::GraphQLQuery;
-use http::{
-    header::{InvalidHeaderName, InvalidHeaderValue},
-    HeaderMap, HeaderName, HeaderValue,
-};
-use rover_graphql::{GraphQLLayer, GraphQLRequest, GraphQLService, GraphQLServiceError};
-use rover_http::{extend_headers::ExtendHeadersLayer, retry::RetryPolicy, HttpService};
-use tower::{retry::RetryLayer, Layer, Service, ServiceBuilder};
+use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use tower::Service;
 
 use crate::{EndpointKind, RoverClientError};
 
@@ -53,80 +47,15 @@ impl From<SubgraphIntrospectError> for RoverClientError {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum SubgraphIntrospectLayerError {
-    #[error(transparent)]
-    HeaderName(#[from] InvalidHeaderName),
-    #[error(transparent)]
-    HeaderValue(#[from] InvalidHeaderValue),
-}
-
-impl From<SubgraphIntrospectLayerError> for RoverClientError {
-    fn from(value: SubgraphIntrospectLayerError) -> Self {
-        match value {
-            SubgraphIntrospectLayerError::HeaderName(err) => RoverClientError::from(err),
-            SubgraphIntrospectLayerError::HeaderValue(err) => RoverClientError::from(err),
-        }
-    }
-}
-
-pub struct SubgraphIntrospectLayer {
-    endpoint: url::Url,
-    headers: HeaderMap,
-    should_retry: bool,
-    retry_period: Duration,
-}
-
-#[buildstructor]
-impl SubgraphIntrospectLayer {
-    #[builder]
-    pub fn new(
-        endpoint: url::Url,
-        headers: HashMap<String, String>,
-        should_retry: bool,
-        retry_period: Duration,
-    ) -> Result<SubgraphIntrospectLayer, SubgraphIntrospectLayerError> {
-        let mut header_map = HeaderMap::new();
-        for (header_key, header_value) in headers {
-            header_map.insert(
-                HeaderName::from_bytes(header_key.as_bytes())?,
-                HeaderValue::from_str(&header_value)?,
-            );
-        }
-        Ok(SubgraphIntrospectLayer {
-            endpoint,
-            headers: header_map,
-            should_retry,
-            retry_period,
-        })
-    }
-}
-
-impl Layer<HttpService> for SubgraphIntrospectLayer {
-    type Service = SubgraphIntrospect<GraphQLService<HttpService>>;
-    fn layer(&self, inner: HttpService) -> Self::Service {
-        let retry_layer = if self.should_retry {
-            Some(RetryLayer::new(RetryPolicy::new(self.retry_period)))
-        } else {
-            None
-        };
-        let http_service_stack = ServiceBuilder::new()
-            .boxed_clone()
-            .option_layer(retry_layer)
-            .layer(ExtendHeadersLayer::new(self.headers.clone()))
-            .service(inner);
-        let graphql_service_stack = ServiceBuilder::new()
-            .layer(GraphQLLayer::new(self.endpoint.clone()))
-            .service(http_service_stack);
-        SubgraphIntrospect {
-            inner: graphql_service_stack,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct SubgraphIntrospect<S: Clone> {
     inner: S,
+}
+
+impl<S: Clone> SubgraphIntrospect<S> {
+    pub fn new(inner: S) -> SubgraphIntrospect<S> {
+        SubgraphIntrospect { inner }
+    }
 }
 
 impl<S, Fut> Service<()> for SubgraphIntrospect<S>

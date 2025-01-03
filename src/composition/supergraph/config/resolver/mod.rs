@@ -22,15 +22,13 @@ use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
+use rover_http::HttpService;
 use tower::{MakeService, Service, ServiceExt};
 use url::Url;
 
 use crate::{
     cli::Rover,
-    utils::{
-        effect::{introspect::IntrospectSubgraph, read_stdin::ReadStdin},
-        parsers::FileDescriptorType,
-    },
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
     RoverError,
 };
 
@@ -241,18 +239,26 @@ pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<ResolveS
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
-    pub async fn fully_resolve_subgraphs<MakeFetchSubgraph>(
+    pub async fn fully_resolve_subgraphs<MakeFetchSubgraph, FetchSubgraph>(
         &self,
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
+        http_service: HttpService,
         fetch_remote_subgraph_impl: MakeFetchSubgraph,
         supergraph_config_root: &Utf8PathBuf,
         prompt: &impl Prompt,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
     where
-        MakeFetchSubgraph:
-            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
+        MakeFetchSubgraph: MakeService<
+                (),
+                FetchRemoteSubgraphRequest,
+                Service = FetchSubgraph,
+                Response = RemoteSubgraph,
+            > + Clone,
         MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
         MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+        FetchSubgraph:
+            Service<FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone + Send + 'static,
+        FetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
+        FetchSubgraph::Future: Send,
     {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
@@ -260,7 +266,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                introspect_subgraph_impl,
+                http_service,
                 fetch_remote_subgraph_impl,
                 supergraph_config_root,
                 unresolved_supergraph_config,
@@ -300,7 +306,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .build();
 
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                introspect_subgraph_impl,
+                http_service,
                 fetch_remote_subgraph_impl,
                 supergraph_config_root,
                 unresolved_supergraph_config,

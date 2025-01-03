@@ -12,9 +12,14 @@ use rover_client::{
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;
-use tower::{Service, ServiceBuilder};
+use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
+
+pub type BoxCloneFetchRemoteSubgraph =
+    BoxCloneService<FetchRemoteSubgraphRequest, RemoteSubgraph, FetchRemoteSubgraphError>;
+pub type BoxCloneMakeFetchRemoteSubgraph =
+    BoxCloneService<(), BoxCloneFetchRemoteSubgraph, MakeFetchRemoteSubgraphError>;
 
 /// Errors that occur when constructing a [`FetchRemoteSubgraph`] service
 #[derive(thiserror::Error, Debug)]
@@ -35,7 +40,7 @@ pub struct MakeFetchRemoteSubgraph {
 }
 
 impl Service<()> for MakeFetchRemoteSubgraph {
-    type Response = FetchRemoteSubgraph<SubgraphFetch<GraphQLService<HttpService>>>;
+    type Response = BoxCloneFetchRemoteSubgraph;
     type Error = MakeFetchRemoteSubgraphError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -58,7 +63,9 @@ impl Service<()> for MakeFetchRemoteSubgraph {
                 .layer(GraphQLLayer::default())
                 .service(http_service);
             let subgraph_fetch_all = SubgraphFetch::new(graphql_service);
-            Ok::<_, MakeFetchRemoteSubgraphError>(FetchRemoteSubgraph::new(subgraph_fetch_all))
+            Ok::<_, MakeFetchRemoteSubgraphError>(
+                FetchRemoteSubgraph::new(subgraph_fetch_all).boxed_clone(),
+            )
         };
         Box::pin(fut)
     }
@@ -103,11 +110,12 @@ impl From<FetchRemoteSubgraphRequest> for SubgraphFetchRequest {
 }
 
 /// Service that is able to fetch a subgraph from Studio
-pub struct FetchRemoteSubgraph<S> {
+#[derive(Clone)]
+pub struct FetchRemoteSubgraph<S: Clone> {
     inner: S,
 }
 
-impl<S> FetchRemoteSubgraph<S> {
+impl<S: Clone> FetchRemoteSubgraph<S> {
     /// Creates a new [`FetchRemoteSubgraph`]
     pub fn new(inner: S) -> FetchRemoteSubgraph<S> {
         FetchRemoteSubgraph { inner }

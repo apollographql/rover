@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
+use http::header::{InvalidHeaderName, InvalidHeaderValue};
 
 /// Errors that may occur as a result of resolving subgraphs
 #[derive(thiserror::Error, Debug)]
@@ -57,4 +58,10 @@ pub enum ResolveSubgraphError {
         /// The invalid input from the user
         input: String,
     },
+    #[error("Subgraph `{subgraph}` is missing a routing Url")]
+    MissingRoutingUrl { subgraph: String },
+    #[error(transparent)]
+    HeaderName(#[from] InvalidHeaderName),
+    #[error(transparent)]
+    HeaderValue(#[from] InvalidHeaderValue),
 }

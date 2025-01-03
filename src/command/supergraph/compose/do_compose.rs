@@ -202,7 +202,7 @@ impl Compose {
             )
             .await?
             .resolve_federation_version(
-                &client_config,
+                client_config.service()?,
                 make_fetch_remote_subgraph,
                 self.opts.federation_version.clone(),
             )

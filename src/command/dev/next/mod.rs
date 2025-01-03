@@ -11,8 +11,8 @@ use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
+use tower::ServiceExt;
 
-use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
     command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
@@ -35,6 +35,8 @@ use crate::{
     },
     RoverError, RoverOutput, RoverResult,
 };
+
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -122,8 +124,8 @@ impl Dev {
             )
             .await?
             .resolve_federation_version(
-                &client_config,
-                make_fetch_remote_subgraph,
+                client_config.service()?,
+                make_fetch_remote_subgraph.clone(),
                 federation_version,
             )
             .await?
@@ -153,8 +155,8 @@ impl Dev {
                 exec_command_impl,
                 read_file_impl.clone(),
                 write_file_impl.clone(),
-                profile,
-                &client_config,
+                client_config.service()?,
+                make_fetch_remote_subgraph.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
             )
