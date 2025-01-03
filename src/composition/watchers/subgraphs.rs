@@ -69,6 +69,7 @@ impl SubgraphWatchers {
         .collect::<Vec<Result<(String, SubgraphWatcher), (String, ResolveSubgraphError)>>>()
         .await;
 
+        #[allow(clippy::type_complexity)]
         let (watchers, errors): (
             Vec<(String, SubgraphWatcher)>,
             Vec<(String, ResolveSubgraphError)>,

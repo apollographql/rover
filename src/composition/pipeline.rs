@@ -280,7 +280,7 @@ impl CompositionPipeline<state::Run> {
                 introspection_polling_interval,
             )
             .await
-            .map_err(|err| CompositionPipelineError::ResolveSubgraphs(err))?
+            .map_err(CompositionPipelineError::ResolveSubgraphs)?
             .setup_supergraph_config_watcher(lazily_resolved_supergraph_config)
             .setup_composition_watcher(
                 self.state.fully_resolved_supergraph_config.clone(),
