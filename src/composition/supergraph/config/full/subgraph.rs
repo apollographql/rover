@@ -43,7 +43,7 @@ impl FullyResolvedSubgraph {
     pub async fn resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         mut fetch_remote_subgraph_impl: MakeFetchSubgraph,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         unresolved_subgraph: UnresolvedSubgraph,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError>
     where
@@ -53,8 +53,6 @@ impl FullyResolvedSubgraph {
     {
         match unresolved_subgraph.schema() {
             SchemaSource::File { file } => {
-                let supergraph_config_root =
-                    supergraph_config_root.ok_or(ResolveSubgraphError::SupergraphConfigMissing)?;
                 let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 let schema =
                     Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;

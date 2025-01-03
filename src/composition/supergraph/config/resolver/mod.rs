@@ -245,7 +245,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         &self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: MakeFetchSubgraph,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         prompt: &impl Prompt,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
     where
@@ -316,12 +316,9 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// config is piped through stdin
     pub async fn lazily_resolve_subgraphs(
         &self,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         prompt: &impl Prompt,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        let supergraph_config_root = supergraph_config_root
-            .ok_or_else(|| ResolveSupergraphConfigError::MissingSupergraphConfigRoot)?;
-
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .and_origin_path(self.state.origin_path.clone())
@@ -649,7 +646,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
@@ -826,7 +823,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
@@ -998,7 +995,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 make_fetch_remote_subgraph_service,
-                Some(&local_supergraph_config_path),
+                &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
