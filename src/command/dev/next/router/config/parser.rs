@@ -99,7 +99,7 @@ impl<'a> RouterConfigParser<'a> {
             .and_then(|path| path.as_str())
             // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
             // defaults
-            .unwrap_or("/health");
+            .unwrap_or("health");
 
         let mut health_check_endpoint = addr_and_port.to_string();
         health_check_endpoint.push_str(path);
@@ -161,8 +161,8 @@ health_check:
         );
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.health_check_endpoint();
-        assert_that!(health_check.is_ok()).is_equal_to(is_health_check_enabled);
+        let health_check = router_config.health_check_enabled();
+        assert_that!(health_check).is_equal_to(is_health_check_enabled);
         Ok(())
     }
 
