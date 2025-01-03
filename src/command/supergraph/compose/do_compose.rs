@@ -24,6 +24,8 @@ use rover_client::{shared::GraphRef, RoverClientError};
 use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
+#[cfg(feature = "composition-rewrite")]
+use tower::ServiceExt;
 
 // TODO: remove once we're no longer using the composition-rewrite feature flag
 #[allow(unused_imports)]
@@ -164,9 +166,12 @@ impl Compose {
     ) -> RoverResult<RoverOutput> {
         use crate::composition::{
             pipeline::CompositionPipeline,
-            supergraph::config::resolver::{
-                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            supergraph::config::{
+                full::introspect::MakeResolveIntrospectSubgraph,
+                resolver::{
+                    fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                    fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+                },
             },
         };
 
@@ -183,27 +188,30 @@ impl Compose {
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_config_source.graph_ref.clone();
 
-        let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+        let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
             .build();
 
-        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+        let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
-            .build();
+            .build()
+            .boxed_clone();
+        let resolve_introspect_subgraph_factory =
+            MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
 
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
-                make_fetch_remote_subgraphs,
+                fetch_remote_subgraphs_factory,
                 supergraph_yaml,
                 graph_ref.clone(),
             )
             .await?
             .resolve_federation_version(
-                client_config.service()?,
-                make_fetch_remote_subgraph,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 self.opts.federation_version.clone(),
             )
             .await?

@@ -10,19 +10,15 @@ use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
-use tap::TapFallible;
 use tower::ServiceExt;
 
 use crate::{
     command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
-        supergraph::{
-            config::resolver::{
-                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
-            },
-            version::SupergraphVersion,
+        supergraph::config::resolver::{
+            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
         },
     },
     utils::{
@@ -81,14 +77,17 @@ impl Dev {
             .studio_graphql_service()?;
         let service = WhoAmI::new(service);
 
-        let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+        let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
             .build();
-        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+        let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
-            .build();
+            .build()
+            .boxed_clone();
+        let resolve_introspect_subgraph_factory =
+            MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
 
         // We resolve supergraph binary overrides (ie, composition version) in this order:
         //
@@ -118,14 +117,14 @@ impl Dev {
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
-                make_fetch_remote_subgraphs,
+                fetch_remote_subgraphs_factory,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
             )
             .await?
             .resolve_federation_version(
-                client_config.service()?,
-                make_fetch_remote_subgraph.clone(),
+                resolve_introspect_subgraph_factory.clone(),
+                fetch_remote_subgraph_factory.clone(),
                 federation_version,
             )
             .await?
@@ -156,7 +155,7 @@ impl Dev {
                 read_file_impl.clone(),
                 write_file_impl.clone(),
                 client_config.service()?,
-                make_fetch_remote_subgraph.boxed_clone(),
+                fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
             )

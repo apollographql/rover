@@ -6,7 +6,7 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use tower::{service_fn, util::BoxCloneService, MakeService, Service, ServiceExt};
+use tower::{service_fn, util::BoxCloneService, Service, ServiceExt};
 
 pub mod file;
 pub mod introspect;
@@ -95,8 +95,13 @@ impl FullyResolvedSubgraph {
                     }
                 })?;
 
-                let inner = fetch_remote_subgraph_factory
-                    .make_service(())
+                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory
+                    .ready()
+                    .await
+                    .map_err(|err| ResolveSubgraphError::ServiceReady(Box::new(err)))?;
+
+                let service = fetch_remote_subgraph_factory
+                    .call(())
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                         subgraph_name: subgraph.to_string(),
@@ -106,7 +111,7 @@ impl FullyResolvedSubgraph {
                     .graph_ref(graph_ref)
                     .subgraph_name(subgraph.to_string())
                     .and_routing_url(unresolved_subgraph.routing_url().clone())
-                    .inner(inner)
+                    .inner(service)
                     .build();
                 Ok(service.boxed_clone())
             }

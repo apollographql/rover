@@ -164,7 +164,9 @@ mod tests {
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
     use assert_fs::TempDir;
     use speculoos::prelude::*;
+    use tokio::time::timeout;
     use tower::ServiceExt;
+    use tracing_test::traced_test;
 
     use crate::composition::supergraph::config::full::file::ResolveFileSubgraph;
     use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
@@ -172,8 +174,8 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[traced_test(level = "error")]
     async fn it_watches() {
-        eprintln!("!!!!!");
         let root = TempDir::new().unwrap();
         let supergraph_config_root = Utf8PathBuf::from_path_buf(root.path().to_path_buf()).unwrap();
         let path = supergraph_config_root.join("supergraph.yaml");
@@ -191,18 +193,30 @@ mod tests {
             ))
             .build()
             .boxed_clone();
-        let watcher = SubgraphFileWatcher::new(path.clone(), resolve_file_subgraph);
-        let mut watching = watcher.watch().await;
-        let _ = tokio::time::sleep(Duration::from_secs(2)).await;
 
         let mut writeable_file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
-            .open(path)
+            .open(path.clone())
             .expect("Cannot open file");
 
-        eprintln!("!!!!!");
+        let sdl = "type Query { test: String }";
+        writeable_file
+            .write_all(sdl.as_bytes())
+            .expect("couldn't write to file");
+
+        let watcher = SubgraphFileWatcher::new(path.clone(), resolve_file_subgraph);
+        // SubgraphFileWatcher has a DropGuard associated with it that cancels the underlying FileWatcher's CancellationToken when dropped, so we must retain a reference until this test finishes. This can be fixed if we migrate this to a `Subtask` implementation to make it safer and more explicit
+        let _watcher = watcher.clone();
+        let mut watching = watcher.watch().await;
+        let _ = tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let mut writeable_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .expect("Cannot open file");
 
         let sdl = "type Query { test: String! }";
 
@@ -210,20 +224,16 @@ mod tests {
             .write_all(sdl.as_bytes())
             .expect("couldn't write to file");
 
-        let mut output = None;
-        while output.is_none() {
-            let _ = tokio::time::sleep(Duration::from_secs(1)).await;
-            output = watching.next().await;
-        }
+        let output = timeout(Duration::from_secs(5), watching.next()).await;
 
         let expected = FullyResolvedSubgraph::builder()
             .name(subgraph_name.to_string())
             .routing_url(routing_url.to_string())
             .schema(sdl.to_string())
             .build();
-
-        assert_that!(&output).is_some().is_equal_to(expected);
-
-        root.close().unwrap();
+        assert_that!(&output)
+            .is_ok()
+            .is_some()
+            .is_equal_to(expected);
     }
 }

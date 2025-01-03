@@ -1,3 +1,5 @@
+//! Utilities that resolve subgraphs from Apollo Studio
+
 use std::pin::Pin;
 
 use buildstructor::Builder;
@@ -12,6 +14,7 @@ use crate::composition::supergraph::config::{
 
 use super::FullyResolvedSubgraph;
 
+/// Service that resolves a remote subgraph from Apollo Studio
 #[derive(Clone, Builder)]
 pub struct ResolveRemoteSubgraph<S>
 where

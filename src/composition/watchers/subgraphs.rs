@@ -413,20 +413,24 @@ mod tests {
 
     use crate::composition::supergraph::config::{
         error::ResolveSubgraphError,
-        full::introspect::{
-            MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
-            ResolveIntrospectSubgraphService,
+        full::{
+            introspect::{
+                MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+                ResolveIntrospectSubgraphService,
+            },
+            FullyResolvedSubgraph,
         },
         lazy::LazilyResolvedSubgraph,
         resolver::fetch_remote_subgraph::{
-            FetchRemoteSubgraphFactory, FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError,
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
         },
     };
 
     use super::SubgraphWatchers;
 
     #[tokio::test]
-    async fn test_subgraphwatchers_new() {
+    async fn test_subgraph_watchers_new() {
         let subgraphs = [
             (
                 "file".to_string(),
@@ -470,11 +474,31 @@ mod tests {
         .into_iter()
         .collect();
 
-        let (resolve_introspect_subgraph_factory, _resolve_introspect_subgraph_factory_handle) =
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_service_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
+        resolve_introspect_subgraph_service_handle.allow(0);
+
+        let (resolve_introspect_subgraph_factory, mut resolve_introspect_subgraph_factory_handle) =
             tower_test::mock::spawn::<
                 MakeResolveIntrospectSubgraphRequest,
                 ResolveIntrospectSubgraphService,
             >();
+        resolve_introspect_subgraph_factory_handle.allow(1);
+
+        tokio::spawn({
+            async move {
+                let (_, send_response) = resolve_introspect_subgraph_factory_handle
+                    .next_request()
+                    .await
+                    .unwrap();
+                send_response.send_response(
+                    ServiceBuilder::new()
+                        .boxed_clone()
+                        .map_err(ResolveSubgraphError::ServiceReady)
+                        .service(resolve_introspect_subgraph_service.into_inner()),
+                );
+            }
+        });
 
         let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
             ServiceBuilder::new()
@@ -482,8 +506,28 @@ mod tests {
                 .map_err(ResolveSubgraphError::ServiceReady)
                 .service(resolve_introspect_subgraph_factory.into_inner());
 
-        let (fetch_remote_subgraph_factory, _fetch_remote_subgraph_factory_handle) =
+        let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_service_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
+        fetch_remote_subgraph_service_handle.allow(0);
+
+        let (fetch_remote_subgraph_factory, mut fetch_remote_subgraph_factory_handle) =
             tower_test::mock::spawn::<(), FetchRemoteSubgraphService>();
+        fetch_remote_subgraph_factory_handle.allow(1);
+
+        tokio::spawn({
+            async move {
+                let (_, send_response) = fetch_remote_subgraph_factory_handle
+                    .next_request()
+                    .await
+                    .unwrap();
+                send_response.send_response(
+                    ServiceBuilder::new()
+                        .boxed_clone()
+                        .map_err(FetchRemoteSubgraphError::Service)
+                        .service(fetch_remote_subgraph_service.into_inner()),
+                );
+            }
+        });
 
         let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
             .boxed_clone()
@@ -503,9 +547,9 @@ mod tests {
         let subgraph_watchers = assert_that!(subgraph_watchers).is_ok().subject;
 
         assert_that!(subgraph_watchers.watchers).has_length(4);
-        assert_that!(subgraph_watchers.watchers).contains_key(&"file".to_string());
-        assert_that!(subgraph_watchers.watchers).contains_key(&"introspection".to_string());
-        assert_that!(subgraph_watchers.watchers).contains_key(&"sdl".to_string());
-        assert_that!(subgraph_watchers.watchers).contains_key(&"subgraph".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("file".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("introspection".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("sdl".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("subgraph".to_string());
     }
 }

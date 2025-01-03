@@ -1,3 +1,5 @@
+//! Utilities that allow for resolving file-based subgraphs
+
 use std::pin::Pin;
 
 use buildstructor::Builder;
@@ -12,6 +14,7 @@ use crate::composition::supergraph::config::{
 
 use super::FullyResolvedSubgraph;
 
+/// Service that resolves a file-based subgraph
 #[derive(Clone, Builder)]
 pub struct ResolveFileSubgraph {
     supergraph_config_root: Utf8PathBuf,
