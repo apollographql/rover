@@ -406,20 +406,27 @@ impl SubgraphHandles {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
+    use speculoos::prelude::*;
+    use tower::ServiceBuilder;
 
-    use super::SubgraphWatchers;
-    use crate::{
-        composition::supergraph::config::lazy::LazilyResolvedSubgraph,
-        options::ProfileOpt,
-        utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig},
+    use crate::composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        full::introspect::{
+            MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+            ResolveIntrospectSubgraphService,
+        },
+        lazy::LazilyResolvedSubgraph,
+        resolver::fetch_remote_subgraph::{
+            FetchRemoteSubgraphFactory, FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError,
+        },
     };
 
-    #[test]
-    fn test_subgraphwatchers_new() {
+    use super::SubgraphWatchers;
+
+    #[tokio::test]
+    async fn test_subgraphwatchers_new() {
         let subgraphs = [
             (
                 "file".to_string(),
@@ -427,6 +434,7 @@ mod tests {
                     .schema(SchemaSource::File {
                         file: "/path/to/file".into(),
                     })
+                    .name("file-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -436,6 +444,7 @@ mod tests {
                         subgraph_url: "http://subgraph_url".try_into().unwrap(),
                         introspection_headers: None,
                     })
+                    .name("introspection-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -445,6 +454,7 @@ mod tests {
                         graphref: "graphref".to_string(),
                         subgraph: "subgraph".to_string(),
                     })
+                    .name("remote-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -453,33 +463,49 @@ mod tests {
                     .schema(SchemaSource::Sdl {
                         sdl: "sdl".to_string(),
                     })
+                    .name("sdl-subgraph-name".to_string())
                     .build(),
             ),
         ]
         .into_iter()
         .collect();
 
-        let client_config = StudioClientConfig::new(
-            None,
-            houston::Config {
-                home: Utf8PathBuf::from_str("path").unwrap(),
-                override_api_key: None,
-            },
-            false,
-            ClientBuilder::new(),
-            ClientTimeout::default(),
-        );
+        let (resolve_introspect_subgraph_factory, _resolve_introspect_subgraph_factory_handle) =
+            tower_test::mock::spawn::<
+                MakeResolveIntrospectSubgraphRequest,
+                ResolveIntrospectSubgraphService,
+            >();
 
-        let profile = ProfileOpt {
-            profile_name: "some_profile".to_string(),
-        };
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new()
+                .boxed_clone()
+                .map_err(ResolveSubgraphError::ServiceReady)
+                .service(resolve_introspect_subgraph_factory.into_inner());
 
-        let subgraph_watchers = SubgraphWatchers::new(subgraphs, &profile, &client_config, 1);
+        let (fetch_remote_subgraph_factory, _fetch_remote_subgraph_factory_handle) =
+            tower_test::mock::spawn::<(), FetchRemoteSubgraphService>();
 
-        assert_eq!(4, subgraph_watchers.watchers.len());
-        assert!(subgraph_watchers.watchers.contains_key("file"));
-        assert!(subgraph_watchers.watchers.contains_key("introspection"));
-        assert!(subgraph_watchers.watchers.contains_key("sdl"));
-        assert!(subgraph_watchers.watchers.contains_key("subgraph"));
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .map_err(MakeFetchRemoteSubgraphError::ReadyFailed)
+            .service(fetch_remote_subgraph_factory.into_inner());
+
+        let supergraph_config_root = Some(Utf8PathBuf::new());
+        let subgraph_watchers = SubgraphWatchers::new(
+            subgraphs,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            supergraph_config_root.as_ref(),
+            1,
+        )
+        .await;
+
+        let subgraph_watchers = assert_that!(subgraph_watchers).is_ok().subject;
+
+        assert_that!(subgraph_watchers.watchers).has_length(4);
+        assert_that!(subgraph_watchers.watchers).contains_key(&"file".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key(&"introspection".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key(&"sdl".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key(&"subgraph".to_string());
     }
 }

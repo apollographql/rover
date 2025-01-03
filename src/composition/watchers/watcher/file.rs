@@ -159,30 +159,55 @@ impl SubgraphFileWatcher {
 
 #[cfg(test)]
 mod tests {
-    use speculoos::assert_that;
-    use speculoos::option::OptionAssertions;
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    use std::time::Duration;
+    use std::{fs::OpenOptions, io::Write, time::Duration};
+
+    use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+    use assert_fs::TempDir;
+    use speculoos::prelude::*;
+    use tower::ServiceExt;
+
+    use crate::composition::supergraph::config::full::file::ResolveFileSubgraph;
+    use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 
     use super::*;
 
     #[tokio::test]
     async fn it_watches() {
-        let some_file = tempfile::Builder::new().tempfile().unwrap();
-        let path = some_file.path().to_path_buf();
-        let watcher = SubgraphFileWatcher::new(Utf8PathBuf::from_path_buf(path.clone()).unwrap());
-        let mut watching = watcher.watch();
+        eprintln!("!!!!!");
+        let root = TempDir::new().unwrap();
+        let supergraph_config_root = Utf8PathBuf::from_path_buf(root.path().to_path_buf()).unwrap();
+        let path = supergraph_config_root.join("supergraph.yaml");
+        let subgraph_name = "file-subgraph";
+        let routing_url = "https://example.com/graphql";
+        let resolve_file_subgraph = ResolveFileSubgraph::builder()
+            .supergraph_config_root(supergraph_config_root)
+            .path(path.clone())
+            .unresolved_subgraph(UnresolvedSubgraph::new(
+                subgraph_name.to_string(),
+                SubgraphConfig {
+                    schema: SchemaSource::File { file: path.clone() },
+                    routing_url: Some(routing_url.to_string()),
+                },
+            ))
+            .build()
+            .boxed_clone();
+        let watcher = SubgraphFileWatcher::new(path.clone(), resolve_file_subgraph);
+        let mut watching = watcher.watch().await;
         let _ = tokio::time::sleep(Duration::from_secs(2)).await;
 
         let mut writeable_file = OpenOptions::new()
             .write(true)
             .truncate(true)
+            .create(true)
             .open(path)
             .expect("Cannot open file");
 
+        eprintln!("!!!!!");
+
+        let sdl = "type Query { test: String! }";
+
         writeable_file
-            .write_all("some change".as_bytes())
+            .write_all(sdl.as_bytes())
             .expect("couldn't write to file");
 
         let mut output = None;
@@ -191,10 +216,14 @@ mod tests {
             output = watching.next().await;
         }
 
-        assert_that(&output)
-            .is_some()
-            .matches(|actual| actual == "some change");
+        let expected = FullyResolvedSubgraph::builder()
+            .name(subgraph_name.to_string())
+            .routing_url(routing_url.to_string())
+            .schema(sdl.to_string())
+            .build();
 
-        let _ = some_file.close();
+        assert_that!(&output).is_some().is_equal_to(expected);
+
+        root.close().unwrap();
     }
 }

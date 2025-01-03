@@ -8,9 +8,9 @@ use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use tower::{service_fn, util::BoxCloneService, MakeService, Service, ServiceExt};
 
-mod file;
+pub mod file;
 pub mod introspect;
-mod remote;
+pub mod remote;
 
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,

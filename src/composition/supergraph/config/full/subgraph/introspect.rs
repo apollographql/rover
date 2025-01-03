@@ -44,7 +44,7 @@ impl MakeResolveIntrospectSubgraph {
 }
 
 /// Request object that specifies the necessary details to introspect a subgraph
-#[derive(Builder)]
+#[derive(Clone, Debug, Builder, PartialEq)]
 pub struct MakeResolveIntrospectSubgraphRequest {
     endpoint: Url,
     routing_url: Option<String>,
