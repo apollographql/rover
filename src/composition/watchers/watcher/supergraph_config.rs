@@ -45,7 +45,7 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
             async move {
                 let supergraph_config_path = supergraph_config_path.clone();
                 let mut latest_supergraph_config = self.supergraph_config.clone();
-                let mut stream = self.file_watcher.watch();
+                let mut stream = self.file_watcher.watch().await;
                 while let Some(contents) = stream.next().await {
                     eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
                     tracing::info!(

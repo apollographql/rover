@@ -177,6 +177,7 @@ mod tests {
             sdl(),
             subgraph_name.to_string(),
             SubgraphFederationVersion::One,
+            routing_url(),
         );
         let unresolved_subgraphs = BTreeMap::from_iter([(
             subgraph_name.to_string(),
@@ -190,8 +191,9 @@ mod tests {
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
+                .name(subgraph_name.to_string())
                 .schema(subgraph_scenario.sdl)
-                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .routing_url(subgraph_scenario.routing_url.to_string())
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -211,6 +213,7 @@ mod tests {
             sdl(),
             subgraph_name.to_string(),
             SubgraphFederationVersion::One,
+            routing_url(),
         );
         let unresolved_subgraphs = BTreeMap::from_iter([(
             subgraph_name.to_string(),
@@ -224,7 +227,8 @@ mod tests {
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
-                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .routing_url(subgraph_scenario.routing_url.to_string())
+                .name(subgraph_name.to_string())
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -244,6 +248,7 @@ mod tests {
             sdl_fed2(sdl()),
             subgraph_name.to_string(),
             SubgraphFederationVersion::Two,
+            routing_url(),
         );
         let unresolved_subgraphs = BTreeMap::from_iter([(
             subgraph_name.to_string(),
@@ -256,7 +261,8 @@ mod tests {
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl)
-                .and_routing_url(subgraph_scenario.unresolved_subgraph.routing_url().clone())
+                .routing_url(subgraph_scenario.routing_url.to_string())
+                .name(subgraph_name.to_string())
                 .build(),
         )];
         let federation_version = federation_version_resolver

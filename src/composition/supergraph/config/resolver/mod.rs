@@ -27,10 +27,7 @@ use url::Url;
 
 use crate::{
     cli::Rover,
-    utils::{
-        effect::{introspect::IntrospectSubgraph, read_stdin::ReadStdin},
-        parsers::FileDescriptorType,
-    },
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
     RoverError,
 };
 
@@ -40,15 +37,14 @@ use super::{
         FederationVersionMismatch, FederationVersionResolver,
         FederationVersionResolverFromSupergraphConfig,
     },
-    full::FullyResolvedSupergraphConfig,
+    full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSupergraphConfig},
     lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
 };
 
 use self::{
-    fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-    state::ResolveSubgraphs,
+    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
 };
 
 pub mod fetch_remote_subgraph;
@@ -241,27 +237,21 @@ pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<ResolveS
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
-    pub async fn fully_resolve_subgraphs<MakeFetchSubgraph>(
+    pub async fn fully_resolve_subgraphs(
         &self,
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         prompt: &impl Prompt,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
-    where
-        MakeFetchSubgraph:
-            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-    {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
                 .build();
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                introspect_subgraph_impl,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 supergraph_config_root,
                 unresolved_supergraph_config,
             )
@@ -300,8 +290,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                 .build();
 
             let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                introspect_subgraph_impl,
-                fetch_remote_subgraph_impl,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 supergraph_config_root,
                 unresolved_supergraph_config,
             )
@@ -461,24 +451,36 @@ mod tests {
     };
     use camino::Utf8PathBuf;
     use mockall::predicate;
+    use rover_client::RoverClientError;
     use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
-    use tower::ServiceBuilder;
+    use tower::{ServiceBuilder, ServiceExt};
     use tower_test::mock::Handle;
 
     use crate::{
-        composition::supergraph::config::scenario::*,
+        composition::supergraph::config::{
+            error::ResolveSubgraphError,
+            full::{
+                introspect::{
+                    MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+                },
+                FullyResolvedSubgraph,
+            },
+            scenario::*,
+        },
         utils::{
             effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
             parsers::FileDescriptorType,
-            service::test::{FakeError, FakeMakeService},
         },
     };
 
     use super::{
-        fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-        fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
+        fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
+        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
         MockPrompt, SupergraphConfigResolver,
     };
 
@@ -496,7 +498,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 1 SDL
     #[case(
@@ -511,7 +518,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 1 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with fed 2 SDLs
     #[case(
@@ -521,7 +533,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::Two
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 2 SDL
     #[case(
@@ -536,7 +553,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 2 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with varying fed version SDLs
     #[case(
@@ -546,7 +568,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// This test further uses #[values] to make sure we have a matrix of tests
     /// All possible combinations result in using the target federation version,
@@ -567,6 +594,9 @@ mod tests {
         let target_federation_version =
             FederationVersion::ExactFedTwo(Version::from_str("2.7.1").unwrap());
         let mut subgraphs = BTreeMap::new();
+
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
 
         let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
             tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
@@ -600,12 +630,6 @@ mod tests {
             &mut mock_read_stdin,
         )?;
 
-        // we never introspect subgraphs in this test, but we still have to account for the effect
-        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph
-            .expect_introspect_subgraph()
-            .times(0);
-
         // init resolver with a target fed version
         let resolver = SupergraphConfigResolver::new(target_federation_version.clone());
 
@@ -620,39 +644,73 @@ mod tests {
                 }
             });
 
-        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+        let fetch_remote_subgraphs_factory =
             ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraphs_service.into_inner()),
-        );
+                .boxed_clone()
+                .service_fn(move |_: ()| {
+                    let fetch_remote_subgraphs_service = fetch_remote_subgraphs_service.clone();
+                    async move {
+                        Ok::<_, MakeFetchRemoteSubgraphsError>(
+                            ServiceBuilder::new()
+                                .map_err(RoverClientError::ServiceReady)
+                                .service(fetch_remote_subgraphs_service.into_inner())
+                                .boxed_clone(),
+                        )
+                    }
+                });
 
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
+            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        let make_fetch_remote_subgraph_service = FakeMakeService::new(
-            ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraph_service.into_inner()),
-        );
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .service_fn(move |_: ()| {
+                let fetch_remote_subgraph_service = fetch_remote_subgraph_service.clone();
+                async move {
+                    Ok::<_, MakeFetchRemoteSubgraphError>(
+                        ServiceBuilder::new()
+                            .map_err(FetchRemoteSubgraphError::Service)
+                            .service(fetch_remote_subgraph_service.into_inner())
+                            .boxed_clone(),
+                    )
+                }
+            });
+
+        // we never introspect subgraphs in this test, but we still have to account for the effect
+        resolve_introspect_subgraph_handle.allow(0);
+
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new().boxed_clone().service_fn(
+                move |_: MakeResolveIntrospectSubgraphRequest| {
+                    let resolve_introspect_subgraph_service =
+                        resolve_introspect_subgraph_service.clone();
+                    async move {
+                        Ok(ServiceBuilder::new()
+                            .boxed_clone()
+                            .map_err(|err| ResolveSubgraphError::IntrospectionError {
+                                subgraph_name: "dont-call-me".to_string(),
+                                source: err,
+                            })
+                            .service(resolve_introspect_subgraph_service.into_inner()))
+                    }
+                },
+            );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
-                &mock_introspect_subgraph,
-                make_fetch_remote_subgraph_service,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
-
-        // validate that the correct effects have been invoked
-        mock_introspect_subgraph.checkpoint();
 
         // validate that the federation version is correct
         assert_that!(fully_resolved_supergraph_config.federation_version())
@@ -674,7 +732,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 1 SDL
     #[case(
@@ -689,7 +752,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 1 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with fed 2 SDLs
     #[case(
@@ -699,7 +767,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::Two
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 2 SDL
     #[case(
@@ -714,7 +787,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 2 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with varying fed version SDLs
     #[case(
@@ -724,7 +802,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// This test further uses #[values] to make sure we have a matrix of tests
     /// All possible combinations result in using the remote federation version,
@@ -744,6 +827,9 @@ mod tests {
             FederationVersion::ExactFedTwo(Version::from_str("2.7.1").unwrap());
 
         let mut subgraphs = BTreeMap::new();
+
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
 
         let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
             tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
@@ -777,12 +863,6 @@ mod tests {
             &mut mock_read_stdin,
         )?;
 
-        // we never introspect subgraphs in this test, but we still have to account for the effect
-        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph
-            .expect_introspect_subgraph()
-            .times(0);
-
         // init resolver with no target fed version
         let resolver = SupergraphConfigResolver::default();
 
@@ -797,39 +877,73 @@ mod tests {
                 }
             });
 
-        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+        let fetch_remote_subgraphs_factory =
             ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraphs_service.into_inner()),
-        );
+                .boxed_clone()
+                .service_fn(move |_: ()| {
+                    let fetch_remote_subgraphs_service = fetch_remote_subgraphs_service.clone();
+                    async move {
+                        Ok::<_, MakeFetchRemoteSubgraphsError>(
+                            ServiceBuilder::new()
+                                .map_err(RoverClientError::ServiceReady)
+                                .service(fetch_remote_subgraphs_service.into_inner())
+                                .boxed_clone(),
+                        )
+                    }
+                });
 
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
+            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        let make_fetch_remote_subgraph_service = FakeMakeService::new(
-            ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraph_service.into_inner()),
-        );
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .service_fn(move |_: ()| {
+                let fetch_remote_subgraph_service = fetch_remote_subgraph_service.clone();
+                async move {
+                    Ok::<_, MakeFetchRemoteSubgraphError>(
+                        ServiceBuilder::new()
+                            .map_err(FetchRemoteSubgraphError::Service)
+                            .service(fetch_remote_subgraph_service.into_inner())
+                            .boxed_clone(),
+                    )
+                }
+            });
+
+        // we never introspect subgraphs in this test, but we still have to account for the effect
+        resolve_introspect_subgraph_handle.allow(0);
+
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new().boxed_clone().service_fn(
+                move |_: MakeResolveIntrospectSubgraphRequest| {
+                    let resolve_introspect_subgraph_service =
+                        resolve_introspect_subgraph_service.clone();
+                    async move {
+                        Ok(ServiceBuilder::new()
+                            .boxed_clone()
+                            .map_err(|err| ResolveSubgraphError::IntrospectionError {
+                                subgraph_name: "dont-call-me".to_string(),
+                                source: err,
+                            })
+                            .service(resolve_introspect_subgraph_service.into_inner()))
+                    }
+                },
+            );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
-                &mock_introspect_subgraph,
-                make_fetch_remote_subgraph_service,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
             .await?;
-
-        // validate that the correct effects have been invoked
-        mock_introspect_subgraph.checkpoint();
 
         // validate that the federation version is correct
         assert_that!(fully_resolved_supergraph_config.federation_version())
@@ -851,7 +965,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 1 SDL
     #[case(
@@ -866,7 +985,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 1 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::One,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with fed 2 SDLs
     #[case(
@@ -876,7 +1000,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::Two
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: only a remote subgraph exists with a fed 2 SDL
     #[case(
@@ -891,7 +1020,12 @@ mod tests {
     /// Case: only a local subgraph exists with a fed 2 SDL
     #[case(
         None,
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// Case: both local and remote subgraphs exist with varying fed version SDLs
     #[case(
@@ -901,7 +1035,12 @@ mod tests {
             routing_url(),
             SubgraphFederationVersion::One
         )),
-        Some(sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two))
+        Some(sdl_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            SubgraphFederationVersion::Two,
+            routing_url()
+        ))
     )]
     /// This test further uses #[values] to make sure we have a matrix of tests
     /// All possible combinations result in using the remote federation version,
@@ -917,6 +1056,9 @@ mod tests {
         #[values(true, false)] load_supergraph_config_from_file: bool,
     ) -> Result<()> {
         let mut subgraphs = BTreeMap::new();
+
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
 
         let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
             tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
@@ -969,32 +1111,68 @@ mod tests {
                 }
             });
 
-        let make_fetch_remote_subgraphs_service = FakeMakeService::new(
+        let fetch_remote_subgraphs_factory =
             ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraphs_service.into_inner()),
-        );
+                .boxed_clone()
+                .service_fn(move |_: ()| {
+                    let fetch_remote_subgraphs_service = fetch_remote_subgraphs_service.clone();
+                    async move {
+                        Ok::<_, MakeFetchRemoteSubgraphsError>(
+                            ServiceBuilder::new()
+                                .map_err(RoverClientError::ServiceReady)
+                                .service(fetch_remote_subgraphs_service.into_inner())
+                                .boxed_clone(),
+                        )
+                    }
+                });
 
         // load remote subgraphs
         let resolver = resolver
-            .load_remote_subgraphs(make_fetch_remote_subgraphs_service, graph_ref.as_ref())
+            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?;
 
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
-        let make_fetch_remote_subgraph_service = FakeMakeService::new(
-            ServiceBuilder::new()
-                .map_err(FakeError::from)
-                .service(fetch_remote_subgraph_service.into_inner()),
-        );
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .service_fn(move |_: ()| {
+                let fetch_remote_subgraph_service = fetch_remote_subgraph_service.clone();
+                async move {
+                    Ok::<_, MakeFetchRemoteSubgraphError>(
+                        ServiceBuilder::new()
+                            .map_err(FetchRemoteSubgraphError::Service)
+                            .service(fetch_remote_subgraph_service.into_inner())
+                            .boxed_clone(),
+                    )
+                }
+            });
+
+        resolve_introspect_subgraph_handle.allow(0);
+
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new().boxed_clone().service_fn(
+                move |_: MakeResolveIntrospectSubgraphRequest| {
+                    let resolve_introspect_subgraph_service =
+                        resolve_introspect_subgraph_service.clone();
+                    async move {
+                        Ok(ServiceBuilder::new()
+                            .boxed_clone()
+                            .map_err(|err| ResolveSubgraphError::IntrospectionError {
+                                subgraph_name: "dont-call-me".to_string(),
+                                source: err,
+                            })
+                            .service(resolve_introspect_subgraph_service.into_inner()))
+                    }
+                },
+            );
 
         // fully resolve subgraphs into their SDLs
         let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
-                &mock_introspect_subgraph,
-                make_fetch_remote_subgraph_service,
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
                 &MockPrompt::default(),
             )
@@ -1017,7 +1195,7 @@ mod tests {
                 sdl: sdl_subgraph_scenario.sdl.to_string(),
             };
             let subgraph_config = SubgraphConfig {
-                routing_url: None,
+                routing_url: Some(routing_url()),
                 schema: schema_source,
             };
             local_subgraphs.insert("sdl-subgraph".to_string(), subgraph_config);
