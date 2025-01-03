@@ -10,19 +10,14 @@ use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
-use tap::TapFallible;
 
-use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
     command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
-        supergraph::{
-            config::resolver::{
-                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
-            },
-            version::SupergraphVersion,
+        supergraph::config::resolver::{
+            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
         },
     },
     utils::{
@@ -35,6 +30,8 @@ use crate::{
     },
     RoverError, RoverOutput, RoverResult,
 };
+
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
