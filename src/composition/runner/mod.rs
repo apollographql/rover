@@ -69,7 +69,7 @@ impl Runner<state::SetupSubgraphWatchers> {
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
         http_service: HttpService,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-        supergraph_config_root: Option<Utf8PathBuf>,
+        supergraph_config_root: Utf8PathBuf,
         introspection_polling_interval: u64,
     ) -> Result<Runner<state::SetupSupergraphConfigWatcher>, HashMap<String, ResolveSubgraphError>>
     {
@@ -79,7 +79,7 @@ impl Runner<state::SetupSubgraphWatchers> {
             subgraphs,
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
-            supergraph_config_root.as_ref(),
+            &supergraph_config_root,
             introspection_polling_interval,
         )
         .await?;

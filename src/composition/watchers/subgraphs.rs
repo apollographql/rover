@@ -31,7 +31,7 @@ pub struct SubgraphWatchers {
     watchers: HashMap<String, SubgraphWatcher>,
     resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-    supergraph_config_root: Option<Utf8PathBuf>,
+    supergraph_config_root: Utf8PathBuf,
 }
 
 impl SubgraphWatchers {
@@ -40,7 +40,7 @@ impl SubgraphWatchers {
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         introspection_polling_interval: u64,
     ) -> Result<SubgraphWatchers, HashMap<String, ResolveSubgraphError>> {
         let watchers = stream::iter(subgraphs.into_iter().map(|(name, resolved_subgraph)| {
@@ -81,7 +81,7 @@ impl SubgraphWatchers {
                 watchers: HashMap::from_iter(watchers),
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
-                supergraph_config_root: supergraph_config_root.cloned(),
+                supergraph_config_root: supergraph_config_root.clone(),
             })
         } else {
             Err(HashMap::from_iter(errors))
@@ -211,7 +211,7 @@ struct SubgraphHandles {
     sender: UnboundedSender<SubgraphEvent>,
     resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-    supergraph_config_root: Option<Utf8PathBuf>,
+    supergraph_config_root: Utf8PathBuf,
 }
 
 impl SubgraphHandles {
@@ -220,7 +220,7 @@ impl SubgraphHandles {
         watchers: HashMap<String, SubgraphWatcher>,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-        supergraph_config_root: Option<Utf8PathBuf>,
+        supergraph_config_root: Utf8PathBuf,
     ) -> SubgraphHandles {
         let mut abort_handles = HashMap::new();
         // Start a background task for each of the subtask watchers that listens for change
@@ -263,14 +263,12 @@ impl SubgraphHandles {
         eprintln!("Adding subgraph to session: `{}`", subgraph);
         let unresolved_subgraph =
             UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
-        let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
-            &self.supergraph_config_root.clone().unwrap(),
-            unresolved_subgraph,
-        )?;
+        let lazily_resolved_subgraph =
+            LazilyResolvedSubgraph::resolve(&self.supergraph_config_root, unresolved_subgraph)?;
         let resolver = FullyResolvedSubgraph::resolver(
             self.resolve_introspect_subgraph_factory.clone(),
             self.fetch_remote_subgraph_factory.clone(),
-            self.supergraph_config_root.as_ref(),
+            &self.supergraph_config_root,
             lazily_resolved_subgraph.clone(),
         )
         .await?;
@@ -308,13 +306,13 @@ impl SubgraphHandles {
         let unresolved_subgraph =
             UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
         let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
-            &self.supergraph_config_root.clone().unwrap(),
+            &self.supergraph_config_root.clone(),
             unresolved_subgraph,
         )?;
         let resolver = FullyResolvedSubgraph::resolver(
             self.resolve_introspect_subgraph_factory.clone(),
             self.fetch_remote_subgraph_factory.clone(),
-            self.supergraph_config_root.as_ref(),
+            &self.supergraph_config_root,
             lazily_resolved_subgraph.clone(),
         )
         .await?;
@@ -535,12 +533,12 @@ mod tests {
             .map_err(MakeFetchRemoteSubgraphError::ReadyFailed)
             .service(fetch_remote_subgraph_factory.into_inner());
 
-        let supergraph_config_root = Some(Utf8PathBuf::new());
+        let supergraph_config_root = Utf8PathBuf::new();
         let subgraph_watchers = SubgraphWatchers::new(
             subgraphs,
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
-            supergraph_config_root.as_ref(),
+            &supergraph_config_root,
             1,
         )
         .await;

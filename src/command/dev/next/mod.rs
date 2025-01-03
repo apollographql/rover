@@ -16,9 +16,12 @@ use crate::{
     command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
-        supergraph::config::resolver::{
-            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+        supergraph::config::{
+            full::introspect::MakeResolveIntrospectSubgraph,
+            resolver::{
+                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            },
         },
     },
     utils::{

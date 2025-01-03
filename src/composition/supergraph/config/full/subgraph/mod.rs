@@ -54,15 +54,13 @@ impl FullyResolvedSubgraph {
     pub async fn resolver(
         mut resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         mut fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         unresolved_subgraph: impl Into<UnresolvedSubgraph>,
     ) -> Result<FullyResolveSubgraphService, ResolveSubgraphError> {
         let unresolved_subgraph = unresolved_subgraph.into();
         let schema = unresolved_subgraph.schema().clone();
         match schema {
             SchemaSource::File { file } => {
-                let supergraph_config_root =
-                    supergraph_config_root.ok_or(ResolveSubgraphError::SupergraphConfigMissing)?;
                 let service = ResolveFileSubgraph::builder()
                     .supergraph_config_root(supergraph_config_root)
                     .path(file.clone())
