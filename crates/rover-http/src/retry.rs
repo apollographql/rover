@@ -122,7 +122,7 @@ mod tests {
 
     #[fixture]
     pub fn retry_policy() -> RetryPolicy {
-        RetryPolicy::new(Duration::from_secs(5))
+        RetryPolicy::new(Duration::from_secs(3))
     }
 
     #[fixture]
@@ -145,8 +145,6 @@ mod tests {
             when.method(httpmock::Method::GET).path("/");
             then.status(500).body("");
         });
-
-        println!("uri: {uri}");
 
         let request = http::Request::builder()
             .uri(uri)
