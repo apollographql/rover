@@ -36,7 +36,9 @@ jobs:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
       - if: ${{ inputs.dev-next }}
-        run: echo "FEATURES=--features dev-next" >> "$GITHUB_ENV"
+        run: echo "FEATURES=dev-next" >> "$GITHUB_ENV"
+      - if: ${{ ! inputs.dev-next }}
+        run: echo "FEATURES=default" >> "$GITHUB_ENV"
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
@@ -49,12 +51,12 @@ jobs:
             yum -y install perl-core gcc openssl-devel openssl git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
-            cargo build $FEATURES --target ${{ matrix.compile_target.target }} --test e2e
+            cargo build --features $FEATURES --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
         run: |
           rustup target add ${{ matrix.compile_target.target }}
-          cargo build $FEATURES --target ${{ matrix.compile_target.target }} --test e2e
+          cargo build --features $FEATURES --target ${{ matrix.compile_target.target }} --test e2e
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
