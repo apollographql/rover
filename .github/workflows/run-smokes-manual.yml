@@ -9,6 +9,9 @@ on:
         description: 'JSON list of router versions'
         required: true
         type: string
+      dev-next:
+        description: 'Compile binaries with the dev-next flag'
+        type: boolean
 
 name: "Run Smoke Tests (Manually)"
 jobs:
@@ -17,4 +20,5 @@ jobs:
     with:
       composition-versions: ${{ inputs.composition-versions }}
       router-versions: ${{ inputs.router-versions }}
+      dev-next: ${{ inputs.dev-next }}
     secrets: inherit

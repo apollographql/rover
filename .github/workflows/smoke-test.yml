@@ -9,6 +9,9 @@ on:
         description: 'JSON list of router versions'
         required: true
         type: string
+      dev-next:
+        description: 'Compile with the dev-next flag'
+        type: boolean
 
 #TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
 name: Smoke Tests
@@ -44,12 +47,12 @@ jobs:
             yum -y install perl-core gcc openssl-devel openssl git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
-            cargo build --target ${{ matrix.compile_target.target }} --test e2e
+            cargo build --features ${{ inputs.dev-next && 'dev-next' || 'default' }} --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
         run: |
           rustup target add ${{ matrix.compile_target.target }}
-          cargo build --target ${{ matrix.compile_target.target }} --test e2e
+          cargo build --features ${{ inputs.dev-next && 'dev-next' || 'default' }} --target ${{ matrix.compile_target.target }} --test e2e
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
