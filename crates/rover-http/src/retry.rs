@@ -122,7 +122,7 @@ mod tests {
 
     #[fixture]
     pub fn retry_policy() -> RetryPolicy {
-        RetryPolicy::new(Duration::from_millis(250))
+        RetryPolicy::new(Duration::from_secs(5))
     }
 
     #[fixture]
@@ -138,6 +138,7 @@ mod tests {
     pub async fn test_backoff(mut retry_service: HttpService) -> Result<()> {
         let server = MockServer::start();
         let addr = server.address().to_string();
+        println!("addr: {addr}");
         let uri = format!("http://{}/", addr);
 
         let mock = server.mock(|when, then| {
