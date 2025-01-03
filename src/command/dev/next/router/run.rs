@@ -254,8 +254,6 @@ impl RunRouter<state::Run> {
                 err: format!("Failed to build healthcheck request: {err}"),
             })?;
 
-        println!("healthcheck_request: {healthcheck_request:?}");
-
         // Wait for the router to become healthy before continuing by checking its health endpoint,
         // waiting only 10s
         tokio::time::timeout(Duration::from_secs(10), async {
