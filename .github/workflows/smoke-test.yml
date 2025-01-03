@@ -37,8 +37,6 @@ jobs:
         name: "Checkout rover repo"
       - if: ${{ inputs.dev-next }}
         run: echo "FEATURES='--features dev-next'" >> "$GITHUB_ENV"
-      - if: ${{ ! inputs.dev-next }}
-        run: echo "FEATURES=''" >> "$GITHUB_ENV"
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
