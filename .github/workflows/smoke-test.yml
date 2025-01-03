@@ -37,7 +37,7 @@ jobs:
         name: "Checkout rover repo"
       - if: ${{ inputs.dev-next == true }}
         run: echo "FEATURES='--features dev-next'"
-      - if: ${{ inputs.dev-next == false }}
+      - if: ${{ inputs.dev-next != true }}
         run: echo "FEATURES=''"
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
