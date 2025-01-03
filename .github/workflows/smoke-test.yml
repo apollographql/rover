@@ -51,7 +51,7 @@ jobs:
             yum -y install perl-core gcc openssl-devel openssl git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
-            cargo build --features $FEATURES --target ${{ matrix.compile_target.target }} --test e2e
+            cargo build --features ${{ env.FEATURES }} --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
         run: |
