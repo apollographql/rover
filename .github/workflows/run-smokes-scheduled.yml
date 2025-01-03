@@ -38,7 +38,6 @@ jobs:
     with:
       composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
       router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
-      dev-next: false
     secrets: inherit
 
   message-slack:
