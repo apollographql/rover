@@ -2,7 +2,9 @@ use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, lazy::LazilyResolvedSubgraph,
+};
 
 /// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
 #[derive(Clone, Debug, Getters)]
@@ -47,6 +49,16 @@ impl From<UnresolvedSubgraph> for SubgraphConfig {
         SubgraphConfig {
             routing_url: value.routing_url,
             schema: value.schema,
+        }
+    }
+}
+
+impl From<LazilyResolvedSubgraph> for UnresolvedSubgraph {
+    fn from(value: LazilyResolvedSubgraph) -> Self {
+        UnresolvedSubgraph {
+            name: value.name().to_string(),
+            routing_url: value.routing_url().clone(),
+            schema: value.schema().clone(),
         }
     }
 }

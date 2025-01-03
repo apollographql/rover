@@ -1,8 +1,14 @@
-use std::{collections::BTreeMap, env::current_dir, fmt::Debug, fs::canonicalize};
+use std::{
+    collections::{BTreeMap, HashMap},
+    env::current_dir,
+    fmt::Debug,
+    fs::canonicalize,
+};
 
 use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
+use rover_http::HttpService;
 use tempfile::tempdir;
 use tower::MakeService;
 
@@ -10,11 +16,15 @@ use super::{
     runner::{CompositionRunner, Runner},
     supergraph::{
         binary::OutputTarget,
-        config::resolver::{
-            fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-            fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
-            LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-            SubgraphPrompt, SupergraphConfigResolver,
+        config::{
+            error::ResolveSubgraphError,
+            full::introspect::ResolveIntrospectSubgraphFactory,
+            resolver::{
+                fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+                fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, LoadRemoteSubgraphsError,
+                LoadSupergraphConfigError, ResolveSupergraphConfigError, SubgraphPrompt,
+                SupergraphConfigResolver,
+            },
         },
         install::{InstallSupergraph, InstallSupergraphError},
     },
@@ -22,12 +32,12 @@ use super::{
 };
 use crate::composition::pipeline::CompositionPipelineError::FederationOneWithFederationTwoSubgraphs;
 use crate::{
-    options::{LicenseAccepter, ProfileOpt},
+    options::LicenseAccepter,
     utils::{
         client::StudioClientConfig,
         effect::{
-            exec::ExecCommand, install::InstallBinary, introspect::IntrospectSubgraph,
-            read_file::ReadFile, read_stdin::ReadStdin, write_file::WriteFile,
+            exec::ExecCommand, install::InstallBinary, read_file::ReadFile, read_stdin::ReadStdin,
+            write_file::WriteFile,
         },
         parsers::FileDescriptorType,
     },
@@ -54,6 +64,8 @@ pub enum CompositionPipelineError {
     InstallSupergraph(#[from] InstallSupergraphError),
     #[error("Federation 1 version specified, but supergraph schema includes Federation 2 subgraphs: {0:?}")]
     FederationOneWithFederationTwoSubgraphs(Vec<String>),
+    #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{}: {}", name, err)), "\n"))]
+    ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),
 }
 
 pub struct CompositionPipeline<State> {
@@ -89,17 +101,26 @@ impl CompositionPipeline<state::Init> {
                 .map(|file| FileDescriptorType::File(Utf8PathBuf::from_path_buf(file).unwrap())),
             FileDescriptorType::Stdin => Some(FileDescriptorType::Stdin),
         });
-        let supergraph_root = supergraph_yaml.clone().and_then(|file| match file {
-            FileDescriptorType::File(file) => {
-                let mut current_dir = current_dir().expect("Unable to get current directory path");
+        let supergraph_root = supergraph_yaml
+            .clone()
+            .and_then(|file| match file {
+                FileDescriptorType::File(file) => {
+                    let mut current_dir =
+                        current_dir().expect("Unable to get current directory path");
 
-                current_dir.push(file);
-                let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
-                let parent = path.parent().unwrap().to_path_buf();
-                Some(parent)
-            }
-            FileDescriptorType::Stdin => None,
-        });
+                    current_dir.push(file);
+                    let path = Utf8PathBuf::from_path_buf(current_dir).unwrap();
+                    let parent = path.parent().unwrap().to_path_buf();
+                    Some(parent)
+                }
+                FileDescriptorType::Stdin => None,
+            })
+            .unwrap_or_else(|| {
+                Utf8PathBuf::from_path_buf(
+                    current_dir().expect("Unable to get current directory path"),
+                )
+                .unwrap()
+            });
         eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
@@ -116,25 +137,19 @@ impl CompositionPipeline<state::Init> {
 }
 
 impl CompositionPipeline<state::ResolveFederationVersion> {
-    pub async fn resolve_federation_version<MakeFetchSubgraph>(
+    pub async fn resolve_federation_version(
         self,
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         federation_version: Option<FederationVersion>,
-    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError>
-    where
-        MakeFetchSubgraph:
-            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-    {
+    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
         let fully_resolved_supergraph_config = self
             .state
             .resolver
             .fully_resolve_subgraphs(
-                introspect_subgraph_impl,
-                fetch_remote_subgraph_impl,
-                self.state.supergraph_root.as_ref(),
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
+                &self.state.supergraph_root,
                 &SubgraphPrompt::default(),
             )
             .await?;
@@ -240,8 +255,8 @@ impl CompositionPipeline<state::Run> {
         exec_command: ExecC,
         read_file: ReadF,
         write_file: WriteF,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
+        http_service: HttpService,
+        make_fetch_remote_subgraph: FetchRemoteSubgraphFactory,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
@@ -253,19 +268,19 @@ impl CompositionPipeline<state::Run> {
         let lazily_resolved_supergraph_config = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(
-                self.state.supergraph_root.as_ref(),
-                &SubgraphPrompt::default(),
-            )
+            .lazily_resolve_subgraphs(&self.state.supergraph_root, &SubgraphPrompt::default())
             .await?;
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
         let runner = Runner::default()
             .setup_subgraph_watchers(
                 subgraphs,
-                profile,
-                client_config,
+                http_service,
+                make_fetch_remote_subgraph,
+                self.state.supergraph_root.clone(),
                 introspection_polling_interval,
             )
+            .await
+            .map_err(CompositionPipelineError::ResolveSubgraphs)?
             .setup_supergraph_config_watcher(lazily_resolved_supergraph_config)
             .setup_composition_watcher(
                 self.state.fully_resolved_supergraph_config.clone(),
@@ -293,17 +308,17 @@ mod state {
     pub struct Init;
     pub struct ResolveFederationVersion {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
     }
     pub struct InstallSupergraph {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
         pub fully_resolved_supergraph_config: FullyResolvedSupergraphConfig,
         pub federation_version: FederationVersion,
     }
     pub struct Run {
         pub resolver: InitializedSupergraphConfigResolver,
-        pub supergraph_root: Option<Utf8PathBuf>,
+        pub supergraph_root: Utf8PathBuf,
         pub fully_resolved_supergraph_config: FullyResolvedSupergraphConfig,
         pub supergraph_binary: SupergraphBinary,
     }

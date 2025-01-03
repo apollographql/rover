@@ -1,3 +1,4 @@
+use crate::composition::supergraph::config::full::FullyResolveSubgraph;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
@@ -11,29 +12,16 @@ use std::str::FromStr;
 /// Remote schemas are fetched from Studio and are a GraphRef and subgraph name combination
 #[derive(Debug, Clone)]
 pub struct RemoteSchema {
-    graph_ref: String,
-    subgraph: String,
-    profile: ProfileOpt,
-    client_config: StudioClientConfig,
+    resolver: FullyResolveSubgraph,
 }
 
 impl RemoteSchema {
-    pub fn new(
-        graph_ref: String,
-        subgraph: String,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
-    ) -> Self {
-        Self {
-            graph_ref,
-            subgraph,
-            profile: profile.clone(),
-            client_config: client_config.clone(),
-        }
+    pub fn new(resolver: FullyResolveSubgraph) -> Self {
+        Self { resolver }
     }
 
-    pub async fn run(&self) -> Result<String, RoverError> {
-        let client = self.client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(&self) -> Result<String, Resolve> {
+        let service = self.service.clone().ready().await?;
 
         let response = fetch::run(
             SubgraphFetchInput {

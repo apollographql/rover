@@ -240,7 +240,7 @@ mod tests {
             SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
                 subgraph_sdl,
-                Some("https://example.com".to_string()),
+                "https://example.com".to_string(),
             ))
         })
         .boxed();
