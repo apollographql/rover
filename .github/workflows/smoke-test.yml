@@ -35,13 +35,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
-      - if: ${{ inputs.dev-next }}
-        run: echo "FEATURES=dev-next" >> "$GITHUB_ENV"
-      - if: ${{ ! inputs.dev-next }}
-        run: echo "FEATURES=default" >> "$GITHUB_ENV"
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
+        env:
+          FEATURES: ${{ inputs.dev-next && 'dev-next' || 'default' }}
         with:
           image: ${{ matrix.compile_target.container }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
@@ -54,6 +52,8 @@ jobs:
             cargo build --features ${{ env.FEATURES }} --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
+        env:
+          FEATURES: ${{ inputs.dev-next && 'dev-next' || 'default' }}
         run: |
           rustup target add ${{ matrix.compile_target.target }}
           cargo build --features ${{ env.FEATURES }} --target ${{ matrix.compile_target.target }} --test e2e
