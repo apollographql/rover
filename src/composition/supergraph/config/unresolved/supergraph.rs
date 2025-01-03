@@ -363,10 +363,7 @@ mod tests {
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
             make_fetch_remote_subgraph_service,
-            Some(
-                &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
-                    .unwrap(),
-            ),
+            &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
             unresolved_supergraph_config,
         )
         .await;
@@ -562,10 +559,7 @@ mod tests {
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
             make_fetch_remote_subgraph_service,
-            Some(
-                &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
-                    .unwrap(),
-            ),
+            &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
             unresolved_supergraph_config,
         )
         .await;

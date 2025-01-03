@@ -48,7 +48,7 @@ impl FullyResolvedSupergraphConfig {
     pub async fn resolve<MakeFetchSubgraph>(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: MakeFetchSubgraph,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+        supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
     where
