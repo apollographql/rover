@@ -10,10 +10,13 @@ use tower::{Service, ServiceExt};
 
 use super::{file::SubgraphFileWatcher, introspection::SubgraphIntrospection};
 use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
-        lazy::LazilyResolvedSubgraph,
+    composition::{
+        supergraph::config::{
+            error::ResolveSubgraphError,
+            full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
+            lazy::LazilyResolvedSubgraph,
+        },
+        watchers::watcher::file::FileWatcher,
     },
     subtask::SubtaskHandleUnit,
 };
@@ -85,7 +88,7 @@ impl SubgraphWatcher {
             SchemaSource::File { file } => {
                 infoln!("Watching {} for changes", file.as_std_path().display());
                 Self {
-                    watcher: SubgraphWatcherKind::File(SubgraphFileWatcher::new(
+                    watcher: SubgraphWatcherKind::File(FileWatcher::subgraph(
                         file.clone(),
                         resolver,
                     )),
