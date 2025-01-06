@@ -176,7 +176,8 @@ mod tests {
     #[tokio::test]
     #[traced_test(level = "error")]
     async fn it_watches() {
-        let root = TempDir::new().unwrap();
+        let root = tempfile::Builder::new().tempdir().unwrap();
+        //let root = TempDir::new().unwrap();
         let supergraph_config_root = Utf8PathBuf::from_path_buf(root.path().to_path_buf()).unwrap();
         let path = supergraph_config_root.join("supergraph.yaml");
         let subgraph_name = "file-subgraph";
