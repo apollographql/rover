@@ -15,17 +15,17 @@ use crate::{
     subtask::SubtaskHandleUnit,
 };
 
-use super::file::BasicFileWatcher;
+use super::file::FileWatcher;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
-    file_watcher: BasicFileWatcher,
+    file_watcher: FileWatcher,
     supergraph_config: SupergraphConfig,
 }
 
 impl SupergraphConfigWatcher {
     pub fn new(
-        file_watcher: BasicFileWatcher,
+        file_watcher: FileWatcher,
         supergraph_config: LazilyResolvedSupergraphConfig,
     ) -> SupergraphConfigWatcher {
         SupergraphConfigWatcher {
