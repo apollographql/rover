@@ -308,13 +308,19 @@ impl Fs {
                         EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
                             match std::fs::metadata(&path) {
                                 Ok(metadata) => {
-                                    let _perms = metadata.permissions();
-                                    tracing::debug!(
-                                        "received a modify event for windows, but file exists"
-                                    );
-                                    let _ = tx.send(Ok(())).tap_err(|_| {
+                                    if fs::exists(path).unwrap_or_default() {
+                                        tracing::debug!(
+                                            "received a modify event for windows, but file exists"
+                                        );
+                                        let _ = tx.send(Ok(())).tap_err(|_| {
                             tracing::error!("Unable to send to filewatcher receiver because it closed. File being watched: {path:?}");
-                        });
+                                        });
+                                    }
+
+                                    let _ = tx.send(Err(RoverStdError::FileRemoved {
+                                        file: path.display().to_string(),
+                                    }));
+                                    return;
                                 }
                                 Err(err) => {
                                     let _ = tx.send(Err(RoverStdError::FileRemoved {
