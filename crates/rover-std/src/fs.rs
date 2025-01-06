@@ -280,7 +280,6 @@ impl Fs {
                     // relevant to the lifecycle of a file (though, see the notes below for why we
                     // should also be cautious with that )
                     if let Err(err) = std::fs::metadata(&path) {
-                        //if let Err(err) = std::fs::metadata(boxed_path.as_std_path()) {
                         tracing::error!(
                         "When checking that {path:?} exists with the right permissions: {err:?}" //"When checking that {boxed_path} exists with the right permissions: {err:?}"
                     );
@@ -307,10 +306,20 @@ impl Fs {
                         // std::fs::metadata() check above passes for windows
                         #[cfg(windows)]
                         EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
-                            let _ = tx.send(Err(RoverStdError::FileRemoved {
-                                file: path.display().to_string(),
-                            }));
-                            return;
+                            match std::fs::metadata(&path) {
+                                Ok(metadata) => {
+                                    let _perms = metadata.permissions();
+                                    tracing::debug!(
+                                        "received a modify event for windows, but file exists"
+                                    );
+                                }
+                                Err(err) => {
+                                    let _ = tx.send(Err(RoverStdError::FileRemoved {
+                                        file: path.display().to_string(),
+                                    }));
+                                    return;
+                                }
+                            }
                         }
                         EventKind::Modify(_) => {
                             let _ = tx.send(Ok(())).tap_err(|_| {
