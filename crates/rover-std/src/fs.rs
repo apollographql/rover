@@ -312,6 +312,9 @@ impl Fs {
                                     tracing::debug!(
                                         "received a modify event for windows, but file exists"
                                     );
+                                    let _ = tx.send(Ok(())).tap_err(|_| {
+                            tracing::error!("Unable to send to filewatcher receiver because it closed. File being watched: {path:?}");
+                        });
                                 }
                                 Err(err) => {
                                     let _ = tx.send(Err(RoverStdError::FileRemoved {
