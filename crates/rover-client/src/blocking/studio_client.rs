@@ -147,6 +147,7 @@ impl StudioClient {
                     .client(self.reqwest_client.clone())
                     .build()?,
             );
+
         Ok(service)
     }
 
@@ -154,7 +155,8 @@ impl StudioClient {
         let service = ReqwestService::builder()
             .client(self.reqwest_client.clone())
             .build()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?;
-        Ok(service.boxed_clone())
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?
+            .boxed_clone();
+        Ok(service)
     }
 }

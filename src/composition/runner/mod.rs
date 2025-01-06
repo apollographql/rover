@@ -3,21 +3,22 @@
 
 #![warn(missing_docs)]
 
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Debug,
+};
 
 use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt};
+use rover_http::HttpService;
+use tower::ServiceExt;
 
 use crate::{
     composition::watchers::watcher::{
         file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
-    options::ProfileOpt,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::{
-        client::StudioClientConfig,
-        effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-    },
+    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
 use self::state::SetupSubgraphWatchers;
@@ -27,8 +28,10 @@ use super::{
     supergraph::{
         binary::SupergraphBinary,
         config::{
-            full::FullyResolvedSupergraphConfig,
+            error::ResolveSubgraphError,
+            full::{introspect::MakeResolveIntrospectSubgraph, FullyResolvedSupergraphConfig},
             lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
+            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
@@ -61,22 +64,28 @@ impl Default for Runner<SetupSubgraphWatchers> {
 
 impl Runner<state::SetupSubgraphWatchers> {
     /// Configures the subgraph watchers for the [`Runner`]
-    pub fn setup_subgraph_watchers(
+    pub async fn setup_subgraph_watchers(
         self,
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
+        http_service: HttpService,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        supergraph_config_root: Utf8PathBuf,
         introspection_polling_interval: u64,
-    ) -> Runner<state::SetupSupergraphConfigWatcher> {
+    ) -> Result<Runner<state::SetupSupergraphConfigWatcher>, HashMap<String, ResolveSubgraphError>>
+    {
+        let resolve_introspect_subgraph_factory =
+            MakeResolveIntrospectSubgraph::new(http_service).boxed_clone();
         let subgraph_watchers = SubgraphWatchers::new(
             subgraphs,
-            profile,
-            client_config,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            &supergraph_config_root,
             introspection_polling_interval,
-        );
-        Runner {
+        )
+        .await?;
+        Ok(Runner {
             state: state::SetupSupergraphConfigWatcher { subgraph_watchers },
-        }
+        })
     }
 }
 
@@ -99,7 +108,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
                 .unwrap_or_default()
         );
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
-            let f = FileWatcher::new(origin_path.clone());
+            let f = FileWatcher::basic(origin_path.clone());
             let watcher = SupergraphConfigWatcher::new(f, supergraph_config);
             Some(watcher)
         } else {

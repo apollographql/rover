@@ -11,6 +11,7 @@ use crate::composition::supergraph::config::{
 /// confirmed to be relative to a supergraph config file
 #[derive(Clone, Debug, Eq, PartialEq, Getters, Builder)]
 pub struct LazilyResolvedSubgraph {
+    name: String,
     routing_url: Option<String>,
     schema: SchemaSource,
 }
@@ -26,11 +27,13 @@ impl LazilyResolvedSubgraph {
             SchemaSource::File { file } => {
                 let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 Ok(LazilyResolvedSubgraph {
+                    name: unresolved_subgraph.name().to_string(),
                     routing_url: unresolved_subgraph.routing_url().clone(),
                     schema: SchemaSource::File { file },
                 })
             }
             _ => Ok(LazilyResolvedSubgraph {
+                name: unresolved_subgraph.name().to_string(),
                 routing_url: unresolved_subgraph.routing_url().clone(),
                 schema: unresolved_subgraph.schema().clone(),
             }),

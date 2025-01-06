@@ -175,7 +175,10 @@ health_check:
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
         let health_check = router_config.health_check_endpoint();
-        assert_that!(health_check).is_equal_to(Ok(Uri::from_str("http://127.0.0.1:8088/health")?))
+        assert_that!(health_check)
+            .is_ok()
+            .is_equal_to(Uri::from_str("http://127.0.0.1:8088/health")?);
+        Ok(())
     }
 
     #[rstest]
