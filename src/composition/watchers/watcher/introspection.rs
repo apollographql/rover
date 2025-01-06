@@ -50,8 +50,17 @@ impl SubgraphIntrospection {
             .skip(1)
             .filter_map(|change| async move {
                 match change {
-                    Ok(subgraph) => Some(subgraph),
+                    Ok(subgraph) => {
+                        eprintln!(
+                            "Connectivity restored for subgraph \"{}\".\n",
+                            subgraph.name()
+                        );
+                        Some(subgraph)
+                    }
                     Err(err) => {
+                        eprintln!("Error detected communicating with subgraph: {}", err);
+                        eprintln!("Note: Schema changes will not be reflected.");
+                        eprintln!("Will retry but subgraph logs should be inspected.\n\n");
                         tracing::error!("{:?}", err);
                         None
                     }

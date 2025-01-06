@@ -26,7 +26,7 @@ pub enum ResolveSubgraphError {
     #[error(transparent)]
     Fs(Box<dyn std::error::Error + Send + Sync>),
     /// Occurs when a introspection against a subgraph fails
-    #[error("Failed to introspect the subgraph {subgraph_name}.")]
+    #[error("Failed to introspect the subgraph \"{subgraph_name}\".")]
     IntrospectionError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
