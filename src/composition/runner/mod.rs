@@ -108,7 +108,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
                 .unwrap_or_default()
         );
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
-            let f = FileWatcher::basic(origin_path.clone());
+            let f = FileWatcher::new(origin_path.clone());
             let watcher = SupergraphConfigWatcher::new(f, supergraph_config);
             Some(watcher)
         } else {
