@@ -1,9 +1,9 @@
 use std::{
-    net::{SocketAddr, ToSocketAddrs},
+    io::Error,
+    net::{SocketAddr, SocketAddrV4, ToSocketAddrs},
     str::FromStr,
 };
 
-use http::{uri::InvalidUri, Uri};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,13 +13,6 @@ pub enum ParseRouterConfigError {
         path: &'static str,
         source: std::io::Error,
     },
-    #[error("Invalid Uri at {}. Error: {:?}", .path, .source)]
-    ListenPath {
-        path: &'static str,
-        source: InvalidUri,
-    },
-    #[error("Invalid Uri when combining the health_check address, port, and path. Error: {:?}", .source)]
-    HealthCheckEndpoint { source: InvalidUri },
 }
 
 pub struct RouterConfigParser<'a> {
@@ -60,52 +53,58 @@ impl<'a> RouterConfigParser<'a> {
             .and_then(|enabled| enabled.as_bool())
             .unwrap_or_default()
     }
-    pub fn listen_path(&self) -> Result<Option<Uri>, ParseRouterConfigError> {
+    pub fn listen_path(&self) -> Option<String> {
         self.yaml
             .get("supergraph")
             .and_then(|supergraph| supergraph.as_mapping())
             .and_then(|supergraph| supergraph.get("path"))
-            .and_then(|path| path.as_str())
-            .and_then(|path| Some(Uri::from_str(path)))
-            .transpose()
-            .map_err(|err| ParseRouterConfigError::ListenPath {
-                path: "supergraph.path",
-                source: err,
-            })
+            .and_then(|path| path.as_str().map(|path| path.to_string()))
     }
-    pub fn health_check_endpoint(&self) -> Result<Uri, ParseRouterConfigError> {
-        let addr_and_port = self
-            .yaml
-            .get("health_check")
-            .or_else(|| self.yaml.get("health-check"))
-            .and_then(|health_check| health_check.as_mapping())
-            .and_then(|health_check| health_check.get("listen"))
-            .and_then(|addr_and_port| addr_and_port.as_str())
-            .and_then(|addr_and_port| Some(Uri::from_str(addr_and_port)))
-            // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
-            // defaults
-            .unwrap_or(Uri::from_str("http://127.0.0.1:8088"))
-            .map_err(|err| ParseRouterConfigError::ListenPath {
-                path: "health_check.listen",
-                source: err,
-            })?;
-
-        let path = self
-            .yaml
+    /// Gets the user-defined health_check_endpoint or, if missing, returns the default
+    /// 127.0.0.1:8088
+    ///
+    /// See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks
+    pub fn health_check_endpoint(&self) -> Result<Option<SocketAddr>, ParseRouterConfigError> {
+        Ok(Some(
+            self.yaml
+                .get("health_check")
+                .or_else(|| self.yaml.get("health-check"))
+                .and_then(|health_check| health_check.as_mapping())
+                .and_then(|health_check| health_check.get("listen"))
+                .and_then(|addr_and_port| addr_and_port.as_str())
+                .and_then(|path| {
+                    path.to_string()
+                        .to_socket_addrs()
+                        .map(|mut addrs| addrs.next())
+                        .transpose()
+                })
+                .transpose()
+                .map_err(|err| ParseRouterConfigError::ParseAddress {
+                    path: "health_check.listen",
+                    source: err,
+                })?
+                .unwrap_or(SocketAddr::V4(
+                    SocketAddrV4::from_str("127.0.0.1:8088").map_err(|err| {
+                        ParseRouterConfigError::ParseAddress {
+                            path: "health_check.listen",
+                            source: Error::new(std::io::ErrorKind::InvalidInput, err.to_string()),
+                        }
+                    })?,
+                )),
+        ))
+    }
+    /// Gets the user-defined health_check_path or, if absent, returns the default `/health`
+    ///
+    /// See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks
+    pub fn health_check_path(&self) -> String {
+        self.yaml
             .get("health_check")
             .or_else(|| self.yaml.get("health-check"))
             .and_then(|health_check| health_check.as_mapping())
             .and_then(|health_check| health_check.get("path"))
             .and_then(|path| path.as_str())
-            // See https://www.apollographql.com/docs/graphos/routing/self-hosted/health-checks for
-            // defaults
-            .unwrap_or("health");
-
-        let mut health_check_endpoint = addr_and_port.to_string();
-        health_check_endpoint.push_str(path);
-
-        Ok(Uri::from_str(&health_check_endpoint)
-            .map_err(|err| ParseRouterConfigError::HealthCheckEndpoint { source: err })?)
+            .unwrap_or("/health")
+            .to_string()
     }
 }
 
@@ -114,7 +113,6 @@ mod tests {
     use std::{net::SocketAddr, str::FromStr};
 
     use anyhow::Result;
-    use http::Uri;
     use rstest::rstest;
     use speculoos::prelude::*;
 
@@ -161,8 +159,8 @@ health_check:
         );
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.health_check_enabled();
-        assert_that!(health_check).is_equal_to(is_health_check_enabled);
+        let health_check_enabled = router_config.health_check_enabled();
+        assert_that!(health_check_enabled).is_equal_to(is_health_check_enabled);
         Ok(())
     }
 
@@ -174,10 +172,9 @@ health_check:
         };
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.health_check_endpoint();
-        assert_that!(health_check)
-            .is_ok()
-            .is_equal_to(Uri::from_str("http://127.0.0.1:8088/health")?);
+        let health_check = router_config.health_check_endpoint()?.unwrap().to_string();
+
+        assert_that!(health_check).is_equal_to("127.0.0.1:8088".to_string());
         Ok(())
     }
 
@@ -189,8 +186,7 @@ health_check:
         };
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let health_check = router_config.listen_path();
-        assert_that!(health_check).is_ok().is_none();
+        assert_that!(router_config.listen_path()).is_none();
         Ok(())
     }
 
@@ -204,11 +200,9 @@ supergraph:
         };
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser { yaml: &config_yaml };
-        let address = router_config.listen_path();
-        assert_that!(address)
-            .is_ok()
+        assert_that!(router_config.listen_path())
             .is_some()
-            .is_equal_to(Uri::from_str("/custom-path").unwrap());
+            .is_equal_to("/custom-path".to_string());
         Ok(())
     }
 }

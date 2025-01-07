@@ -227,8 +227,18 @@ impl RunRouter<state::Run> {
             return Ok(());
         }
 
-        let healthcheck_endpoint = self.state.config.health_check_endpoint();
+        // We hardcode the endpoint and port; if they're missing now, we've lost that bit of code
+        let mut healthcheck_endpoint = match self.state.config.health_check_endpoint() {
+            Some(endpoint) => endpoint.to_string(),
+            None => {
+            return Err(RunRouterBinaryError::Internal {
+                dependency: "Router Config Validation".to_string(),
+                err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
+            })
+            }
+        };
 
+        healthcheck_endpoint.push_str(&self.state.config.health_check_path());
         let healthcheck_client = studio_client_config.get_reqwest_client().map_err(|err| {
             RunRouterBinaryError::Internal {
                 dependency: "Reqwest Client".to_string(),
@@ -237,7 +247,7 @@ impl RunRouter<state::Run> {
         })?;
 
         let healthcheck_request = healthcheck_client
-            .get(healthcheck_endpoint.to_string())
+            .get(format!("http://{healthcheck_endpoint}"))
             .build()
             .map_err(|err| RunRouterBinaryError::Internal {
                 dependency: "Reqwest Client".to_string(),
