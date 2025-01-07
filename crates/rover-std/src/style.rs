@@ -8,6 +8,7 @@ pub enum Style {
     Pending,
     HintPrefix,    // "HINT:" text
     InfoPrefix,    // "==>": text
+    DebugPrefix,   // "DEBUG" text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
     Heading,
@@ -37,6 +38,7 @@ impl Style {
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
             Style::InfoPrefix => style(message_ref).blue().bold(),
+            Style::DebugPrefix => style(message_ref).color256(8).bold(),
             Style::WarningPrefix => style(message_ref).yellow(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
             Style::Variant => style(message_ref).white().bold(),
