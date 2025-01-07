@@ -170,7 +170,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 match diff {
                     Ok(diff) => {
                         // If we detect additional diffs, start a new subgraph subtask.
-                        // Adding the abort handle to the currentl collection of handles.
+                        // Adding the abort handle to the current collection of handles.
                         for (subgraph_name, subgraph_config) in diff.added() {
                             let _ = subgraph_handles.add(
                                 subgraph_name,

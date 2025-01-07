@@ -12,6 +12,8 @@ use crate::{
     watch::Watch,
 };
 
+use rover_std::{errln, infoln};
+
 /// Subgraph introspection
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospection {
@@ -50,8 +52,21 @@ impl SubgraphIntrospection {
             .skip(1)
             .filter_map(|change| async move {
                 match change {
-                    Ok(subgraph) => Some(subgraph),
+                    Ok(subgraph) => {
+                        infoln!(
+                            "Connectivity restored for subgraph \"{}\".",
+                            subgraph.name()
+                        );
+                        Some(subgraph)
+                    }
                     Err(err) => {
+                        errln!(
+                            "{} \
+Error communicating with subgraph.
+* Schema changes will not be reflected.
+* Inspect subgraph logs for more information.",
+                            err
+                        );
                         tracing::error!("{:?}", err);
                         None
                     }
