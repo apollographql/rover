@@ -306,10 +306,13 @@ impl Fs {
                         // std::fs::metadata() check above passes for windows
                         #[cfg(windows)]
                         EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
-                            println!("file exists 1: {:?}", fs::exists(&path).unwrap_or_default());
+                            tracing::debug!(
+                                "file exists 1: {:?}",
+                                fs::exists(&path).unwrap_or_default()
+                            );
                             match std::fs::metadata(&path) {
                                 Ok(_metadata) => {
-                                    println!(
+                                    tracing::debug!(
                                         "file exists 2: {:?}",
                                         fs::exists(&path).unwrap_or_default()
                                     );
