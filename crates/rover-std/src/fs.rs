@@ -308,10 +308,6 @@ impl Fs {
                         EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
                             match std::fs::metadata(&path) {
                                 Ok(_metadata) => {
-                                    tracing::debug!(
-                                        "file exists 2: {:?}",
-                                        fs::exists(&path).unwrap_or_default()
-                                    );
                                     if fs::exists(&path).unwrap_or_default() {
                                         tracing::debug!(
                                             "received a modify event for windows, but file exists"
