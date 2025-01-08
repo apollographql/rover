@@ -142,8 +142,16 @@ where
 
             let mut env = HashMap::from_iter([
                 ("APOLLO_ROVER".to_string(), "true".to_string()),
-                ("APOLLO_KEY".to_string(), self.credential.api_key),
+                ("APOLLO_KEY".to_string(), self.credential.api_key.clone()),
             ]);
+
+            match self.credential.origin {
+                houston::CredentialOrigin::EnvVar => println!("env var cred"),
+                houston::CredentialOrigin::ConfigFile(file) => println!("cred from file: {file:?}"),
+            }
+
+            let key = &self.credential.api_key[..6];
+            println!("key: {key:?}");
 
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
