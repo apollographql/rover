@@ -78,22 +78,22 @@ jobs:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
         router-version: ${{ fromJSON(inputs.router-versions) }}
         testing_target:
-          #- run_test_on: windows-2022
-          #  binary_under_test: x86_64-pc-windows-msvc
-          #- run_test_on: macos-13
-          #  binary_under_test: x86_64-apple-darwin
-          #- run_test_on: macos-14-large
-          #  binary_under_test: x86_64-apple-darwin
-          #- run_test_on: macos-15-large
-          #  binary_under_test: x86_64-apple-darwin
+          - run_test_on: windows-2022
+            binary_under_test: x86_64-pc-windows-msvc
+          - run_test_on: macos-13
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-14-large
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-15-large
+            binary_under_test: x86_64-apple-darwin
           - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
-          #- run_test_on: macos-13-xlarge
-          #  binary_under_test: aarch64-apple-darwin
-          #- run_test_on: macos-14
-          #  binary_under_test: aarch64-apple-darwin
-          #- run_test_on: macos-15
-          #  binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-13-xlarge
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-14
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-15
+            binary_under_test: aarch64-apple-darwin
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
@@ -119,19 +119,19 @@ jobs:
         run: |
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
-          RUST_LOG=DEBUG $E2E_BINARY --ignored --nocapture
-      #- name: Run Smoke Tests (Windows)
-      #  if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
-      #  env:
-      #    APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
-      #    APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
-      #    CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
-      #    CARGO_MANIFEST_DIR: ${{ github.workspace }}
-      #    APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
-      #  run: |
-      #    $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
-      #    Write-Output "Found '$E2E_BINARY'"
-      #    & $E2E_BINARY --ignored --nocapture
+          $E2E_BINARY --ignored --nocapture
+      - name: Run Smoke Tests (Windows)
+        if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
+        env:
+          APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+          APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
+          CARGO_MANIFEST_DIR: ${{ github.workspace }}
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+        run: |
+          $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
+          Write-Output "Found '$E2E_BINARY'"
+          & $E2E_BINARY --ignored --nocapture
   # It appears as though GitHub Actions mechanisms for handling errors within matrix job runs are... less than
   # intuitive. There's an answer here (https://github.com/orgs/community/discussions/26822) that describes the
   # fact that if any of the jobs in the matrix succeeds then the job is marked successful as well. So we
