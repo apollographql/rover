@@ -136,6 +136,10 @@ impl<T, Output: Clone + Send + 'static> BroadcastSubtask<T, Output> {
             BroadcastSubtask { inner, sender: tx },
         )
     }
+
+    pub fn subscribe(&self) -> BroadcastStream<Output> {
+        BroadcastStream::new(self.sender.subscribe())
+    }
 }
 
 impl<T: SubtaskHandleUnit<Output = Output>, Output> SubtaskRunUnit for Subtask<T, Output> {
