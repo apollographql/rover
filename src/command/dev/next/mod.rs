@@ -13,6 +13,7 @@ use router::{
 };
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
+use semver::Version;
 use tower::ServiceExt;
 
 use crate::{
@@ -97,12 +98,14 @@ impl Dev {
             .or_else(|| {
                 let version = &OVERRIDE_DEV_COMPOSITION_VERSION
                     .clone()
-                    .and_then(|version| match FederationVersion::from_str(&version) {
-                        Ok(version) => Some(version),
-                        Err(err) => {
-                            errln!("{err}");
-                            tracing::error!("{:?}", err);
-                            None
+                    .and_then(|version| {
+                        match FederationVersion::from_str(&format!("={version}")) {
+                            Ok(version) => Some(version),
+                            Err(err) => {
+                                errln!("{err}");
+                                tracing::error!("{:?}", err);
+                                None
+                            }
                         }
                     });
 
@@ -137,7 +140,7 @@ impl Dev {
         let supergraph_schema = composition_success.supergraph_sdl();
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
-            Some(version) => RouterVersion::from_str(version)?,
+            Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::Latest,
         };
 
