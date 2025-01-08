@@ -11,11 +11,10 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::{debugln, errln, infoln, RoverStdError};
+use rover_std::{debugln, infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
-use tracing::info;
 
 use super::{
     binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
