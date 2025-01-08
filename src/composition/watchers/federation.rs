@@ -26,17 +26,15 @@ impl SubtaskHandleStream for FederationWatcher {
     ) -> AbortHandle {
         tokio::task::spawn(async move {
             while let Some(recv_res) = input.next().await {
-                match recv_res {
-                    Err(SupergraphConfigSerialisationError::DeserializingConfigError {
-                        source,
-                    }) => {
-                        let _ = sender
-                            .send(CompositionEvent::Error(
-                                CompositionError::InvalidSupergraphConfig(source.message()),
-                            ))
-                            .tap_err(|err| error!("{:?}", err));
-                    }
-                    _ => (),
+                if let Err(SupergraphConfigSerialisationError::DeserializingConfigError {
+                    source,
+                }) = recv_res
+                {
+                    let _ = sender
+                        .send(CompositionEvent::Error(
+                            CompositionError::InvalidSupergraphConfig(source.message()),
+                        ))
+                        .tap_err(|err| error!("{:?}", err));
                 }
             }
         })

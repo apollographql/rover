@@ -25,12 +25,10 @@ use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
 use url::Url;
 
-use crate::{
-    cli::Rover,
-    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
-    RoverError,
+use self::{
+    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
 };
-
 use super::{
     error::ResolveSubgraphError,
     federation::{
@@ -41,10 +39,10 @@ use super::{
     lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
 };
-
-use self::{
-    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
+use crate::{
+    cli::Rover,
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
+    RoverError,
 };
 
 pub mod fetch_remote_subgraph;
@@ -439,6 +437,7 @@ fn maybe_name_from_dir() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::{collections::BTreeMap, str::FromStr};
 
     use anyhow::Result;
@@ -458,6 +457,14 @@ mod tests {
     use tower::{ServiceBuilder, ServiceExt};
     use tower_test::mock::Handle;
 
+    use super::{
+        fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
+        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
+        MockPrompt, SupergraphConfigResolver,
+    };
     use crate::{
         composition::supergraph::config::{
             error::ResolveSubgraphError,
@@ -473,15 +480,6 @@ mod tests {
             effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
             parsers::FileDescriptorType,
         },
-    };
-
-    use super::{
-        fetch_remote_subgraph::{
-            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-            MakeFetchRemoteSubgraphError, RemoteSubgraph,
-        },
-        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
-        MockPrompt, SupergraphConfigResolver,
     };
 
     /// Test showing that federation version is selected from the user-specified fed version
@@ -695,7 +693,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
@@ -928,7 +926,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
@@ -1161,7 +1159,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
