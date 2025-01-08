@@ -146,12 +146,16 @@ where
             ]);
 
             match self.credential.origin {
-                houston::CredentialOrigin::EnvVar => println!("env var cred"),
-                houston::CredentialOrigin::ConfigFile(file) => println!("cred from file: {file:?}"),
+                houston::CredentialOrigin::EnvVar => eprintln!("env var cred"),
+                houston::CredentialOrigin::ConfigFile(file) => {
+                    eprintln!("cred from file: {file:?}")
+                }
             }
 
+            tracing::info!("can I see traces?");
+
             let key = &self.credential.api_key[..6];
-            println!("key: {key:?}");
+            eprintln!("key: {key:?}");
 
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
