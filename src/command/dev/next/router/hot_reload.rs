@@ -1,11 +1,18 @@
+use std::{
+    fmt::{Display, Formatter},
+    net::SocketAddr,
+};
+
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
+use regex::Regex;
+use serde_yaml::Value;
 use tap::TapFallible;
 
 use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
-use super::config::RouterConfig;
+use super::config::{parser::RouterConfigParser, RouterConfig};
 
 use rover_std::{debugln, errln, infoln};
 
@@ -20,11 +27,48 @@ pub enum HotReloadEvent {
     SchemaWritten(#[allow(unused)] Result<(), Box<dyn std::error::Error + Send>>),
 }
 
+#[derive(Builder, Debug, Copy, Clone)]
+pub struct HotReloadConfigOverrides {
+    pub address: SocketAddr,
+}
+
 #[derive(Builder)]
 pub struct HotReloadWatcher<WriteF> {
     config: Utf8PathBuf,
     schema: Utf8PathBuf,
     write_file_impl: WriteF,
+    overrides: HotReloadConfigOverrides,
+}
+
+#[derive(Builder)]
+pub struct HotReloadConfig {
+    content: String,
+    overrides: HotReloadConfigOverrides,
+}
+
+// TODO: place this overwriting logic somewhere else?
+// FIXME: docs/comments
+impl Display for HotReloadConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // FIXME: unwrap
+        let config = serde_yaml::from_str::<Value>(&self.content).unwrap();
+        // The config's address reflects the precedence logic (CLI override before config before
+        // env before default), so we rely on whatever it gives us when passing it overrides
+        let config_address = RouterConfigParser::new(&config, self.overrides.address)
+            .address()
+            // FIXME: unwrap
+            .unwrap()
+            // FIXME: unwrap
+            .unwrap();
+
+        let config = serde_yaml::to_string(&config).unwrap();
+        let config_address = config_address.to_string();
+
+        let re = Regex::new(r"(?m)^  listen:.*$").expect("Failed to create Regex");
+        let updated_config = re.replace(&config, format!("  listen: {config_address}"));
+
+        write!(f, "{updated_config}")
+    }
 }
 
 impl<WriteF> SubtaskHandleStream for HotReloadWatcher<WriteF>
@@ -62,8 +106,13 @@ where
                         }
                     }
                     RouterUpdateEvent::ConfigChanged { config } => {
+                        let hot_reload_config = HotReloadConfig::builder()
+                            .content(config.inner())
+                            .overrides(self.overrides)
+                            .build();
+
                         match write_file_impl
-                            .write_file(&self.config, config.inner().as_bytes())
+                            .write_file(&self.config, hot_reload_config.to_string().as_bytes())
                             .await
                         {
                             Ok(_) => {
@@ -72,7 +121,7 @@ where
                                     tracing::error!("Unable to send message. Error: {:?}", err)
                                 });
                                 infoln!("Router config updated.");
-                                debugln!("{}", config.inner());
+                                debugln!("{}", hot_reload_config);
                             }
                             Err(err) => {
                                 let error_message =

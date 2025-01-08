@@ -2,18 +2,24 @@
 
 use std::{io::stdin, str::FromStr};
 
-use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
-use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
+use router::{
+    hot_reload::HotReloadConfigOverrides, install::InstallRouter, run::RunRouter,
+    watchers::file::FileWatcher,
+};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
+use semver::Version;
 use tower::ServiceExt;
 
 use crate::{
-    command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
+    command::{
+        dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
+        Dev,
+    },
     composition::{
         pipeline::CompositionPipeline,
         supergraph::config::{
@@ -31,11 +37,12 @@ use crate::{
             read_file::FsReadFile,
             write_file::FsWriteFile,
         },
+        env::RoverEnvKey,
     },
-    RoverError, RoverOutput, RoverResult,
+    RoverOutput, RoverResult,
 };
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use self::router::config::RouterAddress;
 
 mod router;
 
@@ -52,21 +59,10 @@ impl Dev {
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
 
-        let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
-        );
-
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
-
-        let _config = RunRouterConfig::default()
-            .with_address(router_address)
-            .with_config(&read_file_impl, router_config_path.as_ref())
-            .await
-            .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
 
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
@@ -78,7 +74,8 @@ impl Dev {
         let service = client_config
             .get_authenticated_client(profile)?
             .studio_graphql_service()?;
-        let service = WhoAmI::new(service);
+
+        let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
@@ -105,12 +102,14 @@ impl Dev {
             .or_else(|| {
                 let version = &OVERRIDE_DEV_COMPOSITION_VERSION
                     .clone()
-                    .and_then(|version| match FederationVersion::from_str(&version) {
-                        Ok(version) => Some(version),
-                        Err(err) => {
-                            errln!("{err}");
-                            tracing::error!("{:?}", err);
-                            None
+                    .and_then(|version| {
+                        match FederationVersion::from_str(&format!("={version}")) {
+                            Ok(version) => Some(version),
+                            Err(err) => {
+                                errln!("{err}");
+                                tracing::error!("{:?}", err);
+                                None
+                            }
                         }
                     });
 
@@ -145,12 +144,23 @@ impl Dev {
         let supergraph_schema = composition_success.supergraph_sdl();
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
-            Some(version) => RouterVersion::from_str(version)?,
+            Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::Latest,
         };
 
-        let credential =
-            Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
+        let api_key_override = match std::env::var(RoverEnvKey::Key.to_string()) {
+            Ok(key) => Some(key),
+            Err(_err) => None,
+        };
+        let home_override = match std::env::var(RoverEnvKey::Home.to_string()) {
+            Ok(home) => Some(home),
+            Err(_err) => None,
+        };
+
+        let credential = Profile::get_credential(
+            &profile.profile_name,
+            &Config::new(home_override.as_ref(), api_key_override)?,
+        )?;
 
         let composition_runner = composition_pipeline
             .runner(
@@ -171,6 +181,14 @@ impl Dev {
             composition_pipeline.state.supergraph_binary.version()
         );
 
+        // This RouterAddress hasn't been fully processed. It only represents the CLI option or
+        // default, but we still have to reckon with the config-set address (if one exists). See
+        // the reassignment of the variable below for details
+        let router_address = RouterAddress::new(
+            self.opts.supergraph_opts.supergraph_address,
+            self.opts.supergraph_opts.supergraph_port,
+        );
+
         let run_router = RunRouter::default()
             .install::<InstallRouter>(
                 router_version,
@@ -182,9 +200,22 @@ impl Dev {
             .await?
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
-            .load_remote_config(service, graph_ref.clone(), Some(credential))
+            .load_remote_config(
+                who_am_i_service,
+                graph_ref.clone(),
+                Some(credential.clone()),
+            )
             .await;
+
+        // This RouterAddress has some logic figuring out _which_ of the potentially multiple
+        // address options we should use (eg, CLI, config, env var, or default). It will be used in
+        // the overrides for the temporary config we set for hot-reloading the router, but also as
+        // a message to the user for where to find their router
         let router_address = *run_router.state.config.address();
+        let hot_reload_overrides = HotReloadConfigOverrides::builder()
+            .address(router_address)
+            .build();
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -192,16 +223,17 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 supergraph_schema,
+                credential,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages)
+            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
         warnln!(
             "Do not run this command in production! It is intended for local development only."
         );
 
-        infoln!("your supergraph is running! head to {router_address} to query your supergraph");
+        infoln!("Your supergraph is running! head to {router_address} to query your supergraph");
 
         loop {
             tokio::select! {

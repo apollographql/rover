@@ -195,6 +195,7 @@ lazycell = { workspace = true }
 lazy_static = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
@@ -243,7 +244,6 @@ portpicker = "0.1.1"
 predicates = { workspace = true }
 rand = "0.8.5"
 rand_regex = "0.17.0"
-regex = { workspace = true }
 reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
