@@ -63,6 +63,8 @@ pub enum CompositionError {
     },
     #[error("Serialization error.\n{}", .0)]
     SerdeYaml(#[from] serde_yaml::Error),
+    #[error("{}", .0)]
+    InvalidSupergraphConfig(String),
 }
 
 #[derive(Debug, Eq, PartialEq)]
