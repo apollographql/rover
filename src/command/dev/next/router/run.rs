@@ -144,6 +144,7 @@ impl RunRouter<state::Run> {
         temp_router_dir: &Utf8Path,
         studio_client_config: StudioClientConfig,
         supergraph_schema: &str,
+        credential: Credential,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -212,6 +213,7 @@ impl RunRouter<state::Run> {
             .config_path(hot_reload_config_path.clone())
             .supergraph_schema_path(hot_reload_schema_path.clone())
             .and_remote_config(self.state.remote_config.clone())
+            .credential(credential)
             .spawn(spawn)
             .build();
 

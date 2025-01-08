@@ -71,7 +71,8 @@ impl Dev {
         let service = client_config
             .get_authenticated_client(profile)?
             .studio_graphql_service()?;
-        let service = WhoAmI::new(service);
+
+        let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
@@ -185,7 +186,11 @@ impl Dev {
             .await?
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
-            .load_remote_config(service, graph_ref.clone(), Some(credential))
+            .load_remote_config(
+                who_am_i_service,
+                graph_ref.clone(),
+                Some(credential.clone()),
+            )
             .await;
 
         // This RouterAddress has some logic figuring out _which_ of the potentially multiple
@@ -204,6 +209,7 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 supergraph_schema,
+                credential,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)

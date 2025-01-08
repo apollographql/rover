@@ -1,8 +1,10 @@
-use std::{collections::HashMap, fmt, net::SocketAddr, process::Stdio};
+use std::{collections::HashMap, env, fmt, net::SocketAddr, process::Stdio};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
+use houston::Credential;
+use rover_client::operations::config::who_am_i;
 use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
@@ -107,6 +109,7 @@ pub struct RunRouterBinary<Spawn: Send> {
     config_path: Utf8PathBuf,
     supergraph_schema_path: Utf8PathBuf,
     remote_config: Option<RemoteRouterConfig>,
+    credential: Credential,
     spawn: Spawn,
 }
 
@@ -137,10 +140,15 @@ where
 
             println!("config path passed to router binary: {}", self.config_path);
 
-            let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+            let mut env = HashMap::from_iter([
+                ("APOLLO_ROVER".to_string(), "true".to_string()),
+                ("APOLLO_KEY".to_string(), self.credential.api_key),
+            ]);
+
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
             }
+
             if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
                 env.insert("APOLLO_KEY".to_string(), api_key);
             }
