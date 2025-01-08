@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Display, time::Duration};
 
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
@@ -25,7 +25,10 @@ use super::{
     watchers::router_config::RouterConfigWatcher,
 };
 use crate::{
-    command::dev::next::FileWatcher,
+    command::dev::next::{
+        router::hot_reload::{self, HotReloadConfig, HotReloadConfigOverrides},
+        FileWatcher,
+    },
     composition::events::CompositionEvent,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
@@ -159,11 +162,25 @@ impl RunRouter<state::Run> {
             "Creating temporary router config path at {}",
             hot_reload_config_path
         );
+
+        let hot_reload_config = HotReloadConfig::builder()
+            .content(self.state.config.raw_config())
+            .overrides(
+                HotReloadConfigOverrides::builder()
+                    // TODO: fix this address
+                    .address(self.state.config.address())
+                    .build(),
+            )
+            .build()
+            .to_string();
+
+        println!("hot reload config: {hot_reload_config:?}");
+
         write_file
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
-                    .contents(Vec::from(self.state.config.raw_config()))
+                    .contents(Vec::from(hot_reload_config.to_string()))
                     .build(),
             )
             .await
@@ -294,6 +311,7 @@ impl RunRouter<state::Watch> {
         self,
         write_file_impl: WriteF,
         composition_messages: BoxStream<'static, CompositionEvent>,
+        hot_reload_overrides: HotReloadConfigOverrides,
     ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
@@ -326,6 +344,7 @@ impl RunRouter<state::Watch> {
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
+            .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
 

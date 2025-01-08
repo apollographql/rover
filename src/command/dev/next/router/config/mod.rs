@@ -3,7 +3,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
-use http::Uri;
 use rover_std::{Fs, RoverStdError};
 use thiserror::Error;
 
@@ -13,7 +12,7 @@ use self::{
 };
 use crate::utils::effect::read_file::ReadFile;
 
-mod parser;
+pub mod parser;
 pub mod remote;
 mod state;
 
@@ -84,6 +83,14 @@ impl From<RouterAddress> for SocketAddr {
     }
 }
 
+impl From<&RouterAddress> for SocketAddr {
+    fn from(value: &RouterAddress) -> Self {
+        let host = value.host;
+        let port = value.port;
+        SocketAddr::new(host, port)
+    }
+}
+
 impl From<Option<SocketAddr>> for RouterAddress {
     fn from(value: Option<SocketAddr>) -> Self {
         let host = value.map(|addr| addr.ip());
@@ -142,7 +149,8 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                             }
                         })?;
 
-                        let router_config = RouterConfigParser::new(&yaml);
+                        let router_config =
+                            RouterConfigParser::new(&yaml, self.state.router_address.into());
                         let address = router_config.address()?;
                         let address = address
                             .map(RouterAddress::from)

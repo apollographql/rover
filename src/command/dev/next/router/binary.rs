@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, process::Stdio};
+use std::{collections::HashMap, fmt, net::SocketAddr, process::Stdio};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -134,6 +134,9 @@ where
                 "info".to_string(),
                 "--dev".to_string(),
             ];
+
+            println!("config path passed to router binary: {}", self.config_path);
+
             let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);

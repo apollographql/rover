@@ -7,7 +7,10 @@ use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
-use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
+use router::{
+    hot_reload::HotReloadConfigOverrides, install::InstallRouter, run::RunRouter,
+    watchers::file::FileWatcher,
+};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
 use tower::ServiceExt;
@@ -52,21 +55,10 @@ impl Dev {
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
 
-        let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
-        );
-
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
-
-        let _config = RunRouterConfig::default()
-            .with_address(router_address)
-            .with_config(&read_file_impl, router_config_path.as_ref())
-            .await
-            .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
 
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
@@ -171,6 +163,14 @@ impl Dev {
             composition_pipeline.state.supergraph_binary.version()
         );
 
+        // This RouterAddress hasn't been fully processed. It only represents the CLI option or
+        // default, but we still have to reckon with the config-set address (if one exists). See
+        // the reassignment of the variable below for details
+        let router_address = RouterAddress::new(
+            self.opts.supergraph_opts.supergraph_address,
+            self.opts.supergraph_opts.supergraph_port,
+        );
+
         let run_router = RunRouter::default()
             .install::<InstallRouter>(
                 router_version,
@@ -184,7 +184,16 @@ impl Dev {
             .await?
             .load_remote_config(service, graph_ref.clone(), Some(credential))
             .await;
+
+        // This RouterAddress has some logic figuring out _which_ of the potentially multiple
+        // address options we should use (eg, CLI, config, env var, or default). It will be used in
+        // the overrides for the temporary config we set for hot-reloading the router, but also as
+        // a message to the user for where to find their router
         let router_address = *run_router.state.config.address();
+        let hot_reload_overrides = HotReloadConfigOverrides::builder()
+            .address(router_address)
+            .build();
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -194,7 +203,7 @@ impl Dev {
                 supergraph_schema,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages)
+            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
         warnln!(
