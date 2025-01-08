@@ -7,7 +7,12 @@ use itertools::Itertools;
 use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
+use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 
+use super::watcher::{
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
+    supergraph_config::SupergraphConfigDiff,
+};
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
@@ -17,11 +22,6 @@ use crate::{
         unresolved::UnresolvedSubgraph,
     },
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-};
-
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
-    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -148,7 +148,10 @@ pub struct SubgraphSchemaRemoved {
 }
 
 impl SubtaskHandleStream for SubgraphWatchers {
-    type Input = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
+    type Input = Result<
+        Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>,
+        BroadcastStreamRecvError,
+    >;
     type Output = SubgraphEvent;
 
     fn handle(
@@ -166,40 +169,48 @@ impl SubtaskHandleStream for SubgraphWatchers {
             );
 
             // Wait for supergraph diff events received from the input stream.
-            while let Some(diff) = input.next().await {
-                match diff {
+            while let Some(recv_res) = input.next().await {
+                match recv_res {
                     Ok(diff) => {
-                        // If we detect additional diffs, start a new subgraph subtask.
-                        // Adding the abort handle to the current collection of handles.
-                        for (subgraph_name, subgraph_config) in diff.added() {
-                            let _ = subgraph_handles.add(
-                                subgraph_name,
-                                subgraph_config,
-                                self.introspection_polling_interval
-                            ).await.tap_err(|err| tracing::error!("{:?}", err));
-                        }
+                        match diff {
+                            Ok(diff) => {
+                                // If we detect additional diffs, start a new subgraph subtask.
+                                // Adding the abort handle to the current collection of handles.
+                                for (subgraph_name, subgraph_config) in diff.added() {
+                                    let _ = subgraph_handles.add(
+                                        subgraph_name,
+                                        subgraph_config,
+                                        self.introspection_polling_interval
+                                    ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                }
 
-                        for (subgraph_name, subgraph_config) in diff.changed() {
-                            let _ = subgraph_handles.update(
-                                subgraph_name,
-                                subgraph_config,
-                                self.introspection_polling_interval
-                            ).await.tap_err(|err| tracing::error!("{:?}", err));
-                        }
+                                for (subgraph_name, subgraph_config) in diff.changed() {
+                                    let _ = subgraph_handles.update(
+                                        subgraph_name,
+                                        subgraph_config,
+                                        self.introspection_polling_interval
+                                    ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                }
 
-                        // If we detect removal diffs, stop the subtask for the removed subgraph.
-                        for subgraph_name in diff.removed() {
-                            eprintln!("Removing subgraph from session: `{}`", subgraph_name);
-                            subgraph_handles.remove(subgraph_name);
+                                // If we detect removal diffs, stop the subtask for the removed subgraph.
+                                for subgraph_name in diff.removed() {
+                                    eprintln!("Removing subgraph from session: `{}`", subgraph_name);
+                                    subgraph_handles.remove(subgraph_name);
+                                }
+                            }
+                            Err(errs) => {
+                                for (subgraph_name, _) in errs {
+                                    errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
+                                    subgraph_handles.remove(&subgraph_name);
+                                }
+                            }
                         }
                     }
-                    Err(errs) => {
-                        for (subgraph_name, _) in errs {
-                            errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
-                            subgraph_handles.remove(&subgraph_name);
-                        }
+                    Err(b_err) => {
+                        tracing::error!("Error in receiving from broadcast stream {}", b_err);
                     }
                 }
+
             }
         })
         .abort_handle()
@@ -410,6 +421,7 @@ mod tests {
     use speculoos::prelude::*;
     use tower::ServiceBuilder;
 
+    use super::SubgraphWatchers;
     use crate::composition::supergraph::config::{
         error::ResolveSubgraphError,
         full::{
@@ -425,8 +437,6 @@ mod tests {
             FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
         },
     };
-
-    use super::SubgraphWatchers;
 
     #[tokio::test]
     async fn test_subgraph_watchers_new() {

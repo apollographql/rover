@@ -1,5 +1,6 @@
 //! Utilities that help resolve a subgraph via introspection
 
+use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
 
 use buildstructor::Builder;
@@ -13,9 +14,8 @@ use rover_http::{extend_headers::ExtendHeadersLayer, HttpService};
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use url::Url;
 
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-
 use super::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 
 /// Alias for a service that fully resolves a subgraph via introspection
 pub type ResolveIntrospectSubgraphService =
@@ -76,10 +76,14 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
                 .iter()
                 .map(|(key, value)| {
                     HeaderName::from_bytes(key.as_bytes())
-                        .map_err(ResolveSubgraphError::from)
+                        .map_err(|err| ResolveSubgraphError::HeaderName {
+                            source: Arc::new(err),
+                        })
                         .and_then(|key| {
                             HeaderValue::from_str(value)
-                                .map_err(ResolveSubgraphError::from)
+                                .map_err(|err| ResolveSubgraphError::HeaderValue {
+                                    source: Arc::new(err),
+                                })
                                 .map(|value| (key, value))
                         })
                 })
@@ -130,7 +134,7 @@ where
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner
             .poll_ready(cx)
-            .map_err(|err| ResolveSubgraphError::ServiceReady(Box::new(err)))
+            .map_err(|err| ResolveSubgraphError::ServiceReady(Arc::new(Box::new(err))))
     }
 
     fn call(&mut self, _req: ()) -> Self::Future {
@@ -143,7 +147,7 @@ where
                 let schema = inner.call(()).await.map_err(|err| {
                     ResolveSubgraphError::IntrospectionError {
                         subgraph_name: subgraph_name.to_string(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     }
                 })?;
                 Ok(FullyResolvedSubgraph::builder()

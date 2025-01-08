@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use apollo_parser::{cst, Parser};
@@ -12,15 +13,14 @@ pub mod file;
 pub mod introspect;
 pub mod remote;
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-    unresolved::UnresolvedSubgraph,
-};
-
 use self::{
     file::ResolveFileSubgraph,
     introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory},
     remote::ResolveRemoteSubgraph,
+};
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    unresolved::UnresolvedSubgraph,
 };
 
 /// Alias for a [`tower::Service`] that fully resolves a subgraph
@@ -89,21 +89,21 @@ impl FullyResolvedSubgraph {
                 let graph_ref = GraphRef::from_str(&graph_ref).map_err(|err| {
                     ResolveSubgraphError::InvalidGraphRef {
                         graph_ref: graph_ref.clone(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     }
                 })?;
 
                 let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory
                     .ready()
                     .await
-                    .map_err(|err| ResolveSubgraphError::ServiceReady(Box::new(err)))?;
+                    .map_err(|err| ResolveSubgraphError::ServiceReady(Arc::new(Box::new(err))))?;
 
                 let service = fetch_remote_subgraph_factory
                     .call(())
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                         subgraph_name: subgraph.to_string(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     })?;
                 let service = ResolveRemoteSubgraph::builder()
                     .graph_ref(graph_ref)

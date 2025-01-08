@@ -28,11 +28,12 @@ use super::{
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
 use crate::{
     composition::watchers::watcher::{
         file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
+    subtask::{Subtask, SubtaskRunStream},
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
@@ -180,7 +181,7 @@ where
         {
             tracing::info!("Watching subgraphs for changes...");
             let (supergraph_config_stream, supergraph_config_subtask) =
-                Subtask::new(supergraph_config_watcher);
+                BroadcastSubtask::new(supergraph_config_watcher);
             (
                 supergraph_config_stream.boxed(),
                 Some(supergraph_config_subtask),
