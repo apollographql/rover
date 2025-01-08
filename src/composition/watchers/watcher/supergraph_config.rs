@@ -5,17 +5,15 @@ use derive_getters::Getters;
 use futures::StreamExt;
 use rover_std::errln;
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
-
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
-        unresolved::UnresolvedSupergraphConfig,
-    },
-    subtask::SubtaskHandleUnit,
-};
+use tokio::sync::broadcast::Sender;
+use tokio::task::AbortHandle;
 
 use super::file::FileWatcher;
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
+    unresolved::UnresolvedSupergraphConfig,
+};
+use crate::subtask::SubtaskHandleMultiStream;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
@@ -35,10 +33,10 @@ impl SupergraphConfigWatcher {
     }
 }
 
-impl SubtaskHandleUnit for SupergraphConfigWatcher {
+impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
     type Output = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
 
-    fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
+    fn handle(self, sender: Sender<Self::Output>) -> AbortHandle {
         tracing::warn!("Running SupergraphConfigWatcher");
         let supergraph_config_path = self.file_watcher.path().clone();
         tokio::spawn(
@@ -112,7 +110,7 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
     }
 }
 
-#[derive(Getters, Debug)]
+#[derive(Getters, Debug, Clone)]
 pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     changed: Vec<(String, SubgraphConfig)>,
