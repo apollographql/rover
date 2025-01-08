@@ -5,6 +5,7 @@
 //!
 //!   SubtaskHandleUnit - for receiving events,
 //!   SubtaskHandleStream - for both receiving and emitting events
+//!   SubtaskHandleMultiStream - for both receiving and emitting events to multiple channels (broadcast semantics)
 //!
 //! There are examples in the codebase for both, but they follow a similar pattern: a `handle`
 //! function is implemented that receives an `UnboundedSender<Self::Output>` for some `Output`
@@ -55,11 +56,13 @@
 //! ```
 
 use futures::stream::BoxStream;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedSender},
     task::AbortHandle,
 };
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 
 /// A trait whose implementation will be able to send events
 pub trait SubtaskHandleUnit {
@@ -76,6 +79,13 @@ pub trait SubtaskHandleStream {
         sender: UnboundedSender<Self::Output>,
         input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle;
+}
+
+/// A trait whose implementation will be able to send events to multiple channels with
+/// broadcast semantics.
+pub trait SubtaskHandleMultiStream {
+    type Output;
+    fn handle(self, sender: Sender<Self::Output>) -> AbortHandle;
 }
 
 /// A trait whose implementation can run a subtask that only ingests messages
@@ -109,18 +119,49 @@ impl<T, Output> Subtask<T, Output> {
     }
 }
 
+#[derive(Debug)]
+pub struct BroadcastSubtask<T, Output> {
+    inner: T,
+    sender: Sender<Output>,
+}
+
+impl<T, Output: Clone + Send + 'static> BroadcastSubtask<T, Output> {
+    /// Crates a new Subtask with bounded channels for transmitting and receiving in a broadcast
+    /// manner. A version of transmitter is returned to the caller so that it can be used to send
+    /// messages to the Subtask's receiver, however more can be acquired via the subscribe method.
+    pub fn new(inner: T) -> (BroadcastStream<Output>, BroadcastSubtask<T, Output>) {
+        let (tx, rx) = broadcast::channel(100);
+        (
+            BroadcastStream::new(rx),
+            BroadcastSubtask { inner, sender: tx },
+        )
+    }
+
+    pub fn subscribe(&self) -> BroadcastStream<Output> {
+        BroadcastStream::new(self.sender.subscribe())
+    }
+}
+
 impl<T: SubtaskHandleUnit<Output = Output>, Output> SubtaskRunUnit for Subtask<T, Output> {
     /// Begin running the subtask, calling handle() on the type implementing the SubTaskHandleUnit trait
     fn run(self) -> AbortHandle {
         self.inner.handle(self.sender)
     }
 }
-
 impl<T: SubtaskHandleStream<Output = Output>, Output> SubtaskRunStream for Subtask<T, Output> {
     type Input = T::Input;
 
     /// Begin running the subtask with a stream of events, calling handle() on the type implementing the SubTaskHandleStream trait
     fn run(self, input: BoxStream<'static, Self::Input>) -> AbortHandle {
         self.inner.handle(self.sender, input)
+    }
+}
+
+impl<T: SubtaskHandleMultiStream<Output = Output>, Output> SubtaskRunUnit
+    for BroadcastSubtask<T, Output>
+{
+    /// Begin running the subtask, calling handle() on the type implementing the SubTaskHandleUnit trait
+    fn run(self) -> AbortHandle {
+        self.inner.handle(self.sender)
     }
 }

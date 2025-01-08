@@ -1,18 +1,18 @@
 //! Utilities that resolve subgraphs from Apollo Studio
 
 use std::pin::Pin;
+use std::sync::Arc;
 
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::shared::GraphRef;
 use tower::{Service, ServiceExt};
 
+use super::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError,
     resolver::fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
 };
-
-use super::FullyResolvedSubgraph;
 
 /// Service that resolves a remote subgraph from Apollo Studio
 #[derive(Clone, Builder)]
@@ -46,7 +46,7 @@ where
             .poll_ready(cx)
             .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                 subgraph_name: self.subgraph_name.to_string(),
-                source: Box::new(err),
+                source: Arc::new(Box::new(err)),
             })
     }
 
@@ -62,7 +62,7 @@ where
                 .await
                 .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                     subgraph_name: subgraph_name.to_string(),
-                    source: Box::new(err),
+                    source: Arc::new(Box::new(err)),
                 })?
                 .call(
                     FetchRemoteSubgraphRequest::builder()
@@ -73,7 +73,7 @@ where
                 .await
                 .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                     subgraph_name: subgraph_name.to_string(),
-                    source: Box::new(err),
+                    source: Arc::new(Box::new(err)),
                 })?;
             let schema = remote_subgraph.schema().clone();
             let routing_url =

@@ -8,6 +8,11 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
+use super::watcher::{
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
+    supergraph_config::SupergraphConfigDiff,
+};
+use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
@@ -17,11 +22,6 @@ use crate::{
         unresolved::UnresolvedSubgraph,
     },
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-};
-
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
-    supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
@@ -148,7 +148,7 @@ pub struct SubgraphSchemaRemoved {
 }
 
 impl SubtaskHandleStream for SubgraphWatchers {
-    type Input = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
+    type Input = Result<SupergraphConfigDiff, SupergraphConfigSerialisationError>;
     type Output = SubgraphEvent;
 
     fn handle(
@@ -194,9 +194,11 @@ impl SubtaskHandleStream for SubgraphWatchers {
                         }
                     }
                     Err(errs) => {
-                        for (subgraph_name, _) in errs {
-                            errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
-                            subgraph_handles.remove(&subgraph_name);
+                        if let SupergraphConfigSerialisationError::ResolvingSubgraphErrors(errs) = errs {
+                            for (subgraph_name, _) in errs {
+                                errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
+                                subgraph_handles.remove(&subgraph_name);
+                            }
                         }
                     }
                 }
@@ -405,11 +407,14 @@ impl SubgraphHandles {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
     use speculoos::prelude::*;
     use tower::ServiceBuilder;
 
+    use super::SubgraphWatchers;
     use crate::composition::supergraph::config::{
         error::ResolveSubgraphError,
         full::{
@@ -425,8 +430,6 @@ mod tests {
             FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
         },
     };
-
-    use super::SubgraphWatchers;
 
     #[tokio::test]
     async fn test_subgraph_watchers_new() {
@@ -493,7 +496,7 @@ mod tests {
                 send_response.send_response(
                     ServiceBuilder::new()
                         .boxed_clone()
-                        .map_err(ResolveSubgraphError::ServiceReady)
+                        .map_err(|e| ResolveSubgraphError::ServiceReady(Arc::new(e)))
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
             }
@@ -502,7 +505,7 @@ mod tests {
         let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
             ServiceBuilder::new()
                 .boxed_clone()
-                .map_err(ResolveSubgraphError::ServiceReady)
+                .map_err(|e| ResolveSubgraphError::ServiceReady(Arc::new(e)))
                 .service(resolve_introspect_subgraph_factory.into_inner());
 
         let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_service_handle) =
