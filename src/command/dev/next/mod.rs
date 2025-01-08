@@ -210,7 +210,7 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
 
-        infoln!("your supergraph is running! head to {router_address} to query your supergraph");
+        infoln!("Your supergraph is running! head to {router_address} to query your supergraph");
 
         loop {
             tokio::select! {

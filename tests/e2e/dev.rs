@@ -1,6 +1,6 @@
-use std::env;
 use std::process::Command;
 use std::time::Duration;
+use std::{env, thread::sleep};
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;

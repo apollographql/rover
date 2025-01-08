@@ -89,8 +89,9 @@ impl RunRouter<state::LoadLocalConfig> {
             .with_config(read_file_impl, config_path.as_ref())
             .await?;
         if let Some(config_path) = config_path.clone() {
+            // TODO: figure out wtf this log means
             infoln!(
-                "Watching {} for changes",
+                "IS THIS TRUE?! :: Watching {} for changes",
                 config_path.as_std_path().display()
             );
         }
@@ -239,10 +240,10 @@ impl RunRouter<state::Run> {
         &self,
         studio_client_config: &StudioClientConfig,
     ) -> Result<(), RunRouterBinaryError> {
-        if !self.state.config.health_check_enabled() {
-            info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
-            return Ok(());
-        }
+        //if !self.state.config.health_check_enabled() {
+        //    info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+        //    return Ok(());
+        //}
 
         // We hardcode the endpoint and port; if they're missing now, we've lost that bit of code
         let mut healthcheck_endpoint = match self.state.config.health_check_endpoint() {
@@ -317,6 +318,7 @@ impl RunRouter<state::Watch> {
         WriteF: WriteFile + Send + Clone + 'static,
     {
         tracing::info!("Watching for subgraph changes");
+        println!("config path in watching: {:?}", self.state.config_path);
         let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
             self.state.config_path
         {
