@@ -407,6 +407,8 @@ impl SubgraphHandles {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
     use speculoos::prelude::*;
@@ -494,7 +496,7 @@ mod tests {
                 send_response.send_response(
                     ServiceBuilder::new()
                         .boxed_clone()
-                        .map_err(ResolveSubgraphError::ServiceReady)
+                        .map_err(|e| ResolveSubgraphError::ServiceReady(Arc::new(e)))
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
             }
@@ -503,7 +505,7 @@ mod tests {
         let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
             ServiceBuilder::new()
                 .boxed_clone()
-                .map_err(ResolveSubgraphError::ServiceReady)
+                .map_err(|e| ResolveSubgraphError::ServiceReady(Arc::new(e)))
                 .service(resolve_introspect_subgraph_factory.into_inner());
 
         let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_service_handle) =

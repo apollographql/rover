@@ -162,16 +162,14 @@ mod tests {
     use std::{fs::OpenOptions, io::Write, time::Duration};
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
-    use assert_fs::TempDir;
     use speculoos::prelude::*;
     use tokio::time::timeout;
     use tower::ServiceExt;
     use tracing_test::traced_test;
 
+    use super::*;
     use crate::composition::supergraph::config::full::file::ResolveFileSubgraph;
     use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
-
-    use super::*;
 
     #[tokio::test]
     #[traced_test(level = "error")]
