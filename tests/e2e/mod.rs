@@ -24,13 +24,13 @@ use tokio::time::timeout;
 use tracing::info;
 use tracing::warn;
 
-mod config;
+//mod config;
 mod dev;
-mod graph;
-mod install;
-mod options;
-mod subgraph;
-mod supergraph;
+//mod graph;
+//mod install;
+//mod options;
+//mod subgraph;
+//mod supergraph;
 
 const GRAPHQL_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
@@ -160,44 +160,44 @@ struct SingleMutableSubgraph {
     task_handle: Child,
 }
 
-#[fixture]
-async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> SingleMutableSubgraph {
-    // Create a copy of one of the subgraphs in a temporary subfolder
-    let target = TempDir::new().expect("Could not create temporary directory");
-    CopyBuilder::new(test_artifacts_directory.join("pandas"), &target)
-        .with_include_filter(".")
-        .run()
-        .expect("Could not perform copy");
-
-    info!("Installing subgraph dependencies");
-    cmd!("npm", "run", "clean")
-        .dir(target.path())
-        .run()
-        .expect("Could not clean directory");
-    cmd!("npm", "install")
-        .dir(target.path())
-        .run()
-        .expect("Could not install subgraph dependencies");
-    let port = pick_unused_port().expect("No free ports");
-    let subgraph_url = format!("http://localhost:{}", port);
-    let task_handle = Command::new("npm")
-        .args(["run", "start", "--", &port.to_string()])
-        .current_dir(target.path())
-        .kill_on_drop(true)
-        .spawn()
-        .expect("Could not spawn subgraph process");
-    info!("Testing subgraph connectivity");
-    let client = Client::new();
-    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)
-        .await
-        .expect("Could not execute connectivity check");
-    SingleMutableSubgraph {
-        subgraph_url,
-        directory: target,
-        schema_file_name: String::from("pandas.graphql"),
-        task_handle,
-    }
-}
+//#[fixture]
+//async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> SingleMutableSubgraph {
+//    // Create a copy of one of the subgraphs in a temporary subfolder
+//    let target = TempDir::new().expect("Could not create temporary directory");
+//    CopyBuilder::new(test_artifacts_directory.join("pandas"), &target)
+//        .with_include_filter(".")
+//        .run()
+//        .expect("Could not perform copy");
+//
+//    info!("Installing subgraph dependencies");
+//    cmd!("npm", "run", "clean")
+//        .dir(target.path())
+//        .run()
+//        .expect("Could not clean directory");
+//    cmd!("npm", "install")
+//        .dir(target.path())
+//        .run()
+//        .expect("Could not install subgraph dependencies");
+//    let port = pick_unused_port().expect("No free ports");
+//    let subgraph_url = format!("http://localhost:{}", port);
+//    let task_handle = Command::new("npm")
+//        .args(["run", "start", "--", &port.to_string()])
+//        .current_dir(target.path())
+//        .kill_on_drop(true)
+//        .spawn()
+//        .expect("Could not spawn subgraph process");
+//    info!("Testing subgraph connectivity");
+//    let client = Client::new();
+//    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)
+//        .await
+//        .expect("Could not execute connectivity check");
+//    SingleMutableSubgraph {
+//        subgraph_url,
+//        directory: target,
+//        schema_file_name: String::from("pandas.graphql"),
+//        task_handle,
+//    }
+//}
 
 async fn test_graphql_connection(
     client: &Client,

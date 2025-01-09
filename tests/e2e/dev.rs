@@ -354,7 +354,7 @@ async fn e2e_test_rover_dev(
             }
         };
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
     signal::kill(Pid::from_raw(child.id() as i32), Signal::SIGINT).unwrap();
 }

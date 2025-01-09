@@ -3,6 +3,7 @@ use predicates::prelude::*;
 
 #[test]
 fn super_conflicts_with_url() {
+    println!("hello?!");
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let assert = cmd
         .arg("dev")
