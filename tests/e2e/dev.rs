@@ -275,6 +275,8 @@ async fn e2e_test_rover_dev(
     let client = Client::new();
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
 
+    cmd.args(["config", "whoami"]);
+
     cmd.args([
         "dev",
         "--supergraph-config",
