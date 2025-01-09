@@ -1,5 +1,5 @@
 use apollo_federation_types::config::SchemaSource::Sdl;
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
@@ -9,6 +9,9 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 use tracing::error;
 
+use crate::composition::watchers::composition::CompositionInputEvent::{
+    Federation, Passthrough, Subgraph,
+};
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
 };
@@ -24,6 +27,18 @@ use crate::{
     subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
+
+/// Event to represent an input to the CompositionWatcher, depending on the source the event comes
+/// from. This is really like a Union type over multiple disparate events
+pub enum CompositionInputEvent {
+    /// Variant to represent if the change comes from a change to subgraphs
+    Subgraph(SubgraphEvent),
+    /// Variant to represent if the change comes from a change in the Federation Version
+    Federation(Option<FederationVersion>),
+    /// Variant to something that we do not want to perform Composition on but needs to be passed
+    /// through to the final stream of Composition Events.
+    Passthrough(CompositionEvent),
+}
 
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
@@ -43,7 +58,7 @@ where
     ReadF: ReadFile + Send + Sync + 'static,
     WriteF: WriteFile + Send + Sync + 'static,
 {
-    type Input = SubgraphEvent;
+    type Input = CompositionInputEvent;
     type Output = CompositionEvent;
 
     fn handle(
@@ -84,7 +99,7 @@ where
 
                 while let Some(event) = input.next().await {
                     match event {
-                        SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
+                        Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
                             let sdl = subgraph_schema_changed.sdl().clone();
                             let message = format!("Schema change detected for subgraph: {}", &name);
@@ -107,7 +122,7 @@ where
                                     .tap_err(|err| error!("{:?}", err));
                             };
                         }
-                        SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
+                        Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
                             tracing::info!("Subgraph removed: {}", name);
                             supergraph_config.remove_subgraph(name);
@@ -116,6 +131,12 @@ where
                                     CompositionSubgraphRemoved { name: name.clone() },
                                 ))
                                 .tap_err(|err| error!("{:?}", err));
+                        }
+                        Federation(fed_version) => {
+                            tracing::info!("Should do an update here to {:?}...", fed_version);
+                        }
+                        Passthrough(ev) => {
+                            let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
                         }
                     }
 

@@ -6,6 +6,7 @@ use tokio::task::AbortHandle;
 use tracing::error;
 
 use crate::composition::events::CompositionEvent;
+use crate::composition::watchers::composition::CompositionInputEvent;
 use crate::composition::watchers::watcher::supergraph_config::{
     SupergraphConfigDiff, SupergraphConfigSerialisationError,
 };
@@ -17,7 +18,7 @@ pub struct FederationWatcher {}
 impl SubtaskHandleStream for FederationWatcher {
     type Input = Result<SupergraphConfigDiff, SupergraphConfigSerialisationError>;
 
-    type Output = CompositionEvent;
+    type Output = CompositionInputEvent;
 
     fn handle(
         self,
@@ -26,15 +27,24 @@ impl SubtaskHandleStream for FederationWatcher {
     ) -> AbortHandle {
         tokio::task::spawn(async move {
             while let Some(recv_res) = input.next().await {
-                if let Err(SupergraphConfigSerialisationError::DeserializingConfigError {
-                    source,
-                }) = recv_res
-                {
-                    let _ = sender
-                        .send(CompositionEvent::Error(
-                            CompositionError::InvalidSupergraphConfig(source.message()),
-                        ))
-                        .tap_err(|err| error!("{:?}", err));
+                match recv_res {
+                    Ok(diff) => {
+                        if let Some(fed_version) = diff.federation_version() {
+                            let _ = sender
+                                .send(CompositionInputEvent::Federation(fed_version.clone()))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                    }
+                    Err(SupergraphConfigSerialisationError::DeserializingConfigError {
+                        source,
+                    }) => {
+                        let _ = sender
+                            .send(CompositionInputEvent::Passthrough(CompositionEvent::Error(
+                                CompositionError::InvalidSupergraphConfig(source.message()),
+                            )))
+                            .tap_err(|err| error!("{:?}", err));
+                    }
+                    Err(_) => {}
                 }
             }
         })

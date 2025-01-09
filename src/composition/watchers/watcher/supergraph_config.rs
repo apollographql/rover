@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use apollo_federation_types::config::{ConfigError, SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::{
+    ConfigError, FederationVersion, SubgraphConfig, SupergraphConfig,
+};
 use derive_getters::Getters;
 use futures::StreamExt;
 use rover_std::errln;
@@ -9,8 +11,10 @@ use tap::TapFallible;
 use thiserror::Error;
 use tokio::sync::broadcast::Sender;
 use tokio::task::AbortHandle;
+use tracing::debug;
 
 use super::file::FileWatcher;
+use crate::composition::supergraph::config::federation::FederationVersionResolver;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
@@ -59,6 +63,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                                 .origin_path(supergraph_config_path.clone())
                                 .subgraphs(subgraphs)
+                                .federation_version_resolver(FederationVersionResolver::default().from_supergraph_config(Some(&supergraph_config)))
                                 .build();
                             let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
                                 &supergraph_config_path.parent().unwrap().to_path_buf(),
@@ -123,6 +128,7 @@ pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     changed: Vec<(String, SubgraphConfig)>,
     removed: Vec<String>,
+    federation_version: Option<Option<FederationVersion>>,
 }
 
 impl SupergraphConfigDiff {
@@ -184,10 +190,23 @@ impl SupergraphConfigDiff {
             })
             .collect::<Vec<_>>();
 
+        let federation_version = if old.get_federation_version() != new.get_federation_version() {
+            debug!("Detected federation version change!");
+            debug!(
+                "Old: {:?}, New: {:?}",
+                old.get_federation_version(),
+                new.get_federation_version()
+            );
+            Some(new.get_federation_version())
+        } else {
+            None
+        };
+
         Ok(SupergraphConfigDiff {
             added,
             changed,
             removed,
+            federation_version,
         })
     }
 }

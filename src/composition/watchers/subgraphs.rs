@@ -12,6 +12,8 @@ use super::watcher::{
     subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
     supergraph_config::SupergraphConfigDiff,
 };
+use crate::composition::watchers::composition::CompositionInputEvent;
+use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
 use crate::{
     composition::supergraph::config::{
@@ -149,7 +151,7 @@ pub struct SubgraphSchemaRemoved {
 
 impl SubtaskHandleStream for SubgraphWatchers {
     type Input = Result<SupergraphConfigDiff, SupergraphConfigSerialisationError>;
-    type Output = SubgraphEvent;
+    type Output = CompositionInputEvent;
 
     fn handle(
         self,
@@ -210,7 +212,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
 
 struct SubgraphHandles {
     abort_handles: HashMap<String, (AbortHandle, AbortHandle)>,
-    sender: UnboundedSender<SubgraphEvent>,
+    sender: UnboundedSender<CompositionInputEvent>,
     resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     supergraph_config_root: Utf8PathBuf,
@@ -218,7 +220,7 @@ struct SubgraphHandles {
 
 impl SubgraphHandles {
     pub fn new(
-        sender: UnboundedSender<SubgraphEvent>,
+        sender: UnboundedSender<CompositionInputEvent>,
         watchers: HashMap<String, SubgraphWatcher>,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
@@ -238,7 +240,7 @@ impl SubgraphHandles {
                     while let Some(subgraph) = messages.next().await {
                         tracing::info!("Subgraph change detected: {:?}", subgraph);
                         let _ = sender
-                            .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
+                            .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
@@ -333,7 +335,7 @@ impl SubgraphHandles {
                 .map(|subgraph| {
                     let _ = self
                         .sender
-                        .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
+                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 });
         }
@@ -349,9 +351,11 @@ impl SubgraphHandles {
 
         let _ = self
             .sender
-            .send(SubgraphEvent::SubgraphRemoved(SubgraphSchemaRemoved {
-                name: subgraph.to_string(),
-            }))
+            .send(Subgraph(SubgraphEvent::SubgraphRemoved(
+                SubgraphSchemaRemoved {
+                    name: subgraph.to_string(),
+                },
+            )))
             .tap_err(|err| tracing::error!("{:?}", err));
     }
 
@@ -367,7 +371,7 @@ impl SubgraphHandles {
             .map(|subgraph| {
                 let _ = self
                     .sender
-                    .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
+                    .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
                     .tap_err(|err| tracing::error!("{:?}", err));
             });
     }
@@ -382,7 +386,9 @@ impl SubgraphHandles {
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
             .sender
-            .send(SubgraphEvent::SubgraphChanged(subgraph.clone().into()))
+            .send(Subgraph(SubgraphEvent::SubgraphChanged(
+                subgraph.clone().into(),
+            )))
             .tap_err(|err| tracing::error!("{:?}", err));
 
         let messages_abort_handle = tokio::spawn({
@@ -390,7 +396,7 @@ impl SubgraphHandles {
             async move {
                 while let Some(subgraph) = messages.next().await {
                     let _ = sender
-                        .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
+                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 }
             }
