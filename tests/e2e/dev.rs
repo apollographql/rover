@@ -39,6 +39,8 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
         &format!("{}", port),
         "--elv2-license",
         "accept",
+        "--log",
+        "debug",
     ]);
     cmd.current_dir(run_subgraphs_retail_supergraph.get_working_directory());
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
