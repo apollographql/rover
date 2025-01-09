@@ -47,7 +47,7 @@ pub enum CompositionInputEvent {
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     supergraph_config: FullyResolvedSupergraphConfig,
-    federation_updater_config: FederationUpdaterConfig,
+    federation_updater_config: Option<FederationUpdaterConfig>,
     supergraph_binary: SupergraphBinary,
     exec_command: ExecC,
     read_file: ReadF,
@@ -57,7 +57,7 @@ pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     output_target: OutputTarget,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FederationUpdaterConfig {
     pub(crate) studio_client_config: StudioClientConfig,
     pub(crate) elv2_licence_accepter: LicenseAccepter,
@@ -145,21 +145,24 @@ where
                                 .tap_err(|err| error!("{:?}", err));
                         }
                         Federation(fed_version) => {
-                            tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
-                            let install_res =
-                                InstallSupergraph::new(fed_version, self.federation_updater_config.studio_client_config.clone())
-                                    .install(None, self.federation_updater_config.elv2_licence_accepter, self.federation_updater_config.skip_update)
-                                    .await;
-                            match install_res {
-                                Ok(supergraph_binary) => {
-                                    tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
-                                    self.supergraph_binary = supergraph_binary
-                                }
-                                Err(err) => {
-                                    tracing::warn!("Failed to change supergraph version, current version has been retained...");
-                                    let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                            if let Some(federation_updater_config) = self.federation_updater_config.clone() {
+                                tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                                let install_res =
+                                    InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
+                                        .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
+                                        .await;
+                                match install_res {
+                                    Ok(supergraph_binary) => {
+                                        tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
+                                        self.supergraph_binary = supergraph_binary
+                                    }
+                                    Err(err) => {
+                                        tracing::warn!("Failed to change supergraph version, current version has been retained...");
+                                        let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                                    }
                                 }
                             }
+
                         }
                         Passthrough(ev) => {
                             let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
@@ -279,8 +282,9 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
-    use super::CompositionWatcher;
+    use super::{CompositionInputEvent, CompositionWatcher};
     use crate::composition::supergraph::binary::OutputTarget;
+    use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
     use crate::composition::CompositionSubgraphAdded;
     use crate::{
         composition::{
@@ -376,12 +380,12 @@ mod tests {
             .output_target(OutputTarget::Stdout)
             .build();
 
-        let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
-            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+        let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
+            Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
                 subgraph_sdl,
                 "https://example.com".to_string(),
-            ))
+            )))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
