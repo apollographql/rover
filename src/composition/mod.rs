@@ -66,7 +66,7 @@ pub enum CompositionError {
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("{}", .0)]
     InvalidSupergraphConfig(String),
-    #[error("Could not update Federation Version")]
+    #[error("Error when updating Federation Version:\n{}", .0)]
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
 }
 

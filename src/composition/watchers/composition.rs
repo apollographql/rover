@@ -159,6 +159,7 @@ where
                                     Err(err) => {
                                         tracing::warn!("Failed to change supergraph version, current version has been retained...");
                                         let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                                        continue;
                                     }
                                 }
                             }
