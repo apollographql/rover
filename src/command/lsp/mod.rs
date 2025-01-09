@@ -57,6 +57,12 @@ pub struct LspOpts {
     #[serde(skip_serializing)]
     #[arg(long = "supergraph-config")]
     supergraph_yaml: Option<Utf8PathBuf>,
+
+    /// The number of seconds to wait between polling requests to any subgraphs that
+    /// are being introspected for their schema
+    #[arg(long = "polling-interval", short = 'i', default_value = "5")]
+    #[serde(skip_serializing)]
+    introspection_polling_interval: u64,
 }
 
 impl Lsp {
@@ -336,7 +342,7 @@ async fn create_composition_stream(
             FsWriteFile::default(),
             client_config.service()?,
             fetch_remote_subgraph_factory.boxed_clone(),
-            1,
+            lsp_opts.introspection_polling_interval,
             Utf8PathBuf::try_from(temp_dir())?,
             OutputTarget::InMemory,
             true,
