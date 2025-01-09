@@ -62,12 +62,6 @@ impl Dev {
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
-        let _config = RunRouterConfig::default()
-            .with_address(router_address)
-            .with_config(&read_file_impl, router_config_path.as_ref())
-            .await
-            .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
-
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
