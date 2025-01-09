@@ -161,12 +161,13 @@ where
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
             }
 
-            if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
-                env.insert("APOLLO_KEY".to_string(), api_key);
-            }
+            //if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
+            //    env.insert("APOLLO_KEY".to_string(), api_key);
+            //}
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
+                    println!("spawning router!");
                     spawn.call(
                         ExecCommandConfig::builder()
                             .exe(self.router_binary.exe.clone())
@@ -183,8 +184,10 @@ where
                     )
                 })
                 .await;
+
             match child {
                 Err(err) => {
+                    println!("in err for spawning router: {err:?}");
                     let err = RunRouterBinaryError::Spawn { err: Box::new(err) };
                     let _ = sender
                         .send(Err(err))
@@ -199,6 +202,7 @@ where
                                     let mut lines = BufReader::new(stdout).lines();
                                     while let Ok(Some(line)) =
                                         lines.next_line().await.tap_err(|err| {
+                                            println!("err from router stdout: {err:?}");
                                             tracing::error!(
                                                 "Error reading from router stdout: {:?}",
                                                 err
@@ -231,6 +235,7 @@ where
                             tokio::task::spawn(async move {
                                 let mut lines = BufReader::new(stderr).lines();
                                 while let Ok(Some(line)) = lines.next_line().await.tap_err(|err| {
+                                    println!("err from router stderr: {err:?}");
                                     tracing::error!("Error reading from router stderr: {:?}", err)
                                 }) {
                                     let _ =

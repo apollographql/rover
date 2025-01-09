@@ -270,7 +270,8 @@ async fn e2e_test_rover_dev(
     ("deprecated field", "query {product(id: \"product:2\") { reviews { author id } } }", json!({"data":{"product":{"reviews":[{"author":"User 1","id":"review:2"},{"author":"User 1","id":"review:7"}]}}})),
     ("deprecated introspection", "query {__type(name:\"Review\"){ fields(includeDeprecated: true) { name isDeprecated deprecationReason } } }", json!({"data":{"__type":{"fields":[{"name":"id","isDeprecated":false,"deprecationReason":null},{"name":"body","isDeprecated":false,"deprecationReason":null},{"name":"author","isDeprecated":true,"deprecationReason":"Use the new `user` field"},{"name":"user","isDeprecated":false,"deprecationReason":null},{"name":"product","isDeprecated":false,"deprecationReason":null}]}}}))];
 
-    let port = pick_unused_port().expect("No ports free");
+    //let port = pick_unused_port().expect("No ports free");
+    let port = "4000";
     let router_url = format!("http://localhost:{}", port);
     let client = Client::new();
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
@@ -282,7 +283,8 @@ async fn e2e_test_rover_dev(
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{}", port),
+        port,
+        //&format!("{}", port),
         "--elv2-license",
         "accept",
         "--log",
@@ -357,4 +359,5 @@ async fn e2e_test_rover_dev(
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
     signal::kill(Pid::from_raw(child.id() as i32), Signal::SIGINT).unwrap();
+    let _ = child.kill();
 }

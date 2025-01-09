@@ -212,8 +212,13 @@ impl Dev {
                 credential,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
-            .await;
+            .watch_for_changes(
+                write_file_impl,
+                composition_messages,
+                hot_reload_overrides,
+                client_config.clone(),
+            )
+            .await?;
 
         println!("after run router watch for changes");
 
