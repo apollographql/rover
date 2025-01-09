@@ -17,6 +17,7 @@ use tower::ServiceExt;
 
 use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::FederationUpdaterConfig;
 use crate::{
     command::{
         dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
@@ -162,6 +163,17 @@ impl Dev {
             &Config::new(home_override.as_ref(), api_key_override)?,
         )?;
 
+        // Set up an updater config, but only if we're not overriding the version ourselves. If
+        // we are then we don't need one, so it becomes None.
+        let federation_updater_config = match self.opts.supergraph_opts.federation_version {
+            Some(_) => None,
+            None => Some(FederationUpdaterConfig {
+                studio_client_config: client_config,
+                elv2_licence_accepter: elv2_license_accepter,
+                skip_update,
+            }),
+        };
+
         let composition_runner = composition_pipeline
             .runner(
                 exec_command_impl,
@@ -173,9 +185,7 @@ impl Dev {
                 tmp_config_dir_path.clone(),
                 OutputTarget::Stdout,
                 false,
-                client_config,
-                self.opts.plugin_opts.elv2_license_accepter,
-                self.opts.plugin_opts.skip_update,
+                federation_updater_config,
             )
             .await?;
 

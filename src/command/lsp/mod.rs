@@ -31,7 +31,7 @@ use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::SupergraphConfigResolutionError::PathDoesNotPointToAFile;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
-    SupergraphConfigResolutionError,
+    FederationUpdaterConfig, SupergraphConfigResolutionError,
 };
 use crate::options::ProfileOpt;
 use crate::utils::effect::exec::TokioCommand;
@@ -351,9 +351,11 @@ async fn create_composition_stream(
             Utf8PathBuf::try_from(temp_dir())?,
             OutputTarget::InMemory,
             true,
-            client_config,
-            lsp_opts.plugin_opts.elv2_license_accepter,
-            lsp_opts.plugin_opts.skip_update,
+            Some(FederationUpdaterConfig {
+                studio_client_config: client_config,
+                elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
+                skip_update: lsp_opts.plugin_opts.skip_update,
+            }),
         )
         .await?
         .run())

@@ -15,9 +15,8 @@ use crate::composition::watchers::composition::CompositionInputEvent::{
 };
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+    FederationUpdaterConfig,
 };
-use crate::options::LicenseAccepter;
-use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::install::InstallBinary;
 use crate::{
     composition::{
@@ -55,13 +54,6 @@ pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     temp_dir: Utf8PathBuf,
     compose_on_initialisation: bool,
     output_target: OutputTarget,
-}
-
-#[derive(Debug, Clone)]
-pub struct FederationUpdaterConfig {
-    pub(crate) studio_client_config: StudioClientConfig,
-    pub(crate) elv2_licence_accepter: LicenseAccepter,
-    pub(crate) skip_update: bool,
 }
 
 impl<ExecC, ReadF, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, ReadF, WriteF>
@@ -162,8 +154,9 @@ where
                                         continue;
                                     }
                                 }
+                            } else {
+                                tracing::warn!("Detected Federation Version change but due to overrides (CLI flags, ENV vars etc.) this was not actioned.")
                             }
-
                         }
                         Passthrough(ev) => {
                             let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
