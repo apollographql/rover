@@ -120,6 +120,8 @@ jobs:
         run: |
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
+          #echo "Killing any process on :4000"
+          #kill -9 $(lsof -t -i:4000)
           $E2E_BINARY e2e::dev::e2e_test_rover_dev --ignored --nocapture 
       #- name: Run Smoke Tests (Windows)
       #  if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
@@ -131,6 +133,7 @@ jobs:
       #    APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
       #  run: |
       #    $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
+      #FOR /F "tokens=5" %P IN ('netstat -ano ^| findstr :<port_number>') DO taskkill /F /PID %P
       #    Write-Output "Found '$E2E_BINARY'"
       #    & $E2E_BINARY --ignored --nocapture
   # It appears as though GitHub Actions mechanisms for handling errors within matrix job runs are... less than
