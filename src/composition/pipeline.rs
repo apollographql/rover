@@ -261,6 +261,9 @@ impl CompositionPipeline<state::Run> {
         output_dir: Utf8PathBuf,
         output_target: OutputTarget,
         compose_on_initialisation: bool,
+        studio_client_config: StudioClientConfig,
+        elv2_licence_accepter: LicenseAccepter,
+        skip_update: bool,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
     where
         ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -293,6 +296,9 @@ impl CompositionPipeline<state::Run> {
                 output_dir,
                 compose_on_initialisation,
                 output_target,
+                studio_client_config,
+                elv2_licence_accepter,
+                skip_update,
             );
         Ok(runner)
     }

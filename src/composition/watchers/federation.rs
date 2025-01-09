@@ -1,3 +1,4 @@
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use tap::TapFallible;
@@ -31,7 +32,9 @@ impl SubtaskHandleStream for FederationWatcher {
                     Ok(diff) => {
                         if let Some(fed_version) = diff.federation_version() {
                             let _ = sender
-                                .send(CompositionInputEvent::Federation(fed_version.clone()))
+                                .send(CompositionInputEvent::Federation(
+                                    fed_version.clone().unwrap_or(LatestFedTwo),
+                                ))
                                 .tap_err(|err| error!("{:?}", err));
                         }
                     }

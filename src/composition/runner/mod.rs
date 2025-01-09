@@ -28,8 +28,11 @@ use super::{
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::watchers::composition::FederationUpdaterConfig;
 use crate::composition::watchers::federation::FederationWatcher;
+use crate::options::LicenseAccepter;
 use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
+use crate::utils::client::StudioClientConfig;
 use crate::{
     composition::watchers::watcher::{
         file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
@@ -137,6 +140,9 @@ impl Runner<state::SetupCompositionWatcher> {
         temp_dir: Utf8PathBuf,
         compose_on_initialisation: bool,
         output_target: OutputTarget,
+        studio_client_config: StudioClientConfig,
+        elv2_licence_accepter: LicenseAccepter,
+        skip_update: bool,
     ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -153,6 +159,11 @@ impl Runner<state::SetupCompositionWatcher> {
             .temp_dir(temp_dir)
             .compose_on_initialisation(compose_on_initialisation)
             .output_target(output_target)
+            .federation_updater_config(FederationUpdaterConfig {
+                studio_client_config,
+                elv2_licence_accepter,
+                skip_update,
+            })
             .build();
         Runner {
             state: state::Run {

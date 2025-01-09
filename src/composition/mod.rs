@@ -13,6 +13,7 @@ use derive_getters::Getters;
 use crate::composition::supergraph::config::resolver::{
     LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
 };
+use crate::composition::supergraph::install::InstallSupergraphError;
 
 pub mod events;
 pub mod pipeline;
@@ -65,6 +66,8 @@ pub enum CompositionError {
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("{}", .0)]
     InvalidSupergraphConfig(String),
+    #[error("Could not update Federation Version")]
+    ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
 }
 
 #[derive(Debug, Eq, PartialEq)]
