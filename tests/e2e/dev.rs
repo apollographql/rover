@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{self, Command};
 use std::time::Duration;
 use std::{env, thread::sleep};
 
@@ -49,7 +50,27 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", version);
     };
-    cmd.spawn().expect("Could not run rover dev command");
+
+    let mut child = cmd.spawn().expect("Could not run rover dev command");
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    tokio::spawn(async {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                println!("stdout: {line}");
+            }
+        }
+
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                println!("stderr: {line}");
+            }
+        }
+    });
+
     tokio::task::block_in_place(|| {
         let handle = tokio::runtime::Handle::current();
         handle.block_on(test_graphql_connection(
