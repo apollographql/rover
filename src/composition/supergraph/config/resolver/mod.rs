@@ -119,6 +119,7 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .map_err(|err| {
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
                 })?;
+
             Ok(SupergraphConfigResolver {
                 state: state::LoadSupergraphConfig {
                     federation_version_resolver: self.state.federation_version_resolver,
