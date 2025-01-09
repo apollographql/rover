@@ -88,7 +88,7 @@ pub enum LoadRemoteSubgraphsError {
     #[error(transparent)]
     FetchRemoteSubgraphsError(Box<dyn std::error::Error + Send + Sync>),
     /// Error captured when the `FetchRemoteSubgraphs` error includes a invalid credentials marker
-    #[error("Invalid credentials provided. Cannot connect to subgraph(s). See Authenticating with GraphOS [https://www.apollographql.com/docs/rover/configuring].")]
+    #[error("Invalid credentials provided. Cannot connect to subgraph(s). See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
     FetchRemoteSubgraphsAuthError(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -121,19 +121,57 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .await
                 .map_err(|err| {
 
-                    // Q: Why choose map_err here instead of From?
-                    //
-                    // Q: How can I limit my match to only those which are "Invalid credentials
-                    // provided. Cannot connect to subgraphs."
-                    //match &err {
-                        //PartialError(_) => { println!("hahah") },
-                        //(la) => { println!("{}", la) },
-                    //}
-                    eprintln!("Error => \n {:?}", err);
+                    // Q1: Academic: Why choose map_err here instead of From? I think I could use
+                    // the From trait to cast the error raised by the try operator (?) into
+                    // whatever I want. I'm chosing to use map_err here becuase it is how the rest
+                    // of this code is structure, but curious about the idiomatic approach here.
 
-                    //Error =>
- //Service { source: PartialError { data: ResponseData { variant: None }, errors: [Error { message: "406: Not Acceptable", locations: None, path: None, extensions: Some({"response": Object {"body": Object {"errors": Array [Object {"message": String("Invalid credentials provided")}]}, "status": Number(406), "statusText": String("Not Acceptable"), "url": String("http://engine-graphql.apollo-default.svc.prod.apollo-internal:8081/api/graphql")}, "code": String("INTERNAL_SERVER_ERROR")}) }] }, endpoint_kind: ApolloStudio }
-                    //LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
+
+                    // Q2: Practical: I want to write a match statement that has an arm that matches
+                    // the `err` has an "Invalid credentials provided" message. I've copied what
+                    // `err` logs to the console below.
+
+                    // eprintln!("Error => \n {:?}", err);
+                    // Error =>
+                    // Service {
+                    //  source: PartialError {
+                    //      data: ResponseData {
+                    //          variant: None
+                    //      },
+                    //      errors: [
+                    //          Error {
+                    //              message: "406: Not Acceptable",
+                    //              locations: None,
+                    //              path: None,
+                    //              extensions:
+                    //                  Some({
+                    //                      "response": Object {
+                    //                          "body": Object {
+                    //                              "errors": Array [
+                    //                                  Object {
+                    //                                      "message": String("Invalid credentials provided")
+                    //                                  }
+                    //                               ]
+                    //                           },
+                    //                           "status": Number(406),
+                    //                           "statusText": String("Not Acceptable"),
+                    //                           "url": String("http://engine-graphql.apollo-default.svc.prod.apollo-internal:8081/api/graphql")},
+                    //                           "code": String("INTERNAL_SERVER_ERROR")
+                    //                  })
+                    //          }
+                    //      ]
+                    //  },
+                    //  endpoint_kind: ApolloStudio
+                    // }
+
+                    // psuedo: what I'm trying to accomplish
+
+                    //match err {
+                        //PartialError?!?(_) => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
+                        //() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
+                    //}
+
+
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                 })?;
             Ok(SupergraphConfigResolver {
