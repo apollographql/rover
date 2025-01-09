@@ -163,6 +163,7 @@ where
                         }
                         Passthrough(ev) => {
                             let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
+                            continue;
                         }
                     }
 
