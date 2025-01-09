@@ -209,7 +209,7 @@ where
         // events in order to trigger recomposition.
         let (composition_messages, composition_subtask) =
             Subtask::new(self.state.composition_watcher);
-        composition_subtask.run(subgraph_change_stream.boxed());
+        composition_subtask.run(select(subgraph_change_stream, federation_watcher_stream).boxed());
 
         // Start subgraph watchers, listening for events from the supergraph change stream.
         subgraph_watcher_subtask.run(
@@ -245,6 +245,6 @@ where
             supergraph_config_subtask.run();
         }
 
-        select(composition_messages, federation_watcher_stream).boxed()
+        composition_messages.boxed()
     }
 }
