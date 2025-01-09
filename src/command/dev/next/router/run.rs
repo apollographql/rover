@@ -312,7 +312,6 @@ impl RunRouter<state::Watch> {
 
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
-                CompositionEvent::Started => None,
                 CompositionEvent::Error(err) => {
                     tracing::error!("Composition error {:?}", err);
                     None
@@ -320,6 +319,7 @@ impl RunRouter<state::Watch> {
                 CompositionEvent::Success(success) => Some(RouterUpdateEvent::SchemaChanged {
                     schema: success.supergraph_sdl().to_string(),
                 }),
+                _ => None,
             })
             .boxed();
 
