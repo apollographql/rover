@@ -215,6 +215,8 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
+        println!("after run router watch for changes");
+
         warnln!(
             "Do not run this command in production! It is intended for local development only."
         );

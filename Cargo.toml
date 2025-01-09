@@ -239,6 +239,7 @@ httpmock = { workspace = true }
 indoc = { workspace = true }
 mime = "0.3.17"
 mockall = "0.13.0"
+nix = "0.29.0"
 portpicker = "0.1.1"
 predicates = { workspace = true }
 rand = "0.8.5"

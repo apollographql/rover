@@ -331,6 +331,7 @@ impl RunRouter<state::Watch> {
             (None, None)
         };
 
+        println!("before composition messages");
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
                 CompositionEvent::Started => None,
@@ -343,27 +344,38 @@ impl RunRouter<state::Watch> {
                 }),
             })
             .boxed();
+        println!("after composition messages");
 
+        println!("before hot reload watchier");
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
             .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
+        println!("after hot reload watchier");
 
+        println!("before subtask for hot reload watcher");
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
+        println!("after subtask for hot reload watcher");
 
+        println!("before router config updates");
         let router_config_updates = router_config_updates
             .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
+        println!("after router config updates");
 
+        println!("before router updates merge");
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
+        println!("after router updates merge");
 
+        println!("before abort handles");
         let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
 
         let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
+        println!("after abort handles");
 
         RunRouter {
             state: state::Abort {
