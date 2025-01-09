@@ -9,10 +9,54 @@ use graphql_client::GraphQLQuery;
 use http::{uri::InvalidUri, HeaderValue, Method, StatusCode, Uri};
 use http_body_util::Full;
 use rover_http::{HttpRequest, HttpResponse};
+use serde::{Deserialize, Serialize};
 use tower::{Layer, Service};
 use url::Url;
 
 const JSON_CONTENT_TYPE: &str = "application/json";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct PartialErrorInnerError {
+    message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct PartialErrorInnerErrorList {
+    errors: Vec<PartialErrorInnerError>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct PartialErrorInnerBody {
+    body: PartialErrorInnerErrorList,
+}
+
+#[derive(Debug, Clone)]
+struct SimplifiedErrorList {
+    errors: Vec<String>,
+}
+
+impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
+    fn from(x: &Vec<graphql_client::Error>) -> Self {
+        let mut friendly_errors_detail: Vec<String> = vec![];
+
+        for err in x.iter() {
+            let json_root = err.extensions.as_ref().unwrap().get("response").unwrap();
+
+            serde_json::from_str::<PartialErrorInnerBody>(&json_root.to_string())
+                .unwrap()
+                .body
+                .errors
+                .iter()
+                .for_each(|x| {
+                    friendly_errors_detail.push(x.clone().message);
+                });
+        }
+
+        Self {
+            errors: friendly_errors_detail,
+        }
+    }
+}
 
 /// Re-export / renamed type alias for [`graphql_client::Response`]
 pub type GraphQLResponse<T> = graphql_client::Response<T>;
@@ -20,17 +64,22 @@ pub type GraphQLResponse<T> = graphql_client::Response<T>;
 /// Errors that may occur from using a [`GraphQLService`]
 #[derive(thiserror::Error, Debug)]
 pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
-    /// There was not data field provided in the response
+    /// There was no data field provided in the response
     #[error("No data field provided")]
     NoData(Vec<graphql_client::Error>),
     /// The response returned some data, but there were errors
-    #[error("Data was returned, but with errors")]
+    #[error("Data was returned, but with errors: {}", friendly_errors_detail.join(" "))]
     PartialError {
         /// The partial data returned
         data: T,
         /// The GraphQL errors that were produced
         errors: Vec<graphql_client::Error>,
+        /// display ready decoration of `errors`
+        friendly_errors_detail: Vec<String>,
     },
+    /// The request failed to present credentials that authorize for the current request.
+    #[error("Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
+    InvalidCredentials(),
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
@@ -187,9 +236,25 @@ where
                         status_code: resp.status(),
                     }
                 })?;
+
             if let Some(errors) = graphql_response.errors {
                 match graphql_response.data {
-                    Some(data) => Err(GraphQLServiceError::PartialError { data, errors }),
+                    Some(data) => {
+                        let friendly_errors_detail = SimplifiedErrorList::from(&errors).errors;
+
+                        if friendly_errors_detail
+                            .join("")
+                            .contains("Invalid credentials")
+                        {
+                            Err(GraphQLServiceError::InvalidCredentials {})
+                        } else {
+                            Err(GraphQLServiceError::PartialError {
+                                data,
+                                errors,
+                                friendly_errors_detail,
+                            })
+                        }
+                    }
                     None => Err(GraphQLServiceError::NoData(errors)),
                 }
             } else {

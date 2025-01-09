@@ -14,6 +14,7 @@ http-body = { workspace = true }
 http-body-util = { workspace = true }
 rover-http = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 tower = { workspace = true }
 url = { workspace = true }
@@ -22,7 +23,6 @@ url = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
 rstest = { workspace = true }
-serde = { workspace = true }
 speculoos = { workspace = true }
 tower-test = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
