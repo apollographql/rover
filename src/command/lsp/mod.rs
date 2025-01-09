@@ -27,6 +27,7 @@ use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
 use crate::composition::supergraph::config::resolver::{SubgraphPrompt, SupergraphConfigResolver};
+use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::SupergraphConfigResolutionError::PathDoesNotPointToAFile;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -269,7 +270,12 @@ async fn start_composition(
                 }
                 CompositionEvent::Error(err) => {
                     debug!("Composition failed: {err}");
-                    let message = format!("Composition failed to run: {err}",);
+                    let message = match err {
+                        CompositionError::ErrorUpdatingFederationVersion(
+                            InstallSupergraphError::MissingDependency { err },
+                        ) => format!("Supergraph Version could not be updated: {err}"),
+                        _ => format!("Composition failed to run: {err}",),
+                    };
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
