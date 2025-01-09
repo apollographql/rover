@@ -120,6 +120,7 @@ jobs:
         run: |
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
+          echo "${APOLLO_KEY:0:5}"
           #echo "Killing any process on :4000"
           #kill -9 $(lsof -t -i:4000)
           $E2E_BINARY e2e::dev::e2e_test_rover_dev --ignored --nocapture 
