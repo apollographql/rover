@@ -120,7 +120,7 @@ jobs:
         run: |
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
-          $E2E_BINARY --ignored --nocapture
+          $E2E_BINARY --ignored --nocapture -- --test-threads 1
       #- name: Run Smoke Tests (Windows)
       #  if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
       #  env:
