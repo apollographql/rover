@@ -1,5 +1,5 @@
 use std::io::BufRead;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 use std::{env, io::BufReader};
 
@@ -41,7 +41,9 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
         &format!("{}", port),
         "--elv2-license",
         "accept",
-    ]);
+    ])
+    .stderr(Stdio::piped())
+    .stdout(Stdio::piped());
 
     cmd.current_dir(run_subgraphs_retail_supergraph.get_working_directory());
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
@@ -60,13 +62,13 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
             ROVER_DEV_TIMEOUT,
         ))
     }) {
-        //let stdout = child.stdout.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        //let mut stdout_reader = BufReader::new(stdout).lines();
-        //while let Some(line) = stdout_reader.next() {
-        //    tracing::info!("{:?}", line);
-        //}
+        let mut stdout_reader = BufReader::new(stdout).lines();
+        while let Some(line) = stdout_reader.next() {
+            tracing::info!("{:?}", line);
+        }
 
         let mut stderr_reader = BufReader::new(stderr).lines();
         while let Some(line) = stderr_reader.next() {
