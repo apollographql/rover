@@ -122,7 +122,7 @@ jobs:
           echo "Found '$E2E_BINARY'"
           echo "env var check: ${APOLLO_KEY:0:5}"
           echo "checking port :4000"
-          lsof -i :4000
+          echo "$(lsof -i :4000)"
           #echo "Killing any process on :4000"
           #kill -9 $(lsof -t -i:4000)
           $E2E_BINARY e2e::dev::e2e_test_rover_dev --ignored --nocapture 
