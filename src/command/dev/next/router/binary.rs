@@ -161,9 +161,9 @@ where
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
             }
 
-            //if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
-            //    env.insert("APOLLO_KEY".to_string(), api_key);
-            //}
+            if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
+                env.insert("APOLLO_KEY".to_string(), api_key);
+            }
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
