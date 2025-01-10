@@ -62,6 +62,7 @@ impl Dev {
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
         let profile = &self.opts.plugin_opts.profile;
+        tracing::debug!("profile {profile}");
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
@@ -145,8 +146,10 @@ impl Dev {
             None => RouterVersion::Latest,
         };
 
+        tracing::debug!("did we get a credential?");
         let credential =
             Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
+        tracing::debug!("did we get a credential? origin: {:?}", credential.origin);
 
         let composition_runner = composition_pipeline
             .runner(
@@ -220,7 +223,7 @@ impl Dev {
             )
             .await?;
 
-        println!("after run router watch for changes");
+        tracing::debug!("after run router watch for changes");
 
         warnln!(
             "Do not run this command in production! It is intended for local development only."

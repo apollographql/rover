@@ -175,7 +175,7 @@ impl RunRouter<state::Run> {
             .build()
             .to_string();
 
-        println!("hot reload config: {hot_reload_config:?}");
+        tracing::debug!("hot reload config: {hot_reload_config:?}");
 
         write_file
             .call(
@@ -266,7 +266,7 @@ impl RunRouter<state::Watch> {
         WriteF: WriteFile + Send + Clone + 'static,
     {
         tracing::info!("Watching for subgraph changes");
-        println!("config path in watching: {:?}", self.state.config_path);
+        tracing::debug!("config path in watching: {:?}", self.state.config_path);
         let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
             self.state.config_path
         {
@@ -278,7 +278,7 @@ impl RunRouter<state::Watch> {
             (None, None)
         };
 
-        println!("before composition messages");
+        tracing::debug!("before composition messages");
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
                 CompositionEvent::Started => None,
@@ -291,38 +291,38 @@ impl RunRouter<state::Watch> {
                 }),
             })
             .boxed();
-        println!("after composition messages");
+        tracing::debug!("after composition messages");
 
-        println!("before hot reload watchier");
+        tracing::debug!("before hot reload watchier");
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
             .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
-        println!("after hot reload watchier");
+        tracing::debug!("after hot reload watchier");
 
-        println!("before subtask for hot reload watcher");
+        tracing::debug!("before subtask for hot reload watcher");
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-        println!("after subtask for hot reload watcher");
+        tracing::debug!("after subtask for hot reload watcher");
 
-        println!("before router config updates");
+        tracing::debug!("before router config updates");
         let router_config_updates = router_config_updates
             .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
-        println!("after router config updates");
+        tracing::debug!("after router config updates");
 
-        println!("before router updates merge");
+        tracing::debug!("before router updates merge");
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
-        println!("after router updates merge");
+        tracing::debug!("after router updates merge");
 
-        println!("before abort handles");
+        tracing::debug!("before abort handles");
         let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
 
         let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
-        println!("after abort handles");
+        tracing::debug!("after abort handles");
 
         let mut endpoint = self.state.health_check_endpoint;
         if let Err(_whoopsie) = wait_for_healthy_router(
@@ -333,7 +333,7 @@ impl RunRouter<state::Watch> {
         .await
         {
             // FIXME: doesn't actually abort!
-            println!("aborting!");
+            tracing::debug!("aborting!");
             abort_config_watcher.clone().unwrap().abort();
             abort_hot_reload.abort();
             self.state.abort_router.abort();
