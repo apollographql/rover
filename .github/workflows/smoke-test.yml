@@ -23,13 +23,13 @@ jobs:
         compile_target:
           #- target: x86_64-apple-darwin
           #  compiles_on: macos-13-xlarge
-          #- target: aarch64-apple-darwin
-          #  compiles_on: macos-13-xlarge
+          - target: aarch64-apple-darwin
+            compiles_on: macos-13-xlarge
           #- target: x86_64-pc-windows-msvc
           #  compiles_on: windows-2022
-          - target: x86_64-unknown-linux-gnu
-            compiles_on: ubuntu-22.04
-            container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
+          #- target: x86_64-unknown-linux-gnu
+          #  compiles_on: ubuntu-22.04
+          #  container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
     # Arm64 runner for cross-compilation
     runs-on: ${{ matrix.compile_target.compiles_on }}
     steps:
@@ -86,10 +86,10 @@ jobs:
           #  binary_under_test: x86_64-apple-darwin
           #- run_test_on: macos-15-large
           #  binary_under_test: x86_64-apple-darwin
-          - run_test_on: ubuntu-22.04
-            binary_under_test: x86_64-unknown-linux-gnu
-          #- run_test_on: macos-13-xlarge
-          #  binary_under_test: aarch64-apple-darwin
+          #- run_test_on: ubuntu-22.04
+          #  binary_under_test: x86_64-unknown-linux-gnu
+          - run_test_on: macos-13-xlarge
+            binary_under_test: aarch64-apple-darwin
           #- run_test_on: macos-14
           #  binary_under_test: aarch64-apple-darwin
           #- run_test_on: macos-15

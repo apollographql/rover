@@ -304,36 +304,58 @@ async fn e2e_test_rover_dev(
 
     println!("here!");
     let mut child = cmd.spawn().expect("Could not run rover dev command");
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    // let stdout = child.stdout.take().unwrap();
+    // let stderr = child.stderr.take().unwrap();
 
-    tokio::spawn(async {
-        let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                println!("stdout: {line}");
-            }
-        }
+    // tokio::spawn(async {
+    //     let reader = BufReader::new(stdout);
+    //     for line in reader.lines() {
+    //         if let Ok(line) = line {
+    //             println!("stdout: {line}");
+    //         }
+    //     }
 
-        let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                println!("stderr: {line}");
-            }
-        }
-    });
+    //     let reader = BufReader::new(stderr);
+    //     for line in reader.lines() {
+    //         if let Ok(line) = line {
+    //             println!("stderr: {line}");
+    //         }
+    //     }
+    // });
 
     for (name, query, expectation) in test_cases {
         println!("test case: {name}");
-        tokio::task::block_in_place(|| {
+        //tokio::task::block_in_place(|| {
+        //    let handle = tokio::runtime::Handle::current();
+        //    handle.block_on(test_graphql_connection(
+        //        &client,
+        //        &router_url,
+        //        ROVER_DEV_TIMEOUT,
+        //    ))
+        //})
+        //.expect("Could not execute check");
+
+        if let Err(_err) = tokio::task::block_in_place(|| {
             let handle = tokio::runtime::Handle::current();
             handle.block_on(test_graphql_connection(
                 &client,
                 &router_url,
                 ROVER_DEV_TIMEOUT,
             ))
-        })
-        .expect("Could not execute check");
+        }) {
+            //let stdout = child.stdout.take().unwrap();
+            let stderr = child.stderr.take().unwrap();
+
+            //        let mut stdout_reader = BufReader::new(stdout).lines();
+            //        while let Some(line) = stdout_reader.next() {
+            //            tracing::info!("{:?}", line);
+            //        }
+
+            let mut stderr_reader = BufReader::new(stderr).lines();
+            while let Some(line) = stderr_reader.next() {
+                tracing::info!("{:?}", line);
+            }
+        }
 
         let client = Client::new();
         let req = client
