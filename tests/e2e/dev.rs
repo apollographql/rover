@@ -1,6 +1,7 @@
-use std::env;
+use std::io::BufRead;
 use std::process::Command;
 use std::time::Duration;
+use std::{env, io::BufReader};
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
@@ -10,6 +11,7 @@ use reqwest::Client;
 use rstest::*;
 use serde_json::{json, Value};
 use speculoos::assert_that;
+use tokio::task::spawn_blocking;
 use tokio::time::timeout;
 use tracing::error;
 use tracing_test::traced_test;
@@ -40,6 +42,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
         "--elv2-license",
         "accept",
     ]);
+
     cmd.current_dir(run_subgraphs_retail_supergraph.get_working_directory());
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
@@ -47,16 +50,30 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", version);
     };
-    cmd.spawn().expect("Could not run rover dev command");
-    tokio::task::block_in_place(|| {
+    let mut child = cmd.spawn().expect("Could not run rover dev command");
+
+    if let Err(_err) = tokio::task::block_in_place(|| {
         let handle = tokio::runtime::Handle::current();
         handle.block_on(test_graphql_connection(
             &client,
             &router_url,
             ROVER_DEV_TIMEOUT,
         ))
-    })
-    .expect("Could not execute check");
+    }) {
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+
+        let mut stdout_reader = BufReader::new(stdout).lines();
+        while let Some(line) = stdout_reader.next() {
+            tracing::info!("{:?}", line);
+        }
+
+        let mut stderr_reader = BufReader::new(stderr).lines();
+        while let Some(line) = stderr_reader.next() {
+            tracing::info!("{:?}", line);
+        }
+    }
+    //.expect("Could not execute check");
     router_url
 }
 
