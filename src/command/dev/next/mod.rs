@@ -146,9 +146,16 @@ impl Dev {
             None => RouterVersion::Latest,
         };
 
-        tracing::debug!("did we get a credential?");
-        let credential =
-            Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
+        tracing::debug!("getting credential");
+        let api_key = match std::env::var("APOLLO_KEY") {
+            Ok(key) => Some(key),
+            Err(err) => None,
+        };
+
+        let credential = Profile::get_credential(
+            &profile.profile_name,
+            &Config::new(None::<&String>, api_key)?,
+        )?;
         tracing::debug!("did we get a credential? origin: {:?}", credential.origin);
 
         let composition_runner = composition_pipeline
