@@ -1,10 +1,9 @@
-use std::{collections::HashMap, env, fmt, net::SocketAddr, process::Stdio};
+use std::{collections::HashMap, fmt, process::Stdio};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use houston::Credential;
-use rover_client::operations::config::who_am_i;
 use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
@@ -138,24 +137,11 @@ where
                 "--dev".to_string(),
             ];
 
-            println!("config path passed to router binary: {}", self.config_path);
-
             let mut env = HashMap::from_iter([
                 ("APOLLO_ROVER".to_string(), "true".to_string()),
-                ("APOLLO_KEY".to_string(), self.credential.api_key.clone()),
+                // TODO: decide if necessary
+                //("APOLLO_KEY".to_string(), self.credential.api_key.clone()),
             ]);
-
-            match self.credential.origin {
-                houston::CredentialOrigin::EnvVar => eprintln!("env var cred"),
-                houston::CredentialOrigin::ConfigFile(file) => {
-                    eprintln!("cred from file: {file:?}")
-                }
-            }
-
-            tracing::info!("can I see traces?");
-
-            let key = &self.credential.api_key[..6];
-            eprintln!("key: {key:?}");
 
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
@@ -164,6 +150,7 @@ where
             if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
                 env.insert("APOLLO_KEY".to_string(), api_key);
             }
+
             let child = spawn
                 .ready()
                 .and_then(|spawn| {

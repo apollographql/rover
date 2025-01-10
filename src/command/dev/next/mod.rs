@@ -16,7 +16,6 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::{
-    cli::Rover,
     command::{
         dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
         Dev,
