@@ -346,13 +346,13 @@ async fn e2e_test_rover_dev(
                 ROVER_DEV_TIMEOUT,
             ))
         }) {
-            //let stdout = child.stdout.take().unwrap();
+            let stdout = child.stdout.take().unwrap();
             let stderr = child.stderr.take().unwrap();
 
-            //        let mut stdout_reader = BufReader::new(stdout).lines();
-            //        while let Some(line) = stdout_reader.next() {
-            //            tracing::info!("{:?}", line);
-            //        }
+            let mut stdout_reader = BufReader::new(stdout).lines();
+            while let Some(line) = stdout_reader.next() {
+                tracing::info!("{:?}", line);
+            }
 
             let mut stderr_reader = BufReader::new(stderr).lines();
             while let Some(line) = stderr_reader.next() {
