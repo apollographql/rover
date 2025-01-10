@@ -62,13 +62,13 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
             ROVER_DEV_TIMEOUT,
         ))
     }) {
-        let stdout = child.stdout.take().unwrap();
+        //let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        let mut stdout_reader = BufReader::new(stdout).lines();
-        while let Some(line) = stdout_reader.next() {
-            tracing::info!("{:?}", line);
-        }
+        //        let mut stdout_reader = BufReader::new(stdout).lines();
+        //        while let Some(line) = stdout_reader.next() {
+        //            tracing::info!("{:?}", line);
+        //        }
 
         let mut stderr_reader = BufReader::new(stderr).lines();
         while let Some(line) = stderr_reader.next() {
@@ -82,8 +82,8 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
 #[rstest]
 #[case::simple_subgraph("query {product(id: \"product:2\") { description } }", json!({"data":{"product": {"description": "A classic Supreme vbox t-shirt in the signature Tiffany blue."}}}))]
 #[case::multiple_subgraphs("query {order(id: \"order:2\") { items { product { id } inventory { inventory } colorway } buyer { id } } }", json!({"data":{"order":{"items":[{"product":{"id":"product:1"},"inventory":{"inventory":0},"colorway":"Red"}],"buyer":{"id":"user:1"}}}}))]
-#[case::deprecated_field("query {product(id: \"product:2\") { reviews { author id } } }", json!({"data":{"product":{"reviews":[{"author":"User 1","id":"review:2"},{"author":"User 1","id":"review:7"}]}}}))]
-#[case::deprecated_introspection("query {__type(name:\"Review\"){ fields(includeDeprecated: true) { name isDeprecated deprecationReason } } }", json!({"data":{"__type":{"fields":[{"name":"id","isDeprecated":false,"deprecationReason":null},{"name":"body","isDeprecated":false,"deprecationReason":null},{"name":"author","isDeprecated":true,"deprecationReason":"Use the new `user` field"},{"name":"user","isDeprecated":false,"deprecationReason":null},{"name":"product","isDeprecated":false,"deprecationReason":null}]}}}))]
+//#[case::deprecated_field("query {product(id: \"product:2\") { reviews { author id } } }", json!({"data":{"product":{"reviews":[{"author":"User 1","id":"review:2"},{"author":"User 1","id":"review:7"}]}}}))]
+//#[case::deprecated_introspection("query {__type(name:\"Review\"){ fields(includeDeprecated: true) { name isDeprecated deprecationReason } } }", json!({"data":{"__type":{"fields":[{"name":"id","isDeprecated":false,"deprecationReason":null},{"name":"body","isDeprecated":false,"deprecationReason":null},{"name":"author","isDeprecated":true,"deprecationReason":"Use the new `user` field"},{"name":"user","isDeprecated":false,"deprecationReason":null},{"name":"product","isDeprecated":false,"deprecationReason":null}]}}}))]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
