@@ -101,7 +101,7 @@ jobs:
         name: "Checkout rover repo"
       - uses: actions/download-artifact@v4
         name: "Download artifacts built in previous stages"
-      - if: ${{ !contains(matrgit ix.testing_target.binary_under_test, 'windows')}}
+      - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         name: "Set permissions on artifacts correctly"
         run: |
           chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
