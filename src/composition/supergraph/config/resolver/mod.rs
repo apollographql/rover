@@ -189,10 +189,36 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                     let string_idea = err.to_string();
                     println!("string idea: {string_idea}");
 
+                    // NMK: Yep, I like this as a starting point, but...
+                    // this returns "Data was returned, but with errors" without distinguishing
+                    // between the errors (I want to seperate errors based on "Invalid credentials"
+                    // from any other PartialErrors)..
+                    //
+                    //     #[error("Data was returned, but with errors")]
+                    //      PartialError {
+                    //           /// The partial data returned
+                    //          data: T,
+                    //          /// The GraphQL errors that were produced
+                    //          errors: Vec<graphql_client::Error>,
+                    //      },
+
+
                     // I'm pretty sure this will just be PartialError as a string or something, not
                     // as the nested object, but worth trying
                     let source_idea = err.source();
                     println!("source idea: {source_idea:?}");
+
+                    // NMK: when printing this to the console, it appears as a string representation of source, 
+                    // but I can't operate on it like a string in code. : 
+                    // Some(PartialError
+                    // { data: ResponseData { variant: None }, errors: [Error { message: "406: Not
+                    // Acceptable", locations: None, path: None, extensions: Some({"response":
+                    // Object {"body": Object {"errors": Array [Object {"message": String("Invalid
+                    // credentials provided")}]}, "status": Number(406), "statusText": String("Not
+                    // Acceptable"), "url":
+                    // String("http://engine-graphql.apollo-default.svc.prod.apollo-internal:8081/api/graphql")},
+                    // "code": String("INTERNAL_SERVER_ERROR")}) }] })
+
 
                     // Docs on .source()
                     // Errors may provide cause information. [`Error::source`](https://doc.rust-lang.org/stable/core/error/trait.Error.html) is generally
