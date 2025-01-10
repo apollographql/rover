@@ -12,7 +12,7 @@
 //!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!         by [`SupergraphConfig`]
 
-use std::{collections::BTreeMap, io::IsTerminal};
+use std::{any::Any, collections::BTreeMap, error::Error, io::IsTerminal};
 
 use anyhow::Context;
 use apollo_federation_types::config::{
@@ -92,6 +92,18 @@ pub enum LoadRemoteSubgraphsError {
     FetchRemoteSubgraphsAuthError(Box<dyn std::error::Error + Send + Sync>),
 }
 
+//impl From<MakeService::MakeError> for LoadRemoteSubgraphsError {
+//    fn from(value: MakeService::MakeError) -> Self {
+//        todo!()
+//    }
+//}
+//
+//impl<T, R> From<<dyn Any as MakeService<T, R>>::MakeError> for LoadRemoteSubgraphsError {
+//    fn from(value: <dyn Any as MakeService<T, R>>::MakeError) -> Self {
+//        todo!()
+//    }
+//}
+
 impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     /// Optionally loads subgraphs from the Studio API using the contents of the `--graph-ref` flag
     /// and an implementation of [`FetchRemoteSubgraphs`]
@@ -120,16 +132,87 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
-
                     // Q1: Academic: Why choose map_err here instead of From? I think I could use
                     // the From trait to cast the error raised by the try operator (?) into
                     // whatever I want. I'm chosing to use map_err here becuase it is how the rest
                     // of this code is structure, but curious about the idiomatic approach here.
+                    //
+                    // AA: when you try to do an impl From<MakeService::MakeError> for the LoadRemoteSubgraphsError,
+                    // you'll get an error about MakeService being an ambiguous type. That's
+                    // because it's a trait and you're actually implementing From for whatever
+                    // concrete type is implementing MakeService. Here's the error (and uncomment
+                    // the code snippet above to run it yourself):
+                    //
+                    // 1. ambiguous associated type [E0223]
+                    // 2. if there were a type named `Example` that implemented `MakeService`, you could use the fully-qualified path: `<Example as MakeService>::MakeError` [E0223]
+                    //
+                    // If you try to do as the error suggests, you need to either figure out
+                    // something to play the role of `Example` or try to use something like the
+                    // `Any` type, which is a trait to emulate dynamic typing (and is probably the
+                    // wrong thing to use here, but without knowing what to use for `Example`, we
+                    // might as well try to capture the idea of implementing From for anything that
+                    // implements MakeService. There's a code snippet above attempting this
+                    //
+                    // Because MakeService has generics, we have to add generics to the impl From;
+                    // but, those generics are _too_ generic and it's unclear how to contrain them.
+                    // That leads us to the orphan rule: you can't implement traits from library A
+                    // for some other library, B, because you own neither and can't guarantee that
+                    // B won't implement their own same-named trait with different behavior and
+                    // eventually colliding with your implementatin (a nightmare for consumers of
+                    // library B). Here are the error messages, with (1) being the orphan rule
+                    // (insofar as I can tell), and (2) and (3) just saying that the generics are
+                    // unconstrained
+                    //
+                    // 1. conflicting implementations of trait `From<LoadRemoteSubgraphsError>` for type `LoadRemoteSubgraphsError`
+                    //    conflicting implementation in crate `core`:
+                    //    - impl<T> From<T> for T;
+                    //    downstream crates may implement trait `tower::Service<_>` for type `(dyn std::any::Any + 'static)`
+                    //    downstream crates may implement trait `tower::MakeService<_, _>` for type `(dyn std::any::Any + 'static)` [E0119]
+                    // 2. the type parameter `T` is not constrained by the impl trait, self type, or predicates
+                    //    unconstrained type parameter [E0207]
+                    // 3. the type parameter `R` is not constrained by the impl trait, self type, or predicates
+                    //    unconstrained type parameter [E0207]
+                    //
+                    // So, ultimately, it's easier to just use map_err() and do the conversions
+                    // manually rather than trying to add impl Froms for what ends up being fairly
+                    // abstract/weird (because not concrete enough; we're not just ranging over a
+                    // concrete type with well-defined behavior, but across anything that
+                    // implements a set of behavior)
 
-
+                    // ====================
                     // Q2: Practical: I want to write a match statement that has an arm that matches
                     // the `err` has an "Invalid credentials provided" message. I've copied what
                     // `err` logs to the console below.
+                    //
+                    // I'm assuming you've already tried this route; but, what's in the string? If
+                    // there's something there that can be matched on, that'd be idea
+                    let string_idea = err.to_string();
+                    println!("string idea: {string_idea}");
+
+                    // I'm pretty sure this will just be PartialError as a string or something, not
+                    // as the nested object, but worth trying
+                    let source_idea = err.source();
+                    println!("source idea: {source_idea:?}");
+
+                    // Docs on .source()
+                    // Errors may provide cause information. [`Error::source`](https://doc.rust-lang.org/stable/core/error/trait.Error.html) is generally
+                    // used when errors cross "abstraction boundaries". If one module must report
+                    // an error that is caused by an error from a lower-level module, it can allow
+                    // accessing that error via [`Error::source`](https://doc.rust-lang.org/stable/core/error/trait.Error.html). This makes it possible for the
+                    // high-level module to provide its own errors while also revealing some of the
+                    // implementation for debugging.
+
+                    // I can't tell where PartialError is even coming from; it doesn't look like a
+                    // rust type in any of the crates we use, and so I guess it's probably just
+                    // part of the returned json from the network call?
+
+                    // These are just some initial thoughts; the practical question turned out to
+                    // be pretty hard, and I'm sure the other folks will have better advice, but I
+                    // think to_string()ing it or trying to source() it and then matching on the
+                    // strings of either could maybe work (unless that information just isn't
+                    // there). What we probably actually need is a way of converting that network
+                    // call's response into a type we can recognize; but, that gets pretty damn
+                    // hard when working with tower
 
                     // eprintln!("Error => \n {:?}", err);
                     // Error =>
@@ -167,13 +250,13 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                     // psuedo: what I'm trying to accomplish
 
                     //match err {
-                        //PartialError?!?(_) => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
-                        //() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
+                    //PartialError?!?(_) => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
+                    //() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
                     //}
-
 
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                 })?;
+
             Ok(SupergraphConfigResolver {
                 state: state::LoadSupergraphConfig {
                     federation_version_resolver: self.state.federation_version_resolver,
