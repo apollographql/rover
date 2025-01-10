@@ -170,7 +170,7 @@ impl RunRouter<state::Run> {
             .content(self.state.config.raw_config())
             .overrides(
                 HotReloadConfigOverrides::builder()
-                    // TODO: fix this address
+                    // TODO: validate this address
                     .address(self.state.config.address())
                     .build(),
             )
@@ -318,6 +318,7 @@ impl RunRouter<state::Watch> {
     where
         WriteF: WriteFile + Send + Clone + 'static,
     {
+        tracing::info!("Watching for subgraph changes");
         let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
             self.state.config_path
         {
