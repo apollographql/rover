@@ -298,6 +298,9 @@ async fn e2e_test_rover_dev(
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
     };
+    if let Ok(key) = env::var("APOLLO_KEY") {
+        cmd.env("APOLLO_KEY", key);
+    };
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", version);
     };
