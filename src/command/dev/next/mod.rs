@@ -2,7 +2,6 @@
 
 use std::{io::stdin, str::FromStr};
 
-use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
@@ -17,7 +16,11 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::{
-    command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
+    cli::Rover,
+    command::{
+        dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
+        Dev,
+    },
     composition::{
         pipeline::CompositionPipeline,
         supergraph::config::{
@@ -35,11 +38,12 @@ use crate::{
             read_file::FsReadFile,
             write_file::FsWriteFile,
         },
+        env::RoverEnvKey,
     },
-    RoverError, RoverOutput, RoverResult,
+    RoverOutput, RoverResult,
 };
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use self::router::config::RouterAddress;
 
 mod router;
 
@@ -62,7 +66,6 @@ impl Dev {
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
         let profile = &self.opts.plugin_opts.profile;
-        tracing::debug!("profile {profile}");
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
@@ -146,17 +149,19 @@ impl Dev {
             None => RouterVersion::Latest,
         };
 
-        tracing::debug!("getting credential");
-        let api_key = match std::env::var("APOLLO_KEY") {
+        let api_key_override = match std::env::var(RoverEnvKey::Key.to_string()) {
             Ok(key) => Some(key),
-            Err(err) => None,
+            Err(_err) => None,
+        };
+        let home_override = match std::env::var(RoverEnvKey::Home.to_string()) {
+            Ok(home) => Some(home),
+            Err(_err) => None,
         };
 
         let credential = Profile::get_credential(
             &profile.profile_name,
-            &Config::new(None::<&String>, api_key)?,
+            &Config::new(home_override.as_ref(), api_key_override)?,
         )?;
-        tracing::debug!("did we get a credential? origin: {:?}", credential.origin);
 
         let composition_runner = composition_pipeline
             .runner(
@@ -222,15 +227,8 @@ impl Dev {
                 credential,
             )
             .await?
-            .watch_for_changes(
-                write_file_impl,
-                composition_messages,
-                hot_reload_overrides,
-                client_config.clone(),
-            )
-            .await?;
-
-        tracing::debug!("after run router watch for changes");
+            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
+            .await;
 
         warnln!(
             "Do not run this command in production! It is intended for local development only."

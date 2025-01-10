@@ -1,4 +1,4 @@
-use std::{fmt::Display, net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
@@ -25,7 +25,7 @@ use super::{
 };
 use crate::{
     command::dev::next::{
-        router::hot_reload::{self, HotReloadConfig, HotReloadConfigOverrides},
+        router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
         FileWatcher,
     },
     composition::events::CompositionEvent,
@@ -224,20 +224,7 @@ impl RunRouter<state::Run> {
 
         let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
 
-        let mut health_check_endpoint = self
-            .state
-            .config
-            .health_check_endpoint()
-            .unwrap()
-            .to_string();
-        let health_check_path = self.state.config.health_check_path();
-
-        wait_for_healthy_router(
-            &mut health_check_endpoint,
-            &health_check_path,
-            &studio_client_config,
-        )
-        .await?;
+        self.wait_for_healthy_router(&studio_client_config).await?;
 
         Ok(RunRouter {
             state: state::Watch {
@@ -246,11 +233,78 @@ impl RunRouter<state::Run> {
                 hot_reload_config_path,
                 hot_reload_schema_path,
                 router_logs,
-                studio_client_config,
-                health_check_endpoint,
-                health_check_path,
             },
         })
+    }
+
+    async fn wait_for_healthy_router(
+        &self,
+        studio_client_config: &StudioClientConfig,
+    ) -> Result<(), RunRouterBinaryError> {
+        if !self.state.config.health_check_enabled() {
+            tracing::info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+            return Ok(());
+        }
+
+        // We hardcode the endpoint and port; if they're missing now, we've lost that bit of code
+        let mut healthcheck_endpoint = match self.state.config.health_check_endpoint() {
+            Some(endpoint) => endpoint.to_string(),
+            None => {
+            return Err(RunRouterBinaryError::Internal {
+                dependency: "Router Config Validation".to_string(),
+                err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
+            })
+            }
+        };
+
+        healthcheck_endpoint.push_str(&self.state.config.health_check_path());
+        let healthcheck_client = studio_client_config.get_reqwest_client().map_err(|err| {
+            RunRouterBinaryError::Internal {
+                dependency: "Reqwest Client".to_string(),
+                err: format!("Failed to get client: {err}"),
+            }
+        })?;
+
+        let healthcheck_request = healthcheck_client
+            .get(format!("http://{healthcheck_endpoint}"))
+            .build()
+            .map_err(|err| RunRouterBinaryError::Internal {
+                dependency: "Reqwest Client".to_string(),
+                err: format!("Failed to build healthcheck request: {err}"),
+            })?;
+
+        // Wait for the router to become healthy before continuing by checking its health endpoint,
+        // waiting only 10s
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let mut success = false;
+            while !success {
+                sleep(Duration::from_millis(250)).await;
+
+                let Some(request) = healthcheck_request.try_clone() else {
+                    return Err(RunRouterBinaryError::Internal {
+                        dependency: "Reqwest Client".to_string(),
+                        err: "Failed to clone healthcheck request".to_string(),
+                    });
+                };
+
+                tracing::debug!("sending health check ping to the router process");
+                debugln!("sending router health check");
+
+                if let Ok(res) = healthcheck_client.execute(request).await {
+                    success = res.status().is_success();
+                    if success {
+                        tracing::debug!("health check successful!");
+                        debugln!("health check successful!");
+                    }
+                }
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|_err| {
+            tracing::error!("health check failed");
+            RunRouterBinaryError::HealthCheckFailed
+        })?
     }
 }
 
@@ -260,13 +314,10 @@ impl RunRouter<state::Watch> {
         write_file_impl: WriteF,
         composition_messages: BoxStream<'static, CompositionEvent>,
         hot_reload_overrides: HotReloadConfigOverrides,
-        studio_client_config: StudioClientConfig,
-    ) -> Result<RunRouter<state::Abort>, RunRouterBinaryError>
+    ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
     {
-        tracing::info!("Watching for subgraph changes");
-        tracing::debug!("config path in watching: {:?}", self.state.config_path);
         let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
             self.state.config_path
         {
@@ -278,7 +329,6 @@ impl RunRouter<state::Watch> {
             (None, None)
         };
 
-        tracing::debug!("before composition messages");
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
                 CompositionEvent::Started => None,
@@ -291,55 +341,27 @@ impl RunRouter<state::Watch> {
                 }),
             })
             .boxed();
-        tracing::debug!("after composition messages");
 
-        tracing::debug!("before hot reload watchier");
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
             .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
-        tracing::debug!("after hot reload watchier");
 
-        tracing::debug!("before subtask for hot reload watcher");
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-        tracing::debug!("after subtask for hot reload watcher");
-
-        tracing::debug!("before router config updates");
         let router_config_updates = router_config_updates
             .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
-        tracing::debug!("after router config updates");
-
-        tracing::debug!("before router updates merge");
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
-        tracing::debug!("after router updates merge");
 
-        tracing::debug!("before abort handles");
         let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
 
         let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
-        tracing::debug!("after abort handles");
 
-        let mut endpoint = self.state.health_check_endpoint;
-        if let Err(_whoopsie) = wait_for_healthy_router(
-            &mut endpoint,
-            &self.state.health_check_path,
-            &studio_client_config,
-        )
-        .await
-        {
-            // FIXME: doesn't actually abort!
-            tracing::debug!("aborting!");
-            abort_config_watcher.clone().unwrap().abort();
-            abort_hot_reload.abort();
-            self.state.abort_router.abort();
-        };
-
-        Ok(RunRouter {
+        RunRouter {
             state: state::Abort {
                 abort_router: self.state.abort_router,
                 abort_hot_reload,
@@ -348,7 +370,7 @@ impl RunRouter<state::Watch> {
                 router_logs: self.state.router_logs,
                 hot_reload_schema_path: self.state.hot_reload_schema_path,
             },
-        })
+        }
     }
 }
 
@@ -368,89 +390,15 @@ impl RunRouter<state::Abort> {
     }
 }
 
-async fn wait_for_healthy_router(
-    health_check_endpoint: &mut String,
-    health_check_path: &String,
-    studio_client_config: &StudioClientConfig,
-) -> Result<(), RunRouterBinaryError> {
-    //if !self.state.config.health_check_enabled() {
-    //    info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
-    //    return Ok(());
-    //}
-
-    // We hardcode the endpoint and port; if they're missing now, we've lost that bit of code
-    //let mut healthcheck_endpoint = match health_check_endpoint {
-    //        Some(endpoint) => endpoint.to_string(),
-    //        None => {
-    //        return Err(RunRouterBinaryError::Internal {
-    //            dependency: "Router Config Validation".to_string(),
-    //            err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
-    //        })
-    //        }
-    //    };
-
-    health_check_endpoint.push_str(&health_check_path);
-    let healthcheck_client = studio_client_config.get_reqwest_client().map_err(|err| {
-        RunRouterBinaryError::Internal {
-            dependency: "Reqwest Client".to_string(),
-            err: format!("Failed to get client: {err}"),
-        }
-    })?;
-
-    let healthcheck_request = healthcheck_client
-        .get(format!("http://{health_check_endpoint}"))
-        .build()
-        .map_err(|err| RunRouterBinaryError::Internal {
-            dependency: "Reqwest Client".to_string(),
-            err: format!("Failed to build healthcheck request: {err}"),
-        })?;
-
-    // Wait for the router to become healthy before continuing by checking its health endpoint,
-    // waiting only 10s
-    tokio::time::timeout(Duration::from_secs(10), async {
-        let mut success = false;
-        while !success {
-            sleep(Duration::from_millis(250)).await;
-
-            let Some(request) = healthcheck_request.try_clone() else {
-                return Err(RunRouterBinaryError::Internal {
-                    dependency: "Reqwest Client".to_string(),
-                    err: "Failed to clone healthcheck request".to_string(),
-                });
-            };
-
-            tracing::debug!("sending health check ping to the router process");
-            debugln!("sending router health check");
-
-            if let Ok(res) = healthcheck_client.execute(request).await {
-                success = res.status().is_success();
-                if success {
-                    tracing::debug!("health check successful!");
-                    debugln!("health check successful!");
-                }
-            }
-        }
-        Ok(())
-    })
-    .await
-    .map_err(|_err| {
-        tracing::error!("health check failed");
-        RunRouterBinaryError::HealthCheckFailed
-    })?
-}
-
 mod state {
     use camino::Utf8PathBuf;
     use tokio::task::AbortHandle;
     use tokio_stream::wrappers::UnboundedReceiverStream;
 
-    use crate::{
-        command::dev::next::router::{
-            binary::{RouterBinary, RouterLog, RunRouterBinaryError},
-            config::{remote::RemoteRouterConfig, RouterConfigFinal},
-            hot_reload::HotReloadEvent,
-        },
-        utils::client::StudioClientConfig,
+    use crate::command::dev::next::router::{
+        binary::{RouterBinary, RouterLog, RunRouterBinaryError},
+        config::{remote::RemoteRouterConfig, RouterConfigFinal},
+        hot_reload::HotReloadEvent,
     };
 
     #[derive(Default)]
@@ -475,9 +423,6 @@ mod state {
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
         pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
-        pub health_check_endpoint: String,
-        pub health_check_path: String,
-        pub studio_client_config: StudioClientConfig,
     }
     pub struct Abort {
         pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
