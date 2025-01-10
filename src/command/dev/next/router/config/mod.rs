@@ -3,9 +3,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
-use http::Uri;
 use rover_std::errln;
-use rover_std::{Fs, RoverStdError};
+use rover_std::RoverStdError;
 use thiserror::Error;
 
 use self::{
@@ -23,8 +22,6 @@ const DEFAULT_ROUTER_PORT: u16 = 4000;
 
 #[derive(Error, Debug)]
 pub enum ReadRouterConfigError {
-    #[error(transparent)]
-    Fs(RoverStdError),
     #[error("Failed to read file at {}", .path)]
     ReadFile {
         path: Utf8PathBuf,

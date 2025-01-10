@@ -12,9 +12,9 @@ use crate::{
     utils::parsers::FileDescriptorType,
 };
 
-//#[cfg(not(feature = "dev-next"))]
-//pub mod legacy;
-//#[cfg(feature = "dev-next")]
+#[cfg(not(feature = "dev-next"))]
+pub mod legacy;
+#[cfg(feature = "dev-next")]
 pub mod next;
 
 #[derive(Debug, Serialize, Parser)]
