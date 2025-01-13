@@ -92,4 +92,7 @@ pub enum ResolveSubgraphError {
     /// Pass-through error for when a [`tower::Service`] fails to be ready
     #[error(transparent)]
     ServiceReady(#[from] Arc<Box<dyn std::error::Error + Send + Sync>>),
+    /// Error encountered if we can't parse a URL properly in the introspection case
+    #[error(transparent)]
+    ParsingSubgraphUrlError(#[from] url::ParseError),
 }
