@@ -11,7 +11,6 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::command::dev::router::config::RouterAddress;
-use crate::command::dev::router::install::InstallRouter;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::Dev;
@@ -166,7 +165,7 @@ impl Dev {
         );
 
         let run_router = RunRouter::default()
-            .install::<InstallRouter>(
+            .install(
                 router_version,
                 client_config.clone(),
                 override_install_path,
