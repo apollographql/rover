@@ -96,7 +96,7 @@ pub enum SupergraphConfigResolutionError {
     StudioClientInitialisationFailed(#[from] Error),
     #[error("Could not load remote subgraphs")]
     LoadRemoteSubgraphsFailed(#[from] LoadRemoteSubgraphsError),
-    #[error("Could not load supergraph config from local file")]
+    #[error("Could not load supergraph config from local file.\n{}", .0)]
     LoadLocalSupergraphConfigFailed(#[from] LoadSupergraphConfigError),
     #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
     ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),

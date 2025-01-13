@@ -23,6 +23,7 @@ use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
+use tracing::warn;
 use url::Url;
 
 use self::{
@@ -160,7 +161,12 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                 .and_then(|contents| {
                     SupergraphConfig::new_from_yaml(&contents)
                         .map_err(LoadSupergraphConfigError::SupergraphConfig)
-                })?;
+                })
+                .unwrap_or_else(|e| {
+                    warn!("Could not initially parse supergraph config: {}", e);
+                    warn!("Proceeding with empty supergraph config");
+                    SupergraphConfig::new(BTreeMap::new(), None)
+                });
             let origin_path = match file_descriptor_type {
                 FileDescriptorType::File(file) => Some(file.clone()),
                 FileDescriptorType::Stdin => None,
@@ -240,9 +246,9 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
-        prompt: &impl Prompt,
+        prompt: Option<&impl Prompt>,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        if !self.state.subgraphs.is_empty() {
+        if !self.state.subgraphs.is_empty() || prompt.is_none() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .subgraphs(self.state.subgraphs.clone())
                 .federation_version_resolver(self.state.federation_version_resolver.clone())
@@ -256,6 +262,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .await?;
             Ok(resolved_supergraph_config)
         } else {
+            let prompt = prompt.unwrap();
             let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
                 let mut map = BTreeMap::new();
                 map.insert("NAME UNKNOWN".to_string(), err);
@@ -305,9 +312,9 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         &self,
         supergraph_config_root: &Utf8PathBuf,
-        prompt: &impl Prompt,
+        prompt: Option<&impl Prompt>,
     ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        if !self.state.subgraphs.is_empty() {
+        if !self.state.subgraphs.is_empty() || prompt.is_none() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                 .and_origin_path(self.state.origin_path.clone())
                 .subgraphs(self.state.subgraphs.clone())
@@ -321,6 +328,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
             .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
             Ok(resolved_supergraph_config)
         } else {
+            let prompt = prompt.unwrap();
             let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
                 let mut map = BTreeMap::new();
                 map.insert("NAME UNKNOWN".to_string(), err);
@@ -706,7 +714,7 @@ mod tests {
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 
@@ -939,7 +947,7 @@ mod tests {
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 
@@ -1172,7 +1180,7 @@ mod tests {
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 

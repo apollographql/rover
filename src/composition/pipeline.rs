@@ -31,6 +31,7 @@ use super::{
     CompositionError, CompositionSuccess, FederationUpdaterConfig,
 };
 use crate::composition::pipeline::CompositionPipelineError::FederationOneWithFederationTwoSubgraphs;
+use crate::composition::supergraph::config::resolver::Prompt;
 use crate::{
     options::LicenseAccepter,
     utils::{
@@ -142,6 +143,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         federation_version: Option<FederationVersion>,
+        prompt: Option<&impl Prompt>,
     ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
         let fully_resolved_supergraph_config = self
             .state
@@ -150,7 +152,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &self.state.supergraph_root,
-                &SubgraphPrompt::default(),
+                prompt,
             )
             .await?;
         let fed_two_subgraphs = fully_resolved_supergraph_config
@@ -262,6 +264,7 @@ impl CompositionPipeline<state::Run> {
         output_target: OutputTarget,
         compose_on_initialisation: bool,
         federation_updater_config: Option<FederationUpdaterConfig>,
+        prompt: Option<&SubgraphPrompt>,
     ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
     where
         ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -271,7 +274,7 @@ impl CompositionPipeline<state::Run> {
         let lazily_resolved_supergraph_config = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(&self.state.supergraph_root, &SubgraphPrompt::default())
+            .lazily_resolve_subgraphs(&self.state.supergraph_root, prompt)
             .await?;
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
         let runner = Runner::default()
