@@ -96,7 +96,6 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
         None => {
             let (service, socket, _receiver) = ApolloLanguageServer::build_service(
                 Config {
-                    // TODO Do we need to worry about these now?
                     root_uri: String::default(),
                     enable_auto_composition: false,
                     force_federation: false,
@@ -270,7 +269,7 @@ async fn start_composition(
                 }
                 CompositionEvent::Error(err) => {
                     debug!("Composition failed: {err}");
-                    let message = format!("Failed run composition: {err}",);
+                    let message = format!("Failed run composition: {err}");
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
