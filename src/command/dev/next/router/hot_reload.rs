@@ -7,6 +7,8 @@ use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
 use super::config::RouterConfig;
 
+use rover_std::{debugln, errln, infoln};
+
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
     ConfigChanged { config: RouterConfig },
@@ -69,12 +71,17 @@ where
                                 let _ = sender.send(message).tap_err(|err| {
                                     tracing::error!("Unable to send message. Error: {:?}", err)
                                 });
+                                infoln!("Router config updated.");
+                                debugln!("{}", config.inner());
                             }
                             Err(err) => {
+                                let error_message =
+                                    format!("Router config failed to update. {}", &err);
                                 let message = HotReloadEvent::ConfigWritten(Err(Box::new(err)));
                                 let _ = sender.send(message).tap_err(|err| {
                                     tracing::error!("Unable to send message. Error: {:?}", err)
                                 });
+                                errln!("{}", error_message);
                             }
                         }
                     }

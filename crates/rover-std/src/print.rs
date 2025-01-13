@@ -9,6 +9,17 @@ macro_rules! infoln {
         eprintln!($($t)*);
     }};
 }
+/// Prints to the standard error, with a newline.
+///
+/// Equivalent to the [`eprintln!`] macro except that an info prefix is
+/// printed before the message.
+#[macro_export]
+macro_rules! debugln {
+    ($($t:tt)*) => {{
+        eprint!("{} ", $crate::Style::DebugPrefix.paint("debug:"));
+        eprintln!($($t)*);
+    }};
+}
 
 /// Prints to the standard error, with a newline.
 ///

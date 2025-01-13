@@ -75,6 +75,7 @@ pub struct SdlSubgraphScenario {
     pub sdl: String,
     pub unresolved_subgraph: UnresolvedSubgraph,
     pub subgraph_federation_version: SubgraphFederationVersion,
+    pub routing_url: String,
 }
 
 #[fixture]
@@ -83,6 +84,7 @@ pub fn sdl_subgraph_scenario(
     subgraph_name: String,
     #[default(SubgraphFederationVersion::One)]
     subgraph_federation_version: SubgraphFederationVersion,
+    routing_url: String,
 ) -> SdlSubgraphScenario {
     let sdl = if subgraph_federation_version.is_fed_two() {
         sdl_fed2(sdl)
@@ -95,10 +97,11 @@ pub fn sdl_subgraph_scenario(
             subgraph_name,
             SubgraphConfig {
                 schema: SchemaSource::Sdl { sdl },
-                routing_url: None,
+                routing_url: Some(routing_url.to_string()),
             },
         ),
         subgraph_federation_version,
+        routing_url,
     }
 }
 

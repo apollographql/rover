@@ -5,21 +5,15 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream, StreamExt, TryFutureExt};
 use itertools::Itertools;
-use tower::MakeService;
+use tower::{Service, ServiceExt};
 
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        resolver::{
-            fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
-            ResolveSupergraphConfigError,
-        },
-        unresolved::UnresolvedSupergraphConfig,
-    },
-    utils::effect::introspect::IntrospectSubgraph,
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError,
+    resolver::{fetch_remote_subgraph::FetchRemoteSubgraphFactory, ResolveSupergraphConfigError},
+    unresolved::UnresolvedSupergraphConfig,
 };
 
-use super::FullyResolvedSubgraph;
+use super::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph};
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
@@ -45,29 +39,37 @@ impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
 impl FullyResolvedSupergraphConfig {
     /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
     /// by resolving the individual subgraphs concurrently and calculating the [`FederationVersion`]
-    pub async fn resolve<MakeFetchSubgraph>(
-        introspect_subgraph_impl: &impl IntrospectSubgraph,
-        fetch_remote_subgraph_impl: MakeFetchSubgraph,
-        supergraph_config_root: Option<&Utf8PathBuf>,
+    pub async fn resolve(
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError>
-    where
-        MakeFetchSubgraph:
-            MakeService<(), FetchRemoteSubgraphRequest, Response = RemoteSubgraph> + Clone,
-        MakeFetchSubgraph::MakeError: std::error::Error + Send + Sync + 'static,
-        MakeFetchSubgraph::Error: std::error::Error + Send + Sync + 'static,
-    {
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
             move |(name, unresolved_subgraph)| {
-                let fetch_remote_subgraph_impl = fetch_remote_subgraph_impl.clone();
-                FullyResolvedSubgraph::resolve(
-                    introspect_subgraph_impl,
-                    fetch_remote_subgraph_impl,
+                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
+                FullyResolvedSubgraph::resolver(
+                    resolve_introspect_subgraph_factory.clone(),
+                    fetch_remote_subgraph_factory,
                     supergraph_config_root,
                     unresolved_subgraph.clone(),
                 )
-                .map_ok(|result| (name.to_string(), result))
                 .map_err(|err| (name.to_string(), err))
+                .and_then(|service| {
+                    let mut service = service.clone();
+                    let name = name.to_string();
+                    async move {
+                        let service = service
+                            .ready()
+                            .await
+                            .map_err(|err| (name.to_string(), err))?;
+                        let result = service
+                            .call(())
+                            .await
+                            .map_err(|err| (name.to_string(), err))?;
+                        Ok((name.to_string(), result))
+                    }
+                })
             },
         ))
         .buffer_unordered(50)

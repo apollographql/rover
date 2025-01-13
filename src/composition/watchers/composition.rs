@@ -2,7 +2,7 @@ use apollo_federation_types::config::SupergraphConfig;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
-use rover_std::errln;
+use rover_std::{errln, infoln};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
@@ -52,7 +52,9 @@ where
                     match event {
                         SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
                             let name = subgraph_schema_changed.name();
-                            tracing::info!("Schema change detected for subgraph: {}", name);
+                            let message = format!("Schema change detected for subgraph: {}", &name);
+                            infoln!("{}", message);
+                            tracing::info!(message);
                             supergraph_config.update_subgraph_schema(
                                 name.to_string(),
                                 subgraph_schema_changed.into(),
@@ -240,7 +242,7 @@ mod tests {
             SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
                 subgraph_sdl,
-                Some("https://example.com".to_string()),
+                "https://example.com".to_string(),
             ))
         })
         .boxed();

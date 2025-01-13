@@ -24,7 +24,7 @@ impl<S: Clone> FakeMakeService<S> {
     }
 }
 
-impl<S> Service<()> for FakeMakeService<S>
+impl<S, T> Service<T> for FakeMakeService<S>
 where
     S: Clone + Send + 'static,
 {
@@ -39,7 +39,7 @@ where
         std::task::Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, _req: ()) -> Self::Future {
+    fn call(&mut self, _req: T) -> Self::Future {
         let service = self.service.clone();
         let fut = async move { Ok(service) };
         Box::pin(fut)

@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use http::Uri;
+use rover_std::errln;
 use rover_std::{Fs, RoverStdError};
 use thiserror::Error;
 
@@ -130,42 +131,47 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
         path: Option<&Utf8PathBuf>,
     ) -> Result<RunRouterConfig<RunRouterConfigFinal>, ReadRouterConfigError> {
         match path {
-            Some(path) => {
-                Fs::assert_path_exists(&path).map_err(ReadRouterConfigError::Fs)?;
+            Some(path) => match read_file_impl.read_file(&path).await {
+                Ok(contents) => {
+                    let yaml = serde_yaml::from_str(&contents).map_err(|err| {
+                        ReadRouterConfigError::Deserialization {
+                            path: path.clone(),
+                            source: err,
+                        }
+                    })?;
 
-                match read_file_impl.read_file(&path).await {
-                    Ok(contents) => {
-                        let yaml = serde_yaml::from_str(&contents).map_err(|err| {
-                            ReadRouterConfigError::Deserialization {
-                                path: path.clone(),
-                                source: err,
-                            }
-                        })?;
+                    let router_config = RouterConfigParser::new(&yaml);
+                    let address = router_config.address()?;
+                    let address = address
+                        .map(RouterAddress::from)
+                        .unwrap_or(self.state.router_address);
+                    let health_check_enabled = router_config.health_check_enabled();
+                    let health_check_endpoint = router_config.health_check_endpoint()?;
+                    let health_check_path = router_config.health_check_path();
+                    let listen_path = router_config.listen_path();
 
-                        let router_config = RouterConfigParser::new(&yaml);
-                        let address = router_config.address()?;
-                        let address = address
-                            .map(RouterAddress::from)
-                            .unwrap_or(self.state.router_address);
-                        let health_check_enabled = router_config.health_check_enabled();
-                        let health_check_endpoint = router_config.health_check_endpoint()?;
-                        let listen_path = router_config.listen_path()?;
-
-                        Ok(RunRouterConfigFinal {
-                            listen_path,
-                            address,
-                            health_check_enabled,
-                            health_check_endpoint,
-                            raw_config: contents.to_string(),
-                        })
-                    }
-                    Err(RoverStdError::EmptyFile { .. }) => Ok(RunRouterConfigFinal::default()),
-                    Err(err) => Err(ReadRouterConfigError::ReadFile {
-                        path: path.clone(),
-                        source: Box::new(err),
-                    }),
+                    Ok(RunRouterConfigFinal {
+                        listen_path,
+                        address,
+                        health_check_enabled,
+                        health_check_endpoint,
+                        health_check_path,
+                        raw_config: contents.to_string(),
+                    })
                 }
-            }
+                Err(RoverStdError::EmptyFile { .. }) => Ok(RunRouterConfigFinal::default()),
+                Err(RoverStdError::AdhocError { .. }) => {
+                    errln!(
+                        "{} does not exist, creating a router config from CLI options.",
+                        &path
+                    );
+                    Ok(RunRouterConfigFinal::default())
+                }
+                Err(err) => Err(ReadRouterConfigError::ReadFile {
+                    path: path.clone(),
+                    source: Box::new(err),
+                }),
+            },
             None => Ok(RunRouterConfigFinal::default()),
         }
         .map(|state| RunRouterConfig { state })
@@ -174,8 +180,8 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
 
 impl RunRouterConfig<RunRouterConfigFinal> {
     #[allow(unused)]
-    pub fn listen_path(&self) -> Option<&Uri> {
-        self.state.listen_path.as_ref()
+    pub fn listen_path(&self) -> Option<String> {
+        self.state.listen_path.clone()
     }
 
     #[allow(unused)]
@@ -187,8 +193,12 @@ impl RunRouterConfig<RunRouterConfigFinal> {
         self.state.health_check_enabled
     }
 
-    pub fn health_check_endpoint(&self) -> &Uri {
-        &self.state.health_check_endpoint
+    pub fn health_check_endpoint(&self) -> Option<&SocketAddr> {
+        self.state.health_check_endpoint.as_ref()
+    }
+
+    pub fn health_check_path(&self) -> String {
+        self.state.health_check_path.clone()
     }
 
     pub fn raw_config(&self) -> String {

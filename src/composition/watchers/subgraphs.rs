@@ -1,75 +1,90 @@
 use std::collections::{BTreeMap, HashMap};
 
 use apollo_federation_types::config::SubgraphConfig;
-use futures::stream::BoxStream;
+use camino::Utf8PathBuf;
+use futures::stream::{self, BoxStream, StreamExt};
+use itertools::Itertools;
 use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
-use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::{
     composition::supergraph::config::{
-        error::ResolveSubgraphError, full::FullyResolvedSubgraph, lazy::LazilyResolvedSubgraph,
+        error::ResolveSubgraphError,
+        full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph},
+        lazy::LazilyResolvedSubgraph,
+        resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+        unresolved::UnresolvedSubgraph,
     },
-    options::ProfileOpt,
     subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-    utils::client::StudioClientConfig,
 };
 
 use super::watcher::{
-    subgraph::{
-        NonRepeatingFetch, SubgraphFetchError, SubgraphWatcher, SubgraphWatcherKind,
-        WatchedSdlChange,
-    },
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
     supergraph_config::SupergraphConfigDiff,
 };
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
 pub struct SubgraphWatchers {
-    client_config: StudioClientConfig,
-    profile: ProfileOpt,
     introspection_polling_interval: u64,
-    watchers: HashMap<
-        String,
-        (
-            UnboundedReceiverStream<WatchedSdlChange>,
-            Subtask<SubgraphWatcher, WatchedSdlChange>,
-        ),
-    >,
+    watchers: HashMap<String, SubgraphWatcher>,
+    resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+    fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+    supergraph_config_root: Utf8PathBuf,
 }
 
 impl SubgraphWatchers {
     /// Create a set of watchers from the subgraph definitions of a supergraph config.
-    pub fn new(
+    pub async fn new(
         subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        supergraph_config_root: &Utf8PathBuf,
         introspection_polling_interval: u64,
-    ) -> SubgraphWatchers {
-        let watchers = subgraphs
-            .into_iter()
-            .filter_map(|(name, resolved_subgraph)| {
-                let subgraph_config = SubgraphConfig::from(resolved_subgraph);
-                SubgraphWatcher::from_schema_source(
-                    subgraph_config.routing_url,
-                    subgraph_config.schema,
-                    profile,
-                    client_config,
+    ) -> Result<SubgraphWatchers, HashMap<String, ResolveSubgraphError>> {
+        let watchers = stream::iter(subgraphs.into_iter().map(|(name, resolved_subgraph)| {
+            let resolve_introspect_subgraph_factory = resolve_introspect_subgraph_factory.clone();
+            let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
+            let resolved_subgraph = resolved_subgraph.clone();
+            async move {
+                let resolver = FullyResolvedSubgraph::resolver(
+                    resolve_introspect_subgraph_factory,
+                    fetch_remote_subgraph_factory,
+                    supergraph_config_root,
+                    resolved_subgraph.clone(),
+                )
+                .await
+                .map_err(|err| (name.to_string(), err))?;
+                let watcher = SubgraphWatcher::new(
+                    resolved_subgraph,
+                    resolver,
                     introspection_polling_interval,
                     name.clone(),
-                )
-                .tap_err(|err| tracing::warn!("Skipping subgraph {}: {:?}", name, err))
-                .ok()
-                .map(|value| (name, Subtask::new(value)))
-            })
-            .collect();
+                );
+                Ok((name, watcher))
+            }
+        }))
+        .buffer_unordered(50)
+        .collect::<Vec<Result<(String, SubgraphWatcher), (String, ResolveSubgraphError)>>>()
+        .await;
 
-        SubgraphWatchers {
-            client_config: client_config.clone(),
-            profile: profile.clone(),
-            introspection_polling_interval,
-            watchers,
+        #[allow(clippy::type_complexity)]
+        let (watchers, errors): (
+            Vec<(String, SubgraphWatcher)>,
+            Vec<(String, ResolveSubgraphError)>,
+        ) = watchers.into_iter().partition_result();
+
+        if errors.is_empty() {
+            Ok(SubgraphWatchers {
+                introspection_polling_interval,
+                watchers: HashMap::from_iter(watchers),
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
+                supergraph_config_root: supergraph_config_root.clone(),
+            })
+        } else {
+            Err(HashMap::from_iter(errors))
         }
     }
 }
@@ -91,12 +106,12 @@ pub struct SubgraphSchemaChanged {
     name: String,
     /// SDL with changes
     sdl: String,
-    routing_url: Option<String>,
+    routing_url: String,
 }
 
 impl SubgraphSchemaChanged {
     #[cfg(test)]
-    pub fn new(name: String, sdl: String, routing_url: Option<String>) -> SubgraphSchemaChanged {
+    pub fn new(name: String, sdl: String, routing_url: String) -> SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name,
             sdl,
@@ -108,9 +123,20 @@ impl SubgraphSchemaChanged {
 impl From<SubgraphSchemaChanged> for FullyResolvedSubgraph {
     fn from(value: SubgraphSchemaChanged) -> Self {
         FullyResolvedSubgraph::builder()
+            .name(value.name)
             .schema(value.sdl)
-            .and_routing_url(value.routing_url)
+            .routing_url(value.routing_url)
             .build()
+    }
+}
+
+impl From<FullyResolvedSubgraph> for SubgraphSchemaChanged {
+    fn from(value: FullyResolvedSubgraph) -> Self {
+        SubgraphSchemaChanged {
+            name: value.name().to_string(),
+            sdl: value.schema().to_string(),
+            routing_url: value.routing_url().to_string(),
+        }
     }
 }
 
@@ -131,31 +157,34 @@ impl SubtaskHandleStream for SubgraphWatchers {
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
         tokio::task::spawn(async move {
-            let mut subgraph_handles = SubgraphHandles::new(sender.clone(), self.watchers.into_iter());
+            let mut subgraph_handles = SubgraphHandles::new(
+                sender.clone(),
+                self.watchers.clone(),
+                self.resolve_introspect_subgraph_factory.clone(),
+                self.fetch_remote_subgraph_factory.clone(),
+                self.supergraph_config_root.clone()
+            );
 
             // Wait for supergraph diff events received from the input stream.
             while let Some(diff) = input.next().await {
                 match diff {
                     Ok(diff) => {
                         // If we detect additional diffs, start a new subgraph subtask.
-                        // Adding the abort handle to the currentl collection of handles.
+                        // Adding the abort handle to the current collection of handles.
                         for (subgraph_name, subgraph_config) in diff.added() {
-                            subgraph_handles.add(
+                            let _ = subgraph_handles.add(
                                 subgraph_name,
                                 subgraph_config,
-                                &self.profile,
-                                &self.client_config,
                                 self.introspection_polling_interval
-                            ).await;
+                            ).await.tap_err(|err| tracing::error!("{:?}", err));
                         }
 
                         for (subgraph_name, subgraph_config) in diff.changed() {
-                            subgraph_handles.update(subgraph_name,
+                            let _ = subgraph_handles.update(
+                                subgraph_name,
                                 subgraph_config,
-                                &self.profile,
-                                &self.client_config,
                                 self.introspection_polling_interval
-                            ).await;
+                            ).await.tap_err(|err| tracing::error!("{:?}", err));
                         }
 
                         // If we detect removal diffs, stop the subtask for the removed subgraph.
@@ -180,20 +209,18 @@ impl SubtaskHandleStream for SubgraphWatchers {
 struct SubgraphHandles {
     abort_handles: HashMap<String, (AbortHandle, AbortHandle)>,
     sender: UnboundedSender<SubgraphEvent>,
+    resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+    fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+    supergraph_config_root: Utf8PathBuf,
 }
 
 impl SubgraphHandles {
     pub fn new(
         sender: UnboundedSender<SubgraphEvent>,
-        watchers: impl Iterator<
-            Item = (
-                String,
-                (
-                    UnboundedReceiverStream<WatchedSdlChange>,
-                    Subtask<SubgraphWatcher, WatchedSdlChange>,
-                ),
-            ),
-        >,
+        watchers: HashMap<String, SubgraphWatcher>,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        supergraph_config_root: Utf8PathBuf,
     ) -> SubgraphHandles {
         let mut abort_handles = HashMap::new();
         // Start a background task for each of the subtask watchers that listens for change
@@ -201,21 +228,15 @@ impl SubgraphHandles {
         // handler.
         // We also collect the abort handles for each background task in order to gracefully
         // shut down.
-        for (subgraph_name, (mut messages, subtask)) in watchers {
+        for (subgraph_name, watcher) in watchers.into_iter() {
+            let (mut messages, subtask) = Subtask::<_, FullyResolvedSubgraph>::new(watcher);
             let messages_abort_handle = tokio::task::spawn({
-                let subgraph_name = subgraph_name.to_string();
                 let sender = sender.clone();
-                let routing_url = subtask.inner().routing_url().clone();
                 async move {
-                    while let Some(change) = messages.next().await {
-                        let routing_url = routing_url.clone();
-                        tracing::info!("Subgraph change detected: {:?}", change);
+                    while let Some(subgraph) = messages.next().await {
+                        tracing::info!("Subgraph change detected: {:?}", subgraph);
                         let _ = sender
-                            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                                name: subgraph_name.to_string(),
-                                sdl: change.sdl().to_string(),
-                                routing_url,
-                            }))
+                            .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
@@ -227,6 +248,9 @@ impl SubgraphHandles {
         SubgraphHandles {
             sender,
             abort_handles,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            supergraph_config_root,
         }
     }
 
@@ -234,75 +258,84 @@ impl SubgraphHandles {
         &mut self,
         subgraph: &str,
         subgraph_config: &SubgraphConfig,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
-    ) {
+    ) -> Result<(), ResolveSubgraphError> {
         eprintln!("Adding subgraph to session: `{}`", subgraph);
-        if let Ok(subgraph_watcher) = SubgraphWatcher::from_schema_source(
-            subgraph_config.routing_url.clone(),
-            subgraph_config.schema.clone(),
-            profile,
-            client_config,
+        let unresolved_subgraph =
+            UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
+        let lazily_resolved_subgraph =
+            LazilyResolvedSubgraph::resolve(&self.supergraph_config_root, unresolved_subgraph)?;
+        let resolver = FullyResolvedSubgraph::resolver(
+            self.resolve_introspect_subgraph_factory.clone(),
+            self.fetch_remote_subgraph_factory.clone(),
+            &self.supergraph_config_root,
+            lazily_resolved_subgraph.clone(),
+        )
+        .await?;
+        let subgraph_watcher = SubgraphWatcher::new(
+            lazily_resolved_subgraph,
+            resolver,
             introspection_polling_interval,
             subgraph.to_string(),
-        )
-        .tap_err(|err| tracing::warn!("Cannot configure new subgraph for {subgraph}: {:?}", err))
-        {
-            // If a SchemaSource::Subgraph or SchemaSource::Sdl was added, we don't
-            // want to spin up watchers; rather, we emit a SubgraphSchemaChanged event with
-            // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
-            // has for Sdls
-            if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
-                self.add_oneshot_subgraph_to_session(subgraph, &subgraph_watcher, subgraph_config)
-                    .await;
-            } else {
-                // When we have a SchemaSource that's watchable, we start a new subtask
-                // and add it to our list of subtasks
-                let _ = self
-                    .add_streaming_subgraph_to_session(subgraph, subgraph_watcher)
-                    .await
-                    .tap_err(|err| tracing::error!("{:?}", err));
-            }
+        );
+        // If a SchemaSource::Subgraph or SchemaSource::Sdl was added, we don't
+        // want to spin up watchers; rather, we emit a SubgraphSchemaChanged event with
+        // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
+        // has for Sdls
+        if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
+            self.add_oneshot_subgraph_to_session(subgraph, subgraph_config.clone())
+                .await;
+        } else {
+            // When we have a SchemaSource that's watchable, we start a new subtask
+            // and add it to our list of subtasks
+            let _ = self
+                .add_streaming_subgraph_to_session(subgraph_watcher)
+                .await
+                .tap_err(|err| tracing::error!("{:?}", err));
         }
+        Ok(())
     }
 
     pub async fn update(
         &mut self,
         subgraph: &str,
         subgraph_config: &SubgraphConfig,
-        profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
-    ) {
+    ) -> Result<(), ResolveSubgraphError> {
         eprintln!("Change detected for subgraph: `{}`", subgraph);
-        if let Ok(watcher) = SubgraphWatcher::from_schema_source(
-            subgraph_config.routing_url.clone(),
-            subgraph_config.schema.clone(),
-            profile,
-            client_config,
+        let unresolved_subgraph =
+            UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
+        let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
+            &self.supergraph_config_root.clone(),
+            unresolved_subgraph,
+        )?;
+        let resolver = FullyResolvedSubgraph::resolver(
+            self.resolve_introspect_subgraph_factory.clone(),
+            self.fetch_remote_subgraph_factory.clone(),
+            &self.supergraph_config_root,
+            lazily_resolved_subgraph.clone(),
+        )
+        .await?;
+        let subgraph_watcher = SubgraphWatcher::new(
+            lazily_resolved_subgraph,
+            resolver,
             introspection_polling_interval,
             subgraph.to_string(),
-        )
-        .tap_err(|err| tracing::error!("Unable to get watcher: {err:?}"))
-        {
-            if let SubgraphWatcherKind::Once(non_repeating_fetch) = watcher.watcher() {
-                let _ = non_repeating_fetch
-                    .run()
-                    .await
-                    .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
-                    .map(|sdl| {
-                        let _ = self
-                            .sender
-                            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                                name: subgraph.to_string(),
-                                sdl,
-                                routing_url: watcher.routing_url().clone(),
-                            }))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    });
-            }
+        );
+        if let SubgraphWatcherKind::Once(non_repeating_fetch) = subgraph_watcher.watcher() {
+            let _ = non_repeating_fetch
+                .clone()
+                .run()
+                .await
+                .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
+                .map(|subgraph| {
+                    let _ = self
+                        .sender
+                        .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                });
         }
+        Ok(())
     }
 
     pub fn remove(&mut self, subgraph: &str) {
@@ -323,55 +356,39 @@ impl SubgraphHandles {
     async fn add_oneshot_subgraph_to_session(
         &mut self,
         subgraph: &str,
-        subgraph_watcher: &SubgraphWatcher,
-        non_repeating_fetch: &NonRepeatingFetch,
+        non_repeating_fetch: NonRepeatingFetch,
     ) {
         let _ = non_repeating_fetch
             .run()
             .await
             .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
-            .map(|sdl| {
+            .map(|subgraph| {
                 let _ = self
                     .sender
-                    .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                        name: subgraph.to_string(),
-                        sdl,
-                        routing_url: subgraph_watcher.routing_url().clone(),
-                    }))
+                    .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
                     .tap_err(|err| tracing::error!("{:?}", err));
             });
     }
 
     async fn add_streaming_subgraph_to_session(
         &mut self,
-        subgraph: &str,
         subgraph_watcher: SubgraphWatcher,
-    ) -> Result<(), SubgraphFetchError> {
-        let sdl = subgraph_watcher.watcher().fetch().await?;
+    ) -> Result<(), ResolveSubgraphError> {
+        let fetch = subgraph_watcher.watcher().clone();
+        let subgraph = fetch.fetch().await?;
         let (mut messages, subtask) =
-            Subtask::<SubgraphWatcher, WatchedSdlChange>::new(subgraph_watcher);
-        let routing_url = subtask.inner().routing_url().clone();
+            Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
             .sender
-            .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                name: subgraph.to_string(),
-                sdl,
-                routing_url: routing_url.clone(),
-            }))
+            .send(SubgraphEvent::SubgraphChanged(subgraph.clone().into()))
             .tap_err(|err| tracing::error!("{:?}", err));
 
         let messages_abort_handle = tokio::spawn({
             let sender = self.sender.clone();
-            let subgraph_name = subgraph.to_string();
             async move {
-                while let Some(change) = messages.next().await {
-                    let routing_url = routing_url.clone();
+                while let Some(subgraph) = messages.next().await {
                     let _ = sender
-                        .send(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged {
-                            name: subgraph_name.to_string(),
-                            sdl: change.sdl().to_string(),
-                            routing_url,
-                        }))
+                        .send(SubgraphEvent::SubgraphChanged(subgraph.into()))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 }
             }
@@ -379,7 +396,7 @@ impl SubgraphHandles {
         .abort_handle();
         let subtask_abort_handle = subtask.run();
         self.abort_handles.insert(
-            subgraph.to_string(),
+            subgraph.name().to_string(),
             (messages_abort_handle, subtask_abort_handle),
         );
         Ok(())
@@ -388,20 +405,31 @@ impl SubgraphHandles {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
+    use speculoos::prelude::*;
+    use tower::ServiceBuilder;
 
-    use super::SubgraphWatchers;
-    use crate::{
-        composition::supergraph::config::lazy::LazilyResolvedSubgraph,
-        options::ProfileOpt,
-        utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig},
+    use crate::composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        full::{
+            introspect::{
+                MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+                ResolveIntrospectSubgraphService,
+            },
+            FullyResolvedSubgraph,
+        },
+        lazy::LazilyResolvedSubgraph,
+        resolver::fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
     };
 
-    #[test]
-    fn test_subgraphwatchers_new() {
+    use super::SubgraphWatchers;
+
+    #[tokio::test]
+    async fn test_subgraph_watchers_new() {
         let subgraphs = [
             (
                 "file".to_string(),
@@ -409,6 +437,7 @@ mod tests {
                     .schema(SchemaSource::File {
                         file: "/path/to/file".into(),
                     })
+                    .name("file-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -418,6 +447,7 @@ mod tests {
                         subgraph_url: "http://subgraph_url".try_into().unwrap(),
                         introspection_headers: None,
                     })
+                    .name("introspection-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -427,6 +457,7 @@ mod tests {
                         graphref: "graphref".to_string(),
                         subgraph: "subgraph".to_string(),
                     })
+                    .name("remote-subgraph-name".to_string())
                     .build(),
             ),
             (
@@ -435,33 +466,89 @@ mod tests {
                     .schema(SchemaSource::Sdl {
                         sdl: "sdl".to_string(),
                     })
+                    .name("sdl-subgraph-name".to_string())
                     .build(),
             ),
         ]
         .into_iter()
         .collect();
 
-        let client_config = StudioClientConfig::new(
-            None,
-            houston::Config {
-                home: Utf8PathBuf::from_str("path").unwrap(),
-                override_api_key: None,
-            },
-            false,
-            ClientBuilder::new(),
-            ClientTimeout::default(),
-        );
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_service_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
+        resolve_introspect_subgraph_service_handle.allow(0);
 
-        let profile = ProfileOpt {
-            profile_name: "some_profile".to_string(),
-        };
+        let (resolve_introspect_subgraph_factory, mut resolve_introspect_subgraph_factory_handle) =
+            tower_test::mock::spawn::<
+                MakeResolveIntrospectSubgraphRequest,
+                ResolveIntrospectSubgraphService,
+            >();
+        resolve_introspect_subgraph_factory_handle.allow(1);
 
-        let subgraph_watchers = SubgraphWatchers::new(subgraphs, &profile, &client_config, 1);
+        tokio::spawn({
+            async move {
+                let (_, send_response) = resolve_introspect_subgraph_factory_handle
+                    .next_request()
+                    .await
+                    .unwrap();
+                send_response.send_response(
+                    ServiceBuilder::new()
+                        .boxed_clone()
+                        .map_err(ResolveSubgraphError::ServiceReady)
+                        .service(resolve_introspect_subgraph_service.into_inner()),
+                );
+            }
+        });
 
-        assert_eq!(4, subgraph_watchers.watchers.len());
-        assert!(subgraph_watchers.watchers.contains_key("file"));
-        assert!(subgraph_watchers.watchers.contains_key("introspection"));
-        assert!(subgraph_watchers.watchers.contains_key("sdl"));
-        assert!(subgraph_watchers.watchers.contains_key("subgraph"));
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new()
+                .boxed_clone()
+                .map_err(ResolveSubgraphError::ServiceReady)
+                .service(resolve_introspect_subgraph_factory.into_inner());
+
+        let (fetch_remote_subgraph_service, mut fetch_remote_subgraph_service_handle) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
+        fetch_remote_subgraph_service_handle.allow(0);
+
+        let (fetch_remote_subgraph_factory, mut fetch_remote_subgraph_factory_handle) =
+            tower_test::mock::spawn::<(), FetchRemoteSubgraphService>();
+        fetch_remote_subgraph_factory_handle.allow(1);
+
+        tokio::spawn({
+            async move {
+                let (_, send_response) = fetch_remote_subgraph_factory_handle
+                    .next_request()
+                    .await
+                    .unwrap();
+                send_response.send_response(
+                    ServiceBuilder::new()
+                        .boxed_clone()
+                        .map_err(FetchRemoteSubgraphError::Service)
+                        .service(fetch_remote_subgraph_service.into_inner()),
+                );
+            }
+        });
+
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .map_err(MakeFetchRemoteSubgraphError::ReadyFailed)
+            .service(fetch_remote_subgraph_factory.into_inner());
+
+        let supergraph_config_root = Utf8PathBuf::new();
+        let subgraph_watchers = SubgraphWatchers::new(
+            subgraphs,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            &supergraph_config_root,
+            1,
+        )
+        .await;
+
+        let subgraph_watchers = assert_that!(subgraph_watchers).is_ok().subject;
+
+        assert_that!(subgraph_watchers.watchers).has_length(4);
+        assert_that!(subgraph_watchers.watchers).contains_key("file".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("introspection".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("sdl".to_string());
+        assert_that!(subgraph_watchers.watchers).contains_key("subgraph".to_string());
     }
 }

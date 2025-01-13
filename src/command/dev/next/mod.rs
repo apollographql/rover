@@ -1,24 +1,27 @@
 #![warn(missing_docs)]
 
-use std::io::stdin;
+use std::{io::stdin, str::FromStr};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::RouterVersion;
+use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
-use rover_std::{infoln, warnln};
+use rover_std::{errln, infoln, warnln};
+use tower::ServiceExt;
 
-use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::{
-    command::Dev,
+    command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
     composition::{
         pipeline::CompositionPipeline,
-        supergraph::config::resolver::{
-            fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-            fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+        supergraph::config::{
+            full::introspect::MakeResolveIntrospectSubgraph,
+            resolver::{
+                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            },
         },
     },
     utils::{
@@ -31,6 +34,8 @@ use crate::{
     },
     RoverError, RoverOutput, RoverResult,
 };
+
+use self::router::config::{RouterAddress, RunRouterConfig};
 
 mod router;
 
@@ -57,12 +62,6 @@ impl Dev {
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
-        let _config = RunRouterConfig::default()
-            .with_address(router_address)
-            .with_config(&read_file_impl, router_config_path.as_ref())
-            .await
-            .map_err(|err| RoverError::new(anyhow!("{}", err)))?;
-
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
@@ -75,27 +74,55 @@ impl Dev {
             .studio_graphql_service()?;
         let service = WhoAmI::new(service);
 
-        let make_fetch_remote_subgraphs = MakeFetchRemoteSubgraphs::builder()
+        let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
             .build();
-        let make_fetch_remote_subgraph = MakeFetchRemoteSubgraph::builder()
+        let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
             .studio_client_config(client_config.clone())
             .profile(profile.clone())
-            .build();
+            .build()
+            .boxed_clone();
+        let resolve_introspect_subgraph_factory =
+            MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
+
+        // We resolve supergraph binary overrides (ie, composition version) in this order:
+        //
+        // 1) cli option
+        // 2) env var override
+        // 3) what's in the supergraph config (represented here as None)
+        let federation_version = self
+            .opts
+            .supergraph_opts
+            .federation_version
+            .clone()
+            .or_else(|| {
+                let version = &OVERRIDE_DEV_COMPOSITION_VERSION
+                    .clone()
+                    .and_then(|version| match FederationVersion::from_str(&version) {
+                        Ok(version) => Some(version),
+                        Err(err) => {
+                            errln!("{err}");
+                            tracing::error!("{:?}", err);
+                            None
+                        }
+                    });
+
+                version.clone()
+            });
 
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
-                make_fetch_remote_subgraphs,
+                fetch_remote_subgraphs_factory,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
             )
             .await?
             .resolve_federation_version(
-                &client_config,
-                make_fetch_remote_subgraph,
-                self.opts.supergraph_opts.federation_version.clone(),
+                resolve_introspect_subgraph_factory.clone(),
+                fetch_remote_subgraph_factory.clone(),
+                federation_version,
             )
             .await?
             .install_supergraph_binary(
@@ -111,9 +138,10 @@ impl Dev {
             .await?;
         let supergraph_schema = composition_success.supergraph_sdl();
 
-        // TODO: figure out how to actually get this; maybe based on fed version? didn't see a cli
-        // opt
-        let router_version = RouterVersion::Latest;
+        let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
+            Some(version) => RouterVersion::from_str(version)?,
+            None => RouterVersion::Latest,
+        };
 
         let credential =
             Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
@@ -123,8 +151,8 @@ impl Dev {
                 exec_command_impl,
                 read_file_impl.clone(),
                 write_file_impl.clone(),
-                profile,
-                &client_config,
+                client_config.service()?,
+                fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
             )

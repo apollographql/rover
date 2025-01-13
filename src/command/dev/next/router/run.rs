@@ -11,7 +11,7 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::{infoln, RoverStdError};
+use rover_std::{debugln, errln, infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
@@ -227,8 +227,18 @@ impl RunRouter<state::Run> {
             return Ok(());
         }
 
-        let healthcheck_endpoint = self.state.config.health_check_endpoint();
+        // We hardcode the endpoint and port; if they're missing now, we've lost that bit of code
+        let mut healthcheck_endpoint = match self.state.config.health_check_endpoint() {
+            Some(endpoint) => endpoint.to_string(),
+            None => {
+            return Err(RunRouterBinaryError::Internal {
+                dependency: "Router Config Validation".to_string(),
+                err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
+            })
+            }
+        };
 
+        healthcheck_endpoint.push_str(&self.state.config.health_check_path());
         let healthcheck_client = studio_client_config.get_reqwest_client().map_err(|err| {
             RunRouterBinaryError::Internal {
                 dependency: "Reqwest Client".to_string(),
@@ -237,7 +247,7 @@ impl RunRouter<state::Run> {
         })?;
 
         let healthcheck_request = healthcheck_client
-            .get(healthcheck_endpoint.to_string())
+            .get(format!("http://{healthcheck_endpoint}"))
             .build()
             .map_err(|err| RunRouterBinaryError::Internal {
                 dependency: "Reqwest Client".to_string(),
@@ -249,7 +259,7 @@ impl RunRouter<state::Run> {
         tokio::time::timeout(Duration::from_secs(10), async {
             let mut success = false;
             while !success {
-                sleep(Duration::from_millis(100)).await;
+                sleep(Duration::from_millis(250)).await;
 
                 let Some(request) = healthcheck_request.try_clone() else {
                     return Err(RunRouterBinaryError::Internal {
@@ -258,14 +268,24 @@ impl RunRouter<state::Run> {
                     });
                 };
 
+                tracing::debug!("sending health check ping to the router process");
+                debugln!("sending router health check");
+
                 if let Ok(res) = healthcheck_client.execute(request).await {
-                    success = res.status().is_success()
+                    success = res.status().is_success();
+                    if success {
+                        tracing::debug!("health check successful!");
+                        debugln!("health check successful!");
+                    }
                 }
             }
             Ok(())
         })
         .await
-        .map_err(|_err| RunRouterBinaryError::HealthCheckFailed)?
+        .map_err(|_err| {
+            tracing::error!("health check failed");
+            RunRouterBinaryError::HealthCheckFailed
+        })?
     }
 }
 
