@@ -1,9 +1,10 @@
 use futures::StreamExt;
 use tap::TapFallible;
 
-use crate::command::dev::FileWatcher;
 use crate::{
-    command::dev::router::{config::RouterConfig, hot_reload::RouterUpdateEvent},
+    command::dev::router::{
+        config::RouterConfig, hot_reload::RouterUpdateEvent, watchers::file::FileWatcher,
+    },
     subtask::SubtaskHandleUnit,
 };
 
