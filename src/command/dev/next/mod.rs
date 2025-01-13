@@ -17,6 +17,7 @@ use tower::ServiceExt;
 
 use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::resolver::SubgraphPrompt;
 use crate::composition::FederationUpdaterConfig;
 use crate::{
     command::{
@@ -129,6 +130,7 @@ impl Dev {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
+                Some(&SubgraphPrompt::default()),
             )
             .await?
             .install_supergraph_binary(
@@ -186,6 +188,7 @@ impl Dev {
                 OutputTarget::Stdout,
                 false,
                 federation_updater_config,
+                Some(&SubgraphPrompt::default()),
             )
             .await?;
 

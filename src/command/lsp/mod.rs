@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env::temp_dir;
 use std::io::stdin;
 
-use apollo_federation_types::config::FederationVersion;
+use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -14,7 +14,7 @@ use serde::Serialize;
 use tower::ServiceExt;
 use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
-use tracing::debug;
+use tracing::{debug, warn};
 use url::Url;
 
 use crate::command::lsp::errors::StartCompositionError;
@@ -111,13 +111,14 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             (service, socket)
         }
         Some(supergraph_yaml_path) => {
-            // Resolve Supergraph Config -> Lazy
-            let lazily_resolved_supergraph_config = generate_lazily_resolved_supergraph_config(
+            // Attempt to generate an initial set of subgraphs/federation version, returning
+            // defaults if it's not possible to parse the supergraph.yaml for whatever reason.
+            let (initial_subgraphs, initial_federation_version) = generate_initial_values(
                 supergraph_yaml_path.clone(),
                 client_config.clone(),
                 lsp_opts.plugin_opts.profile.clone(),
             )
-            .await?;
+            .await;
             let supergraph_yaml_url = Url::from_file_path(supergraph_yaml_path.clone())
                 .map_err(|_| SupergraphYamlUrlConversionFailed(supergraph_yaml_path.clone()))?;
             debug!("Supergraph Config Root: {:?}", supergraph_yaml_url);
@@ -133,20 +134,13 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                         federation: None,
                     },
                 },
-                HashMap::from_iter(
-                    lazily_resolved_supergraph_config
-                        .subgraphs()
-                        .iter()
-                        .map(|(a, b)| (a.to_string(), b.schema().clone())),
-                ),
+                initial_subgraphs,
             );
             // Start running composition
             start_composition(
                 supergraph_yaml_path,
                 supergraph_yaml_url,
-                lazily_resolved_supergraph_config
-                    .federation_version()
-                    .clone(),
+                initial_federation_version,
                 client_config,
                 lsp_opts,
                 service.inner().to_owned(),
@@ -161,6 +155,33 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
     let server = Server::new(stdin, stdout, socket);
     server.serve(service).await;
     Ok(())
+}
+
+async fn generate_initial_values(
+    supergraph_yaml_path: Utf8PathBuf,
+    client_config: StudioClientConfig,
+    profile: ProfileOpt,
+) -> (HashMap<String, SchemaSource>, Option<FederationVersion>) {
+    match generate_lazily_resolved_supergraph_config(supergraph_yaml_path, client_config, profile)
+        .await
+    {
+        Ok(lazily_resolved_supergraph_config) => (
+            HashMap::from_iter(
+                lazily_resolved_supergraph_config
+                    .subgraphs()
+                    .iter()
+                    .map(|(a, b)| (a.to_string(), b.schema().clone())),
+            ),
+            lazily_resolved_supergraph_config
+                .federation_version()
+                .clone(),
+        ),
+        Err(e) => {
+            warn!("Could not initially parse supergraph config: {}", e);
+            warn!("Proceeding with empty supergraph config, and default Federation version");
+            (HashMap::new(), None)
+        }
+    }
 }
 
 async fn generate_lazily_resolved_supergraph_config(
@@ -182,7 +203,7 @@ async fn generate_lazily_resolved_supergraph_config(
         )?;
     if let Some(parent) = supergraph_yaml_path.parent() {
         Ok(supergraph_config
-            .lazily_resolve_subgraphs(&parent.to_owned(), &SubgraphPrompt::default())
+            .lazily_resolve_subgraphs(&parent.to_owned(), None::<&SubgraphPrompt>)
             .await?)
     } else {
         Err(PathDoesNotPointToAFile(
@@ -329,6 +350,7 @@ async fn create_composition_stream(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
+            None::<&SubgraphPrompt>,
         )
         .await?
         .install_supergraph_binary(
@@ -356,6 +378,7 @@ async fn create_composition_stream(
                 elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
                 skip_update: lsp_opts.plugin_opts.skip_update,
             }),
+            None,
         )
         .await?
         .run())
