@@ -234,7 +234,7 @@ health_check:
             r#"---
         "#
         };
-        let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
+        let config_yaml = serde_yaml::from_str(config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
             address: SocketAddr::from_str("127.0.0.1:80")?,
@@ -251,7 +251,7 @@ health_check:
             r#"---
         "#
         };
-        let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
+        let config_yaml = serde_yaml::from_str(config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
             address: SocketAddr::from_str("127.0.0.1:80")?,
@@ -268,7 +268,7 @@ supergraph:
   path: /custom-path
 "#
         };
-        let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
+        let config_yaml = serde_yaml::from_str(config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
 

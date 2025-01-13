@@ -140,11 +140,13 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
         // file
         //
         // Development note: any future overrides should go into this default config
-        let mut default_config = RunRouterConfigFinal::default();
-        default_config.address = self.state.router_address;
+        let default_config = RunRouterConfigFinal {
+            address: self.state.router_address,
+            ..Default::default()
+        };
 
         match path {
-            Some(path) => match read_file_impl.read_file(&path).await {
+            Some(path) => match read_file_impl.read_file(path).await {
                 Ok(contents) => {
                     let yaml = serde_yaml::from_str(&contents).map_err(|err| {
                         ReadRouterConfigError::Deserialization {
