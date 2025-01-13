@@ -3,13 +3,12 @@ use async_trait::async_trait;
 use camino::{Utf8Path, Utf8PathBuf};
 use semver::Version;
 
+use super::binary::RouterBinary;
 use crate::{
     command::{install::Plugin, Install},
     options::LicenseAccepter,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
-
-use super::binary::RouterBinary;
 
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to install the router")]
@@ -109,6 +108,7 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
+    use super::InstallRouter;
     use crate::{
         options::LicenseAccepter,
         utils::{
@@ -116,8 +116,6 @@ mod tests {
             effect::install::InstallBinary,
         },
     };
-
-    use super::InstallRouter;
 
     #[fixture]
     #[once]

@@ -1,19 +1,18 @@
 use core::fmt;
 use std::{io, str::FromStr, time::Duration};
 
-use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
-
 use derive_getters::Getters;
 use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
-
 use rover_http::{HttpService, ReqwestService};
 use rover_studio::HttpStudioServiceLayer;
 use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
 use url::Url;
+
+use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
@@ -168,11 +167,6 @@ impl StudioClientConfig {
             // we can use clone here freely since `reqwest` uses an `Arc` under the hood
             self.client_builder.build()
         }
-    }
-
-    #[cfg(feature = "composition-js")]
-    pub(crate) fn get_builder(&self) -> ClientBuilder {
-        self.client_builder
     }
 
     pub fn service(&self) -> Result<HttpService> {

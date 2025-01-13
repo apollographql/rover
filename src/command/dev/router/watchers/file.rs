@@ -61,12 +61,13 @@ impl FileWatcher {
 
 #[cfg(test)]
 mod tests {
-    use futures::StreamExt;
-    use speculoos::assert_that;
-    use speculoos::option::OptionAssertions;
     use std::fs::OpenOptions;
     use std::io::Write;
     use std::time::Duration;
+
+    use futures::StreamExt;
+    use speculoos::assert_that;
+    use speculoos::option::OptionAssertions;
 
     use super::*;
 
