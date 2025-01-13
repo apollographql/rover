@@ -45,8 +45,6 @@ default = ["composition-js"]
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
-dev-next = ["composition-rewrite"]
-composition-rewrite = []
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -95,8 +93,6 @@ clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
-crossbeam-channel = "0.5"
-ctrlc = "3"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
 directories-next = "2.0"
@@ -112,7 +108,6 @@ http-body = "1.0.1"
 http-body-util = "0.1.2"
 httpmock = "0.7"
 hyper = "1.0"
-interprocess = { version = "2", default-features = false }
 indoc = "2"
 itertools = "0.13.0"
 lazycell = "1"
@@ -181,8 +176,6 @@ camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
-crossbeam-channel = { workspace = true }
-ctrlc = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
@@ -191,7 +184,6 @@ graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
 houston = { workspace = true }
-interprocess = { workspace = true }
 itertools = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
@@ -228,7 +220,6 @@ toml = { workspace = true }
 tower = { workspace = true }
 tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
-which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
