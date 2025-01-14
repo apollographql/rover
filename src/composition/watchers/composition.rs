@@ -267,7 +267,7 @@ mod tests {
     };
 
     use anyhow::Result;
-    use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::{FederationVersion, SchemaSource};
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
@@ -380,8 +380,9 @@ mod tests {
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
             Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
-                subgraph_sdl,
+                subgraph_sdl.clone(),
                 "https://example.com".to_string(),
+                SchemaSource::Sdl { sdl: subgraph_sdl },
             )))
         })
         .boxed();
