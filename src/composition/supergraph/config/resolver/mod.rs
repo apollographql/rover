@@ -142,14 +142,28 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                     println!("source idea: {source_idea:?}");
 
                     // psuedo: what I'm trying to accomplish
+                    //
+                    println!(">>>> {:?}", err);
 
-                    match err {
-                        GraphQLServiceError::InvalidCredentials() => { eprintln!("oh shit") },
-                        PartialError() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
-                        () => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
+                    match &err.source() {
+                        GraphQLServiceError => {
+                            match GraphQLServiceError {
+                                Some(InvalidCredentials) => {
+                                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(&err));
+                                },
+                                Some(_) => { 
+                                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
+                                }
+                                None => { println!("none"); }
+                            }
+                            println!("_>>> {:?}", GraphQLServiceError);
+
+                        },
+                        //GraphQLServiceError::PartialError(_) => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
+                        //() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
                     }
 
-                    //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                 })?;
 
             Ok(SupergraphConfigResolver {
