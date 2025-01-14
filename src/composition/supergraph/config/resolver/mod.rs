@@ -134,40 +134,24 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
+                   
+                    let internal_error = err.source().unwrap();
 
-                    let string_idea = &err;
-                    println!("string idea: {string_idea}");
-
-                    let source_idea = err.source();
-                    println!("source idea: {source_idea:?}");
-
-                    // psuedo: what I'm trying to accomplish
-                    //
-                    println!(">>>> {:?}", err);
-
-                    match &err.source() {
-                        GraphQLServiceError => {
-                            match GraphQLServiceError {
-                                Some(InvalidCredentials) => {
-                                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(&err));
-                                },
-                                Some(_) => { 
-                                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
-                                }
-                                None => { println!("none"); }
-                            }
-                            println!("_>>> {:?}", GraphQLServiceError);
-
+                    match internal_error  {
+                        GraphQLServiceError::InvalidCredentials()=> {
+                            eprintln!("hey hey");
                         },
-                        //GraphQLServiceError::PartialError(_) => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err)) },
-                        //() => { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
+                        GraphQLServiceError::NoData(errs) => {
+                            eprintln!("my my");
+                        }
                     }
+    
 
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                 })?;
 
             Ok(SupergraphConfigResolver {
-                state: state::LoadSupergraphConfig {
+                    state: state::LoadSupergraphConfig {
                     federation_version_resolver: self.state.federation_version_resolver,
                     subgraphs: remote_subgraphs,
                 },
