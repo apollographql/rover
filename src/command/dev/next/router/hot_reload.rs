@@ -1,11 +1,18 @@
+use std::{
+    fmt::{Display, Formatter},
+    net::SocketAddr,
+};
+
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
+use regex::Regex;
+use serde_yaml::Value;
 use tap::TapFallible;
 
 use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
-use super::config::RouterConfig;
+use super::config::{parser::RouterConfigParser, RouterConfig};
 
 use rover_std::{debugln, errln, infoln};
 
@@ -20,11 +27,68 @@ pub enum HotReloadEvent {
     SchemaWritten(#[allow(unused)] Result<(), Box<dyn std::error::Error + Send>>),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum HotReloadError {
+    #[error("Failed to parse the config")]
+    Config {
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
+
+#[derive(Builder, Debug, Copy, Clone)]
+pub struct HotReloadConfigOverrides {
+    pub address: SocketAddr,
+}
+
 #[derive(Builder)]
 pub struct HotReloadWatcher<WriteF> {
     config: Utf8PathBuf,
     schema: Utf8PathBuf,
     write_file_impl: WriteF,
+    overrides: HotReloadConfigOverrides,
+}
+
+pub struct HotReloadConfig {
+    content: String,
+}
+
+impl HotReloadConfig {
+    pub fn new(
+        content: String,
+        overrides: Option<HotReloadConfigOverrides>,
+    ) -> Result<Self, HotReloadError> {
+        // Early return if we don't have to process any overrides
+        match overrides {
+            Some(overrides) => {
+                let config = serde_yaml::from_str::<Value>(&content)
+                    .map_err(|err| HotReloadError::Config { err: err.into() })?;
+
+                // The config's address reflects the precedence logic (CLI override before config before
+                // env before default), so we rely on whatever it gives us when passing it overrides
+                let config_address = RouterConfigParser::new(&config, overrides.address)
+                    .address()
+                    .map_err(|err| HotReloadError::Config { err: err.into() })?
+                    .to_string();
+
+                let config = serde_yaml::to_string(&config).unwrap();
+
+                let re = Regex::new(r"(?m)^  listen:.*$").expect("Failed to create Regex");
+                let updated_config = re.replace(&config, format!("  listen: {config_address}"));
+
+                Ok(Self {
+                    content: updated_config.to_string(),
+                })
+            }
+            None => Ok(Self { content }),
+        }
+    }
+}
+
+impl Display for HotReloadConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let config = &self.content;
+        write!(f, "{config}")
+    }
 }
 
 impl<WriteF> SubtaskHandleStream for HotReloadWatcher<WriteF>
@@ -62,8 +126,25 @@ where
                         }
                     }
                     RouterUpdateEvent::ConfigChanged { config } => {
+                        let hot_reload_config = match HotReloadConfig::new(
+                            config.inner().to_string(),
+                            Some(self.overrides),
+                        ) {
+                            Ok(config) => config,
+                            Err(err) => {
+                                let error_message =
+                                    format!("Router config failed to update. {}", &err);
+                                let message = HotReloadEvent::ConfigWritten(Err(Box::new(err)));
+                                let _ = sender.send(message).tap_err(|err| {
+                                    tracing::error!("Unable to send message. Error: {:?}", err)
+                                });
+                                errln!("{}", error_message);
+                                break;
+                            }
+                        };
+
                         match write_file_impl
-                            .write_file(&self.config, config.inner().as_bytes())
+                            .write_file(&self.config, hot_reload_config.to_string().as_bytes())
                             .await
                         {
                             Ok(_) => {
@@ -72,7 +153,7 @@ where
                                     tracing::error!("Unable to send message. Error: {:?}", err)
                                 });
                                 infoln!("Router config updated.");
-                                debugln!("{}", config.inner());
+                                debugln!("{}", hot_reload_config);
                             }
                             Err(err) => {
                                 let error_message =

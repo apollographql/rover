@@ -18,7 +18,7 @@ use crate::{
     utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
 };
 
-use super::config::remote::RemoteRouterConfig;
+use super::{config::remote::RemoteRouterConfig, hot_reload::HotReloadError};
 
 pub enum RouterLog {
     Stdout(String),
@@ -86,6 +86,18 @@ pub enum RunRouterBinaryError {
         path: Utf8PathBuf,
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Failed to parse config: {}.", .err)]
+    Config {
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
+
+impl From<HotReloadError> for RunRouterBinaryError {
+    fn from(value: HotReloadError) -> Self {
+        match value {
+            HotReloadError::Config { err } => Self::Config { err },
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -174,6 +186,7 @@ where
                     )
                 })
                 .await;
+
             match child {
                 Err(err) => {
                     let err = RunRouterBinaryError::Spawn { err: Box::new(err) };
