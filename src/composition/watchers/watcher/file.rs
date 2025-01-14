@@ -214,7 +214,7 @@ mod tests {
         let mut writeable_file = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(path)
+            .open(path.clone())
             .expect("Cannot open file");
 
         let sdl = "type Query { test: String! }";
@@ -229,6 +229,7 @@ mod tests {
             .name(subgraph_name.to_string())
             .routing_url(routing_url.to_string())
             .schema(sdl.to_string())
+            .schema_source(SchemaSource::File { file: path })
             .build();
         assert_that!(&output)
             .is_ok()

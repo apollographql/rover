@@ -162,7 +162,9 @@ impl FederationVersionResolver<state::FromSubgraphs> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+    use apollo_federation_types::config::{
+        FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
+    };
     use speculoos::prelude::*;
 
     use super::FederationVersionResolverFromSupergraphConfig;
@@ -192,8 +194,11 @@ mod tests {
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
                 .name(subgraph_name.to_string())
-                .schema(subgraph_scenario.sdl)
+                .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
+                .schema_source(SchemaSource::Sdl {
+                    sdl: subgraph_scenario.sdl,
+                })
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -226,9 +231,12 @@ mod tests {
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
-                .schema(subgraph_scenario.sdl)
+                .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
                 .name(subgraph_name.to_string())
+                .schema_source(SchemaSource::Sdl {
+                    sdl: subgraph_scenario.sdl,
+                })
                 .build(),
         )];
         let federation_version = federation_version_resolver
@@ -260,9 +268,12 @@ mod tests {
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
-                .schema(subgraph_scenario.sdl)
+                .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
                 .name(subgraph_name.to_string())
+                .schema_source(SchemaSource::Sdl {
+                    sdl: subgraph_scenario.sdl,
+                })
                 .build(),
         )];
         let federation_version = federation_version_resolver
