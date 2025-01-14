@@ -152,16 +152,18 @@ where
             // We set the APOLLO_KEY here, but it might be overriden by RemoteRouterConfig. That
             // struct takes the who_am_i service, gets an identity, and checks whether the
             // associated API key (if present) is of a graph-level actor; if it is, we overwrite
-            // the env key with it because we know it's associated with the target graph_ref and
+            // the env key with it because we know it's associated with the target graph_ref
+            let api_key =
+                if let Some(api_key) = remote_config.as_ref().and_then(|c| c.api_key().clone()) {
+                    api_key
+                } else {
+                    self.credential.api_key.clone()
+                };
+
             let mut env = HashMap::from_iter([
                 ("APOLLO_ROVER".to_string(), "true".to_string()),
-                ("APOLLO_KEY".to_string(), self.credential.api_key.clone()),
+                ("APOLLO_KEY".to_string(), api_key),
             ]);
-
-            // See note above on env creation
-            if let Some(api_key) = remote_config.as_ref().and_then(|c| c.api_key().clone()) {
-                env.insert("APOLLO_KEY".to_string(), api_key);
-            }
 
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
