@@ -2,7 +2,6 @@
 
 use std::{io::stdin, str::FromStr};
 
-use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
@@ -10,10 +9,14 @@ use houston::{Config, Profile};
 use router::{install::InstallRouter, run::RunRouter, watchers::file::FileWatcher};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
+use semver::Version;
 use tower::ServiceExt;
 
 use crate::{
-    command::{dev::OVERRIDE_DEV_COMPOSITION_VERSION, dev::OVERRIDE_DEV_ROUTER_VERSION, Dev},
+    command::{
+        dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
+        Dev,
+    },
     composition::{
         pipeline::CompositionPipeline,
         supergraph::config::{
@@ -99,12 +102,14 @@ impl Dev {
             .or_else(|| {
                 let version = &OVERRIDE_DEV_COMPOSITION_VERSION
                     .clone()
-                    .and_then(|version| match FederationVersion::from_str(&version) {
-                        Ok(version) => Some(version),
-                        Err(err) => {
-                            errln!("{err}");
-                            tracing::error!("{:?}", err);
-                            None
+                    .and_then(|version| {
+                        match FederationVersion::from_str(&format!("={version}")) {
+                            Ok(version) => Some(version),
+                            Err(err) => {
+                                errln!("{err}");
+                                tracing::error!("{:?}", err);
+                                None
+                            }
                         }
                     });
 
@@ -139,7 +144,7 @@ impl Dev {
         let supergraph_schema = composition_success.supergraph_sdl();
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
-            Some(version) => RouterVersion::from_str(version)?,
+            Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::Latest,
         };
 
@@ -195,7 +200,7 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
 
-        infoln!("your supergraph is running! head to {router_address} to query your supergraph");
+        infoln!("Your supergraph is running! head to {router_address} to query your supergraph");
 
         loop {
             tokio::select! {
