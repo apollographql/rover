@@ -33,7 +33,7 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     },
     /// The request failed to present credentials that authorize for the current request.
     #[error("Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
-    InvalidCredentials(Vec<graphql_client::Error>),
+    InvalidCredentials(),
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
@@ -192,11 +192,6 @@ where
                 })?;
             if let Some(errors) = graphql_response.errors {
 
-                // NMK: Aaron, after some digging around, it seemed like this was the right place
-                // to distinguish InvalidCredentials from any other type of PartialError.
-                //
-                // This giant knucklebuster below is how I traversed the object to get to the
-                // string. Definitiely appreciate any pointers you might have here.
                 let invalid_credential_error = errors
                                   .clone()
                                   .iter()
@@ -212,30 +207,15 @@ where
                                   .get("errors")
                                   .unwrap()
                                   .to_string()
-                                  .contains("Invalid credentials")
-                                  .then(|| {
-                                      // I believe this block will only execute if the response
-                                      // (digging deep) has the Invalid Credentials. This feels
-                                      // like a nice place syntactically to put this Err, but...
-                                      // when I do, I get 
-                                      // 224 | ...                   Err(GraphQLServiceError::InvalidCredentials(errors))
-                                       //    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type of the type parameter `T` declared on the enum `GraphQLServiceError`
-                                      // And i've tried a buncha ways to resolve this, but none of
-                                      // the buttons I'm punching are doing anything.
+                                  .contains("Invalid credentials");
 
-                                      // Uncomment this line for Nik's proposed solution
-                                      // Err(GraphQLServiceError::InvalidCredentials(errors))
-                                  });
-
-
-                eprintln!(">> {:?}", invalid_credential_error);
-
-                match graphql_response.data {
-                    Some(data) => Err(GraphQLServiceError::PartialError { data, errors }),
-                    // But if I put the same exact statement here, type engine is fine. Happy,
-                    // even. Wut?
-                    //None => Err(GraphQLServiceError::InvalidCredentials(errors)),
-                    None => Err(GraphQLServiceError::NoData(errors)),
+                if invalid_credential_error {
+                    Err(GraphQLServiceError::InvalidCredentials())
+                } else {
+                    match graphql_response.data {
+                        Some(data) => Err(GraphQLServiceError::PartialError { data, errors }),
+                        None => Err(GraphQLServiceError::NoData(errors)),
+                    }
                 }
             } else {
                 graphql_response
