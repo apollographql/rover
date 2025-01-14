@@ -34,11 +34,12 @@ use crate::{
             read_file::FsReadFile,
             write_file::FsWriteFile,
         },
+        env::RoverEnvKey,
     },
-    RoverError, RoverOutput, RoverResult,
+    RoverOutput, RoverResult,
 };
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use self::router::config::RouterAddress;
 
 mod router;
 
@@ -75,7 +76,8 @@ impl Dev {
         let service = client_config
             .get_authenticated_client(profile)?
             .studio_graphql_service()?;
-        let service = WhoAmI::new(service);
+
+        let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
@@ -148,8 +150,19 @@ impl Dev {
             None => RouterVersion::Latest,
         };
 
-        let credential =
-            Profile::get_credential(&profile.profile_name, &Config::new(None::<&String>, None)?)?;
+        let api_key_override = match std::env::var(RoverEnvKey::Key.to_string()) {
+            Ok(key) => Some(key),
+            Err(_err) => None,
+        };
+        let home_override = match std::env::var(RoverEnvKey::Home.to_string()) {
+            Ok(home) => Some(home),
+            Err(_err) => None,
+        };
+
+        let credential = Profile::get_credential(
+            &profile.profile_name,
+            &Config::new(home_override.as_ref(), api_key_override)?,
+        )?;
 
         let composition_runner = composition_pipeline
             .runner(
@@ -181,7 +194,11 @@ impl Dev {
             .await?
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
-            .load_remote_config(service, graph_ref.clone(), Some(credential))
+            .load_remote_config(
+                who_am_i_service,
+                graph_ref.clone(),
+                Some(credential.clone()),
+            )
             .await;
         let router_address = *run_router.state.config.address();
         let mut run_router = run_router
@@ -191,6 +208,7 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 supergraph_schema,
+                credential,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages)
