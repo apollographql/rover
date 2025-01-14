@@ -106,11 +106,13 @@ where
 
                     match output {
                         Ok(success) => {
+                            infoln!("Composition successful.");
                             let _ = sender
                                 .send(CompositionEvent::Success(success))
                                 .tap_err(|err| tracing::error!("{:?}", err));
                         }
                         Err(err) => {
+                            errln!("Composition failed.");
                             let _ = sender
                                 .send(CompositionEvent::Error(err))
                                 .tap_err(|err| tracing::error!("{:?}", err));
