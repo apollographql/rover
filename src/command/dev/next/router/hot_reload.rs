@@ -57,7 +57,6 @@ impl HotReloadConfig {
         content: String,
         overrides: Option<HotReloadConfigOverrides>,
     ) -> Result<Self, HotReloadError> {
-        // Early return if we don't have to process any overrides
         match overrides {
             Some(overrides) => {
                 let config = serde_yaml::from_str::<Value>(&content)
