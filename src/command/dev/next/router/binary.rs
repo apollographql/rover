@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt, process::Stdio};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
+use houston::Credential;
 use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
@@ -107,6 +108,7 @@ pub struct RunRouterBinary<Spawn: Send> {
     config_path: Utf8PathBuf,
     supergraph_schema_path: Utf8PathBuf,
     remote_config: Option<RemoteRouterConfig>,
+    credential: Credential,
     spawn: Spawn,
 }
 
@@ -134,13 +136,25 @@ where
                 "info".to_string(),
                 "--dev".to_string(),
             ];
-            let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+
+            // We set the APOLLO_KEY here, but it might be overriden by RemoteRouterConfig. That
+            // struct takes the who_am_i service, gets an identity, and checks whether the
+            // associated API key (if present) is of a graph-level actor; if it is, we overwrite
+            // the env key with it because we know it's associated with the target graph_ref and
+            let mut env = HashMap::from_iter([
+                ("APOLLO_ROVER".to_string(), "true".to_string()),
+                ("APOLLO_KEY".to_string(), self.credential.api_key.clone()),
+            ]);
+
+            // See note above on env creation
+            if let Some(api_key) = remote_config.as_ref().and_then(|c| c.api_key().clone()) {
+                env.insert("APOLLO_KEY".to_string(), api_key);
+            }
+
             if let Some(graph_ref) = remote_config.as_ref().map(|c| c.graph_ref().to_string()) {
                 env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
             }
-            if let Some(api_key) = remote_config.and_then(|c| c.api_key().clone()) {
-                env.insert("APOLLO_KEY".to_string(), api_key);
-            }
+
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
