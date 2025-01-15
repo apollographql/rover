@@ -124,10 +124,15 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .map_err(|err| {
 
                     let internal_error = err.source().unwrap();
-                    eprintln!("::::{}", internal_error);
 
-                    match internal_error {
-                        GraphQLServiceError::InvalidCredentials()=> {
+                    // NMK: #1: 
+                    // I like the pattern here -- could be tidied, but the overall shape lgtm. 
+                    // I think the next step is getting these types to align so I can pattern
+                    // match here.
+                    // I've marked with 'NMK: #2' where I think the types *should* be resolved.
+
+                    match internal_error { // I: this expression has type `&dyn StdError` 
+                        GraphQLServiceError::InvalidCredentials()=> { // E: mismatched types: expected `dyn Error`, found `GraphQLServiceError<_>`
                             LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                         },
                         _ => {
