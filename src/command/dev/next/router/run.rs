@@ -4,18 +4,17 @@ use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
     stream::{self, BoxStream},
-    StreamExt,
+    StreamExt, TryFutureExt,
 };
 use houston::Credential;
 use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::{debugln, errln, infoln, RoverStdError};
+use rover_std::{debugln, infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower::{Service, ServiceExt};
-use tracing::info;
 
 use super::{
     binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
@@ -25,7 +24,10 @@ use super::{
     watchers::router_config::RouterConfigWatcher,
 };
 use crate::{
-    command::dev::next::FileWatcher,
+    command::dev::next::{
+        router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
+        FileWatcher,
+    },
     composition::events::CompositionEvent,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
@@ -86,6 +88,9 @@ impl RunRouter<state::LoadLocalConfig> {
             .with_config(read_file_impl, config_path.as_ref())
             .await?;
         if let Some(config_path) = config_path.clone() {
+            // This is a somewhat misleading place to alert users that their config is being
+            // watched (because there's no watching logic _here_); look at the
+            // RunRouter<state::Watch> impl for the actual watching logic
             infoln!(
                 "Watching {} for changes",
                 config_path.as_std_path().display()
@@ -160,11 +165,23 @@ impl RunRouter<state::Run> {
             "Creating temporary router config path at {}",
             hot_reload_config_path
         );
+
+        let hot_reload_config = HotReloadConfig::new(
+            self.state.config.raw_config(),
+            Some(
+                HotReloadConfigOverrides::builder()
+                    .address(self.state.config.address())
+                    .build(),
+            ),
+        )
+        .map_err(RunRouterBinaryError::from)?
+        .to_string();
+
         write_file
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
-                    .contents(Vec::from(self.state.config.raw_config()))
+                    .contents(Vec::from(hot_reload_config.to_string()))
                     .build(),
             )
             .await
@@ -225,7 +242,7 @@ impl RunRouter<state::Run> {
         studio_client_config: &StudioClientConfig,
     ) -> Result<(), RunRouterBinaryError> {
         if !self.state.config.health_check_enabled() {
-            info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+            tracing::info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
             return Ok(());
         }
 
@@ -296,6 +313,7 @@ impl RunRouter<state::Watch> {
         self,
         write_file_impl: WriteF,
         composition_messages: BoxStream<'static, CompositionEvent>,
+        hot_reload_overrides: HotReloadConfigOverrides,
     ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
@@ -328,16 +346,15 @@ impl RunRouter<state::Watch> {
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
+            .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
 
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-
         let router_config_updates = router_config_updates
             .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
-
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
 

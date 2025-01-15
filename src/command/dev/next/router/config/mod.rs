@@ -3,9 +3,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
-use http::Uri;
 use rover_std::errln;
-use rover_std::{Fs, RoverStdError};
+use rover_std::RoverStdError;
 use thiserror::Error;
 
 use self::{
@@ -14,7 +13,7 @@ use self::{
 };
 use crate::utils::effect::read_file::ReadFile;
 
-mod parser;
+pub mod parser;
 pub mod remote;
 mod state;
 
@@ -23,8 +22,6 @@ const DEFAULT_ROUTER_PORT: u16 = 4000;
 
 #[derive(Error, Debug)]
 pub enum ReadRouterConfigError {
-    #[error(transparent)]
-    Fs(RoverStdError),
     #[error("Failed to read file at {}", .path)]
     ReadFile {
         path: Utf8PathBuf,
@@ -85,6 +82,14 @@ impl From<RouterAddress> for SocketAddr {
     }
 }
 
+impl From<&RouterAddress> for SocketAddr {
+    fn from(value: &RouterAddress) -> Self {
+        let host = value.host;
+        let port = value.port;
+        SocketAddr::new(host, port)
+    }
+}
+
 impl From<Option<SocketAddr>> for RouterAddress {
     fn from(value: Option<SocketAddr>) -> Self {
         let host = value.map(|addr| addr.ip());
@@ -130,6 +135,14 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
         read_file_impl: &ReadF,
         path: Option<&Utf8PathBuf>,
     ) -> Result<RunRouterConfig<RunRouterConfigFinal>, ReadRouterConfigError> {
+        // Some router options have potential overrides, like router address. We create a default
+        // RunRouterConfigFinal here with those overrides to use when we can't read the config from
+        // file
+        //
+        // Development note: any future overrides should go into this default config
+        let mut default_config = RunRouterConfigFinal::default();
+        default_config.address = self.state.router_address;
+
         match path {
             Some(path) => match read_file_impl.read_file(&path).await {
                 Ok(contents) => {
@@ -140,11 +153,10 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                         }
                     })?;
 
-                    let router_config = RouterConfigParser::new(&yaml);
+                    let router_config =
+                        RouterConfigParser::new(&yaml, self.state.router_address.into());
                     let address = router_config.address()?;
-                    let address = address
-                        .map(RouterAddress::from)
-                        .unwrap_or(self.state.router_address);
+                    let address = address.into();
                     let health_check_enabled = router_config.health_check_enabled();
                     let health_check_endpoint = router_config.health_check_endpoint()?;
                     let health_check_path = router_config.health_check_path();
@@ -159,20 +171,20 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                         raw_config: contents.to_string(),
                     })
                 }
-                Err(RoverStdError::EmptyFile { .. }) => Ok(RunRouterConfigFinal::default()),
+                Err(RoverStdError::EmptyFile { .. }) => Ok(default_config),
                 Err(RoverStdError::AdhocError { .. }) => {
                     errln!(
                         "{} does not exist, creating a router config from CLI options.",
                         &path
                     );
-                    Ok(RunRouterConfigFinal::default())
+                    Ok(default_config)
                 }
                 Err(err) => Err(ReadRouterConfigError::ReadFile {
                     path: path.clone(),
                     source: Box::new(err),
                 }),
             },
-            None => Ok(RunRouterConfigFinal::default()),
+            None => Ok(default_config),
         }
         .map(|state| RunRouterConfig { state })
     }
