@@ -94,18 +94,6 @@ pub enum LoadRemoteSubgraphsError {
     FetchRemoteSubgraphsAuthError(Box<dyn std::error::Error + Send + Sync>),
 }
 
-//impl From<MakeService::MakeError> for LoadRemoteSubgraphsError {
-//    fn from(value: MakeService::MakeError) -> Self {
-//        todo!()
-//    }
-//}
-//
-//impl<T, R> From<<dyn Any as MakeService<T, R>>::MakeError> for LoadRemoteSubgraphsError {
-//    fn from(value: <dyn Any as MakeService<T, R>>::MakeError) -> Self {
-//        todo!()
-//    }
-//}
-
 impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     /// Optionally loads subgraphs from the Studio API using the contents of the `--graph-ref` flag
     /// and an implementation of [`FetchRemoteSubgraphs`]
@@ -134,24 +122,24 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
-                   
-                    let internal_error = err.source().unwrap();
 
-                    match internal_error  {
+                    let internal_error = err.source().unwrap();
+                    eprintln!("::::{}", internal_error);
+
+                    match internal_error {
                         GraphQLServiceError::InvalidCredentials()=> {
-                            eprintln!("hey hey");
+                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                         },
-                        GraphQLServiceError::NoData(errs) => {
-                            eprintln!("my my");
+                        _ => {
+                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
                         }
                     }
-    
 
-                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+
                 })?;
 
             Ok(SupergraphConfigResolver {
-                    state: state::LoadSupergraphConfig {
+                state: state::LoadSupergraphConfig {
                     federation_version_resolver: self.state.federation_version_resolver,
                     subgraphs: remote_subgraphs,
                 },

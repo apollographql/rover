@@ -20,7 +20,7 @@ pub type GraphQLResponse<T> = graphql_client::Response<T>;
 /// Errors that may occur from using a [`GraphQLService`]
 #[derive(thiserror::Error, Debug)]
 pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
-    /// There was not data field provided in the response
+    /// There was no data field provided in the response
     #[error("No data field provided")]
     NoData(Vec<graphql_client::Error>),
     /// The response returned some data, but there were errors
@@ -33,7 +33,7 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     },
     /// The request failed to present credentials that authorize for the current request.
     #[error("Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
-    InvalidCredentials(),
+    InvalidCredentials(#[from] <&dyn std::error::Error + 'static>),
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
