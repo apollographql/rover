@@ -191,9 +191,8 @@ impl SupergraphConfigDiff {
             .collect::<Vec<_>>();
 
         let federation_version = if old.get_federation_version() != new.get_federation_version() {
-            debug!("Detected federation version change!");
             debug!(
-                "Old: {:?}, New: {:?}",
+                "Detected federation version change. Changing from {:?} to {:?}",
                 old.get_federation_version(),
                 new.get_federation_version()
             );
