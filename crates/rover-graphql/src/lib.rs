@@ -33,7 +33,15 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     },
     /// The request failed to present credentials that authorize for the current request.
     #[error("Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
-    InvalidCredentials(#[from] <&dyn std::error::Error + 'static>),
+    // # NMK: #2 (start with comments at 'NMK: #1'
+    // Here is where I think I can use thisError's standard functionality to create a From trait
+    // that wiill resolve the type conflict at # NMK: #1.
+    // e.g.  type `&dyn StdError` => InvalidCredentials
+    // I suspect I'm just off by punctuation, but I've tried every combo that makes sense to me.
+    InvalidCredentials(),
+    //InvalidCredentials(#[from] <&dyn std::error::Error>), // E: expected `::`, found `)`: expected `::`
+    //InvalidCredentials(#[from] &dyn std::error::Error), // E: missing lifetime specifier expected named lifetime parameter  
+    //InvalidCredentials(#[from] dyn std::error::Error), // the size for values of type `(dyn std::error::Error + 'static)` cannot be known at compilation time
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
