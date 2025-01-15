@@ -175,26 +175,29 @@ where
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {
-        let (supergraph_config_stream, supergraph_config_stream_2, supergraph_config_subtask) =
-            if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
-                tracing::info!("Watching subgraphs for changes...");
-                let (supergraph_config_stream, supergraph_config_subtask) =
-                    BroadcastSubtask::new(supergraph_config_watcher);
-                (
-                    supergraph_config_stream.boxed(),
-                    supergraph_config_subtask.subscribe().boxed(),
-                    Some(supergraph_config_subtask),
-                )
-            } else {
-                tracing::warn!(
+        let (
+            supergraph_config_stream_for_subtask_watcher,
+            supergraph_config_stream_for_federation_watcher,
+            supergraph_config_subtask,
+        ) = if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
+            tracing::info!("Watching subgraphs for changes...");
+            let (supergraph_config_stream, supergraph_config_subtask) =
+                BroadcastSubtask::new(supergraph_config_watcher);
+            (
+                supergraph_config_stream.boxed(),
+                supergraph_config_subtask.subscribe().boxed(),
+                Some(supergraph_config_subtask),
+            )
+        } else {
+            tracing::warn!(
                     "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
                 );
-                (
-                    tokio_stream::empty().boxed(),
-                    tokio_stream::empty().boxed(),
-                    None,
-                )
-            };
+            (
+                tokio_stream::empty().boxed(),
+                tokio_stream::empty().boxed(),
+                None,
+            )
+        };
 
         let (subgraph_change_stream, subgraph_watcher_subtask) =
             Subtask::new(self.state.subgraph_watchers);
@@ -210,7 +213,7 @@ where
 
         // Start subgraph watchers, listening for events from the supergraph change stream.
         subgraph_watcher_subtask.run(
-            supergraph_config_stream
+            supergraph_config_stream_for_subtask_watcher
                 .filter_map(|recv_res| async move {
                     match recv_res {
                         Ok(res) => Some(res),
@@ -224,7 +227,7 @@ where
         );
 
         federation_watcher_subtask.run(
-            supergraph_config_stream_2
+            supergraph_config_stream_for_federation_watcher
                 .filter_map(|recv_res| async move {
                     match recv_res {
                         Ok(res) => Some(res),
