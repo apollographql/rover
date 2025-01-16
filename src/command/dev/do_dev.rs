@@ -11,13 +11,17 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::command::dev::router::config::RouterAddress;
+use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::Dev;
 use crate::composition::pipeline::CompositionPipeline;
+use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
+use crate::composition::supergraph::config::resolver::SubgraphPrompt;
+use crate::composition::FederationUpdaterConfig;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
 use crate::utils::effect::read_file::FsReadFile;
@@ -37,11 +41,6 @@ impl Dev {
         let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
-
-        let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
-        );
 
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
@@ -111,6 +110,7 @@ impl Dev {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
+                Some(&SubgraphPrompt::default()),
             )
             .await?
             .install_supergraph_binary(
@@ -145,6 +145,17 @@ impl Dev {
             &Config::new(home_override.as_ref(), api_key_override)?,
         )?;
 
+        // Set up an updater config, but only if we're not overriding the version ourselves. If
+        // we are then we don't need one, so it becomes None.
+        let federation_updater_config = match self.opts.supergraph_opts.federation_version {
+            Some(_) => None,
+            None => Some(FederationUpdaterConfig {
+                studio_client_config: client_config.clone(),
+                elv2_licence_accepter: elv2_license_accepter,
+                skip_update,
+            }),
+        };
+
         let composition_runner = composition_pipeline
             .runner(
                 exec_command_impl,
@@ -154,6 +165,10 @@ impl Dev {
                 fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
+                OutputTarget::Stdout,
+                false,
+                federation_updater_config,
+                Some(&SubgraphPrompt::default()),
             )
             .await?;
 
@@ -162,6 +177,14 @@ impl Dev {
         eprintln!(
             "composing supergraph with Federation {}",
             composition_pipeline.state.supergraph_binary.version()
+        );
+
+        // This RouterAddress hasn't been fully processed. It only represents the CLI option or
+        // default, but we still have to reckon with the config-set address (if one exists). See
+        // the reassignment of the variable below for details
+        let router_address = RouterAddress::new(
+            self.opts.supergraph_opts.supergraph_address,
+            self.opts.supergraph_opts.supergraph_port,
         );
 
         let run_router = RunRouter::default()
@@ -181,7 +204,15 @@ impl Dev {
                 Some(credential.clone()),
             )
             .await;
+        // This RouterAddress has some logic figuring out _which_ of the potentially multiple
+        // address options we should use (eg, CLI, config, env var, or default). It will be used in
+        // the overrides for the temporary config we set for hot-reloading the router, but also as
+        // a message to the user for where to find their router
         let router_address = *run_router.state.config.address();
+        let hot_reload_overrides = HotReloadConfigOverrides::builder()
+            .address(router_address)
+            .build();
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -192,7 +223,7 @@ impl Dev {
                 credential,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages)
+            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
         warnln!(

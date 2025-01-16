@@ -24,9 +24,9 @@ use super::{
     watchers::router_config::RouterConfigWatcher,
 };
 use crate::{
-    command::dev::next::{
+    command::dev::{
         router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
-        FileWatcher,
+        router::watchers::file::FileWatcher,
     },
     composition::events::CompositionEvent,
     options::LicenseAccepter,
@@ -396,7 +396,7 @@ mod state {
     use tokio::task::AbortHandle;
     use tokio_stream::wrappers::UnboundedReceiverStream;
 
-    use crate::command::dev::next::router::{
+    use crate::command::dev::router::{
         binary::{RouterBinary, RouterLog, RunRouterBinaryError},
         config::{remote::RemoteRouterConfig, RouterConfigFinal},
         hot_reload::HotReloadEvent,
