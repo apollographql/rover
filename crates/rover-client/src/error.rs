@@ -200,7 +200,7 @@ pub enum RoverClientError {
     InvalidInputError { graph_ref: GraphRef },
 
     #[error("You don't have the required permissions to perform this operation: {msg}.")]
-    PermissionError { msg: String },
+    PermissionError { msg: String }, // interesting
 
     #[error(
         "You cannot perform this operation due to a limit imposed by your current billing plan"

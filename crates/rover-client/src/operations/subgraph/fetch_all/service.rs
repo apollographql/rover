@@ -93,8 +93,12 @@ where
                 .call(GraphQLRequest::<SubgraphFetchAllQuery>::new(variables))
                 .await
                 .map_err(|err| RoverClientError::Service {
-                    source: Box::new(err),
+                    // return type of FetchRemoteSubgraphError here 
+                    // also needs to be a RoverClientError 
+                    // differentiate between Service Error and PermissionError
+                    // and this should be easier to sort in the current location where
                     endpoint_kind: EndpointKind::ApolloStudio,
+                    source: Box::new(err),
                 })
                 .and_then(|response_data| {
                     get_subgraphs_from_response_data(req.graph_ref, response_data)
