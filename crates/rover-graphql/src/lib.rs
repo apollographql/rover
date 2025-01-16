@@ -38,10 +38,13 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     // that wiill resolve the type conflict at # NMK: #1.
     // e.g.  type `&dyn StdError` => InvalidCredentials
     // I suspect I'm just off by punctuation, but I've tried every combo that makes sense to me.
-    InvalidCredentials(),
+    //InvalidCredentials(),
     //InvalidCredentials(#[from] <&dyn std::error::Error>), // E: expected `::`, found `)`: expected `::`
-    //InvalidCredentials(#[from] &dyn std::error::Error), // E: missing lifetime specifier expected named lifetime parameter  
+    //InvalidCredentials(#[from] &dyn std::error::Error), // E: missing lifetime specifier expected named lifetime parameter
     //InvalidCredentials(#[from] dyn std::error::Error), // the size for values of type `(dyn std::error::Error + 'static)` cannot be known at compilation time
+    //InvalidCredentials(#[from] Box<dyn std::error::Error>),
+    InvalidCredentials(),
+    //InvalidCredentials(#[from] Box<dyn std::error::Error>),
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
@@ -64,6 +67,25 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     /// Errors that occur as a result of the underlying [`HttpService`] failing
     #[error("Upstream service error: {:?}", .0)]
     UpstreamService(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
+
+
+// impl<T> From<unrar::error::UnrarError<T>> for MyError {
+    //fn from(err: unrar::error::UnrarError<T>) -> Self {
+        //// Get details from the error you want,
+        //// or even implement for both T variants.
+        //Self::Unrar
+    //}
+//}
+
+impl<T> From<&dyn std::error::Error> for GraphQLServiceError<T>
+where
+T: Send + Sync + fmt::Debug
+{
+    fn from(err: &dyn std::error::Error) -> Self {
+        eprintln!("I GOT CALLED AND I GOT {:?}", err);
+        Self::InvalidCredentials()
+    }
 }
 
 /// Wrapper around [`GraphQLQuery::Variables`]
