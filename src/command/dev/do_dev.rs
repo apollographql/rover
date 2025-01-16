@@ -11,6 +11,7 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::command::dev::router::config::RouterAddress;
+use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::Dev;
@@ -37,11 +38,6 @@ impl Dev {
         let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
-
-        let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
-        );
 
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
@@ -164,6 +160,14 @@ impl Dev {
             composition_pipeline.state.supergraph_binary.version()
         );
 
+        // This RouterAddress hasn't been fully processed. It only represents the CLI option or
+        // default, but we still have to reckon with the config-set address (if one exists). See
+        // the reassignment of the variable below for details
+        let router_address = RouterAddress::new(
+            self.opts.supergraph_opts.supergraph_address,
+            self.opts.supergraph_opts.supergraph_port,
+        );
+
         let run_router = RunRouter::default()
             .install(
                 router_version,
@@ -181,7 +185,15 @@ impl Dev {
                 Some(credential.clone()),
             )
             .await;
+        // This RouterAddress has some logic figuring out _which_ of the potentially multiple
+        // address options we should use (eg, CLI, config, env var, or default). It will be used in
+        // the overrides for the temporary config we set for hot-reloading the router, but also as
+        // a message to the user for where to find their router
         let router_address = *run_router.state.config.address();
+        let hot_reload_overrides = HotReloadConfigOverrides::builder()
+            .address(router_address)
+            .build();
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -192,7 +204,7 @@ impl Dev {
                 credential,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages)
+            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
         warnln!(

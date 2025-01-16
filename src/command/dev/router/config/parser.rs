@@ -143,9 +143,8 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
 
-    use crate::command::dev::next::router::config::RouterAddress;
-
     use super::RouterConfigParser;
+    use crate::command::dev::router::config::RouterAddress;
 
     #[rstest]
     #[case("127.0.0.1", SocketAddr::from_str("127.0.0.1:80").unwrap())]
