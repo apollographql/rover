@@ -33,6 +33,7 @@ pub struct FullyResolvedSubgraph {
     name: String,
     routing_url: String,
     schema: String,
+    schema_source: SchemaSource,
     pub(crate) is_fed_two: bool,
 }
 
@@ -40,13 +41,19 @@ pub struct FullyResolvedSubgraph {
 impl FullyResolvedSubgraph {
     /// Hook for [`buildstructor::buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
     #[builder]
-    pub fn new(name: String, schema: String, routing_url: String) -> FullyResolvedSubgraph {
+    pub fn new(
+        name: String,
+        schema: String,
+        routing_url: String,
+        schema_source: SchemaSource,
+    ) -> FullyResolvedSubgraph {
         let is_fed_two = schema_contains_link_directive(&schema);
         FullyResolvedSubgraph {
             name,
             schema,
             routing_url,
             is_fed_two,
+            schema_source,
         }
     }
 
@@ -125,6 +132,7 @@ impl FullyResolvedSubgraph {
                             },
                         )?)
                         .schema(sdl.to_string())
+                        .schema_source(SchemaSource::Sdl { sdl })
                         .build())
                 }
             })
