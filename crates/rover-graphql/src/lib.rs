@@ -43,8 +43,8 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     //InvalidCredentials(#[from] &dyn std::error::Error), // E: missing lifetime specifier expected named lifetime parameter
     //InvalidCredentials(#[from] dyn std::error::Error), // the size for values of type `(dyn std::error::Error + 'static)` cannot be known at compilation time
     //InvalidCredentials(#[from] Box<dyn std::error::Error>),
-    InvalidCredentials(),
-    //InvalidCredentials(#[from] Box<dyn std::error::Error>),
+    //InvalidCredentials(),
+    InvalidCredentials(#[from] Box<dyn std::error::Error>),
     /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
@@ -78,15 +78,15 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     //}
 //}
 
-impl<T> From<&dyn std::error::Error> for GraphQLServiceError<T>
-where
-T: Send + Sync + fmt::Debug
-{
-    fn from(err: &dyn std::error::Error) -> Self {
-        eprintln!("I GOT CALLED AND I GOT {:?}", err);
-        Self::InvalidCredentials()
-    }
-}
+//impl<T> From<&dyn std::error::Error> for GraphQLServiceError<T>
+//where
+//T: Send + Sync + fmt::Debug
+//{
+    //fn from(err: &dyn std::error::Error) -> Self {
+        //eprintln!("I GOT CALLED AND I GOT {:?}", err);
+        //Self::InvalidCredentials(Box::new(err))
+    //}
+//}
 
 /// Wrapper around [`GraphQLQuery::Variables`]
 /// This type requires something more concrete around it to be used appropriately

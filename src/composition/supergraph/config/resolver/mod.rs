@@ -133,8 +133,8 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                     // match here.
                     // I've marked with 'NMK: #2' where I think the types *should* be resolved.
 
-                    match GraphQLServiceError::from(internal_error) {
-                        GraphQLServiceError::InvalidCredentials() => {
+                    match internal_error {
+                        GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
                             LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                         },
                         _ => {
@@ -142,7 +142,14 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                         }
                     }
 
-
+                    //match GraphQLServiceError::<dyn Send + Sync + std::fmt::Debug>::from(Box::new(internal_error)) {
+                        //GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
+                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+                        //},
+                        //_ => {
+                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
+                        //}
+                    //}
                 })?;
 
             Ok(SupergraphConfigResolver {
