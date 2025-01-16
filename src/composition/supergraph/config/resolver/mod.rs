@@ -112,7 +112,7 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
         S::Error: std::error::Error + Send + Sync + 'static,
     {
         if let Some(graph_ref) = graph_ref {
-            let maybe_remote_subgraphs = fetch_remote_subgraphs_factory
+            let remote_subgraphs = fetch_remote_subgraphs_factory
                 .make_service(())
                 .await
                 .map_err(|err| LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)))?
@@ -120,20 +120,10 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .await
                 .map_err(|err| LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)))?
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
-                .await;
+                .await
+                .map_err(|err| {
 
-
-            match maybe_remote_subgraphs {
-                Ok(maybe_remote_subgraphs) => { maybe_remote_subgraphs },
-                Err(err) => {
-                    err
-                }
-            }
-
-
-                //.map_err(|err| {
-
-                    let internal_error = err.source().unwrap() ...clone();
+                    let internal_error = err.source().unwrap();
 
                     eprintln!("{:?}", internal_error);
 
@@ -143,23 +133,23 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                     // match here.
                     // I've marked with 'NMK: #2' where I think the types *should* be resolved.
 
-                    match internal_error {
-                        GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
-                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
-                        },
-                        _ => {
-                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
-                        }
-                    }
+                    //match internal_error {
+                        //GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
+                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+                        //},
+                        //_ => {
+                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
+                        //}
+                    //}
 
-                    match GraphQLServiceError::<dyn Send + Sync + std::fmt::Debug>::from(Box::new(internal_error)) {
-                        GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
-                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
-                        },
-                        _ => {
+                    //match GraphQLServiceError::<dyn Send + Sync + std::fmt::Debug>::from(Box::new(internal_error)) {
+                        //GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
+                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+                        //},
+                        //_ => {
                             LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
-                        }
-                    }
+                        //}
+                    //}
                 })?;
 
             Ok(SupergraphConfigResolver {

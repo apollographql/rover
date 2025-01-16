@@ -118,6 +118,7 @@ where
         let cloned = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, cloned);
         let fut = async move {
+            // here is another call
             let SubgraphFetchAllResponse { subgraphs, .. } = inner
                 .call(SubgraphFetchAllRequest::new(req.graph_ref))
                 .await?;
