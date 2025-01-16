@@ -93,7 +93,7 @@ fn version_from_path(path: &Utf8Path) -> Result<Version, InstallRouterError> {
 
 #[cfg(test)]
 mod tests {
-    use std::{str::FromStr, time::Duration};
+    use std::{env, str::FromStr, time::Duration};
 
     use anyhow::Result;
     use apollo_federation_types::config::RouterVersion;
@@ -203,7 +203,7 @@ mod tests {
         let mut archive = tar::Builder::new(enc);
         let contents = b"router";
         let mut header = tar::Header::new_gnu();
-        header.set_path("dist/router")?;
+        header.set_path(format!("{}{}", "dist/router", env::consts::EXE_SUFFIX))?;
         header.set_size(contents.len().try_into().unwrap());
         header.set_cksum();
         archive.append(&header, &contents[..]).unwrap();
@@ -235,9 +235,11 @@ mod tests {
         let subject = assert_that!(binary).is_ok().subject;
         assert_that!(subject.version()).is_equal_to(&Version::from_str("1.57.1")?);
 
-        let installed_binary_path = override_install_path
-            .path()
-            .join(".rover/bin/router-v1.57.1");
+        let installed_binary_path = override_install_path.path().join(format!(
+            "{}{}",
+            ".rover/bin/router-v1.57.1",
+            env::consts::EXE_SUFFIX
+        ));
         assert_that!(subject.exe())
             .is_equal_to(&Utf8PathBuf::from_path_buf(installed_binary_path.clone()).unwrap());
         assert_that!(installed_binary_path.exists()).is_equal_to(true);
