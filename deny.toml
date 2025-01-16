@@ -64,6 +64,24 @@ version = "*"
 expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
 license-files = [{ path = "COPYRIGHT", hash = 0x39f8ad31 }]
 
+[[licenses.clarify]]
+name = "apollo-language-server"
+version = "*"
+expression = "Elastic-2.0"
+license-files = [{ path = "LICENSE.md", hash = 0x5fc4a573 }]
+
+[[licenses.exceptions]]
+name = "apollo-language-server"
+allow = ["Elastic-2.0"]
+
+[[licenses.exceptions]]
+name = "apollo-federation"
+allow = ["Elastic-2.0"]
+
+[[licenses.exceptions]]
+name = "apollo-composition"
+allow = ["Elastic-2.0"]
+
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html

@@ -16,6 +16,8 @@ pub enum ResolveSubgraphError {
         supergraph_config_path: Utf8PathBuf,
         /// Supplied path to the subgraph schema file
         path: PathBuf,
+        /// The result of joining the paths together, that caused the failure
+        joined_path: PathBuf,
         /// The source error
         source: std::io::Error,
     },
