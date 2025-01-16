@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use apollo_federation_types::config::{
@@ -78,6 +79,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                     );
                                     match supergraph_config_diff {
                                         Ok(supergraph_config_diff) =>  {
+                                            debug!("{supergraph_config_diff}");
                                             let _ = sender
                                                 .send(Ok(supergraph_config_diff))
                                                 .tap_err(|err| tracing::error!("{:?}", err));
@@ -89,20 +91,24 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
 
                                     latest_supergraph_config = supergraph_config;
                                 }
-                                Err(err) => {
+                                Err(resolution_errors) => {
                                     errln!(
                                         "Failed to lazily resolve the supergraph config at {}.\n{}",
                                         supergraph_config_path,
                                         itertools::join(
-                                            err
+                                            resolution_errors
                                                 .iter()
                                                 .map(
                                                     |(name, err)| format!("{}: {}", name, err)
                                                 ),
                                             "\n")
                                     );
+                                    // Since we have errors we need to remove these subgraphs from
+                                    // what we're tracking **and** emit events to make sure they
+                                    // get removed in downstream processes as well.
+                                    latest_supergraph_config = remove_errored_subgraphs(latest_supergraph_config, resolution_errors.clone());
                                     let _ = sender
-                                        .send(Err(SupergraphConfigSerialisationError::ResolvingSubgraphErrors(err)))
+                                        .send(Err(SupergraphConfigSerialisationError::ResolvingSubgraphErrors(resolution_errors)))
                                         .tap_err(|err| tracing::error!("{:?}", err));
                                 }
                             }
@@ -123,12 +129,39 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
     }
 }
 
+fn remove_errored_subgraphs(
+    existing_supergraph_config: SupergraphConfig,
+    errors: BTreeMap<String, ResolveSubgraphError>,
+) -> SupergraphConfig {
+    let federation_version = existing_supergraph_config.get_federation_version();
+    let working_subgraphs = existing_supergraph_config
+        .into_iter()
+        .filter(|(name, _)| !errors.contains_key(name))
+        .collect();
+    SupergraphConfig::new(working_subgraphs, federation_version)
+}
+
 #[derive(Getters, Debug, Clone)]
 pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     changed: Vec<(String, SubgraphConfig)>,
     removed: Vec<String>,
     federation_version: Option<Option<FederationVersion>>,
+}
+
+impl Display for SupergraphConfigDiff {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Added: {:?} Changed: {:?} Removed: {:?}",
+            self.added.iter().map(|(name, _)| name).collect::<Vec<_>>(),
+            self.changed
+                .iter()
+                .map(|(name, _)| name)
+                .collect::<Vec<_>>(),
+            self.removed
+        )
+    }
 }
 
 impl SupergraphConfigDiff {
