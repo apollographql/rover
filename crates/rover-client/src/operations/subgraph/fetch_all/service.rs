@@ -97,12 +97,6 @@ where
                     //endpoint_kind: EndpointKind::ApolloStudio,
                 //})
                 .map_err(|err| {
-                    eprintln!("fetch all error {:?}", err);
-                    // return type of FetchRemoteSubgraphError here
-                    // also needs to be a RoverClientError
-                    // differentiate between Service Error and PermissionError
-                    // and this should be easier to sort in the current location where
-
                     match err {
                         GraphQLServiceError::InvalidCredentials() => {
                             RoverClientError::PermissionError {
