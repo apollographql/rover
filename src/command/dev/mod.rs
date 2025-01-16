@@ -1,7 +1,17 @@
-use std::net::IpAddr;
+#![warn(missing_docs)]
 
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
+
+#[cfg(feature = "composition-js")]
+mod do_dev;
+#[cfg(not(feature = "composition-js"))]
+mod no_dev;
+#[cfg(feature = "composition-js")]
+mod router;
+
+use std::net::IpAddr;
+
 use clap::Parser;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
@@ -12,12 +22,9 @@ use crate::{
     utils::parsers::FileDescriptorType,
 };
 
-#[cfg(not(feature = "dev-next"))]
-pub mod legacy;
-#[cfg(feature = "dev-next")]
-pub mod next;
-
 #[derive(Debug, Serialize, Parser)]
+/// Command that represents running a local router, and composition to test local changes to
+/// subgraphs.
 pub struct Dev {
     #[clap(flatten)]
     pub(crate) opts: DevOpts,

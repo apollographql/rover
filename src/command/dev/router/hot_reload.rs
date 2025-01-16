@@ -6,15 +6,13 @@ use std::{
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
+use rover_std::{debugln, errln, infoln};
 use serde_yaml::Value;
 use tap::TapFallible;
 use tracing::debug;
 
-use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
-
 use super::config::{parser::RouterConfigParser, RouterConfig};
-
-use rover_std::{debugln, errln, infoln};
+use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
@@ -194,9 +192,10 @@ where
 mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
-    use super::*;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
+
+    use super::*;
 
     #[fixture]
     fn router_config() -> &'static str {
@@ -250,7 +249,7 @@ headers:
             println!("{config}");
             println!("{router_config_expectation}");
 
-            &config.to_string() == router_config_expectation
+            config.to_string() == router_config_expectation
         });
     }
 }

@@ -2,11 +2,11 @@ use futures::StreamExt;
 use tap::TapFallible;
 
 use crate::{
-    command::dev::next::router::{config::RouterConfig, hot_reload::RouterUpdateEvent},
+    command::dev::router::{
+        config::RouterConfig, hot_reload::RouterUpdateEvent, watchers::file::FileWatcher,
+    },
     subtask::SubtaskHandleUnit,
 };
-
-use crate::command::dev::next::FileWatcher;
 
 /// Watches for router config changes
 pub struct RouterConfigWatcher {

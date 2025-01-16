@@ -322,7 +322,7 @@ impl Fs {
                                     }));
                                     return;
                                 }
-                                Err(err) => {
+                                Err(_err) => {
                                     let _ = tx.send(Err(RoverStdError::FileRemoved {
                                         file: path.display().to_string(),
                                     }));
