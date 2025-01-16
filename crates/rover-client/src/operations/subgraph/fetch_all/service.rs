@@ -92,13 +92,30 @@ where
             inner
                 .call(GraphQLRequest::<SubgraphFetchAllQuery>::new(variables))
                 .await
-                .map_err(|err| RoverClientError::Service {
-                    // return type of FetchRemoteSubgraphError here 
-                    // also needs to be a RoverClientError 
+                //.map_err(|err| RoverClientError::Service {
+                    //source: Box::new(err),
+                    //endpoint_kind: EndpointKind::ApolloStudio,
+                //})
+                .map_err(|err| {
+                    eprintln!("fetch all error {:?}", err);
+                    // return type of FetchRemoteSubgraphError here
+                    // also needs to be a RoverClientError
                     // differentiate between Service Error and PermissionError
                     // and this should be easier to sort in the current location where
-                    endpoint_kind: EndpointKind::ApolloStudio,
-                    source: Box::new(err),
+
+                    match err {
+                        GraphQLServiceError::InvalidCredentials() => {
+                            RoverClientError::PermissionError {
+                                msg: "attempting to fetch subgraphs".to_string()
+                            }
+                        }
+                        _ => {
+                            RoverClientError::Service {
+                                source: Box::new(err),
+                                endpoint_kind: EndpointKind::ApolloStudio,
+                            }
+                        }
+                    }
                 })
                 .and_then(|response_data| {
                     get_subgraphs_from_response_data(req.graph_ref, response_data)

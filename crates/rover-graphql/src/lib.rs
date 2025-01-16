@@ -232,8 +232,7 @@ where
                                   .contains("Invalid credentials");
 
                 if invalid_credential_error {
-                    Err(GraphQLServiceError::NoData(errors))
-                    //Err(GraphQLServiceError::InvalidCredentials())
+                    Err(GraphQLServiceError::InvalidCredentials())
                 } else {
                     match graphql_response.data {
                         Some(data) => Err(GraphQLServiceError::PartialError { data, errors }),
