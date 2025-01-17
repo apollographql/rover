@@ -290,6 +290,9 @@ async fn start_composition(
                         CompositionError::ErrorUpdatingFederationVersion(
                             InstallSupergraphError::MissingDependency { err },
                         ) => format!("Supergraph Version could not be updated: {err}"),
+                        CompositionError::SubgraphMissingRoutingUrl(subgraph) => {
+                            format!("Subgraph '{subgraph}' is missing a routing_url")
+                        }
                         _ => format!("Composition failed to run: {err}",),
                     };
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
