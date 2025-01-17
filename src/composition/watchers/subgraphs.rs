@@ -98,9 +98,9 @@ impl SubgraphWatchers {
 /// name of the subgraph
 pub enum SubgraphEvent {
     /// A change to the watched subgraphs schema
-    SubgraphSchemaChanged(SubgraphSchemaChanged),
+    SchemaChanged(SubgraphSchemaChanged),
     /// A change to the watched subgraphs routing_url
-    SubgraphRoutingUrlChanged(SubgraphRoutingUrlChanged),
+    RoutingUrlChanged(SubgraphRoutingUrlChanged),
     /// The subgraph is no longer watched
     SubgraphRemoved(SubgraphSchemaRemoved),
 }
@@ -260,9 +260,7 @@ impl SubgraphHandles {
                     while let Some(subgraph) = messages.next().await {
                         tracing::info!("Subgraph change detected: {:?}", subgraph);
                         let _ = sender
-                            .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                                subgraph.into(),
-                            )))
+                            .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
@@ -357,9 +355,7 @@ impl SubgraphHandles {
                 .map(|subgraph| {
                     let _ = self
                         .sender
-                        .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                            subgraph.into(),
-                        )))
+                        .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 });
         }
@@ -378,14 +374,12 @@ impl SubgraphHandles {
                 )));
             }
             Some(routing_url) => {
-                let _ = self
-                    .sender
-                    .send(Subgraph(SubgraphEvent::SubgraphRoutingUrlChanged(
-                        SubgraphRoutingUrlChanged {
-                            name: subgraph.to_string(),
-                            routing_url,
-                        },
-                    )));
+                let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
+                    SubgraphRoutingUrlChanged {
+                        name: subgraph.to_string(),
+                        routing_url,
+                    },
+                )));
             }
         }
 
@@ -421,9 +415,7 @@ impl SubgraphHandles {
             .map(|subgraph| {
                 let _ = self
                     .sender
-                    .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                        subgraph.into(),
-                    )))
+                    .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                     .tap_err(|err| tracing::error!("{:?}", err));
             });
     }
@@ -438,7 +430,7 @@ impl SubgraphHandles {
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
             .sender
-            .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+            .send(Subgraph(SubgraphEvent::SchemaChanged(
                 subgraph.clone().into(),
             )))
             .tap_err(|err| tracing::error!("{:?}", err));
@@ -448,9 +440,7 @@ impl SubgraphHandles {
             async move {
                 while let Some(subgraph) = messages.next().await {
                     let _ = sender
-                        .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                            subgraph.into(),
-                        )))
+                        .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 }
             }

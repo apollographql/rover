@@ -102,7 +102,7 @@ where
 
                 while let Some(event) = input.next().await {
                     match event {
-                        Subgraph(SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed)) => {
+                        Subgraph(SubgraphEvent::SchemaChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
                             let schema_source = subgraph_schema_changed.schema_source().clone();
                             tracing::info!("Schema change detected for subgraph: {}", name);
@@ -123,7 +123,7 @@ where
                                     .tap_err(|err| error!("{:?}", err));
                             };
                         }
-                        Subgraph(SubgraphEvent::SubgraphRoutingUrlChanged(routing_url_changed)) => {
+                        Subgraph(SubgraphEvent::RoutingUrlChanged(routing_url_changed)) => {
                             info!("Change of routing_url detected for subgraph '{}'", routing_url_changed.name());
                             let name = routing_url_changed.name().clone();
                             match self.supergraph_config.get_subgraph(&name) {
@@ -395,14 +395,12 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
-            Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                SubgraphSchemaChanged::new(
-                    subgraph_name,
-                    subgraph_sdl.clone(),
-                    "https://example.com".to_string(),
-                    SchemaSource::Sdl { sdl: subgraph_sdl },
-                ),
-            ))
+            Subgraph(SubgraphEvent::SchemaChanged(SubgraphSchemaChanged::new(
+                subgraph_name,
+                subgraph_sdl.clone(),
+                "https://example.com".to_string(),
+                SchemaSource::Sdl { sdl: subgraph_sdl },
+            )))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
