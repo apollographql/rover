@@ -6,7 +6,7 @@ use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
@@ -123,8 +123,26 @@ where
                                     .tap_err(|err| error!("{:?}", err));
                             };
                         }
-                        Subgraph(SubgraphEvent::SubgraphRoutingUrlChanged(_routing_url_changed)) => {
-                            info!("Let's change a routing URL!");
+                        Subgraph(SubgraphEvent::SubgraphRoutingUrlChanged(routing_url_changed)) => {
+                            info!("Change of routing_url detected for subgraph '{}'", routing_url_changed.name());
+                            let name = routing_url_changed.name().clone();
+                            match self.supergraph_config.get_subgraph(&name) {
+                                None => {
+                                    debug!("Could not find subgraph '{}'", name);
+                                    continue
+                                },
+                                Some(mut subgraph) => {
+                                    debug!("Changing routing URL from '{}' to '{}' for subgraph '{}'", subgraph.routing_url(), routing_url_changed.routing_url(), name);
+                                    if &subgraph.routing_url != routing_url_changed.routing_url() {
+                                        subgraph.routing_url = routing_url_changed.routing_url().clone();
+                                        supergraph_config.update_subgraph_schema(
+                                            name,
+                                            subgraph
+                                        );
+                                    }
+                                }
+                            };
+
                         }
                         Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();

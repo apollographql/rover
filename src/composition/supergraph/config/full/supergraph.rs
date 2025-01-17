@@ -108,6 +108,11 @@ impl FullyResolvedSupergraphConfig {
         self.subgraphs.insert(name, subgraph)
     }
 
+    /// Gets a copy of a subgraph by name
+    pub fn get_subgraph(&mut self, name: &str) -> Option<FullyResolvedSubgraph> {
+        self.subgraphs.get(name).cloned()
+    }
+
     /// Removes the subgraph with the name provided
     pub fn remove_subgraph(&mut self, name: &str) {
         self.subgraphs.remove(name);
