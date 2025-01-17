@@ -12,9 +12,11 @@ use super::watcher::{
     subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
     supergraph_config::SupergraphConfigDiff,
 };
+use crate::composition::events::CompositionEvent;
 use crate::composition::watchers::composition::CompositionInputEvent;
-use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
+use crate::composition::watchers::composition::CompositionInputEvent::{Passthrough, Subgraph};
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
+use crate::composition::CompositionError;
 use crate::{
     composition::supergraph::config::{
         error::ResolveSubgraphError,
@@ -95,8 +97,10 @@ impl SubgraphWatchers {
 /// emitted via SubgraphChanged. If they're removed, a SubgraphRemoved event is emitted with the
 /// name of the subgraph
 pub enum SubgraphEvent {
-    /// A change to the watched subgraph
-    SubgraphChanged(SubgraphSchemaChanged),
+    /// A change to the watched subgraphs schema
+    SchemaChanged(SubgraphSchemaChanged),
+    /// A change to the watched subgraphs routing_url
+    RoutingUrlChanged(SubgraphRoutingUrlChanged),
     /// The subgraph is no longer watched
     SubgraphRemoved(SubgraphSchemaRemoved),
 }
@@ -150,6 +154,12 @@ impl From<FullyResolvedSubgraph> for SubgraphSchemaChanged {
             schema_source: value.schema_source().to_owned(),
         }
     }
+}
+
+#[derive(derive_getters::Getters, Default)]
+pub struct SubgraphRoutingUrlChanged {
+    name: String,
+    routing_url: String,
 }
 
 /// The subgraph is no longer watched
@@ -250,7 +260,7 @@ impl SubgraphHandles {
                     while let Some(subgraph) = messages.next().await {
                         tracing::info!("Subgraph change detected: {:?}", subgraph);
                         let _ = sender
-                            .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                            .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
@@ -345,10 +355,34 @@ impl SubgraphHandles {
                 .map(|subgraph| {
                     let _ = self
                         .sender
-                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                        .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 });
         }
+
+        // It's possible that the routing_url was updated at this point so we need to update that
+        // and propagate the update through by forcing a recomposition. This may be unnecessary,
+        // but we'll figure that out on the receiving end rather than passing around more
+        // context.
+        //
+        // However, if we get something that attempts to set the routing_url to None, that is
+        // considered an error, and we will address that here.
+        match subgraph_config.routing_url.clone() {
+            None => {
+                let _ = self.sender.send(Passthrough(CompositionEvent::Error(
+                    CompositionError::SubgraphMissingRoutingUrl(subgraph.to_string()),
+                )));
+            }
+            Some(routing_url) => {
+                let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
+                    SubgraphRoutingUrlChanged {
+                        name: subgraph.to_string(),
+                        routing_url,
+                    },
+                )));
+            }
+        }
+
         Ok(())
     }
 
@@ -381,7 +415,7 @@ impl SubgraphHandles {
             .map(|subgraph| {
                 let _ = self
                     .sender
-                    .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                    .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                     .tap_err(|err| tracing::error!("{:?}", err));
             });
     }
@@ -396,7 +430,7 @@ impl SubgraphHandles {
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
             .sender
-            .send(Subgraph(SubgraphEvent::SubgraphChanged(
+            .send(Subgraph(SubgraphEvent::SchemaChanged(
                 subgraph.clone().into(),
             )))
             .tap_err(|err| tracing::error!("{:?}", err));
@@ -406,7 +440,7 @@ impl SubgraphHandles {
             async move {
                 while let Some(subgraph) = messages.next().await {
                     let _ = sender
-                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                        .send(Subgraph(SubgraphEvent::SchemaChanged(subgraph.into())))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 }
             }

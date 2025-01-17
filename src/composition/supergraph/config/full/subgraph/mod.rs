@@ -31,7 +31,7 @@ pub type FullyResolveSubgraphService =
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
     name: String,
-    routing_url: String,
+    pub(crate) routing_url: String,
     schema: String,
     schema_source: SchemaSource,
     pub(crate) is_fed_two: bool,
@@ -126,11 +126,12 @@ impl FullyResolvedSubgraph {
                 async move {
                     Ok(FullyResolvedSubgraph::builder()
                         .name(unresolved_subgraph.name().to_string())
-                        .routing_url(unresolved_subgraph.routing_url().clone().ok_or_else(
-                            || ResolveSubgraphError::MissingRoutingUrl {
-                                subgraph: unresolved_subgraph.name().to_string(),
-                            },
-                        )?)
+                        .routing_url(
+                            unresolved_subgraph
+                                .routing_url()
+                                .clone()
+                                .unwrap_or(String::from("UNKNOWN")),
+                        )
                         .schema(sdl.to_string())
                         .schema_source(SchemaSource::Sdl { sdl })
                         .build())

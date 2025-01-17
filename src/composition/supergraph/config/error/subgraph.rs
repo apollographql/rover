@@ -69,12 +69,6 @@ pub enum ResolveSubgraphError {
         /// The invalid input from the user
         input: String,
     },
-    /// Error that occurs when a subgraph is missing a mandatory routing url
-    #[error("Subgraph `{subgraph}` is missing a routing url")]
-    MissingRoutingUrl {
-        /// The name of the subgraph that is missing a routing url
-        subgraph: String,
-    },
     /// Pass-through for [`http::InvalidHeaderName`]
     #[error(transparent)]
     HeaderName {
