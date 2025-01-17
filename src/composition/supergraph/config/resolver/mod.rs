@@ -125,22 +125,14 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
-                    //GraphQLServiceError<_>
-                    match err {
-                        RoverClientError::ClientError {...} => {
+                    //the trait bound `rover_client::RoverClientError: From<<S as MakeService<(), FetchRemoteSubgraphsRequest>>::Error>` is not satisfied
+                    //the trait `From<<S as MakeService<(), FetchRemoteSubgraphsRequest>>::Error>` is not implemented for `rover_client::RoverClientError`
+
+                    match RoverClientError::from(err) {
+                        RoverClientError::PermissionError { msg } => {
+                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
                         },
-                        //GraphQLServiceError::NoData(_) => RoverClientError::GraphQl {
-                            //msg: value.to_string(),
-                        //},
-                        //GraphQLServiceError::PartialError { errors: Vec<Error>, .. } => {
-                            //let errors = errors.iter().map(|err: &Error| err.to_string()).join("\n");
-                            //RoverClientError::GraphQl {
-                                //msg: format!("Response returned with errors:\n{}", errors),
-                            //}
-                        //}
-                        _ => RoverClientError::ClientError {
-                            msg: value.to_string(),
-                        },
+                        _ =>  { LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err)) },
                     }
                 })?;
 

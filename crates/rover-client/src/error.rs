@@ -351,6 +351,13 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
     }
 }
 
+
+//the trait bound `rover_client::RoverClientError: From<<S as MakeService<(), FetchRemoteSubgraphsRequest>>::Error>` is not satisfied
+//the trait `From<<S as MakeService<(), FetchRemoteSubgraphsRequest>>::Error>` is not implemented for `rover_client::RoverClientError`
+ //impl From<<S as MakeService<(), FetchRemoteSubgraphsRequest>>::Error> for RoverClientError {
+ //}
+
+
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
     fn from(value: GraphQLServiceError<T>) -> Self {
         match value {
