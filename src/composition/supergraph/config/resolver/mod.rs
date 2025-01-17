@@ -12,7 +12,9 @@
 //!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!         by [`SupergraphConfig`]
 
-use std::{any::Any, collections::BTreeMap, error::Error, io::IsTerminal};
+use std::{collections::BTreeMap, io::IsTerminal};
+
+use rover_client::RoverClientError;
 
 use anyhow::Context;
 use apollo_federation_types::config::{
@@ -30,6 +32,7 @@ use crate::{
     utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
     RoverError,
 };
+
 
 use super::{
     error::ResolveSubgraphError,
@@ -122,34 +125,23 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
                 .map_err(|err| {
-
-                    let internal_error = err.source().unwrap();
-
-                    eprintln!("{:?}", internal_error);
-
-                    // NMK: #1:
-                    // I like the pattern here -- could be tidied, but the overall shape lgtm.
-                    // I think the next step is getting these types to align so I can pattern
-                    // match here.
-                    // I've marked with 'NMK: #2' where I think the types *should* be resolved.
-
-                    //match internal_error {
-                        //GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
-                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
+                    //GraphQLServiceError<_>
+                    match err {
+                        RoverClientError::ClientError {...} => {
+                        },
+                        //GraphQLServiceError::NoData(_) => RoverClientError::GraphQl {
+                            //msg: value.to_string(),
                         //},
-                        //_ => {
-                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
+                        //GraphQLServiceError::PartialError { errors: Vec<Error>, .. } => {
+                            //let errors = errors.iter().map(|err: &Error| err.to_string()).join("\n");
+                            //RoverClientError::GraphQl {
+                                //msg: format!("Response returned with errors:\n{}", errors),
+                            //}
                         //}
-                    //}
-
-                    //match GraphQLServiceError::<dyn Send + Sync + std::fmt::Debug>::from(Box::new(internal_error)) {
-                        //GraphQLServiceError::InvalidCredentials(Box::new(internal_error)) => {
-                            //LoadRemoteSubgraphsError::FetchRemoteSubgraphsAuthError(Box::new(err))
-                        //},
-                        //_ => {
-                            LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
-                        //}
-                    //}
+                        _ => RoverClientError::ClientError {
+                            msg: value.to_string(),
+                        },
+                    }
                 })?;
 
             Ok(SupergraphConfigResolver {

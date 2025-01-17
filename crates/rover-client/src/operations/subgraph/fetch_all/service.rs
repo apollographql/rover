@@ -100,7 +100,7 @@ where
                     match err {
                         GraphQLServiceError::InvalidCredentials() => {
                             RoverClientError::PermissionError {
-                                msg: "attempting to fetch subgraphs".to_string()
+                                msg: "attempting to fetch subgraphs".to_string(),
                             }
                         }
                         _ => {
