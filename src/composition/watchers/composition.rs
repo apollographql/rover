@@ -6,7 +6,7 @@ use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
@@ -102,7 +102,7 @@ where
 
                 while let Some(event) = input.next().await {
                     match event {
-                        Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
+                        Subgraph(SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
                             let schema_source = subgraph_schema_changed.schema_source().clone();
                             tracing::info!("Schema change detected for subgraph: {}", name);
@@ -122,6 +122,9 @@ where
                                     ))
                                     .tap_err(|err| error!("{:?}", err));
                             };
+                        }
+                        Subgraph(SubgraphEvent::SubgraphRoutingUrlChanged(_routing_url_changed)) => {
+                            info!("Let's change a routing URL!");
                         }
                         Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
@@ -374,12 +377,14 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
-            Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
-                subgraph_name,
-                subgraph_sdl.clone(),
-                "https://example.com".to_string(),
-                SchemaSource::Sdl { sdl: subgraph_sdl },
-            )))
+            Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                SubgraphSchemaChanged::new(
+                    subgraph_name,
+                    subgraph_sdl.clone(),
+                    "https://example.com".to_string(),
+                    SchemaSource::Sdl { sdl: subgraph_sdl },
+                ),
+            ))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);

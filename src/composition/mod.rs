@@ -77,6 +77,8 @@ pub enum CompositionError {
     InvalidSupergraphConfig(String),
     #[error("Error when updating Federation Version:\n{}", .0)]
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
+    #[error("Subgraph '{}' missing routing URL", .0)]
+    SubgraphMissingRoutingUrl(String),
 }
 
 #[derive(Debug, Eq, PartialEq)]
