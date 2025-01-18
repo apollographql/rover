@@ -109,7 +109,7 @@ pub struct SubgraphSchemaChanged {
     name: String,
     /// SDL with changes
     sdl: String,
-    routing_url: String,
+    routing_url: Option<String>,
     /// Schema Source
     schema_source: SchemaSource,
 }
@@ -125,7 +125,7 @@ impl SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name,
             sdl,
-            routing_url,
+            routing_url: Some(routing_url),
             schema_source,
         }
     }
@@ -133,12 +133,14 @@ impl SubgraphSchemaChanged {
 
 impl From<SubgraphSchemaChanged> for FullyResolvedSubgraph {
     fn from(value: SubgraphSchemaChanged) -> Self {
-        FullyResolvedSubgraph::builder()
+        let builder = FullyResolvedSubgraph::builder()
             .name(value.name)
             .schema(value.sdl)
-            .routing_url(value.routing_url)
-            .schema_source(value.schema_source)
-            .build()
+            .schema_source(value.schema_source);
+        match value.routing_url {
+            None => builder.build(),
+            Some(routing_url) => builder.routing_url(routing_url).build(),
+        }
     }
 }
 
@@ -147,7 +149,7 @@ impl From<FullyResolvedSubgraph> for SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name: value.name().to_string(),
             sdl: value.schema().to_string(),
-            routing_url: value.routing_url().to_string(),
+            routing_url: value.routing_url().to_owned(),
             schema_source: value.schema_source().to_owned(),
         }
     }
