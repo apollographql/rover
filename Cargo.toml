@@ -71,7 +71,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.14.1"
+apollo-federation-types = "0.15.0"
 
 # crates.io dependencies
 anyhow = "1"
@@ -86,7 +86,7 @@ base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.5.4"
 bytes = "1.8.0"
-cargo_metadata = "0.18"
+cargo_metadata = "0.19"
 calm_io = "0.1"
 camino = "1"
 clap = "4"
@@ -101,7 +101,7 @@ directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.4.5"
-git2 = { version = "0.19", default-features = false }
+git2 = { version = "0.20", default-features = false }
 graphql_client = "0.14"
 heck = "0.5"
 humantime = "2.1.0"
@@ -112,7 +112,7 @@ httpmock = "0.7"
 hyper = "1.0"
 interprocess = { version = "2", default-features = false }
 indoc = "2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 lazycell = "1"
 lazy_static = "1.4"
 notify = { version = "8" }
@@ -124,7 +124,7 @@ pretty_assertions = "1"
 prettytable-rs = "0.10"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
-rstest = "0.23.0"
+rstest = "0.24.0"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
