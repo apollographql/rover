@@ -9,12 +9,16 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 use tracing::error;
 
+use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
     Federation, Passthrough, Subgraph,
 };
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
 };
+use crate::options::LicenseAccepter;
+use crate::utils::client::StudioClientConfig;
+use crate::utils::effect::install::InstallBinary;
 use crate::{
     composition::{
         events::CompositionEvent,
@@ -34,7 +38,7 @@ pub enum CompositionInputEvent {
     /// Variant to represent if the change comes from a change to subgraphs
     Subgraph(SubgraphEvent),
     /// Variant to represent if the change comes from a change in the Federation Version
-    Federation(Option<FederationVersion>),
+    Federation(FederationVersion),
     /// Variant to something that we do not want to perform Composition on but needs to be passed
     /// through to the final stream of Composition Events.
     Passthrough(CompositionEvent),
@@ -43,6 +47,7 @@ pub enum CompositionInputEvent {
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     supergraph_config: FullyResolvedSupergraphConfig,
+    federation_updater_config: FederationUpdaterConfig,
     supergraph_binary: SupergraphBinary,
     exec_command: ExecC,
     read_file: ReadF,
@@ -50,6 +55,13 @@ pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     temp_dir: Utf8PathBuf,
     compose_on_initialisation: bool,
     output_target: OutputTarget,
+}
+
+#[derive(Debug)]
+pub struct FederationUpdaterConfig {
+    pub(crate) studio_client_config: StudioClientConfig,
+    pub(crate) elv2_licence_accepter: LicenseAccepter,
+    pub(crate) skip_update: bool,
 }
 
 impl<ExecC, ReadF, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, ReadF, WriteF>
@@ -62,7 +74,7 @@ where
     type Output = CompositionEvent;
 
     fn handle(
-        self,
+        mut self,
         sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
@@ -133,7 +145,21 @@ where
                                 .tap_err(|err| error!("{:?}", err));
                         }
                         Federation(fed_version) => {
-                            tracing::info!("Should do an update here to {:?}...", fed_version);
+                            tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                            let install_res =
+                                InstallSupergraph::new(fed_version, self.federation_updater_config.studio_client_config.clone())
+                                    .install(None, self.federation_updater_config.elv2_licence_accepter, self.federation_updater_config.skip_update)
+                                    .await;
+                            match install_res {
+                                Ok(supergraph_binary) => {
+                                    tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
+                                    self.supergraph_binary = supergraph_binary
+                                }
+                                Err(err) => {
+                                    tracing::warn!("Failed to change supergraph version, current version has been retained...");
+                                    let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                                }
+                            }
                         }
                         Passthrough(ev) => {
                             let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));

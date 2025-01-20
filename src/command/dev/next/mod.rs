@@ -15,6 +15,7 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
+use self::router::config::{RouterAddress, RunRouterConfig};
 use crate::composition::supergraph::binary::OutputTarget;
 use crate::{
     command::{
@@ -42,8 +43,6 @@ use crate::{
     },
     RoverOutput, RoverResult,
 };
-
-use self::router::config::RouterAddress;
 
 mod router;
 
@@ -174,6 +173,9 @@ impl Dev {
                 tmp_config_dir_path.clone(),
                 OutputTarget::Stdout,
                 false,
+                client_config,
+                self.opts.plugin_opts.elv2_license_accepter,
+                self.opts.plugin_opts.skip_update,
             )
             .await?;
 

@@ -345,6 +345,9 @@ async fn create_composition_stream(
             Utf8PathBuf::try_from(temp_dir())?,
             OutputTarget::InMemory,
             true,
+            client_config,
+            lsp_opts.plugin_opts.elv2_license_accepter,
+            lsp_opts.plugin_opts.skip_update,
         )
         .await?
         .run())
