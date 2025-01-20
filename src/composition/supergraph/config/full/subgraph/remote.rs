@@ -3,6 +3,7 @@
 use std::pin::Pin;
 use std::sync::Arc;
 
+use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::shared::GraphRef;
@@ -66,7 +67,7 @@ where
                 })?
                 .call(
                     FetchRemoteSubgraphRequest::builder()
-                        .graph_ref(graph_ref)
+                        .graph_ref(graph_ref.clone())
                         .subgraph_name(subgraph_name.to_string())
                         .build(),
                 )
@@ -79,9 +80,13 @@ where
             let routing_url =
                 routing_url.unwrap_or_else(|| remote_subgraph.routing_url().to_string());
             Ok(FullyResolvedSubgraph::builder()
-                .name(subgraph_name)
+                .name(subgraph_name.clone())
                 .routing_url(routing_url)
                 .schema(schema)
+                .schema_source(SchemaSource::Subgraph {
+                    graphref: graph_ref.to_string(),
+                    subgraph: subgraph_name,
+                })
                 .build())
         };
         Box::pin(fut)

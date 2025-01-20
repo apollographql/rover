@@ -127,7 +127,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                 Config {
                     root_uri: String::from(supergraph_yaml_url.clone()),
                     enable_auto_composition: false,
-                    force_federation: false,
+                    force_federation: true,
                     disable_telemetry: false,
                     max_spec_versions: MaxSpecVersions {
                         connect: None,
