@@ -13,6 +13,9 @@ use derive_getters::Getters;
 use crate::composition::supergraph::config::resolver::{
     LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
 };
+use crate::composition::supergraph::install::InstallSupergraphError;
+use crate::options::LicenseAccepter;
+use crate::utils::client::StudioClientConfig;
 
 pub mod events;
 pub mod pipeline;
@@ -24,6 +27,13 @@ pub mod types;
 
 #[cfg(feature = "composition-js")]
 mod watchers;
+
+#[derive(Debug, Clone)]
+pub struct FederationUpdaterConfig {
+    pub(crate) studio_client_config: StudioClientConfig,
+    pub(crate) elv2_licence_accepter: LicenseAccepter,
+    pub(crate) skip_update: bool,
+}
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {
@@ -65,6 +75,8 @@ pub enum CompositionError {
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("{}", .0)]
     InvalidSupergraphConfig(String),
+    #[error("Error when updating Federation Version:\n{}", .0)]
+    ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
 }
 
 #[derive(Debug, Eq, PartialEq)]

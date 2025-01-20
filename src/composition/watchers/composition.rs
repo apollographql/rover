@@ -1,17 +1,23 @@
 use apollo_federation_types::config::SchemaSource::Sdl;
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
-use rover_std::{errln, infoln};
+use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 use tracing::error;
 
+use crate::composition::supergraph::install::InstallSupergraph;
+use crate::composition::watchers::composition::CompositionInputEvent::{
+    Federation, Passthrough, Subgraph,
+};
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+    FederationUpdaterConfig,
 };
+use crate::utils::effect::install::InstallBinary;
 use crate::{
     composition::{
         events::CompositionEvent,
@@ -25,9 +31,22 @@ use crate::{
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
+/// Event to represent an input to the CompositionWatcher, depending on the source the event comes
+/// from. This is really like a Union type over multiple disparate events
+pub enum CompositionInputEvent {
+    /// Variant to represent if the change comes from a change to subgraphs
+    Subgraph(SubgraphEvent),
+    /// Variant to represent if the change comes from a change in the Federation Version
+    Federation(FederationVersion),
+    /// Variant to something that we do not want to perform Composition on but needs to be passed
+    /// through to the final stream of Composition Events.
+    Passthrough(CompositionEvent),
+}
+
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     supergraph_config: FullyResolvedSupergraphConfig,
+    federation_updater_config: Option<FederationUpdaterConfig>,
     supergraph_binary: SupergraphBinary,
     exec_command: ExecC,
     read_file: ReadF,
@@ -43,11 +62,11 @@ where
     ReadF: ReadFile + Send + Sync + 'static,
     WriteF: WriteFile + Send + Sync + 'static,
 {
-    type Input = SubgraphEvent;
+    type Input = CompositionInputEvent;
     type Output = CompositionEvent;
 
     fn handle(
-        self,
+        mut self,
         sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
@@ -84,7 +103,7 @@ where
 
                 while let Some(event) = input.next().await {
                     match event {
-                        SubgraphEvent::SubgraphChanged(subgraph_schema_changed) => {
+                        Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
                             let sdl = subgraph_schema_changed.sdl().clone();
                             let message = format!("Schema change detected for subgraph: {}", &name);
@@ -107,7 +126,7 @@ where
                                     .tap_err(|err| error!("{:?}", err));
                             };
                         }
-                        SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
+                        Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
                             tracing::info!("Subgraph removed: {}", name);
                             supergraph_config.remove_subgraph(name);
@@ -116,6 +135,35 @@ where
                                     CompositionSubgraphRemoved { name: name.clone() },
                                 ))
                                 .tap_err(|err| error!("{:?}", err));
+                        }
+                        Federation(fed_version) => {
+                            if let Some(federation_updater_config) = self.federation_updater_config.clone() {
+                                tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                                infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
+                                let install_res =
+                                    InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
+                                        .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
+                                        .await;
+                                match install_res {
+                                    Ok(supergraph_binary) => {
+                                        tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
+                                        infoln!("Supergraph version changed to {}", supergraph_binary.version().to_string());
+                                        self.supergraph_binary = supergraph_binary
+                                    }
+                                    Err(err) => {
+                                        tracing::warn!("Failed to change supergraph version, current version has been retained...");
+                                        warnln!("Failed to change supergraph version, current version has been retained...");
+                                        let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                tracing::warn!("Detected Federation Version change but due to overrides (CLI flags, ENV vars etc.) this was not actioned.")
+                            }
+                        }
+                        Passthrough(ev) => {
+                            let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
+                            continue;
                         }
                     }
 
@@ -232,8 +280,9 @@ mod tests {
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
-    use super::CompositionWatcher;
+    use super::{CompositionInputEvent, CompositionWatcher};
     use crate::composition::supergraph::binary::OutputTarget;
+    use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
     use crate::composition::CompositionSubgraphAdded;
     use crate::{
         composition::{
@@ -329,12 +378,12 @@ mod tests {
             .output_target(OutputTarget::Stdout)
             .build();
 
-        let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
-            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+        let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
+            Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
                 subgraph_sdl,
                 "https://example.com".to_string(),
-            ))
+            )))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);

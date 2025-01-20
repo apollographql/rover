@@ -26,6 +26,7 @@ use super::{
         },
     },
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
+    FederationUpdaterConfig,
 };
 use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::watchers::federation::FederationWatcher;
@@ -137,6 +138,7 @@ impl Runner<state::SetupCompositionWatcher> {
         temp_dir: Utf8PathBuf,
         compose_on_initialisation: bool,
         output_target: OutputTarget,
+        federation_updater_config: Option<FederationUpdaterConfig>,
     ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -144,7 +146,7 @@ impl Runner<state::SetupCompositionWatcher> {
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
         // Create a handler for supergraph composition events.
-        let composition_watcher = CompositionWatcher::builder()
+        let composition_watcher_builder = CompositionWatcher::builder()
             .supergraph_config(supergraph_config)
             .supergraph_binary(supergraph_binary)
             .exec_command(exec_command)
@@ -152,8 +154,17 @@ impl Runner<state::SetupCompositionWatcher> {
             .write_file(write_file)
             .temp_dir(temp_dir)
             .compose_on_initialisation(compose_on_initialisation)
-            .output_target(output_target)
-            .build();
+            .output_target(output_target);
+
+        let composition_watcher = if let Some(federation_updater_config) = federation_updater_config
+        {
+            composition_watcher_builder
+                .federation_updater_config(federation_updater_config)
+                .build()
+        } else {
+            composition_watcher_builder.build()
+        };
+
         Runner {
             state: state::Run {
                 subgraph_watchers: self.state.subgraph_watchers,
@@ -209,7 +220,7 @@ where
         // events in order to trigger recomposition.
         let (composition_messages, composition_subtask) =
             Subtask::new(self.state.composition_watcher);
-        composition_subtask.run(subgraph_change_stream.boxed());
+        composition_subtask.run(select(subgraph_change_stream, federation_watcher_stream).boxed());
 
         // Start subgraph watchers, listening for events from the supergraph change stream.
         subgraph_watcher_subtask.run(
@@ -245,6 +256,6 @@ where
             supergraph_config_subtask.run();
         }
 
-        select(composition_messages, federation_watcher_stream).boxed()
+        composition_messages.boxed()
     }
 }
