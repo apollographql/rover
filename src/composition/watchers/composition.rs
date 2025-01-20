@@ -3,7 +3,7 @@ use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
-use rover_std::{errln, infoln};
+use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
@@ -139,6 +139,7 @@ where
                         Federation(fed_version) => {
                             if let Some(federation_updater_config) = self.federation_updater_config.clone() {
                                 tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                                infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
                                         .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
@@ -146,10 +147,12 @@ where
                                 match install_res {
                                     Ok(supergraph_binary) => {
                                         tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
+                                        infoln!("Supergraph version changed to {}", supergraph_binary.version().to_string());
                                         self.supergraph_binary = supergraph_binary
                                     }
                                     Err(err) => {
                                         tracing::warn!("Failed to change supergraph version, current version has been retained...");
+                                        warnln!("Failed to change supergraph version, current version has been retained...");
                                         let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
                                         continue;
                                     }

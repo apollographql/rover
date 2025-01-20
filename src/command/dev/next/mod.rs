@@ -168,7 +168,7 @@ impl Dev {
         let federation_updater_config = match self.opts.supergraph_opts.federation_version {
             Some(_) => None,
             None => Some(FederationUpdaterConfig {
-                studio_client_config: client_config,
+                studio_client_config: client_config.clone(),
                 elv2_licence_accepter: elv2_license_accepter,
                 skip_update,
             }),
