@@ -48,6 +48,7 @@ impl UnresolvedSupergraphConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::{
         collections::{BTreeMap, HashSet},
         str::FromStr,
@@ -436,7 +437,7 @@ mod tests {
                         .boxed_clone()
                         .map_err(move |err| ResolveSubgraphError::IntrospectionError {
                             subgraph_name: introspect_subgraph_name.to_string(),
-                            source: err,
+                            source: Arc::new(err),
                         })
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
@@ -464,7 +465,7 @@ mod tests {
                     let introspect_subgraph_name = introspect_subgraph_name.to_string();
                     move |err| ResolveSubgraphError::IntrospectionError {
                         subgraph_name: introspect_subgraph_name.to_string(),
-                        source: err,
+                        source: Arc::new(err),
                     }
                 })
                 .service(resolve_introspect_subgraph_factory.into_inner()),
@@ -732,7 +733,7 @@ mod tests {
                         .boxed_clone()
                         .map_err(move |err| ResolveSubgraphError::IntrospectionError {
                             subgraph_name: introspect_subgraph_name.to_string(),
-                            source: err,
+                            source: Arc::new(err),
                         })
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
@@ -745,7 +746,7 @@ mod tests {
                     let introspect_subgraph_name = introspect_subgraph_name.to_string();
                     move |err| ResolveSubgraphError::IntrospectionError {
                         subgraph_name: introspect_subgraph_name.to_string(),
-                        source: err,
+                        source: Arc::new(err),
                     }
                 })
                 .service(resolve_introspect_subgraph_factory.into_inner()),

@@ -9,7 +9,7 @@ use std::{
 };
 
 use camino::Utf8PathBuf;
-use futures::stream::{BoxStream, StreamExt};
+use futures::stream::{select, BoxStream, StreamExt};
 use rover_http::HttpService;
 use tower::ServiceExt;
 
@@ -28,11 +28,13 @@ use super::{
     watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
 };
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::watchers::federation::FederationWatcher;
+use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
 use crate::{
     composition::watchers::watcher::{
         file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
     },
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
+    subtask::{Subtask, SubtaskRunStream},
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
@@ -173,27 +175,35 @@ where
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {
-        let (supergraph_config_stream, supergraph_config_subtask) = if let Some(
-            supergraph_config_watcher,
-        ) =
-            self.state.supergraph_config_watcher
-        {
+        let (
+            supergraph_config_stream_for_subtask_watcher,
+            supergraph_config_stream_for_federation_watcher,
+            supergraph_config_subtask,
+        ) = if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
             tracing::info!("Watching subgraphs for changes...");
             let (supergraph_config_stream, supergraph_config_subtask) =
-                Subtask::new(supergraph_config_watcher);
+                BroadcastSubtask::new(supergraph_config_watcher);
             (
                 supergraph_config_stream.boxed(),
+                supergraph_config_subtask.subscribe().boxed(),
                 Some(supergraph_config_subtask),
             )
         } else {
             tracing::warn!(
                     "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
                 );
-            (tokio_stream::empty().boxed(), None)
+            (
+                tokio_stream::empty().boxed(),
+                tokio_stream::empty().boxed(),
+                None,
+            )
         };
 
         let (subgraph_change_stream, subgraph_watcher_subtask) =
             Subtask::new(self.state.subgraph_watchers);
+
+        let (federation_watcher_stream, federation_watcher_subtask) =
+            Subtask::new(FederationWatcher {});
 
         // Create a new subtask for the composition handler, passing in a stream of subgraph change
         // events in order to trigger recomposition.
@@ -202,13 +212,39 @@ where
         composition_subtask.run(subgraph_change_stream.boxed());
 
         // Start subgraph watchers, listening for events from the supergraph change stream.
-        subgraph_watcher_subtask.run(supergraph_config_stream);
+        subgraph_watcher_subtask.run(
+            supergraph_config_stream_for_subtask_watcher
+                .filter_map(|recv_res| async move {
+                    match recv_res {
+                        Ok(res) => Some(res),
+                        Err(e) => {
+                            tracing::warn!("Error receiving from broadcast stream: {:?}", e);
+                            None
+                        }
+                    }
+                })
+                .boxed(),
+        );
+
+        federation_watcher_subtask.run(
+            supergraph_config_stream_for_federation_watcher
+                .filter_map(|recv_res| async move {
+                    match recv_res {
+                        Ok(res) => Some(res),
+                        Err(e) => {
+                            tracing::warn!("Error receiving from broadcast stream: {:?}", e);
+                            None
+                        }
+                    }
+                })
+                .boxed(),
+        );
 
         // Start the supergraph watcher subtask.
         if let Some(supergraph_config_subtask) = supergraph_config_subtask {
             supergraph_config_subtask.run();
         }
 
-        composition_messages.boxed()
+        select(composition_messages, federation_watcher_stream).boxed()
     }
 }

@@ -1,10 +1,11 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use camino::Utf8PathBuf;
 use http::header::{InvalidHeaderName, InvalidHeaderValue};
 
 /// Errors that may occur as a result of resolving subgraphs
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum ResolveSubgraphError {
     /// Occurs when the subgraph schema file cannot found relative to the supplied
     /// supergraph config file
@@ -19,21 +20,29 @@ pub enum ResolveSubgraphError {
         /// The result of joining the paths together, that caused the failure
         joined_path: PathBuf,
         /// The source error
-        source: std::io::Error,
+        source: Arc<std::io::Error>,
     },
     /// Occurs as a result of an IO error
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io {
+        /// Source error from std::io, wrapped in Arc to make this error Cloneable, and support
+        /// broadcasting.
+        source: Arc<std::io::Error>,
+    },
     /// Occurs as a result of a rover_std::Fs error
     #[error(transparent)]
-    Fs(Box<dyn std::error::Error + Send + Sync>),
+    Fs {
+        /// Source error from rover_std::Fs, wrapped in Arc to make this error Cloneable, and support
+        /// broadcasting.
+        source: Arc<Box<dyn std::error::Error + Send + Sync>>,
+    },
     /// Occurs when a introspection against a subgraph fails
     #[error("Failed to introspect the subgraph \"{subgraph_name}\".")]
     IntrospectionError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
         /// The source error
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when a supplied graph ref cannot be parsed
     #[error("Invalid graph ref: {graph_ref}")]
@@ -41,7 +50,7 @@ pub enum ResolveSubgraphError {
         /// The supplied graph ref
         graph_ref: String,
         /// The source error
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when fetching a remote subgraph fails
     #[error("Failed to fetch the sdl for subgraph `{}` from remote.\n {}", .subgraph_name, .source)]
@@ -49,7 +58,7 @@ pub enum ResolveSubgraphError {
         /// The name of the subgraph that failed to be resolved
         subgraph_name: String,
         /// The source error
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when a supergraph config filepath waqs expected but not found
     #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
@@ -68,11 +77,19 @@ pub enum ResolveSubgraphError {
     },
     /// Pass-through for [`http::InvalidHeaderName`]
     #[error(transparent)]
-    HeaderName(#[from] InvalidHeaderName),
+    HeaderName {
+        /// Source error from hyper, wrapped in Arc to make this error Cloneable, and support
+        /// broadcasting.
+        source: Arc<InvalidHeaderName>,
+    },
     /// Pass-through for [`http::InvalidHeaderValue`]
     #[error(transparent)]
-    HeaderValue(#[from] InvalidHeaderValue),
+    HeaderValue {
+        /// Source error from hyper, wrapped in Arc to make this error Cloneable, and support
+        /// broadcasting.
+        source: Arc<InvalidHeaderValue>,
+    },
     /// Pass-through error for when a [`tower::Service`] fails to be ready
     #[error(transparent)]
-    ServiceReady(#[from] Box<dyn std::error::Error + Send + Sync>),
+    ServiceReady(#[from] Arc<Box<dyn std::error::Error + Send + Sync>>),
 }

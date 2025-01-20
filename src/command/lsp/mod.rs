@@ -269,7 +269,7 @@ async fn start_composition(
                 }
                 CompositionEvent::Error(err) => {
                     debug!("Composition failed: {err}");
-                    let message = format!("Failed run composition: {err}");
+                    let message = format!("Composition failed to run: {err}",);
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])

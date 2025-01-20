@@ -1,21 +1,22 @@
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
 use apollo_federation_types::config::{ConfigError, SubgraphConfig, SupergraphConfig};
 use derive_getters::Getters;
 use futures::StreamExt;
 use rover_std::errln;
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
-
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
-        unresolved::UnresolvedSupergraphConfig,
-    },
-    subtask::SubtaskHandleUnit,
-};
+use thiserror::Error;
+use tokio::sync::broadcast::Sender;
+use tokio::task::AbortHandle;
 
 use super::file::FileWatcher;
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
+    unresolved::UnresolvedSupergraphConfig,
+};
+use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError;
+use crate::subtask::SubtaskHandleMultiStream;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
@@ -35,10 +36,10 @@ impl SupergraphConfigWatcher {
     }
 }
 
-impl SubtaskHandleUnit for SupergraphConfigWatcher {
-    type Output = Result<SupergraphConfigDiff, BTreeMap<String, ResolveSubgraphError>>;
+impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
+    type Output = Result<SupergraphConfigDiff, SupergraphConfigSerialisationError>;
 
-    fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
+    fn handle(self, sender: Sender<Self::Output>) -> AbortHandle {
         tracing::warn!("Running SupergraphConfigWatcher");
         let supergraph_config_path = self.file_watcher.path().clone();
         tokio::spawn(
@@ -96,7 +97,7 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
                                             "\n")
                                     );
                                     let _ = sender
-                                        .send(Err(err))
+                                        .send(Err(SupergraphConfigSerialisationError::ResolvingSubgraphErrors(err)))
                                         .tap_err(|err| tracing::error!("{:?}", err));
                                 }
                             }
@@ -104,6 +105,11 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
                         Err(err) => {
                             tracing::error!("could not parse supergraph config file: {:?}", err);
                             errln!("Could not parse supergraph config file.\n{}", err);
+                            let _ = sender
+                                .send(Err(DeserializingConfigError {
+                                    source: Arc::new(err)
+                                }))
+                                .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     }
                 }
@@ -112,7 +118,7 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
     }
 }
 
-#[derive(Getters, Debug)]
+#[derive(Getters, Debug, Clone)]
 pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     changed: Vec<(String, SubgraphConfig)>,
@@ -184,6 +190,16 @@ impl SupergraphConfigDiff {
             removed,
         })
     }
+}
+
+#[derive(Error, Clone, Debug)]
+pub enum SupergraphConfigSerialisationError {
+    #[error(
+        "Variant which denotes errors that arose from trying to resolve the supergraph config"
+    )]
+    ResolvingSubgraphErrors(BTreeMap<String, ResolveSubgraphError>),
+    #[error("Variant which denotes errors came from trying to deserialise the Supergraph Config via apollo-federation-types")]
+    DeserializingConfigError { source: Arc<ConfigError> },
 }
 
 #[cfg(test)]
