@@ -1,52 +1,33 @@
-#![warn(missing_docs)]
-
-use std::{io::stdin, str::FromStr};
+use std::io::stdin;
+use std::str::FromStr;
 
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
-use router::{
-    hot_reload::HotReloadConfigOverrides, install::InstallRouter, run::RunRouter,
-    watchers::file::FileWatcher,
-};
 use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
-use self::router::config::{RouterAddress, RunRouterConfig};
+use crate::command::dev::router::config::RouterAddress;
+use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
+use crate::command::dev::router::run::RunRouter;
+use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
+use crate::command::Dev;
+use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
 use crate::composition::supergraph::config::resolver::SubgraphPrompt;
 use crate::composition::FederationUpdaterConfig;
-use crate::{
-    command::{
-        dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
-        Dev,
-    },
-    composition::{
-        pipeline::CompositionPipeline,
-        supergraph::config::{
-            full::introspect::MakeResolveIntrospectSubgraph,
-            resolver::{
-                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
-                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
-            },
-        },
-    },
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::{TokioCommand, TokioSpawn},
-            read_file::FsReadFile,
-            write_file::FsWriteFile,
-        },
-        env::RoverEnvKey,
-    },
-    RoverOutput, RoverResult,
-};
-
-mod router;
+use crate::utils::client::StudioClientConfig;
+use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
+use crate::utils::effect::read_file::FsReadFile;
+use crate::utils::effect::write_file::FsWriteFile;
+use crate::utils::env::RoverEnvKey;
+use crate::{RoverOutput, RoverResult};
 
 impl Dev {
     /// Runs rover dev
@@ -76,7 +57,6 @@ impl Dev {
         let service = client_config
             .get_authenticated_client(profile)?
             .studio_graphql_service()?;
-
         let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
@@ -208,7 +188,7 @@ impl Dev {
         );
 
         let run_router = RunRouter::default()
-            .install::<InstallRouter>(
+            .install(
                 router_version,
                 client_config.clone(),
                 override_install_path,
@@ -224,7 +204,6 @@ impl Dev {
                 Some(credential.clone()),
             )
             .await;
-
         // This RouterAddress has some logic figuring out _which_ of the potentially multiple
         // address options we should use (eg, CLI, config, env var, or default). It will be used in
         // the overrides for the temporary config we set for hot-reloading the router, but also as

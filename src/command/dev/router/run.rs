@@ -4,7 +4,7 @@ use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
     stream::{self, BoxStream},
-    StreamExt, TryFutureExt,
+    StreamExt,
 };
 use houston::Credential;
 use rover_client::{
@@ -24,9 +24,9 @@ use super::{
     watchers::router_config::RouterConfigWatcher,
 };
 use crate::{
-    command::dev::next::{
+    command::dev::{
         router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
-        FileWatcher,
+        router::watchers::file::FileWatcher,
     },
     composition::events::CompositionEvent,
     options::LicenseAccepter,
@@ -55,7 +55,7 @@ impl Default for RunRouter<state::Install> {
 }
 
 impl RunRouter<state::Install> {
-    pub async fn install<I: InstallBinary>(
+    pub async fn install(
         self,
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,
@@ -252,7 +252,7 @@ impl RunRouter<state::Run> {
             None => {
             return Err(RunRouterBinaryError::Internal {
                 dependency: "Router Config Validation".to_string(),
-                err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
+                err: String::from("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint")
             })
             }
         };
@@ -396,7 +396,7 @@ mod state {
     use tokio::task::AbortHandle;
     use tokio_stream::wrappers::UnboundedReceiverStream;
 
-    use crate::command::dev::next::router::{
+    use crate::command::dev::router::{
         binary::{RouterBinary, RouterLog, RunRouterBinaryError},
         config::{remote::RemoteRouterConfig, RouterConfigFinal},
         hot_reload::HotReloadEvent,

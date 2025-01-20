@@ -6,15 +6,12 @@ mod lint;
 mod publish;
 
 use clap::Parser;
-#[cfg(not(feature = "dev-next"))]
-pub use introspect::Introspect;
+use rover_client::shared::GitContext;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
-
-use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Graph {
