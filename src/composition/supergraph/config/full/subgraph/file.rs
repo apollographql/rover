@@ -39,6 +39,7 @@ impl Service<()> for ResolveFileSubgraph {
         let supergraph_config_root = self.supergraph_config_root.clone();
         let path = self.path.clone();
         let subgraph_name = unresolved_subgraph.name().to_string();
+        let schema_source = self.unresolved_subgraph.schema().clone();
         let fut = async move {
             let file = unresolved_subgraph.resolve_file_path(&supergraph_config_root, &path)?;
             let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs {
@@ -54,6 +55,7 @@ impl Service<()> for ResolveFileSubgraph {
                 .name(subgraph_name)
                 .routing_url(routing_url)
                 .schema(schema)
+                .schema_source(schema_source)
                 .build())
         };
         Box::pin(fut)

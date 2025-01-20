@@ -61,6 +61,7 @@ mod tests {
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::ServiceBuilder;
+    use url::Url;
 
     use crate::composition::supergraph::config::{
         error::ResolveSubgraphError,
@@ -355,13 +356,14 @@ mod tests {
         tokio::spawn({
             let remote_subgraph_sdl = remote_subgraph_sdl.clone();
             let remote_subgraph_routing_url = remote_subgraph_routing_url.clone();
+            let remote_subgraph_graph_ref = remote_subgraph_graph_ref.clone();
             async move {
                 let (req, send_response) =
                     fetch_remote_subgraph_handle.next_request().await.unwrap();
                 let subgraph_name = remote_subgraph_subgraph_name.to_string();
                 assert_that!(req).is_equal_to(
                     FetchRemoteSubgraphRequest::builder()
-                        .graph_ref(remote_subgraph_graph_ref.clone())
+                        .graph_ref(remote_subgraph_graph_ref)
                         .subgraph_name(subgraph_name.to_string())
                         .build(),
                 );
@@ -379,7 +381,7 @@ mod tests {
 
         let IntrospectSubgraphScenario {
             sdl: ref introspect_subgraph_sdl,
-            routing_url: introspect_subgraph_routing_url,
+            routing_url: ref introspect_subgraph_routing_url,
             introspection_headers: introspect_subgraph_introspection_headers,
             ..
         } = introspect_subgraph_scenario;
@@ -389,7 +391,7 @@ mod tests {
         resolve_introspect_subgraph_service_handle.allow(1);
 
         tokio::spawn({
-            let introspect_subgraph_routing_url = introspect_subgraph_routing_url.to_string();
+            let introspect_subgraph_routing_url = introspect_subgraph_routing_url.clone();
             let introspect_subgraph_name = introspect_subgraph_name.to_string();
             let introspect_subgraph_sdl = introspect_subgraph_sdl.to_string();
             async move {
@@ -403,6 +405,10 @@ mod tests {
                         .name(introspect_subgraph_name.to_string())
                         .schema(introspect_subgraph_sdl.to_string())
                         .routing_url(introspect_subgraph_routing_url.to_string())
+                        .schema_source(SchemaSource::SubgraphIntrospection {
+                            subgraph_url: Url::parse(&introspect_subgraph_routing_url).unwrap(),
+                            introspection_headers: None,
+                        })
                         .build(),
                 );
             }
@@ -484,6 +490,9 @@ mod tests {
                     .name(sdl_subgraph_name.to_string())
                     .schema(sdl_subgraph_scenario.sdl.clone())
                     .routing_url(sdl_subgraph_scenario.routing_url.to_string())
+                    .schema_source(SchemaSource::Sdl {
+                        sdl: sdl_subgraph_scenario.sdl.clone(),
+                    })
                     .build(),
             ),
             (
@@ -492,6 +501,9 @@ mod tests {
                     .routing_url(file_subgraph_scenario.routing_url.clone())
                     .schema(file_subgraph_scenario.sdl.clone())
                     .name(file_subgraph_name.to_string())
+                    .schema_source(SchemaSource::File {
+                        file: file_subgraph_scenario.schema_file_path.clone(),
+                    })
                     .build(),
             ),
             (
@@ -500,6 +512,10 @@ mod tests {
                     .routing_url(remote_subgraph_routing_url.clone())
                     .schema(remote_subgraph_scenario.sdl.clone())
                     .name(remote_subgraph_name.to_string())
+                    .schema_source(SchemaSource::Subgraph {
+                        graphref: remote_subgraph_graph_ref.clone().to_string(),
+                        subgraph: remote_subgraph_name.to_string(),
+                    })
                     .build(),
             ),
             (
@@ -508,6 +524,11 @@ mod tests {
                     .routing_url(introspect_subgraph_routing_url.clone())
                     .schema(introspect_subgraph_scenario.sdl.clone())
                     .name(introspect_subgraph_name.to_string())
+                    .schema_source(SchemaSource::SubgraphIntrospection {
+                        subgraph_url: Url::parse(&introspect_subgraph_scenario.routing_url.clone())
+                            .unwrap(),
+                        introspection_headers: None,
+                    })
                     .build(),
             ),
         ]);
@@ -699,6 +720,11 @@ mod tests {
                         .name(introspect_subgraph_name.to_string())
                         .schema(introspect_subgraph_sdl.to_string())
                         .routing_url(introspect_subgraph_routing_url.to_string())
+                        .schema_source(SchemaSource::SubgraphIntrospection {
+                            subgraph_url: Url::parse(&introspect_subgraph_routing_url.to_string())
+                                .unwrap(),
+                            introspection_headers: None,
+                        })
                         .build(),
                 );
             }

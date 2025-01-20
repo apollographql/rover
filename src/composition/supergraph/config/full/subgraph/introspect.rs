@@ -1,8 +1,8 @@
 //! Utilities that help resolve a subgraph via introspection
-
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
 
+use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;
 use futures::Future;
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -98,6 +98,7 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
                 .inner(introspect_service)
                 .subgraph_name(subgraph_name.to_string())
                 .routing_url(routing_url.clone().unwrap_or_else(|| endpoint.to_string()))
+                .introspection_headers(headers)
                 .build()
                 .boxed_clone())
         };
@@ -114,6 +115,7 @@ where
     inner: S,
     subgraph_name: String,
     routing_url: String,
+    introspection_headers: Option<HashMap<String, String>>,
 }
 
 impl<S> Service<()> for ResolveIntrospectSubgraph<S>
@@ -142,8 +144,10 @@ where
         let mut inner = std::mem::replace(&mut self.inner, cloned);
         let subgraph_name = self.subgraph_name.to_string();
         let routing_url = self.routing_url.to_string();
+        let introspection_headers = self.introspection_headers.clone();
         let fut =
             async move {
+                let subgraph_url = Url::parse(&routing_url)?;
                 let schema = inner.call(()).await.map_err(|err| {
                     ResolveSubgraphError::IntrospectionError {
                         subgraph_name: subgraph_name.to_string(),
@@ -154,6 +158,10 @@ where
                     .name(subgraph_name)
                     .routing_url(routing_url)
                     .schema(schema.result)
+                    .schema_source(SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    })
                     .build())
             };
         Box::pin(fut)

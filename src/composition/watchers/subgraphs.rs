@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use apollo_federation_types::config::SubgraphConfig;
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
 use futures::stream::{self, BoxStream, StreamExt};
 use itertools::Itertools;
@@ -109,15 +109,23 @@ pub struct SubgraphSchemaChanged {
     /// SDL with changes
     sdl: String,
     routing_url: String,
+    /// Schema Source
+    schema_source: SchemaSource,
 }
 
 impl SubgraphSchemaChanged {
     #[cfg(test)]
-    pub fn new(name: String, sdl: String, routing_url: String) -> SubgraphSchemaChanged {
+    pub fn new(
+        name: String,
+        sdl: String,
+        routing_url: String,
+        schema_source: SchemaSource,
+    ) -> SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name,
             sdl,
             routing_url,
+            schema_source,
         }
     }
 }
@@ -128,6 +136,7 @@ impl From<SubgraphSchemaChanged> for FullyResolvedSubgraph {
             .name(value.name)
             .schema(value.sdl)
             .routing_url(value.routing_url)
+            .schema_source(value.schema_source)
             .build()
     }
 }
@@ -138,6 +147,7 @@ impl From<FullyResolvedSubgraph> for SubgraphSchemaChanged {
             name: value.name().to_string(),
             sdl: value.schema().to_string(),
             routing_url: value.routing_url().to_string(),
+            schema_source: value.schema_source().to_owned(),
         }
     }
 }

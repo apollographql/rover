@@ -1,4 +1,3 @@
-use apollo_federation_types::config::SchemaSource::Sdl;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -105,7 +104,7 @@ where
                     match event {
                         Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
-                            let sdl = subgraph_schema_changed.sdl().clone();
+                            let schema_source = subgraph_schema_changed.schema_source().clone();
                             let message = format!("Schema change detected for subgraph: {}", &name);
                             infoln!("{}", message);
                             tracing::info!(message);
@@ -120,7 +119,7 @@ where
                                     .send(CompositionEvent::SubgraphAdded(
                                         CompositionSubgraphAdded {
                                             name,
-                                            schema_source: Sdl { sdl },
+                                            schema_source
                                         },
                                     ))
                                     .tap_err(|err| error!("{:?}", err));
@@ -268,7 +267,7 @@ mod tests {
     };
 
     use anyhow::Result;
-    use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::{FederationVersion, SchemaSource};
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
@@ -381,8 +380,9 @@ mod tests {
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
             Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
                 subgraph_name,
-                subgraph_sdl,
+                subgraph_sdl.clone(),
                 "https://example.com".to_string(),
+                SchemaSource::Sdl { sdl: subgraph_sdl },
             )))
         })
         .boxed();
