@@ -89,17 +89,12 @@ pub struct SubgraphFileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
     resolver: FullyResolveSubgraphService,
-    drop_guard: Arc<Mutex<Option<DropGuard>>>,
 }
 
 impl SubgraphFileWatcher {
     /// Create a new filewatcher
     pub fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraphService) -> Self {
-        Self {
-            path,
-            resolver,
-            drop_guard: Arc::new(Mutex::new(None)),
-        }
+        Self { path, resolver }
     }
 
     pub async fn fetch(mut self) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
@@ -125,10 +120,6 @@ impl SubgraphFileWatcher {
             file_tx,
             Some(cancellation_token),
         );
-        {
-            let mut drop_guard = self.drop_guard.lock().await;
-            let _ = drop_guard.insert(cancellation_token.clone().drop_guard());
-        }
 
         output
             .filter_map({
