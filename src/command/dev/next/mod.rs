@@ -15,6 +15,7 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
+use crate::composition::supergraph::binary::OutputTarget;
 use crate::{
     command::{
         dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION},
@@ -171,6 +172,8 @@ impl Dev {
                 fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
+                OutputTarget::Stdout,
+                false,
             )
             .await?;
 

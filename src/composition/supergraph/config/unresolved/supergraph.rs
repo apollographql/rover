@@ -6,9 +6,8 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
-
 use super::UnresolvedSubgraph;
+use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
 #[derive(Getters)]
@@ -49,7 +48,6 @@ impl UnresolvedSupergraphConfig {
 
 #[cfg(test)]
 mod tests {
-
     use std::{
         collections::{BTreeMap, HashSet},
         str::FromStr,
@@ -861,10 +859,10 @@ mod tests {
             (
                 sdl_subgraph_name.clone(),
                 LazilyResolvedSubgraph::builder()
+                    .name(sdl_subgraph_name.clone())
                     .schema(SchemaSource::Sdl {
                         sdl: sdl_subgraph_scenario.sdl.clone(),
                     })
-                    .name(sdl_subgraph_name.to_string())
                     .routing_url(sdl_subgraph_scenario.routing_url.to_string())
                     .build(),
             ),
@@ -876,8 +874,8 @@ mod tests {
                             .join(file_subgraph_scenario.schema_file_path)
                             .canonicalize_utf8()?,
                     })
+                    .name(file_subgraph_name.clone())
                     .routing_url(file_subgraph_scenario.routing_url)
-                    .name(file_subgraph_name.to_string())
                     .build(),
             ),
             (
@@ -887,8 +885,8 @@ mod tests {
                         graphref: remote_subgraph_scenario.graph_ref.to_string(),
                         subgraph: remote_subgraph_scenario.subgraph_name.clone(),
                     })
+                    .name(remote_subgraph_name.clone())
                     .routing_url(remote_subgraph_scenario.routing_url.clone())
-                    .name(remote_subgraph_name.to_string())
                     .build(),
             ),
             (
@@ -902,8 +900,8 @@ mod tests {
                             introspect_subgraph_scenario.introspection_headers.clone(),
                         ),
                     })
+                    .name(introspect_subgraph_name.clone())
                     .routing_url(introspect_subgraph_scenario.routing_url.clone())
-                    .name(introspect_subgraph_name.to_string())
                     .build(),
             ),
         ]);
