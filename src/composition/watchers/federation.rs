@@ -1,12 +1,15 @@
 use futures::stream::BoxStream;
 use futures::StreamExt;
+use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::AbortHandle;
+use tracing::error;
 
 use crate::composition::events::CompositionEvent;
 use crate::composition::watchers::watcher::supergraph_config::{
     SupergraphConfigDiff, SupergraphConfigSerialisationError,
 };
+use crate::composition::CompositionError;
 use crate::subtask::SubtaskHandleStream;
 
 pub struct FederationWatcher {}
@@ -18,16 +21,20 @@ impl SubtaskHandleStream for FederationWatcher {
 
     fn handle(
         self,
-        _: UnboundedSender<Self::Output>,
+        sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
         tokio::task::spawn(async move {
             while let Some(recv_res) = input.next().await {
                 match recv_res {
                     Err(SupergraphConfigSerialisationError::DeserializingConfigError {
-                        ..
+                        source,
                     }) => {
-                        tracing::error!("Here's your error!");
+                        let _ = sender
+                            .send(CompositionEvent::Error(
+                                CompositionError::InvalidSupergraphConfig(source.message()),
+                            ))
+                            .tap_err(|err| error!("{:?}", err));
                     }
                     _ => (),
                 }
