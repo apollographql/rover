@@ -1,13 +1,13 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt, TryFutureExt};
 use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
-use tokio::sync::{mpsc::unbounded_channel, Mutex};
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_util::sync::DropGuard;
+use tokio_util::sync::{CancellationToken, DropGuard};
 use tower::{Service, ServiceExt};
 
 use crate::composition::supergraph::config::{
@@ -47,7 +47,7 @@ impl FileWatcher {
     pub async fn watch(&self) -> BoxStream<'static, String> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx);
+        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx, None);
         self.drop_guard
             .set(cancellation_token.clone().drop_guard())
             .unwrap();
@@ -114,10 +114,17 @@ impl SubgraphFileWatcher {
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
     /// indefinitely loop on a close filewatcher
-    pub async fn watch(self) -> BoxStream<'static, FullyResolvedSubgraph> {
+    pub async fn watch(
+        self,
+        cancellation_token: CancellationToken,
+    ) -> BoxStream<'static, FullyResolvedSubgraph> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx);
+        let cancellation_token = Fs::watch_file(
+            self.path.as_path().into(),
+            file_tx,
+            Some(cancellation_token),
+        );
         {
             let mut drop_guard = self.drop_guard.lock().await;
             let _ = drop_guard.insert(cancellation_token.clone().drop_guard());
@@ -206,9 +213,7 @@ mod tests {
             .expect("couldn't write to file");
 
         let watcher = SubgraphFileWatcher::new(path.clone(), resolve_file_subgraph);
-        // SubgraphFileWatcher has a DropGuard associated with it that cancels the underlying FileWatcher's CancellationToken when dropped, so we must retain a reference until this test finishes. This can be fixed if we migrate this to a `Subtask` implementation to make it safer and more explicit
-        let _watcher = watcher.clone();
-        let mut watching = watcher.watch().await;
+        let mut watching = watcher.watch(CancellationToken::default()).await;
         let _ = tokio::time::sleep(Duration::from_millis(500)).await;
 
         let mut writeable_file = OpenOptions::new()

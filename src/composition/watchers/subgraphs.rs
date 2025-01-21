@@ -6,7 +6,8 @@ use futures::stream::{self, BoxStream, StreamExt};
 use itertools::Itertools;
 use rover_std::errln;
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
+use tokio::sync::mpsc::UnboundedSender;
+use tokio_util::sync::CancellationToken;
 
 use super::watcher::{
     subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
@@ -167,61 +168,62 @@ impl SubtaskHandleStream for SubgraphWatchers {
         self,
         sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
-    ) -> AbortHandle {
+        cancellation_token: Option<CancellationToken>,
+    ) {
         tokio::task::spawn(async move {
             let mut subgraph_handles = SubgraphHandles::new(
                 sender.clone(),
                 self.watchers.clone(),
                 self.resolve_introspect_subgraph_factory.clone(),
                 self.fetch_remote_subgraph_factory.clone(),
-                self.supergraph_config_root.clone()
+                self.supergraph_config_root.clone(),
             );
+            let cancellation_token = cancellation_token.unwrap_or_default();
+            cancellation_token.run_until_cancelled(async move {
+                while let Some(diff) = input.next().await {
+                    match diff {
+                        Ok(diff) => {
+                            // If we detect additional diffs, start a new subgraph subtask.
+                            // Adding the abort handle to the current collection of handles.
+                            for (subgraph_name, subgraph_config) in diff.added() {
+                                let _ = subgraph_handles.add(
+                                    subgraph_name,
+                                    subgraph_config,
+                                    self.introspection_polling_interval
+                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                            }
 
-            // Wait for supergraph diff events received from the input stream.
-            while let Some(diff) = input.next().await {
-                match diff {
-                    Ok(diff) => {
-                        // If we detect additional diffs, start a new subgraph subtask.
-                        // Adding the abort handle to the current collection of handles.
-                        for (subgraph_name, subgraph_config) in diff.added() {
-                            let _ = subgraph_handles.add(
-                                subgraph_name,
-                                subgraph_config,
-                                self.introspection_polling_interval
-                            ).await.tap_err(|err| tracing::error!("{:?}", err));
-                        }
+                            for (subgraph_name, subgraph_config) in diff.changed() {
+                                let _ = subgraph_handles.update(
+                                    subgraph_name,
+                                    subgraph_config,
+                                    self.introspection_polling_interval
+                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                            }
 
-                        for (subgraph_name, subgraph_config) in diff.changed() {
-                            let _ = subgraph_handles.update(
-                                subgraph_name,
-                                subgraph_config,
-                                self.introspection_polling_interval
-                            ).await.tap_err(|err| tracing::error!("{:?}", err));
+                            // If we detect removal diffs, stop the subtask for the removed subgraph.
+                            for subgraph_name in diff.removed() {
+                                eprintln!("Removing subgraph from session: `{}`", subgraph_name);
+                                subgraph_handles.remove(subgraph_name);
+                            }
                         }
-
-                        // If we detect removal diffs, stop the subtask for the removed subgraph.
-                        for subgraph_name in diff.removed() {
-                            eprintln!("Removing subgraph from session: `{}`", subgraph_name);
-                            subgraph_handles.remove(subgraph_name);
-                        }
-                    }
-                    Err(errs) => {
-                        if let SupergraphConfigSerialisationError::ResolvingSubgraphErrors(errs) = errs {
-                            for (subgraph_name, _) in errs {
-                                errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
-                                subgraph_handles.remove(&subgraph_name);
+                        Err(errs) => {
+                            if let SupergraphConfigSerialisationError::ResolvingSubgraphErrors(errs) = errs {
+                                for (subgraph_name, _) in errs {
+                                    errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
+                                    subgraph_handles.remove(&subgraph_name);
+                                }
                             }
                         }
                     }
                 }
-            }
-        })
-        .abort_handle()
+            }).await
+        });
     }
 }
 
 struct SubgraphHandles {
-    abort_handles: HashMap<String, (AbortHandle, AbortHandle)>,
+    cancellation_tokens: HashMap<String, CancellationToken>,
     sender: UnboundedSender<CompositionInputEvent>,
     resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
@@ -244,24 +246,28 @@ impl SubgraphHandles {
         // shut down.
         for (subgraph_name, watcher) in watchers.into_iter() {
             let (mut messages, subtask) = Subtask::<_, FullyResolvedSubgraph>::new(watcher);
-            let messages_abort_handle = tokio::task::spawn({
+            let cancellation_token = CancellationToken::new();
+            let sender = sender.clone();
+            subtask.run(Some(cancellation_token.clone()));
+            abort_handles.insert(subgraph_name, cancellation_token.clone());
+            tokio::task::spawn(async move {
                 let sender = sender.clone();
-                async move {
-                    while let Some(subgraph) = messages.next().await {
-                        tracing::info!("Subgraph change detected: {:?}", subgraph);
-                        let _ = sender
-                            .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
-                }
-            })
-            .abort_handle();
-            let subtask_abort_handle = subtask.run();
-            abort_handles.insert(subgraph_name, (messages_abort_handle, subtask_abort_handle));
+                let cancellation_token = cancellation_token.clone();
+                cancellation_token
+                    .run_until_cancelled(async move {
+                        while let Some(subgraph) = messages.next().await {
+                            tracing::info!("Subgraph change detected: {:?}", subgraph);
+                            let _ = sender
+                                .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                                .tap_err(|err| tracing::error!("{:?}", err));
+                        }
+                    })
+                    .await;
+            });
         }
         SubgraphHandles {
             sender,
-            abort_handles,
+            cancellation_tokens: abort_handles,
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
             supergraph_config_root,
@@ -353,10 +359,9 @@ impl SubgraphHandles {
     }
 
     pub fn remove(&mut self, subgraph: &str) {
-        if let Some(abort_handle) = self.abort_handles.get(subgraph) {
-            abort_handle.0.abort();
-            abort_handle.1.abort();
-            self.abort_handles.remove(subgraph);
+        if let Some(cancellation_token) = self.cancellation_tokens.get(subgraph) {
+            cancellation_token.cancel();
+            self.cancellation_tokens.remove(subgraph);
         }
 
         let _ = self
@@ -392,6 +397,7 @@ impl SubgraphHandles {
     ) -> Result<(), ResolveSubgraphError> {
         let fetch = subgraph_watcher.watcher().clone();
         let subgraph = fetch.fetch().await?;
+        let cancellation_token = CancellationToken::new();
         let (mut messages, subtask) =
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
@@ -401,22 +407,25 @@ impl SubgraphHandles {
             )))
             .tap_err(|err| tracing::error!("{:?}", err));
 
-        let messages_abort_handle = tokio::spawn({
+        tokio::spawn({
             let sender = self.sender.clone();
+            let cancellation_token = cancellation_token.clone();
             async move {
-                while let Some(subgraph) = messages.next().await {
-                    let _ = sender
-                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
-                        .tap_err(|err| tracing::error!("{:?}", err));
-                }
+                cancellation_token
+                    .run_until_cancelled(async move {
+                        while let Some(subgraph) = messages.next().await {
+                            tracing::info!("Subgraph change detected: {:?}", subgraph);
+                            let _ = sender
+                                .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                                .tap_err(|err| tracing::error!("{:?}", err));
+                        }
+                    })
+                    .await;
             }
-        })
-        .abort_handle();
-        let subtask_abort_handle = subtask.run();
-        self.abort_handles.insert(
-            subgraph.name().to_string(),
-            (messages_abort_handle, subtask_abort_handle),
-        );
+        });
+        subtask.run(Some(cancellation_token.clone()));
+        self.cancellation_tokens
+            .insert(subgraph.name().to_string(), cancellation_token);
         Ok(())
     }
 }

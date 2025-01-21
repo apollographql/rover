@@ -11,7 +11,7 @@ use rover_std::errln;
 use tap::TapFallible;
 use thiserror::Error;
 use tokio::sync::broadcast::Sender;
-use tokio::task::AbortHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use super::file::FileWatcher;
@@ -44,88 +44,89 @@ impl SupergraphConfigWatcher {
 impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
     type Output = Result<SupergraphConfigDiff, SupergraphConfigSerialisationError>;
 
-    fn handle(self, sender: Sender<Self::Output>) -> AbortHandle {
+    fn handle(self, sender: Sender<Self::Output>, cancellation_token: Option<CancellationToken>) {
         tracing::warn!("Running SupergraphConfigWatcher");
         let supergraph_config_path = self.file_watcher.path().clone();
-        tokio::spawn(
-            async move {
-                let supergraph_config_path = supergraph_config_path.clone();
-                let mut latest_supergraph_config = self.supergraph_config.clone();
-                let mut stream = self.file_watcher.watch().await;
-                while let Some(contents) = stream.next().await {
-                    eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
-                    tracing::info!(
-                        "{} changed. Parsing it as a `SupergraphConfig`",
-                        supergraph_config_path
-                    );
-                    match SupergraphConfig::new_from_yaml(&contents) {
-                        Ok(supergraph_config) => {
-                            let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
-                            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                                .origin_path(supergraph_config_path.clone())
-                                .subgraphs(subgraphs)
-                                .federation_version_resolver(FederationVersionResolver::default().from_supergraph_config(Some(&supergraph_config)))
-                                .build();
-                            let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
-                                &supergraph_config_path.parent().unwrap().to_path_buf(),
-                                unresolved_supergraph_config,
-                            ).await.map(SupergraphConfig::from);
+        let cancellation_token = cancellation_token.unwrap_or_default();
+        tokio::spawn(async move {
+            let supergraph_config_path = supergraph_config_path.clone();
+            let mut latest_supergraph_config = self.supergraph_config.clone();
+            let mut stream = self.file_watcher.watch().await;
+            cancellation_token.run_until_cancelled(async move {
+                    while let Some(contents) = stream.next().await {
+                        eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
+                        tracing::info!(
+                                "{} changed. Parsing it as a `SupergraphConfig`",
+                                supergraph_config_path
+                            );
+                        match SupergraphConfig::new_from_yaml(&contents) {
+                            Ok(supergraph_config) => {
+                                let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
+                                let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                                    .origin_path(supergraph_config_path.clone())
+                                    .subgraphs(subgraphs)
+                                    .federation_version_resolver(FederationVersionResolver::default().from_supergraph_config(Some(&supergraph_config)))
+                                    .build();
+                                let supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                                    &supergraph_config_path.parent().unwrap().to_path_buf(),
+                                    unresolved_supergraph_config,
+                                ).await.map(SupergraphConfig::from);
 
-                            match supergraph_config {
-                                Ok(supergraph_config) => {
-                                    let supergraph_config_diff = SupergraphConfigDiff::new(
-                                        &latest_supergraph_config,
-                                        supergraph_config.clone(),
-                                    );
-                                    match supergraph_config_diff {
-                                        Ok(supergraph_config_diff) =>  {
-                                            debug!("{supergraph_config_diff}");
-                                            let _ = sender
-                                                .send(Ok(supergraph_config_diff))
-                                                .tap_err(|err| tracing::error!("{:?}", err));
+                                match supergraph_config {
+                                    Ok(supergraph_config) => {
+                                        let supergraph_config_diff = SupergraphConfigDiff::new(
+                                            &latest_supergraph_config,
+                                            supergraph_config.clone(),
+                                        );
+                                        match supergraph_config_diff {
+                                            Ok(supergraph_config_diff) => {
+                                                debug!("{supergraph_config_diff}");
+                                                let _ = sender
+                                                    .send(Ok(supergraph_config_diff))
+                                                    .tap_err(|err| tracing::error!("{:?}", err));
+                                            }
+                                            Err(err) => {
+                                                tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
+                                            }
                                         }
-                                        Err(err) => {
-                                            tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
-                                        }
+
+                                        latest_supergraph_config = supergraph_config;
                                     }
-
-                                    latest_supergraph_config = supergraph_config;
-                                }
-                                Err(resolution_errors) => {
-                                    errln!(
-                                        "Failed to lazily resolve the supergraph config at {}.\n{}",
-                                        supergraph_config_path,
-                                        itertools::join(
-                                            resolution_errors
-                                                .iter()
-                                                .map(
-                                                    |(name, err)| format!("{}: {}", name, err)
-                                                ),
-                                            "\n")
-                                    );
-                                    // Since we have errors we need to remove these subgraphs from
-                                    // what we're tracking **and** emit events to make sure they
-                                    // get removed in downstream processes as well.
-                                    latest_supergraph_config = remove_errored_subgraphs(latest_supergraph_config, resolution_errors.clone());
-                                    let _ = sender
-                                        .send(Err(SupergraphConfigSerialisationError::ResolvingSubgraphErrors(resolution_errors)))
-                                        .tap_err(|err| tracing::error!("{:?}", err));
+                                    Err(resolution_errors) => {
+                                        errln!(
+                                                "Failed to lazily resolve the supergraph config at {}.\n{}",
+                                                supergraph_config_path,
+                                                itertools::join(
+                                                    resolution_errors
+                                                        .iter()
+                                                        .map(
+                                                            |(name, err)| format!("{}: {}", name, err)
+                                                        ),
+                                                    "\n")
+                                            );
+                                        // Since we have errors we need to remove these subgraphs from
+                                        // what we're tracking **and** emit events to make sure they
+                                        // get removed in downstream processes as well.
+                                        latest_supergraph_config = remove_errored_subgraphs(latest_supergraph_config, resolution_errors.clone());
+                                        let _ = sender
+                                            .send(Err(SupergraphConfigSerialisationError::ResolvingSubgraphErrors(resolution_errors)))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
                                 }
                             }
-                        }
-                        Err(err) => {
-                            tracing::error!("could not parse supergraph config file: {:?}", err);
-                            errln!("Could not parse supergraph config file.\n{}", err);
-                            let _ = sender
-                                .send(Err(DeserializingConfigError {
-                                    source: Arc::new(err)
-                                }))
-                                .tap_err(|err| tracing::error!("{:?}", err));
+                            Err(err) => {
+                                tracing::error!("could not parse supergraph config file: {:?}", err);
+                                errln!("Could not parse supergraph config file.\n{}", err);
+                                let _ = sender
+                                    .send(Err(DeserializingConfigError {
+                                        source: Arc::new(err)
+                                    }))
+                                    .tap_err(|err| tracing::error!("{:?}", err));
+                            }
                         }
                     }
-                }
-        })
-        .abort_handle()
+                }).await;
+        });
     }
 }
 
