@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use tap::TapFallible;
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     command::dev::router::{
@@ -24,16 +25,21 @@ impl SubtaskHandleUnit for RouterConfigWatcher {
     fn handle(
         self,
         sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-    ) -> tokio::task::AbortHandle {
+        cancellation_token: Option<CancellationToken>,
+    ) {
+        let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::spawn(async move {
-            while let Some(router_config) = self.file_watcher.clone().watch().next().await {
-                let _ = sender
-                    .send(RouterUpdateEvent::ConfigChanged {
-                        config: RouterConfig::new(router_config),
-                    })
-                    .tap_err(|err| tracing::error!("{:?}", err));
-            }
-        })
-        .abort_handle()
+            cancellation_token
+                .run_until_cancelled(async move {
+                    while let Some(router_config) = self.file_watcher.clone().watch().next().await {
+                        let _ = sender
+                            .send(RouterUpdateEvent::ConfigChanged {
+                                config: RouterConfig::new(router_config),
+                            })
+                            .tap_err(|err| tracing::error!("{:?}", err));
+                    }
+                })
+                .await;
+        });
     }
 }

@@ -261,8 +261,9 @@ impl Fs {
     pub fn watch_file(
         path: PathBuf,
         tx: UnboundedSender<Result<(), RoverStdError>>,
+        cancellation_token: Option<CancellationToken>,
     ) -> CancellationToken {
-        let cancellation_token = CancellationToken::new();
+        let cancellation_token = cancellation_token.unwrap_or_default();
 
         let poll_watcher = PollWatcher::new(
             {
@@ -452,7 +453,7 @@ mod tests {
         let path = file.path().to_path_buf();
         let (tx, rx) = unbounded_channel();
         let rx = Arc::new(Mutex::new(rx));
-        let cancellation_token = Fs::watch_file(path.clone(), tx);
+        let cancellation_token = Fs::watch_file(path.clone(), tx, None);
 
         sleep(Duration::from_millis(1500)).await;
 
@@ -513,7 +514,7 @@ mod tests {
         let (tx, rx) = unbounded_channel();
         let rx = Arc::new(Mutex::new(rx));
 
-        let _cancellation_token = Fs::watch_file(path.clone(), tx);
+        let _cancellation_token = Fs::watch_file(path.clone(), tx, None);
 
         sleep(Duration::from_millis(1500)).await;
 

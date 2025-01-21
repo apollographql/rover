@@ -4,8 +4,9 @@ use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
 use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 use tracing::error;
 
 use crate::composition::supergraph::install::InstallSupergraph;
@@ -68,38 +69,39 @@ where
         mut self,
         sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
-    ) -> AbortHandle {
-        tokio::task::spawn({
+        cancellation_token: Option<CancellationToken>,
+    ) {
+        tokio::task::spawn(async move {
             let mut supergraph_config = self.supergraph_config.clone();
             let target_file = self.temp_dir.join("supergraph.yaml");
-            async move {
-                if self.compose_on_initialisation {
-                    if let Err(err) = self
-                        .setup_temporary_supergraph_yaml(&supergraph_config, &target_file)
-                        .await
-                    {
-                        error!("Could not setup initial supergraph schema: {}", err);
-                    };
-                    let _ = sender
-                        .send(CompositionEvent::Started)
-                        .tap_err(|err| error!("{:?}", err));
-                    let output = self
-                        .run_composition(&target_file, &self.output_target)
-                        .await;
-                    match output {
-                        Ok(success) => {
-                            let _ = sender
-                                .send(CompositionEvent::Success(success))
-                                .tap_err(|err| error!("{:?}", err));
-                        }
-                        Err(err) => {
-                            let _ = sender
-                                .send(CompositionEvent::Error(err))
-                                .tap_err(|err| error!("{:?}", err));
-                        }
+            if self.compose_on_initialisation {
+                if let Err(err) = self
+                    .setup_temporary_supergraph_yaml(&supergraph_config, &target_file)
+                    .await
+                {
+                    error!("Could not setup initial supergraph schema: {}", err);
+                };
+                let _ = sender
+                    .send(CompositionEvent::Started)
+                    .tap_err(|err| error!("{:?}", err));
+                let output = self
+                    .run_composition(&target_file, &self.output_target)
+                    .await;
+                match output {
+                    Ok(success) => {
+                        let _ = sender
+                            .send(CompositionEvent::Success(success))
+                            .tap_err(|err| error!("{:?}", err));
+                    }
+                    Err(err) => {
+                        let _ = sender
+                            .send(CompositionEvent::Error(err))
+                            .tap_err(|err| error!("{:?}", err));
                     }
                 }
-
+            }
+            let cancellation_token = cancellation_token.unwrap_or_default();
+            cancellation_token.run_until_cancelled(async {
                 while let Some(event) = input.next().await {
                     match event {
                         Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
@@ -197,9 +199,8 @@ where
                         }
                     }
                 }
-            }
-        })
-        .abort_handle()
+            }).await;
+        });
     }
 }
 
@@ -277,6 +278,7 @@ mod tests {
     use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
+    use tokio_util::sync::CancellationToken;
     use tracing_test::traced_test;
 
     use super::{CompositionInputEvent, CompositionWatcher};
@@ -387,7 +389,8 @@ mod tests {
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
-        let abort_handle = composition_subtask.run(subgraph_change_events);
+        let cancellation_token = CancellationToken::new();
+        composition_subtask.run(subgraph_change_events, Some(cancellation_token.clone()));
 
         // Assert we always get a subgraph added event.
         let next_message = composition_messages.next().await;
@@ -424,7 +427,7 @@ mod tests {
             ));
         }
 
-        abort_handle.abort();
+        cancellation_token.cancel();
         Ok(())
     }
 }
