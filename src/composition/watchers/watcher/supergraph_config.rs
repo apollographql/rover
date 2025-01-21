@@ -206,7 +206,7 @@ impl SupergraphConfigDiff {
         let changed = old
             .clone()
             .into_iter()
-            .filter(|(old_name, _)| !removed.contains(&old_name))
+            .filter(|(old_name, _)| !removed.contains(old_name))
             .filter_map(|(old_name, old_subgraph)| {
                 new_subgraphs.get(&old_name).and_then(|new_subgraph| {
                     let new_subgraph = new_subgraph.clone();
