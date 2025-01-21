@@ -6,6 +6,7 @@ use derive_getters::Getters;
 use futures::{stream, StreamExt, TryFutureExt};
 use itertools::Itertools;
 use tower::{Service, ServiceExt};
+use tracing::debug;
 
 use super::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
@@ -106,6 +107,32 @@ impl FullyResolvedSupergraphConfig {
         subgraph: FullyResolvedSubgraph,
     ) -> Option<FullyResolvedSubgraph> {
         self.subgraphs.insert(name, subgraph)
+    }
+
+    pub(crate) fn update_routing_url(
+        &mut self,
+        subgraph_name: &str,
+        routing_url: Option<String>,
+    ) -> Option<Option<String>> {
+        match self.subgraphs.get_mut(subgraph_name) {
+            None => {
+                debug!("Could not find subgraph {}", subgraph_name);
+                None
+            }
+            Some(subgraph) => {
+                let original_value = subgraph.routing_url.clone();
+                if routing_url != subgraph.routing_url {
+                    debug!(
+                        "Updating routing URL from {:?} to {:?}",
+                        subgraph.routing_url, routing_url
+                    );
+                    subgraph.routing_url = routing_url;
+                    Some(original_value)
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     /// Removes the subgraph with the name provided

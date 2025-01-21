@@ -31,7 +31,7 @@ pub type FullyResolveSubgraphService =
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
     name: String,
-    routing_url: Option<String>,
+    pub(crate) routing_url: Option<String>,
     schema: String,
     schema_source: SchemaSource,
     pub(crate) is_fed_two: bool,
