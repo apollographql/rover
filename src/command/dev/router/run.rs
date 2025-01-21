@@ -14,6 +14,7 @@ use rover_client::{
 use rover_std::{debugln, infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use super::{
@@ -222,13 +223,14 @@ impl RunRouter<state::Run> {
             _,
         ) = Subtask::new(run_router_binary);
 
-        let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
+        let cancellation_token = CancellationToken::new();
+        SubtaskRunUnit::run(run_router_binary_subtask, Some(cancellation_token.clone()));
 
         self.wait_for_healthy_router(&studio_client_config).await?;
 
         Ok(RunRouter {
             state: state::Watch {
-                abort_router,
+                cancellation_token,
                 config_path: self.state.config_path,
                 hot_reload_config_path,
                 hot_reload_schema_path,
@@ -323,9 +325,9 @@ impl RunRouter<state::Watch> {
             self.state.config_path
         {
             let config_watcher = RouterConfigWatcher::new(FileWatcher::new(config_path.clone()));
-            let (events, abort_handle): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
+            let (events, subtask): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
                 Subtask::new(config_watcher);
-            (Some(events), Some(abort_handle))
+            (Some(events), Some(subtask))
         } else {
             (None, None)
         };
@@ -358,15 +360,19 @@ impl RunRouter<state::Watch> {
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
 
-        let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
+        SubtaskRunStream::run(
+            hot_reload_subtask,
+            router_updates.boxed(),
+            Some(self.state.cancellation_token.clone()),
+        );
 
-        let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
+        if let Some(subtask) = config_watcher_subtask {
+            subtask.run(Some(self.state.cancellation_token.clone()))
+        }
 
         RunRouter {
             state: state::Abort {
-                abort_router: self.state.abort_router,
-                abort_hot_reload,
-                abort_config_watcher,
+                cancellation_token: self.state.cancellation_token.clone(),
                 hot_reload_events,
                 router_logs: self.state.router_logs,
                 hot_reload_schema_path: self.state.hot_reload_schema_path,
@@ -383,18 +389,14 @@ impl RunRouter<state::Abort> {
     }
 
     pub fn shutdown(&mut self) {
-        self.state.abort_router.abort();
-        self.state.abort_hot_reload.abort();
-        if let Some(abort) = self.state.abort_config_watcher.take() {
-            abort.abort();
-        };
+        self.state.cancellation_token.cancel();
     }
 }
 
 mod state {
     use camino::Utf8PathBuf;
-    use tokio::task::AbortHandle;
     use tokio_stream::wrappers::UnboundedReceiverStream;
+    use tokio_util::sync::CancellationToken;
 
     use crate::command::dev::router::{
         binary::{RouterBinary, RouterLog, RunRouterBinaryError},
@@ -419,7 +421,7 @@ mod state {
         pub remote_config: Option<RemoteRouterConfig>,
     }
     pub struct Watch {
-        pub abort_router: AbortHandle,
+        pub cancellation_token: CancellationToken,
         pub config_path: Option<Utf8PathBuf>,
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
@@ -430,11 +432,7 @@ mod state {
         #[allow(unused)]
         pub hot_reload_events: UnboundedReceiverStream<HotReloadEvent>,
         #[allow(unused)]
-        pub abort_router: AbortHandle,
-        #[allow(unused)]
-        pub abort_config_watcher: Option<AbortHandle>,
-        #[allow(unused)]
-        pub abort_hot_reload: AbortHandle,
+        pub cancellation_token: CancellationToken,
         #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
     }

@@ -30,7 +30,7 @@ impl FileWatcher {
         let path = self.path;
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(path.as_path().into(), file_tx);
+        let cancellation_token = Fs::watch_file(path.as_path().into(), file_tx, None);
 
         output
             .filter_map(move |result| {
