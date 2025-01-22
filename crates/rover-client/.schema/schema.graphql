@@ -25,6 +25,8 @@ type Organization {
 }
 
 type OrganizationMutation {
+  createGraph(graphType: GraphType!, hiddenFromUninvitedNonAdmin: Boolean!, id: ID!, title: String!, variantCreationConfig: VariantCreationConfig): GraphCreationResult!
+
   """Trigger a request for an audit export"""
   requestAuditExport(actors: [ActorInput!], from: Timestamp!, graphIds: [String!], to: Timestamp!): Organization
 }
@@ -187,6 +189,24 @@ type Build {
   result: BuildResult
 }
 
+"""
+Exactly one of the inputs must be set in a build configuration.
+Which build configuration type is set will determine the type
+of variant that is created. Existing variants of a given type
+cannot be updated in-place to be of a different type.
+"""
+input BuildConfigInput {
+  """
+  This list will contain any directives that should get passed through to the api schema from the core schema. Anything included in this list will appear in the consumer facing schema
+  """
+  apiDirectivePassThrough: [String!]!
+
+  """if buildPipelineTrack is null use the graph default"""
+  buildPipelineTrack: BuildPipelineTrack
+  composition: CompositionConfigInput
+  contract: ContractConfigInput
+}
+
 """A single error that occurred during the failed execution of a build."""
 type BuildError {
   code: String
@@ -203,12 +223,55 @@ type BuildFailure {
 
 union BuildInput = CompositionBuildInput | FilterBuildInput
 
+"""Build Pipeline Tracks"""
+enum BuildPipelineTrack {
+  """Apollo Federation 1.0"""
+  FED_1_0
+
+  """Apollo Federation 1.1"""
+  FED_1_1
+
+  """Apollo Federation 2.0"""
+  FED_2_0
+
+  """Apollo Federation 2.1"""
+  FED_2_1
+
+  """Apollo Federation 2.3"""
+  FED_2_3
+
+  """Apollo Federation 2.4"""
+  FED_2_4
+
+  """Apollo Federation 2.5"""
+  FED_2_5
+
+  """Apollo Federation 2.6"""
+  FED_2_6
+
+  """Apollo Federation 2.7"""
+  FED_2_7
+
+  """Apollo Federation 2.8"""
+  FED_2_8
+
+  """Apollo Federation 2.9"""
+  FED_2_9
+}
+
 union BuildResult = BuildFailure | BuildSuccess
 
 """Contains the details of an executed build that succeeded."""
 type BuildSuccess {
   """Contains the supergraph and API schemas created by composition."""
   coreSchema: CoreSchema!
+}
+
+"""
+The result of a failed call to PersistedQueryListMutation.delete due to linked variant(s).
+"""
+type CannotDeleteLinkedPersistedQueryListError implements Error {
+  message: String!
 }
 
 type CannotModifyOperationBodyError implements Error {
@@ -462,6 +525,79 @@ enum ChangeType {
   NOTICE
 }
 
+"""Graph-level configuration of checks."""
+type CheckConfiguration {
+  """
+  How submitted build input diffs are handled when they match (or don't) a Proposal
+  """
+  proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity!
+
+  """ID of the check configuration"""
+  id: ID!
+
+  """Graph that this check configuration belongs to"""
+  graphID: ID!
+
+  """Operations to ignore during validation"""
+  excludedOperations: [ExcludedOperation!]!
+
+  """Clients to ignore during validation"""
+  excludedClients: [ClientFilter!]!
+
+  """Operation names to ignore during validation"""
+  excludedOperationNames: [OperationNameFilter]
+
+  """Variant overrides for validation"""
+  includedVariants: [String!]!
+
+  """Whether to run Linting during schema checks."""
+  enableLintChecks: Boolean!
+
+  """Time when check configuration was created"""
+  createdAt: Timestamp!
+
+  """Time when check configuration was last updated"""
+  updatedAt: Timestamp!
+
+  """Identity of the last user to update the check configuration"""
+  updatedBy: Identity
+
+  """
+  Only check operations from the last <timeRangeSeconds> seconds.
+  The default is 7 days (604,800 seconds).
+  """
+  timeRangeSeconds: Long!
+
+  """
+  Minimum number of requests within the window for an operation to be considered.
+  """
+  operationCountThreshold: Int!
+
+  """
+  Number of requests within the window for an operation to be considered, relative to
+  total request count. Expected values are between 0 and 0.05 (minimum 5% of
+  total request volume)
+  """
+  operationCountThresholdPercentage: Float!
+
+  """Default configuration to include operations on the base variant."""
+  includeBaseVariant: Boolean!
+
+  """
+  During operation checks, if this option is enabled, it evaluates a check
+  run against zero operations as a pass instead of a failure.
+  """
+  downgradeStaticChecks: Boolean!
+
+  """
+  During operation checks, if this option is enabled, the check will not fail or
+  mark any operations as broken/changed if the default value has changed, only
+  if the default value is removed completely.
+  """
+  downgradeDefaultValueChange: Boolean!
+  enableCustomChecks: Boolean!
+}
+
 """Filter options available when listing checks."""
 input CheckFilterInput {
   """A list of git commiters. For cli triggered checks, this is the author."""
@@ -569,7 +705,7 @@ type CheckViolation {
   level: ViolationLevel!
 
   """
-  The human readable message describing the rule violation. Max character length is 512.
+  A human-readable message describing the rule violation, rendered as markdown in Apollo Studio. Maximum length: 512 characters.
   """
   message: String!
 
@@ -597,7 +733,7 @@ input CheckViolationInput {
   level: ViolationLevel!
 
   """
-  The human readable message describing the rule violation. Max character length is 512.
+  A human-readable message describing the rule violation, rendered as markdown in Apollo Studio. Maximum length: 512 characters.
   """
   message: String!
 
@@ -687,6 +823,27 @@ enum CheckWorkflowTaskStatus {
   PENDING
 }
 
+"""A client to be filtered."""
+type ClientFilter {
+  """Name of the client is required."""
+  name: String!
+
+  """Version string of the client."""
+  version: String
+}
+
+"""
+Options to filter by client reference ID, client name, and client version.
+If passing client version, make sure to either provide a client reference ID or client name.
+"""
+input ClientFilterInput {
+  """name of the client set by the user and reported alongside metrics"""
+  name: String!
+
+  """version of the client set by the user and reported alongside metrics"""
+  version: String
+}
+
 """
 Filter options to exclude by client reference ID, client name, and client version.
 """
@@ -734,6 +891,94 @@ enum CommentStatus {
   DELETED
   OPEN
   RESOLVED
+}
+
+type ComposeAndFilterPreviewBuildResults {
+  """The API schema document/SDL generated from composition/filtering."""
+  apiSchemaDocument: String!
+
+  """
+  The supergraph core schema document/SDL generated from composition/filtering.
+  """
+  supergraphSchemaDocument: String!
+}
+
+type ComposeAndFilterPreviewComposeError {
+  """
+  A machine-readable error code. See https://www.apollographql.com/docs/federation/errors/for more info.
+  """
+  code: String
+
+  """The step at which composition failed."""
+  failedStep: String
+
+  """Source locations related to the error."""
+  locations: [SourceLocation!]
+
+  """A human-readable message describing the error."""
+  message: String!
+}
+
+type ComposeAndFilterPreviewComposeFailure {
+  """The list of errors from failed composition."""
+  composeErrors: [ComposeAndFilterPreviewComposeError!]!
+}
+
+type ComposeAndFilterPreviewFilterError {
+  """
+  The step at which filtering failed. See https://www.apollographql.com/docs/studio/contracts/#contract-errors for more info.
+  """
+  failedStep: String
+
+  """A human-readable message describing the error."""
+  message: String!
+}
+
+type ComposeAndFilterPreviewFilterFailure {
+  """The results from successful composition."""
+  composeResults: ComposeAndFilterPreviewBuildResults!
+
+  """The list of errors from failed filtering."""
+  filterErrors: [ComposeAndFilterPreviewFilterError!]!
+}
+
+union ComposeAndFilterPreviewResult = ComposeAndFilterPreviewComposeFailure | ComposeAndFilterPreviewFilterFailure | ComposeAndFilterPreviewSuccess
+
+input ComposeAndFilterPreviewSubgraphChange {
+  """
+  The info being changed in the named subgraph. If null, indicates that the named
+   subgraph should be removed prior to composition.
+  """
+  info: ComposeAndFilterPreviewSubgraphChangeInfo
+
+  """The name of the subgraph being changed."""
+  name: String!
+}
+
+input ComposeAndFilterPreviewSubgraphChangeInfo {
+  """
+  The routing URL of the subgraph. If a subgraph with the same name exists, then this
+  field can be null to indicate the existing subgraph's info should be used; using
+  null otherwise results in an error.
+  """
+  routingUrl: String
+
+  """
+  The schema document/SDL of the subgraph. If a subgraph with the same name exists,
+  then this field can be null to indicate the existing subgraph's info should be
+  used; using null otherwise results in an error.
+  """
+  schemaDocument: String
+}
+
+type ComposeAndFilterPreviewSuccess {
+  """The results from successful composition."""
+  composeResults: ComposeAndFilterPreviewBuildResults!
+
+  """
+  The results from successful filtering, or null if filtering was skipped.
+  """
+  filterResults: ComposeAndFilterPreviewBuildResults
 }
 
 """
@@ -826,6 +1071,10 @@ type CompositionConfig {
   schemaHash: String!
 }
 
+input CompositionConfigInput {
+  subgraphs: [SubgraphInput!]!
+}
+
 """The result of supergraph composition that Studio performed."""
 type CompositionPublishResult implements CompositionResult {
   """The unique ID for this instance of composition."""
@@ -870,6 +1119,11 @@ type CompositionCheckResult implements CompositionResult {
 
   """The supergraph schema document generated by composition."""
   supergraphSdl: GraphQLDocument
+}
+
+input ContractConfigInput {
+  baseGraphRef: String!
+  filterConfigInput: FilterConfigInput!
 }
 
 type ContractVariantUpsertErrors {
@@ -918,6 +1172,18 @@ type CoreSchema {
 
 union CreateOperationCollectionResult = OperationCollection | PermissionError | ValidationError
 
+"""
+The result of a successful call to GraphMutation.createPersistedQueryList.
+"""
+type CreatePersistedQueryListResult {
+  persistedQueryList: PersistedQueryList!
+}
+
+"""
+The result/error union returned by GraphMutation.createPersistedQueryList.
+"""
+union CreatePersistedQueryListResultOrError = CreatePersistedQueryListResult | PermissionError
+
 """An error that occurs when creating a proposal fails."""
 type CreateProposalError implements Error {
   """The error's details."""
@@ -953,6 +1219,15 @@ input CustomCheckCallbackInput {
 """Result of a custom check task callback mutation."""
 union CustomCheckCallbackResult = CustomCheckResult | PermissionError | TaskError | ValidationError
 
+"""Custom check configuration detailing webhook integration."""
+type CustomCheckConfiguration {
+  channel: CustomCheckWebhookChannel!
+  id: ID!
+}
+
+"""Result of a custom check configuration update mutation."""
+union CustomCheckConfigurationResult = CustomCheckConfiguration | PermissionError | ValidationError
+
 type CustomCheckResult {
   violations: [CheckViolation!]!
 }
@@ -968,6 +1243,41 @@ type CustomCheckTask implements CheckWorkflowTask {
   workflow: CheckWorkflow!
 }
 
+"""Configuration of a webhook integration for a custom check."""
+type CustomCheckWebhookChannel {
+  """The time when this CustomCheckWebhookChannel was created."""
+  createdAt: Timestamp!
+
+  """
+  The Identity that created this CustomCheckWebhookChannel. null if the Identity has been deleted.
+  """
+  createdBy: Identity
+
+  """The ID for this webhook channel"""
+  id: ID!
+
+  """
+  The last time this subscription was updated, if never updated will be the createdAt time.
+  """
+  lastUpdatedAt: Timestamp!
+
+  """
+  The Identity that last updated this CustomCheckWebhookChannel, or the creator if no one has updated. null if the Identity has been deleted.
+  """
+  lastUpdatedBy: Identity
+
+  """Whether or not a secret token has been set on this channel."""
+  secretTokenIsSet: Boolean!
+
+  """The URL to send the webhook to."""
+  url: String!
+
+  """
+  The variant name if this channel is only configured for a specific variant. If null, this configuration applies to all variants.
+  """
+  variant: String
+}
+
 """
 Implement the DateTime<Utc> scalar
 
@@ -977,6 +1287,14 @@ scalar DateTime
   @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339")
 
 union DeleteOperationCollectionResult = PermissionError
+
+"""The result of a successful call to PersistedQueryListMutation.delete."""
+type DeletePersistedQueryListResult {
+  graph: Graph!
+}
+
+"""The result/error union returned by PersistedQueryListMutation.delete."""
+union DeletePersistedQueryListResultOrError = CannotDeleteLinkedPersistedQueryListError | DeletePersistedQueryListResult | PermissionError
 
 """The result of attempting to delete a graph variant."""
 type GraphVariantDeletionResult {
@@ -1052,6 +1370,18 @@ enum DownstreamLaunchInitiation {
 """GraphQL Error"""
 interface Error {
   message: String!
+}
+
+"""Excluded operation for a graph."""
+type ExcludedOperation {
+  """Operation ID to exclude from schema check."""
+  ID: ID!
+}
+
+"""Option to filter by operation ID."""
+input ExcludedOperationInput {
+  """Operation ID to exclude from schema check."""
+  ID: ID!
 }
 
 """
@@ -1562,6 +1892,13 @@ type GraphApiKey implements ApiKey {
   token: String!
 }
 
+"""The timing details for the build step of a launch."""
+type GraphCreationError {
+  message: String!
+}
+
+union GraphCreationResult = GraphCreationError | Graph
+
 """
 A union of all containers that can comprise the components of a Studio graph
 """
@@ -1576,6 +1913,12 @@ type GraphQLDoc {
 """A GraphQL document, such as the definition of an operation or schema."""
 scalar GraphQLDocument
 
+enum GraphType {
+  CLASSIC
+  CLOUD_SUPERGRAPH
+  SELF_HOSTED_SUPERGRAPH
+}
+
 """A graph variant"""
 type GraphVariant {
   """The variant's global identifier in the form `graphID@variant`."""
@@ -1589,9 +1932,28 @@ type GraphVariant {
 
   """Validate router configuration for this graph variant"""
   validateRouter(config: RouterConfigInput!): CloudValidationResult!
+  checkConfiguration: VariantCheckConfiguration!
+
+  """Custom check configuration for this graph."""
+  customCheckConfiguration: CustomCheckConfiguration
 
   """The graph that this variant belongs to."""
   graph: Graph!
+
+  """
+  Compose and filter preview contract schema built from this source variant.
+  """
+  composeAndFilterPreview(
+    """
+    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run, in which case ComposeAndFilterPreviewSuccess.filterResults will be null.
+    """
+    filterConfig: FilterConfigInput
+
+    """
+    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
+    """
+    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!]
+  ): ComposeAndFilterPreviewResult
 
   """
   The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema.
@@ -1641,6 +2003,10 @@ type GraphVariant {
 
   """The Persisted Query List linked to this variant, if any."""
   persistedQueryList: PersistedQueryList
+
+  """
+  Returns the proposal-related fields for this graph variant if the variant is a proposal; otherwise, returns null.
+  """
   proposal: Proposal
 
   """
@@ -1690,6 +2056,7 @@ type GraphVariantMutation {
   After 10 minutes have passed without a callback request being received, the task will be marked as timed out.
   """
   customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
+  setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
 
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
@@ -1721,6 +2088,144 @@ type GraphVariantMutation {
   Rate limited to 3000 per min.
   """
   submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
+  updateCheckConfigurationCustomChecks(
+    """
+    Whether custom checks is enabled for this variant. If the useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument is false and this argument is null, defaults to false.
+    """
+    enableCustomChecks: Boolean
+
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant setting.
+    """
+    useGraphSettings: Boolean!
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationDowngradeChecks(
+    """
+    During operation checks, when this argument is true, the check will not fail or
+      mark any operations as broken/changed if the default value has changed, only
+      if the default value is removed completely. If this argument is null, the
+    value is unchanged.
+    """
+    downgradeDefaultValueChange: Boolean
+
+    """
+    During operation checks, when this argument is true, it evaluates a check
+      run against zero operations as a pass instead of a failure. If this argument
+    is null, the value is unchanged.
+    """
+    downgradeStaticChecks: Boolean
+
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationDownstreamVariants(
+    """
+    During downstream checks, this variant's check workflow will wait for all downstream check
+    workflows for <blockingDownstreamVariants> variants to complete, and if any of them fail, then
+    this variant's check workflow will fail. If this argument is null, the value is unchanged.
+    """
+    blockingDownstreamVariants: [String!]
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationEnableOperationsCheck(enabled: Boolean!): VariantCheckConfiguration
+  updateCheckConfigurationExcludedClients(
+    """
+    When this argument is true, indicates that graph-level configuration is appended to the
+    variant-level configuration.
+    """
+    appendGraphSettings: Boolean!
+
+    """
+    During operation checks, ignore clients matching any of the <excludedClients> filters. If this
+    argument is null, the value is unchanged.
+    """
+    excludedClients: [ClientFilterInput!]
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationExcludedOperations(
+    """
+    When this argument is true, indicates that graph-level configuration is appended to the
+    variant-level configuration.
+    """
+    appendGraphSettings: Boolean!
+
+    """
+    During operation checks, ignore operations matching any of the <excludedOperationNames>
+    filters. If this argument is null, the value is unchanged.
+    """
+    excludedOperationNames: [OperationNameFilterInput!]
+
+    """
+    During operation checks, ignore operations matching any of the <excludedOperations> filters. If
+    this argument is null, the value is unchanged.
+    """
+    excludedOperations: [OperationInfoFilterInput!]
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationIncludedVariants(
+    """
+    During operation checks, fetch operations from the metrics data for <includedVariants>
+    variants. If the useGraphSettings argument is true, this argument is ignored. If the
+    useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of a list containing just this variant is
+    used instead).
+    """
+    includedVariants: [String!]
+
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationProposalChangeMismatchSeverity(
+    """
+    How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level. If the useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument is false and this argument is null, defaults to OFF
+    """
+    proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity
+
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant setting.
+    """
+    useGraphSettings: Boolean!
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationTimeRange(
+    """
+    During operation checks, ignore operations that executed less than <operationCountThreshold>
+    times in the time range. If the useGraphSettings argument is true, this argument is ignored. If
+    the useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of 1 is used instead).
+    """
+    operationCountThreshold: Int
+
+    """
+    Duration operation checks, ignore operations that constituted less than
+    <operationCountThresholdPercentage>% of the operations in the time range. Expected values are
+    between 0% and 5%. If the useGraphSettings argument is true, this argument is ignored. If the
+    useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of 0% is used instead).
+    """
+    operationCountThresholdPercentage: Float
+
+    """
+    During operation checks, fetch operations from the last <timeRangeSeconds> seconds. If the
+    useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument
+    is false and this argument is null, the value is unchanged (if useGraphSettings was previously
+    true, the default of 7 days is used instead).
+    """
+    timeRangeSeconds: Long
+
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!
+  ): VariantCheckConfiguration!
+
+  """
+  Updates the [federation version](https://www.apollographql.com/docs/graphos/reference/router/federation-version-support) of this variant
+  """
+  updateVariantFederationVersion(version: BuildPipelineTrack!): GraphVariant
 
   """
   Updates the [README](https://www.apollographql.com/docs/studio/org/graphs/#the-readme-page) of this variant.
@@ -1729,6 +2234,16 @@ type GraphVariantMutation {
     """The full new text of the README, as a Markdown-formatted string."""
     readme: String!
   ): GraphVariant
+
+  """
+  Links a specified PersistedQueryList to the variant of the parent GraphVariantMutation.
+  """
+  linkPersistedQueryList(persistedQueryListId: ID!): LinkPersistedQueryListResultOrError!
+
+  """
+  Unlinks a specified PersistedQueryList from the variant of the parent GraphVariantMutation.
+  """
+  unlinkPersistedQueryList: UnlinkPersistedQueryListResultOrError!
   updateURL(url: String): GraphVariant
 
   """Delete the variant."""
@@ -2295,6 +2810,11 @@ type LaunchSummary {
   status: LaunchStatus!
 }
 
+"""
+The result/error union returned by GraphVariantMutation.linkPersistedQueryList.
+"""
+union LinkPersistedQueryListResultOrError = ListNotFoundError | PermissionError | VariantAlreadyLinkedError
+
 type LintCheckTask implements CheckWorkflowTask {
   completedAt: Timestamp
   createdAt: Timestamp!
@@ -2412,6 +2932,14 @@ type LintStats {
   warningsCount: Int!
 }
 
+"""
+The result of a failed call to GraphVariantMutation.linkPersistedQueryList when the specified list can't be found.
+"""
+type ListNotFoundError implements Error {
+  listId: ID!
+  message: String!
+}
+
 type Location {
   end: Coordinate
   start: Coordinate
@@ -2444,6 +2972,9 @@ type LogMessage {
   """Log level"""
   level: LogLevel!
 }
+
+"""Long type"""
+scalar Long
 
 """
 Input type to provide when running schema checks against multiple subgraph changes asynchronously for a federated supergraph.
@@ -2781,11 +3312,142 @@ input OperationHeaderInput {
   value: String!
 }
 
+type OperationInfoFilter {
+  id: String!
+}
+
+input OperationInfoFilterInput {
+  id: String!
+}
+
+"""Operation name filter configuration for a graph."""
+type OperationNameFilter {
+  """name of the operation by the user and reported alongside metrics"""
+  name: String!
+  version: String
+}
+
 """Options to filter by operation name."""
 input OperationNameFilterInput {
   """name of the operation set by the user and reported alongside metrics"""
   name: String!
   version: String
+}
+
+type OperationsCheckConfiguration {
+  """
+  During operation checks, if this option is enabled, the check will not fail or
+   mark any operations as broken/changed if the default value has changed, only
+   if the default value is removed completely.
+  """
+  downgradeDefaultValueChange: Boolean!
+
+  """
+  During operation checks, if this option is enabled, it evaluates a check
+  run against zero operations as a pass instead of a failure.
+  """
+  downgradeStaticChecks: Boolean!
+
+  """
+  During the operations check, ignore clients matching any of the <excludedClients> filters.
+  """
+  excludedClients: [ClientFilter!]!
+
+  """
+  During the operations check, ignore operations matching any of the <excludedOperationNames> filters.
+  """
+  excludedOperationNames: [OperationNameFilter!]!
+
+  """
+  During the operations check, ignore operations matching any of the <excludedOperations> filters.
+  """
+  excludedOperations: [OperationInfoFilter!]!
+
+  """The start of the time range for the operations check."""
+  fromNormalized: Timestamp!
+
+  """
+  During the operations check, fetch operations from the metrics data for <includedVariants>
+  variants.
+  """
+  includedVariants: [String!]!
+
+  """
+  During the operations check, ignore operations that executed less than <operationCountThreshold>
+  times in the time range.
+  """
+  operationCountThreshold: Int!
+
+  """
+  Duration the operations check, ignore operations that constituted less than
+  <operationCountThresholdPercentage>% of the operations in the time range.
+  """
+  operationCountThresholdPercentage: Float!
+
+  """The end of the time range for the operations check."""
+  toNormalized: Timestamp!
+}
+
+input OperationsCheckConfigurationOverridesInput {
+  """
+  During the operations check, ignore clients matching any of the <excludedClients> filters.
+  Providing null will use variant- or graph-level settings instead.
+  """
+  excludedClients: [ClientFilterInput!]
+
+  """
+  During the operations check, ignore operations matching any of the <excludedOperationNames>
+  filters. Providing null will use variant- or graph-level settings instead.
+  """
+  excludedOperationNames: [OperationNameFilterInput!]
+
+  """
+  During the operations check, ignore operations matching any of the <excludedOperations> filters.
+  Providing null will use variant- or graph-level settings instead.
+  """
+  excludedOperations: [OperationInfoFilterInput!]
+
+  """
+  The start of the time range for the operations check, expressed as an offset from the time the
+  check request is received (in seconds) or an ISO-8601 timestamp. Providing null here and
+  useMaxRetention as false will use variant- or graph-level settings instead. It is an error to
+  provide a non-null value here and useMaxRetention as true.
+  """
+  from: String
+
+  """
+  During the operations check, fetch operations from the metrics data for <includedVariants>
+  variants. Providing null will use variant- or graph-level settings instead.
+  """
+  includedVariants: [String!]
+
+  """
+  During the operations check, ignore operations that executed less than <operationCountThreshold>
+  times in the time range. Providing null will use variant- or graph-level settings instead.
+  """
+  operationCountThreshold: Int
+
+  """
+  During the operations check, ignore operations that executed less than <operationCountThreshold>
+  times in the time range. Expected values are between 0% and 5%. Providing null will use variant-
+  or graph-level settings instead.
+  """
+  operationCountThresholdPercentage: Float
+
+  """
+  The end of the time range for the operations check, expressed as an offset from the time the
+  check request is received (in seconds) or an ISO-8601 timestamp. Providing null here and
+  useMaxRetention as false will use variant- or graph-level settings instead. It is an error to
+  provide a non-null value here and useMaxRetention as true.
+  """
+  to: String
+
+  """
+  During the operations check, use the maximum time range allowed by the graph's plan's retention.
+  Providing false here and from/to as null will use variant- or graph-level settings instead. It is
+  an error to provide true here and from/to as non-null.
+  """
+  useMaxRetention: Boolean! = false
 }
 
 type OperationsCheckResult {
@@ -3127,6 +3789,9 @@ type PersistedQueryListManifestChunk {
 }
 
 type PersistedQueryListMutation {
+  """Deletes this Persisted Query List."""
+  delete: DeletePersistedQueryListResultOrError!
+
   """
   Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged.
   """
@@ -3138,6 +3803,11 @@ type PersistedQueryListMutation {
     """Deprecated. Use `remove` instead, which allows specifying clientName."""
     removeOperations: [ID!]
   ): PublishOperationsResultOrError!
+
+  """
+  Updates the name and/or description of the specified Persisted Query List.
+  """
+  updateMetadata(description: String, name: String): UpdatePersistedQueryListMetadataResultOrError!
 }
 
 """An error related to an organization's Apollo Studio plan."""
@@ -3417,6 +4087,7 @@ type ProposalReview {
   createdAt: Timestamp!
   createdBy: Identity
   decision: ReviewDecision!
+  id: ID!
   isDismissed: Boolean!
   updatedAt: Timestamp
   updatedBy: Identity
@@ -3559,7 +4230,7 @@ type PublishOperationsResult {
 }
 
 """
-The interface returned by PersistedQueryListMutation.publishOperations.
+The result/error union returned by PersistedQueryListMutation.publishOperations.
 """
 union PublishOperationsResultOrError = CannotModifyOperationBodyError | PermissionError | PublishOperationsResult
 
@@ -4154,6 +4825,9 @@ type Graph implements Identity {
 
   """The Persisted Query List associated with this graph with the given ID."""
   persistedQueryList(id: ID!): PersistedQueryList
+
+  """Get check configuration for this graph."""
+  checkConfiguration: CheckConfiguration
   defaultProposalReviewers: [Identity]!
   flatDiff(newSdlHash: SHA256, oldSdlHash: SHA256): FlatDiffResult!
 
@@ -4189,6 +4863,8 @@ type Graph implements Identity {
 Provides access to mutation fields for managing Studio graphs and subgraphs.
 """
 type GraphMutation {
+  setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
+
   """
   Generates a new graph API key for this graph with the specified permission level.
   """
@@ -4243,6 +4919,9 @@ type GraphMutation {
     """The schema to lint."""
     sdl: String!
   ): LintResult!
+
+  """Create a new Persisted Query List."""
+  createPersistedQueryList(description: String, name: String!): CreatePersistedQueryListResultOrError!
 
   """
   Provides access to mutation fields for modifying a Persisted Query List with the provided ID.
@@ -4448,6 +5127,11 @@ type GraphRoles {
   canEditProposal: Boolean!
 }
 
+input SetCustomCheckConfigurationInput {
+  secretToken: String
+  url: String!
+}
+
 """A SHA-256 hash, represented as a lowercase hexadecimal string."""
 scalar SHA256
 
@@ -4558,6 +5242,20 @@ input SubgraphCheckAsyncInput {
   subgraphName: String!
 }
 
+input SubgraphInput {
+  """We are either going to pass in a document or a schema reference"""
+  document: String
+  name: String!
+  routingURL: String!
+
+  """
+  Reference to a schema in studio.
+  If this is a mutable ref i.e. graphRef then it will link (tbd)
+  If it is a stable ref i.e. hash then it
+  """
+  schemaRef: String
+}
+
 input SubgraphSdlCheckInput {
   name: String!
   sdl: GraphQLDocument!
@@ -4617,6 +5315,11 @@ type TypeChangeSummaryCounts {
   edits: Int!
 }
 
+"""
+The result/error union returned by GraphVariantMutation.unlinkPersistedQueryList.
+"""
+union UnlinkPersistedQueryListResultOrError = PermissionError | VariantAlreadyUnlinkedError
+
 """Input to update a proposal description"""
 input UpdateDescriptionInput {
   """A proposal description"""
@@ -4626,6 +5329,18 @@ input UpdateDescriptionInput {
 union UpdateOperationCollectionEntryResult = OperationCollectionEntry | PermissionError | ValidationError
 
 union UpdateOperationCollectionResult = OperationCollection | PermissionError | ValidationError
+
+"""
+The result of a successful call to PersistedQueryListMutation.updateMetadata.
+"""
+type UpdatePersistedQueryListMetadataResult {
+  persistedQueryList: PersistedQueryList!
+}
+
+"""
+The result/error union returned by PersistedQueryListMutation.updateMetadata.
+"""
+union UpdatePersistedQueryListMetadataResultOrError = PermissionError | UpdatePersistedQueryListMetadataResult
 
 union UpdateProposalResult = PermissionError | Proposal | ValidationError
 
@@ -4747,6 +5462,214 @@ enum UserPermission {
 type ValidationError implements Error {
   """The error's details."""
   message: String!
+}
+
+"""
+The result of a failed call to GraphVariantMutation.linkPersistedQueryList when the specified list is already linked.
+"""
+type VariantAlreadyLinkedError implements Error {
+  message: String!
+}
+
+"""
+The result of a failed call to GraphVariantMutation.unlinkPersistedQueryList when the specified list isn't linked.
+"""
+type VariantAlreadyUnlinkedError implements Error {
+  message: String!
+}
+
+"""Variant-level configuration of checks."""
+type VariantCheckConfiguration {
+  customChecksConfig: VariantCheckConfigurationCustomChecks!
+
+  """ID of the check configuration"""
+  id: ID!
+
+  """Time when the check configuration was created."""
+  createdAt: Timestamp!
+
+  """
+  Operation checks configuration that allows associated checks to be downgraded from failure to passing.
+  """
+  downgradeChecksConfig: VariantCheckConfigurationDowngradeChecks!
+
+  """
+  Downstream checks configuration for which downstream variants should affect this variant's check
+  status.
+  """
+  downstreamVariantsConfig: VariantCheckConfigurationDownstreamVariants!
+
+  """Operation checks configuration for which clients to ignore."""
+  excludedClientsConfig: VariantCheckConfigurationExcludedClients!
+
+  """Operation checks configuration for which operation to ignore."""
+  excludedOperationsConfig: VariantCheckConfigurationExcludedOperations!
+
+  """Graph that this check configuration belongs to"""
+  graphID: String!
+
+  """Graph variant that this check configuration belongs to"""
+  graphVariant: String!
+
+  """
+  Operation checks configuration for which variants' metrics data to include.
+  """
+  includedVariantsConfig: VariantCheckConfigurationIncludedVariants!
+
+  """Whether operations checks are enabled."""
+  operationsChecksEnabled: Boolean!
+
+  """
+  How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level
+  """
+  proposalChangeMismatchSeverityConfig: VariantCheckConfigurationProposalChangeMismatchSeverity!
+
+  """
+  Operation checks configuration for time range and associated thresholds.
+  """
+  timeRangeConfig: VariantCheckConfigurationTimeRange!
+
+  """Time when the check configuration was updated."""
+  updatedAt: Timestamp!
+
+  """
+  Identity of the last actor to update the check configuration, if available.
+  """
+  updatedBy: Identity
+}
+
+type VariantCheckConfigurationCustomChecks {
+  """
+  When true, indicates that graph-level configuration is used for this variant setting. The default at variant creation is true.
+  """
+  useGraphSettings: Boolean!
+
+  """
+  Whether custom checks is enabled for this variant. Non-null if useGraphSettings is false, otherwise null.
+  """
+  enableCustomChecks: Boolean
+}
+
+type VariantCheckConfigurationDowngradeChecks {
+  """
+   During operation checks, if this option is enabled, the check will not fail or mark any operations as
+  broken/changed if the default value has changed, only if the default value is removed completely.
+  """
+  downgradeDefaultValueChange: Boolean
+
+  """
+   During operation checks, if this option is enabled, it evaluates a check run against zero operations
+  as a pass instead of a failure.
+  """
+  downgradeStaticChecks: Boolean
+
+  """
+  When true, indicates that graph-level configuration is used for this variant setting. The default
+  at variant creation is true.
+  """
+  useGraphSettings: Boolean!
+}
+
+type VariantCheckConfigurationDownstreamVariants {
+  """
+  During downstream checks, this variant's check workflow will wait for all downstream check
+  workflows for <blockingDownstreamVariants> variants to complete, and if any of them fail, then
+  this variant's check workflow will fail.
+  """
+  blockingDownstreamVariants: [String!]!
+}
+
+type VariantCheckConfigurationExcludedClients {
+  """
+  When true, indicates that graph-level configuration is appended to the variant-level
+  configuration. The default at variant creation is true.
+  """
+  appendGraphSettings: Boolean!
+
+  """
+  During operation checks, ignore clients matching any of the <excludedClients> filters. The
+  default at variant creation is the empty list.
+  """
+  excludedClients: [ClientFilter!]!
+}
+
+type VariantCheckConfigurationExcludedOperations {
+  """
+  When true, indicates that graph-level configuration is appended to the variant-level
+  configuration. The default at variant creation is true.
+  """
+  appendGraphSettings: Boolean!
+
+  """
+  During operation checks, ignore operations matching any of the <excludedOperationNames> filters.
+  The default at variant creation is the empty list.
+  """
+  excludedOperationNames: [OperationNameFilter!]!
+
+  """
+  During operation checks, ignore operations matching any of the <excludedOperations> filters. The
+  default at variant creation is the empty list.
+  """
+  excludedOperations: [OperationInfoFilter!]!
+}
+
+type VariantCheckConfigurationIncludedVariants {
+  """
+  During operation checks, fetch operations from the metrics data for <includedVariants> variants.
+  Non-null if useGraphSettings is false and is otherwise null.
+  """
+  includedVariants: [String!]
+
+  """
+  When true, indicates that graph-level configuration is used for this variant setting. The default
+  at variant creation is true.
+  """
+  useGraphSettings: Boolean!
+}
+
+type VariantCheckConfigurationProposalChangeMismatchSeverity {
+  """
+  How submitted build input diffs are handled when they match (or don't) a Proposal. Non-null if useGraphSettings is false and is otherwise null.
+  """
+  proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity
+
+  """
+  When true, indicates that graph-level configuration is used for this variant setting. The default at variant creation is true.
+  """
+  useGraphSettings: Boolean!
+}
+
+type VariantCheckConfigurationTimeRange {
+  """
+  During operation checks, ignore operations that executed less than <operationCountThreshold>
+  times in the time range. Non-null if useGraphSettings is false and is otherwise null.
+  """
+  operationCountThreshold: Int
+
+  """
+  Duration operation checks, ignore operations that constituted less than
+  <operationCountThresholdPercentage>% of the operations in the time range. Expected values are
+  between 0% and 5%. Non-null if useGraphSettings is false and is otherwise null.
+  """
+  operationCountThresholdPercentage: Float
+
+  """
+  During operation checks, fetch operations from the last <timeRangeSeconds> seconds. Non-null if
+  useGraphSettings is false and is otherwise null.
+  """
+  timeRangeSeconds: Long
+
+  """
+  When true, indicates that graph-level configuration is used for this variant setting. The default
+  at variant creation is true.
+  """
+  useGraphSettings: Boolean!
+}
+
+input VariantCreationConfig {
+  buildConfigInput: BuildConfigInput!
+  endpointSlug: String
+  variantName: String!
 }
 
 enum ViolationLevel {
