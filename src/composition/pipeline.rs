@@ -12,7 +12,7 @@ use rover_client::shared::GraphRef;
 use rover_http::HttpService;
 use tempfile::tempdir;
 use tower::MakeService;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 use super::{
     runner::{CompositionRunner, Runner},
@@ -133,6 +133,7 @@ impl CompositionPipeline<state::Init> {
             state: state::ResolveFederationVersion {
                 resolver,
                 supergraph_root,
+                supergraph_yaml,
             },
         })
     }
@@ -188,13 +189,21 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             }
         };
         let federation_version = match (resolved_fed_version, passed_in_fed_version) {
-            (None, None) => {
-                info!(
-                    "No federation version found or supplied, defaulting to {}",
-                    LatestFedTwo.get_exact().unwrap().to_string()
-                );
-                LatestFedTwo
-            }
+            (None, None) => match self.state.supergraph_yaml {
+                None => LatestFedTwo,
+                Some(fd) => {
+                    match fd.read_file_descriptor("reading SupergraphConfig", &mut std::io::stdin())
+                    {
+                        Ok(config_str) => match SupergraphConfig::new_from_yaml(&config_str) {
+                            Ok(supergraph_config) => supergraph_config
+                                .get_federation_version()
+                                .unwrap_or(LatestFedTwo),
+                            Err(_) => LatestFedTwo,
+                        },
+                        Err(_) => LatestFedTwo,
+                    }
+                }
+            },
             (Some(resolved_federation_version), None) => resolved_federation_version,
             (_, Some(passed_in_federation_version)) => passed_in_federation_version,
         };
@@ -381,6 +390,10 @@ impl CompositionPipeline<state::Run> {
             .resolver
             .lazily_resolve_subgraphs(&self.state.supergraph_root, prompt)
             .await?;
+        debug!(
+            "Initial Lazily Resolved Config is: {:?}",
+            lazily_resolved_supergraph_config
+        );
         let (fully_resolved_supergraph_config, full_resolution_errors) = self
             .state
             .resolver
@@ -391,14 +404,17 @@ impl CompositionPipeline<state::Run> {
                 prompt,
             )
             .await?;
-
+        debug!(
+            "Initial Fully Resolved Config is: {:?}",
+            fully_resolved_supergraph_config
+        );
         // Generate the correct lazily_resolved config, by removing all the things that cannot fully resolve
 
         let final_subgraphs = lazily_resolved_supergraph_config
             .subgraphs()
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .filter(|(name, _)| full_resolution_errors.contains_key(name))
+            .filter(|(name, _)| !full_resolution_errors.contains_key(name))
             .collect();
         let final_lazily_resolved_supergraph_config = LazilyResolvedSupergraphConfig::new(
             lazily_resolved_supergraph_config.origin_path().clone(),
@@ -406,6 +422,10 @@ impl CompositionPipeline<state::Run> {
             lazily_resolved_supergraph_config
                 .federation_version()
                 .clone(),
+        );
+        debug!(
+            "Final Config is: {:?}",
+            final_lazily_resolved_supergraph_config
         );
 
         // Merge all the errors together and give all three back
@@ -429,11 +449,13 @@ mod state {
     use crate::composition::supergraph::{
         binary::SupergraphBinary, config::resolver::InitializedSupergraphConfigResolver,
     };
+    use crate::utils::parsers::FileDescriptorType;
 
     pub struct Init;
     pub struct ResolveFederationVersion {
         pub resolver: InitializedSupergraphConfigResolver,
         pub supergraph_root: Utf8PathBuf,
+        pub supergraph_yaml: Option<FileDescriptorType>,
     }
     pub struct InstallSupergraph {
         pub resolver: InitializedSupergraphConfigResolver,

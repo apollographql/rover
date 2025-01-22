@@ -122,6 +122,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                 .iter()
                 .map(|(name, subgraph)| (name.clone(), subgraph.schema().clone()))
                 .collect();
+            debug!("Initial Subgraphs are: {:?}", initial_subgraphs);
 
             // Generate the config needed to spin up the Language Server
             let (service, socket, _receiver) = ApolloLanguageServer::build_service(
