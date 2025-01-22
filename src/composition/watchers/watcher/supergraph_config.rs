@@ -51,6 +51,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
         tokio::spawn(async move {
             let supergraph_config_path = supergraph_config_path.clone();
             let mut latest_supergraph_config = self.supergraph_config.clone();
+            let mut broken = false;
             let mut stream = self.file_watcher.watch().await;
             cancellation_token.run_until_cancelled(async move {
                     while let Some(contents) = stream.next().await {
@@ -77,6 +78,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                         let supergraph_config_diff = SupergraphConfigDiff::new(
                                             &latest_supergraph_config,
                                             supergraph_config.clone(),
+                                            broken
                                         );
                                         match supergraph_config_diff {
                                             Ok(supergraph_config_diff) => {
@@ -89,8 +91,8 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                                 tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
                                             }
                                         }
-
                                         latest_supergraph_config = supergraph_config;
+                                        broken = false;
                                     }
                                     Err(resolution_errors) => {
                                         errln!(
@@ -115,6 +117,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                 }
                             }
                             Err(err) => {
+                                broken = true;
                                 tracing::error!("could not parse supergraph config file: {:?}", err);
                                 errln!("Could not parse supergraph config file.\n{}", err);
                                 let _ = sender
@@ -148,19 +151,21 @@ pub struct SupergraphConfigDiff {
     changed: Vec<(String, SubgraphConfig)>,
     removed: Vec<String>,
     federation_version: Option<Option<FederationVersion>>,
+    previously_broken: bool,
 }
 
 impl Display for SupergraphConfigDiff {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Added: {:?} Changed: {:?} Removed: {:?}",
+            "Added: {:?} Changed: {:?} Removed: {:?} Previously Broken? {}",
             self.added.iter().map(|(name, _)| name).collect::<Vec<_>>(),
             self.changed
                 .iter()
                 .map(|(name, _)| name)
                 .collect::<Vec<_>>(),
-            self.removed
+            self.removed,
+            self.previously_broken
         )
     }
 }
@@ -171,6 +176,7 @@ impl SupergraphConfigDiff {
     pub fn new(
         old: &SupergraphConfig,
         new: SupergraphConfig,
+        previously_broken: bool,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
         let old_subgraph_names: HashSet<String> = old
             .clone()
@@ -235,7 +241,12 @@ impl SupergraphConfigDiff {
             changed,
             removed,
             federation_version,
+            previously_broken,
         })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.changed.is_empty() && self.removed.is_empty()
     }
 }
 
@@ -283,7 +294,7 @@ mod tests {
         let new = SupergraphConfig::new(new_subgraph_defs, None);
 
         // Assert diff contain correct additions and removals.
-        let diff = SupergraphConfigDiff::new(&old, new).unwrap();
+        let diff = SupergraphConfigDiff::new(&old, new, false).unwrap();
         assert_eq!(1, diff.added().len());
         assert_eq!(1, diff.removed().len());
         assert!(diff
@@ -334,7 +345,7 @@ mod tests {
         let new = SupergraphConfig::new(new_subgraph_defs, None);
 
         // Assert diff contain correct additions and removals.
-        let diff = SupergraphConfigDiff::new(&old, new).unwrap();
+        let diff = SupergraphConfigDiff::new(&old, new, false).unwrap();
 
         assert_eq!(diff.changed().len(), 1);
         assert!(diff

@@ -8,6 +8,7 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 
 use super::watcher::{
     subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
@@ -215,6 +216,13 @@ impl SubtaskHandleStream for SubgraphWatchers {
                             for subgraph_name in diff.removed() {
                                 eprintln!("Removing subgraph from session: `{}`", subgraph_name);
                                 subgraph_handles.remove(subgraph_name);
+                            }
+
+                            // If a diff is empty, but the previous version of the supergraph.yaml
+                            // was broken we need to force a recomposition of anything that's
+                            // changed.
+                            if *diff.previously_broken() && diff.is_empty() {
+                                let _ = sender.send(CompositionInputEvent::Recompose()).tap_err(|err| error!("{:?}", err));
                             }
                         }
                         Err(errs) => {

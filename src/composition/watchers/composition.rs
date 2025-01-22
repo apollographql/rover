@@ -11,7 +11,7 @@ use tracing::{error, info};
 
 use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
-    Federation, Passthrough, Subgraph,
+    Federation, Passthrough, Recompose, Subgraph,
 };
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -38,6 +38,8 @@ pub enum CompositionInputEvent {
     Subgraph(SubgraphEvent),
     /// Variant to represent if the change comes from a change in the Federation Version
     Federation(FederationVersion),
+    /// Variant to represent if we need to recompose quickly without other changes
+    Recompose(),
     /// Variant to something that we do not want to perform Composition on but needs to be passed
     /// through to the final stream of Composition Events.
     Passthrough(CompositionEvent),
@@ -169,7 +171,9 @@ where
                             } else {
                                 tracing::warn!("Detected Federation Version change but due to overrides (CLI flags, ENV vars etc.) this was not actioned.")
                             }
-                        }
+                        },
+                        // Empty because we just want to recompose what exists, not do anything else
+                        Recompose() => {},
                         Passthrough(ev) => {
                             let _ = sender.send(ev).tap_err(|err| error!("{:?}", err));
                             continue;
