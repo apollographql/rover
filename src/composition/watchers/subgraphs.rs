@@ -192,8 +192,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
             let cancellation_token = cancellation_token.unwrap_or_default();
             cancellation_token.run_until_cancelled(async move {
                 while let Some(diff) = input.next().await {
-                    match diff {
-                        Ok(diff) => {
+                    if let Ok(diff) = diff {
                             // If we detect additional diffs, start a new subgraph subtask.
                             // Adding the abort handle to the current collection of handles.
                             for (subgraph_name, subgraph_config) in diff.added() {
@@ -213,8 +212,13 @@ impl SubtaskHandleStream for SubgraphWatchers {
                             }
 
                             // If we detect removal diffs, stop the subtask for the removed subgraph.
-                            for subgraph_name in diff.removed() {
-                                eprintln!("Removing subgraph from session: `{}`", subgraph_name);
+                            for (subgraph_name, potential_error) in diff.removed() {
+                                match potential_error {
+                                    None => eprintln!("Removing subgraph from session: `{}`", subgraph_name),
+                                    Some(err) =>  {
+                                        errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
+                                    },
+                                }
                                 subgraph_handles.remove(subgraph_name);
                             }
 
@@ -225,16 +229,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                 let _ = sender.send(CompositionInputEvent::Recompose()).tap_err(|err| error!("{:?}", err));
                             }
                         }
-                        Err(errs) => {
-                            if let SupergraphConfigSerialisationError::ResolvingSubgraphErrors(errs) = errs {
-                                for (subgraph_name, _) in errs {
-                                    errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
-                                    subgraph_handles.remove(&subgraph_name);
-                                }
-                            }
-                        }
                     }
-                }
             }).await
         });
     }

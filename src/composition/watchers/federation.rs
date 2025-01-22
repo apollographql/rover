@@ -56,7 +56,6 @@ impl SubtaskHandleStream for FederationWatcher {
                                     ))
                                     .tap_err(|err| error!("{:?}", err));
                             }
-                            Err(_) => {}
                         }
                     }
                 })

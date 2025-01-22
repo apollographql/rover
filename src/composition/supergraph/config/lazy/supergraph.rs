@@ -6,11 +6,10 @@ use derive_getters::Getters;
 use futures::{stream, StreamExt};
 use itertools::Itertools;
 
+use super::LazilyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
 };
-
-use super::LazilyResolvedSubgraph;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -23,12 +22,28 @@ pub struct LazilyResolvedSupergraphConfig {
 }
 
 impl LazilyResolvedSupergraphConfig {
+    /// Builds a new config, with the given options
+    pub fn new(
+        origin_path: Option<Utf8PathBuf>,
+        subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
+        federation_version: Option<FederationVersion>,
+    ) -> Self {
+        LazilyResolvedSupergraphConfig {
+            origin_path,
+            subgraphs,
+            federation_version,
+        }
+    }
+
     /// Resolves an [`UnresolvedSupergraphConfig`] into a [`LazilyResolvedSupergraphConfig`] by
     /// making sure any internal file paths are correct
     pub async fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<LazilyResolvedSupergraphConfig, BTreeMap<String, ResolveSubgraphError>> {
+    ) -> (
+        LazilyResolvedSupergraphConfig,
+        BTreeMap<String, ResolveSubgraphError>,
+    ) {
         let subgraphs = stream::iter(
             unresolved_supergraph_config
                 .subgraphs()
@@ -51,15 +66,14 @@ impl LazilyResolvedSupergraphConfig {
             Vec<(String, LazilyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
-        if errors.is_empty() {
-            Ok(LazilyResolvedSupergraphConfig {
+        (
+            LazilyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version: unresolved_supergraph_config.target_federation_version(),
-            })
-        } else {
-            Err(BTreeMap::from_iter(errors.into_iter()))
-        }
+            },
+            BTreeMap::from_iter(errors.into_iter()),
+        )
     }
 }
 

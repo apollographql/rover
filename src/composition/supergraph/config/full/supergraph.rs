@@ -45,7 +45,13 @@ impl FullyResolvedSupergraphConfig {
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+    ) -> Result<
+        (
+            FullyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
         let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
             move |(name, unresolved_subgraph)| {
                 let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
@@ -81,23 +87,20 @@ impl FullyResolvedSupergraphConfig {
             Vec<(String, FullyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
-        if errors.is_empty() {
-            let subgraphs = BTreeMap::from_iter(subgraphs);
-            let federation_version = unresolved_supergraph_config
-                .federation_version_resolver()
-                .clone()
-                .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
-                .resolve(subgraphs.iter())?;
-            Ok(FullyResolvedSupergraphConfig {
+        let subgraphs = BTreeMap::from_iter(subgraphs);
+        let federation_version = unresolved_supergraph_config
+            .federation_version_resolver()
+            .clone()
+            .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
+            .resolve(subgraphs.iter())?;
+        Ok((
+            FullyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs,
                 federation_version,
-            })
-        } else {
-            Err(ResolveSupergraphConfigError::ResolveSubgraphs(
-                BTreeMap::from_iter(errors.into_iter()),
-            ))
-        }
+            },
+            BTreeMap::from_iter(errors.into_iter()),
+        ))
     }
 
     /// Updates the subgraph with the provided name using the provided schema

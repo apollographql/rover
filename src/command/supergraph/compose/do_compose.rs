@@ -115,7 +115,7 @@ impl Compose {
                 self.opts.federation_version.clone(),
                 None::<&SubgraphPrompt>,
             )
-            .await?
+            .await
             .install_supergraph_binary(
                 client_config.clone(),
                 override_install_path.clone(),

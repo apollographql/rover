@@ -112,7 +112,7 @@ impl Dev {
                 federation_version,
                 Some(&SubgraphPrompt::default()),
             )
-            .await?
+            .await
             .install_supergraph_binary(
                 client_config.clone(),
                 override_install_path.clone(),
