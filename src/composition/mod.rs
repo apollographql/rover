@@ -9,6 +9,7 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::resolver::{
     LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
 };
@@ -86,9 +87,10 @@ pub struct CompositionSubgraphAdded {
     pub(crate) schema_source: SchemaSource,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct CompositionSubgraphRemoved {
     pub(crate) name: String,
+    pub(crate) resolution_error: Option<ResolveSubgraphError>,
 }
 
 #[derive(thiserror::Error, Debug)]

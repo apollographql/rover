@@ -162,17 +162,18 @@ where
                         }
                         Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
-                            tracing::info!("Subgraph removed: {}", name);
+                            let resolution_error = subgraph_removed.resolution_error().clone();
+                            info!("Subgraph removed: {}", name);
                             supergraph_config.remove_subgraph(name);
                             let _ = sender
                                 .send(CompositionEvent::SubgraphRemoved(
-                                    CompositionSubgraphRemoved { name: name.clone() },
+                                    CompositionSubgraphRemoved { name: name.clone(), resolution_error },
                                 ))
                                 .tap_err(|err| error!("{:?}", err));
                         }
                         Federation(fed_version) => {
                             if let Some(federation_updater_config) = self.federation_updater_config.clone() {
-                                tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                                info!("Attempting to change supergraph version to {:?}", fed_version);
                                 infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())

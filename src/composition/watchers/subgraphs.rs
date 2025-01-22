@@ -169,6 +169,7 @@ pub struct SubgraphRoutingUrlChanged {
 pub struct SubgraphSchemaRemoved {
     /// The name of the removed subgraph
     name: String,
+    resolution_error: Option<ResolveSubgraphError>,
 }
 
 impl SubtaskHandleStream for SubgraphWatchers {
@@ -219,7 +220,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                         errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
                                     },
                                 }
-                                subgraph_handles.remove(subgraph_name);
+                                subgraph_handles.remove(subgraph_name, potential_error.clone());
                             }
 
                             // If a diff is empty, but the previous version of the supergraph.yaml
@@ -386,7 +387,7 @@ impl SubgraphHandles {
         Ok(())
     }
 
-    pub fn remove(&mut self, subgraph: &str) {
+    pub fn remove(&mut self, subgraph: &str, potential_error: Option<ResolveSubgraphError>) {
         if let Some(cancellation_token) = self.cancellation_tokens.get(subgraph) {
             cancellation_token.cancel();
             self.cancellation_tokens.remove(subgraph);
@@ -397,9 +398,10 @@ impl SubgraphHandles {
             .send(Subgraph(SubgraphEvent::SubgraphRemoved(
                 SubgraphSchemaRemoved {
                     name: subgraph.to_string(),
+                    resolution_error: potential_error,
                 },
             )))
-            .tap_err(|err| tracing::error!("{:?}", err));
+            .tap_err(|err| error!("{:?}", err));
     }
 
     async fn add_oneshot_subgraph_to_session(

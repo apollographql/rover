@@ -162,6 +162,7 @@ async fn start_composition(
     supergraph_yaml_url: Url,
 ) -> Result<(), StartCompositionError> {
     let mut stream = runner.run();
+    let mut resolution_errors = HashMap::new();
 
     // Spawn a separate thread to handle composition and passing that data to the language server
     tokio::spawn(async move {
@@ -205,6 +206,12 @@ async fn start_composition(
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
                         .await;
                     language_server
+                        .publish_diagnostics(
+                            supergraph_yaml_url.clone(),
+                            resolution_errors.values().cloned().collect(),
+                        )
+                        .await;
+                    language_server
                         .composition_did_update(
                             None,
                             errors.into_iter().map(Into::into).collect(),
@@ -230,9 +237,33 @@ async fn start_composition(
                     schema_source,
                 }) => {
                     debug!("Subgraph {} added", name);
+                    resolution_errors.remove(&name);
                     language_server.add_subgraph(name, schema_source).await;
+                    language_server
+                        .publish_diagnostics(
+                            supergraph_yaml_url.clone(),
+                            resolution_errors.values().cloned().collect(),
+                        )
+                        .await;
                 }
-                CompositionEvent::SubgraphRemoved(CompositionSubgraphRemoved { name }) => {
+                CompositionEvent::SubgraphRemoved(CompositionSubgraphRemoved {
+                    name,
+                    resolution_error,
+                }) => {
+                    if let Some(error) = resolution_error {
+                        let message =
+                            format!("Subgraph '{}' could not be resolved: {}", name, error);
+                        resolution_errors.insert(
+                            name.clone(),
+                            Diagnostic::new_simple(Range::default(), message),
+                        );
+                    }
+                    language_server
+                        .publish_diagnostics(
+                            supergraph_yaml_url.clone(),
+                            resolution_errors.values().cloned().collect(),
+                        )
+                        .await;
                     debug!("Subgraph {} removed", name);
                     language_server.remove_subgraph(&name).await;
                 }
