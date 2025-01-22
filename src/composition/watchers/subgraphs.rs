@@ -97,7 +97,9 @@ impl SubgraphWatchers {
 /// name of the subgraph
 pub enum SubgraphEvent {
     /// A change to the watched subgraph
-    SubgraphChanged(SubgraphSchemaChanged),
+    SubgraphSchemaChanged(SubgraphSchemaChanged),
+    /// A change to the watched subgraph's routing URL
+    RoutingUrlChanged(SubgraphRoutingUrlChanged),
     /// The subgraph is no longer watched
     SubgraphRemoved(SubgraphSchemaRemoved),
 }
@@ -109,7 +111,7 @@ pub struct SubgraphSchemaChanged {
     name: String,
     /// SDL with changes
     sdl: String,
-    routing_url: String,
+    routing_url: Option<String>,
     /// Schema Source
     schema_source: SchemaSource,
 }
@@ -125,7 +127,7 @@ impl SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name,
             sdl,
-            routing_url,
+            routing_url: Some(routing_url),
             schema_source,
         }
     }
@@ -133,12 +135,14 @@ impl SubgraphSchemaChanged {
 
 impl From<SubgraphSchemaChanged> for FullyResolvedSubgraph {
     fn from(value: SubgraphSchemaChanged) -> Self {
-        FullyResolvedSubgraph::builder()
+        let builder = FullyResolvedSubgraph::builder()
             .name(value.name)
             .schema(value.sdl)
-            .routing_url(value.routing_url)
-            .schema_source(value.schema_source)
-            .build()
+            .schema_source(value.schema_source);
+        match value.routing_url {
+            None => builder.build(),
+            Some(routing_url) => builder.routing_url(routing_url).build(),
+        }
     }
 }
 
@@ -147,10 +151,16 @@ impl From<FullyResolvedSubgraph> for SubgraphSchemaChanged {
         SubgraphSchemaChanged {
             name: value.name().to_string(),
             sdl: value.schema().to_string(),
-            routing_url: value.routing_url().to_string(),
+            routing_url: value.routing_url().to_owned(),
             schema_source: value.schema_source().to_owned(),
         }
     }
+}
+
+#[derive(derive_getters::Getters, Default)]
+pub struct SubgraphRoutingUrlChanged {
+    name: String,
+    routing_url: Option<String>,
 }
 
 /// The subgraph is no longer watched
@@ -258,7 +268,9 @@ impl SubgraphHandles {
                         while let Some(subgraph) = messages.next().await {
                             tracing::info!("Subgraph change detected: {:?}", subgraph);
                             let _ = sender
-                                .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                                .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                                    subgraph.into(),
+                                )))
                                 .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     })
@@ -337,7 +349,7 @@ impl SubgraphHandles {
         )
         .await?;
         let subgraph_watcher = SubgraphWatcher::new(
-            lazily_resolved_subgraph,
+            lazily_resolved_subgraph.clone(),
             resolver,
             introspection_polling_interval,
             subgraph.to_string(),
@@ -351,10 +363,23 @@ impl SubgraphHandles {
                 .map(|subgraph| {
                     let _ = self
                         .sender
-                        .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                        .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                            subgraph.into(),
+                        )))
                         .tap_err(|err| tracing::error!("{:?}", err));
                 });
         }
+
+        // It's possible that the routing_url was updated at this point so we need to update that
+        // and propagate the update through by forcing a recomposition. This may be unnecessary,
+        // but we'll figure that out on the receiving end rather than passing around more
+        // context.
+        let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
+            SubgraphRoutingUrlChanged {
+                name: subgraph.to_string(),
+                routing_url: lazily_resolved_subgraph.routing_url().clone(),
+            },
+        )));
         Ok(())
     }
 
@@ -386,7 +411,9 @@ impl SubgraphHandles {
             .map(|subgraph| {
                 let _ = self
                     .sender
-                    .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                    .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                        subgraph.into(),
+                    )))
                     .tap_err(|err| tracing::error!("{:?}", err));
             });
     }
@@ -402,7 +429,7 @@ impl SubgraphHandles {
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
         let _ = self
             .sender
-            .send(Subgraph(SubgraphEvent::SubgraphChanged(
+            .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
                 subgraph.clone().into(),
             )))
             .tap_err(|err| tracing::error!("{:?}", err));
@@ -414,9 +441,10 @@ impl SubgraphHandles {
                 cancellation_token
                     .run_until_cancelled(async move {
                         while let Some(subgraph) = messages.next().await {
-                            tracing::info!("Subgraph change detected: {:?}", subgraph);
                             let _ = sender
-                                .send(Subgraph(SubgraphEvent::SubgraphChanged(subgraph.into())))
+                                .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                                    subgraph.into(),
+                                )))
                                 .tap_err(|err| tracing::error!("{:?}", err));
                         }
                     })

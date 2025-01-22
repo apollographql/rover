@@ -31,7 +31,7 @@ pub type FullyResolveSubgraphService =
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
     name: String,
-    routing_url: String,
+    pub(crate) routing_url: Option<String>,
     schema: String,
     schema_source: SchemaSource,
     pub(crate) is_fed_two: bool,
@@ -44,7 +44,7 @@ impl FullyResolvedSubgraph {
     pub fn new(
         name: String,
         schema: String,
-        routing_url: String,
+        routing_url: Option<String>,
         schema_source: SchemaSource,
     ) -> FullyResolvedSubgraph {
         let is_fed_two = schema_contains_link_directive(&schema);
@@ -124,16 +124,14 @@ impl FullyResolvedSubgraph {
                 let unresolved_subgraph = unresolved_subgraph.clone();
                 let sdl = sdl.to_string();
                 async move {
-                    Ok(FullyResolvedSubgraph::builder()
+                    let builder = FullyResolvedSubgraph::builder()
                         .name(unresolved_subgraph.name().to_string())
-                        .routing_url(unresolved_subgraph.routing_url().clone().ok_or_else(
-                            || ResolveSubgraphError::MissingRoutingUrl {
-                                subgraph: unresolved_subgraph.name().to_string(),
-                            },
-                        )?)
                         .schema(sdl.to_string())
-                        .schema_source(SchemaSource::Sdl { sdl })
-                        .build())
+                        .schema_source(SchemaSource::Sdl { sdl });
+                    Ok(match unresolved_subgraph.routing_url() {
+                        None => builder.build(),
+                        Some(routing_url) => builder.routing_url(routing_url).build(),
+                    })
                 }
             })
             .boxed_clone()),
@@ -149,7 +147,7 @@ impl FullyResolvedSubgraph {
 impl From<FullyResolvedSubgraph> for SubgraphConfig {
     fn from(value: FullyResolvedSubgraph) -> Self {
         SubgraphConfig {
-            routing_url: Some(value.routing_url),
+            routing_url: value.routing_url,
             schema: SchemaSource::Sdl { sdl: value.schema },
         }
     }

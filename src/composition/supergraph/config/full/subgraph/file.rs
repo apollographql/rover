@@ -45,18 +45,16 @@ impl Service<()> for ResolveFileSubgraph {
             let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs {
                 source: Arc::new(Box::new(err)),
             })?;
-            let routing_url = unresolved_subgraph.routing_url().clone().ok_or_else(|| {
-                ResolveSubgraphError::MissingRoutingUrl {
-                    subgraph: unresolved_subgraph.name().to_string(),
-                }
-            })?;
 
-            Ok(FullyResolvedSubgraph::builder()
+            let builder = FullyResolvedSubgraph::builder()
                 .name(subgraph_name)
-                .routing_url(routing_url)
                 .schema(schema)
-                .schema_source(schema_source)
-                .build())
+                .schema_source(schema_source);
+
+            Ok(match unresolved_subgraph.routing_url() {
+                None => builder.build(),
+                Some(routing_url) => builder.routing_url(routing_url).build(),
+            })
         };
         Box::pin(fut)
     }

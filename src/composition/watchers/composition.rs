@@ -7,7 +7,7 @@ use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
@@ -104,7 +104,7 @@ where
             cancellation_token.run_until_cancelled(async {
                 while let Some(event) = input.next().await {
                     match event {
-                        Subgraph(SubgraphEvent::SubgraphChanged(subgraph_schema_changed)) => {
+                        Subgraph(SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed)) => {
                             let name = subgraph_schema_changed.name().clone();
                             let schema_source = subgraph_schema_changed.schema_source().clone();
                             let message = format!("Schema change detected for subgraph: {}", &name);
@@ -126,6 +126,14 @@ where
                                     ))
                                     .tap_err(|err| error!("{:?}", err));
                             };
+                        }
+                        Subgraph(SubgraphEvent::RoutingUrlChanged(routing_url_changed)) => {
+                            let name = routing_url_changed.name();
+                            info!("Change of routing_url detected for subgraph '{}'", name);
+                            if supergraph_config.update_routing_url(name, routing_url_changed.routing_url().clone()).is_none() {
+                                // If we get None back then continue, as we don't need to recompose
+                                continue
+                            }
                         }
                         Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
@@ -380,12 +388,14 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {
-            Subgraph(SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
-                subgraph_name,
-                subgraph_sdl.clone(),
-                "https://example.com".to_string(),
-                SchemaSource::Sdl { sdl: subgraph_sdl },
-            )))
+            Subgraph(SubgraphEvent::SubgraphSchemaChanged(
+                SubgraphSchemaChanged::new(
+                    subgraph_name,
+                    subgraph_sdl.clone(),
+                    "https://example.com".to_string(),
+                    SchemaSource::Sdl { sdl: subgraph_sdl },
+                ),
+            ))
         })
         .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
