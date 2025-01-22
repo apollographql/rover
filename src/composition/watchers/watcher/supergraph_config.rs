@@ -59,8 +59,9 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                 "{} changed. Parsing it as a `SupergraphConfig`",
                                 supergraph_config_path
                             );
+                        debug!("Current supergraph config is: {:?}", latest_supergraph_config);
                         match SupergraphConfig::new_from_yaml(&contents) {
-                            Ok(supergraph_config) => {
+                            Ok(mut supergraph_config) => {
                                 let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
                                 let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                                     .origin_path(supergraph_config_path.clone())
@@ -75,7 +76,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                 let supergraph_config_diff = SupergraphConfigDiff::new(
                                     &latest_supergraph_config,
                                     SupergraphConfig::from(lazily_resolved_supergraph_config),
-                                    errors,
+                                    errors.clone(),
                                     broken
                                 );
                                 match supergraph_config_diff {
@@ -89,6 +90,8 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                         tracing::error!("Failed to construct a diff between the current and previous `SupergraphConfig`s.\n{}", err);
                                     }
                                 }
+
+                                supergraph_config = supergraph_config.into_iter().filter(|(name,_)| !errors.contains_key(name)).collect();
 
                                 latest_supergraph_config = supergraph_config;
                                 broken = false;
