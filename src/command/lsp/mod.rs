@@ -14,7 +14,7 @@ use serde::Serialize;
 use tower::ServiceExt;
 use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
-use tracing::debug;
+use tracing::{debug, info};
 use url::Url;
 
 use crate::command::lsp::errors::StartCompositionError;
@@ -166,6 +166,8 @@ async fn start_composition(
 
     // Spawn a separate thread to handle composition and passing that data to the language server
     tokio::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        info!("Listening for Composition Events");
         while let Some(event) = stream.next().await {
             match event {
                 CompositionEvent::Started => {
@@ -228,8 +230,11 @@ async fn start_composition(
                         _ => format!("Composition failed to run: {err}",),
                     };
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
+                    let mut diagnostics_to_publish: Vec<Diagnostic> =
+                        resolution_errors.values().cloned().collect();
+                    diagnostics_to_publish.push(diagnostic);
                     language_server
-                        .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
+                        .publish_diagnostics(supergraph_yaml_url.clone(), diagnostics_to_publish)
                         .await;
                 }
                 CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {

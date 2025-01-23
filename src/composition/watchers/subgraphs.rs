@@ -201,7 +201,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                     subgraph_name,
                                     subgraph_config,
                                     self.introspection_polling_interval
-                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                ).await.tap_err(|err| error!("{:?}", err));
                             }
 
                             for (subgraph_name, subgraph_config) in diff.changed() {
@@ -209,7 +209,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                     subgraph_name,
                                     subgraph_config,
                                     self.introspection_polling_interval
-                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                ).await.tap_err(|err| error!("{:?}", err));
                             }
 
                             // If we detect removal diffs, stop the subtask for the removed subgraph.
