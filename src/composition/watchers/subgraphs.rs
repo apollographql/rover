@@ -378,10 +378,21 @@ impl SubgraphHandles {
         // and propagate the update through by forcing a recomposition. This may be unnecessary,
         // but we'll figure that out on the receiving end rather than passing around more
         // context.
+        let routing_url = lazily_resolved_subgraph.routing_url().clone().or_else(|| {
+            if let SubgraphConfig {
+                schema: SchemaSource::SubgraphIntrospection { subgraph_url, .. },
+                ..
+            } = subgraph_config
+            {
+                Some(subgraph_url.to_string())
+            } else {
+                None
+            }
+        });
         let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
             SubgraphRoutingUrlChanged {
                 name: subgraph.to_string(),
-                routing_url: lazily_resolved_subgraph.routing_url().clone(),
+                routing_url,
             },
         )));
         Ok(())
