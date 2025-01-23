@@ -51,6 +51,21 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
             let supergraph_config_path = supergraph_config_path.clone();
             let mut latest_supergraph_config = self.supergraph_config.clone();
             let mut broken = false;
+            // Look at the current contents of the supergraph_config and emit an event if there's
+            // a problem parsing it, otherwise move into the watching loop.
+            if let Ok(contents) = self.file_watcher.fetch().await {
+                if let Err(e) = SupergraphConfig::new_from_yaml(&contents) {
+                    broken = true;
+                    tracing::error!("could not parse supergraph config file: {:?}", e);
+                    errln!("Could not parse supergraph config file.\n{}", e);
+                    let _ = sender
+                        .send(Err(DeserializingConfigError {
+                            source: Arc::new(e),
+                        }))
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                }
+            }
+
             let mut stream = self.file_watcher.watch().await;
             cancellation_token.run_until_cancelled(async move {
                     while let Some(contents) = stream.next().await {
@@ -98,6 +113,8 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                             }
                             Err(err) => {
                                 broken = true;
+                                let old_fed_version = latest_supergraph_config.get_federation_version().clone();
+                                latest_supergraph_config = SupergraphConfig::new(BTreeMap::new(),old_fed_version);
                                 tracing::error!("could not parse supergraph config file: {:?}", err);
                                 errln!("Could not parse supergraph config file.\n{}", err);
                                 let _ = sender
