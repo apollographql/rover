@@ -52,33 +52,38 @@ impl FullyResolvedSupergraphConfig {
         ),
         ResolveSupergraphConfigError,
     > {
-        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
-            move |(name, unresolved_subgraph)| {
-                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
-                FullyResolvedSubgraph::resolver(
-                    resolve_introspect_subgraph_factory.clone(),
-                    fetch_remote_subgraph_factory,
-                    supergraph_config_root,
-                    unresolved_subgraph.clone(),
-                )
-                .map_err(|err| (name.to_string(), err))
-                .and_then(|service| {
-                    let mut service = service.clone();
-                    let name = name.to_string();
-                    async move {
-                        let service = service
-                            .ready()
-                            .await
-                            .map_err(|err| (name.to_string(), err))?;
-                        let result = service
-                            .call(())
-                            .await
-                            .map_err(|err| (name.to_string(), err))?;
-                        Ok((name.to_string(), result))
-                    }
-                })
-            },
-        ))
+        let subgraphs = stream::iter(
+            unresolved_supergraph_config
+                .subgraphs()
+                .clone()
+                .into_iter()
+                .map(move |(name, unresolved_subgraph)| {
+                    let name_clone = name.clone();
+                    let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
+                    FullyResolvedSubgraph::resolver(
+                        resolve_introspect_subgraph_factory.clone(),
+                        fetch_remote_subgraph_factory,
+                        supergraph_config_root,
+                        unresolved_subgraph.clone(),
+                    )
+                    .map_err(move |err| (name.to_string(), err))
+                    .and_then(move |service| {
+                        let mut service = service.clone();
+                        let name = name_clone.clone();
+                        async move {
+                            let service = service
+                                .ready()
+                                .await
+                                .map_err(|err| (name.to_string(), err))?;
+                            let result = service
+                                .call(())
+                                .await
+                                .map_err(|err| (name.to_string(), err))?;
+                            Ok((name.to_string(), result))
+                        }
+                    })
+                }),
+        )
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, FullyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;

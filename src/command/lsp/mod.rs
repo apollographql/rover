@@ -188,6 +188,12 @@ async fn start_composition(
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
                         .await;
                     language_server
+                        .publish_diagnostics(
+                            supergraph_yaml_url.clone(),
+                            resolution_errors.values().cloned().collect(),
+                        )
+                        .await;
+                    language_server
                         .composition_did_update(
                             Some(supergraph_sdl),
                             hints.into_iter().map(Into::into).collect(),

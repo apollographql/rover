@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt, TryFutureExt};
@@ -7,7 +5,7 @@ use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_util::sync::{CancellationToken, DropGuard};
+use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use crate::composition::supergraph::config::{
@@ -16,20 +14,16 @@ use crate::composition::supergraph::config::{
 };
 
 /// File watcher specifically for files related to composition
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, Clone)]
 pub struct FileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
-    drop_guard: OnceLock<DropGuard>,
 }
 
 impl FileWatcher {
     /// Create a new filewatcher
     pub fn new(path: Utf8PathBuf) -> Self {
-        Self {
-            path,
-            drop_guard: OnceLock::new(),
-        }
+        Self { path }
     }
 
     pub async fn fetch(&self) -> Result<String, RoverStdError> {
@@ -44,13 +38,14 @@ impl FileWatcher {
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
     /// indefinitely loop on a close filewatcher
-    pub async fn watch(&self) -> BoxStream<'static, String> {
+    pub async fn watch(self, cancellation_token: CancellationToken) -> BoxStream<'static, String> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx, None);
-        self.drop_guard
-            .set(cancellation_token.clone().drop_guard())
-            .unwrap();
+        let cancellation_token = Fs::watch_file(
+            self.path.as_path().into(),
+            file_tx,
+            Some(cancellation_token),
+        );
 
         output
             .filter_map({

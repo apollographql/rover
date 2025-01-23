@@ -5,6 +5,7 @@ use std::sync::Arc;
 use apollo_federation_types::config::{
     ConfigError, FederationVersion, SubgraphConfig, SupergraphConfig,
 };
+use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::StreamExt;
 use rover_std::errln;
@@ -16,6 +17,9 @@ use tracing::debug;
 
 use super::file::FileWatcher;
 use crate::composition::supergraph::config::federation::FederationVersionResolver;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
+use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
@@ -27,17 +31,56 @@ use crate::subtask::SubtaskHandleMultiStream;
 pub struct SupergraphConfigWatcher {
     file_watcher: FileWatcher,
     supergraph_config: SupergraphConfig,
+    fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+    resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
 }
 
 impl SupergraphConfigWatcher {
     pub fn new(
         file_watcher: FileWatcher,
         supergraph_config: LazilyResolvedSupergraphConfig,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     ) -> SupergraphConfigWatcher {
         SupergraphConfigWatcher {
             file_watcher,
             supergraph_config: supergraph_config.into(),
+            fetch_remote_subgraph_factory,
+            resolve_introspect_subgraph_factory,
         }
+    }
+
+    /// Method that generates the set of LazilyResolvedSubgraphs(s), that can be successfully
+    /// fully resolved at a later date. Because we want to know if a LazilyResolvedSupergraphConfig
+    /// is valid we have to try and resolve it completely, however ultimately we want to get
+    /// a set of LazilyResolvedSubgraphs out of the otherside otherwise comparing them is
+    /// going to be impossible, and we'll miss many changes.
+    ///
+    /// As such this method, generates both versions, then filters the lazily resolved versions
+    /// and returns that along with any errors from the full resolution process.
+    async fn generate_correct_lazily_resolved_supergraph_config(
+        supergraph_config_path: &Utf8PathBuf,
+        mut unresolved_supergraph_config: UnresolvedSupergraphConfig,
+        errors: BTreeMap<String, ResolveSubgraphError>,
+    ) -> SupergraphConfig {
+        // First filter out the subgraphs from the unresolved set
+        let subgraphs = unresolved_supergraph_config
+            .subgraphs()
+            .clone()
+            .into_iter()
+            .filter(|(name, _)| !errors.contains_key(name))
+            .collect();
+        unresolved_supergraph_config.replace_subgraphs(subgraphs);
+        let (lazily_resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(
+            &supergraph_config_path.parent().unwrap().to_path_buf(),
+            unresolved_supergraph_config,
+        )
+        .await;
+        debug!(
+            "Filtered Lazily Resolved Supergraph Config: {:?}",
+            lazily_resolved_supergraph_config
+        );
+        SupergraphConfig::from(lazily_resolved_supergraph_config)
     }
 }
 
@@ -66,7 +109,11 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                 }
             }
 
-            let mut stream = self.file_watcher.watch().await;
+            let mut stream = self
+                .file_watcher
+                .clone()
+                .watch(cancellation_token.clone())
+                .await;
             cancellation_token.run_until_cancelled(async move {
                     while let Some(contents) = stream.next().await {
                         eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
@@ -76,21 +123,31 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                             );
                         debug!("Current supergraph config is: {:?}", latest_supergraph_config);
                         match SupergraphConfig::new_from_yaml(&contents) {
-                            Ok(mut supergraph_config) => {
+                            Ok(supergraph_config) => {
                                 let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
                                 let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
                                     .origin_path(supergraph_config_path.clone())
                                     .subgraphs(subgraphs)
                                     .federation_version_resolver(FederationVersionResolver::default().from_supergraph_config(Some(&supergraph_config)))
                                     .build();
-                                let (lazily_resolved_supergraph_config, errors) = LazilyResolvedSupergraphConfig::resolve(
+                                // Here we can throw away what actually gets resolved because we care about the fact it
+                                // happens not the resulting artifact.
+                                let errors = if let Ok((_, errors)) = FullyResolvedSupergraphConfig::resolve(
+                                    self.resolve_introspect_subgraph_factory.clone(),
+                                    self.fetch_remote_subgraph_factory.clone(),
                                     &supergraph_config_path.parent().unwrap().to_path_buf(),
-                                    unresolved_supergraph_config,
-                                ).await;
+                                    unresolved_supergraph_config.clone(),
+                                ).await {
+                                    errors
+                                } else {
+                                    tracing::error!("Could not fully resolve SupergraphConfig, will retry on next file change");
+                                    continue
+                                };
+                                let new_supergraph_config = Self::generate_correct_lazily_resolved_supergraph_config(&supergraph_config_path, unresolved_supergraph_config, errors.clone()).await;
 
                                 let supergraph_config_diff = SupergraphConfigDiff::new(
                                     &latest_supergraph_config,
-                                    SupergraphConfig::from(lazily_resolved_supergraph_config),
+                                    new_supergraph_config.clone(),
                                     errors.clone(),
                                     broken
                                 );
@@ -106,9 +163,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                     }
                                 }
 
-                                supergraph_config = supergraph_config.into_iter().filter(|(name,_)| !errors.contains_key(name)).collect();
-
-                                latest_supergraph_config = supergraph_config;
+                                latest_supergraph_config = new_supergraph_config;
                                 broken = false;
                             }
                             Err(err) => {
@@ -164,6 +219,9 @@ impl SupergraphConfigDiff {
         resolution_errors: BTreeMap<String, ResolveSubgraphError>,
         previously_broken: bool,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
+        debug!("Old Supergraph Config: {:?}", old);
+        debug!("New Supergraph Config: {:?}", new);
+
         let old_subgraph_names: HashSet<String> = old
             .clone()
             .into_iter()

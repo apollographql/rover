@@ -29,6 +29,7 @@ use super::{
     FederationUpdaterConfig,
 };
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::watchers::federation::FederationWatcher;
 use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
 use crate::{
@@ -96,6 +97,8 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
     pub fn setup_supergraph_config_watcher(
         self,
         supergraph_config: LazilyResolvedSupergraphConfig,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     ) -> Runner<state::SetupCompositionWatcher> {
         // If the supergraph config was passed as a file, we can configure a watcher for change
         // events.
@@ -111,7 +114,12 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
         );
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
             let f = FileWatcher::new(origin_path.clone());
-            let watcher = SupergraphConfigWatcher::new(f, supergraph_config.clone());
+            let watcher = SupergraphConfigWatcher::new(
+                f,
+                supergraph_config.clone(),
+                fetch_remote_subgraph_factory,
+                resolve_introspect_subgraph_factory,
+            );
             Some(watcher)
         } else {
             None

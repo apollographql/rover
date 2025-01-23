@@ -10,7 +10,7 @@ use super::UnresolvedSubgraph;
 use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
-#[derive(Getters)]
+#[derive(Getters, Clone)]
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
@@ -43,6 +43,12 @@ impl UnresolvedSupergraphConfig {
         self.federation_version_resolver
             .clone()
             .and_then(|resolver| resolver.target_federation_version())
+    }
+
+    /// Provides a way to replace the subgraphs inside the SupergraphConfig, this is mostly where
+    /// we need to re-use reconciliation logic etc.
+    pub fn replace_subgraphs(&mut self, subgraphs: BTreeMap<String, UnresolvedSubgraph>) {
+        self.subgraphs = subgraphs;
     }
 }
 
@@ -481,7 +487,7 @@ mod tests {
         )
         .await;
 
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
+        let (resolved_supergraph_config, _) = assert_that!(result).is_ok().subject;
 
         let expected_subgraphs = BTreeMap::from_iter([
             (
@@ -873,12 +879,11 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
         };
 
-        let result = LazilyResolvedSupergraphConfig::resolve(
+        let (resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(
             &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
             unresolved_supergraph_config,
         )
         .await;
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
         // fed version is the default, since none provided
         assert_that!(resolved_supergraph_config.federation_version().as_ref()).is_none();
 
