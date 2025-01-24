@@ -21,19 +21,6 @@ pub struct LazilyResolvedSupergraphConfig {
 }
 
 impl LazilyResolvedSupergraphConfig {
-    /// Builds a new config, with the given options
-    pub fn new(
-        origin_path: Option<Utf8PathBuf>,
-        subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
-        federation_version: Option<FederationVersion>,
-    ) -> Self {
-        LazilyResolvedSupergraphConfig {
-            origin_path,
-            subgraphs,
-            federation_version,
-        }
-    }
-
     /// Resolves an [`UnresolvedSupergraphConfig`] into a [`LazilyResolvedSupergraphConfig`] by
     /// making sure any internal file paths are correct
     pub async fn resolve(
