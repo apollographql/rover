@@ -95,10 +95,7 @@ where
                 .map_err(|err| match err {
                     GraphQLServiceError::InvalidCredentials() => {
                         RoverClientError::PermissionError {
-                            msg: format!(
-                                "attempting to fetch subgraphs for {}",
-                                req.graph_ref.to_string()
-                            ),
+                            msg: format!("attempting to fetch subgraphs for {}", req.graph_ref),
                         }
                     }
                     _ => RoverClientError::Service {
