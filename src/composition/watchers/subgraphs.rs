@@ -8,25 +8,20 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+use tracing::{error, warn};
 
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
-    supergraph_config::SupergraphConfigDiff,
-};
+use super::watcher::subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind};
+use super::watcher::supergraph_config::SupergraphConfigDiff;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::composition::watchers::composition::CompositionInputEvent;
 use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph},
-        lazy::LazilyResolvedSubgraph,
-        resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-        unresolved::UnresolvedSubgraph,
-    },
-    subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-};
+use crate::subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
@@ -378,17 +373,24 @@ impl SubgraphHandles {
         // and propagate the update through by forcing a recomposition. This may be unnecessary,
         // but we'll figure that out on the receiving end rather than passing around more
         // context.
-        let routing_url = lazily_resolved_subgraph.routing_url().clone().or_else(|| {
-            if let SubgraphConfig {
-                schema: SchemaSource::SubgraphIntrospection { subgraph_url, .. },
-                ..
-            } = subgraph_config
-            {
-                Some(subgraph_url.to_string())
-            } else {
-                None
-            }
-        });
+        let routing_url = match lazily_resolved_subgraph.routing_url().clone() {
+            None => match subgraph_config.schema.clone() {
+                SchemaSource::SubgraphIntrospection { subgraph_url, .. } => {
+                    Some(subgraph_url.to_string())
+                }
+                SchemaSource::Subgraph { .. } => {
+                    match subgraph_watcher.watcher().clone().fetch().await {
+                        Ok(frs) => frs.routing_url,
+                        Err(err) => {
+                            warn!("Could not resolve routing url from Studio, using None instead. Error: {err}");
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            },
+            a => a,
+        };
         let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
             SubgraphRoutingUrlChanged {
                 name: subgraph.to_string(),
@@ -484,20 +486,16 @@ mod tests {
     use tower::ServiceBuilder;
 
     use super::SubgraphWatchers;
-    use crate::composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{
-            introspect::{
-                MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
-                ResolveIntrospectSubgraphService,
-            },
-            FullyResolvedSubgraph,
-        },
-        lazy::LazilyResolvedSubgraph,
-        resolver::fetch_remote_subgraph::{
-            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-            FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
-        },
+    use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::full::introspect::{
+        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+        ResolveIntrospectSubgraphService,
+    };
+    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+    use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+        FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
     };
 
     #[tokio::test]
