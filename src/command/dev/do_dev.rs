@@ -13,6 +13,7 @@ use semver::Version;
 use tower::ServiceExt;
 
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
+use super::version_upgrade_message::VersionUpgradeMessage;
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
@@ -43,6 +44,7 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only.\n"
         );
 
+        VersionUpgradeMessage::print();
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
