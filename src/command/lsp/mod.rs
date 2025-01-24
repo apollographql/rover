@@ -32,14 +32,13 @@ use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
     FederationUpdaterConfig,
 };
+use crate::options::PluginOpts;
+use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::TokioCommand;
 use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
-use crate::{
-    options::PluginOpts,
-    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
-    RoverOutput, RoverResult,
-};
+use crate::utils::parsers::FileDescriptorType;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Lsp {
@@ -112,6 +111,8 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             let supergraph_yaml_url = Url::from_file_path(supergraph_yaml_path.clone())
                 .map_err(|_| SupergraphYamlUrlConversionFailed(supergraph_yaml_path.clone()))?;
 
+            // Create a composition runner first, so that we can use that to drive the initial
+            // set of subgraphs that get reported to the LSP
             let composition_runner =
                 create_composition_runner(supergraph_yaml_path, None, client_config, lsp_opts)
                     .await?;
@@ -122,13 +123,15 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                 .iter()
                 .map(|(name, subgraph)| (name.clone(), subgraph.schema().clone()))
                 .collect();
-            debug!("Initial Subgraphs are: {:?}", initial_subgraphs);
 
             // Generate the config needed to spin up the Language Server
             let (service, socket, _receiver) = ApolloLanguageServer::build_service(
                 Config {
                     root_uri: String::from(supergraph_yaml_url.clone()),
                     enable_auto_composition: false,
+                    // Ensure that we force_federation here, otherwise, if we have a broken
+                    // supergraph.yaml and thus end up detecting no subgraphs, the LSP doesn't
+                    // think we're doing this for a monograph.
                     force_federation: true,
                     disable_telemetry: false,
                     max_spec_versions: MaxSpecVersions {
@@ -162,10 +165,18 @@ async fn start_composition(
     supergraph_yaml_url: Url,
 ) -> Result<(), StartCompositionError> {
     let mut stream = runner.run();
+    // Keep a separate data structure to store any resolution errors, specific to the
+    // subgraphs so they can be retained, even after a potentially successful composition.
+    //
+    // These are published each time we publish diagnostics, because they can only be cleared
+    // via a SubgraphAdded event.
     let mut resolution_errors = HashMap::new();
 
     // Spawn a separate thread to handle composition and passing that data to the language server
     tokio::spawn(async move {
+        // This is a slight hack, however, there's no way to tell whether LSP has booted correctly
+        // before we start emitting events to it, due to limitations in `tower_lsp`. As such
+        // we wait in order that early events do not get lost
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         info!("Listening for Composition Events");
         while let Some(event) = stream.next().await {
@@ -187,12 +198,14 @@ async fn start_composition(
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
                         .await;
+                    // Ensure we keep publishing the resolution errors
                     language_server
                         .publish_diagnostics(
                             supergraph_yaml_url.clone(),
                             resolution_errors.values().cloned().collect(),
                         )
                         .await;
+                    // Publish the results of the composition (new supergraph SDL)
                     language_server
                         .composition_did_update(
                             Some(supergraph_sdl),
@@ -213,12 +226,15 @@ async fn start_composition(
                     language_server
                         .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
                         .await;
+                    // Ensure we keep publishing the resolution errors
                     language_server
                         .publish_diagnostics(
                             supergraph_yaml_url.clone(),
                             resolution_errors.values().cloned().collect(),
                         )
                         .await;
+                    // Publish the composition errors with more metadata, as this can be
+                    // gleaned from the output of the `supergraph` binary.
                     language_server
                         .composition_did_update(
                             None,
@@ -229,6 +245,8 @@ async fn start_composition(
                 }
                 CompositionEvent::Error(err) => {
                     debug!("Composition failed: {err}");
+                    // If we get a composition error back that is not a partial success (as above)
+                    // we publish the message from this error and the resolution errors together.
                     let message = match err {
                         CompositionError::ErrorUpdatingFederationVersion(
                             InstallSupergraphError::MissingDependency { err },
@@ -248,6 +266,8 @@ async fn start_composition(
                     schema_source,
                 }) => {
                     debug!("Subgraph {} added", name);
+                    // Adding a subgraph will always remove any resolution errors as it must
+                    // resolve correctly to be added.
                     resolution_errors.remove(&name);
                     language_server.add_subgraph(name, schema_source).await;
                     language_server
@@ -261,6 +281,9 @@ async fn start_composition(
                     name,
                     resolution_error,
                 }) => {
+                    // If we get a resolution error in the event then we can update our internal
+                    // structures, otherwise the removal event was not caused by error, so just
+                    // remove and then continue on.
                     if let Some(error) = resolution_error {
                         let message =
                             format!("Subgraph '{}' could not be resolved: {}", name, error);

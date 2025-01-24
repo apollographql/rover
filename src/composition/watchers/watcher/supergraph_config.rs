@@ -16,14 +16,13 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use super::file::FileWatcher;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::federation::FederationVersionResolver;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, lazy::LazilyResolvedSupergraphConfig,
-    unresolved::UnresolvedSupergraphConfig,
-};
+use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError;
 use crate::subtask::SubtaskHandleMultiStream;
 
@@ -64,13 +63,8 @@ impl SupergraphConfigWatcher {
         errors: BTreeMap<String, ResolveSubgraphError>,
     ) -> SupergraphConfig {
         // First filter out the subgraphs from the unresolved set
-        let subgraphs = unresolved_supergraph_config
-            .subgraphs()
-            .clone()
-            .into_iter()
-            .filter(|(name, _)| !errors.contains_key(name))
-            .collect();
-        unresolved_supergraph_config.replace_subgraphs(subgraphs);
+        unresolved_supergraph_config.filter_subgraphs(errors.keys().cloned().collect());
+        // Then resolve the filtered version, rather than the whole thing
         let (lazily_resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(
             &supergraph_config_path.parent().unwrap().to_path_buf(),
             unresolved_supergraph_config,

@@ -1,9 +1,7 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    env::current_dir,
-    fmt::Debug,
-    fs::canonicalize,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::env::current_dir;
+use std::fmt::Debug;
+use std::fs::canonicalize;
 
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
@@ -14,38 +12,29 @@ use tempfile::tempdir;
 use tower::MakeService;
 use tracing::{debug, warn};
 
-use super::{
-    runner::{CompositionRunner, Runner},
-    supergraph::{
-        binary::OutputTarget,
-        config::{
-            error::ResolveSubgraphError,
-            full::introspect::ResolveIntrospectSubgraphFactory,
-            resolver::{
-                fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-                fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, LoadRemoteSubgraphsError,
-                LoadSupergraphConfigError, ResolveSupergraphConfigError, SubgraphPrompt,
-                SupergraphConfigResolver,
-            },
-        },
-        install::{InstallSupergraph, InstallSupergraphError},
-    },
-    CompositionError, CompositionSuccess, FederationUpdaterConfig,
+use super::runner::{CompositionRunner, Runner};
+use super::supergraph::binary::OutputTarget;
+use super::supergraph::config::error::ResolveSubgraphError;
+use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
+use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
+use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
+use super::supergraph::config::resolver::{
+    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
+    SubgraphPrompt, SupergraphConfigResolver,
 };
+use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
+use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::Prompt;
-use crate::{
-    options::LicenseAccepter,
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::ExecCommand, install::InstallBinary, read_file::ReadFile, read_stdin::ReadStdin,
-            write_file::WriteFile,
-        },
-        parsers::FileDescriptorType,
-    },
-};
+use crate::options::LicenseAccepter;
+use crate::utils::client::StudioClientConfig;
+use crate::utils::effect::exec::ExecCommand;
+use crate::utils::effect::install::InstallBinary;
+use crate::utils::effect::read_file::ReadFile;
+use crate::utils::effect::read_stdin::ReadStdin;
+use crate::utils::effect::write_file::WriteFile;
+use crate::utils::parsers::FileDescriptorType;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionPipelineError {
@@ -188,8 +177,33 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 (vec![], None)
             }
         };
+
+        let federation_version = Self::decide_federation_version(
+            passed_in_fed_version,
+            fed_two_subgraphs,
+            resolved_fed_version,
+            self.state.supergraph_yaml,
+        );
+
+        CompositionPipeline {
+            state: state::InstallSupergraph {
+                resolver: self.state.resolver,
+                supergraph_root: self.state.supergraph_root,
+                fetch_remote_subgraph_factory,
+                federation_version,
+                resolve_introspect_subgraph_factory,
+            },
+        }
+    }
+
+    fn decide_federation_version(
+        passed_in_fed_version: Option<FederationVersion>,
+        fed_two_subgraphs: Vec<String>,
+        resolved_fed_version: Option<FederationVersion>,
+        supergraph_yaml: Option<FileDescriptorType>,
+    ) -> FederationVersion {
         let federation_version = match (resolved_fed_version, passed_in_fed_version) {
-            (None, None) => match self.state.supergraph_yaml {
+            (None, None) => match supergraph_yaml {
                 None => LatestFedTwo,
                 Some(fd) => {
                     match fd.read_file_descriptor("reading SupergraphConfig", &mut std::io::stdin())
@@ -208,24 +222,82 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             (_, Some(passed_in_federation_version)) => passed_in_federation_version,
         };
 
-        let federation_version = if !fed_two_subgraphs.is_empty() && federation_version.is_fed_one()
-        {
+        if !fed_two_subgraphs.is_empty() && federation_version.is_fed_one() {
             warn!("Federation version 1, cannot be used with Federation 2 subgraphs");
             warn!("Defaulting to Federation: {}", LatestFedTwo);
             LatestFedTwo
         } else {
             federation_version
-        };
-
-        CompositionPipeline {
-            state: state::InstallSupergraph {
-                resolver: self.state.resolver,
-                supergraph_root: self.state.supergraph_root,
-                fetch_remote_subgraph_factory,
-                federation_version,
-                resolve_introspect_subgraph_factory,
-            },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests_resolve_federation_version {
+    use std::io::Write;
+
+    use apollo_federation_types::config::FederationVersion;
+    use apollo_federation_types::config::FederationVersion::LatestFedTwo;
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use semver::Version;
+    use speculoos::assert_that;
+    use tempfile::Builder;
+
+    use crate::composition::pipeline::state::ResolveFederationVersion;
+    use crate::composition::pipeline::CompositionPipeline;
+    use crate::utils::parsers::FileDescriptorType;
+
+    #[rstest]
+    #[case::happy_path_default(None, vec![], None, None, LatestFedTwo)]
+    #[case::only_from_supergraph_yaml_on_disk(None, vec![], None, Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 9, patch: 1,pre: Default::default(),build: Default::default()}))]
+    #[case::broken_supergraph_on_disk(None, vec![], None, Some(Err(())), LatestFedTwo)]
+    #[case::resolved_overrides_on_disk_version(None, vec![], Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()})), Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()}))]
+    #[case::passed_in_overrides_resolved_and_on_disk_version(Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 5,pre: Default::default(),build: Default::default()})), vec![], Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()})), Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 5,pre: Default::default(),build: Default::default()}))]
+    #[case::fed_one_with_fed_two_subgraphs_gives_fed_two(Some(FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()})), vec![String::from("foo"), String::from("bar")], None, Some(Ok(())), LatestFedTwo)]
+    #[case::fed_one_with_no_fed_two_subgraphs_gives_passed_in(Some(FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()})), vec![], None, Some(Ok(())), FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()}))]
+    fn test_federation_resolution_order(
+        #[case] passed_in_fed_version: Option<FederationVersion>,
+        #[case] fed_two_subgraphs: Vec<String>,
+        #[case] resolved_fed_version: Option<FederationVersion>,
+        #[case] supergraph_yaml_state: Option<Result<(), ()>>,
+        #[case] expected_fed_version: FederationVersion,
+    ) {
+        let mut supergraph_file = Builder::new()
+            .prefix("supergraph")
+            .suffix(".yaml")
+            .tempfile()
+            .expect("Could not create temporary file");
+        let yaml_string = match supergraph_yaml_state {
+            None => "",
+            Some(Ok(_)) => indoc::indoc! {
+            r#"
+                   federation_version: =2.9.1
+                   subgraphs: {}
+                "#
+            },
+            Some(Err(_)) => indoc::indoc! {
+            r#"
+                   bananas: kablamo
+                "#
+            },
+        };
+        supergraph_file
+            .write_all(&yaml_string.to_string().into_bytes())
+            .expect("Could not write contents to file");
+        let supergraph_yaml = Some(FileDescriptorType::File(
+            Utf8PathBuf::from_path_buf(supergraph_file.path().to_path_buf())
+                .expect("Could not conver to Utf8Path"),
+        ));
+        assert_that(
+            &CompositionPipeline::<ResolveFederationVersion>::decide_federation_version(
+                passed_in_fed_version,
+                fed_two_subgraphs,
+                resolved_fed_version,
+                supergraph_yaml,
+            ),
+        )
+        .is_equal_to(expected_fed_version);
     }
 }
 
@@ -335,8 +407,8 @@ impl CompositionPipeline<state::Run> {
         // followed by fully resolving and then tracking any subgraphs that won't do that either.
         //
         // The set of subgraphs that will fully resolve, will form our initial set, and
-        // then we can return a stream that's been set up as best as possible, with an early stream
-        // of errors we can work with (this needs a bit more thought).
+        // then we can return a stream that's been set up as best as possible, with as many subgraphs
+        // as we can.
         let (
             lazily_resolved_supergraph_config,
             fully_resolved_supergraph_config,
@@ -389,7 +461,7 @@ impl CompositionPipeline<state::Run> {
         CompositionPipelineError,
     > {
         // Get the two different kinds of resolutions (we know that the fully_resolved will be a non-proper subset of the lazily_resolved)
-        let (lazily_resolved_supergraph_config, lazy_resolution_errors) = self
+        let (mut lazily_resolved_supergraph_config, _) = self
             .state
             .resolver
             .lazily_resolve_subgraphs(&self.state.supergraph_root, prompt)
@@ -413,33 +485,15 @@ impl CompositionPipeline<state::Run> {
             fully_resolved_supergraph_config
         );
         // Generate the correct lazily_resolved config, by removing all the things that cannot fully resolve
-
-        let final_subgraphs = lazily_resolved_supergraph_config
-            .subgraphs()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .filter(|(name, _)| !full_resolution_errors.contains_key(name))
-            .collect();
-        let final_lazily_resolved_supergraph_config = LazilyResolvedSupergraphConfig::new(
-            lazily_resolved_supergraph_config.origin_path().clone(),
-            final_subgraphs,
-            lazily_resolved_supergraph_config
-                .federation_version()
-                .clone(),
-        );
-        debug!(
-            "Final Config is: {:?}",
-            final_lazily_resolved_supergraph_config
-        );
+        lazily_resolved_supergraph_config
+            .filter_subgraphs(full_resolution_errors.keys().cloned().collect());
+        debug!("Final Config is: {:?}", lazily_resolved_supergraph_config);
 
         // Merge all the errors together and give all three back
         Ok((
-            final_lazily_resolved_supergraph_config,
+            lazily_resolved_supergraph_config,
             fully_resolved_supergraph_config,
-            lazy_resolution_errors
-                .into_iter()
-                .chain(full_resolution_errors)
-                .collect(),
+            full_resolution_errors,
         ))
     }
 }
@@ -448,11 +502,10 @@ mod state {
     use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
 
+    use crate::composition::supergraph::binary::SupergraphBinary;
     use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
     use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-    use crate::composition::supergraph::{
-        binary::SupergraphBinary, config::resolver::InitializedSupergraphConfigResolver,
-    };
+    use crate::composition::supergraph::config::resolver::InitializedSupergraphConfigResolver;
     use crate::utils::parsers::FileDescriptorType;
 
     pub struct Init;

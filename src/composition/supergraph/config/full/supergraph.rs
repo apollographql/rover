@@ -3,18 +3,17 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream, StreamExt, TryFutureExt};
+use futures::{stream, StreamExt};
 use itertools::Itertools;
 use tower::{Service, ServiceExt};
 use tracing::debug;
 
 use super::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, resolver::ResolveSupergraphConfigError,
-    unresolved::UnresolvedSupergraphConfig,
-};
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
@@ -58,30 +57,32 @@ impl FullyResolvedSupergraphConfig {
                 .clone()
                 .into_iter()
                 .map(move |(name, unresolved_subgraph)| {
-                    let name_clone = name.clone();
                     let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
-                    FullyResolvedSubgraph::resolver(
-                        resolve_introspect_subgraph_factory.clone(),
-                        fetch_remote_subgraph_factory,
-                        supergraph_config_root,
-                        unresolved_subgraph.clone(),
-                    )
-                    .map_err(move |err| (name.to_string(), err))
-                    .and_then(move |service| {
-                        let mut service = service.clone();
-                        let name = name_clone.clone();
-                        async move {
-                            let service = service
-                                .ready()
-                                .await
-                                .map_err(|err| (name.to_string(), err))?;
-                            let result = service
-                                .call(())
-                                .await
-                                .map_err(|err| (name.to_string(), err))?;
-                            Ok((name.to_string(), result))
+                    let resolve_introspect_subgraph_factory =
+                        resolve_introspect_subgraph_factory.clone();
+                    async move {
+                        match FullyResolvedSubgraph::resolver(
+                            resolve_introspect_subgraph_factory,
+                            fetch_remote_subgraph_factory,
+                            supergraph_config_root,
+                            unresolved_subgraph.clone(),
+                        )
+                        .await
+                        {
+                            Ok(mut service) => {
+                                let service = service
+                                    .ready()
+                                    .await
+                                    .map_err(|err| (name.to_string(), err))?;
+                                let result = service
+                                    .call(())
+                                    .await
+                                    .map_err(|err| (name.to_string(), err))?;
+                                Ok((name.to_string(), result))
+                            }
+                            Err(err) => Err((name.to_string(), err)),
                         }
-                    })
+                    }
                 }),
         )
         .buffer_unordered(50)
