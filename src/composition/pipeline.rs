@@ -8,6 +8,7 @@ use apollo_federation_types::config::{FederationVersion, SubgraphConfig, Supergr
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
+use rover_std::warnln;
 use tempfile::tempdir;
 use tower::MakeService;
 use tracing::{debug, warn};
@@ -136,7 +137,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         passed_in_fed_version: Option<FederationVersion>,
         prompt: Option<&impl Prompt>,
     ) -> CompositionPipeline<state::InstallSupergraph> {
-        let (fed_two_subgraphs, resolved_fed_version) = match self
+        let resolved_federation_version = match self
             .state
             .resolver
             .fully_resolve_subgraphs(
@@ -147,43 +148,24 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             )
             .await
         {
-            Ok((fully_resolved_supergraph_config, errors)) => {
-                if errors.is_empty() {
-                    let fed_two_subgraphs = fully_resolved_supergraph_config
-                        .subgraphs()
-                        .iter()
-                        .filter_map(|(name, subgraph)| {
-                            if subgraph.is_fed_two {
-                                Some(name.clone())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<String>>();
-                    (
-                        fed_two_subgraphs,
-                        Some(
-                            fully_resolved_supergraph_config
-                                .federation_version()
-                                .clone(),
-                        ),
-                    )
-                } else {
-                    (vec![], None)
-                }
+            Ok((fully_resolved_supergraph_config, _)) => {
+                fully_resolved_supergraph_config.federation_version
             }
             Err(err) => {
-                warn!("Could not fully resolve subgraphs: {}", err);
-                (vec![], None)
+                warn!("Could not fully resolve SupergraphConfig to discover Federation Version: {err}");
+                warn!("Defaulting to Federation Version: {LatestFedTwo}");
+                warnln!("Federation Version could not be detected, defaulting to: {LatestFedTwo}");
+                LatestFedTwo
             }
         };
 
-        let federation_version = Self::decide_federation_version(
-            passed_in_fed_version,
-            fed_two_subgraphs,
-            resolved_fed_version,
-            self.state.supergraph_yaml,
-        );
+        let federation_version = if let Some(fed_version) = passed_in_fed_version {
+            fed_version
+        } else {
+            resolved_federation_version
+        };
+
+        debug!("Using Federation Version '{federation_version}'");
 
         CompositionPipeline {
             state: state::InstallSupergraph {
@@ -195,112 +177,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             },
         }
     }
-
-    fn decide_federation_version(
-        passed_in_fed_version: Option<FederationVersion>,
-        fed_two_subgraphs: Vec<String>,
-        resolved_fed_version: Option<FederationVersion>,
-        supergraph_yaml: Option<FileDescriptorType>,
-    ) -> FederationVersion {
-        let federation_version = match (resolved_fed_version, passed_in_fed_version) {
-            (None, None) => match supergraph_yaml {
-                None => LatestFedTwo,
-                Some(fd) => {
-                    match fd.read_file_descriptor("reading SupergraphConfig", &mut std::io::stdin())
-                    {
-                        Ok(config_str) => match SupergraphConfig::new_from_yaml(&config_str) {
-                            Ok(supergraph_config) => supergraph_config
-                                .get_federation_version()
-                                .unwrap_or(LatestFedTwo),
-                            Err(_) => LatestFedTwo,
-                        },
-                        Err(_) => LatestFedTwo,
-                    }
-                }
-            },
-            (Some(resolved_federation_version), None) => resolved_federation_version,
-            (_, Some(passed_in_federation_version)) => passed_in_federation_version,
-        };
-
-        if !fed_two_subgraphs.is_empty() && federation_version.is_fed_one() {
-            warn!("Federation version 1, cannot be used with Federation 2 subgraphs");
-            warn!("Defaulting to Federation: {}", LatestFedTwo);
-            LatestFedTwo
-        } else {
-            federation_version
-        }
-    }
 }
-
-#[cfg(test)]
-mod tests_resolve_federation_version {
-    use std::io::Write;
-
-    use apollo_federation_types::config::FederationVersion;
-    use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-    use camino::Utf8PathBuf;
-    use rstest::rstest;
-    use semver::Version;
-    use speculoos::assert_that;
-    use tempfile::Builder;
-
-    use crate::composition::pipeline::state::ResolveFederationVersion;
-    use crate::composition::pipeline::CompositionPipeline;
-    use crate::utils::parsers::FileDescriptorType;
-
-    #[rstest]
-    #[case::happy_path_default(None, vec![], None, None, LatestFedTwo)]
-    #[case::only_from_supergraph_yaml_on_disk(None, vec![], None, Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 9, patch: 1,pre: Default::default(),build: Default::default()}))]
-    #[case::broken_supergraph_on_disk(None, vec![], None, Some(Err(())), LatestFedTwo)]
-    #[case::resolved_overrides_on_disk_version(None, vec![], Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()})), Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()}))]
-    #[case::passed_in_overrides_resolved_and_on_disk_version(Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 5,pre: Default::default(),build: Default::default()})), vec![], Some(FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 7,pre: Default::default(),build: Default::default()})), Some(Ok(())), FederationVersion::ExactFedTwo(Version{major: 2, minor: 8, patch: 5,pre: Default::default(),build: Default::default()}))]
-    #[case::fed_one_with_fed_two_subgraphs_gives_fed_two(Some(FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()})), vec![String::from("foo"), String::from("bar")], None, Some(Ok(())), LatestFedTwo)]
-    #[case::fed_one_with_no_fed_two_subgraphs_gives_passed_in(Some(FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()})), vec![], None, Some(Ok(())), FederationVersion::ExactFedOne(Version{major: 1, minor: 0, patch: 1,pre: Default::default(),build: Default::default()}))]
-    fn test_federation_resolution_order(
-        #[case] passed_in_fed_version: Option<FederationVersion>,
-        #[case] fed_two_subgraphs: Vec<String>,
-        #[case] resolved_fed_version: Option<FederationVersion>,
-        #[case] supergraph_yaml_state: Option<Result<(), ()>>,
-        #[case] expected_fed_version: FederationVersion,
-    ) {
-        let mut supergraph_file = Builder::new()
-            .prefix("supergraph")
-            .suffix(".yaml")
-            .tempfile()
-            .expect("Could not create temporary file");
-        let yaml_string = match supergraph_yaml_state {
-            None => "",
-            Some(Ok(_)) => indoc::indoc! {
-            r#"
-                   federation_version: =2.9.1
-                   subgraphs: {}
-                "#
-            },
-            Some(Err(_)) => indoc::indoc! {
-            r#"
-                   bananas: kablamo
-                "#
-            },
-        };
-        supergraph_file
-            .write_all(&yaml_string.to_string().into_bytes())
-            .expect("Could not write contents to file");
-        let supergraph_yaml = Some(FileDescriptorType::File(
-            Utf8PathBuf::from_path_buf(supergraph_file.path().to_path_buf())
-                .expect("Could not conver to Utf8Path"),
-        ));
-        assert_that(
-            &CompositionPipeline::<ResolveFederationVersion>::decide_federation_version(
-                passed_in_fed_version,
-                fed_two_subgraphs,
-                resolved_fed_version,
-                supergraph_yaml,
-            ),
-        )
-        .is_equal_to(expected_fed_version);
-    }
-}
-
 impl CompositionPipeline<state::InstallSupergraph> {
     pub async fn install_supergraph_binary(
         self,
