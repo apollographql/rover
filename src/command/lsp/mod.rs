@@ -23,10 +23,13 @@ use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::runner::CompositionRunner;
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::SubgraphPrompt;
+use crate::composition::supergraph::config::resolver::{
+    ResolveSupergraphConfigError, SubgraphPrompt,
+};
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -194,10 +197,6 @@ async fn start_composition(
                     hints,
                 }) => {
                     debug!("Successfully composed with version {}", federation_version);
-                    // Clear any previous errors on `supergraph.yaml`
-                    language_server
-                        .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
-                        .await;
                     // Ensure we keep publishing the resolution errors
                     language_server
                         .publish_diagnostics(
@@ -222,10 +221,6 @@ async fn start_composition(
                         ?errors,
                         "Composition {federation_version} completed with errors"
                     );
-                    // Clear any previous errors on `supergraph.yaml`
-                    language_server
-                        .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
-                        .await;
                     // Ensure we keep publishing the resolution errors
                     language_server
                         .publish_diagnostics(
@@ -251,7 +246,20 @@ async fn start_composition(
                         CompositionError::ErrorUpdatingFederationVersion(
                             InstallSupergraphError::MissingDependency { err },
                         ) => format!("Supergraph Version could not be updated: {err}"),
-                        _ => format!("Composition failed to run: {err}",),
+                        CompositionError::ResolvingSubgraphsError(
+                            ResolveSupergraphConfigError::ResolveSubgraphs(errors),
+                        ) => {
+                            let new_errors = errors
+                                .into_iter()
+                                .map(|(name, error)| {
+                                    (name.clone(), create_subgraph_resolution_error(&name, error))
+                                })
+                                .collect();
+                            resolution_errors = new_errors;
+                            "Composition failed to run due to subgraph resolution issues"
+                                .to_string()
+                        }
+                        _ => format!("Composition failed to run: {err}"),
                     };
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     let mut diagnostics_to_publish: Vec<Diagnostic> =
@@ -285,12 +293,8 @@ async fn start_composition(
                     // structures, otherwise the removal event was not caused by error, so just
                     // remove and then continue on.
                     if let Some(error) = resolution_error {
-                        let message =
-                            format!("Subgraph '{}' could not be resolved: {}", name, error);
-                        resolution_errors.insert(
-                            name.clone(),
-                            Diagnostic::new_simple(Range::default(), message),
-                        );
+                        resolution_errors
+                            .insert(name.clone(), create_subgraph_resolution_error(&name, error));
                     }
                     language_server
                         .publish_diagnostics(
@@ -306,6 +310,11 @@ async fn start_composition(
         Ok::<(), StartCompositionError>(())
     });
     Ok(())
+}
+
+fn create_subgraph_resolution_error(name: &str, error: ResolveSubgraphError) -> Diagnostic {
+    let message = format!("Subgraph '{}' could not be resolved: {}", name, error);
+    Diagnostic::new_simple(Range::default(), message)
 }
 
 async fn create_composition_runner(
