@@ -1286,7 +1286,12 @@ The input/output is a string in RFC3339 format.
 scalar DateTime
   @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339")
 
-union DeleteOperationCollectionResult = PermissionError
+union DeleteOperationCollectionResult = DeleteOperationCollectionSuccess | PermissionError
+
+type DeleteOperationCollectionSuccess {
+  sandboxOwner: User
+  variants: [GraphVariant!]!
+}
 
 """The result of a successful call to PersistedQueryListMutation.delete."""
 type DeletePersistedQueryListResult {
@@ -2180,14 +2185,14 @@ type GraphVariantMutation {
   ): VariantCheckConfiguration!
   updateCheckConfigurationProposalChangeMismatchSeverity(
     """
-    How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level. If the useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument is false and this argument is null, defaults to OFF
+    How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level.
     """
     proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity
 
     """
     When this argument is true, indicates that graph-level configuration is used for this variant setting.
     """
-    useGraphSettings: Boolean!
+    useGraphSettings: Boolean @deprecated(reason: "Graph-level configuration is no longer supported")
   ): VariantCheckConfiguration!
   updateCheckConfigurationTimeRange(
     """
