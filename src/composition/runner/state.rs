@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::watchers::{
     composition::CompositionWatcher, subgraphs::SubgraphWatchers,
     watcher::supergraph_config::SupergraphConfigWatcher,
@@ -14,6 +15,7 @@ pub struct SetupSupergraphConfigWatcher {
 pub struct SetupCompositionWatcher {
     pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
     pub subgraph_watchers: SubgraphWatchers,
+    pub initial_supergraph_config: LazilyResolvedSupergraphConfig,
 }
 
 pub struct Run<ReadF, ExecC, WriteF>
@@ -25,4 +27,5 @@ where
     pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
     pub subgraph_watchers: SubgraphWatchers,
     pub composition_watcher: CompositionWatcher<ReadF, ExecC, WriteF>,
+    pub initial_supergraph_config: LazilyResolvedSupergraphConfig,
 }

@@ -8,25 +8,20 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+use tracing::{error, warn};
 
-use super::watcher::{
-    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
-    supergraph_config::SupergraphConfigDiff,
-};
+use super::watcher::subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind};
+use super::watcher::supergraph_config::SupergraphConfigDiff;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
+use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::composition::watchers::composition::CompositionInputEvent;
 use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{introspect::ResolveIntrospectSubgraphFactory, FullyResolvedSubgraph},
-        lazy::LazilyResolvedSubgraph,
-        resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-        unresolved::UnresolvedSubgraph,
-    },
-    subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
-};
+use crate::subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
@@ -169,6 +164,7 @@ pub struct SubgraphRoutingUrlChanged {
 pub struct SubgraphSchemaRemoved {
     /// The name of the removed subgraph
     name: String,
+    resolution_error: Option<ResolveSubgraphError>,
 }
 
 impl SubtaskHandleStream for SubgraphWatchers {
@@ -192,8 +188,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
             let cancellation_token = cancellation_token.unwrap_or_default();
             cancellation_token.run_until_cancelled(async move {
                 while let Some(diff) = input.next().await {
-                    match diff {
-                        Ok(diff) => {
+                    if let Ok(diff) = diff {
                             // If we detect additional diffs, start a new subgraph subtask.
                             // Adding the abort handle to the current collection of handles.
                             for (subgraph_name, subgraph_config) in diff.added() {
@@ -201,7 +196,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                     subgraph_name,
                                     subgraph_config,
                                     self.introspection_polling_interval
-                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                ).await.tap_err(|err| error!("{:?}", err));
                             }
 
                             for (subgraph_name, subgraph_config) in diff.changed() {
@@ -209,13 +204,18 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                     subgraph_name,
                                     subgraph_config,
                                     self.introspection_polling_interval
-                                ).await.tap_err(|err| tracing::error!("{:?}", err));
+                                ).await.tap_err(|err| error!("{:?}", err));
                             }
 
                             // If we detect removal diffs, stop the subtask for the removed subgraph.
-                            for subgraph_name in diff.removed() {
-                                eprintln!("Removing subgraph from session: `{}`", subgraph_name);
-                                subgraph_handles.remove(subgraph_name);
+                            for (subgraph_name, potential_error) in diff.removed() {
+                                match potential_error {
+                                    None => eprintln!("Removing subgraph from session: `{}`", subgraph_name),
+                                    Some(err) =>  {
+                                        errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
+                                    },
+                                }
+                                subgraph_handles.remove(subgraph_name, potential_error.clone());
                             }
 
                             // If a diff is empty, but the previous version of the supergraph.yaml
@@ -225,16 +225,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                 let _ = sender.send(CompositionInputEvent::Recompose()).tap_err(|err| error!("{:?}", err));
                             }
                         }
-                        Err(errs) => {
-                            if let SupergraphConfigSerialisationError::ResolvingSubgraphErrors(errs) = errs {
-                                for (subgraph_name, _) in errs {
-                                    errln!("Error detected with the config for {}. Removing it from the session.", subgraph_name);
-                                    subgraph_handles.remove(&subgraph_name);
-                                }
-                            }
-                        }
                     }
-                }
             }).await
         });
     }
@@ -382,16 +373,34 @@ impl SubgraphHandles {
         // and propagate the update through by forcing a recomposition. This may be unnecessary,
         // but we'll figure that out on the receiving end rather than passing around more
         // context.
+        let routing_url = match lazily_resolved_subgraph.routing_url().clone() {
+            None => match subgraph_config.schema.clone() {
+                SchemaSource::SubgraphIntrospection { subgraph_url, .. } => {
+                    Some(subgraph_url.to_string())
+                }
+                SchemaSource::Subgraph { .. } => {
+                    match subgraph_watcher.watcher().clone().fetch().await {
+                        Ok(frs) => frs.routing_url,
+                        Err(err) => {
+                            warn!("Could not resolve routing url from Studio, using None instead. Error: {err}");
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            },
+            a => a,
+        };
         let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
             SubgraphRoutingUrlChanged {
                 name: subgraph.to_string(),
-                routing_url: lazily_resolved_subgraph.routing_url().clone(),
+                routing_url,
             },
         )));
         Ok(())
     }
 
-    pub fn remove(&mut self, subgraph: &str) {
+    pub fn remove(&mut self, subgraph: &str, potential_error: Option<ResolveSubgraphError>) {
         if let Some(cancellation_token) = self.cancellation_tokens.get(subgraph) {
             cancellation_token.cancel();
             self.cancellation_tokens.remove(subgraph);
@@ -402,9 +411,10 @@ impl SubgraphHandles {
             .send(Subgraph(SubgraphEvent::SubgraphRemoved(
                 SubgraphSchemaRemoved {
                     name: subgraph.to_string(),
+                    resolution_error: potential_error,
                 },
             )))
-            .tap_err(|err| tracing::error!("{:?}", err));
+            .tap_err(|err| error!("{:?}", err));
     }
 
     async fn add_oneshot_subgraph_to_session(
@@ -476,20 +486,16 @@ mod tests {
     use tower::ServiceBuilder;
 
     use super::SubgraphWatchers;
-    use crate::composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{
-            introspect::{
-                MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
-                ResolveIntrospectSubgraphService,
-            },
-            FullyResolvedSubgraph,
-        },
-        lazy::LazilyResolvedSubgraph,
-        resolver::fetch_remote_subgraph::{
-            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-            FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
-        },
+    use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::full::introspect::{
+        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+        ResolveIntrospectSubgraphService,
+    };
+    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+    use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+        FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
     };
 
     #[tokio::test]

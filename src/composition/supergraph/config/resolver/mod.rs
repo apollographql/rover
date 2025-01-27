@@ -247,7 +247,13 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         prompt: Option<&impl Prompt>,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+    ) -> Result<
+        (
+            FullyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
         match (prompt, self.state.subgraphs.is_empty()) {
             (Some(prompt), true) => {
                 let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
@@ -315,7 +321,13 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         &self,
         supergraph_config_root: &Utf8PathBuf,
         prompt: Option<&impl Prompt>,
-    ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+    ) -> Result<
+        (
+            LazilyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
         match (prompt, self.state.subgraphs.is_empty()) {
             (Some(prompt), true) => {
                 let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
@@ -353,8 +365,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                     supergraph_config_root,
                     unresolved_supergraph_config,
                 )
-                .await
-                .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+                .await;
                 Ok(resolved_supergraph_config)
             }
             _ => {
@@ -367,8 +378,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                     supergraph_config_root,
                     unresolved_supergraph_config,
                 )
-                .await
-                .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+                .await;
                 Ok(resolved_supergraph_config)
             }
         }
@@ -713,7 +723,7 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
@@ -946,7 +956,7 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
@@ -1179,7 +1189,7 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,

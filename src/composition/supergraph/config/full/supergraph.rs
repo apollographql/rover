@@ -3,18 +3,17 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream, StreamExt, TryFutureExt};
+use futures::{stream, StreamExt};
 use itertools::Itertools;
 use tower::{Service, ServiceExt};
 use tracing::debug;
 
 use super::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, resolver::ResolveSupergraphConfigError,
-    unresolved::UnresolvedSupergraphConfig,
-};
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
@@ -45,34 +44,47 @@ impl FullyResolvedSupergraphConfig {
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs().iter().map(
-            move |(name, unresolved_subgraph)| {
-                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
-                FullyResolvedSubgraph::resolver(
-                    resolve_introspect_subgraph_factory.clone(),
-                    fetch_remote_subgraph_factory,
-                    supergraph_config_root,
-                    unresolved_subgraph.clone(),
-                )
-                .map_err(|err| (name.to_string(), err))
-                .and_then(|service| {
-                    let mut service = service.clone();
-                    let name = name.to_string();
+    ) -> Result<
+        (
+            FullyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
+        let subgraphs = stream::iter(
+            unresolved_supergraph_config
+                .subgraphs()
+                .clone()
+                .into_iter()
+                .map(move |(name, unresolved_subgraph)| {
+                    let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
+                    let resolve_introspect_subgraph_factory =
+                        resolve_introspect_subgraph_factory.clone();
                     async move {
-                        let service = service
-                            .ready()
-                            .await
-                            .map_err(|err| (name.to_string(), err))?;
-                        let result = service
-                            .call(())
-                            .await
-                            .map_err(|err| (name.to_string(), err))?;
-                        Ok((name.to_string(), result))
+                        match FullyResolvedSubgraph::resolver(
+                            resolve_introspect_subgraph_factory,
+                            fetch_remote_subgraph_factory,
+                            supergraph_config_root,
+                            unresolved_subgraph.clone(),
+                        )
+                        .await
+                        {
+                            Ok(mut service) => {
+                                let service = service
+                                    .ready()
+                                    .await
+                                    .map_err(|err| (name.to_string(), err))?;
+                                let result = service
+                                    .call(())
+                                    .await
+                                    .map_err(|err| (name.to_string(), err))?;
+                                Ok((name.to_string(), result))
+                            }
+                            Err(err) => Err((name.to_string(), err)),
+                        }
                     }
-                })
-            },
-        ))
+                }),
+        )
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, FullyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
@@ -81,23 +93,20 @@ impl FullyResolvedSupergraphConfig {
             Vec<(String, FullyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
-        if errors.is_empty() {
-            let subgraphs = BTreeMap::from_iter(subgraphs);
-            let federation_version = unresolved_supergraph_config
-                .federation_version_resolver()
-                .clone()
-                .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
-                .resolve(subgraphs.iter())?;
-            Ok(FullyResolvedSupergraphConfig {
+        let subgraphs = BTreeMap::from_iter(subgraphs);
+        let federation_version = unresolved_supergraph_config
+            .federation_version_resolver()
+            .clone()
+            .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
+            .resolve(subgraphs.iter())?;
+        Ok((
+            FullyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs,
                 federation_version,
-            })
-        } else {
-            Err(ResolveSupergraphConfigError::ResolveSubgraphs(
-                BTreeMap::from_iter(errors.into_iter()),
-            ))
-        }
+            },
+            BTreeMap::from_iter(errors.into_iter()),
+        ))
     }
 
     /// Updates the subgraph with the provided name using the provided schema

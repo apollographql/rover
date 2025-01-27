@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -9,10 +11,13 @@ use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraph;
 use crate::composition::watchers::composition::CompositionInputEvent::{
     Federation, Passthrough, Recompose, Subgraph,
 };
+use crate::composition::CompositionError::ResolvingSubgraphsError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
     FederationUpdaterConfig,
@@ -47,7 +52,8 @@ pub enum CompositionInputEvent {
 
 #[derive(Builder, Debug)]
 pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
-    supergraph_config: FullyResolvedSupergraphConfig,
+    initial_supergraph_config: FullyResolvedSupergraphConfig,
+    initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
     federation_updater_config: Option<FederationUpdaterConfig>,
     supergraph_binary: SupergraphBinary,
     exec_command: ExecC,
@@ -74,34 +80,51 @@ where
         cancellation_token: Option<CancellationToken>,
     ) {
         tokio::task::spawn(async move {
-            let mut supergraph_config = self.supergraph_config.clone();
+            let mut supergraph_config = self.initial_supergraph_config.clone();
             let target_file = self.temp_dir.join("supergraph.yaml");
-            if self.compose_on_initialisation {
-                if let Err(err) = self
-                    .setup_temporary_supergraph_yaml(&supergraph_config, &target_file)
-                    .await
-                {
-                    error!("Could not setup initial supergraph schema: {}", err);
-                };
-                let _ = sender
-                    .send(CompositionEvent::Started)
-                    .tap_err(|err| error!("{:?}", err));
-                let output = self
-                    .run_composition(&target_file, &self.output_target)
-                    .await;
-                match output {
-                    Ok(success) => {
-                        let _ = sender
-                            .send(CompositionEvent::Success(success))
-                            .tap_err(|err| error!("{:?}", err));
-                    }
-                    Err(err) => {
-                        let _ = sender
-                            .send(CompositionEvent::Error(err))
-                            .tap_err(|err| error!("{:?}", err));
+
+            match (
+                self.initial_resolution_errors.is_empty(),
+                self.compose_on_initialisation,
+            ) {
+                (true, true) => {
+                    if let Err(err) = self
+                        .setup_temporary_supergraph_yaml(&supergraph_config, &target_file)
+                        .await
+                    {
+                        error!("Could not setup initial supergraph schema: {}", err);
+                    };
+                    let _ = sender
+                        .send(CompositionEvent::Started)
+                        .tap_err(|err| error!("{:?}", err));
+                    let output = self
+                        .run_composition(&target_file, &self.output_target)
+                        .await;
+                    match output {
+                        Ok(success) => {
+                            let _ = sender
+                                .send(CompositionEvent::Success(success))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
+                        Err(err) => {
+                            let _ = sender
+                                .send(CompositionEvent::Error(err))
+                                .tap_err(|err| error!("{:?}", err));
+                        }
                     }
                 }
-            }
+                (false, _) => {
+                    let _ = sender
+                        .send(CompositionEvent::Error(ResolvingSubgraphsError(
+                            ResolveSupergraphConfigError::ResolveSubgraphs(
+                                self.initial_resolution_errors.clone(),
+                            ),
+                        )))
+                        .tap_err(|err| error!("{:?}", err));
+                }
+                (true, false) => {}
+            };
+
             let cancellation_token = cancellation_token.unwrap_or_default();
             cancellation_token.run_until_cancelled(async {
                 while let Some(event) = input.next().await {
@@ -139,17 +162,18 @@ where
                         }
                         Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
                             let name = subgraph_removed.name();
-                            tracing::info!("Subgraph removed: {}", name);
+                            let resolution_error = subgraph_removed.resolution_error().clone();
+                            info!("Subgraph removed: {}", name);
                             supergraph_config.remove_subgraph(name);
                             let _ = sender
                                 .send(CompositionEvent::SubgraphRemoved(
-                                    CompositionSubgraphRemoved { name: name.clone() },
+                                    CompositionSubgraphRemoved { name: name.clone(), resolution_error },
                                 ))
                                 .tap_err(|err| error!("{:?}", err));
                         }
                         Federation(fed_version) => {
                             if let Some(federation_updater_config) = self.federation_updater_config.clone() {
-                                tracing::info!("Attempting to change supergraph version to {:?}", fed_version);
+                                info!("Attempting to change supergraph version to {:?}", fed_version);
                                 infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
@@ -297,6 +321,7 @@ mod tests {
     use crate::composition::supergraph::binary::OutputTarget;
     use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
     use crate::composition::CompositionSubgraphAdded;
+    use crate::subtask::SubtaskRunStream;
     use crate::{
         composition::{
             events::CompositionEvent,
@@ -307,7 +332,7 @@ mod tests {
             test::{default_composition_json, default_composition_success},
             watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
         },
-        subtask::{Subtask, SubtaskRunStream},
+        subtask::Subtask,
         utils::effect::{
             exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
         },
@@ -381,7 +406,7 @@ mod tests {
             .returning(|_, _| Ok(()));
 
         let composition_handler = CompositionWatcher::builder()
-            .supergraph_config(subgraphs)
+            .initial_supergraph_config(subgraphs)
             .supergraph_binary(supergraph_binary)
             .exec_command(mock_exec)
             .read_file(mock_read_file)

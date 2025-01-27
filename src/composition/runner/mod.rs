@@ -29,6 +29,7 @@ use super::{
     FederationUpdaterConfig,
 };
 use crate::composition::supergraph::binary::OutputTarget;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::watchers::federation::FederationWatcher;
 use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
 use crate::{
@@ -53,7 +54,7 @@ mod state;
 ///   -> Runner<Run>
 // TODO: handle retry flag for subgraphs (see rover dev help)
 pub struct Runner<State> {
-    state: State,
+    pub(crate) state: State,
 }
 
 impl Default for Runner<SetupSubgraphWatchers> {
@@ -96,6 +97,8 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
     pub fn setup_supergraph_config_watcher(
         self,
         supergraph_config: LazilyResolvedSupergraphConfig,
+        fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     ) -> Runner<state::SetupCompositionWatcher> {
         // If the supergraph config was passed as a file, we can configure a watcher for change
         // events.
@@ -111,7 +114,12 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
         );
         let supergraph_config_watcher = if let Some(origin_path) = supergraph_config.origin_path() {
             let f = FileWatcher::new(origin_path.clone());
-            let watcher = SupergraphConfigWatcher::new(f, supergraph_config);
+            let watcher = SupergraphConfigWatcher::new(
+                f,
+                supergraph_config.clone(),
+                fetch_remote_subgraph_factory,
+                resolve_introspect_subgraph_factory,
+            );
             Some(watcher)
         } else {
             None
@@ -120,6 +128,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
             state: state::SetupCompositionWatcher {
                 supergraph_config_watcher,
                 subgraph_watchers: self.state.subgraph_watchers,
+                initial_supergraph_config: supergraph_config,
             },
         }
     }
@@ -130,7 +139,8 @@ impl Runner<state::SetupCompositionWatcher> {
     #[allow(clippy::too_many_arguments)]
     pub fn setup_composition_watcher<ExecC, ReadF, WriteF>(
         self,
-        supergraph_config: FullyResolvedSupergraphConfig,
+        initial_supergraph_config: FullyResolvedSupergraphConfig,
+        initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
         supergraph_binary: SupergraphBinary,
         exec_command: ExecC,
         read_file: ReadF,
@@ -147,7 +157,8 @@ impl Runner<state::SetupCompositionWatcher> {
     {
         // Create a handler for supergraph composition events.
         let composition_watcher_builder = CompositionWatcher::builder()
-            .supergraph_config(supergraph_config)
+            .initial_supergraph_config(initial_supergraph_config)
+            .initial_resolution_errors(initial_resolution_errors)
             .supergraph_binary(supergraph_binary)
             .exec_command(exec_command)
             .read_file(read_file)
@@ -170,6 +181,7 @@ impl Runner<state::SetupCompositionWatcher> {
                 subgraph_watchers: self.state.subgraph_watchers,
                 supergraph_config_watcher: self.state.supergraph_config_watcher,
                 composition_watcher,
+                initial_supergraph_config: self.state.initial_supergraph_config,
             },
         }
     }

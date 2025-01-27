@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::path::PathBuf;
 
 use anyhow::Error;
 use apollo_federation_types::config::SchemaSource;
@@ -10,6 +9,7 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::resolver::{
     LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
 };
@@ -77,6 +77,8 @@ pub enum CompositionError {
     InvalidSupergraphConfig(String),
     #[error("Error when updating Federation Version:\n{}", .0)]
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
+    #[error("Error resolving subgraphs:\n{}", .0)]
+    ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -85,9 +87,10 @@ pub struct CompositionSubgraphAdded {
     pub(crate) schema_source: SchemaSource,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct CompositionSubgraphRemoved {
     pub(crate) name: String,
+    pub(crate) resolution_error: Option<ResolveSubgraphError>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -100,6 +103,4 @@ pub enum SupergraphConfigResolutionError {
     LoadLocalSupergraphConfigFailed(#[from] LoadSupergraphConfigError),
     #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
     ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
-    #[error("Path `{0}` does not point to a file")]
-    PathDoesNotPointToAFile(PathBuf),
 }

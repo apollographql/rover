@@ -10,7 +10,7 @@ use super::UnresolvedSubgraph;
 use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
-#[derive(Getters)]
+#[derive(Getters, Clone)]
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
@@ -44,15 +44,20 @@ impl UnresolvedSupergraphConfig {
             .clone()
             .and_then(|resolver| resolver.target_federation_version())
     }
+
+    /// Updates the internal structure of the SupergraphConfig by filtering out
+    /// any subgraphs that are included in the list of subgraphs to remove.
+    pub fn filter_subgraphs(&mut self, subgraphs_to_remove: Vec<String>) {
+        self.subgraphs
+            .retain(|name, _| !subgraphs_to_remove.contains(name));
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeMap, HashSet};
+    use std::str::FromStr;
     use std::sync::Arc;
-    use std::{
-        collections::{BTreeMap, HashSet},
-        str::FromStr,
-    };
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource};
@@ -63,24 +68,24 @@ mod tests {
     use tower::ServiceBuilder;
     use url::Url;
 
-    use crate::composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        federation::FederationVersionResolverFromSubgraphs,
-        full::{
-            introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService},
-            FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
-        },
-        lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-        resolver::{
-            fetch_remote_subgraph::{
-                FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-                MakeFetchRemoteSubgraphError, RemoteSubgraph,
-            },
-            ResolveSupergraphConfigError,
-        },
-        scenario::*,
-        unresolved::UnresolvedSupergraphConfig,
+    use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
+    use crate::composition::supergraph::config::full::introspect::{
+        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService,
     };
+    use crate::composition::supergraph::config::full::{
+        FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+    };
+    use crate::composition::supergraph::config::lazy::{
+        LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig,
+    };
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+        MakeFetchRemoteSubgraphError, RemoteSubgraph,
+    };
+    use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+    use crate::composition::supergraph::config::scenario::*;
+    use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
     #[fixture]
     fn supergraph_config_root_dir() -> TempDir {
@@ -481,7 +486,7 @@ mod tests {
         )
         .await;
 
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
+        let (resolved_supergraph_config, _) = assert_that!(result).is_ok().subject;
 
         let expected_subgraphs = BTreeMap::from_iter([
             (
@@ -873,12 +878,11 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
         };
 
-        let result = LazilyResolvedSupergraphConfig::resolve(
+        let (resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(
             &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
             unresolved_supergraph_config,
         )
         .await;
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
         // fed version is the default, since none provided
         assert_that!(resolved_supergraph_config.federation_version().as_ref()).is_none();
 
