@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 
-use assert_fs::assert::IntoPathPredicate;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
@@ -10,7 +8,6 @@ use rover_std::{debugln, errln, infoln};
 use serde_yaml::{Mapping, Value};
 use tap::TapFallible;
 use tokio_util::sync::CancellationToken;
-use tracing::debug;
 
 use super::config::parser::RouterConfigParser;
 use super::config::RouterConfig;
