@@ -1,11 +1,13 @@
 use std::io::stdin;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use houston::{Config, Profile};
 use rover_client::operations::config::who_am_i::WhoAmI;
+use rover_client::RoverClientError;
 use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
@@ -15,19 +17,20 @@ use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::Dev;
+use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
 use crate::composition::supergraph::config::resolver::SubgraphPrompt;
-use crate::composition::FederationUpdaterConfig;
+use crate::composition::{CompositionError, FederationUpdaterConfig};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
 use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
 use crate::utils::env::RoverEnvKey;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverError, RoverOutput, RoverResult};
 
 impl Dev {
     /// Runs rover dev
@@ -121,11 +124,6 @@ impl Dev {
             )
             .await?;
 
-        let composition_success = composition_pipeline
-            .compose(&exec_command_impl, &read_file_impl, &write_file_impl, None)
-            .await?;
-        let supergraph_schema = composition_success.supergraph_sdl();
-
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
             Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::Latest,
@@ -166,18 +164,41 @@ impl Dev {
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
                 OutputTarget::Stdout,
-                false,
+                true,
                 federation_updater_config,
                 Some(&SubgraphPrompt::default()),
             )
             .await?;
 
-        let composition_messages = composition_runner.run();
+        let mut composition_messages = composition_runner.run();
 
-        eprintln!(
-            "composing supergraph with Federation {}",
-            composition_pipeline.state.supergraph_binary.version()
-        );
+        // Sit in a loop and wait for the composition to actually succeed, once it does then
+        // we can progress
+        let supergraph_schema;
+        loop {
+            match composition_messages.next().await {
+                Some(CompositionEvent::Started) => {
+                    eprintln!(
+                        "composing supergraph with Federation {}",
+                        composition_pipeline.state.supergraph_binary.version()
+                    );
+                },
+                Some(CompositionEvent::Success(success)) => {
+                    supergraph_schema = success.supergraph_sdl;
+                    break;
+                },
+                Some(CompositionEvent::Error(CompositionError::Build {source,..})) => {
+                    let number_of_subgraphs = source.len();
+                    let error_to_output = RoverError::from(RoverClientError::BuildErrors{ source, num_subgraphs: number_of_subgraphs });
+                    eprintln!("{}", error_to_output)
+                }
+                Some(CompositionEvent::Error(err)) => {
+                    errln!("Error occurred when composing supergraph\n{}", err)
+                }
+                Some(_) => {},
+                None => return Err(RoverError::new(anyhow!("Composition Events Stream closed before supergraph schema could successfully compose")))
+            }
+        }
 
         // This RouterAddress hasn't been fully processed. It only represents the CLI option or
         // default, but we still have to reckon with the config-set address (if one exists). See
@@ -219,7 +240,7 @@ impl Dev {
                 TokioSpawn::default(),
                 &tmp_config_dir_path,
                 client_config.clone(),
-                supergraph_schema,
+                &supergraph_schema,
                 credential,
             )
             .await?
