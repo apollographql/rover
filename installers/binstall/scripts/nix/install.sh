@@ -15,7 +15,7 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download"
+BINARY_DOWNLOAD_PREFIX="${APOLLO_ROVER_BINARY_DOWNLOAD_PREFIX:="https://github.com/apollographql/rover/releases/download"}"
 
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
@@ -63,13 +63,16 @@ download_binary_and_run_installer() {
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
+    local _safe_url
 
-    say "downloading rover from $_url" 1>&2
+    # Remove credentials from the URL for logging
+    _safe_url=$(echo "$_url" | awk '{sub("https://[^@]+@","https://");}1')
+    say "downloading rover from $_safe_url" 1>&2
 
     ensure mkdir -p "$_dir"
     downloader "$_url" "$_file"
     if [ $? != 0 ]; then
-      say "failed to download $_url"
+      say "failed to download $_safe_url"
       say "this may be a standard network error, but it may also indicate"
       say "that rover's release process is not working. When in doubt"
       say "please feel free to open an issue!"
