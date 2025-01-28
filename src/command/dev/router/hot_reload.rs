@@ -1,19 +1,18 @@
-use std::{
-    fmt::{Display, Formatter},
-    net::SocketAddr,
-};
+use std::fmt::{Display, Formatter};
+use std::net::SocketAddr;
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_std::{debugln, errln, infoln};
-use serde_yaml::Value;
+use serde_yaml::{Mapping, Value};
 use tap::TapFallible;
 use tokio_util::sync::CancellationToken;
-use tracing::debug;
 
-use super::config::{parser::RouterConfigParser, RouterConfig};
-use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
+use super::config::parser::RouterConfigParser;
+use super::config::RouterConfig;
+use crate::subtask::SubtaskHandleStream;
+use crate::utils::effect::write_file::WriteFile;
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
@@ -69,24 +68,30 @@ impl HotReloadConfig {
                     .map_err(|err| HotReloadError::Config { err: err.into() })?
                     .to_string();
 
-                let processed_address =
-                    serde_yaml::to_value(&processed_address).map_err(|err| {
-                        HotReloadError::Config {
-                            err: format!("Failed to parse router config: {err}").into(),
-                        }
-                    })?;
-
-                let addr = config
-                    .get_mut("supergraph")
-                    .and_then(|sup| sup.get_mut("listen"))
-                    .ok_or(HotReloadError::Config {
-                        err: "Failed to parse router config's supergraph.listen field"
-                            .to_string()
-                            .into(),
-                    })
-                    .tap_err(|err| debug!("{err}"))?;
-
-                *addr = processed_address;
+                // Try and get the supergraph stanza
+                match config.get_mut("supergraph") {
+                    None => {
+                        // If it doesn't exist then we need to build the mapping, and give it the
+                        // only key we're interested in, which is listen.
+                        let mut listen_mapping = Mapping::new();
+                        listen_mapping.insert(
+                            Value::String("listen".into()),
+                            Value::String(processed_address),
+                        );
+                        config.as_mapping_mut().unwrap().insert(
+                            Value::String("supergraph".into()),
+                            Value::Mapping(listen_mapping),
+                        );
+                    }
+                    Some(supergraph_mapping) => {
+                        // If it does exist then we can just overwrite the existing value
+                        // of listen with what we've worked out
+                        supergraph_mapping.as_mapping_mut().unwrap().insert(
+                            Value::String("listen".into()),
+                            Value::String(processed_address),
+                        );
+                    }
+                };
 
                 let config = serde_yaml::to_string(&config)
                     .map_err(|err| HotReloadError::Config { err: err.into() })?;
@@ -244,6 +249,44 @@ headers:
         }
     }
 
+    #[fixture]
+    fn router_config_no_supergraph() -> &'static str {
+        indoc::indoc! { r#"
+telemetry:
+  instrumentation:
+    spans:
+      mode: spec_compliant
+health_check:
+  enabled: true
+headers:
+  all:
+    request:
+      - propagate:
+          matching: .*
+"#
+        }
+    }
+
+    #[fixture]
+    fn router_config_no_listen() -> &'static str {
+        indoc::indoc! { r#"
+supergraph:
+  generate_query_fragments: false
+telemetry:
+  instrumentation:
+    spans:
+      mode: spec_compliant
+health_check:
+  enabled: true
+headers:
+  all:
+    request:
+      - propagate:
+          matching: .*
+"#
+        }
+    }
+
     // NB: serde_yaml formats what we give it; below represents the above, with an address override
     // applied and having been passed through serde_yaml (notice 15 lines down, where the
     // indendation differs between the two yamls)
@@ -277,6 +320,47 @@ headers:
             println!("{router_config_expectation}");
 
             config.to_string() == router_config_expectation
+        });
+    }
+
+    #[rstest]
+    fn supergraph_stanza_not_required(router_config_no_supergraph: &'static str) {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+        let overrides = HotReloadConfigOverrides::new(address);
+        let hot_reload_config =
+            HotReloadConfig::new(router_config_no_supergraph.to_string(), Some(overrides));
+        assert_that!(hot_reload_config).is_ok().matches(|config| {
+            let value: Value = serde_yaml::from_str(&config.content).unwrap();
+            println!("{config}");
+            value.get("supergraph").unwrap().get("listen").unwrap() == "127.0.0.1:8888"
+        });
+    }
+
+    #[rstest]
+    fn listen_key_not_required(router_config_no_listen: &'static str) {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+        let overrides = HotReloadConfigOverrides::new(address);
+        let hot_reload_config =
+            HotReloadConfig::new(router_config_no_listen.to_string(), Some(overrides));
+        assert_that!(hot_reload_config).is_ok().matches(|config| {
+            let value: Value = serde_yaml::from_str(&config.content).unwrap();
+            println!("{config}");
+            value
+                .get("supergraph")
+                .unwrap()
+                .get("listen")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                == "127.0.0.1:8888"
+                && value
+                    .get("supergraph")
+                    .unwrap()
+                    .get("generate_query_fragments")
+                    .unwrap()
+                    .as_bool()
+                    .unwrap()
+                    == false
         });
     }
 }
