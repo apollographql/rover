@@ -13,6 +13,8 @@ use super::config::parser::RouterConfigParser;
 use super::config::RouterConfig;
 use crate::subtask::SubtaskHandleStream;
 use crate::utils::effect::write_file::WriteFile;
+use crate::utils::expansion::expand;
+use crate::RoverError;
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
@@ -31,6 +33,8 @@ pub enum HotReloadError {
     Config {
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Could not expand YAML")]
+    Expansion { err: RoverError },
 }
 
 #[derive(Builder, Debug, Copy, Clone)]
@@ -59,7 +63,11 @@ impl HotReloadConfig {
         match overrides {
             Some(overrides) => {
                 let mut config = serde_yaml::from_str::<Value>(&content)
-                    .map_err(|err| HotReloadError::Config { err: err.into() })?;
+                    .map_err(|e| HotReloadError::Config { err: e.into() })?;
+                config = match expand(config) {
+                    Ok(config) => Ok(config),
+                    Err(err) => Err(HotReloadError::Expansion { err }),
+                }?;
 
                 // The config's address reflects the precedence logic (CLI override before config before
                 // env before default), so we rely on whatever it gives us when passing it overrides
