@@ -3,15 +3,13 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
-use rover_std::errln;
-use rover_std::RoverStdError;
+use rover_std::{errln, RoverStdError};
 use thiserror::Error;
 
-use self::{
-    parser::{ParseRouterConfigError, RouterConfigParser},
-    state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig},
-};
+use self::parser::{ParseRouterConfigError, RouterConfigParser};
+use self::state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig};
 use crate::utils::effect::read_file::ReadFile;
+use crate::utils::expansion::expand;
 
 pub mod parser;
 pub mod remote;
@@ -34,6 +32,8 @@ pub enum ReadRouterConfigError {
     },
     #[error(transparent)]
     Parse(#[from] ParseRouterConfigError),
+    #[error("{} could not be expanded", .path)]
+    Expansion { path: Utf8PathBuf },
 }
 
 #[derive(Copy, Clone, derive_getters::Getters)]
@@ -148,12 +148,16 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
         match path {
             Some(path) => match read_file_impl.read_file(path).await {
                 Ok(contents) => {
-                    let yaml = serde_yaml::from_str(&contents).map_err(|err| {
+                    let mut yaml = serde_yaml::from_str(&contents).map_err(|err| {
                         ReadRouterConfigError::Deserialization {
                             path: path.clone(),
                             source: err,
                         }
                     })?;
+                    yaml = match expand(yaml) {
+                        Ok(yaml) => Ok(yaml),
+                        Err(_) => Err(ReadRouterConfigError::Expansion { path: path.clone() }),
+                    }?;
 
                     let router_config =
                         RouterConfigParser::new(&yaml, self.state.router_address.into());

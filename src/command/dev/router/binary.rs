@@ -1,4 +1,6 @@
-use std::{collections::HashMap, fmt, process::Stdio};
+use std::collections::HashMap;
+use std::fmt;
+use std::process::Stdio;
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -7,18 +9,16 @@ use houston::Credential;
 use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
-use tokio::{
-    io::{AsyncBufReadExt, BufReader},
-    process::Child,
-};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Child;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::{config::remote::RemoteRouterConfig, hot_reload::HotReloadError};
-use crate::{
-    subtask::SubtaskHandleUnit,
-    utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
-};
+use super::config::remote::RemoteRouterConfig;
+use super::hot_reload::HotReloadError;
+use crate::subtask::SubtaskHandleUnit;
+use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
+use crate::RoverError;
 
 pub enum RouterLog {
     Stdout(String),
@@ -90,12 +90,15 @@ pub enum RunRouterBinaryError {
     Config {
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Failed to expand config: {}.", .err)]
+    Expansion { err: RoverError },
 }
 
 impl From<HotReloadError> for RunRouterBinaryError {
     fn from(value: HotReloadError) -> Self {
         match value {
             HotReloadError::Config { err } => Self::Config { err },
+            HotReloadError::Expansion { err } => Self::Expansion { err },
         }
     }
 }
