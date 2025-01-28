@@ -68,8 +68,11 @@ impl HotReloadConfig {
                     .map_err(|err| HotReloadError::Config { err: err.into() })?
                     .to_string();
 
+                // Try and get the supergraph stanza
                 match config.get_mut("supergraph") {
                     None => {
+                        // If it doesn't exist then we need to build the mapping, and give it the
+                        // only key we're interested in, which is listen.
                         let mut listen_mapping = Mapping::new();
                         listen_mapping.insert(
                             Value::String("listen".into()),
@@ -81,6 +84,8 @@ impl HotReloadConfig {
                         );
                     }
                     Some(supergraph_mapping) => {
+                        // If it does exist then we can just overwrite the existing value
+                        // of listen with what we've worked out
                         supergraph_mapping.as_mapping_mut().unwrap().insert(
                             Value::String("listen".into()),
                             Value::String(processed_address),
