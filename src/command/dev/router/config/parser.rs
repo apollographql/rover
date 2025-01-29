@@ -46,7 +46,7 @@ impl<'a> RouterConfigParser<'a> {
                 source: err,
             })?;
 
-        // Resolution precendence for addresses and ports:
+        // Resolution precedence for addresses and ports:
         // 1) CLI option
         // 2) Config
         // 3) Default
