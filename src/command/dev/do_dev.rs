@@ -257,7 +257,7 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
 
-        let pretty_router_addr_string = router_address.to_pretty_string();
+        let pretty_router_addr_string = router_address.pretty_string();
         infoln!("Your supergraph is running! head to {pretty_router_addr_string} to query your supergraph");
 
         loop {

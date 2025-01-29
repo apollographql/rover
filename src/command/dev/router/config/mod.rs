@@ -100,7 +100,7 @@ impl RouterAddress {
 }
 
 impl RouterAddress {
-    pub(crate) fn to_pretty_string(&self) -> String {
+    pub(crate) fn pretty_string(&self) -> String {
         let host = self
             .host
             .to_string()
@@ -114,7 +114,7 @@ impl RouterAddress {
 
 impl Display for RouterAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.host.to_string(), self.port.to_string())
+        write!(f, "{}:{}", self.host, self.port)
     }
 }
 

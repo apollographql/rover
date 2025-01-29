@@ -369,14 +369,13 @@ headers:
                 .as_str()
                 .unwrap()
                 == "127.0.0.1:8888"
-                && value
+                && !value
                     .get("supergraph")
                     .unwrap()
                     .get("generate_query_fragments")
                     .unwrap()
                     .as_bool()
                     .unwrap()
-                    == false
         });
     }
 }
