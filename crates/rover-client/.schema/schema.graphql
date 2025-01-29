@@ -3472,6 +3472,14 @@ type OperationsCheckResult {
   """Summary/counts for all changes in diff"""
   changeSummary: ChangeSummary!
 
+  """Total number of schema changes, excluding any truncation."""
+  totalNumberOfChanges: Int!
+
+  """
+  Indicates whether the changes for this operation check were truncated due to their large quantity.
+  """
+  areChangesTruncated: Boolean!
+
   """Operations affected by all changes in diff"""
   affectedQueries: [AffectedQuery!]
 
