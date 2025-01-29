@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::net::SocketAddr;
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -10,7 +9,7 @@ use tap::TapFallible;
 use tokio_util::sync::CancellationToken;
 
 use super::config::parser::RouterConfigParser;
-use super::config::RouterConfig;
+use super::config::{RouterAddress, RouterConfig};
 use crate::subtask::SubtaskHandleStream;
 use crate::utils::effect::write_file::WriteFile;
 use crate::utils::expansion::expand;
@@ -39,7 +38,7 @@ pub enum HotReloadError {
 
 #[derive(Builder, Debug, Copy, Clone)]
 pub struct HotReloadConfigOverrides {
-    pub address: SocketAddr,
+    pub address: RouterAddress,
 }
 
 #[derive(Builder)]
@@ -230,12 +229,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
 
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
     use super::*;
+    use crate::command::dev::router::config::{RouterHost, RouterPort};
 
     #[fixture]
     fn router_config() -> &'static str {
@@ -320,7 +319,10 @@ headers:
 
     #[rstest]
     fn overrides_apply(router_config: &'static str, router_config_expectation: &'static str) {
-        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+        let address = RouterAddress::new(
+            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
+            Some(RouterPort::CliOption(8888)),
+        );
         let overrides = HotReloadConfigOverrides::new(address);
         let hot_reload_config = HotReloadConfig::new(router_config.to_string(), Some(overrides));
         assert_that!(hot_reload_config).is_ok().matches(|config| {
@@ -333,7 +335,10 @@ headers:
 
     #[rstest]
     fn supergraph_stanza_not_required(router_config_no_supergraph: &'static str) {
-        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+        let address = RouterAddress::new(
+            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
+            Some(RouterPort::CliOption(8888)),
+        );
         let overrides = HotReloadConfigOverrides::new(address);
         let hot_reload_config =
             HotReloadConfig::new(router_config_no_supergraph.to_string(), Some(overrides));
@@ -346,7 +351,10 @@ headers:
 
     #[rstest]
     fn listen_key_not_required(router_config_no_listen: &'static str) {
-        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+        let address = RouterAddress::new(
+            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
+            Some(RouterPort::CliOption(8888)),
+        );
         let overrides = HotReloadConfigOverrides::new(address);
         let hot_reload_config =
             HotReloadConfig::new(router_config_no_listen.to_string(), Some(overrides));

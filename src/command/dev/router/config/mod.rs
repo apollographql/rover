@@ -15,8 +15,9 @@ pub mod parser;
 pub mod remote;
 mod state;
 
-const DEFAULT_ROUTER_IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-const DEFAULT_ROUTER_PORT: u16 = 4000;
+const DEFAULT_ROUTER_IP_ADDR: RouterHost =
+    RouterHost::Default(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+const DEFAULT_ROUTER_PORT: RouterPort = RouterPort::Default(4000);
 
 #[derive(Error, Debug)]
 pub enum ReadRouterConfigError {
@@ -36,24 +37,70 @@ pub enum ReadRouterConfigError {
     Expansion { path: Utf8PathBuf },
 }
 
-#[derive(Copy, Clone, derive_getters::Getters)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RouterHost {
+    CliOption(IpAddr),
+    ConfigFile(IpAddr),
+    Default(IpAddr),
+}
+
+impl RouterHost {
+    fn get_ip_addr(&self) -> IpAddr {
+        match self {
+            RouterHost::CliOption(ip_addr)
+            | RouterHost::ConfigFile(ip_addr)
+            | RouterHost::Default(ip_addr) => *ip_addr,
+        }
+    }
+}
+
+impl Display for RouterHost {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.get_ip_addr().fmt(f)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RouterPort {
+    CliOption(u16),
+    ConfigFile(u16),
+    Default(u16),
+}
+
+impl RouterPort {
+    fn get_port(&self) -> u16 {
+        match self {
+            RouterPort::CliOption(port)
+            | RouterPort::ConfigFile(port)
+            | RouterPort::Default(port) => *port,
+        }
+    }
+}
+
+impl Display for RouterPort {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.get_port().fmt(f)
+    }
+}
+
+#[derive(Copy, Clone, Debug, derive_getters::Getters, PartialEq, Eq)]
 pub struct RouterAddress {
-    host: IpAddr,
-    port: u16,
+    host: RouterHost,
+    port: RouterPort,
 }
 
 #[buildstructor]
 impl RouterAddress {
     #[builder]
-    pub fn new(host: Option<IpAddr>, port: Option<u16>) -> RouterAddress {
+    pub fn new(host: Option<RouterHost>, port: Option<RouterPort>) -> RouterAddress {
         let host = host.unwrap_or(DEFAULT_ROUTER_IP_ADDR);
         let port = port.unwrap_or(DEFAULT_ROUTER_PORT);
         RouterAddress { host, port }
     }
 }
 
-impl Display for RouterAddress {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl RouterAddress {
+    pub(crate) fn to_pretty_string(&self) -> String {
         let host = self
             .host
             .to_string()
@@ -61,7 +108,13 @@ impl Display for RouterAddress {
             .replace("0.0.0.0", "localhost")
             .replace("[::]", "localhost")
             .replace("[::1]", "localhost");
-        write!(f, "http://{}:{}", host, self.port)
+        format!("http://{}:{}", host, self.port)
+    }
+}
+
+impl Display for RouterAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.host.to_string(), self.port.to_string())
     }
 }
 
@@ -78,7 +131,7 @@ impl From<RouterAddress> for SocketAddr {
     fn from(value: RouterAddress) -> Self {
         let host = value.host;
         let port = value.port;
-        SocketAddr::new(host, port)
+        SocketAddr::new(host.get_ip_addr(), port.get_port())
     }
 }
 
@@ -86,23 +139,7 @@ impl From<&RouterAddress> for SocketAddr {
     fn from(value: &RouterAddress) -> Self {
         let host = value.host;
         let port = value.port;
-        SocketAddr::new(host, port)
-    }
-}
-
-impl From<Option<SocketAddr>> for RouterAddress {
-    fn from(value: Option<SocketAddr>) -> Self {
-        let host = value.map(|addr| addr.ip());
-        let port = value.map(|addr| addr.port());
-        RouterAddress::new(host, port)
-    }
-}
-
-impl From<SocketAddr> for RouterAddress {
-    fn from(value: SocketAddr) -> Self {
-        let host = value.ip();
-        let port = value.port();
-        RouterAddress { host, port }
+        SocketAddr::new(host.get_ip_addr(), port.get_port())
     }
 }
 
@@ -159,10 +196,8 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                         Err(_) => Err(ReadRouterConfigError::Expansion { path: path.clone() }),
                     }?;
 
-                    let router_config =
-                        RouterConfigParser::new(&yaml, self.state.router_address.into());
+                    let router_config = RouterConfigParser::new(&yaml, self.state.router_address);
                     let address = router_config.address()?;
-                    let address = address.into();
                     let health_check_enabled = router_config.health_check_enabled();
                     let health_check_endpoint = router_config.health_check_endpoint()?;
                     let health_check_path = router_config.health_check_path();
