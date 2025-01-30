@@ -139,6 +139,10 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 - [`houston`]: utilities for configuring Rover
 - [`robot-panic`]: a fork of [`rust-cli/human-panic`] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
+- [`rover-graphql`]: A [`tower`](https://docs.rs/tower/latest/tower/) layer that allows for GraphQL requests over a [`tower`] HTTP client
+- [`rover-http`]: A [`tower`](https://docs.rs/tower/latest/tower/) implementation of an HTTP client and additional HTTP request utilities
+- [`rover-std`]: provides common utilities that inform Rover's CLI style
+- [`rover-studio`]: A [`tower`](https://docs.rs/tower/latest/tower/) layer that provides necessary headers and setup for communicating with Apollo Studio
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
 - [`timber`]: Rover's logging formatter
 
@@ -147,6 +151,10 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
 [`rust-cli/human-panic`]: https://github.com/rust-cli/human-panic
 [`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
+[`rover-graphql`]: https://github.com/apollographql/rover/tree/main/crates/rover-graphql
+[`rover-http`]: https://github.com/apollographql/rover/tree/main/crates/rover-http
+[`rover-std`]: https://github.com/apollographql/rover/tree/main/crates/rover-std
+[`rover-studio`]: https://github.com/apollographql/rover/tree/main/crates/rover-studio
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
