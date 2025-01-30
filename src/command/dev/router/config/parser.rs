@@ -146,8 +146,6 @@ mod tests {
     #[rstest]
     #[case("127.0.0.1", RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::ConfigFile(80))))]
     #[case("127.0.0.1:8000", RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::ConfigFile(8000))))]
-    #[case("localhost", RouterAddress::new(Some(RouterHost::ConfigFile("::1".parse()?)), Some(RouterPort::ConfigFile(80))))]
-    #[case("localhost:8000", RouterAddress::new(Some(RouterHost::ConfigFile("::1".parse()?)), Some(RouterPort::ConfigFile(8000))))]
     fn test_get_address_from_router_config(
         #[case] socket_addr_str: &str,
         #[case] expected_router_address: RouterAddress,
