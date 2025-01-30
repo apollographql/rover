@@ -78,14 +78,13 @@ These are releases that usually proceed a standard release as a way of getting f
 1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
 2. Create a new branch "#.#.#-rc.#" where "#.#.#" is this release's version, and the final `#` is the number of the release candidate (this starts at 0 and increments by 1 for each subsequent release candidate)
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
-4. Update the installer versions in [`docs/source/getting-started.mdx`](./docs/source/getting-started.mdx) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
-5. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
-6. Run `cargo xtask prep` (this will require `npm` to be installed).
-7. Push up all of your local changes. The commit message should be "release: v#.#.#-rc.#"
-8. Open a Pull Request from the branch you pushed. The description for this PR should include the salient changes in this release candidate, and what testing should be applied to it.
-9. Paste the changelog entry into the description of the Pull Request.
-10. Add the "🚢release" label to the PR.
-11. Get the PR reviewed
+4. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
+5. Run `cargo xtask prep` (this will require `npm` to be installed).
+6. Push up all of your local changes. The commit message should be "release: v#.#.#-rc.#"
+7. Open a Pull Request from the branch you pushed. The description for this PR should include the salient changes in this release candidate, and what testing should be applied to it.
+8. Paste the changelog entry into the description of the Pull Request.
+9. Add the "🚢release" label to the PR.
+10. Get the PR reviewed
     1. If this necessitates making changes, squash or fixup all changes into a single commit. Use the `Squash and Merge` GitHub button.
 
 ### Tag and build release

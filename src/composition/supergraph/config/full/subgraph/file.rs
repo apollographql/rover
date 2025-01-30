@@ -1,6 +1,7 @@
 //! Utilities that allow for resolving file-based subgraphs
 
 use std::pin::Pin;
+use std::sync::Arc;
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -8,11 +9,10 @@ use futures::Future;
 use rover_std::Fs;
 use tower::Service;
 
+use super::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
 };
-
-use super::FullyResolvedSubgraph;
 
 /// Service that resolves a file-based subgraph
 #[derive(Clone, Builder)]
@@ -39,21 +39,22 @@ impl Service<()> for ResolveFileSubgraph {
         let supergraph_config_root = self.supergraph_config_root.clone();
         let path = self.path.clone();
         let subgraph_name = unresolved_subgraph.name().to_string();
+        let schema_source = self.unresolved_subgraph.schema().clone();
         let fut = async move {
             let file = unresolved_subgraph.resolve_file_path(&supergraph_config_root, &path)?;
-            let schema =
-                Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
-            let routing_url = unresolved_subgraph.routing_url().clone().ok_or_else(|| {
-                ResolveSubgraphError::MissingRoutingUrl {
-                    subgraph: unresolved_subgraph.name().to_string(),
-                }
+            let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs {
+                source: Arc::new(Box::new(err)),
             })?;
 
-            Ok(FullyResolvedSubgraph::builder()
+            let builder = FullyResolvedSubgraph::builder()
                 .name(subgraph_name)
-                .routing_url(routing_url)
                 .schema(schema)
-                .build())
+                .schema_source(schema_source);
+
+            Ok(match unresolved_subgraph.routing_url() {
+                None => builder.build(),
+                Some(routing_url) => builder.routing_url(routing_url).build(),
+            })
         };
         Box::pin(fut)
     }

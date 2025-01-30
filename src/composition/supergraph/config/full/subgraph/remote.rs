@@ -1,18 +1,19 @@
 //! Utilities that resolve subgraphs from Apollo Studio
 
 use std::pin::Pin;
+use std::sync::Arc;
 
+use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::shared::GraphRef;
 use tower::{Service, ServiceExt};
 
+use super::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::{
     error::ResolveSubgraphError,
     resolver::fetch_remote_subgraph::{FetchRemoteSubgraphRequest, RemoteSubgraph},
 };
-
-use super::FullyResolvedSubgraph;
 
 /// Service that resolves a remote subgraph from Apollo Studio
 #[derive(Clone, Builder)]
@@ -46,7 +47,7 @@ where
             .poll_ready(cx)
             .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                 subgraph_name: self.subgraph_name.to_string(),
-                source: Box::new(err),
+                source: Arc::new(Box::new(err)),
             })
     }
 
@@ -62,26 +63,30 @@ where
                 .await
                 .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                     subgraph_name: subgraph_name.to_string(),
-                    source: Box::new(err),
+                    source: Arc::new(Box::new(err)),
                 })?
                 .call(
                     FetchRemoteSubgraphRequest::builder()
-                        .graph_ref(graph_ref)
+                        .graph_ref(graph_ref.clone())
                         .subgraph_name(subgraph_name.to_string())
                         .build(),
                 )
                 .await
                 .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                     subgraph_name: subgraph_name.to_string(),
-                    source: Box::new(err),
+                    source: Arc::new(Box::new(err)),
                 })?;
             let schema = remote_subgraph.schema().clone();
             let routing_url =
                 routing_url.unwrap_or_else(|| remote_subgraph.routing_url().to_string());
             Ok(FullyResolvedSubgraph::builder()
-                .name(subgraph_name)
+                .name(subgraph_name.clone())
                 .routing_url(routing_url)
                 .schema(schema)
+                .schema_source(SchemaSource::Subgraph {
+                    graphref: graph_ref.to_string(),
+                    subgraph: subgraph_name,
+                })
                 .build())
         };
         Box::pin(fut)

@@ -6,17 +6,13 @@ mod lint;
 mod list;
 mod publish;
 
-#[cfg(not(feature = "dev-next"))]
-pub use introspect::Introspect;
-
 use clap::Parser;
+use rover_client::shared::GitContext;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
-
-use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Subgraph {

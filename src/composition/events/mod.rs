@@ -1,4 +1,6 @@
-use super::{CompositionError, CompositionSuccess};
+use super::{
+    CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+};
 
 /// Events emitted from composition
 #[derive(Debug)]
@@ -10,4 +12,8 @@ pub enum CompositionEvent {
     Success(CompositionSuccess),
     /// Composition errored
     Error(CompositionError),
+    /// Subgraph Added
+    SubgraphAdded(CompositionSubgraphAdded),
+    /// SubgraphRemoved
+    SubgraphRemoved(CompositionSubgraphRemoved),
 }

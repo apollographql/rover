@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
@@ -38,7 +40,8 @@ impl UnresolvedSubgraph {
                 subgraph_name: self.name.to_string(),
                 supergraph_config_path: root.clone(),
                 path: path.as_std_path().to_path_buf(),
-                source: err,
+                joined_path: joined_path.as_std_path().to_path_buf(),
+                source: Arc::new(err),
             }),
         }
     }

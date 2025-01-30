@@ -1,13 +1,11 @@
-use std::sync::{Arc, OnceLock};
-
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt, TryFutureExt};
 use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
-use tokio::sync::{mpsc::unbounded_channel, Mutex};
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_util::sync::DropGuard;
+use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use crate::composition::supergraph::config::{
@@ -16,20 +14,16 @@ use crate::composition::supergraph::config::{
 };
 
 /// File watcher specifically for files related to composition
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, Clone)]
 pub struct FileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
-    drop_guard: OnceLock<DropGuard>,
 }
 
 impl FileWatcher {
     /// Create a new filewatcher
     pub fn new(path: Utf8PathBuf) -> Self {
-        Self {
-            path,
-            drop_guard: OnceLock::new(),
-        }
+        Self { path }
     }
 
     pub async fn fetch(&self) -> Result<String, RoverStdError> {
@@ -44,13 +38,14 @@ impl FileWatcher {
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
     /// indefinitely loop on a close filewatcher
-    pub async fn watch(&self) -> BoxStream<'static, String> {
+    pub async fn watch(self, cancellation_token: CancellationToken) -> BoxStream<'static, String> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx);
-        self.drop_guard
-            .set(cancellation_token.clone().drop_guard())
-            .unwrap();
+        let cancellation_token = Fs::watch_file(
+            self.path.as_path().into(),
+            file_tx,
+            Some(cancellation_token),
+        );
 
         output
             .filter_map({
@@ -89,17 +84,12 @@ pub struct SubgraphFileWatcher {
     /// The filepath to watch
     path: Utf8PathBuf,
     resolver: FullyResolveSubgraphService,
-    drop_guard: Arc<Mutex<Option<DropGuard>>>,
 }
 
 impl SubgraphFileWatcher {
     /// Create a new filewatcher
     pub fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraphService) -> Self {
-        Self {
-            path,
-            resolver,
-            drop_guard: Arc::new(Mutex::new(None)),
-        }
+        Self { path, resolver }
     }
 
     pub async fn fetch(mut self) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
@@ -114,14 +104,17 @@ impl SubgraphFileWatcher {
     /// Development note: in the future, we might consider a way to kill the watcher when the
     /// rover-std::fs filewatcher dies. Right now, the stream remains active and we can
     /// indefinitely loop on a close filewatcher
-    pub async fn watch(self) -> BoxStream<'static, FullyResolvedSubgraph> {
+    pub async fn watch(
+        self,
+        cancellation_token: CancellationToken,
+    ) -> BoxStream<'static, FullyResolvedSubgraph> {
         let (file_tx, file_rx) = unbounded_channel();
         let output = UnboundedReceiverStream::new(file_rx);
-        let cancellation_token = Fs::watch_file(self.path.as_path().into(), file_tx);
-        {
-            let mut drop_guard = self.drop_guard.lock().await;
-            let _ = drop_guard.insert(cancellation_token.clone().drop_guard());
-        }
+        let cancellation_token = Fs::watch_file(
+            self.path.as_path().into(),
+            file_tx,
+            Some(cancellation_token),
+        );
 
         output
             .filter_map({
@@ -162,16 +155,14 @@ mod tests {
     use std::{fs::OpenOptions, io::Write, time::Duration};
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
-    use assert_fs::TempDir;
     use speculoos::prelude::*;
     use tokio::time::timeout;
     use tower::ServiceExt;
     use tracing_test::traced_test;
 
+    use super::*;
     use crate::composition::supergraph::config::full::file::ResolveFileSubgraph;
     use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
-
-    use super::*;
 
     #[tokio::test]
     #[traced_test(level = "error")]
@@ -208,15 +199,13 @@ mod tests {
             .expect("couldn't write to file");
 
         let watcher = SubgraphFileWatcher::new(path.clone(), resolve_file_subgraph);
-        // SubgraphFileWatcher has a DropGuard associated with it that cancels the underlying FileWatcher's CancellationToken when dropped, so we must retain a reference until this test finishes. This can be fixed if we migrate this to a `Subtask` implementation to make it safer and more explicit
-        let _watcher = watcher.clone();
-        let mut watching = watcher.watch().await;
+        let mut watching = watcher.watch(CancellationToken::default()).await;
         let _ = tokio::time::sleep(Duration::from_millis(500)).await;
 
         let mut writeable_file = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(path)
+            .open(path.clone())
             .expect("Cannot open file");
 
         let sdl = "type Query { test: String! }";
@@ -231,6 +220,7 @@ mod tests {
             .name(subgraph_name.to_string())
             .routing_url(routing_url.to_string())
             .schema(sdl.to_string())
+            .schema_source(SchemaSource::File { file: path })
             .build();
         assert_that!(&output)
             .is_ok()

@@ -6,12 +6,11 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
+use super::UnresolvedSubgraph;
 use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
-use super::UnresolvedSubgraph;
-
 /// Object that represents a [`SupergraphConfig`] that requires resolution
-#[derive(Getters)]
+#[derive(Getters, Clone)]
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
@@ -45,15 +44,20 @@ impl UnresolvedSupergraphConfig {
             .clone()
             .and_then(|resolver| resolver.target_federation_version())
     }
+
+    /// Updates the internal structure of the SupergraphConfig by filtering out
+    /// any subgraphs that are included in the list of subgraphs to remove.
+    pub fn filter_subgraphs(&mut self, subgraphs_to_remove: Vec<String>) {
+        self.subgraphs
+            .retain(|name, _| !subgraphs_to_remove.contains(name));
+    }
 }
 
 #[cfg(test)]
 mod tests {
-
-    use std::{
-        collections::{BTreeMap, HashSet},
-        str::FromStr,
-    };
+    use std::collections::{BTreeMap, HashSet};
+    use std::str::FromStr;
+    use std::sync::Arc;
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource};
@@ -62,25 +66,26 @@ mod tests {
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::ServiceBuilder;
+    use url::Url;
 
-    use crate::composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        federation::FederationVersionResolverFromSubgraphs,
-        full::{
-            introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService},
-            FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
-        },
-        lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-        resolver::{
-            fetch_remote_subgraph::{
-                FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-                MakeFetchRemoteSubgraphError, RemoteSubgraph,
-            },
-            ResolveSupergraphConfigError,
-        },
-        scenario::*,
-        unresolved::UnresolvedSupergraphConfig,
+    use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
+    use crate::composition::supergraph::config::full::introspect::{
+        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService,
     };
+    use crate::composition::supergraph::config::full::{
+        FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+    };
+    use crate::composition::supergraph::config::lazy::{
+        LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig,
+    };
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
+        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+        MakeFetchRemoteSubgraphError, RemoteSubgraph,
+    };
+    use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+    use crate::composition::supergraph::config::scenario::*;
+    use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
     #[fixture]
     fn supergraph_config_root_dir() -> TempDir {
@@ -356,13 +361,14 @@ mod tests {
         tokio::spawn({
             let remote_subgraph_sdl = remote_subgraph_sdl.clone();
             let remote_subgraph_routing_url = remote_subgraph_routing_url.clone();
+            let remote_subgraph_graph_ref = remote_subgraph_graph_ref.clone();
             async move {
                 let (req, send_response) =
                     fetch_remote_subgraph_handle.next_request().await.unwrap();
                 let subgraph_name = remote_subgraph_subgraph_name.to_string();
                 assert_that!(req).is_equal_to(
                     FetchRemoteSubgraphRequest::builder()
-                        .graph_ref(remote_subgraph_graph_ref.clone())
+                        .graph_ref(remote_subgraph_graph_ref)
                         .subgraph_name(subgraph_name.to_string())
                         .build(),
                 );
@@ -380,7 +386,7 @@ mod tests {
 
         let IntrospectSubgraphScenario {
             sdl: ref introspect_subgraph_sdl,
-            routing_url: introspect_subgraph_routing_url,
+            routing_url: ref introspect_subgraph_routing_url,
             introspection_headers: introspect_subgraph_introspection_headers,
             ..
         } = introspect_subgraph_scenario;
@@ -390,7 +396,7 @@ mod tests {
         resolve_introspect_subgraph_service_handle.allow(1);
 
         tokio::spawn({
-            let introspect_subgraph_routing_url = introspect_subgraph_routing_url.to_string();
+            let introspect_subgraph_routing_url = introspect_subgraph_routing_url.clone();
             let introspect_subgraph_name = introspect_subgraph_name.to_string();
             let introspect_subgraph_sdl = introspect_subgraph_sdl.to_string();
             async move {
@@ -404,6 +410,10 @@ mod tests {
                         .name(introspect_subgraph_name.to_string())
                         .schema(introspect_subgraph_sdl.to_string())
                         .routing_url(introspect_subgraph_routing_url.to_string())
+                        .schema_source(SchemaSource::SubgraphIntrospection {
+                            subgraph_url: Url::parse(&introspect_subgraph_routing_url).unwrap(),
+                            introspection_headers: None,
+                        })
                         .build(),
                 );
             }
@@ -438,7 +448,7 @@ mod tests {
                         .boxed_clone()
                         .map_err(move |err| ResolveSubgraphError::IntrospectionError {
                             subgraph_name: introspect_subgraph_name.to_string(),
-                            source: err,
+                            source: Arc::new(err),
                         })
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
@@ -466,7 +476,7 @@ mod tests {
                     let introspect_subgraph_name = introspect_subgraph_name.to_string();
                     move |err| ResolveSubgraphError::IntrospectionError {
                         subgraph_name: introspect_subgraph_name.to_string(),
-                        source: err,
+                        source: Arc::new(err),
                     }
                 })
                 .service(resolve_introspect_subgraph_factory.into_inner()),
@@ -476,7 +486,7 @@ mod tests {
         )
         .await;
 
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
+        let (resolved_supergraph_config, _) = assert_that!(result).is_ok().subject;
 
         let expected_subgraphs = BTreeMap::from_iter([
             (
@@ -485,6 +495,9 @@ mod tests {
                     .name(sdl_subgraph_name.to_string())
                     .schema(sdl_subgraph_scenario.sdl.clone())
                     .routing_url(sdl_subgraph_scenario.routing_url.to_string())
+                    .schema_source(SchemaSource::Sdl {
+                        sdl: sdl_subgraph_scenario.sdl.clone(),
+                    })
                     .build(),
             ),
             (
@@ -493,6 +506,9 @@ mod tests {
                     .routing_url(file_subgraph_scenario.routing_url.clone())
                     .schema(file_subgraph_scenario.sdl.clone())
                     .name(file_subgraph_name.to_string())
+                    .schema_source(SchemaSource::File {
+                        file: file_subgraph_scenario.schema_file_path.clone(),
+                    })
                     .build(),
             ),
             (
@@ -501,6 +517,10 @@ mod tests {
                     .routing_url(remote_subgraph_routing_url.clone())
                     .schema(remote_subgraph_scenario.sdl.clone())
                     .name(remote_subgraph_name.to_string())
+                    .schema_source(SchemaSource::Subgraph {
+                        graphref: remote_subgraph_graph_ref.clone().to_string(),
+                        subgraph: remote_subgraph_name.to_string(),
+                    })
                     .build(),
             ),
             (
@@ -509,6 +529,11 @@ mod tests {
                     .routing_url(introspect_subgraph_routing_url.clone())
                     .schema(introspect_subgraph_scenario.sdl.clone())
                     .name(introspect_subgraph_name.to_string())
+                    .schema_source(SchemaSource::SubgraphIntrospection {
+                        subgraph_url: Url::parse(&introspect_subgraph_scenario.routing_url.clone())
+                            .unwrap(),
+                        introspection_headers: None,
+                    })
                     .build(),
             ),
         ]);
@@ -700,6 +725,11 @@ mod tests {
                         .name(introspect_subgraph_name.to_string())
                         .schema(introspect_subgraph_sdl.to_string())
                         .routing_url(introspect_subgraph_routing_url.to_string())
+                        .schema_source(SchemaSource::SubgraphIntrospection {
+                            subgraph_url: Url::parse(&introspect_subgraph_routing_url.to_string())
+                                .unwrap(),
+                            introspection_headers: None,
+                        })
                         .build(),
                 );
             }
@@ -734,7 +764,7 @@ mod tests {
                         .boxed_clone()
                         .map_err(move |err| ResolveSubgraphError::IntrospectionError {
                             subgraph_name: introspect_subgraph_name.to_string(),
-                            source: err,
+                            source: Arc::new(err),
                         })
                         .service(resolve_introspect_subgraph_service.into_inner()),
                 );
@@ -747,7 +777,7 @@ mod tests {
                     let introspect_subgraph_name = introspect_subgraph_name.to_string();
                     move |err| ResolveSubgraphError::IntrospectionError {
                         subgraph_name: introspect_subgraph_name.to_string(),
-                        source: err,
+                        source: Arc::new(err),
                     }
                 })
                 .service(resolve_introspect_subgraph_factory.into_inner()),
@@ -848,12 +878,11 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
         };
 
-        let result = LazilyResolvedSupergraphConfig::resolve(
+        let (resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(
             &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
             unresolved_supergraph_config,
         )
         .await;
-        let resolved_supergraph_config = assert_that!(result).is_ok().subject;
         // fed version is the default, since none provided
         assert_that!(resolved_supergraph_config.federation_version().as_ref()).is_none();
 
@@ -861,10 +890,10 @@ mod tests {
             (
                 sdl_subgraph_name.clone(),
                 LazilyResolvedSubgraph::builder()
+                    .name(sdl_subgraph_name.clone())
                     .schema(SchemaSource::Sdl {
                         sdl: sdl_subgraph_scenario.sdl.clone(),
                     })
-                    .name(sdl_subgraph_name.to_string())
                     .routing_url(sdl_subgraph_scenario.routing_url.to_string())
                     .build(),
             ),
@@ -876,8 +905,8 @@ mod tests {
                             .join(file_subgraph_scenario.schema_file_path)
                             .canonicalize_utf8()?,
                     })
+                    .name(file_subgraph_name.clone())
                     .routing_url(file_subgraph_scenario.routing_url)
-                    .name(file_subgraph_name.to_string())
                     .build(),
             ),
             (
@@ -887,8 +916,8 @@ mod tests {
                         graphref: remote_subgraph_scenario.graph_ref.to_string(),
                         subgraph: remote_subgraph_scenario.subgraph_name.clone(),
                     })
+                    .name(remote_subgraph_name.clone())
                     .routing_url(remote_subgraph_scenario.routing_url.clone())
-                    .name(remote_subgraph_name.to_string())
                     .build(),
             ),
             (
@@ -902,8 +931,8 @@ mod tests {
                             introspect_subgraph_scenario.introspection_headers.clone(),
                         ),
                     })
+                    .name(introspect_subgraph_name.clone())
                     .routing_url(introspect_subgraph_scenario.routing_url.clone())
-                    .name(introspect_subgraph_name.to_string())
                     .build(),
             ),
         ]);

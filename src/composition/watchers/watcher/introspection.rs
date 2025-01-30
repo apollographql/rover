@@ -1,6 +1,8 @@
 use std::{marker::Send, pin::Pin, time::Duration};
 
 use futures::{Stream, StreamExt};
+use rover_std::{errln, infoln};
+use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -11,8 +13,6 @@ use crate::{
     subtask::{Subtask, SubtaskRunUnit},
     watch::Watch,
 };
-
-use rover_std::{errln, infoln};
 
 /// Subgraph introspection
 #[derive(Debug, Clone)]
@@ -36,13 +36,16 @@ impl SubgraphIntrospection {
 
     // TODO: better typing so that it's over some impl, not string; makes all watch() fns require
     // returning a string
-    pub fn watch(self) -> Pin<Box<dyn Stream<Item = FullyResolvedSubgraph> + Send>> {
+    pub fn watch(
+        self,
+        cancellation_token: CancellationToken,
+    ) -> Pin<Box<dyn Stream<Item = FullyResolvedSubgraph> + Send>> {
         let watch = Watch::builder()
             .polling_interval(self.polling_interval)
             .service(self.resolver.clone())
             .build();
         let (watch_messages, watch_subtask) = Subtask::new(watch);
-        watch_subtask.run();
+        watch_subtask.run(Some(cancellation_token));
 
         // Stream any subgraph changes, filtering out empty responses (None) while passing along
         // the sdl changes

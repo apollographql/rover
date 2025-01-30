@@ -14,7 +14,7 @@
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-$package_version = 'v0.26.3'
+$package_version = 'v0.27.0-rc.2'
 
 function Install-Binary($rover_install_args) {
   $old_erroractionpreference = $ErrorActionPreference
@@ -37,8 +37,16 @@ function Install-Binary($rover_install_args) {
 }
 
 function Download($version) {
-  $url = "https://github.com/apollographql/rover/releases/download/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
-  "Downloading Rover from $url" | Out-Host
+  $binary_download_prefix = $env:APOLLO_ROVER_BINARY_DOWNLOAD_PREFIX
+  if (-not $binary_download_prefix) {
+    $binary_download_prefix = "https://github.com/apollographql/rover/releases/download"
+  }
+  $url = "$binary_download_prefix/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
+
+  # Remove credentials from the URL for logging
+  $safe_url = $url -replace "https://[^@]+@", "https://"
+
+  "Downloading Rover from $safe_url" | Out-Host
   $tmp = New-Temp-Dir
   $dir_path = "$tmp\rover.tar.gz"
   $wc = New-Object Net.Webclient

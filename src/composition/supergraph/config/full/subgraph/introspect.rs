@@ -1,7 +1,8 @@
 //! Utilities that help resolve a subgraph via introspection
-
+use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
 
+use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;
 use futures::Future;
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -13,9 +14,8 @@ use rover_http::{extend_headers::ExtendHeadersLayer, HttpService};
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use url::Url;
 
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-
 use super::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
 
 /// Alias for a service that fully resolves a subgraph via introspection
 pub type ResolveIntrospectSubgraphService =
@@ -76,10 +76,14 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
                 .iter()
                 .map(|(key, value)| {
                     HeaderName::from_bytes(key.as_bytes())
-                        .map_err(ResolveSubgraphError::from)
+                        .map_err(|err| ResolveSubgraphError::HeaderName {
+                            source: Arc::new(err),
+                        })
                         .and_then(|key| {
                             HeaderValue::from_str(value)
-                                .map_err(ResolveSubgraphError::from)
+                                .map_err(|err| ResolveSubgraphError::HeaderValue {
+                                    source: Arc::new(err),
+                                })
                                 .map(|value| (key, value))
                         })
                 })
@@ -94,6 +98,7 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
                 .inner(introspect_service)
                 .subgraph_name(subgraph_name.to_string())
                 .routing_url(routing_url.clone().unwrap_or_else(|| endpoint.to_string()))
+                .introspection_headers(headers)
                 .build()
                 .boxed_clone())
         };
@@ -110,6 +115,7 @@ where
     inner: S,
     subgraph_name: String,
     routing_url: String,
+    introspection_headers: Option<HashMap<String, String>>,
 }
 
 impl<S> Service<()> for ResolveIntrospectSubgraph<S>
@@ -130,7 +136,7 @@ where
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner
             .poll_ready(cx)
-            .map_err(|err| ResolveSubgraphError::ServiceReady(Box::new(err)))
+            .map_err(|err| ResolveSubgraphError::ServiceReady(Arc::new(Box::new(err))))
     }
 
     fn call(&mut self, _req: ()) -> Self::Future {
@@ -138,18 +144,24 @@ where
         let mut inner = std::mem::replace(&mut self.inner, cloned);
         let subgraph_name = self.subgraph_name.to_string();
         let routing_url = self.routing_url.to_string();
+        let introspection_headers = self.introspection_headers.clone();
         let fut =
             async move {
+                let subgraph_url = Url::parse(&routing_url)?;
                 let schema = inner.call(()).await.map_err(|err| {
                     ResolveSubgraphError::IntrospectionError {
                         subgraph_name: subgraph_name.to_string(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     }
                 })?;
                 Ok(FullyResolvedSubgraph::builder()
                     .name(subgraph_name)
                     .routing_url(routing_url)
                     .schema(schema.result)
+                    .schema_source(SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    })
                     .build())
             };
         Box::pin(fut)

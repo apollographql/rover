@@ -11,11 +11,11 @@ use rover_client::{
     operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
     shared::GraphRef,
 };
-use rover_std::{debugln, errln, infoln, RoverStdError};
+use rover_std::{debugln, infoln, RoverStdError};
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
-use tracing::info;
 
 use super::{
     binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
@@ -25,7 +25,10 @@ use super::{
     watchers::router_config::RouterConfigWatcher,
 };
 use crate::{
-    command::dev::next::FileWatcher,
+    command::dev::{
+        router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
+        router::watchers::file::FileWatcher,
+    },
     composition::events::CompositionEvent,
     options::LicenseAccepter,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
@@ -53,7 +56,7 @@ impl Default for RunRouter<state::Install> {
 }
 
 impl RunRouter<state::Install> {
-    pub async fn install<I: InstallBinary>(
+    pub async fn install(
         self,
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,
@@ -86,6 +89,9 @@ impl RunRouter<state::LoadLocalConfig> {
             .with_config(read_file_impl, config_path.as_ref())
             .await?;
         if let Some(config_path) = config_path.clone() {
+            // This is a somewhat misleading place to alert users that their config is being
+            // watched (because there's no watching logic _here_); look at the
+            // RunRouter<state::Watch> impl for the actual watching logic
             infoln!(
                 "Watching {} for changes",
                 config_path.as_std_path().display()
@@ -141,6 +147,7 @@ impl RunRouter<state::Run> {
         temp_router_dir: &Utf8Path,
         studio_client_config: StudioClientConfig,
         supergraph_schema: &str,
+        credential: Credential,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -159,11 +166,23 @@ impl RunRouter<state::Run> {
             "Creating temporary router config path at {}",
             hot_reload_config_path
         );
+
+        let hot_reload_config = HotReloadConfig::new(
+            self.state.config.raw_config(),
+            Some(
+                HotReloadConfigOverrides::builder()
+                    .address(self.state.config.address())
+                    .build(),
+            ),
+        )
+        .map_err(RunRouterBinaryError::from)?
+        .to_string();
+
         write_file
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
-                    .contents(Vec::from(self.state.config.raw_config()))
+                    .contents(Vec::from(hot_reload_config.to_string()))
                     .build(),
             )
             .await
@@ -195,6 +214,7 @@ impl RunRouter<state::Run> {
             .config_path(hot_reload_config_path.clone())
             .supergraph_schema_path(hot_reload_schema_path.clone())
             .and_remote_config(self.state.remote_config.clone())
+            .credential(credential)
             .spawn(spawn)
             .build();
 
@@ -203,13 +223,14 @@ impl RunRouter<state::Run> {
             _,
         ) = Subtask::new(run_router_binary);
 
-        let abort_router = SubtaskRunUnit::run(run_router_binary_subtask);
+        let cancellation_token = CancellationToken::new();
+        SubtaskRunUnit::run(run_router_binary_subtask, Some(cancellation_token.clone()));
 
         self.wait_for_healthy_router(&studio_client_config).await?;
 
         Ok(RunRouter {
             state: state::Watch {
-                abort_router,
+                cancellation_token,
                 config_path: self.state.config_path,
                 hot_reload_config_path,
                 hot_reload_schema_path,
@@ -223,7 +244,7 @@ impl RunRouter<state::Run> {
         studio_client_config: &StudioClientConfig,
     ) -> Result<(), RunRouterBinaryError> {
         if !self.state.config.health_check_enabled() {
-            info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+            tracing::info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
             return Ok(());
         }
 
@@ -233,7 +254,7 @@ impl RunRouter<state::Run> {
             None => {
             return Err(RunRouterBinaryError::Internal {
                 dependency: "Router Config Validation".to_string(),
-                err: format!("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint"),
+                err: String::from("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint")
             })
             }
         };
@@ -294,6 +315,7 @@ impl RunRouter<state::Watch> {
         self,
         write_file_impl: WriteF,
         composition_messages: BoxStream<'static, CompositionEvent>,
+        hot_reload_overrides: HotReloadConfigOverrides,
     ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
@@ -303,16 +325,15 @@ impl RunRouter<state::Watch> {
             self.state.config_path
         {
             let config_watcher = RouterConfigWatcher::new(FileWatcher::new(config_path.clone()));
-            let (events, abort_handle): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
+            let (events, subtask): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
                 Subtask::new(config_watcher);
-            (Some(events), Some(abort_handle))
+            (Some(events), Some(subtask))
         } else {
             (None, None)
         };
 
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
-                CompositionEvent::Started => None,
                 CompositionEvent::Error(err) => {
                     tracing::error!("Composition error {:?}", err);
                     None
@@ -320,34 +341,38 @@ impl RunRouter<state::Watch> {
                 CompositionEvent::Success(success) => Some(RouterUpdateEvent::SchemaChanged {
                     schema: success.supergraph_sdl().to_string(),
                 }),
+                _ => None,
             })
             .boxed();
 
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
+            .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
 
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-
         let router_config_updates = router_config_updates
             .map(move |stream| stream.boxed())
             .unwrap_or_else(|| stream::empty().boxed());
-
         let router_updates =
             tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
 
-        let abort_hot_reload = SubtaskRunStream::run(hot_reload_subtask, router_updates.boxed());
+        SubtaskRunStream::run(
+            hot_reload_subtask,
+            router_updates.boxed(),
+            Some(self.state.cancellation_token.clone()),
+        );
 
-        let abort_config_watcher = config_watcher_subtask.map(SubtaskRunUnit::run);
+        if let Some(subtask) = config_watcher_subtask {
+            subtask.run(Some(self.state.cancellation_token.clone()))
+        }
 
         RunRouter {
             state: state::Abort {
-                abort_router: self.state.abort_router,
-                abort_hot_reload,
-                abort_config_watcher,
+                cancellation_token: self.state.cancellation_token.clone(),
                 hot_reload_events,
                 router_logs: self.state.router_logs,
                 hot_reload_schema_path: self.state.hot_reload_schema_path,
@@ -364,20 +389,16 @@ impl RunRouter<state::Abort> {
     }
 
     pub fn shutdown(&mut self) {
-        self.state.abort_router.abort();
-        self.state.abort_hot_reload.abort();
-        if let Some(abort) = self.state.abort_config_watcher.take() {
-            abort.abort();
-        };
+        self.state.cancellation_token.cancel();
     }
 }
 
 mod state {
     use camino::Utf8PathBuf;
-    use tokio::task::AbortHandle;
     use tokio_stream::wrappers::UnboundedReceiverStream;
+    use tokio_util::sync::CancellationToken;
 
-    use crate::command::dev::next::router::{
+    use crate::command::dev::router::{
         binary::{RouterBinary, RouterLog, RunRouterBinaryError},
         config::{remote::RemoteRouterConfig, RouterConfigFinal},
         hot_reload::HotReloadEvent,
@@ -400,7 +421,7 @@ mod state {
         pub remote_config: Option<RemoteRouterConfig>,
     }
     pub struct Watch {
-        pub abort_router: AbortHandle,
+        pub cancellation_token: CancellationToken,
         pub config_path: Option<Utf8PathBuf>,
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
@@ -411,11 +432,7 @@ mod state {
         #[allow(unused)]
         pub hot_reload_events: UnboundedReceiverStream<HotReloadEvent>,
         #[allow(unused)]
-        pub abort_router: AbortHandle,
-        #[allow(unused)]
-        pub abort_config_watcher: Option<AbortHandle>,
-        #[allow(unused)]
-        pub abort_hot_reload: AbortHandle,
+        pub cancellation_token: CancellationToken,
         #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
     }

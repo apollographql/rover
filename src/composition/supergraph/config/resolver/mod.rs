@@ -23,14 +23,13 @@ use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
+use tracing::warn;
 use url::Url;
 
-use crate::{
-    cli::Rover,
-    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
-    RoverError,
+use self::{
+    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
 };
-
 use super::{
     error::ResolveSubgraphError,
     federation::{
@@ -41,10 +40,10 @@ use super::{
     lazy::LazilyResolvedSupergraphConfig,
     unresolved::UnresolvedSupergraphConfig,
 };
-
-use self::{
-    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest, state::ResolveSubgraphs,
+use crate::{
+    cli::Rover,
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
+    RoverError,
 };
 
 pub mod fetch_remote_subgraph;
@@ -162,7 +161,12 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                 .and_then(|contents| {
                     SupergraphConfig::new_from_yaml(&contents)
                         .map_err(LoadSupergraphConfigError::SupergraphConfig)
-                })?;
+                })
+                .unwrap_or_else(|e| {
+                    warn!("Could not initially parse supergraph config: {}", e);
+                    warn!("Proceeding with empty supergraph config");
+                    SupergraphConfig::new(BTreeMap::new(), None)
+                });
             let origin_path = match file_descriptor_type {
                 FileDescriptorType::File(file) => Some(file.clone()),
                 FileDescriptorType::Stdin => None,
@@ -242,62 +246,71 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         supergraph_config_root: &Utf8PathBuf,
-        prompt: &impl Prompt,
-    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        if !self.state.subgraphs.is_empty() {
-            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .subgraphs(self.state.subgraphs.clone())
-                .federation_version_resolver(self.state.federation_version_resolver.clone())
-                .build();
-            let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                resolve_introspect_subgraph_factory,
-                fetch_remote_subgraph_factory,
-                supergraph_config_root,
-                unresolved_supergraph_config,
-            )
-            .await?;
-            Ok(resolved_supergraph_config)
-        } else {
-            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
-                let mut map = BTreeMap::new();
-                map.insert("NAME UNKNOWN".to_string(), err);
-                ResolveSupergraphConfigError::ResolveSubgraphs(map)
-            })?;
+        prompt: Option<&impl Prompt>,
+    ) -> Result<
+        (
+            FullyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
+        match (prompt, self.state.subgraphs.is_empty()) {
+            (Some(prompt), true) => {
+                let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                    let mut map = BTreeMap::new();
+                    map.insert("NAME UNKNOWN".to_string(), err);
+                    ResolveSupergraphConfigError::ResolveSubgraphs(map)
+                })?;
 
-            let name = prompt.prompt_for_name().map_err(|err| {
-                let mut map = BTreeMap::new();
-                map.insert("NAME UNKNOWN".to_string(), err);
-                ResolveSupergraphConfigError::ResolveSubgraphs(map)
-            })?;
+                let name = prompt.prompt_for_name().map_err(|err| {
+                    let mut map = BTreeMap::new();
+                    map.insert("NAME UNKNOWN".to_string(), err);
+                    ResolveSupergraphConfigError::ResolveSubgraphs(map)
+                })?;
 
-            let schema_source = SchemaSource::SubgraphIntrospection {
-                subgraph_url: subgraph_url.clone(),
-                introspection_headers: None,
-            };
+                let schema_source = SchemaSource::SubgraphIntrospection {
+                    subgraph_url: subgraph_url.clone(),
+                    introspection_headers: None,
+                };
 
-            let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
-            subgraphs.insert(
-                name,
-                SubgraphConfig {
-                    routing_url: Some(subgraph_url.to_string()),
-                    schema: schema_source,
-                },
-            );
+                let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
+                subgraphs.insert(
+                    name,
+                    SubgraphConfig {
+                        routing_url: Some(subgraph_url.to_string()),
+                        schema: schema_source,
+                    },
+                );
 
-            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .subgraphs(subgraphs)
-                .federation_version_resolver(self.state.federation_version_resolver.clone())
-                .build();
+                let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                    .subgraphs(subgraphs)
+                    .federation_version_resolver(self.state.federation_version_resolver.clone())
+                    .build();
 
-            let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
-                resolve_introspect_subgraph_factory,
-                fetch_remote_subgraph_factory,
-                supergraph_config_root,
-                unresolved_supergraph_config,
-            )
-            .await?;
+                let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
+                    resolve_introspect_subgraph_factory,
+                    fetch_remote_subgraph_factory,
+                    supergraph_config_root,
+                    unresolved_supergraph_config,
+                )
+                .await?;
 
-            Ok(resolved_supergraph_config)
+                Ok(resolved_supergraph_config)
+            }
+            _ => {
+                let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                    .subgraphs(self.state.subgraphs.clone())
+                    .federation_version_resolver(self.state.federation_version_resolver.clone())
+                    .build();
+                let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
+                    resolve_introspect_subgraph_factory,
+                    fetch_remote_subgraph_factory,
+                    supergraph_config_root,
+                    unresolved_supergraph_config,
+                )
+                .await?;
+                Ok(resolved_supergraph_config)
+            }
         }
     }
 
@@ -307,60 +320,67 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         &self,
         supergraph_config_root: &Utf8PathBuf,
-        prompt: &impl Prompt,
-    ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
-        if !self.state.subgraphs.is_empty() {
-            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .and_origin_path(self.state.origin_path.clone())
-                .subgraphs(self.state.subgraphs.clone())
-                .federation_version_resolver(self.state.federation_version_resolver.clone())
-                .build();
-            let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
-                supergraph_config_root,
-                unresolved_supergraph_config,
-            )
-            .await
-            .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
-            Ok(resolved_supergraph_config)
-        } else {
-            let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
-                let mut map = BTreeMap::new();
-                map.insert("NAME UNKNOWN".to_string(), err);
-                ResolveSupergraphConfigError::ResolveSubgraphs(map)
-            })?;
+        prompt: Option<&impl Prompt>,
+    ) -> Result<
+        (
+            LazilyResolvedSupergraphConfig,
+            BTreeMap<String, ResolveSubgraphError>,
+        ),
+        ResolveSupergraphConfigError,
+    > {
+        match (prompt, self.state.subgraphs.is_empty()) {
+            (Some(prompt), true) => {
+                let subgraph_url = prompt.prompt_for_subgraph_url().map_err(|err| {
+                    let mut map = BTreeMap::new();
+                    map.insert("NAME UNKNOWN".to_string(), err);
+                    ResolveSupergraphConfigError::ResolveSubgraphs(map)
+                })?;
 
-            let name = prompt.prompt_for_name().map_err(|err| {
-                let mut map = BTreeMap::new();
-                map.insert("NAME UNKNOWN".to_string(), err);
-                ResolveSupergraphConfigError::ResolveSubgraphs(map)
-            })?;
+                let name = prompt.prompt_for_name().map_err(|err| {
+                    let mut map = BTreeMap::new();
+                    map.insert("NAME UNKNOWN".to_string(), err);
+                    ResolveSupergraphConfigError::ResolveSubgraphs(map)
+                })?;
 
-            let schema_source = SchemaSource::SubgraphIntrospection {
-                subgraph_url: subgraph_url.clone(),
-                introspection_headers: None,
-            };
+                let schema_source = SchemaSource::SubgraphIntrospection {
+                    subgraph_url: subgraph_url.clone(),
+                    introspection_headers: None,
+                };
 
-            let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
-            subgraphs.insert(
-                name,
-                SubgraphConfig {
-                    routing_url: Some(subgraph_url.to_string()),
-                    schema: schema_source,
-                },
-            );
+                let mut subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
+                subgraphs.insert(
+                    name,
+                    SubgraphConfig {
+                        routing_url: Some(subgraph_url.to_string()),
+                        schema: schema_source,
+                    },
+                );
 
-            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
-                .subgraphs(subgraphs)
-                .federation_version_resolver(self.state.federation_version_resolver.clone())
-                .build();
+                let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                    .subgraphs(subgraphs)
+                    .federation_version_resolver(self.state.federation_version_resolver.clone())
+                    .build();
 
-            let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
-                supergraph_config_root,
-                unresolved_supergraph_config,
-            )
-            .await
-            .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
-            Ok(resolved_supergraph_config)
+                let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                    supergraph_config_root,
+                    unresolved_supergraph_config,
+                )
+                .await;
+                Ok(resolved_supergraph_config)
+            }
+            _ => {
+                let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                    .and_origin_path(self.state.origin_path.clone())
+                    .subgraphs(self.state.subgraphs.clone())
+                    .federation_version_resolver(self.state.federation_version_resolver.clone())
+                    .build();
+                let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                    supergraph_config_root,
+                    unresolved_supergraph_config,
+                )
+                .await;
+                Ok(resolved_supergraph_config)
+            }
         }
     }
 }
@@ -439,6 +459,7 @@ fn maybe_name_from_dir() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::{collections::BTreeMap, str::FromStr};
 
     use anyhow::Result;
@@ -458,6 +479,14 @@ mod tests {
     use tower::{ServiceBuilder, ServiceExt};
     use tower_test::mock::Handle;
 
+    use super::{
+        fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
+        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
+        MockPrompt, SupergraphConfigResolver,
+    };
     use crate::{
         composition::supergraph::config::{
             error::ResolveSubgraphError,
@@ -473,15 +502,6 @@ mod tests {
             effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
             parsers::FileDescriptorType,
         },
-    };
-
-    use super::{
-        fetch_remote_subgraph::{
-            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-            MakeFetchRemoteSubgraphError, RemoteSubgraph,
-        },
-        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
-        MockPrompt, SupergraphConfigResolver,
     };
 
     /// Test showing that federation version is selected from the user-specified fed version
@@ -695,7 +715,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
@@ -703,12 +723,12 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 
@@ -928,7 +948,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
@@ -936,12 +956,12 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 
@@ -1161,7 +1181,7 @@ mod tests {
                             .boxed_clone()
                             .map_err(|err| ResolveSubgraphError::IntrospectionError {
                                 subgraph_name: "dont-call-me".to_string(),
-                                source: err,
+                                source: Arc::new(err),
                             })
                             .service(resolve_introspect_subgraph_service.into_inner()))
                     }
@@ -1169,12 +1189,12 @@ mod tests {
             );
 
         // fully resolve subgraphs into their SDLs
-        let fully_resolved_supergraph_config = resolver
+        let (fully_resolved_supergraph_config, _) = resolver
             .fully_resolve_subgraphs(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 &local_supergraph_config_path,
-                &MockPrompt::default(),
+                Some(&MockPrompt::default()),
             )
             .await?;
 

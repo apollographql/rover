@@ -6,11 +6,9 @@ use derive_getters::Getters;
 use futures::{stream, StreamExt};
 use itertools::Itertools;
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
-};
-
 use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -28,7 +26,10 @@ impl LazilyResolvedSupergraphConfig {
     pub async fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
-    ) -> Result<LazilyResolvedSupergraphConfig, BTreeMap<String, ResolveSubgraphError>> {
+    ) -> (
+        LazilyResolvedSupergraphConfig,
+        BTreeMap<String, ResolveSubgraphError>,
+    ) {
         let subgraphs = stream::iter(
             unresolved_supergraph_config
                 .subgraphs()
@@ -51,15 +52,21 @@ impl LazilyResolvedSupergraphConfig {
             Vec<(String, LazilyResolvedSubgraph)>,
             Vec<(String, ResolveSubgraphError)>,
         ) = subgraphs.into_iter().partition_result();
-        if errors.is_empty() {
-            Ok(LazilyResolvedSupergraphConfig {
+        (
+            LazilyResolvedSupergraphConfig {
                 origin_path: unresolved_supergraph_config.origin_path().clone(),
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version: unresolved_supergraph_config.target_federation_version(),
-            })
-        } else {
-            Err(BTreeMap::from_iter(errors.into_iter()))
-        }
+            },
+            BTreeMap::from_iter(errors.into_iter()),
+        )
+    }
+
+    /// Updates the internal structure of the SupergraphConfig by filtering out
+    /// any subgraphs that are included in the list of subgraphs to remove.
+    pub fn filter_subgraphs(&mut self, subgraphs_to_remove: Vec<String>) {
+        self.subgraphs
+            .retain(|name, _| !subgraphs_to_remove.contains(name));
     }
 }
 

@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use apollo_parser::{cst, Parser};
@@ -12,15 +13,14 @@ pub mod file;
 pub mod introspect;
 pub mod remote;
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-    unresolved::UnresolvedSubgraph,
-};
-
 use self::{
     file::ResolveFileSubgraph,
     introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory},
     remote::ResolveRemoteSubgraph,
+};
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    unresolved::UnresolvedSubgraph,
 };
 
 /// Alias for a [`tower::Service`] that fully resolves a subgraph
@@ -31,8 +31,9 @@ pub type FullyResolveSubgraphService =
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
     name: String,
-    routing_url: String,
+    pub(crate) routing_url: Option<String>,
     schema: String,
+    schema_source: SchemaSource,
     pub(crate) is_fed_two: bool,
 }
 
@@ -40,13 +41,19 @@ pub struct FullyResolvedSubgraph {
 impl FullyResolvedSubgraph {
     /// Hook for [`buildstructor::buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
     #[builder]
-    pub fn new(name: String, schema: String, routing_url: String) -> FullyResolvedSubgraph {
+    pub fn new(
+        name: String,
+        schema: String,
+        routing_url: Option<String>,
+        schema_source: SchemaSource,
+    ) -> FullyResolvedSubgraph {
         let is_fed_two = schema_contains_link_directive(&schema);
         FullyResolvedSubgraph {
             name,
             schema,
             routing_url,
             is_fed_two,
+            schema_source,
         }
     }
 
@@ -89,21 +96,21 @@ impl FullyResolvedSubgraph {
                 let graph_ref = GraphRef::from_str(&graph_ref).map_err(|err| {
                     ResolveSubgraphError::InvalidGraphRef {
                         graph_ref: graph_ref.clone(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     }
                 })?;
 
                 let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory
                     .ready()
                     .await
-                    .map_err(|err| ResolveSubgraphError::ServiceReady(Box::new(err)))?;
+                    .map_err(|err| ResolveSubgraphError::ServiceReady(Arc::new(Box::new(err))))?;
 
                 let service = fetch_remote_subgraph_factory
                     .call(())
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
                         subgraph_name: subgraph.to_string(),
-                        source: Box::new(err),
+                        source: Arc::new(Box::new(err)),
                     })?;
                 let service = ResolveRemoteSubgraph::builder()
                     .graph_ref(graph_ref)
@@ -117,15 +124,14 @@ impl FullyResolvedSubgraph {
                 let unresolved_subgraph = unresolved_subgraph.clone();
                 let sdl = sdl.to_string();
                 async move {
-                    Ok(FullyResolvedSubgraph::builder()
+                    let builder = FullyResolvedSubgraph::builder()
                         .name(unresolved_subgraph.name().to_string())
-                        .routing_url(unresolved_subgraph.routing_url().clone().ok_or_else(
-                            || ResolveSubgraphError::MissingRoutingUrl {
-                                subgraph: unresolved_subgraph.name().to_string(),
-                            },
-                        )?)
                         .schema(sdl.to_string())
-                        .build())
+                        .schema_source(SchemaSource::Sdl { sdl });
+                    Ok(match unresolved_subgraph.routing_url() {
+                        None => builder.build(),
+                        Some(routing_url) => builder.routing_url(routing_url).build(),
+                    })
                 }
             })
             .boxed_clone()),
@@ -141,7 +147,7 @@ impl FullyResolvedSubgraph {
 impl From<FullyResolvedSubgraph> for SubgraphConfig {
     fn from(value: FullyResolvedSubgraph) -> Self {
         SubgraphConfig {
-            routing_url: Some(value.routing_url),
+            routing_url: value.routing_url,
             schema: SchemaSource::Sdl { sdl: value.schema },
         }
     }
