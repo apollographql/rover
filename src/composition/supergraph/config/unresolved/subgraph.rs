@@ -1,12 +1,11 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
-use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, lazy::LazilyResolvedSubgraph,
-};
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 
 /// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
 #[derive(Clone, Debug, Getters)]
@@ -29,18 +28,18 @@ impl UnresolvedSubgraph {
     /// Produces a canonical filepath as the path relates to the supplied root path
     pub fn resolve_file_path(
         &self,
-        root: &Utf8PathBuf,
-        path: &Utf8PathBuf,
-    ) -> Result<Utf8PathBuf, ResolveSubgraphError> {
+        root: &Path,
+        path: &Path,
+    ) -> Result<PathBuf, ResolveSubgraphError> {
         let joined_path = root.join(path);
-        let canonical_filename = joined_path.canonicalize_utf8();
+        let canonical_filename = joined_path.canonicalize();
         match canonical_filename {
             Ok(canonical_filename) => Ok(canonical_filename),
             Err(err) => Err(ResolveSubgraphError::FileNotFound {
                 subgraph_name: self.name.to_string(),
-                supergraph_config_path: root.clone(),
-                path: path.as_std_path().to_path_buf(),
-                joined_path: joined_path.as_std_path().to_path_buf(),
+                supergraph_config_path: root.to_path_buf(),
+                path: path.to_path_buf(),
+                joined_path,
                 source: Arc::new(err),
             }),
         }

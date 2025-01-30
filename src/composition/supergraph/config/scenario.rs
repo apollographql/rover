@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
+use std::collections::HashMap;
+use std::io::Write;
+use std::path::Path;
+use std::str::FromStr;
 
 use anyhow::Result;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
@@ -234,7 +237,7 @@ pub fn file_subgraph_scenario(
             subgraph_name,
             SubgraphConfig {
                 schema: SchemaSource::File {
-                    file: schema_file_path,
+                    file: schema_file_path.into_std_path_buf(),
                 },
                 routing_url: Some(routing_url),
             },

@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use camino::Utf8PathBuf;
 use http::header::{InvalidHeaderName, InvalidHeaderValue};
 
 /// Errors that may occur as a result of resolving subgraphs
@@ -14,7 +13,7 @@ pub enum ResolveSubgraphError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
         /// Supplied path to the supergraph config file
-        supergraph_config_path: Utf8PathBuf,
+        supergraph_config_path: PathBuf,
         /// Supplied path to the subgraph schema file
         path: PathBuf,
         /// The result of joining the paths together, that caused the failure
@@ -95,4 +94,7 @@ pub enum ResolveSubgraphError {
     /// Error encountered if we can't parse a URL properly in the introspection case
     #[error(transparent)]
     ParsingSubgraphUrlError(#[from] url::ParseError),
+    /// Error encountered if we can't parse a PathBuf into a Utf8PathBuf
+    #[error(transparent)]
+    ParsingUt8FilePathError(#[from] camino::FromPathBufError),
 }

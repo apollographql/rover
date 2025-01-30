@@ -174,9 +174,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-composition"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01d82be69fce8ac07544017fe8cd52befc61d4548d3233bd1757984d56c53804"
+checksum = "b04b21e3ad6f86c0eed95276e1f4f1e09da8e43d886abb57897037c633b51141"
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
@@ -196,13 +196,14 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation"
-version = "2.0.0-preview.1"
+version = "2.0.0-preview.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c87a5a622646520e2e7df15ed33de1558e9d6eaaa7834eeafd02a8378cd73d2"
+checksum = "e5b55660f21b078f44ff3cf3b149c6ea2fa94d7ea698e36caa3729d131c836d1"
 dependencies = [
  "apollo-compiler",
  "derive_more",
  "either",
+ "hashbrown 0.15.2",
  "http 0.2.12",
  "indexmap 2.7.1",
  "itertools 0.13.0",
@@ -227,11 +228,10 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation-types"
-version = "0.14.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e256949c5f8ebcb6aee00063cb56aaa89cbcfc29cd45fa83519eb9a3290cfe"
+checksum = "bc933111fa54f7fb3002c4833d766b4806ac017edf06d4be54b73b8d90d2141c"
 dependencies = [
- "camino",
  "log",
  "semver",
  "serde",
@@ -244,9 +244,7 @@ dependencies = [
 
 [[package]]
 name = "apollo-language-server"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aadcacf564bfe5c3a0e1444bd893942001e616e1d1e44670ddd04e50117af15"
+version = "0.3.1"
 dependencies = [
  "apollo-compiler",
  "apollo-composition",
@@ -2032,6 +2030,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "foldhash"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2445,6 +2449,11 @@ name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+]
 
 [[package]]
 name = "headers"

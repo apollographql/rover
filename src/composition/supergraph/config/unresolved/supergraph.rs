@@ -507,7 +507,7 @@ mod tests {
                     .schema(file_subgraph_scenario.sdl.clone())
                     .name(file_subgraph_name.to_string())
                     .schema_source(SchemaSource::File {
-                        file: file_subgraph_scenario.schema_file_path.clone(),
+                        file: file_subgraph_scenario.schema_file_path.into_std_path_buf(),
                     })
                     .build(),
             ),
@@ -903,7 +903,7 @@ mod tests {
                     .schema(SchemaSource::File {
                         file: supergraph_config_root_dir_path
                             .join(file_subgraph_scenario.schema_file_path)
-                            .canonicalize_utf8()?,
+                            .canonicalize()?,
                     })
                     .name(file_subgraph_name.clone())
                     .routing_url(file_subgraph_scenario.routing_url)
