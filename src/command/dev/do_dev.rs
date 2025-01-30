@@ -12,7 +12,7 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
-use crate::command::dev::router::config::RouterAddress;
+use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
@@ -204,8 +204,14 @@ impl Dev {
         // default, but we still have to reckon with the config-set address (if one exists). See
         // the reassignment of the variable below for details
         let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
+            self.opts
+                .supergraph_opts
+                .supergraph_address
+                .map(RouterHost::CliOption),
+            self.opts
+                .supergraph_opts
+                .supergraph_port
+                .map(RouterPort::CliOption),
         );
 
         let run_router = RunRouter::default()
@@ -251,7 +257,8 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
 
-        infoln!("Your supergraph is running! head to {router_address} to query your supergraph");
+        let pretty_router_addr_string = router_address.pretty_string();
+        infoln!("Your supergraph is running! head to {pretty_router_addr_string} to query your supergraph");
 
         loop {
             tokio::select! {

@@ -2,46 +2,34 @@ use std::time::Duration;
 
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
-use futures::{
-    stream::{self, BoxStream},
-    StreamExt,
-};
+use futures::stream::{self, BoxStream};
+use futures::StreamExt;
 use houston::Credential;
-use rover_client::{
-    operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest},
-    shared::GraphRef,
-};
+use rover_client::operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest};
+use rover_client::shared::GraphRef;
 use rover_std::{debugln, infoln, RoverStdError};
-use tokio::{process::Child, time::sleep};
+use tokio::process::Child;
+use tokio::time::sleep;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::{
-    binary::{RouterLog, RunRouterBinary, RunRouterBinaryError},
-    config::{remote::RemoteRouterConfig, ReadRouterConfigError, RouterAddress, RunRouterConfig},
-    hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
-    install::{InstallRouter, InstallRouterError},
-    watchers::router_config::RouterConfigWatcher,
-};
-use crate::{
-    command::dev::{
-        router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
-        router::watchers::file::FileWatcher,
-    },
-    composition::events::CompositionEvent,
-    options::LicenseAccepter,
-    subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
-    utils::{
-        client::StudioClientConfig,
-        effect::{
-            exec::ExecCommandConfig,
-            install::InstallBinary,
-            read_file::ReadFile,
-            write_file::{WriteFile, WriteFileRequest},
-        },
-    },
-};
+use super::binary::{RouterLog, RunRouterBinary, RunRouterBinaryError};
+use super::config::remote::RemoteRouterConfig;
+use super::config::{ReadRouterConfigError, RouterAddress, RunRouterConfig};
+use super::hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent};
+use super::install::{InstallRouter, InstallRouterError};
+use super::watchers::router_config::RouterConfigWatcher;
+use crate::command::dev::router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides};
+use crate::command::dev::router::watchers::file::FileWatcher;
+use crate::composition::events::CompositionEvent;
+use crate::options::LicenseAccepter;
+use crate::subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit};
+use crate::utils::client::StudioClientConfig;
+use crate::utils::effect::exec::ExecCommandConfig;
+use crate::utils::effect::install::InstallBinary;
+use crate::utils::effect::read_file::ReadFile;
+use crate::utils::effect::write_file::{WriteFile, WriteFileRequest};
 
 pub struct RunRouter<S> {
     pub(crate) state: S,
@@ -171,7 +159,7 @@ impl RunRouter<state::Run> {
             self.state.config.raw_config(),
             Some(
                 HotReloadConfigOverrides::builder()
-                    .address(self.state.config.address())
+                    .address(*self.state.config.address())
                     .build(),
             ),
         )
@@ -398,11 +386,10 @@ mod state {
     use tokio_stream::wrappers::UnboundedReceiverStream;
     use tokio_util::sync::CancellationToken;
 
-    use crate::command::dev::router::{
-        binary::{RouterBinary, RouterLog, RunRouterBinaryError},
-        config::{remote::RemoteRouterConfig, RouterConfigFinal},
-        hot_reload::HotReloadEvent,
-    };
+    use crate::command::dev::router::binary::{RouterBinary, RouterLog, RunRouterBinaryError};
+    use crate::command::dev::router::config::remote::RemoteRouterConfig;
+    use crate::command::dev::router::config::RouterConfigFinal;
+    use crate::command::dev::router::hot_reload::HotReloadEvent;
 
     #[derive(Default)]
     pub struct Install {}
