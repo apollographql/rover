@@ -4107,20 +4107,31 @@ type ProposalReview {
 }
 
 type ProposalRevision {
+  id: ID!
+
+  """
+  Latest composition ID of the proposal's source variant at the time this revision was created.
+  """
+  mergeBaseCompositionId: ID
+
+  """
+  The schema publish of the proposal's source variant at the time this revision was created. Null if the launch is PENDING.
+  """
+  mergeBaseSchemaPublish: SchemaPublication
+
+  """
+  The schema publish for this revision. Null while the launch is PENDING.
+  """
+  schemaPublish: SchemaPublication
+
   """
   On publish, checks are triggered on a proposal automatically. However, if an error occurred triggering a check on publish, we skip attempting the check to avoid blocking the publish from succeeding. This is the only case this field would be null.
   """
   checkWorkflow: CheckWorkflow
   createdAt: Timestamp!
   createdBy: Identity
-  id: ID!
   isMerge: Boolean!
   launch: Launch
-
-  """
-  Latest composition ID of the proposal's source variant at the time this revision was created.
-  """
-  mergeBaseCompositionId: ID
 
   """null if this is the first revision"""
   previousRevision: ProposalRevision
