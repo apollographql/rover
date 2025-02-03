@@ -25,10 +25,25 @@ pub enum RouterLog {
     Stderr(String),
 }
 
+fn should_select_log_message(log_message: &str) -> bool {
+    // For most info-level messages, we want to pipe them to tracing only.
+    // However, a few info-level messages (e.g. for confirming that the router started up)
+    // we want to pluck them so we can treat them differently.
+    //
+    // the match "exposed at http" captures expressions:
+    // * Health check exposed at http://127.0.0.1:8088/health
+    // * GraphQL endpoint exposed at http://127.0.0.1:4090/
+    !log_message
+        .matches("exposed at http")
+        .collect::<Vec<&str>>()
+        .is_empty()
+}
+
 impl fmt::Display for RouterLog {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let warn_prefix = Style::WarningPrefix.paint("WARN:");
         let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+        let info_prefix = Style::InfoPrefix.paint("INFO:");
         let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
         match self {
             Self::Stdout(stdout) => {
@@ -45,7 +60,12 @@ impl fmt::Display for RouterLog {
                         .unwrap_or(stdout);
 
                     match level {
-                        "INFO" => tracing::info!(%message),
+                        "INFO" => {
+                            if should_select_log_message(message) {
+                                write!(f, "{} {}", info_prefix, &message)?
+                            }
+                            tracing::info!(%message)
+                        }
                         "DEBUG" => tracing::debug!(%message),
                         "TRACE" => tracing::trace!(%message),
                         "WARN" => write!(f, "{} {}", warn_prefix, &message)?,

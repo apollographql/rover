@@ -1,12 +1,10 @@
-use std::{
-    io::Error,
-    net::{SocketAddr, SocketAddrV4, ToSocketAddrs},
-    str::FromStr,
-};
+use std::io::Error;
+use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
+use std::str::FromStr;
 
 use thiserror::Error;
 
-use super::RouterAddress;
+use super::{RouterAddress, RouterHost, RouterPort};
 
 #[derive(Error, Debug)]
 pub enum ParseRouterConfigError {
@@ -19,14 +17,14 @@ pub enum ParseRouterConfigError {
 
 pub struct RouterConfigParser<'a> {
     yaml: &'a serde_yaml::Value,
-    address: SocketAddr,
+    address: RouterAddress,
 }
 
 impl<'a> RouterConfigParser<'a> {
-    pub fn new(yaml: &'a serde_yaml::Value, address: SocketAddr) -> RouterConfigParser<'a> {
+    pub fn new(yaml: &'a serde_yaml::Value, address: RouterAddress) -> RouterConfigParser<'a> {
         RouterConfigParser { yaml, address }
     }
-    pub fn address(&self) -> Result<SocketAddr, ParseRouterConfigError> {
+    pub fn address(&self) -> Result<RouterAddress, ParseRouterConfigError> {
         let config_address = self
             .yaml
             .get("supergraph")
@@ -48,28 +46,27 @@ impl<'a> RouterConfigParser<'a> {
                 source: err,
             })?;
 
-        let default_address: SocketAddr = RouterAddress::default().into();
-        // Resolution precendence for addresses:
+        // Resolution precedence for addresses and ports:
         // 1) CLI option
         // 2) Config
-        // 4) Environment variable
         // 3) Default
-        //
-        // `self.address` gets set by first looking at the environment variable and then the CLI
-        // option; otherwise, we set it to the default
-        //
-        // If `self.address` doesn't match the default, we have either an environment variable or
-        // CLI option (and we rely on the proper handling of that elsewhere)
-        if self.address != default_address {
-            // So, send it back!
-            Ok(self.address)
-        } else if config_address.is_some() {
-            // Otherwise, if we have a config address, send it back
-            Ok(config_address.unwrap_or(default_address))
-        } else {
-            // Lastly, if no env var or config address are found, return the default
-            Ok(default_address)
-        }
+        let port = match (config_address, self.address.port) {
+            (Some(_), RouterPort::CliOption(port)) => RouterPort::CliOption(port),
+            (Some(addr), RouterPort::ConfigFile(..)) | (Some(addr), RouterPort::Default(..)) => {
+                RouterPort::ConfigFile(addr.port())
+            }
+            (None, port) => port,
+        };
+
+        let host = match (config_address, self.address.host) {
+            (Some(_), RouterHost::CliOption(addr)) => RouterHost::CliOption(addr),
+            (Some(addr), RouterHost::ConfigFile(..)) | (Some(addr), RouterHost::Default(..)) => {
+                RouterHost::ConfigFile(addr.ip())
+            }
+            (None, host) => host,
+        };
+
+        Ok(RouterAddress::new(Some(host), Some(port)))
     }
     pub fn health_check_enabled(&self) -> bool {
         self.yaml
@@ -137,23 +134,21 @@ impl<'a> RouterConfigParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{net::SocketAddr, str::FromStr};
-
     use anyhow::Result;
     use rstest::rstest;
     use speculoos::prelude::*;
 
     use super::RouterConfigParser;
-    use crate::command::dev::router::config::RouterAddress;
+    use crate::command::dev::router::config::{
+        RouterAddress, RouterHost, RouterPort, DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT,
+    };
 
     #[rstest]
-    #[case("127.0.0.1", SocketAddr::from_str("127.0.0.1:80").unwrap())]
-    #[case("127.0.0.1:8000", SocketAddr::from_str("127.0.0.1:8000").unwrap())]
-    #[case("localhost", SocketAddr::from_str("[::1]:80").unwrap())]
-    #[case("localhost:8000", SocketAddr::from_str("[::1]:8000").unwrap())]
+    #[case("127.0.0.1", RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::ConfigFile(80))))]
+    #[case("127.0.0.1:8000", RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::ConfigFile(8000))))]
     fn test_get_address_from_router_config(
         #[case] socket_addr_str: &str,
-        #[case] expected_socket_addr: SocketAddr,
+        #[case] expected_router_address: RouterAddress,
     ) -> Result<()> {
         let config_yaml_str = format!(
             indoc::indoc! {
@@ -167,42 +162,104 @@ supergraph:
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
-            address: expected_socket_addr,
+            address: expected_router_address,
         };
         let address = router_config.address();
         assert_that!(address)
             .is_ok()
-            .is_equal_to(expected_socket_addr);
+            .is_equal_to(expected_router_address);
         Ok(())
     }
 
     #[rstest]
-    #[case::cli_override_over_config(SocketAddr::from_str("127.0.0.1:8089").unwrap(), "127.0.0.1:4000", SocketAddr::from_str("127.0.0.1:8089").unwrap())]
-    // When the default is passed in, we use the config's address
-    #[case::config_over_default(Into::<SocketAddr>::into(RouterAddress::default()), "127.0.0.1:8089", SocketAddr::from_str("127.0.0.1:8089").unwrap())]
+    #[case::no_overrides_gives_default(
+        None,
+        None,
+        None,
+        RouterAddress::new(Some(DEFAULT_ROUTER_IP_ADDR), Some(DEFAULT_ROUTER_PORT))
+    )]
+    #[case::cli_host_overrides_default(
+        Some(RouterHost::CliOption("129.0.0.1".parse()?)),
+        None,
+        None,
+        RouterAddress::new(Some(RouterHost::CliOption("129.0.0.1".parse()?)), Some(DEFAULT_ROUTER_PORT))
+    )]
+    #[case::cli_port_overrides_default(
+        None,
+        Some(RouterPort::CliOption(9999)),
+        None,
+        RouterAddress::new(Some(DEFAULT_ROUTER_IP_ADDR), Some(RouterPort::CliOption(9999)))
+    )]
+    #[case::cli_host_and_port_overrides_default(
+        Some(RouterHost::CliOption("129.0.0.1".parse()?)),
+        Some(RouterPort::CliOption(9999)),
+        None,
+        RouterAddress::new(Some(RouterHost::CliOption("129.0.0.1".parse()?)), Some(RouterPort::CliOption(9999)))
+    )]
+    #[case::cli_host_and_port_overrides_even_config(
+        Some(RouterHost::CliOption("129.0.0.1".parse()?)),
+        Some(RouterPort::CliOption(9999)),
+        Some("127.0.0.1:1234"),
+        RouterAddress::new(Some(RouterHost::CliOption("129.0.0.1".parse()?)), Some(RouterPort::CliOption(9999)))
+    )]
+    #[case::config_overrides_default_but_only_for_address(
+        None,
+        Some(RouterPort::CliOption(9999)),
+        Some("127.0.0.1:1234"),
+        RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::CliOption(9999)))
+    )]
+    #[case::config_overrides_default_but_only_for_port(
+        Some(RouterHost::CliOption("129.0.0.1".parse()?)),
+        None,
+        Some("127.0.0.1:1234"),
+        RouterAddress::new(Some(RouterHost::CliOption("129.0.0.1".parse()?)), Some(RouterPort::ConfigFile(1234)))
+    )]
+    #[case::config_overrides_default_no_cli_options(
+        None,
+        None,
+        Some("127.0.0.1:1234"),
+        RouterAddress::new(Some(RouterHost::ConfigFile("127.0.0.1".parse()?)), Some(RouterPort::ConfigFile(1234)))
+    )]
     fn test_get_address_from_router_config_with_override(
-        #[case] cli_override_addr: SocketAddr,
-        #[case] config_addr: &str,
-        #[case] expected_socket_addr: SocketAddr,
+        #[case] cli_override_host: Option<RouterHost>,
+        #[case] cli_override_port: Option<RouterPort>,
+        #[case] config_addr: Option<&str>,
+        #[case] expected_router_address: RouterAddress,
     ) -> Result<()> {
-        let config_yaml_str = format!(
-            indoc::indoc! {
-                r#"---
+        let config_yaml_str = match config_addr {
+            Some(config_addr) => {
+                format!(
+                    indoc::indoc! {
+                        r#"---
 supergraph:
   listen: {}
+telemetry:
+  instrumentation:
+    spans:
+      mode: spec_compliant
 "#
-            },
-            config_addr
-        );
+                    },
+                    config_addr
+                )
+            }
+            None => String::from(indoc::indoc! {
+                r#"---
+telemetry:
+  instrumentation:
+    spans:
+      mode: spec_compliant
+"#
+            }),
+        };
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
-            address: cli_override_addr,
+            address: RouterAddress::new(cli_override_host, cli_override_port),
         };
         let address = router_config.address();
         assert_that!(address)
             .is_ok()
-            .is_equal_to(expected_socket_addr);
+            .is_equal_to(expected_router_address);
         Ok(())
     }
 
@@ -220,7 +277,7 @@ health_check:
         let config_yaml = serde_yaml::from_str(&config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
-            address: SocketAddr::from_str("127.0.0.1:80")?,
+            address: RouterAddress::new(None, None),
         };
         let health_check_enabled = router_config.health_check_enabled();
         assert_that!(health_check_enabled).is_equal_to(is_health_check_enabled);
@@ -236,7 +293,7 @@ health_check:
         let config_yaml = serde_yaml::from_str(config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
-            address: SocketAddr::from_str("127.0.0.1:80")?,
+            address: RouterAddress::new(None, None),
         };
         let health_check = router_config.health_check_endpoint()?.unwrap().to_string();
 
@@ -253,7 +310,7 @@ health_check:
         let config_yaml = serde_yaml::from_str(config_yaml_str)?;
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
-            address: SocketAddr::from_str("127.0.0.1:80")?,
+            address: RouterAddress::new(None, None),
         };
         assert_that!(router_config.listen_path()).is_none();
         Ok(())
@@ -271,7 +328,7 @@ supergraph:
         let router_config = RouterConfigParser {
             yaml: &config_yaml,
 
-            address: SocketAddr::from_str("127.0.0.1:80")?,
+            address: RouterAddress::new(None, None),
         };
         assert_that!(router_config.listen_path())
             .is_some()

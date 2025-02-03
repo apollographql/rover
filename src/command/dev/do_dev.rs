@@ -12,7 +12,7 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
-use crate::command::dev::router::config::RouterAddress;
+use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
@@ -39,6 +39,10 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        warnln!(
+            "Do not run this command in production! It is intended for local development only.\n"
+        );
+
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
@@ -204,8 +208,14 @@ impl Dev {
         // default, but we still have to reckon with the config-set address (if one exists). See
         // the reassignment of the variable below for details
         let router_address = RouterAddress::new(
-            self.opts.supergraph_opts.supergraph_address,
-            self.opts.supergraph_opts.supergraph_port,
+            self.opts
+                .supergraph_opts
+                .supergraph_address
+                .map(RouterHost::CliOption),
+            self.opts
+                .supergraph_opts
+                .supergraph_port
+                .map(RouterPort::CliOption),
         );
 
         let run_router = RunRouter::default()
@@ -234,6 +244,11 @@ impl Dev {
             .address(router_address)
             .build();
 
+        infoln!(
+            "Attempting to start router at {}.",
+            router_address.pretty_string()
+        );
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -247,12 +262,6 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
-        warnln!(
-            "Do not run this command in production! It is intended for local development only."
-        );
-
-        infoln!("Your supergraph is running! head to {router_address} to query your supergraph");
-
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
@@ -264,8 +273,8 @@ impl Dev {
                     match router_log {
                         Ok(router_log) => {
                             if !router_log.to_string().is_empty() {
-                        eprintln!("{}", router_log);
-                    }
+                                eprintln!("{}", router_log);
+                            }
                         }
                         Err(err) => {
                             tracing::error!("{:?}", err);
