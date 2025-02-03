@@ -39,6 +39,10 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        warnln!(
+            "Do not run this command in production! It is intended for local development only.\n"
+        );
+
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
@@ -240,6 +244,11 @@ impl Dev {
             .address(router_address)
             .build();
 
+        infoln!(
+            "Attempting to start router at {}.",
+            router_address.pretty_string()
+        );
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -253,13 +262,6 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
-        warnln!(
-            "Do not run this command in production! It is intended for local development only."
-        );
-
-        let pretty_router_addr_string = router_address.pretty_string();
-        infoln!("Your supergraph is running! head to {pretty_router_addr_string} to query your supergraph");
-
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
@@ -271,8 +273,8 @@ impl Dev {
                     match router_log {
                         Ok(router_log) => {
                             if !router_log.to_string().is_empty() {
-                        eprintln!("{}", router_log);
-                    }
+                                eprintln!("{}", router_log);
+                            }
                         }
                         Err(err) => {
                             tracing::error!("{:?}", err);
