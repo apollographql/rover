@@ -1,12 +1,15 @@
 use std::collections::HashMap;
-use std::fmt;
-use std::process::Stdio;
+use std::fmt::Formatter;
+use std::net::{AddrParseError, SocketAddr};
+use std::process::{ExitStatus, Stdio};
+use std::{fmt, io};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use houston::Credential;
-use rover_std::Style;
+use regex::Regex;
+use rover_std::{infoln, Style};
 use semver::Version;
 use tap::TapFallible;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -16,6 +19,7 @@ use tower::{Service, ServiceExt};
 
 use super::config::remote::RemoteRouterConfig;
 use super::hot_reload::HotReloadError;
+use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
 use crate::RoverError;
@@ -40,7 +44,6 @@ fn should_select_log_message(log_message: &str) -> bool {
 }
 
 impl fmt::Display for RouterLog {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let warn_prefix = Style::WarningPrefix.paint("WARN:");
         let error_prefix = Style::ErrorPrefix.paint("ERROR:");
         let info_prefix = Style::InfoPrefix.paint("INFO:");
@@ -112,6 +115,8 @@ pub enum RunRouterBinaryError {
     },
     #[error("Failed to expand config: {}.", .err)]
     Expansion { err: RoverError },
+    #[error("Router Binary exited")]
+    BinaryExited(io::Result<ExitStatus>),
 }
 
 impl From<HotReloadError> for RunRouterBinaryError {
@@ -261,24 +266,27 @@ where
                             }
                             match child.stderr.take() {
                                 Some(stderr) => {
-                                    tokio::task::spawn(async move {
-                                        let mut lines = BufReader::new(stderr).lines();
-                                        while let Ok(Some(line)) =
-                                            lines.next_line().await.tap_err(|err| {
-                                                tracing::error!(
-                                                    "Error reading from router stderr: {:?}",
-                                                    err
-                                                )
-                                            })
-                                        {
-                                            let _ = sender
-                                                .send(Ok(RouterLog::Stderr(line)))
-                                                .tap_err(|err| {
+                                    tokio::task::spawn({
+                                        let sender = sender.clone();
+                                        async move {
+                                            let mut lines = BufReader::new(stderr).lines();
+                                            while let Ok(Some(line)) =
+                                                lines.next_line().await.tap_err(|err| {
                                                     tracing::error!(
+                                                        "Error reading from router stderr: {:?}",
+                                                        err
+                                                    )
+                                                })
+                                            {
+                                                let _ = sender
+                                                    .send(Ok(RouterLog::Stderr(line)))
+                                                    .tap_err(|err| {
+                                                        tracing::error!(
                                                 "Failed to send router stderr message. {:?}",
                                                 err
                                             )
-                                                });
+                                                    });
+                                            }
                                         }
                                     });
                                 }
@@ -291,6 +299,22 @@ where
                                     });
                                 }
                             }
+                            // Spawn a task that just sits listening to the Router binary, and if it
+                            // exits, fire an error to say so, such that we can stop Rover Dev
+                            // running if this happens.
+                            tokio::spawn({
+                                async move {
+                                    let res = child.wait().await;
+                                    let _ = sender
+                                        .send(Err(RunRouterBinaryError::BinaryExited(res)))
+                                        .tap_err(|err| {
+                                            tracing::error!(
+                                                "Failed to send router stderr message. {:?}",
+                                                err
+                                            )
+                                        });
+                                }
+                            })
                         })
                         .await;
                 }
