@@ -43,10 +43,34 @@ fn should_select_log_message(log_message: &str) -> bool {
         .is_empty()
 }
 
+fn produce_special_message(raw_message: &str) {
+    let starting_message_regex = Regex::new(r"^.*\s+.*://(.*:[0-9]+).*\s+.*").unwrap();
+
+    let contents = match starting_message_regex.captures(raw_message) {
+        None => format!("{}", raw_message.to_string()),
+        Some(captures) => {
+            let socket_address: Option<Result<SocketAddr, AddrParseError>> =
+                captures.get(1).map(|m| m.as_str().parse());
+            match socket_address {
+                Some(Ok(socket_addr)) => {
+                    let router_address = RouterAddress::new(
+                        Some(RouterHost::CliOption(socket_addr.ip())),
+                        Some(RouterPort::CliOption(socket_addr.port())),
+                    )
+                    .pretty_string();
+                    format!("Your supergraph is running! head to {router_address} to query your supergraph")
+                }
+                _ => format!("{}", raw_message.to_string()),
+            }
+        }
+    };
+    infoln!("{}", contents)
+}
+
 impl fmt::Display for RouterLog {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let warn_prefix = Style::WarningPrefix.paint("WARN:");
         let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-        let info_prefix = Style::InfoPrefix.paint("INFO:");
         let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
         match self {
             Self::Stdout(stdout) => {
@@ -63,12 +87,10 @@ impl fmt::Display for RouterLog {
                         .unwrap_or(stdout);
 
                     match level {
-                        "INFO" => {
-                            if should_select_log_message(message) {
-                                write!(f, "{} {}", info_prefix, &message)?
-                            }
-                            tracing::info!(%message)
+                        "INFO" if should_select_log_message(message) => {
+                            produce_special_message(&message);
                         }
+                        "INFO" => tracing::info!(%message),
                         "DEBUG" => tracing::debug!(%message),
                         "TRACE" => tracing::trace!(%message),
                         "WARN" => write!(f, "{} {}", warn_prefix, &message)?,
