@@ -217,6 +217,8 @@ type BuildError {
 
 """Contains the details of an executed build that failed."""
 type BuildFailure {
+  errorCount: Int!
+
   """A list of all errors that occurred during the failed build."""
   errorMessages: [BuildError!]!
 }
@@ -1170,7 +1172,7 @@ type CoreSchema {
   coreHash: String!
 }
 
-union CreateOperationCollectionResult = OperationCollection | PermissionError | ValidationError
+union CreateOperationCollectionResult = NotFoundError | OperationCollection | PermissionError | ValidationError
 
 """
 The result of a successful call to GraphMutation.createPersistedQueryList.
