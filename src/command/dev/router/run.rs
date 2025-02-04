@@ -7,7 +7,8 @@ use futures::StreamExt;
 use houston::Credential;
 use rover_client::operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest};
 use rover_client::shared::GraphRef;
-use rover_std::{debugln, infoln, RoverStdError};
+use rover_client::RoverClientError;
+use rover_std::{debugln, errln, infoln, RoverStdError};
 use tokio::process::Child;
 use tokio::time::sleep;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -23,6 +24,7 @@ use super::watchers::router_config::RouterConfigWatcher;
 use crate::command::dev::router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides};
 use crate::command::dev::router::watchers::file::FileWatcher;
 use crate::composition::events::CompositionEvent;
+use crate::composition::CompositionError;
 use crate::options::LicenseAccepter;
 use crate::subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit};
 use crate::utils::client::StudioClientConfig;
@@ -30,6 +32,7 @@ use crate::utils::effect::exec::ExecCommandConfig;
 use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::write_file::{WriteFile, WriteFileRequest};
+use crate::RoverError;
 
 pub struct RunRouter<S> {
     pub(crate) state: S,
@@ -322,8 +325,18 @@ impl RunRouter<state::Watch> {
 
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
+                CompositionEvent::Error(CompositionError::Build { source, .. }) => {
+                    let number_of_subgraphs = source.len();
+                    let error_to_output = RoverError::from(RoverClientError::BuildErrors {
+                        source,
+                        num_subgraphs: number_of_subgraphs,
+                    });
+                    eprintln!("{}", error_to_output);
+                    None
+                }
                 CompositionEvent::Error(err) => {
                     tracing::error!("Composition error {:?}", err);
+                    errln!("Error occurred when composing supergraph\n{}", err);
                     None
                 }
                 CompositionEvent::Success(success) => Some(RouterUpdateEvent::SchemaChanged {
