@@ -12,6 +12,7 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
+use super::version_upgrade_message::VersionUpgradeMessage;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
@@ -39,6 +40,7 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        VersionUpgradeMessage::print();
         warnln!(
             "Do not run this command in production! It is intended for local development only.\n"
         );

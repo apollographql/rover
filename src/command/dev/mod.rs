@@ -9,6 +9,7 @@ mod do_dev;
 mod no_dev;
 #[cfg(feature = "composition-js")]
 mod router;
+mod version_upgrade_message;
 
 use std::net::IpAddr;
 
