@@ -12,8 +12,8 @@ use rover_std::{errln, infoln, warnln};
 use semver::Version;
 use tower::ServiceExt;
 
-use crate::command::dev::router::binary::RunRouterBinaryError;
 use super::version_upgrade_message::VersionUpgradeMessage;
+use crate::command::dev::router::binary::RunRouterBinaryError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
