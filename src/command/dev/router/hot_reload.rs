@@ -75,28 +75,44 @@ impl HotReloadConfig {
                     .map_err(|err| HotReloadError::Config { err: err.into() })?
                     .to_string();
 
-                // Try and get the supergraph stanza
-                match config.get_mut("supergraph") {
-                    None => {
-                        // If it doesn't exist then we need to build the mapping, and give it the
-                        // only key we're interested in, which is listen.
-                        let mut listen_mapping = Mapping::new();
-                        listen_mapping.insert(
-                            Value::String("listen".into()),
-                            Value::String(processed_address),
-                        );
-                        config.as_mapping_mut().unwrap().insert(
+                let mut listen_mapping = Mapping::new();
+                listen_mapping.insert(
+                    Value::String("listen".into()),
+                    Value::String(processed_address.clone()),
+                );
+
+                let config = match config {
+                    Value::Mapping(mut config_mapping) => {
+                        match config_mapping.get_mut("supergraph") {
+                            Some(Value::Mapping(supergraph_mapping)) => {
+                                // If it does exist then we can just overwrite the existing value
+                                // of listen with what we've worked out
+                                supergraph_mapping.insert(
+                                    Value::String("listen".into()),
+                                    Value::String(processed_address),
+                                );
+                            }
+                            _ => {
+                                // If it doesn't exist then we need to build the mapping, and give it the
+                                // only key we're interested in, which is listen.
+                                config_mapping.insert(
+                                    Value::String("supergraph".into()),
+                                    Value::Mapping(listen_mapping),
+                                );
+                            }
+                        }
+                        config_mapping
+                    }
+                    // If config's not a mapping, then we don't have any config at all, so we
+                    // need to build the simplest thing we can, which is just a mapping from
+                    // supergraph to listen to the value we've computed
+                    _ => {
+                        let mut result = Mapping::new();
+                        result.insert(
                             Value::String("supergraph".into()),
                             Value::Mapping(listen_mapping),
                         );
-                    }
-                    Some(supergraph_mapping) => {
-                        // If it does exist then we can just overwrite the existing value
-                        // of listen with what we've worked out
-                        supergraph_mapping.as_mapping_mut().unwrap().insert(
-                            Value::String("listen".into()),
-                            Value::String(processed_address),
-                        );
+                        result
                     }
                 };
 
@@ -376,6 +392,21 @@ headers:
                     .unwrap()
                     .as_bool()
                     .unwrap()
+        });
+    }
+
+    #[rstest]
+    fn default_state_no_config() {
+        let address = RouterAddress::new(
+            Some(RouterHost::Default("127.0.0.1".parse().unwrap())),
+            Some(RouterPort::Default(4000)),
+        );
+        let overrides = HotReloadConfigOverrides::new(address);
+        let hot_reload_config = HotReloadConfig::new("".into(), Some(overrides));
+        assert_that!(hot_reload_config).is_ok().matches(|config| {
+            let value: Value = serde_yaml::from_str(&config.content).unwrap();
+            println!("{config}");
+            value.get("supergraph").unwrap().get("listen").unwrap() == "127.0.0.1:4000"
         });
     }
 }
