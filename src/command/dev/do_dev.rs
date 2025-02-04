@@ -13,6 +13,7 @@ use semver::Version;
 use tower::ServiceExt;
 
 use super::version_upgrade_message::VersionUpgradeMessage;
+use crate::command::dev::router::binary::RunRouterBinaryError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
@@ -277,6 +278,26 @@ impl Dev {
                             if !router_log.to_string().is_empty() {
                                 eprintln!("{}", router_log);
                             }
+                        }
+                        Err(RunRouterBinaryError::BinaryExited(res)) => {
+                            match res {
+                                Ok(status) => {
+                                    match status.code() {
+                                        None => {
+                                            eprintln!("Router process terminal by signal");
+                                        }
+                                        Some(code) => {
+                                            eprintln!("Router process exited with status code: {code}");
+                                        }
+                                    }
+
+                                }
+                                Err(err) => {
+                                    tracing::error!("Router process exited without status code. Error: {err}")
+                                }
+                            }
+                            eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                            break;
                         }
                         Err(err) => {
                             tracing::error!("{:?}", err);
