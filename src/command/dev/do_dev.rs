@@ -185,10 +185,12 @@ impl Dev {
         loop {
             match composition_messages.next().await {
                 Some(CompositionEvent::Started) => {
-                    eprintln!(
-                        "composing supergraph with Federation {}",
-                        composition_pipeline.state.supergraph_binary.version()
-                    );
+                    if let Ok(ref binary) = composition_pipeline.state.supergraph_binary {
+                        eprintln!(
+                            "composing supergraph with Federation {}",
+                            binary.version()
+                        );
+                    }
                 },
                 Some(CompositionEvent::Success(success)) => {
                     supergraph_schema = success.supergraph_sdl;

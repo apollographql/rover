@@ -3,10 +3,8 @@
 
 #![warn(missing_docs)]
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Debug,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt::Debug;
 
 use camino::Utf8PathBuf;
 use futures::stream::{select, BoxStream, StreamExt};
@@ -14,31 +12,26 @@ use rover_http::HttpService;
 use tower::ServiceExt;
 
 use self::state::SetupSubgraphWatchers;
-use super::{
-    events::CompositionEvent,
-    supergraph::{
-        binary::SupergraphBinary,
-        config::{
-            error::ResolveSubgraphError,
-            full::{introspect::MakeResolveIntrospectSubgraph, FullyResolvedSupergraphConfig},
-            lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-        },
-    },
-    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
-    FederationUpdaterConfig,
-};
+use super::events::CompositionEvent;
+use super::supergraph::binary::SupergraphBinary;
+use super::supergraph::config::error::ResolveSubgraphError;
+use super::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
+use super::supergraph::config::full::FullyResolvedSupergraphConfig;
+use super::supergraph::config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig};
+use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
+use super::watchers::composition::CompositionWatcher;
+use super::watchers::subgraphs::SubgraphWatchers;
+use super::FederationUpdaterConfig;
 use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
+use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::watchers::federation::FederationWatcher;
-use crate::subtask::{BroadcastSubtask, SubtaskRunUnit};
-use crate::{
-    composition::watchers::watcher::{
-        file::FileWatcher, supergraph_config::SupergraphConfigWatcher,
-    },
-    subtask::{Subtask, SubtaskRunStream},
-    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-};
+use crate::composition::watchers::watcher::file::FileWatcher;
+use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
+use crate::subtask::{BroadcastSubtask, Subtask, SubtaskRunStream, SubtaskRunUnit};
+use crate::utils::effect::exec::ExecCommand;
+use crate::utils::effect::read_file::ReadFile;
+use crate::utils::effect::write_file::WriteFile;
 
 mod state;
 
@@ -141,7 +134,7 @@ impl Runner<state::SetupCompositionWatcher> {
         self,
         initial_supergraph_config: FullyResolvedSupergraphConfig,
         initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
-        supergraph_binary: SupergraphBinary,
+        supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         exec_command: ExecC,
         read_file: ReadF,
         write_file: WriteF,
