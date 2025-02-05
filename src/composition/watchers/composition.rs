@@ -11,30 +11,26 @@ use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
+use crate::composition::events::CompositionEvent;
+use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
-use crate::composition::supergraph::install::InstallSupergraph;
+use crate::composition::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use crate::composition::watchers::composition::CompositionInputEvent::{
     Federation, Passthrough, Recompose, Subgraph,
 };
+use crate::composition::watchers::subgraphs::SubgraphEvent;
 use crate::composition::CompositionError::ResolvingSubgraphsError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
     FederationUpdaterConfig,
 };
+use crate::subtask::SubtaskHandleStream;
+use crate::utils::effect::exec::ExecCommand;
 use crate::utils::effect::install::InstallBinary;
-use crate::{
-    composition::{
-        events::CompositionEvent,
-        supergraph::{
-            binary::{OutputTarget, SupergraphBinary},
-            config::full::FullyResolvedSupergraphConfig,
-        },
-        watchers::subgraphs::SubgraphEvent,
-    },
-    subtask::SubtaskHandleStream,
-    utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
-};
+use crate::utils::effect::read_file::ReadFile;
+use crate::utils::effect::write_file::WriteFile;
 
 /// Event to represent an input to the CompositionWatcher, depending on the source the event comes
 /// from. This is really like a Union type over multiple disparate events
@@ -55,7 +51,7 @@ pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
     initial_supergraph_config: FullyResolvedSupergraphConfig,
     initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
     federation_updater_config: Option<FederationUpdaterConfig>,
-    supergraph_binary: SupergraphBinary,
+    supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
     exec_command: ExecC,
     read_file: ReadF,
     write_file: WriteF,
@@ -183,7 +179,7 @@ where
                                     Ok(supergraph_binary) => {
                                         tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
                                         infoln!("Supergraph version changed to {}", supergraph_binary.version().to_string());
-                                        self.supergraph_binary = supergraph_binary
+                                        self.supergraph_binary = Ok(supergraph_binary)
                                     }
                                     Err(err) => {
                                         tracing::warn!("Failed to change supergraph version, current version has been retained...");
@@ -284,32 +280,35 @@ where
         target_file: &Utf8PathBuf,
         output_target: &OutputTarget,
     ) -> Result<CompositionSuccess, CompositionError> {
-        self.supergraph_binary
-            .compose(
-                &self.exec_command,
-                &self.read_file,
-                output_target,
-                target_file.clone(),
-            )
-            .await
+        match &self.supergraph_binary {
+            Ok(binary) => {
+                binary
+                    .compose(
+                        &self.exec_command,
+                        &self.read_file,
+                        output_target,
+                        target_file.clone(),
+                    )
+                    .await
+            }
+            Err(err) => Err(CompositionError::InstallSupergraphBinaryError {
+                source: err.clone(),
+            }),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::BTreeMap,
-        process::{ExitStatus, Output},
-        str::FromStr,
-    };
+    use std::collections::BTreeMap;
+    use std::process::{ExitStatus, Output};
+    use std::str::FromStr;
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource};
     use camino::Utf8PathBuf;
-    use futures::{
-        stream::{once, BoxStream},
-        StreamExt,
-    };
+    use futures::stream::{once, BoxStream};
+    use futures::StreamExt;
     use mockall::predicate;
     use rstest::rstest;
     use semver::Version;
@@ -318,25 +317,18 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::{CompositionInputEvent, CompositionWatcher};
-    use crate::composition::supergraph::binary::OutputTarget;
+    use crate::composition::events::CompositionEvent;
+    use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
+    use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
+    use crate::composition::supergraph::version::SupergraphVersion;
+    use crate::composition::test::{default_composition_json, default_composition_success};
     use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
+    use crate::composition::watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged};
     use crate::composition::CompositionSubgraphAdded;
-    use crate::subtask::SubtaskRunStream;
-    use crate::{
-        composition::{
-            events::CompositionEvent,
-            supergraph::{
-                binary::SupergraphBinary, config::full::FullyResolvedSupergraphConfig,
-                version::SupergraphVersion,
-            },
-            test::{default_composition_json, default_composition_success},
-            watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
-        },
-        subtask::Subtask,
-        utils::effect::{
-            exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
-        },
-    };
+    use crate::subtask::{Subtask, SubtaskRunStream};
+    use crate::utils::effect::exec::MockExecCommand;
+    use crate::utils::effect::read_file::MockReadFile;
+    use crate::utils::effect::write_file::MockWriteFile;
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -407,7 +399,7 @@ mod tests {
 
         let composition_handler = CompositionWatcher::builder()
             .initial_supergraph_config(subgraphs)
-            .supergraph_binary(supergraph_binary)
+            .supergraph_binary(Ok(supergraph_binary))
             .exec_command(mock_exec)
             .read_file(mock_read_file)
             .write_file(mock_write_file)

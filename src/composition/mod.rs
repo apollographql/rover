@@ -1,11 +1,8 @@
 use std::fmt::Debug;
 
 use anyhow::Error;
-use apollo_federation_types::config::SchemaSource;
-use apollo_federation_types::{
-    config::FederationVersion,
-    rover::{BuildErrors, BuildHint},
-};
+use apollo_federation_types::config::{FederationVersion, SchemaSource};
+use apollo_federation_types::rover::{BuildErrors, BuildHint};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
@@ -79,6 +76,8 @@ pub enum CompositionError {
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
     #[error("Error resolving subgraphs:\n{}", .0)]
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
+    #[error("Could not install supergraph binary:\n{}", .source)]
+    InstallSupergraphBinaryError { source: InstallSupergraphError },
 }
 
 #[derive(Debug, Eq, PartialEq)]
