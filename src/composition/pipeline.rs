@@ -189,7 +189,7 @@ impl CompositionPipeline<state::InstallSupergraph> {
         let supergraph_binary =
             InstallSupergraph::new(self.state.federation_version, studio_client_config)
                 .install(override_install_path, elv2_license_accepter, skip_update)
-                .await?;
+                .await;
 
         Ok(CompositionPipeline {
             state: state::Run {
@@ -244,9 +244,9 @@ impl CompositionPipeline<state::Run> {
                 error: Box::new(err),
             })?;
 
-        let result = self
-            .state
+        self.state
             .supergraph_binary
+            .clone()?
             .compose(
                 exec_command_impl,
                 read_file_impl,
@@ -255,8 +255,7 @@ impl CompositionPipeline<state::Run> {
                     .unwrap_or(OutputTarget::Stdout),
                 supergraph_config_filepath,
             )
-            .await?;
-        Ok(result)
+            .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -383,6 +382,7 @@ mod state {
     use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
     use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
     use crate::composition::supergraph::config::resolver::InitializedSupergraphConfigResolver;
+    use crate::composition::supergraph::install::InstallSupergraphError;
     use crate::utils::parsers::FileDescriptorType;
 
     pub struct Init;
@@ -401,7 +401,7 @@ mod state {
     pub struct Run {
         pub resolver: InitializedSupergraphConfigResolver,
         pub supergraph_root: Utf8PathBuf,
-        pub supergraph_binary: SupergraphBinary,
+        pub supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     }

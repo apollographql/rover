@@ -1,11 +1,13 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use semver::Version;
 use serde_json::Value;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum SupergraphVersionError {
     #[error("Unsupported Federation version: {}", .version.to_string())]
     UnsupportedFederationVersion { version: SupergraphVersion },
@@ -16,7 +18,7 @@ pub enum SupergraphVersionError {
     #[error("Semver could not be extracted from the installed path")]
     InvalidVersion {
         #[from]
-        source: semver::Error,
+        source: Arc<semver::Error>,
     },
 }
 
@@ -52,7 +54,8 @@ impl TryFrom<&Utf8PathBuf> for SupergraphVersion {
             without_exe
                 .strip_prefix("supergraph-v")
                 .unwrap_or(without_exe),
-        )?;
+        )
+        .map_err(Arc::new)?;
         Ok(SupergraphVersion { version })
     }
 }
@@ -140,12 +143,11 @@ impl TryFrom<FederationVersion> for SupergraphVersion {
 mod tests {
     use std::str::FromStr;
 
-    use super::*;
     use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
 
-    use super::SupergraphVersion;
+    use super::{SupergraphVersion, *};
 
     fn fed_one() -> Version {
         Version::from_str("1.0.0").unwrap()
