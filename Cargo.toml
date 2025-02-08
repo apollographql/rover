@@ -71,7 +71,7 @@ apollo-encoder = "0.8"
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.15.2"
 
-apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.4.0", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
