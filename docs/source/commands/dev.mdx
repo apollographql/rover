@@ -158,7 +158,16 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-Or by passing the `--federation-version` option. If both are provided, the CLI option takes precedence.
+Or by passing the `--federation-version` option.
+
+```bash showLineNumbers=false
+rover dev \
+  --graph-ref docs-example-graph@current \
+  --supergraph-config federation_override.yaml
+  --federation-version '=2.9.3'
+```
+
+If both are provided, the CLI option takes precedence. This argument accepts [federation versions](/graphos/reference/router/federation-version-support) in their exact form using a preceding equal sign, such as '=2.9.3'. For latest versions of Federation 1 or 2, it accepts '1' or '2'.
 
 ## Adding, removing, or updating subgraphs in a `rover dev` session
 
