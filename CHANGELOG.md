@@ -18,6 +18,325 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.27.0] - 2025-02-10
+
+> Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> 
+> **If using Rover with Connectors,** you will need to specify `APOLLO_ROVER_DEV_ROUTER_VERSION=2.0.0-preview.X` when using `rover dev`
+
+## ❗ BREAKING ❗
+
+- **Make paths in `supergraph.yaml` resolve relative to the location of the `supergraph.yaml` file - @jonathanrainer PR #2119**
+
+  To support the new Apollo Language Server it is now the case that any paths expressed in the `supergraph.yaml` file will
+  be resolved relative to the file's location on disk, **not** the location that Rover is running in, at the time.
+
+- **Remove `fed2` command - @aaronArinder PR #2222**
+
+  This was a deprecated, hidden, unused command that was for early Federation 2.0 testing. This command has not been
+  invoked for a very long time.
+
+- **Remove ability to start multiple `rover dev` sessions - @jonathanrainer PR #2352**
+
+  Now that Rover supports hot-reloading from `supergraph.yaml` files we've removed the ability to start multiple
+  `rover dev` sessions, in multiple terminal windows, and have them communicate with each other.
+
+## 🚀 Features
+
+- **Apollo Language Server - @jonathanrainer**
+
+  This brand-new feature aids in subgraph development and also supports connectors. It enhances Apollo tools such as the schema proposals editor and recent versions of IDE plugins and extensions by providing federation-aware syntax highlighting, validation, autocompletion, and more
+
+  <details open>
+  <summary>PRs Included</summary>
+    <ul>
+      <li>#2272</li>
+      <li>#2345</li>
+      <li>#2354</li>
+      <li>#2364</li>
+      <li>#2369</li>
+      <li>#2386</li>
+      <li>#2389</li>
+    </ul>
+  </details>
+
+- **New version of `rover dev` - @dotdat @aaronArinder @loshz @monkpow @jonathanrainer**
+
+  In this version of Rover there is a new version of `rover dev` built upon a completely new implementation of the
+  composition pipeline inside of Rover. This not only allows a better functioning `rover dev` with more features, but
+  it also supports the new Apollo Language Server, for use with Connectors!
+
+  In addition, it also supports hot-reloading of the `supergraph.yaml` file, subgraphs can be added, removed or edited,
+  and this will be all be reflected in the running `rover dev` session!
+
+  <details open>
+  <summary>PRs Included</summary>
+    <ul>
+      <li>#2118</li>
+      <li>#2127</li>
+      <li>#2130</li>
+      <li>#2131</li>
+      <li>#2132</li>
+      <li>#2138</li>
+      <li>#2141</li>
+      <li>#2142</li>
+      <li>#2144</li>
+      <li>#2145</li>
+      <li>#2146</li>
+      <li>#2147</li>
+      <li>#2149</li>
+      <li>#2150</li>
+      <li>#2152</li>
+      <li>#2154</li>
+      <li>#2156</li>
+      <li>#2157</li>
+      <li>#2158</li>
+      <li>#2159</li>
+      <li>#2160</li>
+      <li>#2163</li>
+      <li>#2166</li>
+      <li>#2167</li>
+      <li>#2171</li>
+      <li>#2172</li>
+      <li>#2177</li>
+      <li>#2178</li>
+      <li>#2179</li>
+      <li>#2184</li>
+      <li>#2189</li>
+      <li>#2204</li>
+      <li>#2205</li>
+      <li>#2207</li>
+      <li>#2208</li>
+      <li>#2209</li>
+      <li>#2210</li>
+      <li>#2211</li>
+      <li>#2214</li>
+      <li>#2223</li>
+      <li>#2228</li>
+      <li>#2229</li>
+      <li>#2251</li>
+      <li>#2253</li>
+      <li>#2257</li>
+      <li>#2267</li>
+      <li>#2268</li>
+      <li>#2274</li>
+      <li>#2282</li>
+      <li>#2283</li>
+      <li>#2285</li>
+      <li>#2288</li>
+      <li>#2289</li>
+      <li>#2305</li>
+      <li>#2308</li>
+      <li>#2309</li>
+      <li>#2310</li>
+      <li>#2311</li>
+      <li>#2312</li>
+      <li>#2314</li>
+      <li>#2316</li>
+      <li>#2318</li>
+      <li>#2319</li>
+      <li>#2320</li>
+      <li>#2321</li>
+      <li>#2322</li>
+      <li>#2326</li>
+      <li>#2327</li>
+      <li>#2328</li>
+      <li>#2329</li>
+      <li>#2330</li>
+      <li>#2331</li>
+      <li>#2332</li>
+      <li>#2334</li>
+      <li>#2335</li>
+      <li>#2336</li>
+      <li>#2338</li>
+      <li>#2339</li>
+      <li>#2340</li>
+      <li>#2341</li>
+      <li>#2342</li>
+      <li>#2343</li>
+      <li>#2344</li>
+      <li>#2355</li>
+      <li>#2356</li>
+      <li>#2357</li>
+      <li>#2358</li>
+      <li>#2360</li>
+      <li>#2361</li>
+      <li>#2362</li>
+      <li>#2365</li>
+      <li>#2370</li>
+      <li>#2371</li>
+      <li>#2374</li>
+      <li>#2379</li>
+      <li>#2383</li>
+      <li>#2384</li>
+    </ul>
+  </details>
+
+- **Add ability to hot-reload `federation_version` in `supergraph.yaml` - @jonathanrainer PR #2347**
+
+  Rover now has the ability to account for changes in the `federation_version` field of the `supergraph.yaml` file,
+  while it is running.
+
+- **Enabling Remote Proxy Downloads - @LongLiveCHIEF @jonathanrainer PR #2254 #2372**
+
+  Rover now has the ability to be installed from a remote proxy, via the use of environment variables.
+
+- **Display the results of custom check tasks - @swcollard PR #2087**
+
+  Rover now has the ability to print out results of CustomCheckTasks from the Platform API
+
+## 🐛 Fixes
+
+- **Stop Running Router with logs at TRACE level - @nmoutschen PR #2143**
+
+  We were running the Router at TRACE level logging, which was causing queries to not complete in some cases
+
+- **Stop `rover dev` session if router binary crashes - @jonathanrainer PR #2382**
+
+  In the past we let the `rover dev` session continue if the router binary crashed, which led to a misleading state
+  of affairs, this has now been fixed.
+
+## 🛠 Maintenance
+
+- **Consolidate Rover Tests - @jonathanrainer PR #2095**
+
+  Removes old tests now that the E2E tests are more mature and consolidates our examples to clean up the codebase
+
+- **Implement breaking changes for `apollo-federation-types` 0.14 - @dylan-apollo PR #2104**
+- **Update `apollographql/router` to v1.55.0 - @jonathanrainer PR #2123**
+- **Update rust crates - @jonathanrainer PR #2129**
+
+  Includes `octocrab` to v0.41.0, `rstest` to v0.23.0 and `tower-http` to v0.6.0
+
+- **Update rust crates - @jonathanrainer PR #2136**
+
+  Includes `git-url-parse` to v0.4.5 and `tower` to v0.5.1
+
+- **Update node.js packages - @jonathanrainer PR #2137**
+
+  Includes `concurrently` to v9.0.1, `eslint` to v9.11.1 and `nodemon` to 3.1.7
+
+- **Update `apollo-federation-types` to v0.14.1 - @loshz PR #2161**
+- **Downgrade `openssl-src` to v300.3.1+3.3.1 - @aaronArinder PR #2174**
+- **Fix integration tests against the `supergraph-demo` repo - @dotdat PR #2175**
+- **Refactor `Fs::watch_file` to be more async - @dotdat PR #2176**
+- **Fix Windows tests for `rover_std` - @aaronArinder PR #2180**
+- **Cleanup `Fs` tests - @dotdat PR #2182**
+- **Strip ANSI codes from lint/custom validations tests - @dotdat PR #2183**
+- **Update `apollographql/router` to v1.56.0 - @jonathanrainer PR #2123**
+- **Fix Smoke Test Payload to be valid JSON and add test timeout - @jonathanrainer PR #2191**
+- **Fix Dependabot Alerts in `/examples` - @jonathanrainer PR #2192**
+- **Switch to a timeout of 15 minutes per matrix job in Smoke Tests - @jonathanrainer PR #2193**
+- **Add ability to skip linting check where no `.md` files have changed - @jonathanrainer PR #2194**
+- **Update links after docs re-write has launched - @jonathanrainer PR #2195**
+- **Ensure we catch all semver pre-release versions - @jonathanrainer PR #2196**
+- **Update `tower-http` to v0.6.1 - @jonathanrainer PR #2197**
+- **Update node.js packages - @jonathanrainer PR #2137**
+
+  Includes `@eslint/compat` to v1.2.0, `eslint` to v9.12.0, `node` to v20.18.0 and `npm` to 10.9.0
+
+- **Update CI node Docker Image to v20.18.0 - @jonathanrainer PR #2199**
+- **Update `lychee-lib` to v0.16.0 - @jonathanrainer PR #2200**
+- **Let lint tests to message Slack if linting check fails - @jonathanrainer PR #2201**
+- **Move Smoke Tests away from macOS 12 - @jonathanrainer PR #2202**
+- **Remove comma such that `payload` becomes valid JSON - @jonathanrainer #2212**
+- **Update `async-trait` to v0.1.83 - @jonathanrainer PR #2216**
+- **Update `axios-mock-adapter` to v2.1.0 - @jonathanrainer PR #2217**
+- **Update `gh` CircleCI orb to v2.5.0 - @jonathanrainer PR #2218**
+- **Update `node` CircleCI orb to v6.2.0 - @jonathanrainer PR #2219**
+- **Update `slack` CircleCI orb to v5.0.0 - @jonathanrainer PR #2221**
+- **Update `package-lock.json` across repo to resolve security vulnerabilities - @jonathanrainer PR #2226**
+- **Ignore links in CHANGELOG when linting - @aaronArinder PR #2227**
+- **Update node.js packages - @jonathanrainer PR #2230**
+
+  Includes `@eslint/compat` to v1.2.1 and `eslint` to v9.13.0
+
+- **Update `node` CircleCI orb to v6.3.0 - @jonathanrainer PR #2231**
+- **Update Rust to v1.82.0 - @jonathanrainer PR #2232**
+- **Update `apollographql/router` to v1.57.0 - @jonathanrainer PR #2235**
+- **Delete vestigial `last_run.uuid` file - @glasser PR #2236**
+- **Bump macOS CI such that we're using support OpenSSL - @jonathanrainer PR #2238**
+- **Update `bytes` to v1.8.0 - @jonathanrainer PR #2240**
+- **Update `notify` to v7.0.0 - @jonathanrainer PR #2241**
+- **Update `termimad` to v0.31.0 - @jonathanrainer PR #2242**
+- **Increase robustness of Smoke Tests - @jonathanrainer PR #2243**
+- **Update `--timeout` for delete commands in line with other tests - @jonathanrainer PR #2244**
+- **Update node.js packages - @jonathanrainer PR #2245**
+
+  Includes `@eslint/compat` to v1.2.2 and `eslint` to v9.14.0
+
+- **Update `ariadne` to v0.5.0 - @jonathanrainer PR #2246**
+- **Update `which` to v7.0.0 - @jonathanrainer PR #2248**
+- **Update `apollographql/router` to v1.57.1 - @jonathanrainer PR #2249**
+- **Fix up Clippy warnings throughout tests - @jonathanrainer PR #2250**
+- **Remove `netlify.toml` after new Documentation Platform Launch - @Meschreiber PR #2258**
+- **Update node.js packages - @jonathanrainer PR #2259**
+
+  Includes `@eslint/compat` to v1.2.3, `eslint` to v9.15.0 and `concurrenctly` to v9.1.0
+
+- **Update `slack` CircleCI orb to v5.1.1 - @jonathanrainer PR #2260**
+- **Update `slack-github-action` GitHub Action to v1.27.1 - @jonathanrainer PR #2264**
+- **Update `slack-github-action` GitHub Action to v2.0.0 - @jonathanrainer PR #2265**
+- **Fix `cargo-deny` errors blocking CI - @jonathanrainer PR #2266**
+- **Update node.js packages - @jonathanrainer PR #2259**
+
+  Includes `node` to v20.18.1 and `npm` to v10.9.1
+
+- **Update `apollographql/router` to v1.58.0 - @jonathanrainer PR #2249**
+- **Update node.js packages - @jonathanrainer PR #2278**
+
+  Includes `eslint` to v9.16.0 and `prettier` to v3.4.1
+
+- **Update `gh` CircleCI orb to v2.6.0 - @jonathanrainer PR #2279**
+- **Update `@graphql-eslint/eslint-plugin` to v4.0.0 - @jonathanrainer PR #2281**
+- **Update `apollographql/federation-rs` to v2.9.3 - @jonathanrainer PR #2287**
+- **Update `apollographql/router` to v1.58.1 - @jonathanrainer PR #2290**
+- **Update node.js packages - @jonathanrainer PR #2291**
+
+  Includes `@eslint/compat` to v1.2.4, `@graphql-eslint/eslint-plugin` to v4.3.0, `npm` to v10.9.2 and `prettier` to v3.4.2
+
+- **Update `node` CircleCI orb to v7.0.0 - @jonathanrainer PR #2292**
+- **Update `url` package - @dotdat PR #2296**
+- **Fix `xtask lint` to support contributions from forked repositories - @dotdat PR #2298**
+- **Update node.js packages - @jonathanrainer PR #2302**
+
+  Includes `concurrently` to v9.1.2, `eslint` to v9.17.0, `graphql` to v16.10.0 and `nodemon` to v3.1.9
+
+- **Remove old security scanning infrastructure - @peakematt PR #2303**
+- **Update `apollographql/router` to v1.59.0 - @jonathanrainer PR #2307**
+- **Update `gh` CircleCI orb to v2.6.2 - @jonathanrainer PR #2324**
+- **Update `npm` to v11 - @jonathanrainer PR #2324**
+- **Update `apollographql/router` to v1.59.1 - @jonathanrainer PR #2290**
+- **Update node.js packages - @jonathanrainer PR #2350**
+
+  Includes `compat` to v1.2.5, `eslint` to v9.18.0
+
+- **Update `notify` to v8 - @jonathanrainer PR #2351**
+- **Update `node` Docker CI Image to v20.18.2 - @jonathanrainer PR #2366**
+- **Update node.js packages - @jonathanrainer PR #2367**
+
+  Includes `eslint` to v9.19.0, `node` to v20.18.2
+
+- **Update `apollographql/router` to v1.59.2 - @jonathanrainer PR #2375**
+- **Update package docs - @dotdat PR #2376**
+- **Update CODEOWNERS - @dotdat PR #2377**
+- **Update node.js packages - @jonathanrainer PR #2380**
+
+  Includes `compat` to v1.2.6, `npm` to v11.1.0
+- **Update to latest `openssl` to resolve security vulnerability - @jonathanrainer PR #2381**
+
+## 📚 Documentation
+
+- **Add Documentation for Subtasks and all associated traits - @aaronArinder PR #2162**
+- **Document the new CompositionRunner struct - @loshz PR #2181**
+- **Update docs pages for the new Documentation Platform - @Meschreiber PR #2224**
+- **Remove Summit Callout - @shorgi PR #2236**
+- **Update links to `apollosolutions` organisation - @Meschreiber PR #2269**
+- **Fix typo - @Meschreiber PR #2284**
+- **Remove internal redirects - @shorgi PR #2294**
+- **Replace Discord links with Discourse links - @shorgi PR #2315**
+- **Update docs post `rover dev` re-write - @aaronArinder PR #2333**
+
 # [0.26.3] - 2024-12-16
 
 ## 🐛 Fixes
