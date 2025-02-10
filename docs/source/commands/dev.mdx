@@ -47,7 +47,7 @@ You don't have to provide a locally running subgraph. You can point to any Graph
 
 When you start your first `rover dev` process:
 
-1. Rover obtains the subgraph schema(s) you provide via either introspection or the [supergraph config file](./supergraphs#yaml-configuration-file).
+1. Rover obtains the subgraph schema(s) you provide via the [supergraph config file](./supergraphs#yaml-configuration-file).
 2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema(s).
 3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
 4. Rover starts watching the provided subgraph schema(s) for changes, recomposing the supergraph schema whenever it detects a change. This automatically reloads the router.
