@@ -52,8 +52,8 @@ allow = [
     "ISC",
     "MIT",
     "MPL-2.0",
-    "Unicode-DFS-2016",
-    "Unicode-3.0"
+    "Unicode-3.0",
+    "Zlib"
 ]
 confidence-threshold = 0.8
 private = { ignore = true }
@@ -76,10 +76,6 @@ allow = ["Elastic-2.0"]
 
 [[licenses.exceptions]]
 name = "apollo-federation"
-allow = ["Elastic-2.0"]
-
-[[licenses.exceptions]]
-name = "apollo-composition"
 allow = ["Elastic-2.0"]
 
 # This section is considered when running `cargo deny check bans`.

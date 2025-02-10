@@ -69,9 +69,9 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.14.1"
+apollo-federation-types = "0.15.2"
 
-apollo-language-server = { version = "0.3.5", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.4.0", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -88,7 +88,7 @@ buildstructor = "0.5.4"
 bytes = "1.8.0"
 cargo_metadata = "0.18"
 calm_io = "0.1"
-camino = "1"
+camino = { version = "1", features = ["serde1"] }
 clap = "4"
 chrono = "0.4"
 ci_info = "0.14"

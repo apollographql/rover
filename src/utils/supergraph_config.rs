@@ -147,6 +147,7 @@ fn correctly_resolve_paths(
         .map(
             |(subgraph_name, subgraph_config)| match subgraph_config.schema {
                 SchemaSource::File { file } => {
+                    let file = Utf8PathBuf::try_from(file)?;
                     let potential_canonical_file = root_to_resolve_from.join(&file);
                     match potential_canonical_file.canonicalize_utf8() {
                         Ok(canonical_file_name) => Ok((
@@ -154,7 +155,7 @@ fn correctly_resolve_paths(
                             SubgraphConfig {
                                 routing_url: subgraph_config.routing_url,
                                 schema: SchemaSource::File {
-                                    file: canonical_file_name,
+                                    file: canonical_file_name.into_std_path_buf(),
                                 },
                             },
                         )),
@@ -517,9 +518,7 @@ mod test_get_supergraph_config {
             .zip([schema_path.canonicalize().unwrap()])
         {
             match subgraph_config.schema {
-                SchemaSource::File { file } => {
-                    assert_that!(file.as_std_path()).is_equal_to(b.as_path())
-                }
+                SchemaSource::File { file } => assert_that!(file).is_equal_to(b),
                 _ => panic!("Incorrect schema source found"),
             }
         }
@@ -799,6 +798,7 @@ pub(crate) async fn resolve_supergraph_yaml(
             let cloned_subgraph_name = subgraph_name.to_string();
             let result = match &subgraph_data.schema {
                 SchemaSource::File { file } => {
+                    let file = Utf8PathBuf::try_from(file.clone())?;
                     let relative_schema_path = match unresolved_supergraph_yaml {
                         FileDescriptorType::File(config_path) => match config_path.parent() {
                             Some(parent) => {

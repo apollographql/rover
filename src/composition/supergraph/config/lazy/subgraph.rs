@@ -3,9 +3,8 @@ use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
-};
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 
 /// A subgraph config that has had its file paths validated and
 /// confirmed to be relative to a supergraph config file
@@ -25,11 +24,16 @@ impl LazilyResolvedSubgraph {
     ) -> Result<LazilyResolvedSubgraph, ResolveSubgraphError> {
         match unresolved_subgraph.schema() {
             SchemaSource::File { file } => {
-                let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
+                let file = unresolved_subgraph.resolve_file_path(
+                    &supergraph_config_root.clone(),
+                    &Utf8PathBuf::try_from(file.clone())?,
+                )?;
                 Ok(LazilyResolvedSubgraph {
                     name: unresolved_subgraph.name().to_string(),
                     routing_url: unresolved_subgraph.routing_url().clone(),
-                    schema: SchemaSource::File { file },
+                    schema: SchemaSource::File {
+                        file: file.into_std_path_buf(),
+                    },
                 })
             }
             _ => Ok(LazilyResolvedSubgraph {
