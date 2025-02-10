@@ -1,4 +1,7 @@
-use crate::utils::PKG_PROJECT_ROOT;
+use std::collections::HashSet;
+use std::fs;
+use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
@@ -7,8 +10,9 @@ use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
     Result as LycheeResult, Uri,
 };
-use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio_stream::StreamExt;
+
+use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct LycheeRunner {
     client: Client,
@@ -49,7 +53,7 @@ impl LycheeRunner {
 
         let lychee_client = self.client.clone();
 
-        let links: Vec<Request> = Collector::new(None)
+        let links: Vec<Request> = Collector::new(None, None)?
             .collect_links(inputs)
             .collect::<LycheeResult<Vec<_>>>()
             .await?;
@@ -148,7 +152,8 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, time::Duration};
+    use std::collections::HashSet;
+    use std::time::Duration;
 
     use anyhow::Result;
     use http::StatusCode;
