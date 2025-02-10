@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
@@ -28,17 +28,17 @@ impl UnresolvedSubgraph {
     /// Produces a canonical filepath as the path relates to the supplied root path
     pub fn resolve_file_path(
         &self,
-        root: &Path,
-        path: &Path,
-    ) -> Result<PathBuf, ResolveSubgraphError> {
+        root: &Utf8PathBuf,
+        path: &Utf8PathBuf,
+    ) -> Result<Utf8PathBuf, ResolveSubgraphError> {
         let joined_path = root.join(path);
-        let canonical_filename = joined_path.canonicalize();
+        let canonical_filename = joined_path.canonicalize_utf8();
         match canonical_filename {
             Ok(canonical_filename) => Ok(canonical_filename),
             Err(err) => Err(ResolveSubgraphError::FileNotFound {
                 subgraph_name: self.name.to_string(),
-                supergraph_config_path: root.to_path_buf(),
-                path: path.to_path_buf(),
+                supergraph_config_path: root.clone(),
+                path: path.clone(),
                 joined_path,
                 source: Arc::new(err),
             }),

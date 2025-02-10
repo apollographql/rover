@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
+use camino::Utf8PathBuf;
 use http::header::{InvalidHeaderName, InvalidHeaderValue};
 
 /// Errors that may occur as a result of resolving subgraphs
@@ -13,11 +13,11 @@ pub enum ResolveSubgraphError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
         /// Supplied path to the supergraph config file
-        supergraph_config_path: PathBuf,
+        supergraph_config_path: Utf8PathBuf,
         /// Supplied path to the subgraph schema file
-        path: PathBuf,
+        path: Utf8PathBuf,
         /// The result of joining the paths together, that caused the failure
-        joined_path: PathBuf,
+        joined_path: Utf8PathBuf,
         /// The source error
         source: Arc<std::io::Error>,
     },

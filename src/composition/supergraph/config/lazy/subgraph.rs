@@ -24,12 +24,16 @@ impl LazilyResolvedSubgraph {
     ) -> Result<LazilyResolvedSubgraph, ResolveSubgraphError> {
         match unresolved_subgraph.schema() {
             SchemaSource::File { file } => {
-                let file = unresolved_subgraph
-                    .resolve_file_path(&supergraph_config_root.clone().into_std_path_buf(), file)?;
+                let file = unresolved_subgraph.resolve_file_path(
+                    &supergraph_config_root.clone(),
+                    &Utf8PathBuf::try_from(file.clone())?,
+                )?;
                 Ok(LazilyResolvedSubgraph {
                     name: unresolved_subgraph.name().to_string(),
                     routing_url: unresolved_subgraph.routing_url().clone(),
-                    schema: SchemaSource::File { file },
+                    schema: SchemaSource::File {
+                        file: file.into_std_path_buf(),
+                    },
                 })
             }
             _ => Ok(LazilyResolvedSubgraph {

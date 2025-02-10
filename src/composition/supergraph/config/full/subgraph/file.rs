@@ -35,14 +35,12 @@ impl Service<()> for ResolveFileSubgraph {
 
     fn call(&mut self, _req: ()) -> Self::Future {
         let unresolved_subgraph = self.unresolved_subgraph.clone();
-        let supergraph_config_root = self.supergraph_config_root.clone().into_std_path_buf();
-        let path = self.path.clone().into_std_path_buf();
+        let supergraph_config_root = self.supergraph_config_root.clone();
+        let path = self.path.clone();
         let subgraph_name = unresolved_subgraph.name().to_string();
         let schema_source = self.unresolved_subgraph.schema().clone();
         let fut = async move {
-            let file = Utf8PathBuf::try_from(
-                unresolved_subgraph.resolve_file_path(&supergraph_config_root, &path)?,
-            )?;
+            let file = unresolved_subgraph.resolve_file_path(&supergraph_config_root, &path)?;
             let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs {
                 source: Arc::new(Box::new(err)),
             })?;
