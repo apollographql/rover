@@ -108,19 +108,20 @@ impl Dev {
                 version.clone()
             });
 
+        let subgraph_prompt = SubgraphPrompt::default();
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
                 fetch_remote_subgraphs_factory,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
+                Some(&subgraph_prompt),
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
-                Some(&SubgraphPrompt::default()),
             )
             .await
             .install_supergraph_binary(
@@ -173,7 +174,6 @@ impl Dev {
                 OutputTarget::Stdout,
                 true,
                 federation_updater_config,
-                Some(&SubgraphPrompt::default()),
             )
             .await?;
 

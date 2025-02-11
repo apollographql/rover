@@ -341,13 +341,13 @@ async fn create_composition_runner(
             fetch_remote_subgraphs_factory,
             Some(FileDescriptorType::File(supergraph_config_path.clone())),
             None,
+            None::<&SubgraphPrompt>,
         )
         .await?
         .resolve_federation_version(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
-            None::<&SubgraphPrompt>,
         )
         .await
         .install_supergraph_binary(
@@ -375,7 +375,6 @@ async fn create_composition_runner(
                 elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
                 skip_update: lsp_opts.plugin_opts.skip_update,
             }),
-            None,
         )
         .await?)
 }

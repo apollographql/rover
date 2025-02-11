@@ -107,13 +107,13 @@ impl Compose {
                 fetch_remote_subgraphs_factory,
                 supergraph_yaml,
                 graph_ref.clone(),
+                None::<&SubgraphPrompt>,
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 self.opts.federation_version.clone(),
-                None::<&SubgraphPrompt>,
             )
             .await
             .install_supergraph_binary(
