@@ -63,6 +63,11 @@ pub enum CompositionError {
         path: Utf8PathBuf,
         error: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Failed to upsert the file at: {path}.\n{error}")]
+    UpsertFile {
+        path: Utf8PathBuf,
+        error: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
     Build {
         source: BuildErrors,

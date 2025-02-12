@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::fs;
 use std::process::Stdio;
 
 use apollo_federation_types::{
@@ -95,6 +96,19 @@ impl SupergraphBinary {
         supergraph_config_path: Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
         let args = self.prepare_compose_args(output_target, &supergraph_config_path);
+
+        if let OutputTarget::File(path) = output_target {
+            let parent = path.parent();
+            if let Some(parent) = parent {
+                if !parent.exists() {
+                    fs::create_dir_all(parent).map_err(|err| CompositionError::UpsertFile {
+                        path: path.clone(),
+                        error: Box::new(err),
+                    })?;
+                }
+            }
+        }
+
         let config = match output_target {
             OutputTarget::File(_) | OutputTarget::Stdout => ExecCommandConfig::builder()
                 .exe(self.exe.clone())
@@ -199,6 +213,8 @@ impl SupergraphBinary {
 #[cfg(test)]
 mod tests {
     use std::{
+        fs,
+        path::PathBuf,
         process::{ExitStatus, Output},
         str::FromStr,
     };
@@ -208,6 +224,7 @@ mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use houston::Config;
+    use mockall::predicate;
     use rstest::{fixture, rstest};
     use semver::Version;
     use speculoos::prelude::*;
@@ -323,8 +340,18 @@ mod tests {
     }
 
     #[rstest]
+    #[case::output_stdout(OutputTarget::Stdout)]
+    #[case::output_file(OutputTarget::File(Utf8PathBuf::from_str("/tmp/output_dir/output.txt").unwrap()))]
     #[tokio::test]
-    async fn test_compose_success(composition_output: CompositionSuccess) -> Result<()> {
+    async fn test_compose_success(
+        #[case] output_target: OutputTarget,
+        composition_output: CompositionSuccess,
+    ) -> Result<()> {
+        let output_dir = PathBuf::from_str("/tmp/output_dir")?;
+        if output_dir.exists() {
+            fs::remove_dir_all(&output_dir)?;
+        }
+        assert_that!(output_dir.exists()).is_false();
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph")?;
 
@@ -340,19 +367,33 @@ mod tests {
             Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
 
         let mut mock_read_file = MockReadFile::new();
-        mock_read_file.expect_read_file().times(0);
+        if let OutputTarget::File(path) = &output_target {
+            mock_read_file
+                .expect_read_file()
+                .times(1)
+                .with(predicate::eq(path.clone()))
+                .returning(|_| Ok(serde_json::to_string(&default_composition_json()).unwrap()));
+        } else {
+            mock_read_file.expect_read_file().times(0);
+        }
         let mut mock_exec = MockExecCommand::new();
 
         mock_exec
             .expect_exec_command()
             .times(1)
-            .withf(move |actual_config| {
-                actual_config.exe() == &binary_path
-                    && actual_config.args()
-                        == &Some(vec![
-                            "compose".to_string(),
-                            "/tmp/target/supergraph_config.yaml".to_string(),
-                        ])
+            .withf({
+                let output_target = output_target.clone();
+                move |actual_config| {
+                    let mut expected_args = vec![
+                        "compose".to_string(),
+                        "/tmp/target/supergraph_config.yaml".to_string(),
+                    ];
+                    if let OutputTarget::File(path) = &output_target {
+                        expected_args.push(path.to_string());
+                    }
+                    actual_config.exe() == &binary_path
+                        && actual_config.args() == &Some(expected_args)
+                }
             })
             .returning(move |_| {
                 let stdout = serde_json::to_string(&default_composition_json()).unwrap();
@@ -367,10 +408,16 @@ mod tests {
             .compose(
                 &mock_exec,
                 &mock_read_file,
-                &OutputTarget::Stdout,
+                &output_target,
                 temp_supergraph_config_path,
             )
             .await;
+
+        if let OutputTarget::File(path) = output_target {
+            assert_that!(path.parent())
+                .is_some()
+                .matches(|path| path.exists());
+        }
 
         assert_that!(result).is_ok().is_equal_to(composition_output);
 
