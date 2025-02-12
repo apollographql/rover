@@ -74,7 +74,10 @@ pub struct SupergraphOpts {
     /// Cannot be used with `--url`, `--name`, or `--schema`.
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
-    #[arg(long = "supergraph-config")]
+    #[arg(
+        long = "supergraph-config",
+        conflicts_with_all = ["subgraph_name", "subgraph_url"]
+    )]
     supergraph_config_path: Option<FileDescriptorType>,
 
     /// A [`GraphRef`] that is accessible in Apollo Studio.

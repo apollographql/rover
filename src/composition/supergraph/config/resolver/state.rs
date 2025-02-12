@@ -21,7 +21,7 @@ pub struct LoadSupergraphConfig {
 }
 
 /// In this stage, we prompt the user to provide a subgraph if they have not provided any already
-pub struct PromptIfMissingSubgraphs {
+pub struct DefineDefaultSubgraph {
     pub origin_path: Option<Utf8PathBuf>,
     pub federation_version_resolver: FederationVersionResolverFromSubgraphs,
     pub subgraphs: BTreeMap<String, SubgraphConfig>,

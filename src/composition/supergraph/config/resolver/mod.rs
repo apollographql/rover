@@ -153,7 +153,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
         self,
         read_stdin_impl: &mut impl ReadStdin,
         file_descriptor_type: Option<&FileDescriptorType>,
-    ) -> Result<SupergraphConfigResolver<state::PromptIfMissingSubgraphs>, LoadSupergraphConfigError>
+    ) -> Result<SupergraphConfigResolver<state::DefineDefaultSubgraph>, LoadSupergraphConfigError>
     {
         if let Some(file_descriptor_type) = file_descriptor_type {
             let supergraph_config = file_descriptor_type
@@ -189,7 +189,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                 merged_subgraphs.insert(name, subgraph_config);
             }
             Ok(SupergraphConfigResolver {
-                state: state::PromptIfMissingSubgraphs {
+                state: state::DefineDefaultSubgraph {
                     origin_path,
                     federation_version_resolver,
                     subgraphs: merged_subgraphs,
@@ -197,7 +197,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
             })
         } else {
             Ok(SupergraphConfigResolver {
-                state: state::PromptIfMissingSubgraphs {
+                state: state::DefineDefaultSubgraph {
                     origin_path: None,
                     federation_version_resolver: self
                         .state
@@ -210,16 +210,16 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
     }
 }
 
-impl SupergraphConfigResolver<state::PromptIfMissingSubgraphs> {
+impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
     /// Prompts the user for subgraphs if they have not provided any so far
-    pub fn prompt_for_missing_subgraphs<P: Prompt>(
+    pub fn define_default_subgraph_if_empty(
         mut self,
-        prompt: &P,
+        default_subgraph: DefaultSubgraphDefinition,
     ) -> Result<SupergraphConfigResolver<state::ResolveSubgraphs>, ResolveSubgraphError> {
         if self.state.subgraphs.is_empty() {
-            let subgraph_url = prompt.prompt_for_subgraph_url()?;
+            let subgraph_url = default_subgraph.url()?;
 
-            let name = prompt.prompt_for_name()?;
+            let subgraph_name = default_subgraph.name()?;
 
             let schema_source = SchemaSource::SubgraphIntrospection {
                 subgraph_url: subgraph_url.clone(),
@@ -227,12 +227,14 @@ impl SupergraphConfigResolver<state::PromptIfMissingSubgraphs> {
             };
 
             self.state.subgraphs.insert(
-                name,
+                subgraph_name,
                 SubgraphConfig {
                     routing_url: Some(subgraph_url.to_string()),
                     schema: schema_source,
                 },
             );
+        } else {
+            tracing::warn!("Attempting to define a default subgraph when the existing subgraph set is not empty");
         }
         Ok(SupergraphConfigResolver {
             state: state::ResolveSubgraphs {
@@ -244,9 +246,7 @@ impl SupergraphConfigResolver<state::PromptIfMissingSubgraphs> {
     }
 
     /// Skips prompting the user for subgraphs if they have not provided any so far
-    pub fn skip_prompt_for_missing_subgraphs(
-        self,
-    ) -> SupergraphConfigResolver<state::ResolveSubgraphs> {
+    pub fn skip_default_subgraph(self) -> SupergraphConfigResolver<state::ResolveSubgraphs> {
         SupergraphConfigResolver {
             state: state::ResolveSubgraphs {
                 origin_path: self.state.origin_path,
@@ -343,12 +343,43 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
     }
 }
 
+/// Object that describes how a default subgraph for composition should be retrieved
+pub enum DefaultSubgraphDefinition {
+    /// This retrieves default subgraph definitions by prompting the user
+    Prompt(Box<dyn Prompt>),
+    /// This retrieves default subgraph definitions from CLI args
+    Args {
+        /// The name of the subgraph
+        name: String,
+        /// The routing/introspection URL of the subgraph
+        url: Url,
+    },
+}
+
+impl DefaultSubgraphDefinition {
+    /// Fetches the subgraph name from the definition strategy
+    pub fn name(&self) -> Result<String, ResolveSubgraphError> {
+        match self {
+            DefaultSubgraphDefinition::Prompt(prompt) => prompt.prompt_for_subgraph_name(),
+            DefaultSubgraphDefinition::Args { name, .. } => Ok(name.to_string()),
+        }
+    }
+
+    /// Fetches the subgraph name from the definition strategy
+    pub fn url(&self) -> Result<Url, ResolveSubgraphError> {
+        match self {
+            DefaultSubgraphDefinition::Prompt(prompt) => prompt.prompt_for_subgraph_url(),
+            DefaultSubgraphDefinition::Args { url, .. } => Ok(url.clone()),
+        }
+    }
+}
+
 /// A trait for prompting the user for input, primarily for subgraph URL and name. Exists for ease
 /// of testing
 #[cfg_attr(test, mockall::automock)]
 pub trait Prompt {
     /// Prompts user for the subgraph name
-    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError>;
+    fn prompt_for_subgraph_name(&self) -> Result<String, ResolveSubgraphError>;
     /// Prompts user for the subgraph url
     fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError>;
 }
@@ -358,7 +389,7 @@ pub trait Prompt {
 pub struct SubgraphPrompt {}
 
 impl Prompt for SubgraphPrompt {
-    fn prompt_for_name(&self) -> Result<String, ResolveSubgraphError> {
+    fn prompt_for_subgraph_name(&self) -> Result<String, ResolveSubgraphError> {
         if std::io::stderr().is_terminal() {
             let mut input = Input::new().with_prompt("what is the name of this subgraph?");
             if let Some(dirname) = maybe_name_from_dir() {
@@ -437,6 +468,7 @@ mod tests {
     use tower::{ServiceBuilder, ServiceExt};
     use tower_test::mock::Handle;
 
+    use super::DefaultSubgraphDefinition;
     use super::{
         fetch_remote_subgraph::{
             FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
@@ -645,7 +677,9 @@ mod tests {
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?
-            .prompt_for_missing_subgraphs(&MockPrompt::default())?;
+            .define_default_subgraph_if_empty(DefaultSubgraphDefinition::Prompt(Box::new(
+                MockPrompt::default(),
+            )))?;
 
         let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
             .boxed_clone()
@@ -878,7 +912,9 @@ mod tests {
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?
-            .prompt_for_missing_subgraphs(&MockPrompt::default())?;
+            .define_default_subgraph_if_empty(DefaultSubgraphDefinition::Prompt(Box::new(
+                MockPrompt::default(),
+            )))?;
 
         let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
             .boxed_clone()
@@ -1112,7 +1148,9 @@ mod tests {
         // load from the file descriptor
         let resolver = resolver
             .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?
-            .prompt_for_missing_subgraphs(&MockPrompt::default())?;
+            .define_default_subgraph_if_empty(DefaultSubgraphDefinition::Prompt(Box::new(
+                MockPrompt::default(),
+            )))?;
 
         let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
             .boxed_clone()

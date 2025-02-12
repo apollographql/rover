@@ -20,14 +20,13 @@ use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactor
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use super::supergraph::config::resolver::{
-    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-    SupergraphConfigResolver,
+    DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
+    ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::resolver::Prompt;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommand;
@@ -73,13 +72,13 @@ impl Default for CompositionPipeline<state::Init> {
 }
 
 impl CompositionPipeline<state::Init> {
-    pub async fn init<S, P>(
+    pub async fn init<S>(
         self,
         read_stdin_impl: &mut impl ReadStdin,
         fetch_remote_subgraphs_factory: S,
         supergraph_yaml: Option<FileDescriptorType>,
         graph_ref: Option<GraphRef>,
-        prompt: Option<&P>,
+        default_subgraph: Option<DefaultSubgraphDefinition>,
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
         S: MakeService<
@@ -89,7 +88,6 @@ impl CompositionPipeline<state::Init> {
         >,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
-        P: Prompt,
     {
         let supergraph_yaml = supergraph_yaml.and_then(|supergraph_yaml| match supergraph_yaml {
             FileDescriptorType::File(file) => canonicalize(file)
@@ -122,11 +120,11 @@ impl CompositionPipeline<state::Init> {
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
             .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
-        let resolver = match prompt {
-            Some(prompt) => resolver
-                .prompt_for_missing_subgraphs(prompt)
+        let resolver = match default_subgraph {
+            Some(default_subgraph) => resolver
+                .define_default_subgraph_if_empty(default_subgraph)
                 .map_err(CompositionPipelineError::ResolveSubgraphFromPrompt)?,
-            None => resolver.skip_prompt_for_missing_subgraphs(),
+            None => resolver.skip_default_subgraph(),
         };
         eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {

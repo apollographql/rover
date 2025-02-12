@@ -27,9 +27,7 @@ use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{
-    ResolveSupergraphConfigError, SubgraphPrompt,
-};
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -341,7 +339,7 @@ async fn create_composition_runner(
             fetch_remote_subgraphs_factory,
             Some(FileDescriptorType::File(supergraph_config_path.clone())),
             None,
-            None::<&SubgraphPrompt>,
+            None,
         )
         .await?
         .resolve_federation_version(
