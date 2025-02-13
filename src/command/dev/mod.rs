@@ -76,7 +76,7 @@ pub struct SupergraphOpts {
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
     #[arg(
         long = "supergraph-config",
-        conflicts_with_all = ["subgraph_name", "subgraph_url"]
+        conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
     supergraph_config_path: Option<FileDescriptorType>,
 
