@@ -1,5 +1,7 @@
+use camino::Utf8PathBuf;
 use clap::{self, Parser};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
@@ -23,12 +25,25 @@ pub struct OptionalSubgraphOpts {
     /// This must be unique to each `rover dev` process and cannot be the same endpoint used by the graph router, which are specified by the `--supergraph-port` and `--supergraph-address` arguments.
     #[arg(long = "url", short = 'u')]
     #[serde(skip_serializing)]
-    pub subgraph_url: Option<url::Url>,
+    pub subgraph_url: Option<Url>,
+
+    /// The path to a GraphQL schema file that `rover dev` will use as this subgraph's schema.
+    ///
+    /// If this argument is passed, `rover dev` does not periodically introspect the running subgraph to obtain its schema.
+    /// Instead, it watches the file at the provided path and recomposes the supergraph schema whenever changes occur.
+    #[arg(long = "schema", short = 's', value_name = "SCHEMA_PATH")]
+    #[serde(skip_serializing)]
+    pub subgraph_schema_path: Option<Utf8PathBuf>,
 
     /// The number of seconds between introspection requests to the running subgraph.
     /// Only used when the `--schema` argument is not passed.
     /// The default value is 1 second.
-    #[arg(long = "polling-interval", short = 'i', default_value = "1")]
+    #[arg(
+        long = "polling-interval",
+        short = 'i',
+        default_value = "1",
+        conflicts_with = "subgraph_schema_path"
+    )]
     #[serde(skip_serializing)]
     pub subgraph_polling_interval: u64,
 

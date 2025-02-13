@@ -218,12 +218,17 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
     ) -> Result<SupergraphConfigResolver<state::ResolveSubgraphs>, ResolveSubgraphError> {
         if self.state.subgraphs.is_empty() {
             let subgraph_url = default_subgraph.url()?;
-
             let subgraph_name = default_subgraph.name()?;
+            let subgraph_schema_path = default_subgraph.schema_path();
 
-            let schema_source = SchemaSource::SubgraphIntrospection {
-                subgraph_url: subgraph_url.clone(),
-                introspection_headers: None,
+            let schema_source = match subgraph_schema_path {
+                Some(subgraph_schema_path) => SchemaSource::File {
+                    file: subgraph_schema_path.into_std_path_buf(),
+                },
+                None => SchemaSource::SubgraphIntrospection {
+                    subgraph_url: subgraph_url.clone(),
+                    introspection_headers: None,
+                },
             };
 
             self.state.subgraphs.insert(
@@ -353,6 +358,8 @@ pub enum DefaultSubgraphDefinition {
         name: String,
         /// The routing/introspection URL of the subgraph
         url: Url,
+        /// The schema path of the subgraph
+        schema_path: Option<Utf8PathBuf>,
     },
 }
 
@@ -365,11 +372,19 @@ impl DefaultSubgraphDefinition {
         }
     }
 
-    /// Fetches the subgraph name from the definition strategy
+    /// Fetches the subgraph url from the definition strategy
     pub fn url(&self) -> Result<Url, ResolveSubgraphError> {
         match self {
             DefaultSubgraphDefinition::Prompt(prompt) => prompt.prompt_for_subgraph_url(),
             DefaultSubgraphDefinition::Args { url, .. } => Ok(url.clone()),
+        }
+    }
+
+    /// Fetches the subgraph schema from the definition strategy
+    pub fn schema_path(&self) -> Option<Utf8PathBuf> {
+        match self {
+            DefaultSubgraphDefinition::Prompt(_) => None,
+            DefaultSubgraphDefinition::Args { schema_path, .. } => schema_path.clone(),
         }
     }
 }

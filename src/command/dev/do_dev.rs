@@ -121,6 +121,7 @@ impl Dev {
                     .map(|subgraph_url| DefaultSubgraphDefinition::Args {
                         name: subgraph_name.to_string(),
                         url: subgraph_url.clone(),
+                        schema_path: self.opts.subgraph_opts.subgraph_schema_path.clone(),
                     })
             })
             .unwrap_or_else(|| {
