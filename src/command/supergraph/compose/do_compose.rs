@@ -1,4 +1,4 @@
-use std::io::stdin;
+use std::{fs, io::stdin};
 
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
@@ -125,6 +125,12 @@ impl Compose {
             .await?;
 
         if let Some(output_file) = output_file {
+            let parent = output_file.parent();
+            if let Some(parent) = parent {
+                if !parent.exists() {
+                    fs::create_dir_all(parent)?;
+                }
+            }
             write_file_impl
                 .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())
                 .await?;
