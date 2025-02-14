@@ -21,7 +21,6 @@ use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_
 use crate::command::Dev;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
@@ -183,13 +182,11 @@ impl Dev {
         let composition_runner = composition_pipeline
             .runner(
                 exec_command_impl,
-                read_file_impl.clone(),
                 write_file_impl.clone(),
                 client_config.service()?,
                 fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
-                OutputTarget::Stdout,
                 true,
                 federation_updater_config,
             )

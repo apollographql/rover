@@ -22,7 +22,6 @@ use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgr
 use super::watchers::composition::CompositionWatcher;
 use super::watchers::subgraphs::SubgraphWatchers;
 use super::FederationUpdaterConfig;
-use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::watchers::federation::FederationWatcher;
@@ -30,7 +29,6 @@ use crate::composition::watchers::watcher::file::FileWatcher;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
 use crate::subtask::{BroadcastSubtask, Subtask, SubtaskRunStream, SubtaskRunUnit};
 use crate::utils::effect::exec::ExecCommand;
-use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::write_file::WriteFile;
 
 mod state;
@@ -130,22 +128,19 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
 impl Runner<state::SetupCompositionWatcher> {
     /// Configures the composition watcher
     #[allow(clippy::too_many_arguments)]
-    pub fn setup_composition_watcher<ExecC, ReadF, WriteF>(
+    pub fn setup_composition_watcher<ExecC, WriteF>(
         self,
         initial_supergraph_config: FullyResolvedSupergraphConfig,
         initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
         supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         exec_command: ExecC,
-        read_file: ReadF,
         write_file: WriteF,
         temp_dir: Utf8PathBuf,
         compose_on_initialisation: bool,
-        output_target: OutputTarget,
         federation_updater_config: Option<FederationUpdaterConfig>,
-    ) -> Runner<state::Run<ExecC, ReadF, WriteF>>
+    ) -> Runner<state::Run<ExecC, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
-        ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
         // Create a handler for supergraph composition events.
@@ -154,11 +149,9 @@ impl Runner<state::SetupCompositionWatcher> {
             .initial_resolution_errors(initial_resolution_errors)
             .supergraph_binary(supergraph_binary)
             .exec_command(exec_command)
-            .read_file(read_file)
             .write_file(write_file)
             .temp_dir(temp_dir)
-            .compose_on_initialisation(compose_on_initialisation)
-            .output_target(output_target);
+            .compose_on_initialisation(compose_on_initialisation);
 
         let composition_watcher = if let Some(federation_updater_config) = federation_updater_config
         {
@@ -181,12 +174,11 @@ impl Runner<state::SetupCompositionWatcher> {
 }
 
 /// Alias for a [`Runner`] that is ready to be run
-pub type CompositionRunner<ExecC, ReadF, WriteF> = Runner<state::Run<ExecC, ReadF, WriteF>>;
+pub type CompositionRunner<ExecC, WriteF> = Runner<state::Run<ExecC, WriteF>>;
 
-impl<ExecC, ReadF, WriteF> Runner<state::Run<ExecC, ReadF, WriteF>>
+impl<ExecC, WriteF> Runner<state::Run<ExecC, WriteF>>
 where
     ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
-    ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
 {
     /// Runs the [`Runner`]

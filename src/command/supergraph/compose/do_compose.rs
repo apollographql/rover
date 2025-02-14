@@ -11,8 +11,7 @@ use tower::ServiceExt;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::read_file::FsReadFile;
-use crate::utils::effect::write_file::FsWriteFile;
+use crate::utils::effect::write_file::{FsWriteFile, WriteFile};
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
@@ -74,7 +73,6 @@ impl Compose {
             },
         };
 
-        let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
         let supergraph_yaml = self
@@ -123,13 +121,14 @@ impl Compose {
             )
             .await?;
         let composition_success = composition_pipeline
-            .compose(
-                &exec_command_impl,
-                &read_file_impl,
-                &write_file_impl,
-                output_file,
-            )
+            .compose(&exec_command_impl, &write_file_impl)
             .await?;
+
+        if let Some(output_file) = output_file {
+            write_file_impl
+                .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())
+                .await?;
+        }
 
         Ok(RoverOutput::CompositionResult(composition_success.into()))
     }
