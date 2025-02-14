@@ -14,7 +14,6 @@ use tower::MakeService;
 use tracing::{debug, warn};
 
 use super::runner::{CompositionRunner, Runner};
-use super::supergraph::binary::OutputTarget;
 use super::supergraph::config::error::ResolveSubgraphError;
 use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
@@ -31,7 +30,6 @@ use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommand;
 use crate::utils::effect::install::InstallBinary;
-use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::read_stdin::ReadStdin;
 use crate::utils::effect::write_file::WriteFile;
 use crate::utils::parsers::FileDescriptorType;
@@ -213,9 +211,7 @@ impl CompositionPipeline<state::Run> {
     pub async fn compose(
         &self,
         exec_command_impl: &impl ExecCommand,
-        read_file_impl: &impl ReadFile,
         write_file_impl: &impl WriteFile,
-        output_file: Option<Utf8PathBuf>,
     ) -> Result<CompositionSuccess, CompositionError> {
         let supergraph_config_filepath =
             Utf8PathBuf::from_path_buf(tempdir()?.path().join("supergraph.yaml"))
@@ -252,34 +248,24 @@ impl CompositionPipeline<state::Run> {
         self.state
             .supergraph_binary
             .clone()?
-            .compose(
-                exec_command_impl,
-                read_file_impl,
-                &output_file
-                    .map(OutputTarget::File)
-                    .unwrap_or(OutputTarget::Stdout),
-                supergraph_config_filepath,
-            )
+            .compose(exec_command_impl, supergraph_config_filepath)
             .await
     }
 
     #[tracing::instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    pub async fn runner<ExecC, ReadF, WriteF>(
+    pub async fn runner<ExecC, WriteF>(
         &self,
         exec_command: ExecC,
-        read_file: ReadF,
         write_file: WriteF,
         http_service: HttpService,
         make_fetch_remote_subgraph: FetchRemoteSubgraphFactory,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
-        output_target: OutputTarget,
         compose_on_initialisation: bool,
         federation_updater_config: Option<FederationUpdaterConfig>,
-    ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
+    ) -> Result<CompositionRunner<ExecC, WriteF>, CompositionPipelineError>
     where
-        ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
@@ -320,11 +306,9 @@ impl CompositionPipeline<state::Run> {
                 resolution_errors,
                 self.state.supergraph_binary.clone(),
                 exec_command,
-                read_file,
                 write_file,
                 output_dir,
                 compose_on_initialisation,
-                output_target,
                 federation_updater_config,
             );
         Ok(runner)
