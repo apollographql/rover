@@ -1,12 +1,13 @@
 use derive_getters::Getters;
 use futures::TryFutureExt;
-use houston::Credential;
-use rover_client::{
-    operations::config::who_am_i::{Actor, RegistryIdentity, WhoAmIError, WhoAmIRequest},
-    shared::GraphRef,
-};
+use houston::{Config, Credential, HoustonProblem, Profile};
+use rover_client::operations::config::who_am_i::{Actor, WhoAmI, WhoAmIRequest};
+use rover_client::shared::GraphRef;
 use rover_std::warnln;
 use tower::{Service, ServiceExt};
+
+use crate::options::ProfileOpt;
+use crate::utils::client::StudioClientConfig;
 
 #[derive(Clone, Getters)]
 pub struct RemoteRouterConfig {
@@ -15,15 +16,35 @@ pub struct RemoteRouterConfig {
 }
 
 impl RemoteRouterConfig {
-    pub async fn load<S>(
-        mut who_am_i: S,
+    pub async fn load(
+        client_config: StudioClientConfig,
+        profile: ProfileOpt,
         graph_ref: GraphRef,
-        credential: Option<Credential>,
-    ) -> RemoteRouterConfig
-    where
-        S: Service<WhoAmIRequest, Response = RegistryIdentity, Error = WhoAmIError>,
-    {
-        if let Some(credential) = credential {
+        home_override: Option<String>,
+        api_key_override: Option<String>,
+    ) -> RemoteRouterConfig {
+        if let Ok(credential) =
+            Self::establish_credentials(&profile, home_override, api_key_override)
+        {
+            let mut who_am_i = match client_config.get_authenticated_client(&profile) {
+                Ok(client) => match client.studio_graphql_service() {
+                    Ok(service) => WhoAmI::new(service),
+                    Err(err) => {
+                        warnln!("APOLLO_GRAPH_REF is set, but could not communicate with Studio. Router may fail to start if Enterprise features are enabled: {err}");
+                        return RemoteRouterConfig {
+                            graph_ref,
+                            api_key: None,
+                        };
+                    }
+                },
+                Err(e) => {
+                    warnln!("APOLLO_GRAPH_REF is set, but could not authenticate with Studio. Router may fail to start if Enterprise features are enabled: {e}");
+                    return RemoteRouterConfig {
+                        graph_ref,
+                        api_key: None,
+                    };
+                }
+            };
             let identity = who_am_i
                 .ready()
                 .and_then(|who_am_i| who_am_i.call(WhoAmIRequest::new(credential.origin)))
@@ -59,5 +80,16 @@ impl RemoteRouterConfig {
             api_key: None,
             graph_ref,
         }
+    }
+
+    fn establish_credentials(
+        profile: &ProfileOpt,
+        home_override: Option<String>,
+        api_key_override: Option<String>,
+    ) -> Result<Credential, HoustonProblem> {
+        Profile::get_credential(
+            &profile.profile_name,
+            &Config::new(home_override.as_ref(), api_key_override)?,
+        )
     }
 }
