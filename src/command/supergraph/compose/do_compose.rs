@@ -8,7 +8,6 @@ use rover_client::shared::GraphRef;
 use serde::Serialize;
 use tower::ServiceExt;
 
-use crate::composition::supergraph::config::resolver::SubgraphPrompt;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::TokioCommand;
@@ -107,13 +106,13 @@ impl Compose {
                 fetch_remote_subgraphs_factory,
                 supergraph_yaml,
                 graph_ref.clone(),
+                None,
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 self.opts.federation_version.clone(),
-                None::<&SubgraphPrompt>,
             )
             .await
             .install_supergraph_binary(

@@ -25,7 +25,7 @@ use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::SubgraphPrompt;
+use crate::composition::supergraph::config::resolver::{DefaultSubgraphDefinition, SubgraphPrompt};
 use crate::composition::{CompositionError, FederationUpdaterConfig};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
@@ -108,19 +108,38 @@ impl Dev {
                 version.clone()
             });
 
+        let subgraph_definition = self
+            .opts
+            .subgraph_opts
+            .subgraph_name
+            .as_ref()
+            .and_then(|subgraph_name| {
+                self.opts
+                    .subgraph_opts
+                    .subgraph_url
+                    .as_ref()
+                    .map(|subgraph_url| DefaultSubgraphDefinition::Args {
+                        name: subgraph_name.to_string(),
+                        url: subgraph_url.clone(),
+                        schema_path: self.opts.subgraph_opts.subgraph_schema_path.clone(),
+                    })
+            })
+            .unwrap_or_else(|| {
+                DefaultSubgraphDefinition::Prompt(Box::new(SubgraphPrompt::default()))
+            });
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
                 fetch_remote_subgraphs_factory,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
+                Some(subgraph_definition),
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
-                Some(&SubgraphPrompt::default()),
             )
             .await
             .install_supergraph_binary(
@@ -173,7 +192,6 @@ impl Dev {
                 OutputTarget::Stdout,
                 true,
                 federation_updater_config,
-                Some(&SubgraphPrompt::default()),
             )
             .await?;
 

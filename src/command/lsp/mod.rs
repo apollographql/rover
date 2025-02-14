@@ -27,9 +27,7 @@ use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{
-    ResolveSupergraphConfigError, SubgraphPrompt,
-};
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -341,13 +339,13 @@ async fn create_composition_runner(
             fetch_remote_subgraphs_factory,
             Some(FileDescriptorType::File(supergraph_config_path.clone())),
             None,
+            None,
         )
         .await?
         .resolve_federation_version(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
-            None::<&SubgraphPrompt>,
         )
         .await
         .install_supergraph_binary(
@@ -375,7 +373,6 @@ async fn create_composition_runner(
                 elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
                 skip_update: lsp_opts.plugin_opts.skip_update,
             }),
-            None,
         )
         .await?)
 }
