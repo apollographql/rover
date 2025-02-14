@@ -5,8 +5,6 @@ use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
-use houston::{Config, Profile};
-use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_client::RoverClientError;
 use rover_std::{errln, infoln, warnln};
 use semver::Version;
@@ -62,11 +60,6 @@ impl Dev {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
         }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
-
-        let service = client_config
-            .get_authenticated_client(profile)?
-            .studio_graphql_service()?;
-        let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
@@ -163,11 +156,6 @@ impl Dev {
             Err(_err) => None,
         };
 
-        let credential = Profile::get_credential(
-            &profile.profile_name,
-            &Config::new(home_override.as_ref(), api_key_override)?,
-        )?;
-
         // Set up an updater config, but only if we're not overriding the version ourselves. If
         // we are then we don't need one, so it becomes None.
         let federation_updater_config = match self.opts.supergraph_opts.federation_version {
@@ -250,9 +238,11 @@ impl Dev {
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
             .load_remote_config(
-                who_am_i_service,
+                client_config.clone(),
+                self.opts.plugin_opts.profile.clone(),
                 graph_ref.clone(),
-                Some(credential.clone()),
+                home_override.clone(),
+                api_key_override.clone(),
             )
             .await;
         // This RouterAddress has some logic figuring out _which_ of the potentially multiple
@@ -276,7 +266,9 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 &supergraph_schema,
-                credential,
+                self.opts.plugin_opts.profile.clone(),
+                home_override,
+                api_key_override,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
