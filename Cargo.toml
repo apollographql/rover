@@ -227,22 +227,22 @@ url = { workspace = true, features = ["serde"] }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
-dircpy = "0.3.19"
-duct = "0.13.7"
+dircpy = "=0.3.19"
+duct = "=0.13.7"
 git2 = { workspace = true, features = ["https"] }
-graphql-schema-diff = "0.2.0"
+graphql-schema-diff = "=0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-mime = "0.3.17"
-mockall = "0.13.0"
-portpicker = "0.1.1"
+mime = "=0.3.17"
+mockall = "=0.13.0"
+portpicker = "=0.1.1"
 predicates = { workspace = true }
-rand = "0.8.5"
-rand_regex = "0.17.0"
+rand = "=0.8.5"
+rand_regex = "=0.17.0"
 reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
-temp-env = { version = "0.3.6", features = ["async_closure"] }
+temp-env = { version = "=0.3.6", features = ["async_closure"] }
