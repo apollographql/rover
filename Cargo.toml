@@ -234,7 +234,7 @@ graphql-schema-diff = "=0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 mime = "=0.3.17"
-mockall = "=0.13.0"
+mockall = "=0.13.1"
 portpicker = "=0.1.1"
 predicates = { workspace = true }
 rand = "=0.8.5"
