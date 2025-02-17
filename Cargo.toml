@@ -39,13 +39,12 @@ members = [
 ]
 
 [features]
-default = ["composition-js", "cargo-clippy"]
+default = ["composition-js"]
 
 # this feature exists to enable composition
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
-cargo-clippy = []
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -85,7 +84,7 @@ backtrace = "0.3"
 backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
 billboard = "0.2"
-buildstructor = "0.5.4"
+buildstructor = "0.6.0"
 bytes = "1.8.0"
 cargo_metadata = "0.18"
 calm_io = "0.1"
