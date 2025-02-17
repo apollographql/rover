@@ -8,5 +8,5 @@ pub mod full;
 pub mod lazy;
 pub mod resolver;
 #[cfg(test)]
-pub mod scenario;
+pub(crate) mod scenario;
 pub mod unresolved;

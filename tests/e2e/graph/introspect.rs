@@ -12,6 +12,7 @@ use serde_json::Value;
 use speculoos::assert_that;
 use speculoos::prelude::{asserting, VecAssertions};
 use tempfile::Builder;
+use tokio::time::timeout;
 use tracing::info;
 use tracing_test::traced_test;
 
@@ -105,10 +106,14 @@ async fn e2e_test_rover_graph_introspect_watch(
 
     // Extract stderr from the child process and attach a reader to it so we can explore
     // the lines of output
-    while child.stderr.is_none() {
-        info!("Waiting for output to appear from command...");
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
+    timeout(Duration::from_secs(15), async {
+        while child.stderr.is_none() {
+            info!("Waiting for output to appear from command...");
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await
+    .expect("Could not get output from command");
     info!("Attaching to stderr...");
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
@@ -141,6 +146,8 @@ async fn e2e_test_rover_graph_introspect_watch(
     info!("Killing rover process...");
     // Kill the watch process to ensure the file doesn't change again now
     child.kill().expect("Could not kill rover process");
+    // Wait for the kill to be enacted
+    child.wait().expect("Could not wait for process to exit");
 
     info!("Extract new value from file...");
     // Get the new result from the file

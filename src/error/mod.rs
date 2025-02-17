@@ -4,18 +4,17 @@ pub use metadata::{RoverErrorCode, RoverErrorMetadata, RoverErrorSuggestion};
 
 pub type RoverResult<T> = std::result::Result<T, RoverError>;
 
+use std::borrow::BorrowMut;
+use std::error::Error;
+use std::fmt::{self, Debug, Display};
+
+use apollo_federation_types::rover::BuildErrors;
 use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
 use rover_std::Style;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
-
-use std::borrow::BorrowMut;
-use std::error::Error;
-use std::fmt::{self, Debug, Display};
-
-use apollo_federation_types::rover::BuildErrors;
 
 use crate::options::JsonVersion;
 
@@ -104,14 +103,14 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        return match self.error.downcast_ref::<RoverClientError>() {
+        match self.error.downcast_ref::<RoverClientError>() {
             Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
             }) => check_response.get_json(),
             Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
             _ => Value::Null,
-        };
+        }
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {

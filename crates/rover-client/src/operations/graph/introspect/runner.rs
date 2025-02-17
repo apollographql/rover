@@ -1,11 +1,12 @@
-use crate::blocking::GraphQLClient;
-use crate::error::{EndpointKind, RoverClientError};
-use crate::operations::graph::introspect::{types::*, Schema};
+use std::convert::{Into, TryFrom};
 
 use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use std::convert::{Into, TryFrom};
+use crate::blocking::GraphQLClient;
+use crate::error::{EndpointKind, RoverClientError};
+use crate::operations::graph::introspect::types::*;
+use crate::operations::graph::introspect::Schema;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -14,7 +15,6 @@ use std::convert::{Into, TryFrom};
     response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. graph_introspect_query

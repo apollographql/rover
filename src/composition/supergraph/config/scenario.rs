@@ -198,7 +198,6 @@ pub fn introspect_subgraph_scenario(
 #[derive(Clone, Debug)]
 pub struct FileSubgraphScenario {
     pub sdl: String,
-    pub subgraph_name: String,
     pub routing_url: String,
     pub schema_file_path: Utf8PathBuf,
     pub unresolved_subgraph: UnresolvedSubgraph,
@@ -230,7 +229,6 @@ pub fn file_subgraph_scenario(
     let schema_file_path = Utf8PathBuf::from_str("schema.graphql").unwrap();
     FileSubgraphScenario {
         sdl,
-        subgraph_name: subgraph_name.to_string(),
         routing_url: routing_url.clone(),
         schema_file_path: schema_file_path.clone(),
         unresolved_subgraph: UnresolvedSubgraph::new(

@@ -1,12 +1,7 @@
-use std::fs::read_to_string;
-use std::fs::OpenOptions;
-use std::io::BufReader;
-use std::io::Seek;
-use std::io::SeekFrom;
-use std::io::Write;
+use std::fs::{read_to_string, OpenOptions};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
@@ -14,20 +9,18 @@ use graphql_schema_diff::diff;
 use regex::Regex;
 use rstest::rstest;
 use serde_json::Value;
-use speculoos::assert_that;
-use speculoos::asserting;
 use speculoos::prelude::VecAssertions;
+use speculoos::{assert_that, asserting};
 use tempfile::Builder;
+use tokio::time::timeout;
 use tracing::info;
 use tracing_test::traced_test;
 
-use crate::e2e::find_matching_log_line;
-use crate::e2e::introspection_log_line_prefix;
-use crate::e2e::run_single_mutable_subgraph;
-use crate::e2e::run_subgraphs_retail_supergraph;
-use crate::e2e::test_artifacts_directory;
-use crate::e2e::RetailSupergraph;
-use crate::e2e::SingleMutableSubgraph;
+use crate::e2e::{
+    find_matching_log_line, introspection_log_line_prefix, run_single_mutable_subgraph,
+    run_subgraphs_retail_supergraph, test_artifacts_directory, RetailSupergraph,
+    SingleMutableSubgraph,
+};
 
 #[rstest]
 #[ignore]
@@ -114,17 +107,14 @@ async fn e2e_test_rover_subgraph_introspect_watch(
 
     // Extract stderr from the child process and attach a reader to it so we can explore
     // the lines of output
-    tokio::select! {
-        _ = async {
-            while child.stderr.is_none() {
-                info!("Waiting for output to appear from command...");
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
-        } => {}
-        _ = tokio::time::sleep(Duration::from_secs(15)) => {
-            panic!("Could not get output from command")
+    timeout(Duration::from_secs(15), async {
+        while child.stderr.is_none() {
+            info!("Waiting for output to appear from command...");
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
-    }
+    })
+    .await
+    .expect("Could not get output from command");
 
     info!("Attaching to stderr...");
     let stderr = child.stderr.take().unwrap();
@@ -158,6 +148,8 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     info!("Killing rover process...");
     // Kill the watch process to ensure the file doesn't change again now
     child.kill().expect("Could not kill rover process");
+    // Wait for the kill to be enacted
+    child.wait().expect("Could not wait for process to exit");
 
     info!("Extract new value from file...");
     // Get the new result from the file
