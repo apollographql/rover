@@ -108,7 +108,7 @@ pub type FederationVersionResolverFromSubgraphs = FederationVersionResolver<stat
 
 impl FederationVersionResolver<state::FromSubgraphs> {
     #[cfg(test)]
-    pub fn new(
+    pub(crate) fn new(
         target_federation_version: Option<FederationVersion>,
     ) -> FederationVersionResolver<state::FromSubgraphs> {
         FederationVersionResolver {
@@ -168,7 +168,8 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::FederationVersionResolverFromSupergraphConfig;
-    use crate::composition::supergraph::config::{full::FullyResolvedSubgraph, scenario::*};
+    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+    use crate::composition::supergraph::config::scenario::*;
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config or resolved subgraphs

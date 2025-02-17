@@ -7,6 +7,9 @@ version = "0.0.0"
 
 publish = false
 
+[features]
+cargo-clippy = []
+
 [dependencies]
 ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }

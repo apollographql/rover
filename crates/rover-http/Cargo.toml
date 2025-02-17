@@ -5,6 +5,9 @@ edition = "2021"
 
 publish = false
 
+[features]
+cargo-clippy = []
+
 [dependencies]
 buildstructor = { workspace = true }
 bytes = "1.8.0"

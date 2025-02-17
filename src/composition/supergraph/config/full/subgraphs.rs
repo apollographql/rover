@@ -19,11 +19,6 @@ pub struct FullyResolvedSubgraphs {
 }
 
 impl FullyResolvedSubgraphs {
-    #[cfg(test)]
-    pub fn new(subgraphs: BTreeMap<String, String>) -> FullyResolvedSubgraphs {
-        FullyResolvedSubgraphs { subgraphs }
-    }
-
     /// Used to upsert a fully resolved subgraph into this object's definitions
     pub fn upsert_subgraph(&mut self, name: String, schema: String) {
         self.subgraphs.insert(name, schema);

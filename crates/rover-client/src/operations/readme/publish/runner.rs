@@ -1,9 +1,10 @@
+use graphql_client::*;
+
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::readme::publish::ReadmePublishInput;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
-use graphql_client::*;
 
 type Timestamp = String;
 
@@ -16,7 +17,6 @@ type Timestamp = String;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-
 pub struct ReadmePublishMutation;
 
 pub async fn run(
@@ -55,9 +55,10 @@ fn build_response(
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::shared::GraphRef;
-    use serde_json::json;
 
     fn mock_graph_ref() -> GraphRef {
         GraphRef {
