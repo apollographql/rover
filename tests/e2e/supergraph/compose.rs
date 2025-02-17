@@ -5,13 +5,16 @@ use assert_cmd::prelude::CommandCargoExt;
 use camino::Utf8PathBuf;
 use regex::RegexSet;
 use rstest::*;
+use tracing::error;
+use tracing_test::traced_test;
 
 use crate::e2e::{retail_supergraph, RetailSupergraph};
 
 #[rstest]
 #[ignore]
+#[traced_test]
 #[tokio::test(flavor = "multi_thread")]
-async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>) {
+async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergraph<'_>) {
     // GIVEN
     //   - a supergraph config yaml (fixture)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
@@ -47,8 +50,23 @@ async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>)
     // WHEN
     //   - `rover supergraph compose` is invoked with the supergraph yaml and a flag for writing
     //   composition to disk
-    let res = cmd.spawn().expect("Could not run rover supergraph command");
-    let output = res.wait_with_output();
+    // THEN
+    //   - a success code is returned
+    match cmd.output() {
+        Ok(output) => {
+            if !output.status.success() {
+                error!("{}", std::str::from_utf8(&output.stderr).unwrap());
+                panic!("Supergraph compose command did not execute successfully!");
+            }
+        }
+        Err(err) => {
+            panic!("Could not execute `supergraph compose` command\n{}", err);
+        }
+    }
+
+    // AND
+    //   - the composition result is saved in the tmp dir
+    //   - the composition result joins all the graphs named in the supergraph config
     let composition_result_path = Utf8PathBuf::from_path_buf(
         retail_supergraph
             .get_working_directory()
@@ -59,12 +77,6 @@ async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>)
     let composition_result = std::fs::read_to_string(composition_result_path)
         .expect("Could not read composition result file");
     let matched: Vec<_> = re_set.matches(&composition_result).into_iter().collect();
-
-    // THEN
-    //   - a success code is returned
-    //   - the composition result is saved in the tmp dir
-    //   - the composition result joins all the graphs named in the supergraph config
-    assert!(output.is_ok_and(|code| code.status.success()));
     assert_eq!(matched.len(), retail_supergraph.get_subgraph_names().len());
 }
 
