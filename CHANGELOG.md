@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] (unreleased) - 2024-mm-dd
+<!-- # [x.x.x] (unreleased) - 2025-mm-dd
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -17,6 +17,58 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+
+# [0.27.1] - 2025-02-17
+
+> **If using Rover with Connectors,** you will need to specify `APOLLO_ROVER_DEV_ROUTER_VERSION=2.0.0-preview.X` when using `rover dev`
+
+## 🐛 Fixes
+
+- **Create output parent directories if they do not already exist - @dotdat PR #2396**
+
+  One small regression with release of v0.27.0 was that if an output directory to `supergraph compose` was specified,
+  but one of the parent directories did not exist, the command would fail. In previous versions the parent directories
+  would be created instead and the command would succeed. This is now corrected and the previous behaviour restored.
+
+- **Clean up how default subgraphs are defined in `rover dev` - @dotdat PR #2397 fixes #2394**
+
+  An issue has been reported where `rover dev` would prompt repeatedly for the subgraph name and URL despite the
+  user having given those values already. This was due to multiple factors, including not accounting for CLI args in 
+  the default case and some faulty other faulty logic. This has now been restored.
+
+- **Refine how composition produces artifacts for targets - @dotdat PR #2398 fixes #2393**
+
+  Due to changes in the `supergraph` binary from 2.9+, writing directly to a file is now supported. However,
+  this feature is not available in earlier versions of `supergraph`. As such Rover should be responsible for 
+  orchestrating how the output from `supergraph` binary ends up in a file, rather than delegating that responsibility
+  to the `supergraph` binary and thus being at the mercy of which version is used. This allowed a further refactor that
+  eliminated complexity around composition outputs.
+
+- **Ensure credentials are checked when needed and not before - @jonathanrainer PR #2400 fixes #2399**
+
+  Due to the `rover dev` refactor there were situations where credentials were being required when they were ultimately 
+  not being used. As such we stopped supporting the use case where no `profile` was defined and no `APOLLO_KEY` env var
+  was provided, which is a very common pattern. This is now corrected.
+
+## 🛠 Maintenance
+
+- **Update `apollographql/router` to v1.60.1 - @jonathanrainer PR #2388**
+- **Update Node.js packages - @jonathanrainer PR #2390**
+
+  Includes `eslint` to v9.20.0 and `prettier` to v3.5.0
+
+- **Update `node` CircleCI orb to v7.1.0 - @jonathanrainer PR #2391**
+- **Pin dependencies - @jonathanrainer PR #2401**
+- **Update Rust and Node.js packages - @jonathanrainer PR #2402**
+
+  Includes `eslint` to v9.20.1, `mockito` to v1.6.1, `node` to v20.18.3 and `prettier` to v3.5.1
+
+- **Update CI node Docker Image to v20.18.3 - @jonathanrainer PR #2403**
+- **Update `mockall` to v0.13.1 - @jonathanrainer PR #24045**
+
+## 📚 Documentation
+
+- **Remove obsolete language from `rover dev --help` - @dylan-apollo PR #2395**
 
 # [0.27.0] - 2025-02-10
 
