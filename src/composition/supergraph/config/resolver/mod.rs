@@ -24,7 +24,6 @@ use clap::error::ErrorKind as ClapErrorKind;
 use clap::CommandFactory;
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
-use serde_yaml::Error;
 use tower::{MakeService, Service, ServiceExt};
 use tracing::warn;
 use url::Url;
@@ -146,7 +145,7 @@ pub enum LoadSupergraphConfigError {
     ReadFileDescriptor(RoverError),
     /// Occurs when a supergraph cannot be deserialised, ready for expansion
     #[error("Failed to deserialise the supergraph config. Error: {0}")]
-    DeserialisationError(#[from] Error),
+    DeserializationError(#[from] serde_yaml::Error),
     /// Occurs when a supergraph cannot be expanded correctly
     #[error("Failed to expand supergraph config. Error: {0}")]
     ExpansionError(RoverError),
