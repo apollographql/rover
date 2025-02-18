@@ -1371,7 +1371,7 @@ subgraphs:
         let file_descriptor_type = setup_file_descriptor(
             true,
             &local_supergraph_config_dir,
-            &supergraph_config,
+            supergraph_config,
             &mut mock_stdin,
         )
         .expect("Couldn't setup file descriptor.");
