@@ -1345,4 +1345,77 @@ mod tests {
         };
         Ok(file_descriptor_type)
     }
+
+    #[rstest]
+    #[case::env_var_set(vec![("MY_ENV_VAR", Some("foo.bar.com"))], "http://foo.bar.com:5000/graphql")]
+    #[case::default_value_used(vec![], "http://host.docker.internal:5000/graphql")]
+    #[tokio::test]
+    async fn test_expansion_works_inside_supergraph_yaml(
+        #[case] kvs: Vec<(&str, Option<&str>)>,
+        #[case] expected: &str,
+    ) {
+        let supergraph_config = r#"federation_version: =2.9.3
+subgraphs:
+  products:
+    routing_url: http://${env.MY_ENV_VAR:-host.docker.internal}:5000/graphql
+    schema:
+      subgraph_url: http://localhost:4001
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      subgraph_url: http://localhost:4002"#;
+        let local_supergraph_config_dir = TempDir::new().expect("Couldn't create temp dir.");
+
+        let mut mock_stdin = MockReadStdin::new();
+
+        let file_descriptor_type = setup_file_descriptor(
+            true,
+            &local_supergraph_config_dir,
+            &supergraph_config,
+            &mut mock_stdin,
+        )
+        .expect("Couldn't setup file descriptor.");
+
+        let (fetch_remote_subgraphs_service, _) = tower_test::mock::spawn::<
+            FetchRemoteSubgraphsRequest,
+            BTreeMap<String, SubgraphConfig>,
+        >();
+
+        let fetch_remote_subgraphs_factory =
+            ServiceBuilder::new()
+                .boxed_clone()
+                .service_fn(move |_: ()| {
+                    let fetch_remote_subgraphs_service = fetch_remote_subgraphs_service.clone();
+                    async move {
+                        Ok::<_, MakeFetchRemoteSubgraphsError>(
+                            ServiceBuilder::new()
+                                .map_err(RoverClientError::ServiceReady)
+                                .service(fetch_remote_subgraphs_service.into_inner())
+                                .boxed_clone(),
+                        )
+                    }
+                });
+
+        temp_env::async_with_vars(kvs, async {
+            let resolver = SupergraphConfigResolver::default()
+                .load_remote_subgraphs(fetch_remote_subgraphs_factory, None)
+                .await
+                .expect("Couldn't load remote subgraphs.")
+                .load_from_file_descriptor(&mut mock_stdin, Some(&file_descriptor_type))
+                .expect("Couldn't load local subgraphs.")
+                .skip_default_subgraph();
+
+            assert_that!(
+                resolver
+                    .state
+                    .subgraphs
+                    .get("products")
+                    .unwrap()
+                    .routing_url
+            )
+            .is_some()
+            .is_equal_to(String::from(expected));
+        })
+        .await;
+    }
 }
