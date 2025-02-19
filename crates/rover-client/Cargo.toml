@@ -15,6 +15,7 @@ apollo-encoder = { workspace = true }
 backoff = { workspace = true, features = ["tokio", "futures"] }
 buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+comfy-table = { workspace = true, features = ["custom_styling"]}
 derive-getters = { workspace = true }
 git-url-parse = { workspace = true }
 git2 = { workspace = true, features = [
@@ -26,7 +27,6 @@ http = { workspace = true }
 humantime = { workspace = true }
 hyper = { workspace = true }
 itertools = { workspace = true }
-prettytable-rs = { workspace = true }
 reqwest = { workspace = true, features = [
     "blocking",
     "brotli",

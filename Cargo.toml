@@ -92,6 +92,7 @@ camino = { version = "1", features = ["serde1"] }
 clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
+comfy-table = {  version = "7.1.4", features = ["custom_styling"] }
 console = "0.15"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
@@ -118,7 +119,6 @@ os_info = "3.7"
 os_type = "2.6"
 predicates = "3"
 pretty_assertions = "1"
-prettytable-rs = "0.10"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.23.0"
@@ -185,7 +185,6 @@ heck = { workspace = true }
 http = { workspace = true }
 houston = { workspace = true }
 itertools = { workspace = true }
-prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
 opener = { workspace = true }
@@ -222,6 +221,7 @@ tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+comfy-table = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
