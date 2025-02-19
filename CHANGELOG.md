@@ -18,6 +18,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.27.2] - 2025-02-19
+
+## 🐛 Fixes
+
+- **Restore the ability to use environment or file references in the `supergraph.yaml` file - @jonathanrainer PR #2411**
+
+  In v0.26.3 and older you could use references such as `${env.HOST}` or similar in the `supergraph.yaml` file, there
+  was an oversight in the refactor and this was removed. This ability has now been restored.
+
+## 🛠 Maintenance
+
+- **Restructure and add logging to failing E2E test - @jonathanrainer PR #2406**
+- **Upgrade Rust to v1.84.0 - @jonathanrainer PR #2407**
+- **Upgrade `apollographql/federation-rs` to v2.10.0 - @jonathanrainer PR #2409**
+- **Upgrade `thiserror` to v2.0.1 - @jonathanrainer PR #2261**
+
 # [0.27.1] - 2025-02-17
 
 > **If using Rover with Connectors,** you will need to specify `APOLLO_ROVER_DEV_ROUTER_VERSION=2.0.0-preview.X` when using `rover dev`
