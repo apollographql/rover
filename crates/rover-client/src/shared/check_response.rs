@@ -1,14 +1,14 @@
+use crate::{shared::lint_response::Diagnostic, RoverClientError};
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::Attribute::Bold;
+use comfy_table::CellAlignment::Center;
+use comfy_table::{Cell, Table};
+use rover_std::Style;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::{shared::lint_response::Diagnostic, RoverClientError};
-
-use rover_std::Style;
-
-use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::{Deserialize, Serialize};
 
-use prettytable::{row, Table};
 use serde_json::{json, Value};
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
@@ -174,13 +174,19 @@ impl OperationCheckResponse {
 
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
 
-        table.set_format(*FORMAT_BOX_CHARS);
-
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc => "Change", "Code", "Description"]);
+        table.set_header(
+            vec!["Change", "Code", "Description"]
+                .into_iter()
+                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+        );
         for check in &self.changes {
-            table.add_row(row![check.severity, check.code, check.description]);
+            table.add_row(vec![
+                &check.severity.to_string(),
+                &check.code,
+                &check.description,
+            ]);
         }
 
         table.to_string()
@@ -224,18 +230,20 @@ pub struct LintCheckResponse {
 impl LintCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
 
-        table.set_format(*FORMAT_BOX_CHARS);
-
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc =>  "Level", "Coordinate", "Line", "Description"]);
+        table.set_header(
+            vec!["Level", "Coordinate", "Line", "Description"]
+                .into_iter()
+                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+        );
 
         for diagnostic in &self.diagnostics {
-            table.add_row(row![
-                diagnostic.level,
-                diagnostic.coordinate,
-                diagnostic.start_line,
-                diagnostic.message
+            table.add_row(vec![
+                &diagnostic.level,
+                &diagnostic.coordinate,
+                &diagnostic.start_line.to_string(),
+                &diagnostic.message,
             ]);
         }
 
@@ -322,14 +330,16 @@ pub struct ProposalsCheckResponse {
 impl ProposalsCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
 
-        table.set_format(*FORMAT_BOX_CHARS);
-
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc =>  "Status", "Proposal Name"]);
+        table.set_header(
+            vec!["Status", "Proposal Name"]
+                .into_iter()
+                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+        );
 
         for proposal in &self.related_proposals {
-            table.add_row(row![proposal.status, proposal.display_name,]);
+            table.add_row(vec![&proposal.status, &proposal.display_name]);
         }
 
         table.to_string()
@@ -391,22 +401,24 @@ pub struct CustomCheckResponse {
 impl CustomCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
 
-        table.set_format(*FORMAT_BOX_CHARS);
-
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc =>  "Level", "Rule", "Line", "Message"]);
+        table.set_header(
+            vec!["Level", "Rule", "Line", "Message"]
+                .into_iter()
+                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+        );
 
         for violation in &self.violations {
             let coordinate = match &violation.start_line {
                 Some(message) => message.to_string(),
                 None => "".to_string(),
             };
-            table.add_row(row![
-                violation.level,
-                violation.rule,
-                coordinate,
-                violation.message,
+            table.add_row(vec![
+                &violation.level,
+                &violation.rule,
+                &coordinate,
+                &violation.message,
             ]);
         }
 

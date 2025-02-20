@@ -6,6 +6,9 @@ use std::{
 
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
+use comfy_table::Attribute::Bold;
+use comfy_table::Cell;
+use comfy_table::CellAlignment::Center;
 use serde_json::{json, Value};
 use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 
@@ -27,7 +30,7 @@ use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::JsonVersion;
 use crate::options::ProjectLanguage;
-use crate::utils::table::{self, row};
+use crate::utils::table;
 use crate::RoverError;
 
 /// RoverOutput defines all of the different types of data that are printed
@@ -118,24 +121,24 @@ impl RoverOutput {
             } => {
                 let mut table = table::get_table();
 
-                table.add_row(row![Style::WhoAmIKey.paint("Key Type"), key_type]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Key Type"), key_type]);
 
                 if let Some(graph_id) = graph_id {
-                    table.add_row(row![Style::WhoAmIKey.paint("Graph ID"), graph_id]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("Graph ID"), graph_id]);
                 }
 
                 if let Some(graph_title) = graph_title {
-                    table.add_row(row![Style::WhoAmIKey.paint("Graph Title"), graph_title]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("Graph Title"), graph_title]);
                 }
 
                 if let Some(user_id) = user_id {
-                    table.add_row(row![Style::WhoAmIKey.paint("User ID"), user_id]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("User ID"), user_id]);
                 }
 
-                table.add_row(row![Style::WhoAmIKey.paint("Origin"), origin]);
-                table.add_row(row![Style::WhoAmIKey.paint("API Key"), api_key]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Origin"), origin]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
 
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
@@ -164,12 +167,15 @@ impl RoverOutput {
                 )?;
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Slug", "Description"]);
+                table.set_header(
+                    vec!["Slug", "Description"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
                 for (shortlink_slug, shortlink_description) in shortlinks {
-                    table.add_row(row![shortlink_slug, shortlink_description]);
+                    table.add_row(vec![shortlink_slug, shortlink_description]);
                 }
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::FetchResponse(fetch_response) => {
                 Some((fetch_response.sdl.contents).to_string())
@@ -297,8 +303,11 @@ impl RoverOutput {
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
+                table.set_header(
+                    vec!["Name", "Routing Url", "Last Updated"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
 
                 for subgraph in &details.subgraphs {
                     // Default to "unspecified" if the url is None or empty.
@@ -317,7 +326,7 @@ impl RoverOutput {
                         "N/A".to_string()
                     };
 
-                    table.add_row(row![subgraph.name, url, formatted_updated_at]);
+                    table.add_row(vec![subgraph.name.clone(), url, formatted_updated_at]);
                 }
                 Some(format!(
                     "{}\n View full details at {}/graph/{}/service-list",
@@ -327,20 +336,23 @@ impl RoverOutput {
             RoverOutput::TemplateList(templates) => {
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "ID", "Language", "Repo URL"]);
+                table.set_header(
+                    vec!["Name", "ID", "Language", "Repo URL"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
 
                 for template in templates {
                     let language: ProjectLanguage = template.language.clone().into();
-                    table.add_row(row![
-                        template.name,
-                        template.id,
-                        language,
-                        template.repo_url,
+                    table.add_row(vec![
+                        template.name.clone(),
+                        template.id.clone(),
+                        language.to_string(),
+                        template.repo_url.to_string(),
                     ]);
                 }
 
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 let template_id = Style::Command.paint(template_id);
