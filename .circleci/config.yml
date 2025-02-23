@@ -3,7 +3,7 @@ version: 2.1
 # Our CircleCI dependencies
 orbs:
   rust: circleci/rust@1.6.1
-  gh: circleci/github-cli@2.6.2
+  gh: circleci/github-cli@2.6.3
   node: circleci/node@7.1.0
   slack: circleci/slack@5.1.1
 
