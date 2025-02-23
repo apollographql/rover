@@ -1,17 +1,12 @@
-use std::{
-    collections::BTreeMap,
-    fmt::Write,
-    io::{self, IsTerminal},
-};
+use std::collections::BTreeMap;
+use std::fmt::Write;
+use std::io::{self, IsTerminal};
 
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::Attribute::Bold;
 use comfy_table::Cell;
 use comfy_table::CellAlignment::Center;
-use serde_json::{json, Value};
-use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
-
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -25,11 +20,13 @@ use rover_client::shared::{
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
+use serde_json::{json, Value};
+use termimad::crossterm::style::Attribute::Underlined;
+use termimad::MadSkin;
 
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::JsonVersion;
-use crate::options::ProjectLanguage;
+use crate::options::{JsonVersion, ProjectLanguage};
 use crate::utils::table;
 use crate::RoverError;
 
@@ -56,6 +53,7 @@ pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
+    JsonSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckWorkflowResponse(CheckWorkflowResponse),
@@ -284,6 +282,7 @@ impl RoverOutput {
                 }
             }
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
+            RoverOutput::JsonSchema(schema) => Some(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -498,6 +497,7 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::JsonSchema(schema) => Value::String(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
@@ -681,28 +681,20 @@ mod tests {
     use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
-
     use console::strip_ansi_codes;
-    use rover_client::{
-        operations::{
-            graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
-            persisted_queries::publish::PersistedQueriesOperationCounts,
-            subgraph::{
-                delete::SubgraphDeleteResponse,
-                list::{SubgraphInfo, SubgraphUpdatedAt},
-            },
-        },
-        shared::{
-            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
-            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
-            SdlType, Violation,
-        },
+    use rover_client::operations::graph::publish::{ChangeSummary, FieldChanges, TypeChanges};
+    use rover_client::operations::persisted_queries::publish::PersistedQueriesOperationCounts;
+    use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
+    use rover_client::operations::subgraph::list::{SubgraphInfo, SubgraphUpdatedAt};
+    use rover_client::shared::{
+        ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
+        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+        SdlType, Violation,
     };
 
-    use crate::options::JsonOutput;
-
     use super::*;
+    use crate::options::JsonOutput;
 
     #[test]
     fn docs_list_json() {

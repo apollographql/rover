@@ -6,6 +6,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 pub(crate) mod compose;
+mod config;
 mod fetch;
 
 #[derive(Debug, Serialize, Parser)]
@@ -18,6 +19,9 @@ pub struct Supergraph {
 pub enum Command {
     /// Locally compose supergraph SDL from a set of subgraph schemas
     Compose(compose::Compose),
+
+    /// Supergraph Config Schema commands
+    Config(config::Config),
 
     /// Fetch supergraph SDL from the graph registry
     Fetch(fetch::Fetch),
@@ -37,6 +41,7 @@ impl Supergraph {
                     .run(override_install_path, client_config, output_file)
                     .await
             }
+            Command::Config(command) => command.run(),
         }
     }
 }
