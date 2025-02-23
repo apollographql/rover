@@ -1,4 +1,7 @@
-use crate::utils::PKG_PROJECT_ROOT;
+use std::collections::HashSet;
+use std::fs;
+use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
@@ -7,24 +10,29 @@ use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
     Result as LycheeResult, Uri,
 };
-use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio_stream::StreamExt;
+
+use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct LycheeRunner {
     client: Client,
 }
 
 impl LycheeRunner {
-    pub(crate) fn new() -> Result<Self> {
+    pub(crate) fn new(
+        retry_wait_time: Duration,
+        max_retries: u8,
+        exclude_all_private: bool,
+    ) -> Result<Self> {
         let accepted = Some(HashSet::from_iter(vec![
             StatusCode::OK,
             StatusCode::TOO_MANY_REQUESTS,
         ]));
 
         let client = ClientBuilder::builder()
-            .exclude_all_private(true)
-            .retry_wait_time(Duration::from_secs(30))
-            .max_retries(5u8)
+            .exclude_all_private(exclude_all_private)
+            .retry_wait_time(retry_wait_time)
+            .max_retries(max_retries)
             .accepted(accepted)
             .build()
             .client()?;
@@ -49,7 +57,7 @@ impl LycheeRunner {
 
         let lychee_client = self.client.clone();
 
-        let links: Vec<Request> = Collector::new(None)
+        let links: Vec<Request> = Collector::new(None, None)?
             .collect_links(inputs)
             .collect::<LycheeResult<Vec<_>>>()
             .await?;
@@ -148,36 +156,29 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, time::Duration};
+    use std::collections::HashSet;
+    use std::time::Duration;
 
     use anyhow::Result;
     use http::StatusCode;
-    use lychee_lib::{ClientBuilder, InputSource, Request, Result as LycheeResult, Uri};
+    use lychee_lib::{Client, ClientBuilder, InputSource, Request, Result as LycheeResult, Uri};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tokio::runtime::Runtime;
 
     use super::get_failed_request;
+    use crate::info;
+    use crate::tools::LycheeRunner;
 
     #[fixture]
-    fn lychee_client() -> LycheeResult<lychee_lib::Client> {
-        let accepted = Some(HashSet::from_iter(vec![
-            StatusCode::OK,
-            StatusCode::TOO_MANY_REQUESTS,
-        ]));
-        ClientBuilder::builder()
-            .exclude_all_private(false)
-            .retry_wait_time(Duration::from_secs(30))
-            .max_retries(5u8)
-            .accepted(accepted)
-            .build()
-            .client()
+    fn lychee_client() -> Result<Client> {
+        LycheeRunner::new(Duration::from_secs(1), 1, false).map(|r| r.client)
     }
 
     #[rstest]
     #[case::success(200)]
     fn test_get_failed_request_success(
-        lychee_client: LycheeResult<lychee_lib::Client>,
+        lychee_client: Result<Client>,
         #[case] response_status_int: usize,
     ) -> Result<()> {
         let lychee_client = lychee_client?;
@@ -208,7 +209,7 @@ mod tests {
     #[case::internal_server_error(404, StatusCode::NOT_FOUND)]
     #[case::internal_server_error(500, StatusCode::INTERNAL_SERVER_ERROR)]
     fn test_get_failed_request_failure(
-        lychee_client: LycheeResult<lychee_lib::Client>,
+        lychee_client: Result<Client>,
         #[case] response_status_int: usize,
         #[case] response_status_code: StatusCode,
     ) -> Result<()> {
