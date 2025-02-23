@@ -69,7 +69,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.15.2"
+apollo-federation-types = { version = "0.15.2", features = ["json_schema"] }
 
 apollo-language-server = { version = "0.4.0", default-features = false, features = ["tokio"] }
 
@@ -122,6 +122,7 @@ pretty_assertions = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.23.0"
+schemars = "0.8.21"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -196,6 +197,7 @@ rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
+schemars = { workspace = true }
 rover-studio = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }

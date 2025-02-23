@@ -1,5 +1,7 @@
+use apollo_federation_types::config::SupergraphConfig;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use schemars::schema_for;
 use serde::Serialize;
 
 use crate::utils::client::StudioClientConfig;
@@ -19,6 +21,9 @@ pub enum Command {
     /// Locally compose supergraph SDL from a set of subgraph schemas
     Compose(compose::Compose),
 
+    /// Print the JSON Schema of the config for `compose`
+    PrintJsonSchema,
+
     /// Fetch supergraph SDL from the graph registry
     Fetch(fetch::Fetch),
 }
@@ -36,6 +41,12 @@ impl Supergraph {
                 command
                     .run(override_install_path, client_config, output_file)
                     .await
+            }
+            Command::PrintJsonSchema => {
+                let schema = schema_for!(SupergraphConfig);
+                Ok(RoverOutput::JsonSchema(
+                    serde_json::to_string_pretty(&schema).unwrap(),
+                ))
             }
         }
     }
