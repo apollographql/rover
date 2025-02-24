@@ -118,7 +118,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Remove ambiguity around which URL is used for query execution when using `subgraph_url` and `--graph-ref` flag**
 
   In previous versions of Rover, when the `--graph-ref` flag was used and a subgraph was specified in the 
-  `supergraph.yaml` in the following way, to override a subgraph in Studio:
+  `supergraph.yaml` to override the values from GraphOS, the `schema.subgraph_url` was used for both schema fetching via introspection **and** query execution.
   
   ```yaml
   federation_version: 2.10.0
@@ -127,10 +127,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       schema:
         subgraph_url: "http://localhost:4000/graphql"
   ```
-  Rover would use the given `subgraph_url` for schema introspection **and** query execution. However, this was a bug in 
-  earlier versions of Rover that has only recently been identified. Now if this same situation occurs, Rover will use
-  the given `subgraph_url` (`http://localhost:4000/graphql` in the example above) for introspection **only**. Query
-  execution will use the `routing_url` from Studio.
+
+  This was a bug in earlier versions of Rover that has only recently been identified. Now if this same situation occurs, Rover will use
+  the given `schema.subgraph_url` (`http://localhost:4000/graphql` in the example above) to fetch the schema **only**. Query
+  execution will use the `routing_url` from GraphOS.
 
   This is consistent with the documented behaviour since this feature launched and in addition is consistent with the 
   principle that the use of the `supergraph.yaml` will only override `--graph-ref` where you explicitly state that 
@@ -145,7 +145,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       schema:
         subgraph_url: "http://localhost:4000/graphql"
   ```
-  and this will use `http://localhost:4000/graphql` for query execution **and** introspection.
+  and this will use `http://localhost:4000/graphql` for query execution **and** schema fetching via introspection.
 
 ## 🚀 Features
 
