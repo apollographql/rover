@@ -1,13 +1,14 @@
 use std::env;
 
-use serde::Serialize;
-
 pub use code::RoverErrorCode;
 use houston::HoustonProblem;
 use rover_client::{EndpointKind, RoverClientError};
+use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
-use crate::{options::JsonVersion, utils::env::RoverEnvKey};
+use crate::composition::CompositionError;
+use crate::options::JsonVersion;
+use crate::utils::env::RoverEnvKey;
 
 mod code;
 mod suggestion;
@@ -387,6 +388,24 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 ),
                 HoustonProblem::AdhocError(_) => (None, None),
                 HoustonProblem::RoverStdError(_) => (None, None),
+            };
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: suggestion.into_iter().collect(),
+                code,
+                skip_printing_cause,
+            };
+        }
+
+        if let Some(composition_error) = error.downcast_ref::<CompositionError>() {
+            let (suggestion, code) = match composition_error {
+                CompositionError::Build { source, .. } => (
+                    Some(RoverErrorSuggestion::FixCompositionErrors {
+                        num_subgraphs: source.len(),
+                    }),
+                    Some(RoverErrorCode::E029),
+                ),
+                _ => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
