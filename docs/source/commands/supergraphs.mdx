@@ -229,3 +229,23 @@ We recommend updating to the latest version of Rover as soon as possible. If you
 |---|---|
 |&lt;= v0.2.x|&lt;= v0.38.x|
 |&gt;= v0.3.x|&gt;= v0.39.x|
+
+## Configuration awareness in your text editor
+
+### `supergraph config schema`
+
+You can use Rover to generate a JSON schema for config validation in your text editor. This schema helps you format the YAML file correctly and also provides content assist.
+
+Generate the schema with the following command:
+
+```bash
+rover supergraph config schema
+```
+
+After you generate the schema, configure your text editor. Here are the instructions for some commonly used editors:
+
+- [Visual Studio Code](https://code.visualstudio.com/docs/languages/json#_json-schemas-and-settings)
+- [Emacs](https://emacs-lsp.github.io/lsp-mode/page/lsp-yaml)
+- [IntelliJ](https://www.jetbrains.com/help/idea/json.html#ws_json_using_schemas)
+- [Sublime](https://github.com/sublimelsp/LSP-yaml)
+- [Vim](https://github.com/Quramy/vison)
