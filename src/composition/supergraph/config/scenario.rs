@@ -29,14 +29,14 @@ fn graph_id_or_variant() -> String {
     const ALPHA_CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const ADDITIONAL_CHARSET: &[u8] =
         b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut value = format!(
         "{}",
-        ALPHA_CHARSET[rng.gen_range(0..ALPHA_CHARSET.len())] as char
+        ALPHA_CHARSET[rng.random_range(0..ALPHA_CHARSET.len())] as char
     );
-    let remaining = rng.gen_range(0..62);
+    let remaining = rng.random_range(0..62);
     for _ in 0..remaining {
-        let c = ADDITIONAL_CHARSET[rng.gen_range(0..ADDITIONAL_CHARSET.len())] as char;
+        let c = ADDITIONAL_CHARSET[rng.random_range(0..ADDITIONAL_CHARSET.len())] as char;
         value.push(c);
     }
     value
