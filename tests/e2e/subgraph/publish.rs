@@ -8,12 +8,10 @@ use rstest::rstest;
 use serde::Deserialize;
 use speculoos::assert_that;
 use speculoos::iter::ContainingIntoIterAssertions;
-use tracing::error;
-use tracing::info;
+use tracing::{error, info};
 use tracing_test::traced_test;
 
-use crate::e2e::remote_supergraph_publish_test_variant_graphref;
-use crate::e2e::test_artifacts_directory;
+use crate::e2e::{remote_supergraph_publish_test_variant_graphref, test_artifacts_directory};
 
 #[derive(Debug, Deserialize)]
 struct SubgraphListResponse {
@@ -48,7 +46,7 @@ async fn e2e_test_rover_subgraph_publish(
     // I appreciate that in theory it's possible there could be a clash here, however, there are
     // 3.2 * 10^115 possibilities for identifiers, so I think for practical purposes we can
     // consider these as unique.
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{0,63}", 100)
         .expect("Could not compile regex");
     let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
