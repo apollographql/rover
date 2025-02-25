@@ -200,7 +200,7 @@ where
                 "--config".to_string(),
                 self.config_path.to_string(),
                 "--log".to_string(),
-                "info".to_string(),
+                "trace".to_string(),
                 "--dev".to_string(),
             ];
 
