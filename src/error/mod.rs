@@ -16,7 +16,6 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
 
-use crate::composition::CompositionError;
 use crate::options::JsonVersion;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
@@ -115,15 +114,18 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
-        match self.error.downcast_ref::<CompositionError>() {
-            None => json!(self),
-            Some(err) => match err {
-                CompositionError::Build { source, .. } => {
+        #[cfg(feature = "composition-js")]
+        {
+            use crate::composition::CompositionError;
+            match self.error.downcast_ref::<CompositionError>() {
+                Some(CompositionError::Build { source, .. }) => {
                     json!({"details": source, "code": self.code(), "message": self.message()})
                 }
                 _ => json!(self),
-            },
+            }
         }
+        #[cfg(not(feature = "composition-js"))]
+        json!(self)
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {

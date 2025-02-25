@@ -6,7 +6,6 @@ use rover_client::{EndpointKind, RoverClientError};
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
-use crate::composition::CompositionError;
 use crate::options::JsonVersion;
 use crate::utils::env::RoverEnvKey;
 
@@ -397,22 +396,26 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
-        if let Some(composition_error) = error.downcast_ref::<CompositionError>() {
-            let (suggestion, code) = match composition_error {
-                CompositionError::Build { source, .. } => (
-                    Some(RoverErrorSuggestion::FixCompositionErrors {
-                        num_subgraphs: source.len(),
-                    }),
-                    Some(RoverErrorCode::E029),
-                ),
-                _ => (None, None),
-            };
-            return RoverErrorMetadata {
-                json_version: JsonVersion::default(),
-                suggestions: suggestion.into_iter().collect(),
-                code,
-                skip_printing_cause,
-            };
+        #[cfg(feature = "composition-js")]
+        {
+            use crate::composition::CompositionError;
+            if let Some(composition_error) = error.downcast_ref::<CompositionError>() {
+                let (suggestion, code) = match composition_error {
+                    CompositionError::Build { source, .. } => (
+                        Some(RoverErrorSuggestion::FixCompositionErrors {
+                            num_subgraphs: source.len(),
+                        }),
+                        Some(RoverErrorCode::E029),
+                    ),
+                    _ => (None, None),
+                };
+                return RoverErrorMetadata {
+                    json_version: JsonVersion::default(),
+                    suggestions: suggestion.into_iter().collect(),
+                    code,
+                    skip_printing_cause,
+                };
+            }
         }
 
         RoverErrorMetadata::default()
