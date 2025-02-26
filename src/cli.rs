@@ -1,27 +1,24 @@
+use std::fmt::Display;
+use std::{io, process};
+
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
-use lazycell::{AtomicLazyCell, LazyCell};
-use reqwest::Client;
-use serde::Serialize;
-
-use crate::command::{self, RoverOutput};
-use crate::options::OutputOpts;
-use crate::utils::{
-    client::{ClientBuilder, ClientTimeout, StudioClientConfig},
-    env::{RoverEnv, RoverEnvKey},
-    stringify::option_from_display,
-    version,
-};
-use crate::RoverResult;
-
 use config::Config;
 use houston as config;
+use lazycell::{AtomicLazyCell, LazyCell};
+use reqwest::Client;
 use rover_client::shared::GitContext;
+use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
-use std::fmt::Display;
-use std::{io, process};
+use crate::command::{self, RoverOutput};
+use crate::options::OutputOpts;
+use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
+use crate::utils::env::{RoverEnv, RoverEnvKey};
+use crate::utils::stringify::option_from_display;
+use crate::utils::version;
+use crate::RoverResult;
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -185,7 +182,11 @@ impl Rover {
             Command::Contract(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config()?,
+                        self.log_level,
+                    )
                     .await
             }
             Command::Supergraph(command) => {

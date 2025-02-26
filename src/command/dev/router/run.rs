@@ -7,6 +7,7 @@ use futures::StreamExt;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_std::{debugln, errln, infoln, RoverStdError};
+use timber::Level;
 use tokio::process::Child;
 use tokio::time::sleep;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -145,6 +146,7 @@ impl RunRouter<state::Run> {
         profile: ProfileOpt,
         home_override: Option<String>,
         api_key_override: Option<String>,
+        log_level: Option<Level>,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -214,6 +216,7 @@ impl RunRouter<state::Run> {
             .and_home_override(home_override)
             .and_api_key_override(api_key_override)
             .profile(profile)
+            .and_log_level(log_level)
             .spawn(spawn)
             .build();
 
