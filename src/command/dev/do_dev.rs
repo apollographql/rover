@@ -8,6 +8,7 @@ use futures::StreamExt;
 use rover_client::RoverClientError;
 use rover_std::{errln, infoln, warnln};
 use semver::Version;
+use timber::Level;
 use tower::ServiceExt;
 
 use super::version_upgrade_message::VersionUpgradeMessage;
@@ -37,6 +38,7 @@ impl Dev {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
         VersionUpgradeMessage::print();
         warnln!(
@@ -269,6 +271,7 @@ impl Dev {
                 self.opts.plugin_opts.profile.clone(),
                 home_override,
                 api_key_override,
+                log_level,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)

@@ -3,18 +3,25 @@
 //! Defines the output format of traces, events, and spans produced
 //! by `env_logger`, `log`, and/or `tracing`.
 
-use clap::ValueEnum;
 use std::io;
+
+use clap::ValueEnum;
+pub use tracing_core::Level;
 use tracing_subscriber::fmt;
 
-pub use tracing_core::Level;
-
 #[derive(Clone, ValueEnum)]
-pub(crate) enum RoverLogLevel {
+/// Enum to describe the log levels that can be utilised by Rover, and by extension the Router
+/// binary run as part of rover dev
+pub enum RoverLogLevel {
+    /// Highest level logging, emits very large amounts of logs and may inhibit router performance
     Trace,
+    /// Emits many logs, which are useful for debugging
     Debug,
+    /// Default log level, emits useful user messages
     Info,
+    /// Only emits warning logs
     Warn,
+    /// Lowest log level, only emits error logs
     Error,
 }
 
