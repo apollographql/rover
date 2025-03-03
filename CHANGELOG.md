@@ -24,6 +24,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Fix formatting of table output by `rover config whoami` - @pubmodmatt PR #2413**
 
+## 🛠 Maintenance
+
+- **Add Apollo Router 2.x dependency to renovate - @pubmodmatt PR #2430**
+
+  Migrate renovate configuration from `regexManagers` to `customManagers`. Add a custom regex manager for Router 2.x.
+
 # [0.27.2] - 2025-02-19
 
 ## 🐛 Fixes
