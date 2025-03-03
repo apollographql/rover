@@ -114,6 +114,17 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
+        #[cfg(feature = "composition-js")]
+        {
+            use crate::composition::CompositionError;
+            match self.error.downcast_ref::<CompositionError>() {
+                Some(CompositionError::Build { source, .. }) => {
+                    json!({"details": source, "code": self.code(), "message": self.message()})
+                }
+                _ => json!(self),
+            }
+        }
+        #[cfg(not(feature = "composition-js"))]
         json!(self)
     }
 
