@@ -12,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 use crate::composition::events::CompositionEvent;
-use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
+use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
@@ -29,7 +29,6 @@ use crate::composition::{
 use crate::subtask::SubtaskHandleStream;
 use crate::utils::effect::exec::ExecCommand;
 use crate::utils::effect::install::InstallBinary;
-use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::write_file::WriteFile;
 
 /// Event to represent an input to the CompositionWatcher, depending on the source the event comes
@@ -47,23 +46,20 @@ pub enum CompositionInputEvent {
 }
 
 #[derive(Builder, Debug)]
-pub struct CompositionWatcher<ExecC, ReadF, WriteF> {
+pub struct CompositionWatcher<ExecC, WriteF> {
     initial_supergraph_config: FullyResolvedSupergraphConfig,
     initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
     federation_updater_config: Option<FederationUpdaterConfig>,
     supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
     exec_command: ExecC,
-    read_file: ReadF,
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
     compose_on_initialisation: bool,
-    output_target: OutputTarget,
 }
 
-impl<ExecC, ReadF, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, ReadF, WriteF>
+impl<ExecC, WriteF> SubtaskHandleStream for CompositionWatcher<ExecC, WriteF>
 where
     ExecC: ExecCommand + Send + Sync + 'static,
-    ReadF: ReadFile + Send + Sync + 'static,
     WriteF: WriteFile + Send + Sync + 'static,
 {
     type Input = CompositionInputEvent;
@@ -93,9 +89,7 @@ where
                     let _ = sender
                         .send(CompositionEvent::Started)
                         .tap_err(|err| error!("{:?}", err));
-                    let output = self
-                        .run_composition(&target_file, &self.output_target)
-                        .await;
+                    let output = self.run_composition(&target_file).await;
                     match output {
                         Ok(success) => {
                             let _ = sender
@@ -213,7 +207,7 @@ where
                         .tap_err(|err| error!("{:?}", err));
 
                     let output = self
-                        .run_composition(&target_file, &self.output_target)
+                        .run_composition(&target_file)
                         .await;
 
                     match output {
@@ -236,10 +230,9 @@ where
     }
 }
 
-impl<ExecC, ReadF, WriteF> CompositionWatcher<ExecC, ReadF, WriteF>
+impl<ExecC, WriteF> CompositionWatcher<ExecC, WriteF>
 where
     ExecC: 'static + ExecCommand + Send + Sync,
-    ReadF: 'static + ReadFile + Send + Sync,
     WriteF: 'static + Send + Sync + WriteFile,
 {
     async fn setup_temporary_supergraph_yaml(
@@ -278,17 +271,11 @@ where
     async fn run_composition(
         &self,
         target_file: &Utf8PathBuf,
-        output_target: &OutputTarget,
     ) -> Result<CompositionSuccess, CompositionError> {
         match &self.supergraph_binary {
             Ok(binary) => {
                 binary
-                    .compose(
-                        &self.exec_command,
-                        &self.read_file,
-                        output_target,
-                        target_file.clone(),
-                    )
+                    .compose(&self.exec_command, target_file.clone())
                     .await
             }
             Err(err) => Err(CompositionError::InstallSupergraphBinaryError {
@@ -318,7 +305,7 @@ mod tests {
 
     use super::{CompositionInputEvent, CompositionWatcher};
     use crate::composition::events::CompositionEvent;
-    use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
+    use crate::composition::supergraph::binary::SupergraphBinary;
     use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
     use crate::composition::supergraph::version::SupergraphVersion;
     use crate::composition::test::{default_composition_json, default_composition_success};
@@ -401,11 +388,9 @@ mod tests {
             .initial_supergraph_config(subgraphs)
             .supergraph_binary(Ok(supergraph_binary))
             .exec_command(mock_exec)
-            .read_file(mock_read_file)
             .write_file(mock_write_file)
             .temp_dir(temp_dir_path)
             .compose_on_initialisation(false)
-            .output_target(OutputTarget::Stdout)
             .build();
 
         let subgraph_change_events: BoxStream<CompositionInputEvent> = once(async {

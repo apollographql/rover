@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
+use std::collections::HashMap;
+use std::io::Write;
+use std::path::Path;
+use std::str::FromStr;
 
 use anyhow::Result;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
@@ -26,14 +29,14 @@ fn graph_id_or_variant() -> String {
     const ALPHA_CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const ADDITIONAL_CHARSET: &[u8] =
         b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut value = format!(
         "{}",
-        ALPHA_CHARSET[rng.gen_range(0..ALPHA_CHARSET.len())] as char
+        ALPHA_CHARSET[rng.random_range(0..ALPHA_CHARSET.len())] as char
     );
-    let remaining = rng.gen_range(0..62);
+    let remaining = rng.random_range(0..62);
     for _ in 0..remaining {
-        let c = ADDITIONAL_CHARSET[rng.gen_range(0..ADDITIONAL_CHARSET.len())] as char;
+        let c = ADDITIONAL_CHARSET[rng.random_range(0..ADDITIONAL_CHARSET.len())] as char;
         value.push(c);
     }
     value
@@ -195,7 +198,6 @@ pub fn introspect_subgraph_scenario(
 #[derive(Clone, Debug)]
 pub struct FileSubgraphScenario {
     pub sdl: String,
-    pub subgraph_name: String,
     pub routing_url: String,
     pub schema_file_path: Utf8PathBuf,
     pub unresolved_subgraph: UnresolvedSubgraph,
@@ -227,14 +229,13 @@ pub fn file_subgraph_scenario(
     let schema_file_path = Utf8PathBuf::from_str("schema.graphql").unwrap();
     FileSubgraphScenario {
         sdl,
-        subgraph_name: subgraph_name.to_string(),
         routing_url: routing_url.clone(),
         schema_file_path: schema_file_path.clone(),
         unresolved_subgraph: UnresolvedSubgraph::new(
             subgraph_name,
             SubgraphConfig {
                 schema: SchemaSource::File {
-                    file: schema_file_path,
+                    file: schema_file_path.into_std_path_buf(),
                 },
                 routing_url: Some(routing_url),
             },

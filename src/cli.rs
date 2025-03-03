@@ -1,27 +1,24 @@
+use std::fmt::Display;
+use std::{io, process};
+
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
-use lazycell::{AtomicLazyCell, LazyCell};
-use reqwest::Client;
-use serde::Serialize;
-
-use crate::command::{self, RoverOutput};
-use crate::options::OutputOpts;
-use crate::utils::{
-    client::{ClientBuilder, ClientTimeout, StudioClientConfig},
-    env::{RoverEnv, RoverEnvKey},
-    stringify::option_from_display,
-    version,
-};
-use crate::RoverResult;
-
 use config::Config;
 use houston as config;
+use lazycell::{AtomicLazyCell, LazyCell};
+use reqwest::Client;
 use rover_client::shared::GitContext;
+use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
-use std::fmt::Display;
-use std::{io, process};
+use crate::command::{self, RoverOutput};
+use crate::options::OutputOpts;
+use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
+use crate::utils::env::{RoverEnv, RoverEnvKey};
+use crate::utils::stringify::option_from_display;
+use crate::utils::version;
+use crate::RoverResult;
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -185,7 +182,11 @@ impl Rover {
             Command::Contract(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config()?,
+                        self.log_level,
+                    )
                     .await
             }
             Command::Supergraph(command) => {
@@ -363,8 +364,6 @@ pub enum Command {
     /// Contract configuration commands
     Contract(command::Contract),
 
-    /// Combine multiple subgraphs into a local supergraph
-    ///
     /// This command starts a local router that can query across one or more
     /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
     /// As you add, edit, and remove subgraphs, `rover dev` automatically
@@ -374,26 +373,8 @@ pub enum Command {
     /// ⚠️ Do not run this command in production!
     /// ⚠️ It is intended for local development.
     ///
-    /// The first time you run `rover dev`, a supergraph is created from the
-    /// GraphQL API you provide. This GraphQL API is the first subgraph
-    /// inside of the larger supergraph. As you make changes to the subgraph
-    /// schema, the supergraph schema will be re-composed and the router will
-    /// reload.
-    ///
     /// You can navigate to the supergraph endpoint in your browser
     /// to execute operations and see query plans using Apollo Sandbox.
-    ///
-    /// You can add more subgraphs by running `rover dev` again in a new
-    /// terminal. Subsequent subgraphs are composed into the supergraph and
-    /// can be queried alongside all other subgraphs from the original endpoint.
-    /// Changes to these schemas will also cause the supergraph schema to be
-    /// re-composed and the router to reload.
-    ///
-    /// Terminating the first `rover dev` process terminates the entire supergraph.
-    /// Terminating one of the subsequent `rover dev` processes (i.e. your second
-    /// or third subgraph) will decompose that subgraph from your supergraph.
-    ///
-    /// Think plug-n-play USB devices but with your GraphQL APIs!
     Dev(command::Dev),
 
     /// Supergraph schema commands

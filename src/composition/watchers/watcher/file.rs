@@ -1,6 +1,7 @@
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream::BoxStream, StreamExt, TryFutureExt};
+use futures::stream::BoxStream;
+use futures::{StreamExt, TryFutureExt};
 use rover_std::{errln, Fs, RoverStdError};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
@@ -8,9 +9,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError,
-    full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::{
+    FullyResolveSubgraphService, FullyResolvedSubgraph,
 };
 
 /// File watcher specifically for files related to composition
@@ -152,7 +153,9 @@ impl SubgraphFileWatcher {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::OpenOptions, io::Write, time::Duration};
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    use std::time::Duration;
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
     use speculoos::prelude::*;
@@ -179,7 +182,9 @@ mod tests {
             .unresolved_subgraph(UnresolvedSubgraph::new(
                 subgraph_name.to_string(),
                 SubgraphConfig {
-                    schema: SchemaSource::File { file: path.clone() },
+                    schema: SchemaSource::File {
+                        file: path.clone().into_std_path_buf(),
+                    },
                     routing_url: Some(routing_url.to_string()),
                 },
             ))
@@ -220,7 +225,9 @@ mod tests {
             .name(subgraph_name.to_string())
             .routing_url(routing_url.to_string())
             .schema(sdl.to_string())
-            .schema_source(SchemaSource::File { file: path })
+            .schema_source(SchemaSource::File {
+                file: path.into_std_path_buf(),
+            })
             .build();
         assert_that!(&output)
             .is_ok()

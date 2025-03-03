@@ -4,11 +4,10 @@ use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::stream::{self, BoxStream};
 use futures::StreamExt;
-use houston::Credential;
-use rover_client::operations::config::who_am_i::{RegistryIdentity, WhoAmIError, WhoAmIRequest};
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_std::{debugln, errln, infoln, RoverStdError};
+use timber::Level;
 use tokio::process::Child;
 use tokio::time::sleep;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -25,7 +24,7 @@ use crate::command::dev::router::hot_reload::{HotReloadConfig, HotReloadConfigOv
 use crate::command::dev::router::watchers::file::FileWatcher;
 use crate::composition::events::CompositionEvent;
 use crate::composition::CompositionError;
-use crate::options::LicenseAccepter;
+use crate::options::{LicenseAccepter, ProfileOpt};
 use crate::subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommandConfig;
@@ -99,19 +98,24 @@ impl RunRouter<state::LoadLocalConfig> {
 }
 
 impl RunRouter<state::LoadRemoteConfig> {
-    pub async fn load_remote_config<S>(
+    pub async fn load_remote_config(
         self,
-        who_am_i: S,
+        client_config: StudioClientConfig,
+        profile: ProfileOpt,
         graph_ref: Option<GraphRef>,
-        credential: Option<Credential>,
-    ) -> RunRouter<state::Run>
-    where
-        S: Service<WhoAmIRequest, Response = RegistryIdentity, Error = WhoAmIError>,
-    {
+        home_override: Option<String>,
+        api_key_override: Option<String>,
+    ) -> RunRouter<state::Run> {
         let state = match graph_ref {
             Some(graph_ref) => {
-                let remote_config =
-                    RemoteRouterConfig::load(who_am_i, graph_ref.clone(), credential).await;
+                let remote_config = RemoteRouterConfig::load(
+                    client_config,
+                    profile,
+                    graph_ref.clone(),
+                    home_override,
+                    api_key_override,
+                )
+                .await;
                 state::Run {
                     binary: self.state.binary,
                     config: self.state.config,
@@ -131,6 +135,7 @@ impl RunRouter<state::LoadRemoteConfig> {
 }
 
 impl RunRouter<state::Run> {
+    #[allow(clippy::too_many_arguments)]
     pub async fn run<Spawn, WriteFile>(
         self,
         mut write_file: WriteFile,
@@ -138,7 +143,10 @@ impl RunRouter<state::Run> {
         temp_router_dir: &Utf8Path,
         studio_client_config: StudioClientConfig,
         supergraph_schema: &str,
-        credential: Credential,
+        profile: ProfileOpt,
+        home_override: Option<String>,
+        api_key_override: Option<String>,
+        log_level: Option<Level>,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -205,7 +213,10 @@ impl RunRouter<state::Run> {
             .config_path(hot_reload_config_path.clone())
             .supergraph_schema_path(hot_reload_schema_path.clone())
             .and_remote_config(self.state.remote_config.clone())
-            .credential(credential)
+            .and_home_override(home_override)
+            .and_api_key_override(api_key_override)
+            .profile(profile)
+            .and_log_level(log_level)
             .spawn(spawn)
             .build();
 

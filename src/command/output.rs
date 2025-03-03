@@ -1,14 +1,12 @@
-use std::{
-    collections::BTreeMap,
-    fmt::Write,
-    io::{self, IsTerminal},
-};
+use std::collections::BTreeMap;
+use std::fmt::Write;
+use std::io::{self, IsTerminal};
 
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
-use serde_json::{json, Value};
-use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
-
+use comfy_table::Attribute::Bold;
+use comfy_table::Cell;
+use comfy_table::CellAlignment::Center;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -22,12 +20,14 @@ use rover_client::shared::{
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
+use serde_json::{json, Value};
+use termimad::crossterm::style::Attribute::Underlined;
+use termimad::MadSkin;
 
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::JsonVersion;
-use crate::options::ProjectLanguage;
-use crate::utils::table::{self, row};
+use crate::options::{JsonVersion, ProjectLanguage};
+use crate::utils::table;
 use crate::RoverError;
 
 /// RoverOutput defines all of the different types of data that are printed
@@ -53,6 +53,7 @@ pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
+    JsonSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckWorkflowResponse(CheckWorkflowResponse),
@@ -118,24 +119,24 @@ impl RoverOutput {
             } => {
                 let mut table = table::get_table();
 
-                table.add_row(row![Style::WhoAmIKey.paint("Key Type"), key_type]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Key Type"), key_type]);
 
                 if let Some(graph_id) = graph_id {
-                    table.add_row(row![Style::WhoAmIKey.paint("Graph ID"), graph_id]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("Graph ID"), graph_id]);
                 }
 
                 if let Some(graph_title) = graph_title {
-                    table.add_row(row![Style::WhoAmIKey.paint("Graph Title"), graph_title]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("Graph Title"), graph_title]);
                 }
 
                 if let Some(user_id) = user_id {
-                    table.add_row(row![Style::WhoAmIKey.paint("User ID"), user_id]);
+                    table.add_row(vec![&Style::WhoAmIKey.paint("User ID"), user_id]);
                 }
 
-                table.add_row(row![Style::WhoAmIKey.paint("Origin"), origin]);
-                table.add_row(row![Style::WhoAmIKey.paint("API Key"), api_key]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Origin"), origin]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
 
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
@@ -164,12 +165,15 @@ impl RoverOutput {
                 )?;
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Slug", "Description"]);
+                table.set_header(
+                    vec!["Slug", "Description"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
                 for (shortlink_slug, shortlink_description) in shortlinks {
-                    table.add_row(row![shortlink_slug, shortlink_description]);
+                    table.add_row(vec![shortlink_slug, shortlink_description]);
                 }
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::FetchResponse(fetch_response) => {
                 Some((fetch_response.sdl.contents).to_string())
@@ -278,6 +282,7 @@ impl RoverOutput {
                 }
             }
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
+            RoverOutput::JsonSchema(schema) => Some(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -297,8 +302,11 @@ impl RoverOutput {
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
+                table.set_header(
+                    vec!["Name", "Routing Url", "Last Updated"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
 
                 for subgraph in &details.subgraphs {
                     // Default to "unspecified" if the url is None or empty.
@@ -317,7 +325,7 @@ impl RoverOutput {
                         "N/A".to_string()
                     };
 
-                    table.add_row(row![subgraph.name, url, formatted_updated_at]);
+                    table.add_row(vec![subgraph.name.clone(), url, formatted_updated_at]);
                 }
                 Some(format!(
                     "{}\n View full details at {}/graph/{}/service-list",
@@ -327,20 +335,23 @@ impl RoverOutput {
             RoverOutput::TemplateList(templates) => {
                 let mut table = table::get_table();
 
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "ID", "Language", "Repo URL"]);
+                table.set_header(
+                    vec!["Name", "ID", "Language", "Repo URL"]
+                        .into_iter()
+                        .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
+                );
 
                 for template in templates {
                     let language: ProjectLanguage = template.language.clone().into();
-                    table.add_row(row![
-                        template.name,
-                        template.id,
-                        language,
-                        template.repo_url,
+                    table.add_row(vec![
+                        template.name.clone(),
+                        template.id.clone(),
+                        language.to_string(),
+                        template.repo_url.to_string(),
                     ]);
                 }
 
-                Some(format!("{}", table))
+                Some(format!("{table}"))
             }
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 let template_id = Style::Command.paint(template_id);
@@ -486,6 +497,7 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::JsonSchema(schema) => Value::String(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
@@ -669,28 +681,20 @@ mod tests {
     use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
-
     use console::strip_ansi_codes;
-    use rover_client::{
-        operations::{
-            graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
-            persisted_queries::publish::PersistedQueriesOperationCounts,
-            subgraph::{
-                delete::SubgraphDeleteResponse,
-                list::{SubgraphInfo, SubgraphUpdatedAt},
-            },
-        },
-        shared::{
-            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
-            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
-            SdlType, Violation,
-        },
+    use rover_client::operations::graph::publish::{ChangeSummary, FieldChanges, TypeChanges};
+    use rover_client::operations::persisted_queries::publish::PersistedQueriesOperationCounts;
+    use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
+    use rover_client::operations::subgraph::list::{SubgraphInfo, SubgraphUpdatedAt};
+    use rover_client::shared::{
+        ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
+        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+        SdlType, Violation,
     };
 
-    use crate::options::JsonOutput;
-
     use super::*;
+    use crate::options::JsonOutput;
 
     #[test]
     fn docs_list_json() {

@@ -10,9 +10,8 @@ use rover_std::Fs;
 use tower::Service;
 
 use super::FullyResolvedSubgraph;
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
-};
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 
 /// Service that resolves a file-based subgraph
 #[derive(Clone, Builder)]

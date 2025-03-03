@@ -7,21 +7,19 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use tower::{service_fn, util::BoxCloneService, Service, ServiceExt};
+use tower::util::BoxCloneService;
+use tower::{service_fn, Service, ServiceExt};
 
 pub mod file;
 pub mod introspect;
 pub mod remote;
 
-use self::{
-    file::ResolveFileSubgraph,
-    introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory},
-    remote::ResolveRemoteSubgraph,
-};
-use crate::composition::supergraph::config::{
-    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
-    unresolved::UnresolvedSubgraph,
-};
+use self::file::ResolveFileSubgraph;
+use self::introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory};
+use self::remote::ResolveRemoteSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 
 /// Alias for a [`tower::Service`] that fully resolves a subgraph
 pub type FullyResolveSubgraphService =
@@ -70,7 +68,7 @@ impl FullyResolvedSubgraph {
             SchemaSource::File { file } => {
                 let service = ResolveFileSubgraph::builder()
                     .supergraph_config_root(supergraph_config_root)
-                    .path(file.clone())
+                    .path(Utf8PathBuf::try_from(file)?)
                     .unresolved_subgraph(unresolved_subgraph.clone())
                     .build();
                 Ok(service.boxed_clone())

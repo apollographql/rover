@@ -5,11 +5,10 @@ use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
-use houston::{Config, Profile};
-use rover_client::operations::config::who_am_i::WhoAmI;
 use rover_client::RoverClientError;
 use rover_std::{errln, infoln, warnln};
 use semver::Version;
+use timber::Level;
 use tower::ServiceExt;
 
 use super::version_upgrade_message::VersionUpgradeMessage;
@@ -21,11 +20,10 @@ use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_
 use crate::command::Dev;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::SubgraphPrompt;
+use crate::composition::supergraph::config::resolver::{DefaultSubgraphDefinition, SubgraphPrompt};
 use crate::composition::{CompositionError, FederationUpdaterConfig};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
@@ -40,6 +38,7 @@ impl Dev {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
         VersionUpgradeMessage::print();
         warnln!(
@@ -63,11 +62,6 @@ impl Dev {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
         }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
-
-        let service = client_config
-            .get_authenticated_client(profile)?
-            .studio_graphql_service()?;
-        let who_am_i_service = WhoAmI::new(service);
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
@@ -108,19 +102,38 @@ impl Dev {
                 version.clone()
             });
 
+        let subgraph_definition = self
+            .opts
+            .subgraph_opts
+            .subgraph_name
+            .as_ref()
+            .and_then(|subgraph_name| {
+                self.opts
+                    .subgraph_opts
+                    .subgraph_url
+                    .as_ref()
+                    .map(|subgraph_url| DefaultSubgraphDefinition::Args {
+                        name: subgraph_name.to_string(),
+                        url: subgraph_url.clone(),
+                        schema_path: self.opts.subgraph_opts.subgraph_schema_path.clone(),
+                    })
+            })
+            .unwrap_or_else(|| {
+                DefaultSubgraphDefinition::Prompt(Box::new(SubgraphPrompt::default()))
+            });
         let composition_pipeline = CompositionPipeline::default()
             .init(
                 &mut stdin(),
                 fetch_remote_subgraphs_factory,
                 supergraph_config_path.clone(),
                 graph_ref.clone(),
+                Some(subgraph_definition),
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
-                Some(&SubgraphPrompt::default()),
             )
             .await
             .install_supergraph_binary(
@@ -145,11 +158,6 @@ impl Dev {
             Err(_err) => None,
         };
 
-        let credential = Profile::get_credential(
-            &profile.profile_name,
-            &Config::new(home_override.as_ref(), api_key_override)?,
-        )?;
-
         // Set up an updater config, but only if we're not overriding the version ourselves. If
         // we are then we don't need one, so it becomes None.
         let federation_updater_config = match self.opts.supergraph_opts.federation_version {
@@ -164,16 +172,13 @@ impl Dev {
         let composition_runner = composition_pipeline
             .runner(
                 exec_command_impl,
-                read_file_impl.clone(),
                 write_file_impl.clone(),
                 client_config.service()?,
                 fetch_remote_subgraph_factory.boxed_clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 tmp_config_dir_path.clone(),
-                OutputTarget::Stdout,
                 true,
                 federation_updater_config,
-                Some(&SubgraphPrompt::default()),
             )
             .await?;
 
@@ -235,9 +240,11 @@ impl Dev {
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
             .load_remote_config(
-                who_am_i_service,
+                client_config.clone(),
+                self.opts.plugin_opts.profile.clone(),
                 graph_ref.clone(),
-                Some(credential.clone()),
+                home_override.clone(),
+                api_key_override.clone(),
             )
             .await;
         // This RouterAddress has some logic figuring out _which_ of the potentially multiple
@@ -261,7 +268,10 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 &supergraph_schema,
-                credential,
+                self.opts.plugin_opts.profile.clone(),
+                home_override,
+                api_key_override,
+                log_level,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)

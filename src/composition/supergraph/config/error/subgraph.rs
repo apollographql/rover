@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use camino::Utf8PathBuf;
@@ -16,9 +15,9 @@ pub enum ResolveSubgraphError {
         /// Supplied path to the supergraph config file
         supergraph_config_path: Utf8PathBuf,
         /// Supplied path to the subgraph schema file
-        path: PathBuf,
+        path: Utf8PathBuf,
         /// The result of joining the paths together, that caused the failure
-        joined_path: PathBuf,
+        joined_path: Utf8PathBuf,
         /// The source error
         source: Arc<std::io::Error>,
     },
@@ -95,4 +94,7 @@ pub enum ResolveSubgraphError {
     /// Error encountered if we can't parse a URL properly in the introspection case
     #[error(transparent)]
     ParsingSubgraphUrlError(#[from] url::ParseError),
+    /// Error encountered if we can't parse a PathBuf into a Utf8PathBuf
+    #[error(transparent)]
+    ParsingUt8FilePathError(#[from] camino::FromPathBufError),
 }

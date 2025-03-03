@@ -14,25 +14,22 @@ use tower::MakeService;
 use tracing::{debug, warn};
 
 use super::runner::{CompositionRunner, Runner};
-use super::supergraph::binary::OutputTarget;
 use super::supergraph::config::error::ResolveSubgraphError;
 use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use super::supergraph::config::resolver::{
-    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-    SubgraphPrompt, SupergraphConfigResolver,
+    DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
+    ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::resolver::Prompt;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommand;
 use crate::utils::effect::install::InstallBinary;
-use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::read_stdin::ReadStdin;
 use crate::utils::effect::write_file::WriteFile;
 use crate::utils::parsers::FileDescriptorType;
@@ -58,6 +55,8 @@ pub enum CompositionPipelineError {
     InstallSupergraph(#[from] InstallSupergraphError),
     #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{}: {}", name, err)), "\n"))]
     ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),
+    #[error("Failed to resolve subgraph from prompt:\n{}", .0)]
+    ResolveSubgraphFromPrompt(ResolveSubgraphError),
 }
 
 pub struct CompositionPipeline<State> {
@@ -77,6 +76,7 @@ impl CompositionPipeline<state::Init> {
         fetch_remote_subgraphs_factory: S,
         supergraph_yaml: Option<FileDescriptorType>,
         graph_ref: Option<GraphRef>,
+        default_subgraph: Option<DefaultSubgraphDefinition>,
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
         S: MakeService<
@@ -118,6 +118,12 @@ impl CompositionPipeline<state::Init> {
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
             .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        let resolver = match default_subgraph {
+            Some(default_subgraph) => resolver
+                .define_default_subgraph_if_empty(default_subgraph)
+                .map_err(CompositionPipelineError::ResolveSubgraphFromPrompt)?,
+            None => resolver.skip_default_subgraph(),
+        };
         eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {
             state: state::ResolveFederationVersion {
@@ -135,7 +141,6 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         passed_in_fed_version: Option<FederationVersion>,
-        prompt: Option<&impl Prompt>,
     ) -> CompositionPipeline<state::InstallSupergraph> {
         let resolved_federation_version = match self
             .state
@@ -144,7 +149,6 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 &self.state.supergraph_root,
-                prompt,
             )
             .await
         {
@@ -207,9 +211,7 @@ impl CompositionPipeline<state::Run> {
     pub async fn compose(
         &self,
         exec_command_impl: &impl ExecCommand,
-        read_file_impl: &impl ReadFile,
         write_file_impl: &impl WriteFile,
-        output_file: Option<Utf8PathBuf>,
     ) -> Result<CompositionSuccess, CompositionError> {
         let supergraph_config_filepath =
             Utf8PathBuf::from_path_buf(tempdir()?.path().join("supergraph.yaml"))
@@ -222,7 +224,6 @@ impl CompositionPipeline<state::Run> {
                 self.state.resolve_introspect_subgraph_factory.clone(),
                 self.state.fetch_remote_subgraph_factory.clone(),
                 &self.state.supergraph_root,
-                None::<&SubgraphPrompt>,
             )
             .await?;
 
@@ -247,34 +248,24 @@ impl CompositionPipeline<state::Run> {
         self.state
             .supergraph_binary
             .clone()?
-            .compose(
-                exec_command_impl,
-                read_file_impl,
-                &output_file
-                    .map(OutputTarget::File)
-                    .unwrap_or(OutputTarget::Stdout),
-                supergraph_config_filepath,
-            )
+            .compose(exec_command_impl, supergraph_config_filepath)
             .await
     }
 
+    #[tracing::instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    pub async fn runner<ExecC, ReadF, WriteF>(
+    pub async fn runner<ExecC, WriteF>(
         &self,
         exec_command: ExecC,
-        read_file: ReadF,
         write_file: WriteF,
         http_service: HttpService,
         make_fetch_remote_subgraph: FetchRemoteSubgraphFactory,
         introspection_polling_interval: u64,
         output_dir: Utf8PathBuf,
-        output_target: OutputTarget,
         compose_on_initialisation: bool,
         federation_updater_config: Option<FederationUpdaterConfig>,
-        prompt: Option<&SubgraphPrompt>,
-    ) -> Result<CompositionRunner<ExecC, ReadF, WriteF>, CompositionPipelineError>
+    ) -> Result<CompositionRunner<ExecC, WriteF>, CompositionPipelineError>
     where
-        ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
@@ -290,7 +281,7 @@ impl CompositionPipeline<state::Run> {
             fully_resolved_supergraph_config,
             resolution_errors,
         ) = self
-            .generate_lazy_and_fully_resolved_supergraph_configs(prompt)
+            .generate_lazy_and_fully_resolved_supergraph_configs()
             .await?;
 
         let subgraphs = lazily_resolved_supergraph_config.subgraphs().clone();
@@ -315,19 +306,17 @@ impl CompositionPipeline<state::Run> {
                 resolution_errors,
                 self.state.supergraph_binary.clone(),
                 exec_command,
-                read_file,
                 write_file,
                 output_dir,
                 compose_on_initialisation,
-                output_target,
                 federation_updater_config,
             );
         Ok(runner)
     }
 
+    #[tracing::instrument(skip_all)]
     async fn generate_lazy_and_fully_resolved_supergraph_configs(
         &self,
-        prompt: Option<&SubgraphPrompt>,
     ) -> Result<
         (
             LazilyResolvedSupergraphConfig,
@@ -336,11 +325,12 @@ impl CompositionPipeline<state::Run> {
         ),
         CompositionPipelineError,
     > {
+        tracing::debug!("generate_lazy_and_fully_resolved_supergraph_configs");
         // Get the two different kinds of resolutions (we know that the fully_resolved will be a non-proper subset of the lazily_resolved)
         let (mut lazily_resolved_supergraph_config, _) = self
             .state
             .resolver
-            .lazily_resolve_subgraphs(&self.state.supergraph_root, prompt)
+            .lazily_resolve_subgraphs(&self.state.supergraph_root)
             .await?;
         debug!(
             "Initial Lazily Resolved Config is: {:?}",
@@ -353,7 +343,6 @@ impl CompositionPipeline<state::Run> {
                 self.state.resolve_introspect_subgraph_factory.clone(),
                 self.state.fetch_remote_subgraph_factory.clone(),
                 &self.state.supergraph_root,
-                prompt,
             )
             .await?;
         debug!(

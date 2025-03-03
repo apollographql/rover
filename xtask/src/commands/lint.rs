@@ -1,10 +1,11 @@
+use std::time::Duration;
+
 use anyhow::Result;
 use clap::Parser;
 
+use crate::tools::{CargoRunner, NpmRunner};
 #[cfg(not(windows))]
 use crate::tools::{GitRunner, LycheeRunner};
-
-use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct Lint {
@@ -27,7 +28,9 @@ async fn lint_links(force: bool) -> Result<()> {
             .iter()
             .any(|path| path.extension().unwrap_or_default() == "md")
     {
-        LycheeRunner::new()?.lint().await
+        LycheeRunner::new(Duration::from_secs(30), 5, true)?
+            .lint()
+            .await
     } else {
         eprintln!("Skipping the lint checker for '.md' files as no '.md' files have changed.");
         Ok(())

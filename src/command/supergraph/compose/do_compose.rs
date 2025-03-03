@@ -1,4 +1,4 @@
-use std::io::stdin;
+use std::{fs, io::stdin};
 
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
@@ -8,12 +8,10 @@ use rover_client::shared::GraphRef;
 use serde::Serialize;
 use tower::ServiceExt;
 
-use crate::composition::supergraph::config::resolver::SubgraphPrompt;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::read_file::FsReadFile;
-use crate::utils::effect::write_file::FsWriteFile;
+use crate::utils::effect::write_file::{FsWriteFile, WriteFile};
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
@@ -75,7 +73,6 @@ impl Compose {
             },
         };
 
-        let read_file_impl = FsReadFile::default();
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
         let supergraph_yaml = self
@@ -107,13 +104,13 @@ impl Compose {
                 fetch_remote_subgraphs_factory,
                 supergraph_yaml,
                 graph_ref.clone(),
+                None,
             )
             .await?
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 self.opts.federation_version.clone(),
-                None::<&SubgraphPrompt>,
             )
             .await
             .install_supergraph_binary(
@@ -124,13 +121,20 @@ impl Compose {
             )
             .await?;
         let composition_success = composition_pipeline
-            .compose(
-                &exec_command_impl,
-                &read_file_impl,
-                &write_file_impl,
-                output_file,
-            )
+            .compose(&exec_command_impl, &write_file_impl)
             .await?;
+
+        if let Some(output_file) = output_file {
+            let parent = output_file.parent();
+            if let Some(parent) = parent {
+                if !parent.exists() {
+                    fs::create_dir_all(parent)?;
+                }
+            }
+            write_file_impl
+                .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())
+                .await?;
+        }
 
         Ok(RoverOutput::CompositionResult(composition_success.into()))
     }

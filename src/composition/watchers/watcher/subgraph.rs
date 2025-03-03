@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use apollo_federation_types::config::SchemaSource;
-use futures::{stream::BoxStream, StreamExt};
+use camino::Utf8PathBuf;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectError;
 use rover_std::{infoln, RoverStdError};
 use tap::TapFallible;
@@ -9,15 +11,14 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::{file::SubgraphFileWatcher, introspection::SubgraphIntrospection};
-use crate::{
-    composition::supergraph::config::{
-        error::ResolveSubgraphError,
-        full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
-        lazy::LazilyResolvedSubgraph,
-    },
-    subtask::SubtaskHandleUnit,
+use super::file::SubgraphFileWatcher;
+use super::introspection::SubgraphIntrospection;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::{
+    FullyResolveSubgraphService, FullyResolvedSubgraph,
 };
+use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::subtask::SubtaskHandleUnit;
 
 #[derive(thiserror::Error, Debug)]
 pub enum SubgraphFetchError {
@@ -84,10 +85,10 @@ impl SubgraphWatcher {
         // directives from introspection (but not when the source is a file)
         match subgraph.schema() {
             SchemaSource::File { file } => {
-                infoln!("Watching {} for changes", file.as_std_path().display());
+                infoln!("Watching {} for changes", file.display());
                 Self {
                     watcher: SubgraphWatcherKind::File(SubgraphFileWatcher::new(
-                        file.clone(),
+                        Utf8PathBuf::try_from(file.clone()).unwrap(),
                         resolver,
                     )),
                 }

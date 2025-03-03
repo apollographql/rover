@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.27.0-rc.4",
+  "version": "0.27.2",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -33,7 +33,7 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "20.18.2",
+    "node": "20.18.3",
     "npm": "11.1.0"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
@@ -45,7 +45,7 @@
     "tar": "^7.0.0"
   },
   "devDependencies": {
-    "prettier": "3.4.2",
+    "prettier": "3.5.3",
     "jest": "29.7.0",
     "axios-mock-adapter": "2.1.0",
     "jest-junit": "16.0.0"

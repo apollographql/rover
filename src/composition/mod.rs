@@ -49,9 +49,9 @@ pub enum CompositionError {
         stdout: String,
         stderr: String,
     },
-    #[error("Failed to parse output of `{binary} compose`")]
+    #[error("Failed to parse output of `{binary} compose`\n{error}")]
     InvalidOutput { binary: Utf8PathBuf, error: String },
-    #[error("Invalid input for `{binary} compose`")]
+    #[error("Invalid input for `{binary} compose`\n{error}")]
     InvalidInput { binary: Utf8PathBuf, error: String },
     #[error("Failed to read the file at: {path}.\n{error}")]
     ReadFile {
@@ -60,6 +60,11 @@ pub enum CompositionError {
     },
     #[error("Failed to write to the file at: {path}.\n{error}")]
     WriteFile {
+        path: Utf8PathBuf,
+        error: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Failed to upsert the file at: {path}.\n{error}")]
+    UpsertFile {
         path: Utf8PathBuf,
         error: Box<dyn std::error::Error + Send + Sync>,
     },

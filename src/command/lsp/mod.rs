@@ -22,14 +22,11 @@ use crate::command::lsp::errors::StartCompositionError::SupergraphYamlUrlConvers
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::runner::CompositionRunner;
-use crate::composition::supergraph::binary::OutputTarget;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{
-    ResolveSupergraphConfigError, SubgraphPrompt,
-};
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -38,7 +35,6 @@ use crate::composition::{
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
@@ -163,7 +159,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
 }
 
 async fn start_composition(
-    runner: CompositionRunner<TokioCommand, FsReadFile, FsWriteFile>,
+    runner: CompositionRunner<TokioCommand, FsWriteFile>,
     language_server: ApolloLanguageServer,
     supergraph_yaml_url: Url,
 ) -> Result<(), StartCompositionError> {
@@ -322,7 +318,7 @@ async fn create_composition_runner(
     federation_version: Option<FederationVersion>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
-) -> Result<CompositionRunner<TokioCommand, FsReadFile, FsWriteFile>, StartCompositionError> {
+) -> Result<CompositionRunner<TokioCommand, FsWriteFile>, StartCompositionError> {
     let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
         .studio_client_config(client_config.clone())
         .profile(lsp_opts.plugin_opts.profile.clone())
@@ -341,13 +337,13 @@ async fn create_composition_runner(
             fetch_remote_subgraphs_factory,
             Some(FileDescriptorType::File(supergraph_config_path.clone())),
             None,
+            None,
         )
         .await?
         .resolve_federation_version(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
-            None::<&SubgraphPrompt>,
         )
         .await
         .install_supergraph_binary(
@@ -362,20 +358,17 @@ async fn create_composition_runner(
     Ok(composition_pipeline
         .runner(
             TokioCommand::default(),
-            FsReadFile::default(),
             FsWriteFile::default(),
             client_config.service()?,
             fetch_remote_subgraph_factory.boxed_clone(),
             lsp_opts.introspection_polling_interval,
             Utf8PathBuf::try_from(temp_dir())?,
-            OutputTarget::InMemory,
             true,
             Some(FederationUpdaterConfig {
                 studio_client_config: client_config,
                 elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
                 skip_update: lsp_opts.plugin_opts.skip_update,
             }),
-            None,
         )
         .await?)
 }

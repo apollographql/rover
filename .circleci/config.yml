@@ -2,9 +2,9 @@ version: 2.1
 
 # Our CircleCI dependencies
 orbs:
-  rust: circleci/rust@1.6.1
-  gh: circleci/github-cli@2.6.2
-  node: circleci/node@7.0.0
+  rust: circleci/rust@1.6.2
+  gh: circleci/github-cli@2.6.3
+  node: circleci/node@7.1.0
   slack: circleci/slack@5.1.1
 
 # These filters are used in all of the jobs for our release workflow
@@ -99,7 +99,7 @@ executors:
 
   node_js_nix:
     docker:
-      - image: node:20.18.2
+      - image: node:20.18.3
     resource_class: medium
 
   node_js_windows:

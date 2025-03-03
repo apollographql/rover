@@ -23,6 +23,7 @@ const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[fixture]
 #[once]
+#[allow(clippy::zombie_processes)]
 fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     let port = pick_unused_port().expect("No ports free");
