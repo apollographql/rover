@@ -12,6 +12,7 @@ use regex::Regex;
 use rover_std::{infoln, warnln, Style};
 use semver::Version;
 use tap::TapFallible;
+use timber::Level;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Child;
 use tokio_util::sync::CancellationToken;
@@ -175,6 +176,7 @@ pub struct RunRouterBinary<Spawn: Send> {
     home_override: Option<String>,
     api_key_override: Option<String>,
     spawn: Spawn,
+    log_level: Option<Level>,
 }
 
 impl<Spawn> SubtaskHandleUnit for RunRouterBinary<Spawn>
@@ -200,7 +202,7 @@ where
                 "--config".to_string(),
                 self.config_path.to_string(),
                 "--log".to_string(),
-                "info".to_string(),
+                self.log_level.unwrap_or(Level::INFO).to_string(),
                 "--dev".to_string(),
             ];
 
