@@ -47,8 +47,9 @@
       "automerge": false
     }
   ],
-  "regexManagers": [
+  "customManagers": [
     {
+      "customType": "regex",
       "fileMatch": [
         "^latest_plugin_versions\\.json$"
       ],
@@ -59,6 +60,18 @@
       "datasourceTemplate": "github-releases",
     },
     {
+      "customType": "regex",
+      "fileMatch": [
+        "^latest_plugin_versions\\.json$"
+      ],
+      "matchStrings": [
+        "\"router\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "apollographql/router",
+      "datasourceTemplate": "github-releases",
+    },
+    {
+      "customType": "regex",
       "fileMatch": ["^latest_plugin_versions\\.json$"],
       "matchStrings": [
         "\"supergraph\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
