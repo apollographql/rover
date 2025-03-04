@@ -203,7 +203,12 @@ fn latest_plugins_are_valid_versions() {
     client
         .get(&latest_router_one)
         .send()
-        .unwrap_or_else(|e| panic!("could not send HEAD request to {}: {}", &latest_router_one, e))
+        .unwrap_or_else(|e| {
+            panic!(
+                "could not send HEAD request to {}: {}",
+                &latest_router_one, e
+            )
+        })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
@@ -214,7 +219,12 @@ fn latest_plugins_are_valid_versions() {
     client
         .get(&latest_router_two)
         .send()
-        .unwrap_or_else(|e| panic!("could not send HEAD request to {}: {}", &latest_router_two, e))
+        .unwrap_or_else(|e| {
+            panic!(
+                "could not send HEAD request to {}: {}",
+                &latest_router_two, e
+            )
+        })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
