@@ -537,7 +537,10 @@ commands:
                 version: << parameters.rust_channel >>
             - run:
                 name: Install specific rust toolchain
-                command: rustup target add $XTASK_TARGET
+                command: |
+                  rustup show active-toolchain || rustup toolchain install
+                  rustup target add $XTASK_TARGET
+
             - run:
                 name: Unset rustup override
                 command: rustup override unset
