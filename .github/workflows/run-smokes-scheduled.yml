@@ -18,7 +18,9 @@ jobs:
         name: "Install `semver` cli"
       - run: |
           ls -al
-          JSON=$(source get_latest_x_versions.sh 3 apollographql router router latest-1 1)
+          ROUTER1_VERSIONS=$(source get_latest_x_versions.sh 3 apollographql router router latest-1 1)
+          ROUTER2_VERSIONS=$(source get_latest_x_versions.sh 3 apollographql router router latest-2 2)
+          JSON=$(echo "$ROUTER1_VERSIONS $ROUTER2_VERSIONS" | jq -cs 'add')
           echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
         id: "router-versions"
         working-directory: ".github/scripts"

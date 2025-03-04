@@ -127,7 +127,7 @@ impl Plugin {
                                     Err(no_prebuilt_binaries)
                                 }
                             }
-                            RouterVersion::Latest => Ok("aarch64-unknown-linux-gnu")
+                            RouterVersion::LatestOne | RouterVersion::LatestTwo => Ok("aarch64-unknown-linux-gnu")
                         }
                     }
                 }
@@ -248,8 +248,27 @@ impl PluginInstaller {
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
-                RouterVersion::Latest => {
+                RouterVersion::LatestOne => {
                     let major_version = 1;
+                    if skip_update {
+                        self.find_existing_latest_major(plugin, major_version)?
+                            .ok_or_else(|| {
+                                skip_update_err(
+                                    &plugin.get_name(),
+                                    major_version.to_string().as_str(),
+                                )
+                            })
+                    } else {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
+                            could_not_install_plugin(
+                                &plugin.get_name(),
+                                major_version.to_string().as_str(),
+                            )
+                        })
+                    }
+                }
+                RouterVersion::LatestTwo => {
+                    let major_version = 2;
                     if skip_update {
                         self.find_existing_latest_major(plugin, major_version)?
                             .ok_or_else(|| {
@@ -500,8 +519,14 @@ mod tests {
     #[rstest]
     // #### macOS, x86_64 ####
     // # Router #
-    #[case::macos_x86_64_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::macos_x86_64_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "macos",
         "x86_64",
         Some("x86_64-apple-darwin")
@@ -546,8 +571,14 @@ mod tests {
     )]
     // ### macOS, aarch64 ###
     // # Router #
-    #[case::macos_aarch64_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::macos_aarch64_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "macos",
         "aarch64",
         Some("aarch64-apple-darwin")
@@ -613,8 +644,14 @@ mod tests {
     )]
     // ### macOS, "" ###
     // # Router #
-    #[case::macos_empty_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::macos_empty_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_empty_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "macos",
         "",
         Some("x86_64-apple-darwin")
@@ -653,8 +690,14 @@ mod tests {
     )]
     // ### Windows, "" ###
     // # Router #
-    #[case::windows_empty_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::windows_empty_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "windows",
+        "",
+        Some("x86_64-pc-windows-msvc")
+    )]
+    #[case::windows_empty_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "windows",
         "",
         Some("x86_64-pc-windows-msvc")
@@ -668,8 +711,14 @@ mod tests {
     )]
     // ### Linux, x86_64 ###
     // # Router #
-    #[case::linux_x86_64_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::linux_x86_64_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "linux",
+        "x86_64",
+        Some("x86_64-unknown-linux-gnu")
+    )]
+    #[case::linux_x86_64_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "linux",
         "x86_64",
         Some("x86_64-unknown-linux-gnu")
@@ -683,8 +732,14 @@ mod tests {
     )]
     // ### Linux, aarch64 ###
     // # Router #
-    #[case::linux_aarch64_router_latest(
-        Plugin::Router(RouterVersion::Latest),
+    #[case::linux_aarch64_router_latest_one(
+        Plugin::Router(RouterVersion::LatestOne),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_router_latest_two(
+        Plugin::Router(RouterVersion::LatestTwo),
         "linux",
         "aarch64",
         Some("aarch64-unknown-linux-gnu")
@@ -757,7 +812,7 @@ mod tests {
     #[test]
     #[cfg(target_env = "musl")]
     fn test_plugin_version_should_fail() {
-        Plugin::Router(RouterVersion::Latest)
+        Plugin::Router(RouterVersion::LatestTwo)
             .get_arch_for_env("", "")
             .unwrap_err();
     }
