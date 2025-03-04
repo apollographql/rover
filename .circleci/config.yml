@@ -564,7 +564,7 @@ commands:
                   exit $LASTEXITCODE
             - run:
                 name: Configure rustup
-                command: rustup show active-toolchain || rustup toolchain install
+                command: rustup show active-toolchain; if ($LASTEXITCODE -ne 0) { rustup toolchain install }
             - run:
                 name: Configure cargo for Windows
                 command: |
