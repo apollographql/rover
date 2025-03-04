@@ -69,7 +69,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "0.15.2", features = ["json_schema"] }
+apollo-federation-types = { version = "0.15.3", features = ["json_schema"] }
 
 apollo-language-server = { version = "0.4.0", default-features = false, features = ["tokio"] }
 

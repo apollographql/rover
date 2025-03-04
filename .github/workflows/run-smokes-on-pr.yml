@@ -27,7 +27,7 @@ jobs:
         working-directory: ".github/scripts"
         run: |
           ls -al
-          JSON=$(source get_latest_x_versions.sh 1 apollographql router router latest-1 1)
+          JSON=$(source get_latest_x_versions.sh 1 apollographql router router latest-2 2)
           echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
       - name: "Get latest Supergraph Plugin versions"
         id: "supergraph-versions"
