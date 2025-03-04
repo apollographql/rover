@@ -563,6 +563,9 @@ commands:
                   & $installer_dir\rustup-init.exe --profile minimal -y
                   exit $LASTEXITCODE
             - run:
+                name: Configure rustup
+                command: rustup show active-toolchain || rustup toolchain install
+            - run:
                 name: Configure cargo for Windows
                 command: |
                   Set-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
