@@ -139,7 +139,7 @@ mod tests {
 
     #[fixture]
     fn router_version() -> RouterVersion {
-        RouterVersion::Latest
+        RouterVersion::LatestTwo
     }
 
     #[fixture]

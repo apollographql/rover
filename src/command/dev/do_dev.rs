@@ -146,7 +146,7 @@ impl Dev {
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
             Some(version) => RouterVersion::Exact(Version::parse(version)?),
-            None => RouterVersion::Latest,
+            None => RouterVersion::LatestTwo,
         };
 
         let api_key_override = match std::env::var(RoverEnvKey::Key.to_string()) {
