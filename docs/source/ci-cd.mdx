@@ -9,7 +9,7 @@ You can use Rover in any CI/CD environment that uses a Rover-supported operating
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
 
 * [CircleCI](#circleci)
-* [GitHub Actions](#github-actions)
+* [GitHub](#github)
 * [Bitbucket Pipelines](#bitbucket-pipelines)
 * [Jenkins](#jenkins)
 * [Gitlab CI/CD](#gitlab-cicd)
@@ -61,15 +61,7 @@ jobs:
       - run: rover graph check my-graph@prod --schema ./schema.graphql --background
 ```
 
-## GitHub Actions
-
-### Displaying schema check results on GitHub pull requests
-
-If you use GitHub Actions to automatically run schema checks on every pull request as shown below, you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
-
-<img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
-
-<SetApolloVCSCommit />
+## GitHub
 
 ### Apollo-provided GitHub Actions
 
@@ -183,6 +175,14 @@ jobs:
           rover graph check my-graph@prod --schema ./test.graphql --background
 
 ```
+
+### Displaying schema check results on GitHub pull requests
+
+If you use GitHub Actions to automatically run schema checks on every pull request as shown below, you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
+
+<img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
+
+<SetApolloVCSCommit />
 
 ## Bitbucket Pipelines
 

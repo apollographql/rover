@@ -106,15 +106,25 @@ fn latest_plugins_are_valid_versions() {
         .get("versions")
         .expect("JSON malformed: `router.versions` did not exist");
 
-    let latest_router = router_versions
+    let latest_router_one = router_versions
         .get("latest-1")
         .expect("JSON malformed: `router.versions.latest-1` did not exist")
         .as_str()
         .expect("JSON malformed: `router.versions.latest-1` was not a string");
 
-    assert!(latest_router.starts_with('v'));
-    Version::parse(&latest_router.to_string()[1..])
+    assert!(latest_router_one.starts_with('v'));
+    Version::parse(&latest_router_one.to_string()[1..])
         .expect("JSON malformed: `router.versions.latest-1 was not valid semver");
+
+    let latest_router_two = router_versions
+        .get("latest-2")
+        .expect("JSON malformed: `router.versions.latest-2` did not exist")
+        .as_str()
+        .expect("JSON malformed: `router.versions.latest-2` was not a string");
+
+    assert!(latest_router_two.starts_with('v'));
+    Version::parse(&latest_router_two.to_string()[1..])
+        .expect("JSON malformed: `router.versions.latest-2 was not valid semver");
 
     let router_repository = Url::parse(
         router
@@ -146,10 +156,15 @@ fn latest_plugins_are_valid_versions() {
         url = &supergraph_release_url,
         version = &latest_federation_two
     );
-    let latest_router = format!(
+    let latest_router_one = format!(
         "{url}{version}/router-{version}-{arch}.tar.gz",
         url = &router_release_url,
-        version = &latest_router
+        version = &latest_router_one
+    );
+    let latest_router_two = format!(
+        "{url}{version}/router-{version}-{arch}.tar.gz",
+        url = &router_release_url,
+        version = &latest_router_two
     );
 
     let client = Client::new();
@@ -186,14 +201,35 @@ fn latest_plugins_are_valid_versions() {
             )
         });
     client
-        .get(&latest_router)
+        .get(&latest_router_one)
         .send()
-        .unwrap_or_else(|e| panic!("could not send HEAD request to {}: {}", &latest_router, e))
+        .unwrap_or_else(|e| {
+            panic!(
+                "could not send HEAD request to {}: {}",
+                &latest_router_one, e
+            )
+        })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_router, e
+                &latest_router_one, e
+            )
+        });
+    client
+        .get(&latest_router_two)
+        .send()
+        .unwrap_or_else(|e| {
+            panic!(
+                "could not send HEAD request to {}: {}",
+                &latest_router_two, e
+            )
+        })
+        .error_for_status()
+        .unwrap_or_else(|e| {
+            panic!(
+                "HEAD request to {} failed with a status code: {}",
+                &latest_router_two, e
             )
         });
 }
