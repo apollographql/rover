@@ -12,7 +12,7 @@ ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 apollo-encoder = { workspace = true }
-backoff = { workspace = true, features = ["tokio", "futures"] }
+backon = { workspace = true }
 buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}

@@ -21,11 +21,11 @@ Retries can happen for two broad reasons: either the client failed or the server
 
 Retries are also only part of the story. The interval of time you place between retries matters. If you retry all at once, you might get rate-limited or otherwise fail. It's best to spread them out exponentially, adding big chunks of time so that the server can complete its work and get ready for more work. Spreading out retries is a good idea, but if you have multiple calls happening at the same time with the same spread, they might fail if the server is overloaded. It's better to spread them out with some added noise, meaning that you spread them out with some randomly generated bit of time added or subtracted so that calls are received by the server in a somewhat distributed fashion.
 
-#### `backoff` crate
+#### `backon` crate
 
-We use the [backoff](https://docs.rs/backoff/latest/backoff/) crate for retries. It builds in both the spreading-out of retries in an exponential way, but also the little bit of jitter that helps the server handle many requests.
+We use the [backon](https://crates.io/crates/backon) crate for retries with exponential backoff and jitter.
 
-The crate is interesting in handling retries not by a total amount of retries, but total amount of time. The `MAX_ELAPSED_TIME` in the client file sets this value and defaults to 10s.
+Retries are limited based on the total duration of the retries. The `MAX_ELAPSED_TIME` in the client file sets this value and defaults to 10s.
 
 #### Client failures
 
