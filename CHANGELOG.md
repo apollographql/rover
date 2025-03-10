@@ -42,6 +42,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add Apollo Router 2.x dependency to renovate - @pubmodmatt PR #2430**
 - **Fix CI post update to Rustup 1.28 - @jonathanrainer PR #2431**
+- **Replace backoff with backon - @pubmodmatt PR #2437**
 
 ## 📚 Documentation
 
