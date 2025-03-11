@@ -26,7 +26,11 @@ ignore = [
     # `yaml-rust`, a dependency of `apollo-federation-types` via `serde_yaml`, is unmaintained. Represents no
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
-    "RUSTSEC-2024-0320"
+    "RUSTSEC-2024-0320",
+    # `humantime` appears to be unmaintained. It is only used by the `graph check` and `subgraph check` commands to
+    # parse the `--validation-period` option. The format is highly specific, so switching to a different dependency
+    # could cause breaking changes.
+    "RUSTSEC-2025-0014"
 ]
 
 # This section is considered when running `cargo deny check licenses`
