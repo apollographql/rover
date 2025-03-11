@@ -37,12 +37,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Add specific CompositionError handling - @jonathanrainer PR #2422**
 - **Pass log_level through to Router binary - @monkpow PR #2426**
 - **Fix formatting of table output by `rover config whoami` - @pubmodmatt PR #2413**
+- **Better error on missing environment variable - @pubmodmatt PR #2442**
 
 ## 🛠 Maintenance
 
 - **Add Apollo Router 2.x dependency to renovate - @pubmodmatt PR #2430**
 - **Fix CI post update to Rustup 1.28 - @jonathanrainer PR #2431**
 - **Replace backoff with backon - @pubmodmatt PR #2437**
+- **Add exemption for unmaintained humantime dependency - @pubmodmatt PR #2440**
 
 ## 📚 Documentation
 
