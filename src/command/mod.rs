@@ -6,6 +6,8 @@ mod docs;
 mod explain;
 mod graph;
 mod info;
+#[cfg(feature = "feature-init")]
+mod init;
 pub(crate) mod install;
 mod license;
 #[cfg(feature = "composition-js")]
@@ -26,6 +28,8 @@ pub use docs::Docs;
 pub use explain::Explain;
 pub use graph::Graph;
 pub use info::Info;
+#[cfg(feature = "feature-init")]
+pub use init::Init;
 pub use install::Install;
 pub use license::License;
 #[cfg(feature = "composition-js")]
