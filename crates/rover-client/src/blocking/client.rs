@@ -1,12 +1,11 @@
-use std::time::Duration;
-
+use crate::error::{EndpointKind, RoverClientError};
+use backon::Retryable;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
-
-use crate::error::{EndpointKind, RoverClientError};
+use std::time::{Duration, Instant};
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 
@@ -89,7 +88,10 @@ impl GraphQLClient {
         should_retry: bool,
         endpoint_kind: EndpointKind,
     ) -> Result<Response, RoverClientError> {
-        use backoff::{future::retry, Error as BackoffError, ExponentialBackoff};
+        enum BackoffError<E> {
+            Permanent(E),
+            Transient(E),
+        }
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
@@ -105,7 +107,7 @@ impl GraphQLClient {
             match response {
                 Err(client_error) => {
                     if client_error.is_timeout() || client_error.is_connect() {
-                        Err(BackoffError::transient(client_error))
+                        Err(BackoffError::Transient(client_error))
                     } else if client_error.is_body()
                         || client_error.is_decode()
                         || client_error.is_builder()
@@ -117,7 +119,7 @@ impl GraphQLClient {
                             get_source_error_type::<hyper::Error>(&client_error)
                         {
                             if hyper_error.is_incomplete_message() {
-                                Err(BackoffError::transient(client_error))
+                                Err(BackoffError::Transient(client_error))
                             } else {
                                 Err(BackoffError::Permanent(client_error))
                             }
@@ -141,7 +143,7 @@ impl GraphQLClient {
                                     }
                                     Err(BackoffError::Permanent(status_error))
                                 } else {
-                                    Err(BackoffError::transient(status_error))
+                                    Err(BackoffError::Transient(status_error))
                                 }
                             } else {
                                 Err(BackoffError::Permanent(status_error))
@@ -157,29 +159,31 @@ impl GraphQLClient {
         };
 
         if should_retry {
-            let backoff_strategy = ExponentialBackoff {
-                max_elapsed_time: Some(self.retry_period),
-                ..Default::default()
-            };
+            let backoff_strategy = backon::ExponentialBuilder::default()
+                .with_min_delay(Duration::from_millis(500))
+                .with_max_delay(Duration::from_secs(60))
+                .with_factor(1.5)
+                .without_max_times()
+                .with_jitter();
 
-            retry(backoff_strategy, graphql_operation)
-                .await
-                .map_err(|e| RoverClientError::SendRequest {
-                    source: e,
-                    endpoint_kind,
+            let start = Instant::now();
+            graphql_operation
+                .retry(backoff_strategy)
+                .when(|e| {
+                    matches!(e, BackoffError::Transient(_)) && start.elapsed() < self.retry_period
                 })
+                .await
         } else {
-            graphql_operation().await.map_err(|e| match e {
-                BackoffError::Permanent(reqwest_error)
-                | BackoffError::Transient {
-                    err: reqwest_error,
-                    retry_after: _,
-                } => RoverClientError::SendRequest {
+            graphql_operation().await
+        }
+        .map_err(|e| match e {
+            BackoffError::Permanent(reqwest_error) | BackoffError::Transient(reqwest_error) => {
+                RoverClientError::SendRequest {
                     source: reqwest_error,
                     endpoint_kind,
-                },
-            })
-        }
+                }
+            }
+        })
     }
 
     /// To be used internally or by other implementations of a GraphQL client.
@@ -269,9 +273,8 @@ fn get_source_error_type<T: std::error::Error + 'static>(
 mod tests {
     use std::error::Error;
 
-    use httpmock::prelude::*;
-
     use super::*;
+    use httpmock::prelude::*;
 
     #[test]
     fn it_is_ok_on_empty_errors() {

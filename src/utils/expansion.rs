@@ -2,7 +2,7 @@
 //! by the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/).
 //! Before calling this code from other functions, make sure that the license is accepted (like
 //! `supergraph compose`)
-use anyhow::{anyhow, bail, Context, Error};
+use anyhow::{bail, Context, Error};
 use serde_yaml::{Mapping, Sequence, Value};
 use std::env;
 use std::path::Path;
@@ -10,7 +10,7 @@ use std::path::Path;
 use rover_std::Fs;
 use shellexpand::env_with_context;
 
-use crate::RoverResult;
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 /// Implements router-config-style
 /// [variable expansion](https://www.apollographql.com/docs/router/configuration/overview/#variable-expansion)
@@ -92,7 +92,14 @@ subgraphs:
 /// for a single value.
 fn expand_str(value: &str) -> RoverResult<String> {
     env_with_context(value, context)
-        .map_err(|e| anyhow!(e).context("While expanding variables").into())
+        .map_err(|e| {
+            RoverError::from(e.cause).with_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                "Set the {} environment variable",
+                e.var_name
+                    .strip_prefix("env.")
+                    .unwrap_or(e.var_name.as_str())
+            )))
+        })
         .map(|cow| cow.into_owned())
 }
 

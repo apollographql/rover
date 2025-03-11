@@ -20,6 +20,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [0.28.0] (unreleased) - 2025-mm-dd
 
+## 🚀 Features
+
+- **Default to Apollo Router 2.x for `rover dev` - @pubmodmatt PR #2433**
+
+  The default version of Apollo Router used by `rover dev` is now 2.x instead of 1.x. The default can be overridden by
+  setting `APOLLO_ROVER_DEV_ROUTER_VERSION`, for example `APOLLO_ROVER_DEV_ROUTER_VERSION=1.61.0`.
+
 ## 🐛 Fixes
 
 - **Fix formatting of table output by `rover config whoami` - @pubmodmatt PR #2413**

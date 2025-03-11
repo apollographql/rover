@@ -69,7 +69,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "0.15.2", features = ["json_schema"] }
+apollo-federation-types = { version = "0.15.3", features = ["json_schema"] }
 
 apollo-language-server = { version = "0.4.0", default-features = false, features = ["tokio"] }
 
@@ -81,7 +81,7 @@ assert_cmd = "2"
 assert-json-diff = "2"
 async-trait = "0.1.83"
 backtrace = "0.3"
-backoff = { version = "0.4", features = ["tokio"] }
+backon = { version = "1.4.0", features = ["std", "tokio-sleep"] }
 base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.6.0"
