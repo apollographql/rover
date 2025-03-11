@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -10,6 +12,7 @@ use self::parser::{ParseRouterConfigError, RouterConfigParser};
 use self::state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig};
 use crate::utils::effect::read_file::ReadFile;
 use crate::utils::expansion::expand;
+use crate::RoverError;
 
 pub mod parser;
 pub mod remote;
@@ -34,7 +37,27 @@ pub enum ReadRouterConfigError {
     #[error(transparent)]
     Parse(#[from] ParseRouterConfigError),
     #[error("{} could not be expanded", .path)]
-    Expansion { path: Utf8PathBuf },
+    Expansion {
+        path: Utf8PathBuf,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
+
+/// A wrapper adding the `Error` trait to [`RoverError`]. Necessary due to a conflict with a
+/// blanket implementation preventing `Error` being implemented directly on `RoverError`.
+#[derive(Debug)]
+struct RoverErrorWrapper(pub(crate) RoverError);
+
+impl Display for RoverErrorWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Error for RoverErrorWrapper {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -193,7 +216,10 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                     })?;
                     yaml = match expand(yaml) {
                         Ok(yaml) => Ok(yaml),
-                        Err(_) => Err(ReadRouterConfigError::Expansion { path: path.clone() }),
+                        Err(e) => Err(ReadRouterConfigError::Expansion {
+                            path: path.clone(),
+                            source: Box::new(RoverErrorWrapper(e)),
+                        }),
                     }?;
 
                     let router_config = RouterConfigParser::new(&yaml, self.state.router_address);
