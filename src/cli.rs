@@ -359,7 +359,6 @@ impl Rover {
 pub enum Command {
     /// Initialize a GraphQL API project using Apollo Federation with Apollo Router
     #[cfg(feature = "init")]
-    #[command(hide = true)]
     Init(command::Init),
 
     /// Cloud configuration commands
