@@ -177,7 +177,7 @@ impl Rover {
         }
 
         match &self.command {
-            #[cfg(feature = "feature-init")]
+            #[cfg(feature = "init")]
             Command::Init(command) => command.run().await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
@@ -358,7 +358,7 @@ impl Rover {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Initialize a GraphQL API project using Apollo Federation with Apollo Router
-    #[cfg(feature = "feature-init")]
+    #[cfg(feature = "init")]
     #[command(hide = true)]
     Init(command::Init),
 
