@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.28.0] (unreleased) - 2025-mm-dd
+# [0.28.0] - 2025-03-12
 
 ## 🚀 Features
 
@@ -27,15 +27,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   The default version of Apollo Router used by `rover dev` is now 2.x instead of 1.x. The default can be overridden by
   setting `APOLLO_ROVER_DEV_ROUTER_VERSION`, for example `APOLLO_ROVER_DEV_ROUTER_VERSION=1.61.0`.
 
+- **Implement supergraph config schema command -  @jonathanrainer PR #2418**
+
+  Adds a new `rover supergraph config schema` command to output the JSONSchema for `supergraph.yaml`. This can be used
+  to configure editor support for the file.
+
 ## 🐛 Fixes
 
+- **Add specific CompositionError handling - @jonathanrainer PR #2422**
+- **Pass log_level through to Router binary - @monkpow PR #2426**
 - **Fix formatting of table output by `rover config whoami` - @pubmodmatt PR #2413**
+- **Better error on missing environment variable - @pubmodmatt PR #2442**
 
 ## 🛠 Maintenance
 
 - **Add Apollo Router 2.x dependency to renovate - @pubmodmatt PR #2430**
+- **Fix CI post update to Rustup 1.28 - @jonathanrainer PR #2431**
+- **Replace backoff with backon - @pubmodmatt PR #2437**
+- **Add exemption for unmaintained humantime dependency - @pubmodmatt PR #2440**
 
-  Migrate renovate configuration from `regexManagers` to `customManagers`. Add a custom regex manager for Router 2.x.
+## 📚 Documentation
+
+- **Add docs on using the native GitHub actions - @lleadbet PR #2419**
+- **Add changelog entry for new behaviour w.r.t subgraph_url - @jonathanrainer PR #2420**
+- **GitHub CI/CD - @shorgi PR #2427**
 
 # [0.27.2] - 2025-02-19
 
