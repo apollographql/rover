@@ -143,7 +143,7 @@ impl Session {
     pub async fn report(&self) -> Result<(), SputnikError> {
         // TODO: consider whether we want to disable non-production telemetry or at least document
         //  the reasoning for not using it
-        if cfg!(debug_assertions) || cfg!(test) {
+        if cfg!(debug_assertions) {
             tracing::debug!("Skipping telemetry reporting");
             return Ok(());
         }
