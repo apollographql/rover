@@ -8,7 +8,7 @@ pub struct Init {}
 
 impl Init {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        eprintln!("\nWelcome! This command helps you initialize a new GraphQL API project using Apollo Federation with Apollo Router.\n");
+        println!("\nWelcome! This command helps you initialize a new GraphQL API project using Apollo Federation with Apollo Router.\n");
 
         Ok(RoverOutput::EmptySuccess)
     }
