@@ -17,8 +17,9 @@ use std::time::Duration;
 
 use crate::{Report, SputnikError};
 
-// set timeout to 100 ms to prevent blocking for too long on reporting; 30ms p99
-const REPORT_TIMEOUT: Duration = Duration::from_millis(100);
+/// Timeout for reporting telemetry. Note that this includes the entire time to make the request
+/// and receive the response, including on the client side. This is not just the server latency.
+const REPORT_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// The Session represents a usage of the CLI analogous to a web session
 /// It contains the "url" (command path + flags) but doesn't contain any
@@ -141,8 +142,9 @@ impl Session {
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
     pub async fn report(&self) -> Result<(), SputnikError> {
         // TODO: consider whether we want to disable non-production telemetry or at least document
-        // the reasoning for not using it
-        if !cfg!(debug_assertions) && !cfg!(test) {
+        //  the reasoning for not using it
+        if cfg!(debug_assertions) || cfg!(test) {
+            tracing::debug!("Skipping telemetry reporting");
             return Ok(());
         }
         if self.reporting_info.is_telemetry_enabled {
