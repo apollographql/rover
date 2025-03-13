@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.27.2"
+version = "0.28.1"
 default-run = "rover"
 
 publish = false
@@ -45,6 +45,10 @@ default = ["composition-js"]
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
+
+# this feature exists to enable the
+# init command
+init = []
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -235,7 +239,7 @@ git2 = { workspace = true, features = ["https"] }
 graphql-schema-diff = "=0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "0.29.0"
+jsonschema = "=0.29.0"
 mime = "=0.3.17"
 mockall = "=0.13.1"
 portpicker = "=0.1.1"
@@ -249,3 +253,8 @@ speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "=0.3.6", features = ["async_closure"] }
+
+# For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
+# debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
+[profile.test.package.sputnik]
+debug-assertions = false

@@ -2332,7 +2332,7 @@ type GraphVariantMutation {
   unlinkPersistedQueryList: UnlinkPersistedQueryListResultOrError!
 
   """
-  Provides access to mutation fields for modifying a GraphOS Schema Proposals with the provided ID. Learn more at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
+  Provides access to mutation fields for modifying a GraphOS Schema Proposal, if this GraphVariant is a proposal variant; else returns NotFoundError. Learn more at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
   """
   proposal: ProposalMutationResult!
   updateURL(url: String): GraphVariant

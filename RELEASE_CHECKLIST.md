@@ -62,6 +62,7 @@ This part of the release process is handled by CircleCI, and our binaries are di
 6. Wait for CI to pass.
 7. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
 8. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
+9. Close the milestone for this release.
 
 ### Verify The Release
 
