@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.28.0"
+version = "0.28.1"
 default-run = "rover"
 
 publish = false
@@ -253,3 +253,8 @@ speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "=0.3.6", features = ["async_closure"] }
+
+# For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
+# debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
+[profile.test.package.sputnik]
+debug-assertions = false

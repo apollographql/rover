@@ -18,6 +18,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.28.1] - 2025-03-13
+
+## 🐛 Fixes
+
+- **Fix telemetry reporting for release builds - @pubmodmatt PR #2445**
+
+  Telemetry was not working for release builds. This has been corrected. See the Rover [privacy policy](https://www.apollographql.com/docs/rover/privacy) for information about anonymous usage data collection in Rover.
+
+## 🛠 Maintenance
+
+- **Update CODEOWNERS to Graph Tooling - @pubmodmatt PR #2444**
+- **Remove redundant CODEOWNERS file - @pubmodmatt PR #2446**
+
 # [0.28.0] - 2025-03-12
 
 ## 🚀 Features
