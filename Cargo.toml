@@ -239,7 +239,7 @@ git2 = { workspace = true, features = ["https"] }
 graphql-schema-diff = "=0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "0.29.0"
+jsonschema = "=0.29.0"
 mime = "=0.3.17"
 mockall = "=0.13.1"
 portpicker = "=0.1.1"
