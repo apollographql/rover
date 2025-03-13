@@ -46,6 +46,10 @@ default = ["composition-js"]
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 
+# this feature exists to enable the
+# init command
+init = []
+
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }
