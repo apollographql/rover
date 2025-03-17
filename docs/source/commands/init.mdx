@@ -15,18 +15,33 @@ Running `rover init` starts a short wizard that helps you create your new GraphQ
 rover init
 ```
 
-The wizard walks you through a set of questions to help you choose the best option for your use case. By the end, it generates both a local project and a set of credentials necessary to interact with the GraphOS platform.
+The wizard walks you through a set of questions to help you choose the best option for your use case. By the end, it generates:
 
-### Created credentials
-
-- **Graph ref**- A graph ref references a specific graph in the GraphOS platform. It's formatted `graph-id@variant`. To start, GraphOS automatically creates a variant titled `current` for you.
-- **Graph ID**- This is a unique identifier for your graph. It represents your graph across all of Apollo.
-- **Graph API key**- This is your graph's API key. Once it's generated, store it securely—you won't be able to access it later.
+- a set of local files, including a README.md
+- the necessary credentials to interact with the GraphOS platform
 
 ### Choosing your use case
 
+Once you run `rover init`, the wizard prompts you to select your use case.
+
+- **Connect one or more REST APIs**: Select this option to use Apollo Connectors to quickly integrate REST APIs into your graph.
+- **Start a GraphQL API with recommended libraries**: Select this option if you want to connect data that's not accessible via a REST API. This option helps you set up a GraphQL API using the Apollo Server library.
+
+### Created credentials
+
+After you've chosen your use case, the wizard prompts you for a project name. It generates the following credentials based on the name you enter:
+
+- **Graph ID**- This is a unique identifier for your graph. It represents your graph across all of Apollo.
+- **Graph ref**- A graph ref references a specific variant of your graph. It's formatted `graph-id@variant`. To start, GraphOS automatically creates a variant titled `current` for you.
+- **Graph API key**- This is your graph's API key. Once it's generated, store it securely—you won't be able to access it later.
+
 ### Using Apollo's IDE extensions
+
+Finally, the wizard asks if you would like your project to include settings for one of Apollo's IDE extensions. See the dedicated documentation pages linked on the [IDE extensions overview](/graphos/schema-design/ide-support) for further configuration instructions.
 
 ## Additional resources
 
-
+- If you chosen to connect one or more REST APIs, refer to the [Apollo Connectors getting started guide](/graphos/get-started/guides/rest) for next steps.
+- If you've chosen to start a GraphQL API using Apollo Server, refer to:
+    - the [GraphQL getting started guide](/graphos/get-started/guides/graphql) for an introduction based on Apollo's retail demo graph.
+    - the [`rover template` command](/rover/commands/template) for additional starting points.
