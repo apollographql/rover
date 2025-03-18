@@ -2,6 +2,8 @@ use crate::command::init::EditorFamily;
 use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
 use flate2::read::GzDecoder;
+use http::Error;
+use itertools::Itertools;
 use rover_http::{Full, ReqwestService};
 use std::collections::HashSet;
 use std::env;
@@ -38,7 +40,8 @@ pub async fn fetch_repo(
         .body(Full::default())?;
 
     let service = http_service.ready().await?;
-    let res = service.call(req).await?.body().bytes();
+    let res = service.call(req).await?;
+    let res = res.body().bytes();
 
     // let response_bytes = client_config
     //     .get_reqwest_client()
@@ -53,7 +56,12 @@ pub async fn fetch_repo(
     //     .await?;
     //
 
-    let tarball_cursor = Cursor::new(res);
+    let res = res.collect_vec();
+    let blah: Result<Vec<u8>, std::io::Error> = res.into_iter().collect();
+    let blah = blah.unwrap();
+
+    //let tarball_cursor = Cursor::new(res);
+    let tarball_cursor = Cursor::new(blah);
     let decompressor = GzDecoder::new(tarball_cursor);
     let mut archive = Archive::new(decompressor);
 
