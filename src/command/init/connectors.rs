@@ -82,7 +82,7 @@ impl InitProjectActions for ConnectorProject {
                 if let Some(parent) = full_path.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                
+
                 fs::write(full_path, contents)?;
             }
         }

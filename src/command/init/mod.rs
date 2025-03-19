@@ -1,14 +1,14 @@
 mod connectors;
 
+use crate::command::init::connectors::ConnectorProject;
 use crate::command::init::EditorFamily::VSCode;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
+use rover_http::ReqwestService;
+use rover_std::prompt::prompt_confirm_default_yes;
 use serde::Serialize;
 use strum_macros::EnumIter;
 use tower::{ServiceBuilder, ServiceExt};
-use rover_http::ReqwestService;
-use rover_std::prompt::prompt_confirm_default_yes;
-use crate::command::init::connectors::ConnectorProject;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {}
@@ -19,7 +19,6 @@ impl Init {
 
         // TODO: get from user input
         let editor = VSCode;
-
 
         let request_service = ReqwestService::builder().build()?;
         let mut service = ServiceBuilder::new().service(request_service);
@@ -36,7 +35,7 @@ impl Init {
         if prompt_confirm_default_yes("Proceed with creation?")? {
             connector.write_template(".")?;
         }
-        
+
         Ok(RoverOutput::EmptySuccess)
     }
 }
@@ -68,4 +67,3 @@ pub trait InitProjectActions {
     // write files to the target dir
     fn write_template(&self, target_path: &str) -> RoverResult<()>;
 }
-
