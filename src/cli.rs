@@ -178,7 +178,7 @@ impl Rover {
 
         match &self.command {
             #[cfg(feature = "init")]
-            Command::Init(command) => command.run(self.get_client_config()?).await,
+            Command::Init(command) => command.run().await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
             Command::Contract(command) => command.run(self.get_client_config()?).await,
