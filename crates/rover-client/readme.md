@@ -6,7 +6,7 @@ The rover client uses [Reqwest](https://docs.rs/reqwest/latest/reqwest/) and som
 
 # Development :: WIP
 
-We're in the midst of undergoing a transition from a synchronous, blocking client used by threads to an asynchronous one used by an event loop (a tokio runtime that also uses threads, but is non-blocking). Because of that, some of the naming and ergonmics might feel weird.
+We're in the midst of undergoing a transition from a synchronous, blocking client used by threads to an asynchronous one used by an event loop (a tokio runtime that also uses threads, but is non-blocking). Because of that, some of the naming and ergonomics might feel weird.
 
 # Using the client
 
@@ -33,7 +33,7 @@ Retries happen when either the client times out (there's a flag for setting the 
 
 #### Server failures
 
-Retries happen for general server errors (noteably, _all_ statuses between 500-99),  but not when the request is ill-formed as identified by the server (that is, a 400).
+Retries happen for general server errors (notably, _all_ statuses between 500-99),  but not when the request is ill-formed as identified by the server (that is, a 400).
 
 
 
