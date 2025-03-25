@@ -7,7 +7,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-      
+
 name: "Run End-To-End Tests"
 jobs:
   calculate_correct_version_ranges:
@@ -44,4 +44,5 @@ jobs:
     with:
       composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
       router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
+      features-flag: '--features init'
     secrets: inherit

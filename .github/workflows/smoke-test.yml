@@ -9,6 +9,10 @@ on:
         description: 'JSON list of router versions'
         required: true
         type: string
+      features-flag:
+        description: 'List of features to be enabled'
+        required: false
+        type: string
 
 #TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
 name: Smoke Tests
@@ -45,13 +49,13 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
             rustup show active-toolchain || rustup toolchain install
-            cargo build --target ${{ matrix.compile_target.target }} --test e2e --features init
+            cargo build --target ${{ matrix.compile_target.target }} --test e2e ${{ inputs.features-flag }}
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
         run: |
           rustup show active-toolchain || rustup toolchain install
           rustup target add ${{ matrix.compile_target.target }}
-          cargo build --target ${{ matrix.compile_target.target }} --test e2e --features init
+          cargo build --target ${{ matrix.compile_target.target }} --test e2e  ${{ inputs.features-flag }}
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
