@@ -1,5 +1,5 @@
-use apollo_federation_types::rover::BuildErrors;
 use super::runner::subgraphs_publish_mutation;
+use apollo_federation_types::rover::BuildErrors;
 
 use crate::shared::{GitContext, GraphRef};
 
@@ -9,7 +9,7 @@ pub(crate) type UpdateResponse =
     subgraphs_publish_mutation::SubgraphsPublishMutationGraphPublishSubgraphs;
 type SchemaInput = subgraphs_publish_mutation::PartialSchemaInput;
 type GitContextInput = subgraphs_publish_mutation::GitContextInput;
-type PublishSubgraphInput = subgraphs_publish_mutation::PublishSubgraphsSubgraphInput;
+type PublishSubgraphsSubgraphInput = subgraphs_publish_mutation::PublishSubgraphsSubgraphInput;
 
 use serde::{Deserialize, Serialize};
 
@@ -31,11 +31,18 @@ pub struct SubgraphPublishInput {
     pub subgraph: String,
     pub url: Option<String>,
     pub schema: String,
+    #[serde(default)]
+    pub no_url: bool,
+    #[serde(default)]
+    pub allow_invalid_routing_url: bool,
 }
 
 impl SubgraphManifest {
     pub fn get_subgraph_names(&self) -> Vec<String> {
-        self.subgraph_inputs.iter().map(|input| input.subgraph.clone()).collect()
+        self.subgraph_inputs
+            .iter()
+            .map(|input| input.subgraph.clone())
+            .collect()
     }
 }
 
@@ -66,21 +73,20 @@ impl From<SubgraphsPublishInput> for MutationVariables {
         Self {
             graph_id: publish_input.graph_ref.name,
             graph_variant: publish_input.graph_ref.variant,
-            subgraph_inputs:
-                publish_input
-                    .subgraph_manifest
-                    .subgraph_inputs
-                    .iter()
-                    .cloned()
-                    .map(|subgraph| PublishSubgraphInput {
-                        active_partial_schema: SchemaInput {
-                            sdl: Some(subgraph.schema),
-                            hash: None
-                        },
-                        name: subgraph.subgraph,
-                        url: subgraph.url
-                    })
-                    .collect(),
+            subgraph_inputs: publish_input
+                .subgraph_manifest
+                .subgraph_inputs
+                .iter()
+                .cloned()
+                .map(|subgraph| PublishSubgraphsSubgraphInput {
+                    active_partial_schema: SchemaInput {
+                        sdl: Some(subgraph.schema),
+                        hash: None,
+                    },
+                    name: subgraph.subgraph,
+                    url: subgraph.url,
+                })
+                .collect(),
             git_context: publish_input.git_context.into(),
             revision: "".to_string(),
         }
