@@ -1,32 +1,10 @@
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 use anyhow::anyhow;
-use rover_client::blocking::StudioClient;
-use rover_client::operations::subgraph::routing_url;
-use rover_client::operations::subgraph::routing_url::SubgraphRoutingUrlInput;
-use rover_client::shared::GraphRef;
 use rover_std::Style;
 use std::future::Future;
 use std::io;
 use std::io::{IsTerminal, Read, Write};
-use std::pin::Pin;
 use url::Url;
-
-pub async fn fetch_routing_url(
-    graph_ref: &GraphRef,
-    subgraph_name: &String,
-    client: &StudioClient,
-) -> fn() {
-    || async {
-        Ok(routing_url::run(
-            SubgraphRoutingUrlInput {
-                graph_ref: graph_ref.clone(),
-                subgraph_name: subgraph_name.clone(),
-            },
-            &client,
-        )
-        .await?)
-    }
-}
 
 pub async fn determine_routing_url<F, G>(
     no_url: bool,
@@ -46,7 +24,7 @@ where
         &mut io::stderr(),
         &mut io::stdin(),
         io::stderr().is_terminal() && io::stdin().is_terminal(),
-    )
+    ).await
 }
 
 pub async fn determine_routing_url_with_test_params<F, G>(
