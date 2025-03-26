@@ -2,6 +2,11 @@ use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::io::{self, IsTerminal};
 
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::{JsonVersion, ProjectLanguage};
+use crate::utils::table;
+use crate::RoverError;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::Attribute::Bold;
@@ -24,11 +29,6 @@ use rover_std::Style;
 use serde_json::{json, Value};
 use termimad::crossterm::style::Attribute::Underlined;
 use termimad::MadSkin;
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::{JsonVersion, ProjectLanguage};
-use crate::utils::table;
-use crate::RoverError;
 
 /// RoverOutput defines all the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -238,7 +238,7 @@ impl RoverOutput {
             RoverOutput::PublishManifestResponse {
                 graph_ref,
                 subgraphs,
-                publish_response
+                publish_response,
             } => {
                 if publish_response.subgraph_was_created {
                     stderrln!(
@@ -247,7 +247,11 @@ impl RoverOutput {
                         graph_ref
                     )?;
                 } else if publish_response.subgraph_was_updated {
-                    stderrln!("Subgraphs '{}' in '{}' were updated", publish_response.subgraphs_updated.join(" ,"), graph_ref)?;
+                    stderrln!(
+                        "Subgraphs '{}' in '{}' were updated",
+                        publish_response.subgraphs_updated.join(" ,"),
+                        graph_ref
+                    )?;
                 } else {
                     stderrln!(
                         "'{}' subgraphs were NOT updated because no changes were detected",
@@ -569,7 +573,7 @@ impl RoverOutput {
             RoverOutput::PublishManifestResponse {
                 graph_ref: _,
                 subgraphs: _,
-                publish_response
+                publish_response,
             } => json!(publish_response),
             RoverOutput::SubgraphDeleteResponse {
                 graph_ref: _,
