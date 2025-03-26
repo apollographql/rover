@@ -1,17 +1,12 @@
-use std::io::{self, IsTerminal};
-
-use anyhow::anyhow;
 use clap::Parser;
-use futures::Future;
-use reqwest::Url;
 use rover_client::operations::subgraph::routing_url::{self, SubgraphRoutingUrlInput};
 use serde::Serialize;
 
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult};
 
-use crate::command::subgraph::publish_shared::{determine_routing_url, fetch_routing_url};
+use crate::command::subgraph::publish_shared::determine_routing_url;
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
 use rover_client::shared::GitContext;
 use rover_std::Style;
@@ -66,7 +61,16 @@ impl Publish {
             self.no_url,
             &self.routing_url,
             self.allow_invalid_routing_url,
-            fetch_routing_url(&self.graph.graph_ref, &self.subgraph.subgraph_name, &client),
+            || async {
+                Ok(routing_url::run(
+                    SubgraphRoutingUrlInput {
+                        graph_ref: self.graph.graph_ref.clone(),
+                        subgraph_name: self.subgraph.subgraph_name.clone(),
+                    },
+                    &client,
+                )
+                    .await?)
+            }
         )
         .await?;
 
@@ -107,14 +111,14 @@ impl Publish {
 #[cfg(test)]
 mod tests {
     use crate::command::subgraph::publish_shared::{
-        determine_routing_url, handle_maybe_invalid_routing_url,
+        determine_routing_url_with_test_params, handle_maybe_invalid_routing_url
     };
 
     #[tokio::test]
     async fn test_no_url() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             true,
             &None,
             false,
@@ -132,7 +136,7 @@ mod tests {
     async fn test_routing_url_provided() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             false,
             &Some("https://provided".to_string()),
             false,
@@ -150,7 +154,7 @@ mod tests {
     async fn test_no_url_and_routing_url_provided() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             true,
             &Some("https://provided".to_string()),
             false,
@@ -171,7 +175,7 @@ mod tests {
     async fn test_routing_url_not_provided_already_exists() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             false,
             &None,
             false,
@@ -190,7 +194,7 @@ mod tests {
     async fn test_routing_url_unix_socket() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             false,
             &None,
             false,
@@ -210,7 +214,7 @@ mod tests {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
 
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             false,
             &Some("invalid".to_string()),
             false,
@@ -231,7 +235,7 @@ mod tests {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
 
-        let result = determine_routing_url(
+        let result = determine_routing_url_with_test_params(
             true,
             &None,
             false,

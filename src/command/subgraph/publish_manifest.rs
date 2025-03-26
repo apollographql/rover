@@ -1,4 +1,4 @@
-use crate::command::subgraph::publish_shared::{determine_routing_url, fetch_routing_url};
+use crate::command::subgraph::publish_shared::determine_routing_url;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
@@ -11,6 +11,8 @@ use rover_client::operations::subgraph::publish_manifest::{
 use rover_client::shared::GitContext;
 use rover_std::Style;
 use serde::Serialize;
+use rover_client::operations::subgraph::routing_url;
+use rover_client::operations::subgraph::routing_url::SubgraphRoutingUrlInput;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct PublishManifest {
@@ -43,17 +45,23 @@ impl PublishManifest {
             .with_context(|| invalid_json_err(&self.manifest))?;
 
         // Determine routing urls for all graphs in subgraph_manifest
-        subgraph_manifest
-            .subgraph_inputs
-            .iter_mut()
-            .for_each(|subgraph| {
-                subgraph.url = determine_routing_url(
-                    subgraph.no_url,
-                    &subgraph.url,
-                    subgraph.allow_invalid_routing_url,
-                    fetch_routing_url(&self.graph.graph_ref, &subgraph.subgraph, &client),
-                )
-            });
+        for subgraph in subgraph_manifest.subgraph_inputs.iter_mut(){
+            subgraph.url = determine_routing_url(
+                subgraph.no_url,
+                &subgraph.url,
+                subgraph.allow_invalid_routing_url,
+                || async {
+                    Ok(routing_url::run(
+                        SubgraphRoutingUrlInput {
+                            graph_ref: self.graph.graph_ref.clone(),
+                            subgraph_name: subgraph.subgraph.clone(),
+                        },
+                        &client,
+                    )
+                        .await?)
+                },
+            ).await?;
+        }
 
         let subgraph_names = subgraph_manifest.get_subgraph_names();
         eprintln!(
