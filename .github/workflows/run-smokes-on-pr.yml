@@ -44,5 +44,5 @@ jobs:
     with:
       composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
       router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
-      features-flag: '--features init'
+      features: 'init'
     secrets: inherit
