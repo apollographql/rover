@@ -5,6 +5,8 @@ pub mod introspect;
 mod lint;
 mod list;
 mod publish;
+mod publish_manifest;
+mod publish_shared;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
@@ -43,6 +45,9 @@ pub enum Command {
 
     /// Publish an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
     Publish(publish::Publish),
+
+    /// Works the same as publish, but takes a JSON manifest instead of command line arguments
+    PublishManifest(publish_manifest::PublishManifest),
 }
 
 impl Subgraph {
@@ -73,6 +78,7 @@ impl Subgraph {
             Command::Lint(command) => command.run(client_config).await,
             Command::List(command) => command.run(client_config).await,
             Command::Publish(command) => command.run(client_config, git_context).await,
+            Command::PublishManifest(command) => command.run(client_config, git_context).await
         }
     }
 }
