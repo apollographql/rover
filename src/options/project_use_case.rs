@@ -10,7 +10,7 @@ use crate::{RoverResult, RoverError};
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
     /// Filter templates by the available use case
-    #[arg(long = "project_use_case", value_enum)]
+    #[arg(long = "project-use-case", value_enum)]
     pub project_use_case: Option<ProjectUseCase>,
 }
 
@@ -49,5 +49,23 @@ impl Display for ProjectUseCase {
             GraphQLTemplate => "Start a GraphQL API with recommended libraries",
         };
         write!(f, "{}", readable)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_use_case_with_some_project_use_case() {
+        let instance = ProjectUseCaseOpt {
+            project_use_case: Some(ProjectUseCase::Connectors),
+        };
+
+        let result = instance.get_or_prompt_use_case();
+
+        assert!(result.is_ok());
+        let use_case = result.unwrap();
+        assert_eq!(use_case, ProjectUseCase::Connectors);
     }
 }
