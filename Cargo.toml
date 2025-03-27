@@ -188,6 +188,7 @@ futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
+http-body-util = { workspace = true }
 houston = { workspace = true }
 itertools = { workspace = true }
 lazycell = { workspace = true }
