@@ -9,7 +9,7 @@ pub use r#use::Use;
 
 use clap::Parser;
 use serde::Serialize;
-
+use rover_http::ReqwestService;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -30,8 +30,11 @@ enum Command {
 
 impl Template {
     pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+
+        let request_service = ReqwestService::builder().build()?;
+        
         match &self.command {
-            Command::Use(use_template) => use_template.run(client_config).await,
+            Command::Use(use_template) => use_template.run(request_service).await,
             Command::List(list) => list.run().await,
         }
     }

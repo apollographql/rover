@@ -6,9 +6,12 @@ use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
+use http::Uri;
+use http_body_util::Full;
 use serde::{Deserialize, Serialize};
+use tower::{Service, ServiceExt};
 use url::Url;
-
+use rover_http::ReqwestService;
 use rover_std::Fs;
 
 use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
@@ -43,48 +46,85 @@ impl TemplateOpt {
 }
 
 pub(crate) async fn extract_tarball(
-    download_url: Url,
+    download_url: Uri,
     template_path: &Utf8PathBuf,
-    client: &reqwest::Client,
+    mut request_service: ReqwestService,
 ) -> RoverResult<()> {
-    let download_dir = tempfile::Builder::new()
-        .prefix("rover-template")
-        .tempdir()?;
-    let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
-    let file_name = format!("{}.tar.gz", template_path);
-    let tarball_path = download_dir_path.join(file_name);
-    let mut f = std::fs::File::create(&tarball_path)?;
+    use std::io::Cursor;
+
     eprintln!("Downloading from {}", &download_url);
-    let response_bytes = client
-        .get(download_url)
-        .header(reqwest::header::USER_AGENT, "rover-client")
+    let req = http::Request::builder()
+        .method(http::Method::GET)
         .header(reqwest::header::ACCEPT, "application/octet-stream")
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?;
-    f.write_all(&response_bytes[..])?;
-    f.sync_all()?;
-    let f = std::fs::File::open(&tarball_path)?;
-    let tar = flate2::read::GzDecoder::new(f);
+        .header(reqwest::header::USER_AGENT, "rover-client")
+        .uri(download_url)
+        .body(Full::default())?;
+
+    let service = request_service.ready().await?;
+    let res = service.call(req).await?;
+    let res = res.body().to_vec();
+    
+    let cursor = Cursor::new(res);
+    let tar = flate2::read::GzDecoder::new(cursor);
     let mut archive = tar::Archive::new(tar);
+
     archive
         .unpack(template_path)
         .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
 
-    // The unpacked tar will be nested in another folder
     let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
     if let Some(Ok(extra_dir_name)) = extra_dir_name {
-        // For this reason, we must copy the contents of the folder, then delete it
+        // Copy contents from the nested folder to the desired root path
         Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
-
-        // Delete old unpacked zip
         Fs::remove_dir_all(extra_dir_name.path())?;
     }
 
     Ok(())
 }
+
+// pub(crate) async fn extract_tarball(
+//     download_url: Url,
+//     template_path: &Utf8PathBuf,
+//     client: &reqwest::Client,
+// ) -> RoverResult<()> {
+//     let download_dir = tempfile::Builder::new()
+//         .prefix("rover-template")
+//         .tempdir()?;
+//     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
+//     let file_name = format!("{}.tar.gz", template_path);
+//     let tarball_path = download_dir_path.join(file_name);
+//     let mut f = std::fs::File::create(&tarball_path)?;
+//     eprintln!("Downloading from {}", &download_url);
+//     let response_bytes = client
+//         .get(download_url)
+//         .header(reqwest::header::USER_AGENT, "rover-client")
+//         .header(reqwest::header::ACCEPT, "application/octet-stream")
+//         .send()
+//         .await?
+//         .error_for_status()?
+//         .bytes()
+//         .await?;
+//     f.write_all(&response_bytes[..])?;
+//     f.sync_all()?;
+//     let f = std::fs::File::open(&tarball_path)?;
+//     let tar = flate2::read::GzDecoder::new(f);
+//     let mut archive = tar::Archive::new(tar);
+//     archive
+//         .unpack(template_path)
+//         .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
+// 
+//     // The unpacked tar will be nested in another folder
+//     let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
+//     if let Some(Ok(extra_dir_name)) = extra_dir_name {
+//         // For this reason, we must copy the contents of the folder, then delete it
+//         Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
+// 
+//         // Delete old unpacked zip
+//         Fs::remove_dir_all(extra_dir_name.path())?;
+//     }
+// 
+//     Ok(())
+// }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
