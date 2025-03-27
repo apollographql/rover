@@ -211,7 +211,7 @@ impl Rover {
                     )
                     .await
             }
-            Command::Template(command) => command.run(self.get_client_config()?).await,
+            Command::Template(command) => command.run().await,
             Command::Readme(command) => command.run(self.get_client_config()?).await,
             Command::Subgraph(command) => {
                 command
