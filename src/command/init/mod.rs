@@ -1,8 +1,8 @@
+use crate::options::{ProjectUseCase, ProjectUseCaseOpt};
+use crate::{RoverError, RoverOutput, RoverResult};
 use anyhow::anyhow;
 use clap::Parser;
 use serde::Serialize;
-use crate::options::{ProjectUseCaseOpt, ProjectUseCase};
-use crate::{RoverResult, RoverOutput, RoverError};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {
@@ -17,9 +17,11 @@ impl Init {
         let use_case = self.use_case_options.get_or_prompt_use_case()?;
         match use_case {
             ProjectUseCase::Connectors => println!("\nComing soon!\n"),
-            ProjectUseCase::GraphQLTemplate =>  println!("\nComing soon!\n"),
+            ProjectUseCase::GraphQLTemplate => println!("\nComing soon!\n"),
             _ => {
-                return Err(RoverError::new(anyhow!("Unknown project use case selected.")))
+                return Err(RoverError::new(anyhow!(
+                    "Unknown project use case selected."
+                )))
             }
         }
 

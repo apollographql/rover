@@ -1,11 +1,10 @@
-use clap::{Parser, ValueEnum};
-use std::fmt::{self, Display};
+use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
+use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
 use serde::{Deserialize, Serialize};
-
-use crate::{RoverResult, RoverError};
+use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
