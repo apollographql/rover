@@ -1,6 +1,5 @@
 use crate::options::{ProjectUseCase, ProjectUseCaseOpt};
-use crate::{RoverError, RoverOutput, RoverResult};
-use anyhow::anyhow;
+use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use serde::Serialize;
 

@@ -25,10 +25,14 @@ impl ProjectUseCaseOpt {
                 .default(0)
                 .interact_on_opt(&Term::stderr())?;
 
-            match selection {
-                Some(index) => Ok(use_cases[index].clone()),
-                None => Err(RoverError::new(anyhow!("No use case selected"))),
-            }
+            self.handle_use_case_selection(use_cases, selection)
+        }
+    }
+
+    pub fn handle_use_case_selection(&self, use_cases: &[ProjectUseCase], selection: Option<usize>) -> RoverResult<ProjectUseCase> {
+        match selection {
+            Some(index) => Ok(use_cases[index].clone()),
+            None => Err(RoverError::new(anyhow!("No use case selected"))),
         }
     }
 }
@@ -65,5 +69,32 @@ mod tests {
         assert!(result.is_ok());
         let use_case = result.unwrap();
         assert_eq!(use_case, ProjectUseCase::Connectors);
+    }
+
+    #[test]
+    fn test_handle_use_case_selection_returns_use_case_with_some_selection() {
+        let instance = ProjectUseCaseOpt {
+            project_use_case: None,
+        };
+
+        let use_cases = <ProjectUseCase as ValueEnum>::value_variants();
+        let selection: usize = 0;
+        let result = instance.handle_use_case_selection(use_cases, Some(selection));
+
+        assert!(result.is_ok());
+        let use_case = result.unwrap();
+        assert_eq!(use_case, use_cases[selection].clone());
+    }
+
+    #[test]
+    fn test_handle_use_case_selection_returns_error_with_none_selection() {
+        let instance = ProjectUseCaseOpt {
+            project_use_case: None,
+        };
+
+        let use_cases = <ProjectUseCase as ValueEnum>::value_variants();
+        let result = instance.handle_use_case_selection(use_cases, None);
+
+        assert!(result.is_err());
     }
 }
