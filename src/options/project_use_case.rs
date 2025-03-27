@@ -29,7 +29,11 @@ impl ProjectUseCaseOpt {
         }
     }
 
-    pub fn handle_use_case_selection(&self, use_cases: &[ProjectUseCase], selection: Option<usize>) -> RoverResult<ProjectUseCase> {
+    pub fn handle_use_case_selection(
+        &self,
+        use_cases: &[ProjectUseCase],
+        selection: Option<usize>,
+    ) -> RoverResult<ProjectUseCase> {
         match selection {
             Some(index) => Ok(use_cases[index].clone()),
             None => Err(RoverError::new(anyhow!("No use case selected"))),
