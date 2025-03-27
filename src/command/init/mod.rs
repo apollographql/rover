@@ -18,11 +18,6 @@ impl Init {
         match use_case {
             ProjectUseCase::Connectors => println!("\nComing soon!\n"),
             ProjectUseCase::GraphQLTemplate => println!("\nComing soon!\n"),
-            _ => {
-                return Err(RoverError::new(anyhow!(
-                    "Unknown project use case selected."
-                )))
-            }
         }
 
         Ok(RoverOutput::EmptySuccess)
