@@ -9,7 +9,6 @@ use crate::{RoverResult, RoverError};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
-    /// Filter templates by the available use case
     #[arg(long = "project-use-case", value_enum)]
     pub project_use_case: Option<ProjectUseCase>,
 }
