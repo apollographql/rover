@@ -10,7 +10,7 @@ use dialoguer::Input;
 use serde::Serialize;
 use rover_http::ReqwestService;
 use crate::cli::Rover;
-use crate::options::{extract_tarball, TemplateOpt};
+use crate::options::{TemplateFetcher, TemplateOpt};
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
@@ -58,11 +58,10 @@ impl Use {
             (template.id, template.download_url)
         };
 
-        // find the path to extract the template to
         let path = self.get_or_prompt_path()?;
 
-        // download and extract a tarball from github
-        extract_tarball(download_url.as_str().parse()?, &path, request_service).await?;
+        let fetcher = TemplateFetcher::new(download_url.as_str().parse()?, request_service).await?;
+        fetcher.write_template(path.clone())?;
 
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }

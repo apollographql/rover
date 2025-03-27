@@ -1,18 +1,19 @@
 use std::fmt::{self, Display};
-use std::io::Write;
+use std::fs;
+use std::io::{Cursor, Read, Write};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow};
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
+use flate2::read::GzDecoder;
 use http::Uri;
 use http_body_util::Full;
-use serde::{Deserialize, Serialize};
-use tower::{Service, ServiceExt};
-use url::Url;
 use rover_http::ReqwestService;
-use rover_std::Fs;
+use serde::{Deserialize, Serialize};
+use tar::Archive;
+use tower::{Service, ServiceExt};
 
 use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
 use crate::{RoverError, RoverResult};
@@ -45,86 +46,110 @@ impl TemplateOpt {
     }
 }
 
-pub(crate) async fn extract_tarball(
-    download_url: Uri,
-    template_path: &Utf8PathBuf,
-    mut request_service: ReqwestService,
-) -> RoverResult<()> {
-    use std::io::Cursor;
-
-    eprintln!("Downloading from {}", &download_url);
-    let req = http::Request::builder()
-        .method(http::Method::GET)
-        .header(reqwest::header::ACCEPT, "application/octet-stream")
-        .header(reqwest::header::USER_AGENT, "rover-client")
-        .uri(download_url)
-        .body(Full::default())?;
-
-    let service = request_service.ready().await?;
-    let res = service.call(req).await?;
-    let res = res.body().to_vec();
-    
-    let cursor = Cursor::new(res);
-    let tar = flate2::read::GzDecoder::new(cursor);
-    let mut archive = tar::Archive::new(tar);
-
-    archive
-        .unpack(template_path)
-        .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
-
-    let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
-    if let Some(Ok(extra_dir_name)) = extra_dir_name {
-        // Copy contents from the nested folder to the desired root path
-        Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
-        Fs::remove_dir_all(extra_dir_name.path())?;
-    }
-
-    Ok(())
+#[derive(Debug)]
+struct ArchiveEntry {
+    path: String,
+    contents: Vec<u8>,
 }
 
-// pub(crate) async fn extract_tarball(
-//     download_url: Url,
-//     template_path: &Utf8PathBuf,
-//     client: &reqwest::Client,
-// ) -> RoverResult<()> {
-//     let download_dir = tempfile::Builder::new()
-//         .prefix("rover-template")
-//         .tempdir()?;
-//     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
-//     let file_name = format!("{}.tar.gz", template_path);
-//     let tarball_path = download_dir_path.join(file_name);
-//     let mut f = std::fs::File::create(&tarball_path)?;
-//     eprintln!("Downloading from {}", &download_url);
-//     let response_bytes = client
-//         .get(download_url)
-//         .header(reqwest::header::USER_AGENT, "rover-client")
-//         .header(reqwest::header::ACCEPT, "application/octet-stream")
-//         .send()
-//         .await?
-//         .error_for_status()?
-//         .bytes()
-//         .await?;
-//     f.write_all(&response_bytes[..])?;
-//     f.sync_all()?;
-//     let f = std::fs::File::open(&tarball_path)?;
-//     let tar = flate2::read::GzDecoder::new(f);
-//     let mut archive = tar::Archive::new(tar);
-//     archive
-//         .unpack(template_path)
-//         .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
-// 
-//     // The unpacked tar will be nested in another folder
-//     let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
-//     if let Some(Ok(extra_dir_name)) = extra_dir_name {
-//         // For this reason, we must copy the contents of the folder, then delete it
-//         Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
-// 
-//         // Delete old unpacked zip
-//         Fs::remove_dir_all(extra_dir_name.path())?;
-//     }
-// 
-//     Ok(())
-// }
+#[derive(Debug)]
+pub struct TemplateFetcher {
+    artifacts: Vec<ArchiveEntry>,
+}
+
+impl TemplateFetcher {
+
+    // This fn attempts to pull a template from github based on the URL
+    // If successful, upstream code can then call list_files to display all the files that this template has
+    //or write to actually write the files to fs
+    pub async fn new(download_url: Uri, mut request_service: ReqwestService) -> RoverResult<Self> {
+        eprintln!("Downloading from {}", &download_url);
+
+        let req = http::Request::builder()
+            .method(http::Method::GET)
+            .header(reqwest::header::ACCEPT, "application/octet-stream")
+            .header(reqwest::header::USER_AGENT, "rover-client")
+            .uri(download_url)
+            .body(Full::default())?;
+
+        let service = request_service.ready().await?;
+        let res = service.call(req).await?;
+        let res = res.body().to_vec();
+
+        let cursor = Cursor::new(res);
+        let tar = GzDecoder::new(cursor);
+        let mut archive: Archive<GzDecoder<Cursor<Vec<u8>>>> = Archive::new(tar);
+        let mut root_name = None;
+
+        let mut artifacts = Vec::new();
+
+        // Tars store all artifacts in a "root" directory named after itself.
+        // below we handle that by stripping the "root" prefix and storing a flatter
+        // version of it in the artifacts vec
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?.to_owned(); 
+
+            if path.starts_with("pax_global_header") {
+                continue;
+            }
+
+            if root_name.is_none() {
+                root_name = Some(
+                    path.components()
+                        .next()
+                        .expect("Unexpected empty archive entry")
+                        .as_os_str()
+                        .to_string_lossy()
+                        .to_string(),
+                );
+            }
+
+            if let Some(root) = &root_name {
+                if let Ok(stripped_path) = path.strip_prefix(root) {
+                    let stripped_path = stripped_path.to_string_lossy().to_string();
+
+                    let mut contents = Vec::new();
+                    entry
+                        .read_to_end(&mut contents)?;
+
+                    artifacts.push(ArchiveEntry {
+                        path: stripped_path, 
+                        contents,
+                    });
+                }
+            }
+        }
+        Ok(Self { artifacts })
+    }
+
+
+    pub fn write_template(&self, template_path: Utf8PathBuf) -> RoverResult<()> {
+        fs::create_dir_all(&template_path)?;
+        
+        for artifact in &self.artifacts {
+            let full_path = template_path.join(&artifact.path);
+
+            if artifact.path.ends_with('/') || artifact.contents.is_empty() {
+                fs::create_dir_all(&full_path)?;
+            } else {
+                if let Some(parent) = full_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+
+                let mut output_file = fs::File::create(&full_path)?;
+
+                output_file
+                    .write_all(&artifact.contents)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // this will also have a list_files to print the list of files to write
+    // in a list_files fn
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
