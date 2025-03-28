@@ -9,6 +9,7 @@ use rover_std::prompt::prompt_confirm_default_yes;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::env;
+use std::env::VarError;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {
@@ -55,9 +56,15 @@ impl Init {
 
     async fn init_project(&self, repo_url: &str, http_service: ReqwestService) -> RoverResult<()> {
         let fetcher = TemplateFetcher::new(repo_url.parse()?, http_service).await?;
+
         let current_dir = env::current_dir()?;
         let current_dir = Utf8PathBuf::from_path_buf(current_dir)
             .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
+
+        let output_path = match env::var("INIT_OUTPUT_DIR") {
+            Ok(value) => { Utf8PathBuf::from(value)}
+            Err(_) => {current_dir}
+        };
 
         //at this point, we have the compressed bytes in the fetcher
         // we can do here other prep work below
@@ -66,7 +73,7 @@ impl Init {
         match self.prompt_creation(fetcher.list_files()?) {
             Ok(result) => {
                 if result {
-                    fetcher.write_template(&current_dir)?;
+                    fetcher.write_template(&output_path)?;
                 } else {
                     println!("Project creation canceled. You can run this command again anytime.");
                 }
