@@ -61,8 +61,8 @@ impl Init {
             .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
 
         let output_path = match env::var("INIT_OUTPUT_DIR") {
-            Ok(value) => { Utf8PathBuf::from(value)}
-            Err(_) => {current_dir}
+            Ok(value) => Utf8PathBuf::from(value),
+            Err(_) => current_dir,
         };
 
         //at this point, we have the compressed bytes in the fetcher
