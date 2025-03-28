@@ -9,7 +9,6 @@ use rover_std::prompt::prompt_confirm_default_yes;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::env;
-use std::env::VarError;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {
