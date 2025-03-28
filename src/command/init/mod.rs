@@ -1,5 +1,6 @@
 use crate::options::{ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher};
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use itertools::Itertools;
@@ -9,6 +10,7 @@ use rover_std::prompt::prompt_confirm_default_yes;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::env;
+use std::fs::read_dir;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {
@@ -55,7 +57,6 @@ impl Init {
 
     async fn init_project(&self, repo_url: &str, http_service: ReqwestService) -> RoverResult<()> {
         let fetcher = TemplateFetcher::new(repo_url.parse()?, http_service).await?;
-
         let current_dir = env::current_dir()?;
         let current_dir = Utf8PathBuf::from_path_buf(current_dir)
             .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
@@ -64,6 +65,23 @@ impl Init {
             Ok(value) => Utf8PathBuf::from(value),
             Err(_) => current_dir,
         };
+
+        //TODO: move this in favor of the template command handling
+        match read_dir(&output_path) {
+            Ok(mut dir) => {
+                if dir.next().is_some() {
+                    let mut err = RoverError::new(anyhow!(
+                        "Cannot initialize the project because the '{}' directory is not empty.",
+                        &output_path
+                    ));
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc(
+                        "Please run Init on an empty directory".to_string(),
+                    ));
+                    return Err(err);
+                }
+            }
+            _ => {} // we could handle not found here but for init is unlikely. Also, this block will be removed once we start using the template code
+        }
 
         //at this point, we have the compressed bytes in the fetcher
         // we can do here other prep work below
