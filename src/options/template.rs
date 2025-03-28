@@ -87,6 +87,8 @@ impl TemplateFetcher {
         Ok(())
     }
 
+    // this is only used by init behind feature flag
+    #[allow(dead_code)]
     pub fn list_files(&self) -> RoverResult<Vec<String>> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);
