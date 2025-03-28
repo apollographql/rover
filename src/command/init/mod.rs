@@ -11,6 +11,7 @@ use crate::{RoverOutput, RoverResult};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_http::ReqwestService;
+use dialoguer::Input;
 use serde::Serialize;
 
 #[cfg(test)]
@@ -59,6 +60,21 @@ impl Init {
             }
             None => Ok(RoverOutput::EmptySuccess),
         }
+
+        let project_name = self.prompt_for_project_name()?;
+        println!("{}", project_name);
+
+        Ok(RoverOutput::EmptySuccess)
+    }
+
+    pub fn prompt_for_project_name(&self) -> RoverResult<Utf8PathBuf> {
+        let input = Input::new().with_prompt("? Name your GraphQL API");
+        let name: Utf8PathBuf = input.interact_text()?;
+
+        // todo:
+        // validate the name
+        // can't be empty and must be valid characters and length
+        Ok(name)
     }
 }
 
