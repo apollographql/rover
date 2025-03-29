@@ -79,3 +79,18 @@ impl Init {
 }
 
 pub use states::Welcome;
+fn is_valid_string(input: &str, max_length: usize, allowed_chars: &str) -> bool {
+    // Check length
+    if input.len() > max_length {
+        return false;
+    }
+
+    // Check characters
+    for char in input.chars() {
+        if !allowed_chars.contains(char) {
+            return false;
+        }
+    }
+
+    true
+}
