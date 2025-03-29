@@ -8,11 +8,11 @@ use clap::Parser;
 use rover_client::operations::subgraph::publish_manifest::{
     self, SubgraphManifest, SubgraphsPublishInput,
 };
+use rover_client::operations::subgraph::routing_url;
+use rover_client::operations::subgraph::routing_url::SubgraphRoutingUrlInput;
 use rover_client::shared::GitContext;
 use rover_std::Style;
 use serde::Serialize;
-use rover_client::operations::subgraph::routing_url;
-use rover_client::operations::subgraph::routing_url::SubgraphRoutingUrlInput;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct PublishManifest {
@@ -45,7 +45,7 @@ impl PublishManifest {
             .with_context(|| invalid_json_err(&self.manifest))?;
 
         // Determine routing urls for all graphs in subgraph_manifest
-        for subgraph in subgraph_manifest.subgraph_inputs.iter_mut(){
+        for subgraph in subgraph_manifest.subgraph_inputs.iter_mut() {
             subgraph.url = determine_routing_url(
                 subgraph.no_url,
                 &subgraph.url,
@@ -58,9 +58,10 @@ impl PublishManifest {
                         },
                         &client,
                     )
-                        .await?)
+                    .await?)
                 },
-            ).await?;
+            )
+            .await?;
         }
 
         let subgraph_names = subgraph_manifest.get_subgraph_names();
@@ -86,12 +87,8 @@ impl PublishManifest {
             subgraphs: subgraph_names,
             publish_response,
         })
-
-        // eprintln!(
-        //     "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-        //     Style::Link.paint(self.graph.graph_ref.to_string()),
-        //     Style::Link.paint(&self.subgraphs.subgraph_name),
-        //     Style::Command.paint(&self.profile.profile_name)
-        // );
     }
 }
+
+#[cfg(test)]
+mod tests {}
