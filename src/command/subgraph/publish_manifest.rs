@@ -22,6 +22,10 @@ pub struct PublishManifest {
     #[clap(flatten)]
     profile: ProfileOpt,
 
+    /// Indicate whether to convert a non-federated graph into a subgraph
+    #[arg(short, long)]
+    convert: bool,
+
     #[serde(skip_serializing)]
     #[arg(long)]
     manifest: FileDescriptorType,
@@ -68,15 +72,16 @@ impl PublishManifest {
         eprintln!(
             "Publishing SDL to {} (subgraphs: {}) using credentials from the {} profile.",
             Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Link.paint(&subgraph_names.join(", ")),
+            Style::Link.paint(subgraph_names.join(", ")),
             Style::Command.paint(&self.profile.profile_name)
         );
 
         let publish_response = publish_manifest::run(
             SubgraphsPublishInput {
                 graph_ref: self.graph.graph_ref.clone(),
-                subgraph_manifest,
                 git_context,
+                subgraph_manifest,
+                convert_to_federated_graph: self.convert,
             },
             &client,
         )

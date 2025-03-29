@@ -1,6 +1,6 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::shared::GraphRef;
+use crate::shared::{should_convert_to_federated_graph, GraphRef};
 use crate::RoverClientError;
 use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::GraphQLQuery;
@@ -25,6 +25,9 @@ pub async fn run(
 ) -> Result<SubgraphsPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let variables: MutationVariables = input.clone().into();
+
+    should_convert_to_federated_graph(&graph_ref, input.convert_to_federated_graph, client).await?;
+
     let data = client.post::<SubgraphsPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))

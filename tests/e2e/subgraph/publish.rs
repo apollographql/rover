@@ -116,7 +116,7 @@ async fn e2e_test_rover_subgraph_publish(
     // I also appreciate this is not fool-proof, as if the test fails this will mean we are
     // left with subgraphs lying around. In the future we should move to something like
     // test-context (https://docs.rs/test-context/latest/test_context/) so that we get cleanup
-    // for free. Until then we can manually clean up if it becomes necessary.
+    // for free. Until then, we can manually clean up if it becomes necessary.
     let mut subgraph_delete_cmd =
         Command::cargo_bin("rover").expect("Could not find necessary binary");
     subgraph_delete_cmd.args([

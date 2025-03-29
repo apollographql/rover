@@ -1,11 +1,6 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::graph::variant::VariantListInput;
-use crate::operations::{
-    config::is_federated::{self, IsFederatedInput},
-    graph::variant,
-};
-use crate::shared::GraphRef;
+use crate::shared::{should_convert_to_federated_graph, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -32,46 +27,9 @@ pub async fn run(
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let variables: MutationVariables = input.clone().into();
-    // We don't want to implicitly convert non-federated graph to supergraphs.
-    // Error here if no --convert flag is passed _and_ the current context
-    // is non-federated. Add a suggestion to require a --convert flag.
-    if !input.convert_to_federated_graph {
-        // first, check if the variant exists _at all_
-        // if it doesn't exist, there is no graph schema to "convert"
-        // so don't require --convert in this case, just publish the subgraph
-        let variant_exists = variant::run(
-            VariantListInput {
-                graph_ref: graph_ref.clone(),
-            },
-            client,
-        )
-        .await
-        .is_ok();
 
-        if variant_exists {
-            // check if subgraphs have ever been published to this graph ref
-            let is_federated = is_federated::run(
-                IsFederatedInput {
-                    graph_ref: graph_ref.clone(),
-                },
-                client,
-            )
-            .await?;
+    should_convert_to_federated_graph(&graph_ref, input.convert_to_federated_graph, client).await?;
 
-            if !is_federated {
-                return Err(RoverClientError::ExpectedFederatedGraph {
-                    graph_ref,
-                    can_operation_convert: true,
-                });
-            }
-        } else {
-            tracing::debug!(
-                "Publishing new subgraph {} to {}",
-                &input.subgraph,
-                &input.graph_ref
-            );
-        }
-    }
     let data = client.post::<SubgraphPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))
@@ -119,8 +77,12 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::build_response;
+    use crate::operations::subgraph::publish::types::UpdateResponse;
+    use crate::operations::subgraph::publish::SubgraphPublishResponse;
+    use apollo_federation_types::rover::{BuildError, BuildErrors};
     use serde_json::json;
+
     #[test]
     fn build_response_works_with_composition_errors() {
         let json_response = json!({

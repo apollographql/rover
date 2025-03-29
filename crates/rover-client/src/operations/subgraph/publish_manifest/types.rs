@@ -16,8 +16,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphsPublishInput {
     pub graph_ref: GraphRef,
-    pub subgraph_manifest: SubgraphManifest,
     pub git_context: GitContext,
+    pub subgraph_manifest: SubgraphManifest,
+    pub convert_to_federated_graph: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
