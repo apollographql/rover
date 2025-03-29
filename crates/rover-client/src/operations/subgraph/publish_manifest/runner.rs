@@ -71,3 +71,198 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphsPublishResponse 
         launch_url: publish_response.launch_url,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn build_response_works_with_composition_errors() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [
+                {
+                    "message": "[Accounts] User -> build error",
+                    "code": null
+                },
+                null, // this is technically allowed in the types
+                {
+                    "message": "[Products] Product -> another one",
+                    "code": "ERROR"
+                }
+            ],
+            "didUpdateGateway": false,
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true,
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphsPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: vec![
+                    BuildError::composition_error(
+                        None,
+                        Some("[Accounts] User -> build error".to_string()),
+                        None,
+                        None
+                    ),
+                    BuildError::composition_error(
+                        Some("ERROR".to_string()),
+                        Some("[Products] Product -> another one".to_string()),
+                        None,
+                        None
+                    )
+                ]
+                .into(),
+                supergraph_was_updated: false,
+                subgraph_was_created: true,
+                subgraph_was_updated: true,
+                launch_url: None,
+                launch_cli_copy: None,
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_successful_composition() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": true,
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true,
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphsPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: true,
+                subgraph_was_created: true,
+                subgraph_was_updated: true,
+                launch_url: None,
+                launch_cli_copy: None,
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
+            }
+        );
+    }
+
+    // This case can happen when there are failures on the initial publish
+    // before composing? No service hash to return, and serviceWasCreated: false
+    #[test]
+    fn build_response_works_with_failure_and_no_hash() {
+        let json_response = json!({
+            "compositionConfig": null,
+            "errors": [{
+                "message": "[Accounts] -> Things went really wrong",
+                "code": null
+            }],
+            "didUpdateGateway": false,
+            "serviceWasCreated": false,
+            "serviceWasUpdated": true,
+            "subgraphsCreated": [],
+            "subgraphsUpdated": ["SubgraphA"]
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphsPublishResponse {
+                api_schema_hash: None,
+                build_errors: vec![BuildError::composition_error(
+                    None,
+                    Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
+                    None
+                )]
+                .into(),
+                supergraph_was_updated: false,
+                subgraph_was_created: false,
+                subgraph_was_updated: true,
+                launch_url: None,
+                launch_cli_copy: None,
+                subgraphs_updated: vec!["SubgraphA".to_string()],
+                subgraphs_created: vec![]
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_successful_composition_and_launch() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": true,
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true,
+            "launchUrl": "test.com/launchurl",
+            "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphsPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: true,
+                subgraph_was_created: true,
+                subgraph_was_updated: true,
+                launch_url: Some("test.com/launchurl".to_string()),
+                launch_cli_copy: Some(
+                    "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
+                ),
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_unmodified_subgraph() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": false,
+            "serviceWasCreated": false,
+            "serviceWasUpdated": false,
+            "subgraphsCreated": [],
+            "subgraphsUpdated": []
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphsPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: false,
+                subgraph_was_created: false,
+                subgraph_was_updated: false,
+                launch_url: None,
+                launch_cli_copy: None,
+                subgraphs_created: vec![],
+                subgraphs_updated: vec![],
+            }
+        );
+    }
+}
