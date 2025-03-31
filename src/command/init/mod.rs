@@ -56,7 +56,9 @@ impl Init {
     }
 
     async fn init_project(&self, repo_url: &str, http_service: ReqwestService) -> RoverResult<()> {
-        let fetcher = TemplateFetcher::new(repo_url.parse()?, http_service).await?;
+        let template = TemplateFetcher::new(http_service)
+            .call(repo_url.parse()?)
+            .await?;
         let current_dir = env::current_dir()?;
         let current_dir = Utf8PathBuf::from_path_buf(current_dir)
             .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
@@ -87,10 +89,10 @@ impl Init {
         // we can do here other prep work below
 
         // once all the work is ready, confirm with user:
-        match self.prompt_creation(fetcher.list_files()?) {
+        match self.prompt_creation(template.list_files()?) {
             Ok(result) => {
                 if result {
-                    fetcher.write_template(&output_path)?;
+                    template.write_template(&output_path)?;
                 } else {
                     println!("Project creation canceled. You can run this command again anytime.");
                 }

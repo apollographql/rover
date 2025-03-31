@@ -46,11 +46,20 @@ impl TemplateOpt {
 
 #[derive(Debug)]
 pub struct TemplateFetcher {
+    request_service: ReqwestService,
+}
+
+#[derive(Debug)]
+pub struct TemplateProject {
     contents: Vec<u8>,
 }
 
 impl TemplateFetcher {
-    pub async fn new(download_url: Uri, mut request_service: ReqwestService) -> RoverResult<Self> {
+    pub fn new(request_service: ReqwestService) -> Self {
+        Self { request_service }
+    }
+
+    pub async fn call(&mut self, download_url: Uri) -> RoverResult<TemplateProject> {
         println!("Downloading from {}", &download_url);
         println!();
         let req = http::Request::builder()
@@ -60,7 +69,7 @@ impl TemplateFetcher {
             .uri(download_url)
             .body(Full::default())?;
 
-        let service = request_service.ready().await?;
+        let service = self.request_service.ready().await?;
         let res = service.call(req).await?;
         let res = res.body().to_vec();
 
@@ -68,9 +77,11 @@ impl TemplateFetcher {
             return Err(RoverError::new(anyhow!("No template found")));
         }
 
-        Ok(Self { contents: res })
+        Ok(TemplateProject { contents: res })
     }
+}
 
+impl TemplateProject {
     pub fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);

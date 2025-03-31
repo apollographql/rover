@@ -62,8 +62,10 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        let fetcher = TemplateFetcher::new(download_url.as_str().parse()?, request_service).await?;
-        fetcher.write_template(&path)?;
+        let template = TemplateFetcher::new(request_service)
+            .call(download_url.as_str().parse()?)
+            .await?;
+        template.write_template(&path)?;
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
 
