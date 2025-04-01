@@ -72,14 +72,12 @@ impl Init {
         match read_dir(&output_path) {
             Ok(mut dir) => {
                 if dir.next().is_some() {
-                    let mut err = RoverError::new(anyhow!(
+                    return Err(RoverError::new(anyhow!(
                         "Cannot initialize the project because the '{}' directory is not empty.",
                         &output_path
-                    ));
-                    err.set_suggestion(RoverErrorSuggestion::Adhoc(
+                    )).with_suggestion(RoverErrorSuggestion::Adhoc(
                         "Please run Init on an empty directory".to_string(),
-                    ));
-                    return Err(err);
+                    )));
                 }
             }
             _ => {} // we could handle not found here but for init is unlikely. Also, this block will be removed once we start using the template code
