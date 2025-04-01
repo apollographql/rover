@@ -2,6 +2,8 @@ use std::fmt::Display;
 use std::{io, process};
 
 use camino::Utf8PathBuf;
+use clap::builder::styling::{AnsiColor, Effects};
+use clap::builder::Styles;
 use clap::{Parser, ValueEnum};
 use config::Config;
 use houston as config;
@@ -20,11 +22,19 @@ use crate::utils::stringify::option_from_display;
 use crate::utils::version;
 use crate::RoverResult;
 
+/// Clap styling
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .usage(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .literal(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Cyan.on_default());
+
 #[derive(Debug, Serialize, Parser)]
 #[command(
     name = "Rover",
     author,
     version,
+    styles = STYLES,
     about = "Rover - Your Graph Companion",
     after_help = "Read the getting started guide by running:
 
