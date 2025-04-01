@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 mod config;
 mod helpers;
 mod states;
@@ -8,19 +7,14 @@ mod transitions;
 use crate::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
-=======
 mod project;
 
 use crate::options::{ProjectUseCase, ProjectUseCaseOpt};
->>>>>>> 9e722bfb (adding method prompting user for valid project name)
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
-<<<<<<< HEAD
 use rover_http::ReqwestService;
 use dialoguer::Input;
-=======
 use project::Project;
->>>>>>> 9e722bfb (adding method prompting user for valid project name)
 use serde::Serialize;
 
 #[cfg(test)]
