@@ -3,16 +3,15 @@ use std::{
     io::{self, IsTerminal},
 };
 
+use crate::cli::Rover;
+use crate::options::{TemplateFetcher, TemplateOpt};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser};
 use dialoguer::Input;
+use rover_http::ReqwestService;
 use serde::Serialize;
-
-use crate::cli::Rover;
-use crate::options::{extract_tarball, TemplateOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
 
@@ -34,7 +33,7 @@ pub struct Use {
 }
 
 impl Use {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, request_service: ReqwestService) -> RoverResult<RoverOutput> {
         // find the template to extract
         let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
@@ -60,8 +59,10 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?).await?;
-
+        let template = TemplateFetcher::new(request_service)
+            .call(download_url.as_str().parse()?)
+            .await?;
+        template.write_template(&path)?;
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
 
