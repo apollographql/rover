@@ -32,9 +32,6 @@ pub struct Use {
     path: Option<Utf8PathBuf>,
 }
 
-// Steps:
-// 1. Download the template from repo
-
 impl Use {
     pub async fn run(&self, request_service: ReqwestService) -> RoverResult<RoverOutput> {
         // find the template to extract

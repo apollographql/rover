@@ -49,7 +49,6 @@ pub struct TemplateFetcher {
     request_service: ReqwestService,
 }
 
-#[derive(Debug)]
 pub struct TemplateProject {
     contents: Vec<u8>,
 }
@@ -98,9 +97,8 @@ impl TemplateProject {
         Ok(())
     }
 
-    // this is only used by init behind feature flag
     #[cfg_attr(not(feature = "init"), allow(dead_code))]
-    pub fn list_files(&self) -> RoverResult<Vec<String>> {
+    pub fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);
         let mut archive = tar::Archive::new(tar);
@@ -113,11 +111,12 @@ impl TemplateProject {
             components.next();
             let path = components.as_path();
 
-            if let Some(file_name) = path.file_name() {
-                let file_name = file_name.to_string_lossy().to_string();
-
-                if !(file_name.starts_with("pax_global_header") || file_name.starts_with("..")) {
-                    files.push(path.to_string_lossy().to_string());
+            if !(path.starts_with("pax_global_header") || path.starts_with("..")) {
+                if let Ok(path_buf) = Utf8PathBuf::from_path_buf(path.to_path_buf()) {
+                    //ignore top level directories
+                    if !entry.header().entry_type().is_dir() {
+                        files.push(path_buf);
+                    }
                 }
             }
         }
