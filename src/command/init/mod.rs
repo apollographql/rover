@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 mod config;
 mod helpers;
 mod states;
@@ -7,11 +8,19 @@ mod transitions;
 use crate::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
+=======
+mod project;
+
+use crate::options::{ProjectUseCase, ProjectUseCaseOpt};
+>>>>>>> 9e722bfb (adding method prompting user for valid project name)
 use crate::{RoverOutput, RoverResult};
-use camino::Utf8PathBuf;
 use clap::Parser;
+<<<<<<< HEAD
 use rover_http::ReqwestService;
 use dialoguer::Input;
+=======
+use project::Project;
+>>>>>>> 9e722bfb (adding method prompting user for valid project name)
 use serde::Serialize;
 
 #[cfg(test)]
@@ -60,21 +69,17 @@ impl Init {
             }
             None => Ok(RoverOutput::EmptySuccess),
         }
+        let use_case = self.use_case_options.get_or_prompt_use_case()?;
 
-        let project_name = self.prompt_for_project_name()?;
-        println!("{}", project_name);
+        match use_case {
+            ProjectUseCase::GraphQLTemplate => println!("\nComing soon!\n"),
+            ProjectUseCase::Connectors => {
+                let _project_name =  Project::prompt_for_valid_project_name()?;
+                println!("\nComing soon!\n")
+            },
+        }
 
         Ok(RoverOutput::EmptySuccess)
-    }
-
-    pub fn prompt_for_project_name(&self) -> RoverResult<Utf8PathBuf> {
-        let input = Input::new().with_prompt("? Name your GraphQL API");
-        let name: Utf8PathBuf = input.interact_text()?;
-
-        // todo:
-        // validate the name
-        // can't be empty and must be valid characters and length
-        Ok(name)
     }
 }
 
