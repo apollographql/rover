@@ -68,9 +68,9 @@ impl Init {
         match use_case {
             ProjectUseCase::GraphQLTemplate => println!("\nComing soon!\n"),
             ProjectUseCase::Connectors => {
-                let _project_name =  Project::prompt_for_valid_project_name()?;
+                let _project_name = Project::prompt_for_valid_project_name()?;
                 println!("\nComing soon!\n")
-            },
+            }
         }
 
         Ok(RoverOutput::EmptySuccess)

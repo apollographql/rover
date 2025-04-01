@@ -13,13 +13,14 @@ impl Project {
     pub fn prompt_for_valid_project_name() -> RoverResult<ValidProjectName> {
         let max_length = 64;
         let min_length = 2;
-        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+<>/?\\";
+        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+<>/?\\[]{};:";
 
-       loop {
+        loop {
             let input: Input<String> = Input::new().with_prompt("? Name your GraphQL API");
             let name = input.interact_text()?.to_string();
 
-            let valid_name = ValidProjectName::validate(&name, allowed_chars, max_length, min_length);
+            let valid_name =
+                ValidProjectName::validate(&name, allowed_chars, max_length, min_length);
 
             match valid_name {
                 Ok(valid_name) => {
@@ -36,19 +37,33 @@ impl Project {
 pub struct ValidProjectName(String);
 
 impl ValidProjectName {
-    pub fn validate(input: &str, allowed_chars: &str, max_length: usize, min_length: usize) -> RoverResult<ValidProjectName> {
+    pub fn validate(
+        input: &str,
+        allowed_chars: &str,
+        max_length: usize,
+        min_length: usize,
+    ) -> RoverResult<ValidProjectName> {
         // Check length
         if !validate_max_length(input, max_length) {
-            return Err(RoverError::new(anyhow!("Names must be a maximum of {} characters long.", max_length)));
+            return Err(RoverError::new(anyhow!(
+                "Names must be a maximum of {} characters long.",
+                max_length
+            )));
         }
 
         if !validate_min_length(input, min_length) {
-            return Err(RoverError::new(anyhow!("Names must be a minimum of {} characters long.", min_length)));
+            return Err(RoverError::new(anyhow!(
+                "Names must be a minimum of {} characters long.",
+                min_lengt
+            )));
         }
 
         // Check characters
         if !validate_allowed_chars(input, allowed_chars) {
-            return Err(RoverError::new(anyhow!("Names may only contain the following characters: {}", allowed_chars)));
+            return Err(RoverError::new(anyhow!(
+                "Names may only contain the following characters: {}",
+                allowed_chars
+            )));
         }
 
         Ok(ValidProjectName(input.to_string()))
@@ -175,8 +190,9 @@ mod tests {
     #[test]
     fn test_validate_returns_error_when_input_has_invalid_length() {
         let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let max_length =  1;
+        let allowed_chars =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
+        let max_length = 1;
         let min_length = 0;
 
         let result = ValidProjectName::validate(input, allowed_chars, max_length, min_length);
@@ -188,8 +204,8 @@ mod tests {
     fn test_validate_returns_error_when_input_has_invalid_chars() {
         let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
         let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-        let max_length =  100;
-        let min_length =  1;
+        let max_length = 100;
+        let min_length = 1;
 
         let result = ValidProjectName::validate(input, allowed_chars, max_length, min_length);
 
@@ -199,9 +215,10 @@ mod tests {
     #[test]
     fn test_validate_returns_ok_when_input_has_valid_chars_and_length() {
         let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let max_length =  100;
-        let min_length =  1;
+        let allowed_chars =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
+        let max_length = 100;
+        let min_length = 1;
 
         let result = ValidProjectName::validate(input, allowed_chars, max_length, min_length);
 
