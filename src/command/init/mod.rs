@@ -1,15 +1,14 @@
 mod config;
 mod states;
-mod prompts;
+mod helpers;
 mod transitions;
 mod template_operations;
 
 use crate::options::{ProjectTypeOpt, ProjectUseCaseOpt, ProjectOrganizationOpt, ProjectNameOpt, GraphIdOpt};
 use crate::{RoverOutput, RoverResult};
+use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
-use std::fs::read_dir;
-use std::{env, io};
 use rover_http::ReqwestService;
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -48,13 +47,14 @@ impl Init {
         
         let graph_id_confirmed = project_named.confirm_graph_id(&self.graph_id_opt)?;
         
-        let creation_confirmed = match graph_id_confirmed.preview_and_confirm_creation()? {
+        // Create a new ReqwestService instance for template preview
+        let http_service = ReqwestService::new(None, None)?;
+        let creation_confirmed = match graph_id_confirmed.preview_and_confirm_creation(http_service.clone()).await? {
             Some(confirmed) => confirmed,
             None => return Ok(RoverOutput::EmptySuccess), 
         };
         
-        // DUMMY HTTP SERVICE
-        let http_service = ReqwestService::new(None, None)?;
+        // Reuse the same http_service for project creation
         let project_created = creation_confirmed.create_project(http_service).await?;
         
         let completed = project_created.complete();

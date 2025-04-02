@@ -1,5 +1,6 @@
 use crate::command::init::config::ProjectConfig;
 use crate::options::{ProjectType, ProjectUseCase};
+use camino::Utf8PathBuf;
 
 // 1. Initial state
 #[derive(Debug)]
@@ -48,15 +49,16 @@ pub struct GraphIdConfirmed {
 // 7. After displaying what will be created and getting confirmation
 #[derive(Debug)]
 pub struct CreationConfirmed {
-    pub config: ProjectConfig,
-    pub artifacts: Vec<String>,
+  pub config: ProjectConfig,
+  pub repo_url: String,
+  pub output_path: Option<Utf8PathBuf>,
 }
 
 // 8. After files are created and API call is completed
 #[derive(Debug)]
 pub struct ProjectCreated {
     pub config: ProjectConfig,
-    pub artifacts: Vec<String>,
+    pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
 }
 

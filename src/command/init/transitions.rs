@@ -1,12 +1,22 @@
+use std::env;
+use std::fs::read_dir;
+
+use camino::Utf8PathBuf;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::states::*;
-use crate::command::init::prompts::*;
+use crate::command::init::helpers::*;
+use crate::command::init::template_operations::TemplateOperations;
 use crate::options::GraphIdOpt;
 use crate::options::ProjectNameOpt;
+use crate::options::ProjectUseCase;
+use crate::options::TemplateFetcher;
 use crate::options::{ProjectTypeOpt,  ProjectUseCaseOpt, ProjectOrganizationOpt};
+use crate::RoverError;
+use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
+use anyhow::anyhow;
 
 /// PROMPT UX:
 /// ==========
@@ -116,7 +126,7 @@ impl ProjectNamed {
 /// PROMPT UX:
 /// =========
 /// 
-/// => You’re about to create a local directory with the following files:
+/// => You're about to create a local directory with the following files:
 ///
 /// .vscode/extensions.json
 /// .idea/externalDependencies.xml
@@ -127,45 +137,77 @@ impl ProjectNamed {
 ///
 /// ? Proceed with creation? (y/n): 
 
-impl GraphIdConfirmed {
-    fn create_config(&self) -> ProjectConfig {
-        ProjectConfig {
-            organization: self.organization.clone(),
-            use_case: self.use_case.clone(),
-            project_name: self.project_name.clone(),
-            graph_id: self.graph_id.clone(),
-            project_type: self.project_type.clone(),
-        }
-    }
-    
-    pub fn preview_and_confirm_creation(self) -> RoverResult<Option<CreationConfirmed>> {
-        // Create the configuration
-        let config = self.create_config();
-        
-        // Get list of files that will be created
-        // TODO: REPLACE DUMMY VALUES WITH ACTUAL VALUES
-        let artifacts = vec![
-            ".vscode/extensions.json".to_string(), 
-            ".idea/externalDependencies.xml".to_string(), 
-            "getting-started.md".to_string(), 
-            "router.yaml".to_string(), 
-            "supergraph.yaml".to_string(), 
-            "schema.graphql".to_string()
-        ];
-        
-        // Ask for confirmation
-        let proceed = prompt_confirm_project_creation(&config, Some(&artifacts))?;
-        
-        if proceed {
-            Ok(Some(CreationConfirmed {
-                config,
-                artifacts,
-            }))
-        } else {
-            println!("Project creation canceled. You can run this command again anytime.");
-            Ok(None)
-        }
-    }
+/******************************************************************
+ * We've split the functionality from init_project across two state 
+ * transitions to fit the state machine pattern:
+ * 
+ * 1. GraphIdConfirmed.preview_and_confirm_creation:
+ *    - Takes the template fetching part to get the list of files
+ *    - Uses TemplateOperations.prompt_creation to display files and ask for confirmation
+ *    - Stores the repo_url for use in the next state
+ * 
+ * 2. CreationConfirmed.create_project:
+ *    - Takes the directory checking logic
+ *    - Fetches the template again (maybe could be optimized)
+ *    - Writes the template files
+ *    - Gets final list of created files
+ * 
+ * This approach preserves the same functionality as init_project
+ ******************************************************************/
+ impl GraphIdConfirmed {
+  fn create_config(&self) -> ProjectConfig {
+      ProjectConfig {
+          organization: self.organization.clone(),
+          use_case: self.use_case.clone(),
+          project_name: self.project_name.clone(),
+          graph_id: self.graph_id.clone(),
+          project_type: self.project_type.clone(),
+      }
+  }
+  
+  // This method handles the first part of what init_project does:
+  // - Determine the repository URL
+  // - Fetch the template 
+  // - Display files and get confirmation
+  pub async fn preview_and_confirm_creation(self, http_service: ReqwestService) -> RoverResult<Option<CreationConfirmed>> {
+      // Create the configuration
+      let config = self.create_config();
+      
+      // Determine the repository URL based on the use case
+      let repo_url = match self.use_case {
+          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-connectors-starter/archive/refs/heads/main.tar.gz",
+          ProjectUseCase::GraphQLTemplate => {
+              println!("\nGraphQL Template is coming soon!\n");
+              return Ok(None); // Early return if template not available
+          },
+      };
+      
+      // Fetch the template to get the list of files
+      let template_fetcher = TemplateFetcher::new(http_service)
+          .call(repo_url.parse()?)
+          .await?;
+      
+      // Get list of files that will be created
+      let artifacts = template_fetcher.list_files()?;
+      
+      // This directly uses TemplateOperations.prompt_creation from the original implementation
+      match TemplateOperations::prompt_creation(artifacts.clone()) {
+          Ok(true) => {
+              // User confirmed, proceed to create files
+              Ok(Some(CreationConfirmed {
+                  config,
+                  repo_url: repo_url.to_string(),
+                  output_path: None, // Default to current directory
+              }))
+          },
+          Ok(false) => {
+              // User canceled
+              println!("Project creation canceled. You can run this command again anytime.");
+              Ok(None)
+          },
+          Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
+      }
+  }
 }
 
 /// PROMPT UX:
@@ -173,17 +215,56 @@ impl GraphIdConfirmed {
 /// 
 /// ⣾ Creating files and generating GraphOS credentials..
 
-// TODO: Replace with Daniel's implementation
+// This method handles the second part of what init_project does:
+// - Check if directory is empty
+// - Fetch the template again
+// - Write the template files
 impl CreationConfirmed {
-  pub async fn create_project(self, _http_service: ReqwestService) -> RoverResult<ProjectCreated> {
+  pub async fn create_project(self, http_service: ReqwestService) -> RoverResult<ProjectCreated> {
+      println!("⣾ Creating files and generating GraphOS credentials...");
       
-      println!("TODO: Implement project creation");
-      println!("⣾ Creating files and generating GraphOS credentials... (simulated)");
+      // This logic is taken directly from init_project's directory path handling
+      let current_dir = env::current_dir()?;
+      let current_dir = Utf8PathBuf::from_path_buf(current_dir)
+          .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
+      let output_path = self.output_path.unwrap_or(current_dir);
+      
+      // This directory checking logic is copied from init_project
+      match read_dir(&output_path) {
+          Ok(mut dir) => {
+              if dir.next().is_some() {
+                  return Err(RoverError::new(anyhow!(
+                      "Cannot initialize the project because the '{}' directory is not empty.",
+                      &output_path
+                  ))
+                  .with_suggestion(RoverErrorSuggestion::Adhoc(
+                      "Please run Init on an empty directory".to_string(),
+                  )));
+              }
+          }
+          _ => {} // Directory doesn't exist or can't be read
+      }
+      
+      // We re-fetch the template here - could potentially be optimized
+      // to pass the template from the previous state
+      let template_fetcher = TemplateFetcher::new(http_service.clone())
+          .call(self.repo_url.parse()?)
+          .await?;
+      
+      // Write the template files without asking for confirmation again
+      // (confirmation was done in the previous state)
+      template_fetcher.write_template(&output_path)?;
+      
+      // Get the list of created files
+      let artifacts = template_fetcher.list_files()?;
+      
+      // API key creation would happen here in a real implementation
+      let api_key = "api-key-placeholder-12345".to_string();
       
       Ok(ProjectCreated {
           config: self.config,
-          artifacts: self.artifacts,
-          api_key: "api-key-placeholder-12345".to_string(),
+          artifacts,
+          api_key,
       })
   }
 }

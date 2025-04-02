@@ -1,4 +1,3 @@
-// template_operations.rs
 use crate::options::TemplateFetcher;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 use anyhow::anyhow;
@@ -14,7 +13,6 @@ use std::io;
 pub struct TemplateOperations;
 
 impl TemplateOperations {
-    // Directly ported from the original implementation
     pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
         println!("The following files will be created:");
         let mut artifacts_sorted = artifacts;
@@ -26,7 +24,6 @@ impl TemplateOperations {
         prompt_confirm_default_yes("Proceed with creation?")
     }
 
-    // Directly ported from the original implementation
     pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
         for (_, files) in &artifacts
             .into_iter()
@@ -40,8 +37,7 @@ impl TemplateOperations {
         }
     }
 
-    // Directly ported from the original implementation
-    pub async fn init_project(
+    pub async fn _init_project(
         repo_url: &str,
         http_service: ReqwestService,
         output_path: Option<Utf8PathBuf>,
