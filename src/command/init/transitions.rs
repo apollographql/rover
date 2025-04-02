@@ -34,15 +34,31 @@ impl Welcome {
     }
 
     pub fn select_project_type(self, options: &ProjectTypeOpt) -> RoverResult<ProjectTypeSelected> {
-      display_welcome_message();
-      
-      let project_type = match options.get_project_type() {
-        Some(ptype) => ptype,
-        None => options.prompt_project_type()?,
-    };
-      
-      Ok(ProjectTypeSelected { project_type })
-  }
+        display_welcome_message();
+        
+        // Check if directory is empty before proceeding
+        let current_dir = env::current_dir()?;
+        match read_dir(&current_dir) {
+            Ok(mut dir) => {
+                if dir.next().is_some() {
+                    return Err(RoverError::new(anyhow!(
+                        "Cannot initialize the project because the current directory is not empty."
+                    ))
+                    .with_suggestion(RoverErrorSuggestion::Adhoc(
+                        "Please run Init on an empty directory".to_string(),
+                    )));
+                }
+            }
+            _ => {} // Directory doesn't exist or can't be read
+        }
+        
+        let project_type = match options.get_project_type() {
+            Some(ptype) => ptype,
+            None => options.prompt_project_type()?,
+        };
+          
+        Ok(ProjectTypeSelected { project_type })
+    }
 }
 
 /// PROMPT UX:
@@ -148,10 +164,6 @@ impl GraphIdConfirmed {
       }
   }
   
-  // This method handles the first part of what init_project does:
-  // - Determine the repository URL
-  // - Fetch the template 
-  // - Display files and get confirmation
   pub async fn preview_and_confirm_creation(self, http_service: ReqwestService) -> RoverResult<Option<CreationConfirmed>> {
       // Create the configuration
       let config = self.create_config();
@@ -173,13 +185,12 @@ impl GraphIdConfirmed {
       // Get list of files that will be created
       let artifacts = template_fetcher.list_files()?;
       
-      // This directly uses TemplateOperations.prompt_creation from the original implementation
       match TemplateOperations::prompt_creation(artifacts.clone()) {
           Ok(true) => {
               // User confirmed, proceed to create files
               Ok(Some(CreationConfirmed {
                   config,
-                  repo_url: repo_url.to_string(),
+                  template: template_fetcher,
                   output_path: None, // Default to current directory
               }))
           },
@@ -198,59 +209,33 @@ impl GraphIdConfirmed {
 /// 
 /// ⣾ Creating files and generating GraphOS credentials..
 
-// This method handles the second part of what init_project does:
-// - Check if directory is empty
-// - Fetch the template again
-// - Write the template files
 impl CreationConfirmed {
-  pub async fn create_project(self, http_service: ReqwestService) -> RoverResult<ProjectCreated> {
-      println!("⣾ Creating files and generating GraphOS credentials...");
-      
-      // This logic is taken directly from init_project's directory path handling
-      let current_dir = env::current_dir()?;
-      let current_dir = Utf8PathBuf::from_path_buf(current_dir)
-          .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
-      let output_path = self.output_path.unwrap_or(current_dir);
-      
-      // This directory checking logic is copied from init_project
-      match read_dir(&output_path) {
-          Ok(mut dir) => {
-              if dir.next().is_some() {
-                  return Err(RoverError::new(anyhow!(
-                      "Cannot initialize the project because the '{}' directory is not empty.",
-                      &output_path
-                  ))
-                  .with_suggestion(RoverErrorSuggestion::Adhoc(
-                      "Please run Init on an empty directory".to_string(),
-                  )));
-              }
-          }
-          _ => {} // Directory doesn't exist or can't be read
-      }
-      
-      // We re-fetch the template here - could potentially be optimized
-      // to pass the template from the previous state
-      let template_fetcher = TemplateFetcher::new(http_service.clone())
-          .call(self.repo_url.parse()?)
-          .await?;
-      
-      // Write the template files without asking for confirmation again
-      // (confirmation was done in the previous state)
-      template_fetcher.write_template(&output_path)?;
-      
-      // Get the list of created files
-      let artifacts = template_fetcher.list_files()?;
-      
-      // API key creation would happen here in a real implementation
-      let api_key = "api-key-placeholder-12345".to_string();
-      
-      Ok(ProjectCreated {
-          config: self.config,
-          artifacts,
-          api_key,
-      })
+    pub async fn create_project(self) -> RoverResult<ProjectCreated> {
+        println!("⣾ Creating files and generating GraphOS credentials...");
+        
+        // Get the output path (current directory or specified path)
+        let current_dir = env::current_dir()?;
+        let current_dir = Utf8PathBuf::from_path_buf(current_dir)
+            .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
+        let output_path = self.output_path.unwrap_or(current_dir);
+        
+        // Write the template files without asking for confirmation again
+        // (confirmation was done in the previous state)
+        self.template.write_template(&output_path)?;
+        
+        // Get the list of created files
+        let artifacts = self.template.list_files()?;
+        
+        // TODO: Implement API key creation
+        let api_key = "api-key-placeholder-12345".to_string();
+        
+        Ok(ProjectCreated {
+            config: self.config,
+            artifacts,
+            api_key,
+        })
+    }
   }
-}
 
 /// PROMPT UX:
 /// =========

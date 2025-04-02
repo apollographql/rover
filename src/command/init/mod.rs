@@ -55,7 +55,7 @@ impl Init {
         };
         
         // Reuse the same http_service for project creation
-        let project_created = creation_confirmed.create_project(http_service).await?;
+        let project_created = creation_confirmed.create_project().await?;
         
         let completed = project_created.complete();
         

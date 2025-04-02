@@ -49,6 +49,7 @@ pub struct TemplateFetcher {
     request_service: ReqwestService,
 }
 
+#[derive(Debug)]
 pub struct TemplateProject {
     contents: Vec<u8>,
 }
