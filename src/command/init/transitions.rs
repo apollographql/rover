@@ -137,24 +137,7 @@ impl ProjectNamed {
 ///
 /// ? Proceed with creation? (y/n): 
 
-/******************************************************************
- * We've split the functionality from init_project across two state 
- * transitions to fit the state machine pattern:
- * 
- * 1. GraphIdConfirmed.preview_and_confirm_creation:
- *    - Takes the template fetching part to get the list of files
- *    - Uses TemplateOperations.prompt_creation to display files and ask for confirmation
- *    - Stores the repo_url for use in the next state
- * 
- * 2. CreationConfirmed.create_project:
- *    - Takes the directory checking logic
- *    - Fetches the template again (maybe could be optimized)
- *    - Writes the template files
- *    - Gets final list of created files
- * 
- * This approach preserves the same functionality as init_project
- ******************************************************************/
- impl GraphIdConfirmed {
+impl GraphIdConfirmed {
   fn create_config(&self) -> ProjectConfig {
       ProjectConfig {
           organization: self.organization.clone(),
