@@ -2,7 +2,6 @@
 use crate::RoverResult;
 use serde::{Deserialize, Serialize};
 use clap::Parser;
-use dialoguer::Input;
 use clap::arg;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
@@ -11,21 +10,20 @@ pub struct ProjectNameOpt {
     pub project_name: Option<String>,
 }
 
+// TODO: Include Taylor's logic for generating a project name
 impl ProjectNameOpt {
     pub fn get_project_name(&self) -> Option<String> {
         self.project_name.clone()
     }
     
     pub fn prompt_project_name(&self) -> RoverResult<String> {
-      let prompt = "Name your GraphQL API";
+      // TODO: Include Taylor's prompt, validation, and return project name logic here
+      let _prompt = "Name your GraphQL API";
       let default = self.suggest_default_name();
       
-      let project_name = Input::<String>::new()
-          .with_prompt(prompt)
-          .default(default.clone())
-          .interact()?;
+      // TODO: Include Taylor's logic for generating a project name
       
-      Ok(project_name)
+      Ok(default)
   }
     
     fn suggest_default_name(&self) -> String {

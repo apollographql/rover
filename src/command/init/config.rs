@@ -9,7 +9,3 @@ pub struct ProjectConfig {
     pub project_name: String,
     pub graph_id: String,
 }
-
-impl ProjectConfig {
-  // TODO
-}

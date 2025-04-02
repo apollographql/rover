@@ -278,29 +278,16 @@ impl CreationConfirmed {
 
 
 impl ProjectCreated {
-    pub fn complete(self) -> Completed {
-        println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", self.config.project_name);
-        
-        // Display created files
-        println!("\nProject directory");
-        for artifact in &self.artifacts {
-            println!("✓ {}", artifact);
-        }
-        
-        // Display credentials
-        println!("\nGraphOS credentials for your GraphQL API");
-        println!("✓ APOLLO_GRAPH_REF={}@current (Formatted graph-id@variant, references a GraphQL API in the Apollo GraphOS platform)", self.config.graph_id);
-        println!("✓ APOLLO_KEY={} (This is your project's API key, also known as a graph API key)", self.api_key);
-        
-        // Display next steps
-        println!("\n️▲ Before you proceed:");
-        println!("- Set your graph API key as an environment variable (learn more about env vars by running `rover docs open config`)");
-        println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");
-        
-        println!("\nNext steps Run the following command to start a local development session:  $ rover dev --supergraph-config supergraph.yaml  For more information, check out `getting-started.md`.");
-        
-        Completed
-    }
+  pub fn complete(self) -> Completed {
+      display_project_created_message(
+          &self.config.project_name,
+          &self.artifacts,
+          &self.config.graph_id,
+          &self.api_key
+      );
+      
+      Completed
+  }
 }
 
 // Completed state transition
