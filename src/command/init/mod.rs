@@ -1,20 +1,34 @@
-use crate::options::{ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher};
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-use anyhow::anyhow;
-use camino::Utf8PathBuf;
+mod config;
+mod states;
+mod prompts;
+mod transitions;
+mod template_operations;
+
+use crate::options::{ProjectTypeOpt, ProjectUseCaseOpt, ProjectOrganizationOpt, ProjectNameOpt, GraphIdOpt};
+use crate::{RoverOutput, RoverResult};
 use clap::Parser;
-use itertools::Itertools;
-use rover_http::ReqwestService;
-use rover_std::infoln;
-use rover_std::prompt::prompt_confirm_default_yes;
 use serde::Serialize;
 use std::fs::read_dir;
 use std::{env, io};
+use rover_http::ReqwestService;
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser, Clone, Serialize)]
+#[clap(about = "Initialize a new GraphQL API project")]
 pub struct Init {
     #[clap(flatten)]
-    use_case_options: ProjectUseCaseOpt,
+    project_type_opt: ProjectTypeOpt,
+    
+    #[clap(flatten)]
+    organization_opt: ProjectOrganizationOpt,
+    
+    #[clap(flatten)]
+    project_use_case_opt: ProjectUseCaseOpt,
+    
+    #[clap(flatten)]
+    project_name_opt: ProjectNameOpt,
+
+    #[clap(flatten)]
+    graph_id_opt: GraphIdOpt,
 
     #[clap(long, hide(true))]
     path: Option<Utf8PathBuf>,
@@ -22,91 +36,33 @@ pub struct Init {
 
 impl Init {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        println!("\nWelcome! This command helps you initialize a new GraphQL API project using Apollo Federation with Apollo Router.\n");
-
-        let request_service = ReqwestService::builder().build()?;
-
-        let use_case = self.use_case_options.get_or_prompt_use_case()?;
-        match use_case {
-            ProjectUseCase::Connectors => {
-                let repo_url = "https://github.com/apollographql/rover-connectors-starter/archive/refs/heads/main.tar.gz";
-                self.init_project(repo_url, request_service, self.path.clone())
-                    .await?;
-            }
-            ProjectUseCase::GraphQLTemplate => println!("\nComing soon!\n"),
-        }
-
-        Ok(RoverOutput::EmptySuccess)
-    }
-
-    fn prompt_creation(&self, artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
-        println!("The following files will be created:");
-        let mut artifacts_sorted = artifacts;
-        artifacts_sorted.sort();
-
-        self.print_grouped_files(artifacts_sorted);
-
-        println!();
-        prompt_confirm_default_yes("Proceed with creation?")
-    }
-
-    fn print_grouped_files(&self, artifacts: Vec<Utf8PathBuf>) {
-        for (_, files) in &artifacts
-            .into_iter()
-            .chunk_by(|artifact| artifact.parent().map(|p| p.to_owned()))
-        {
-            for file in files {
-                if file.file_name().is_some() {
-                    infoln!("{}", file);
-                }
-            }
-        }
-    }
-
-    async fn init_project(
-        &self,
-        repo_url: &str,
-        http_service: ReqwestService,
-        output_path: Option<Utf8PathBuf>,
-    ) -> RoverResult<()> {
-        let current_dir = env::current_dir()?;
-        let current_dir = Utf8PathBuf::from_path_buf(current_dir)
-            .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
-
-        let output_path = output_path.unwrap_or(current_dir);
-
-        //TODO: move this in favor of the template command handling
-        match read_dir(&output_path) {
-            Ok(mut dir) => {
-                if dir.next().is_some() {
-                    return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the project because the '{}' directory is not empty.",
-                        &output_path
-                    ))
-                    .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        "Please run Init on an empty directory".to_string(),
-                    )));
-                }
-            }
-            _ => {} // we could handle not found here but for init is unlikely. Also, this block will be removed once we start using the template code
-        }
-
-        let template = TemplateFetcher::new(http_service)
-            .call(repo_url.parse()?)
-            .await?;
-
-        // once all the work is ready, confirm with user:
-        match self.prompt_creation(template.list_files()?) {
-            Ok(result) => {
-                if result {
-                    template.write_template(&output_path)?;
-                } else {
-                    println!("Project creation canceled. You can run this command again anytime.");
-                }
-            }
-            Err(_) => Err(anyhow::anyhow!("Failed to prompt user for confirmation"))?,
-        }
-
-        Ok(())
+        let welcome = Welcome::new();
+        
+        let project_type_selected = welcome.select_project_type(&self.project_type_opt)?;
+        
+        let organization_selected = project_type_selected.select_organization(&self.organization_opt)?;
+        
+        let use_case_selected = organization_selected.select_use_case(&self.project_use_case_opt)?;
+        
+        let project_named = use_case_selected.enter_project_name(&self.project_name_opt)?;
+        
+        let graph_id_confirmed = project_named.confirm_graph_id(&self.graph_id_opt)?;
+        
+        let creation_confirmed = match graph_id_confirmed.preview_and_confirm_creation()? {
+            Some(confirmed) => confirmed,
+            None => return Ok(RoverOutput::EmptySuccess), 
+        };
+        
+        // DUMMY HTTP SERVICE
+        let http_service = ReqwestService::new(None, None)?;
+        let project_created = creation_confirmed.create_project(http_service).await?;
+        
+        let completed = project_created.complete();
+        
+        let output = completed.success();
+        
+        Ok(output)
     }
 }
+
+pub use states::Welcome;
