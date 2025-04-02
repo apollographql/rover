@@ -54,7 +54,7 @@ impl ValidProjectName {
         if !validate_min_length(input, min_length) {
             return Err(RoverError::new(anyhow!(
                 "Names must be a minimum of {} characters long.",
-                min_lengt
+                min_length
             )));
         }
 
