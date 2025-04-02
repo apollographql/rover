@@ -229,7 +229,7 @@ impl CreationConfirmed {
         // TODO: Implement API key creation -- generate_api_key() is not implemented
         let api_key = match env::var("GRAPHOS_API_KEY") {
             Ok(key) => key,
-            Err(_) => generate_api_key()?,
+            Err(_) => return Err(anyhow::anyhow!("API key required. Please set the GRAPHOS_API_KEY environment variable.").into()),
         };
         
         Ok(ProjectCreated {
