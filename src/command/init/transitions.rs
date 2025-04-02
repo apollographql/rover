@@ -226,8 +226,11 @@ impl CreationConfirmed {
         // Get the list of created files
         let artifacts = self.template.list_files()?;
         
-        // TODO: Implement API key creation
-        let api_key = "api-key-placeholder-12345".to_string();
+        // TODO: Implement API key creation -- generate_api_key() is not implemented
+        let api_key = match env::var("GRAPHOS_API_KEY") {
+            Ok(key) => key,
+            Err(_) => generate_api_key()?,
+        };
         
         Ok(ProjectCreated {
             config: self.config,
