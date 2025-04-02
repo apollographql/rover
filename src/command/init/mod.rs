@@ -35,33 +35,24 @@ pub struct Init {
 
 impl Init {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        let welcome = Welcome::new();
-        
-        let project_type_selected = welcome.select_project_type(&self.project_type)?;
-        
-        let organization_selected = project_type_selected.select_organization(&self.organization)?;
-        
-        let use_case_selected = organization_selected.select_use_case(&self.project_use_case)?;
-        
-        let project_named = use_case_selected.enter_project_name(&self.project_name)?;
-        
-        let graph_id_confirmed = project_named.confirm_graph_id(&self.graph_id)?;
-        
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
-        let creation_confirmed = match graph_id_confirmed.preview_and_confirm_creation(http_service.clone()).await? {
-            Some(confirmed) => confirmed,
-            None => return Ok(RoverOutput::EmptySuccess), 
-        };
-        
-        // Reuse the same http_service for project creation
-        let project_created = creation_confirmed.create_project().await?;
-        
-        let completed = project_created.complete();
-        
-        let output = completed.success();
-        
-        Ok(output)
+
+        let creation_confirmed_option = Welcome::new()
+            .select_project_type(&self.project_type)?
+            .select_organization(&self.organization)?
+            .select_use_case(&self.project_use_case)?
+            .enter_project_name(&self.project_name)?
+            .confirm_graph_id(&self.graph_id)?
+            .preview_and_confirm_creation(http_service).await?;
+
+        match creation_confirmed_option {
+            Some(creation_confirmed) => {
+                let project_created = creation_confirmed.create_project().await?;
+                Ok(project_created.complete().success())
+            },
+            None => Ok(RoverOutput::EmptySuccess),
+        }
     }
 }
 
