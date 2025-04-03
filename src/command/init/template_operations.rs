@@ -1,13 +1,7 @@
-use crate::options::TemplateFetcher;
-use crate::{RoverError, RoverErrorSuggestion, RoverResult};
-use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use itertools::Itertools;
-use rover_http::ReqwestService;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
-use std::env;
-use std::fs::read_dir;
 use std::io;
 
 pub struct TemplateOperations;
