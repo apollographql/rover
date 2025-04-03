@@ -1,0 +1,5 @@
+[[allowlist]]
+description = "Placeholder API key in transitions.rs"
+commits = [
+  "12faf7bd764685b4327fa213c8e47092723f9f38"
+]
