@@ -77,6 +77,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
     use super::*;
     #[test]
     fn build_response_works_with_composition_errors() {

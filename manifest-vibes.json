@@ -1,0 +1,9 @@
+{
+	"subgraph_inputs": [
+		{
+			"subgraph": "goodbye-world",
+			"url": "http://products.prod.svc.cluster.local:4001/graphql",
+			"schema": "type MasterShifu { name: String }"
+		}
+	]
+}

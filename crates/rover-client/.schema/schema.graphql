@@ -2054,7 +2054,7 @@ type GraphVariant {
 
   """
   Returns a list of the top operations reported for this variant within a given time range.
-
+  
   Note: Access to this field is restricted and not enabled by default. Please contact Apollo support if you require access.
   """
   topOperationsReport(
@@ -2063,7 +2063,7 @@ type GraphVariant {
 
     """
     The starting timestamp for the report.
-
+    
     - Must be in the format: 2025-01-01T00:00:00Z (ISO 8601).
     - The duration between 'from' and 'to' must not exceed 8 days.
     """
@@ -2077,7 +2077,7 @@ type GraphVariant {
 
     """
     The ending timestamp for the report.
-
+    
     - Must be in the format: 2025-01-01T08:00:00Z (ISO 8601).
     - 'to' must be at least 6 hours from the current time.
     - The duration between 'from' and 'to' must not exceed 8 days.
@@ -2150,30 +2150,30 @@ type GraphVariantMutation {
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
   schema change against its associated graph.
-
+  
   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
   to check status, or an error object if the checks workflow failed to start.
-
+  
   Rate limited to 3000 per min.
   """
   submitCheckSchemaAsync(input: CheckSchemaAsyncInput!): CheckRequestResult!
 
   """
    _Asynchronously_ kicks off composition and operation checks for all proposed subgraphs schema changes against its associated supergraph.
-
+  
    Returns a `CheckRequestSuccess` object with a workflow ID that you can use
    to check status, or an error object if the checks workflow failed to start.
-
+  
   Rate limited to 3000 per min.
   """
   submitMultiSubgraphCheckAsync(input: MultiSubgraphCheckAsyncInput!): CheckRequestResult!
 
   """
   _Asynchronously_ kicks off composition and operation checks for a proposed subgraph schema change against its associated supergraph.
-
+  
   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
   to check status, or an error object if the checks workflow failed to start.
-
+  
   Rate limited to 3000 per min.
   """
   submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
@@ -3622,7 +3622,7 @@ type Order {
 
   """
   Completion percentage of the order (between 0 and 100)
-
+  
   This will only return data for IN_PROGRESS, COMPLETED, or SUPERSEDED states
   """
   completionPercentage: Int
@@ -3656,7 +3656,7 @@ enum OrderStatus {
 
   """
   Order is currently rolling back
-
+  
   All resources created as part of this Order are being deleted
   """
   ROLLING_BACK
@@ -3666,7 +3666,7 @@ enum OrderStatus {
 
   """
   Order has been superseded by another, more recent order
-
+  
   This can happen if two update orders arrive in close succession and we already
   started to process the newer order first.
   """
@@ -4523,7 +4523,7 @@ type Router {
 
   """
   Last time when the Cloud Router was updated
-
+  
   If the Cloud Router was never updated, this value will be null
   """
   updatedAt: NaiveDateTime
@@ -4533,14 +4533,14 @@ type Router {
 
   """
   Current version of the Cloud Router
-
+  
   This will be null if the Cloud Router is in a deleted status.
   """
   routerVersion: RouterVersion
 
   """
   Cloud Router version applied for the next launch
-
+  
   If this value is not null, any subsequent launch will use this version instead of the
   current one. This can happen when a new STABLE version is available, but we could not
   automatically update this Cloud Router, for example due to configuration issues.
@@ -4549,14 +4549,14 @@ type Router {
 
   """
   URL where the Cloud Router can be found
-
+  
   This will be null if the Cloud Router is in a deleted status
   """
   routerUrl: String @deprecated(reason: "use Router.endpoints instead")
 
   """
   Custom URLs that can be used to reach the Cloud Router
-
+  
   This will be null if the Cloud Router is in a deleted status or does not support custom
   domains.
   """
@@ -4578,7 +4578,7 @@ type Router {
 
   """
   Number of Graph Compute Units (GCUs) associated with this Cloud Router
-
+  
   This value is not present for Cloud Routers on the `SERVERLESS` tier.
   """
   gcus: Int
@@ -4597,7 +4597,7 @@ input RouterConfigInput {
 
   """
   Number of GCUs allocated for the Cloud Router
-
+  
   This is ignored for serverless Cloud Routers
   """
   gcus: Int
@@ -4623,24 +4623,24 @@ be performed on them.
 type RouterEndpoints {
   """
   Default Cloud Router endpoint
-
+  
   This is null if the cloud router is in a deleted state.
   """
   default: String
 
   """
   Whether the default Cloud Router endpoint is enabled
-
+  
   If the default endpoint is not enabled (`false`), this Cloud Router cannot receive traffic
   on the default endpoint.
-
+  
   This is null if the cloud router is in a deleted state.
   """
   defaultEnabled: Boolean
 
   """
   Set of custom Cloud Router endpoints
-
+  
   This is null if the cloud router is in a deleted state, or if it does not support
   custom endpoints.
   """
@@ -4648,7 +4648,7 @@ type RouterEndpoints {
 
   """
   Primary Cloud Router endpoint
-
+  
   This is null if the cloud router is in a deleted state.
   """
   primary: String
@@ -4718,7 +4718,7 @@ enum RouterStatus {
 
   """
   Cloud Router is running, but currently being deleted
-
+  
   This is the only mutation state that doesn't support rollback. If we fail to
   delete a Router, the workflows are configured to stop and keep the router into
   the Deleting status.
@@ -4727,10 +4727,10 @@ enum RouterStatus {
 
   """
   Current order is rolling back to the last known good state
-
+  
   After a RollingBack state, a Router can move either into Running state (from a
   Update order) or Deleted (from a Create order).
-
+  
   If we fail to roll back, the workflows are configured to stop and keep the router
   into the RollingBack status.
   """
@@ -4872,7 +4872,7 @@ input SecretInput {
 
   """
   Value for that secret
-
+  
   This can only be used for input, as it is not possible to retrieve the value of secrets.
   """
   value: String!
@@ -4947,7 +4947,7 @@ type Graph implements Identity {
   """
   Provides details of the graph variant with the provided `name`, if a variant
   with that name exists for this graph. Otherwise, returns null.
-
+  
    For a list of _all_ variants associated with a graph, use `Graph.variants` instead.
   """
   variant(name: String!): GraphVariant
@@ -5337,7 +5337,7 @@ enum Status {
 
   """
   Upcoming or experimental version of a Cloud Router
-
+  
   This should only be used internally, or to preview new features to
   customers.
   """
@@ -5345,7 +5345,7 @@ enum Status {
 
   """
   Deprecated version of a Cloud Router
-
+  
   New Cloud Routers should not use this version, and this will not be
   supported at some point in the future.
   """
