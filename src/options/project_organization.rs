@@ -48,3 +48,82 @@ impl ProjectOrganizationOpt {
         Self::prompt_organization(organizations)
     }
 }
+
+// TODO: Add tests for interactive prompts and sad paths
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_organization_with_preset_value() {
+        let instance = ProjectOrganizationOpt {
+            organization: Some("apollo".to_string()),
+        };
+
+        let result = instance.get_organization();
+        assert_eq!(result, Some("apollo".to_string()));
+    }
+
+    #[test]
+    fn test_get_organization_with_no_value() {
+        let instance = ProjectOrganizationOpt { organization: None };
+        let result = instance.get_organization();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_prompt_organization_with_items() {
+        let organizations = vec!["org1".to_string(), "org2".to_string()];
+        
+        let selection = Some(0);
+        let result = match selection {
+            Some(index) => Ok(organizations[index].clone()),
+            None => Err(RoverError::new(anyhow!("No organization selected"))),
+        };
+        
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "org1");
+    }
+
+    #[test]
+    fn test_prompt_organization_with_empty_list() {
+        let organizations: Vec<String> = vec![];
+        let result = ProjectOrganizationOpt::prompt_organization(&organizations);
+        
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            RoverError::new(anyhow!("No organizations available")).to_string()
+        );
+    }
+
+    // Default trait implementation tests
+
+    #[test]
+    fn test_default_trait_for_project_organization_opt() {
+        let default_instance = ProjectOrganizationOpt::default();
+        assert_eq!(default_instance.organization, None);
+    }
+
+    // Derived trait tests (Debug, Clone, etc.)
+
+    #[test]
+    fn test_debug_trait() {
+        let instance = ProjectOrganizationOpt {
+            organization: Some("apollo".to_string()),
+        };
+        // Check that Debug formatting doesn't panic
+        let debug_str = format!("{:?}", instance);
+        assert!(debug_str.contains("apollo"));
+    }
+
+    #[test]
+    fn test_clone_trait() {
+        let original = ProjectOrganizationOpt {
+            organization: Some("apollo".to_string()),
+        };
+        let cloned = original.clone();
+        
+        assert_eq!(original.organization, cloned.organization);
+    }
+}

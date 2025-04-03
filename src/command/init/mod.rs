@@ -11,6 +11,9 @@ use clap::Parser;
 use serde::Serialize;
 use rover_http::ReqwestService;
 
+#[cfg(test)]
+pub mod tests;
+
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new GraphQL API project")]
 pub struct Init {
