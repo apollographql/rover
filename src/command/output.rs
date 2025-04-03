@@ -242,25 +242,29 @@ impl RoverOutput {
             } => {
                 if publish_response.subgraph_was_created {
                     stderrln!(
-                        "New subgraphs '{}' were created in '{}'",
+                        "New subgraph(s) '{}' were created in '{}'",
                         publish_response.subgraphs_created.join(" ,"),
                         graph_ref
                     )?;
                 } else if publish_response.subgraph_was_updated {
                     stderrln!(
-                        "Subgraphs '{}' in '{}' were updated",
+                        "Subgraph(s) '{}' in '{}' were updated",
                         publish_response.subgraphs_updated.join(" ,"),
                         graph_ref
                     )?;
                 } else {
                     stderrln!(
-                        "'{}' subgraphs were NOT updated because no changes were detected",
+                        "'{}' subgraph(s) were NOT updated because no changes were detected",
                         subgraphs.join(" ,")
                     )?;
                 }
 
                 if publish_response.supergraph_was_updated {
-                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraphs", graph_ref, subgraphs.join(" ,"))?;
+                    stderrln!(
+                        "The supergraph schema for '{}' was updated, composed from the requested '{}' subgraph(s)",
+                        graph_ref,
+                        subgraphs.join(" ,")
+                    )?;
                 } else {
                     stderrln!(
                         "The supergraph schema for '{}' was NOT updated with a new schema",

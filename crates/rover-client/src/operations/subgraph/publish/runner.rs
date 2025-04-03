@@ -77,12 +77,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::build_response;
-    use crate::operations::subgraph::publish::types::UpdateResponse;
-    use crate::operations::subgraph::publish::SubgraphPublishResponse;
-    use apollo_federation_types::rover::{BuildError, BuildErrors};
-    use serde_json::json;
-
+    use super::*;
     #[test]
     fn build_response_works_with_composition_errors() {
         let json_response = json!({

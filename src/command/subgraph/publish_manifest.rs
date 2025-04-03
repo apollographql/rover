@@ -94,6 +94,3 @@ impl PublishManifest {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {}

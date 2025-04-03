@@ -16,7 +16,7 @@ pub mod fetch_all;
 /// "subgraph publish" command execution
 pub mod publish;
 
-/// "subgraph publish-manifest " command execution
+/// "subgraph publish-manifest" command execution
 pub mod publish_manifest;
 
 /// query for a single subgraph's routing URL
