@@ -1,5 +1,7 @@
-[[allowlist]]
-description = "Placeholder API key in transitions.rs"
-commits = [
-  "12faf7bd764685b4327fa213c8e47092723f9f38"
-]
+[[ rules ]]
+  id = "generic-api-key"
+  [ rules.allowlist ]
+    commits = [
+      # Allowlist placeholder API key in transitions.rs
+      "12faf7bd764685b4327fa213c8e47092723f9f38"
+    ]
