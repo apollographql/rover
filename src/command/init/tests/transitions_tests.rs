@@ -6,7 +6,7 @@ mod tests {
         ProjectType, ProjectUseCase, GraphIdOpt, 
         ProjectNameOpt, ProjectOrganizationOpt, ProjectUseCaseOpt
     };
-    use crate::{RoverError, RoverOutput, RoverResult};
+    use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
     
