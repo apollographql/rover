@@ -3,5 +3,7 @@
   [ rules.allowlist ]
     commits = [
       # Allowlist placeholder API key in transitions.rs
-      "12faf7bd764685b4327fa213c8e47092723f9f38"
+      "12faf7bd764685b4327fa213c8e47092723f9f38",
+      "3a98baf1cf77f725249192f08248d9d15a993a6e",
+      "d506e938a126525e8afbde878203df1c9308ff53",
     ]
