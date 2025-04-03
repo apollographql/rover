@@ -9,6 +9,14 @@ mod output;
 mod persisted_queries;
 mod profile;
 #[cfg(feature = "init")]
+mod project_graphid;
+#[cfg(feature = "init")]
+mod project_name;
+#[cfg(feature = "init")]
+mod project_organization;
+#[cfg(feature = "init")]
+mod project_type;
+#[cfg(feature = "init")]
 mod project_use_case;
 mod schema;
 mod subgraph;
@@ -24,6 +32,14 @@ pub(crate) use lint::*;
 pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
+#[cfg(feature = "init")]
+pub(crate) use project_graphid::*;
+#[cfg(feature = "init")]
+pub(crate) use project_name::*;
+#[cfg(feature = "init")]
+pub(crate) use project_organization::*;
+#[cfg(feature = "init")]
+pub(crate) use project_type::*;
 #[cfg(feature = "init")]
 pub(crate) use project_use_case::*;
 pub(crate) use schema::*;
