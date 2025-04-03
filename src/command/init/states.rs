@@ -42,9 +42,9 @@ pub struct GraphIdConfirmed {
 
 #[derive(Debug)]
 pub struct CreationConfirmed {
-  pub config: ProjectConfig,
-  pub template: TemplateProject,
-  pub output_path: Option<Utf8PathBuf>,
+    pub config: ProjectConfig,
+    pub template: TemplateProject,
+    pub output_path: Option<Utf8PathBuf>,
 }
 
 #[derive(Debug)]

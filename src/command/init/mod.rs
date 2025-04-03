@@ -1,15 +1,17 @@
 mod config;
-mod states;
 mod helpers;
-mod transitions;
+mod states;
 mod template_operations;
+mod transitions;
 
-use crate::options::{ProjectTypeOpt, ProjectUseCaseOpt, ProjectOrganizationOpt, ProjectNameOpt, GraphIdOpt};
+use crate::options::{
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
+};
 use crate::{RoverOutput, RoverResult};
 use camino::Utf8PathBuf;
 use clap::Parser;
-use serde::Serialize;
 use rover_http::ReqwestService;
+use serde::Serialize;
 
 #[cfg(test)]
 pub mod tests;
@@ -19,13 +21,13 @@ pub mod tests;
 pub struct Init {
     #[clap(flatten)]
     project_type: ProjectTypeOpt,
-    
+
     #[clap(flatten)]
     organization: ProjectOrganizationOpt,
-    
+
     #[clap(flatten)]
     project_use_case: ProjectUseCaseOpt,
-    
+
     #[clap(flatten)]
     project_name: ProjectNameOpt,
 
@@ -47,13 +49,14 @@ impl Init {
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
             .confirm_graph_id(&self.graph_id)?
-            .preview_and_confirm_creation(http_service).await?;
+            .preview_and_confirm_creation(http_service)
+            .await?;
 
         match creation_confirmed_option {
             Some(creation_confirmed) => {
                 let project_created = creation_confirmed.create_project().await?;
                 Ok(project_created.complete().success())
-            },
+            }
             None => Ok(RoverOutput::EmptySuccess),
         }
     }

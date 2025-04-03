@@ -1,10 +1,10 @@
-use clap::arg;
-use serde::{Deserialize, Serialize};
-use clap::Parser;
 use crate::{RoverError, RoverResult};
-use dialoguer::Select;
-use console::Term;
 use anyhow::anyhow;
+use clap::arg;
+use clap::Parser;
+use console::Term;
+use dialoguer::Select;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
@@ -16,35 +16,36 @@ impl ProjectOrganizationOpt {
     pub fn get_organization(&self) -> Option<String> {
         self.organization.clone()
     }
-    
+
     pub fn prompt_organization(organizations: &[String]) -> RoverResult<String> {
         if organizations.is_empty() {
             return Err(RoverError::new(anyhow!("No organizations available")));
         }
-        
+
         let selection = Select::new()
             .with_prompt("? Select an organization")
             .items(organizations)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
-            
+
         match selection {
             Some(index) => Ok(organizations[index].clone()),
             None => Err(RoverError::new(anyhow!("No organization selected"))),
         }
     }
-    
+
     pub fn get_or_prompt_organization(&self, organizations: &[String]) -> RoverResult<String> {
         if let Some(org) = self.get_organization() {
             if organizations.contains(&org) {
                 return Ok(org);
             } else {
                 return Err(RoverError::new(anyhow!(
-                    "Specified organization '{}' is not available", org
+                    "Specified organization '{}' is not available",
+                    org
                 )));
             }
         }
-        
+
         Self::prompt_organization(organizations)
     }
 }
@@ -74,13 +75,13 @@ mod tests {
     #[test]
     fn test_prompt_organization_with_items() {
         let organizations = ["org1".to_string(), "org2".to_string()];
-        
+
         let selection = Some(0);
         let result = match selection {
             Some(index) => Ok(organizations[index].clone()),
             None => Err(RoverError::new(anyhow!("No organization selected"))),
         };
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "org1");
     }
@@ -89,7 +90,7 @@ mod tests {
     fn test_prompt_organization_with_empty_list() {
         let organizations: Vec<String> = vec![];
         let result = ProjectOrganizationOpt::prompt_organization(&organizations);
-        
+
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -123,7 +124,7 @@ mod tests {
             organization: Some("apollo".to_string()),
         };
         let cloned = original.clone();
-        
+
         assert_eq!(original.organization, cloned.organization);
     }
 }

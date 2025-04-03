@@ -1,8 +1,8 @@
-use clap::arg;
-use serde::{Deserialize, Serialize};
-use clap::Parser;
 use crate::RoverResult;
+use clap::arg;
+use clap::Parser;
 use dialoguer::Input;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct GraphIdOpt {
@@ -14,11 +14,11 @@ impl GraphIdOpt {
     pub fn get_graph_id(&self) -> Option<String> {
         self.graph_id.clone()
     }
-    
+
     pub fn suggest_graph_id(project_name: &str) -> String {
         format!("{}-graph@current", project_name)
     }
-    
+
     pub fn prompt_for_graph_id(suggested_id: &str) -> RoverResult<String> {
         let graph_id = Input::<String>::new()
             .with_prompt("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)".to_string())
@@ -30,20 +30,20 @@ impl GraphIdOpt {
                 Ok(())
             })
             .interact()?;
-        
+
         Ok(graph_id)
     }
-    
+
     pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<String> {
         if let Some(id) = self.get_graph_id() {
             // TODO: Validate graph ID format
             return Ok(id);
         }
-        
+
         let suggested_id = Self::suggest_graph_id(project_name);
-        
+
         let graph_id = Self::prompt_for_graph_id(&suggested_id)?;
-        
+
         Ok(graph_id)
     }
 }
@@ -75,9 +75,9 @@ mod tests {
         let instance = GraphIdOpt {
             graph_id: Some("custom-graph-id".to_string()),
         };
-        
+
         let result = instance.get_or_prompt_graph_id("project-name");
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "custom-graph-id");
     }
@@ -97,7 +97,7 @@ mod tests {
         let instance = GraphIdOpt {
             graph_id: Some("test-graph".to_string()),
         };
-        
+
         // Check that Debug formatting doesn't panic and includes the expected content
         let debug_str = format!("{:?}", instance);
         assert!(debug_str.contains("test-graph"));
@@ -109,7 +109,7 @@ mod tests {
             graph_id: Some("clone-test-graph".to_string()),
         };
         let cloned = original.clone();
-        
+
         // Ensure the cloned instance has the same data
         assert_eq!(original.graph_id, cloned.graph_id);
     }

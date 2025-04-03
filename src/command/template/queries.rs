@@ -221,13 +221,12 @@ impl graphql_client::GraphQLQuery for GetTemplatesForLanguage {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
     use crate::command::template::queries::list_templates_for_language::Language;
     use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+    use serde_json::json;
 
     #[test]
     fn test_deserialize_list_templates_for_other_language() {
@@ -239,12 +238,22 @@ mod tests {
             "language": "GRAPHQL"
         });
 
-        let deserialized: ListTemplatesForLanguageTemplates = serde_json::from_value(json_data).expect("Failed to deserialize");
+        let deserialized: ListTemplatesForLanguageTemplates =
+            serde_json::from_value(json_data).expect("Failed to deserialize");
 
         assert_eq!(deserialized.id, "template1");
-        assert_eq!(deserialized.name, "Example Template unknown language from backend");
+        assert_eq!(
+            deserialized.name,
+            "Example Template unknown language from backend"
+        );
         assert_eq!(deserialized.description, "This is an example template");
-        assert_eq!(deserialized.repo_url.to_string(), "https://github.com/example/template");
-        assert_eq!(deserialized.language, Language::Other("GRAPHQL".to_string()));
+        assert_eq!(
+            deserialized.repo_url.to_string(),
+            "https://github.com/example/template"
+        );
+        assert_eq!(
+            deserialized.language,
+            Language::Other("GRAPHQL".to_string())
+        );
     }
 }

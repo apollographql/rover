@@ -28,7 +28,11 @@ impl ProjectTypeOpt {
         self.handle_project_type_selection(project_types, selection)
     }
 
-    fn handle_project_type_selection(&self, project_types: &[ProjectType], selection: Option<usize>) -> RoverResult<ProjectType> {
+    fn handle_project_type_selection(
+        &self,
+        project_types: &[ProjectType],
+        selection: Option<usize>,
+    ) -> RoverResult<ProjectType> {
         match selection {
             Some(index) => Ok(project_types[index].clone()),
             None => Err(RoverError::new(anyhow!("No project type selected"))),
@@ -104,10 +108,7 @@ mod tests {
     #[test]
     fn test_display_trait_for_create_new() {
         let project_type = ProjectType::CreateNew;
-        assert_eq!(
-            project_type.to_string(),
-            "Create a new GraphQL API"
-        );
+        assert_eq!(project_type.to_string(), "Create a new GraphQL API");
     }
 
     #[test]
@@ -141,7 +142,7 @@ mod tests {
     fn test_clone_trait_for_project_type() {
         let original = ProjectType::CreateNew;
         let cloned = original.clone();
-        
+
         assert_eq!(original, cloned);
     }
 
@@ -151,7 +152,7 @@ mod tests {
             project_type: Some(ProjectType::CreateNew),
         };
         let cloned = original.clone();
-        
+
         assert_eq!(original.project_type, cloned.project_type);
     }
 
