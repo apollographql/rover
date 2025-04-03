@@ -21,7 +21,7 @@ impl GraphIdOpt {
     
     pub fn prompt_for_graph_id(suggested_id: &str) -> RoverResult<String> {
         let graph_id = Input::<String>::new()
-            .with_prompt(format!("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
+            .with_prompt("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)".to_string())
             .default(suggested_id.to_string())
             .validate_with(|input: &String| -> Result<(), &str> {
                 if input.is_empty() {

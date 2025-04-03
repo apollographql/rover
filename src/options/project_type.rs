@@ -21,11 +21,11 @@ impl ProjectTypeOpt {
         let project_types = <ProjectType as ValueEnum>::value_variants();
         let selection = Select::new()
             .with_prompt("? Select project type")
-            .items(&project_types)
+            .items(project_types)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
 
-        self.handle_project_type_selection(&project_types, selection)
+        self.handle_project_type_selection(project_types, selection)
     }
 
     fn handle_project_type_selection(&self, project_types: &[ProjectType], selection: Option<usize>) -> RoverResult<ProjectType> {

@@ -30,10 +30,6 @@ pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
 #[cfg(feature = "init")]
 pub(crate) use project_use_case::*;
-pub(crate) use project_type::*;
-pub(crate) use project_organization::*;
-pub(crate) use project_name::*;
-pub(crate) use project_graphid::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
