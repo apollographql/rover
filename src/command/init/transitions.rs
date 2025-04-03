@@ -107,8 +107,8 @@ impl OrganizationSelected {
 ///
 /// ? Name your GraphQL API:
 impl UseCaseSelected {
-    pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
-        let project_name = options.get_or_prompt_project_name()?;
+    pub async fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
+        let project_name = options.get_or_prompt_project_name().await?;
 
         Ok(ProjectNamed {
             project_type: self.project_type,
