@@ -1067,6 +1067,9 @@ type SubgraphPublicationResult {
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
 
+  """All subgraphs that were updated from this mutation"""
+  subgraphsUpdated: [String!]!
+
   """The Launch result part of this subgraph publish."""
   launch: Launch
 
