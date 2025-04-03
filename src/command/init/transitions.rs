@@ -26,7 +26,7 @@ use anyhow::anyhow;
 /// 
 /// ? Select option:
 /// > Create a new GraphQL API
-///   Add a subgraph to an existing GraphQL API
+/// > Add a subgraph to an existing GraphQL API
 impl Welcome {
     pub fn new() -> Self {
         Welcome
@@ -65,8 +65,8 @@ impl Welcome {
 /// 
 /// ? Select an organization:
 /// > Org1
-///   Org2
-///   Org3
+/// > Org2
+/// > Org3
 impl ProjectTypeSelected {
     pub fn select_organization(self, options: &ProjectOrganizationOpt) -> RoverResult<OrganizationSelected> {
         // TODO: Get list of organizations from Studio Client
@@ -86,7 +86,7 @@ impl ProjectTypeSelected {
 /// 
 /// ? Select use case:
 /// > Connect one or more REST APIs
-///   Start a GraphQL API with recommended libraries
+/// > Start a GraphQL API with recommended libraries
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
         let use_case = options.get_or_prompt_use_case()?;

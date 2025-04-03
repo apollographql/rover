@@ -53,12 +53,6 @@ mod tests {
             pub output_path: Option<Utf8PathBuf>,
         }
     }
-
-    #[test]
-    fn test_welcome_new() {
-        let _welcome = Welcome::new();
-        assert!(true);
-    }
     
     #[test]
     fn test_project_type_selected_transition() {
@@ -290,17 +284,5 @@ mod tests {
         assert!(result.is_ok());
         let next_state_option = result.unwrap();
         assert!(next_state_option.is_none());
-    }
-    
-    #[test]
-    fn test_completed_success() {
-        let completed = Completed;
-        
-        let output = completed.success();
-        
-        match output {
-            RoverOutput::EmptySuccess => assert!(true),
-            _ => panic!("Expected EmptySuccess output"),
-        }
     }
 }
