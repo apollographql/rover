@@ -1,5 +1,6 @@
 use std::env;
 use std::fs::read_dir;
+use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
 use rover_http::ReqwestService;
@@ -32,11 +33,11 @@ impl Welcome {
         Welcome
     }
 
-    pub fn select_project_type(self, options: &ProjectTypeOpt) -> RoverResult<ProjectTypeSelected> {
+    pub fn select_project_type(self, options: &ProjectTypeOpt, override_install_path: &Option<PathBuf>) -> RoverResult<ProjectTypeSelected> {
         display_welcome_message();
 
         // Check if directory is empty before proceeding
-        let current_dir = env::current_dir()?;
+        let current_dir = override_install_path.clone().unwrap_or_else(|| env::current_dir().unwrap());
         match read_dir(&current_dir) {
             Ok(mut dir) => {
                 if dir.next().is_some() {
