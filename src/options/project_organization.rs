@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_prompt_organization_with_items() {
-        let organizations = vec!["org1".to_string(), "org2".to_string()];
+        let organizations = ["org1".to_string(), "org2".to_string()];
         
         let selection = Some(0);
         let result = match selection {

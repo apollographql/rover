@@ -27,7 +27,6 @@ use anyhow::anyhow;
 /// ? Select option:
 /// > Create a new GraphQL API
 ///   Add a subgraph to an existing GraphQL API
-
 impl Welcome {
     pub fn new() -> Self {
         Welcome
@@ -68,7 +67,6 @@ impl Welcome {
 /// > Org1
 ///   Org2
 ///   Org3
-
 impl ProjectTypeSelected {
     pub fn select_organization(self, options: &ProjectOrganizationOpt) -> RoverResult<OrganizationSelected> {
         // TODO: Get list of organizations from Studio Client
@@ -89,7 +87,6 @@ impl ProjectTypeSelected {
 /// ? Select use case:
 /// > Connect one or more REST APIs
 ///   Start a GraphQL API with recommended libraries
-
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
         let use_case = options.get_or_prompt_use_case()?;
@@ -106,7 +103,6 @@ impl OrganizationSelected {
 /// =========
 /// 
 /// ? Name your GraphQL API: 
-
 impl UseCaseSelected {
   pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
       let project_name = options.get_or_prompt_project_name()?;
@@ -124,7 +120,6 @@ impl UseCaseSelected {
 /// =========
 /// 
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
-
 impl ProjectNamed {
   pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
       let graph_id = options.get_or_prompt_graph_id(&self.project_name)?;
@@ -152,7 +147,6 @@ impl ProjectNamed {
 /// schema.graphql
 ///
 /// ? Proceed with creation? (y/n): 
-
 impl GraphIdConfirmed {
   fn create_config(&self) -> ProjectConfig {
       ProjectConfig {
@@ -208,7 +202,6 @@ impl GraphIdConfirmed {
 /// =========
 /// 
 /// ⣾ Creating files and generating GraphOS credentials..
-
 impl CreationConfirmed {
     pub async fn create_project(self) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
@@ -246,8 +239,6 @@ impl CreationConfirmed {
 /// => All set! Your project `ana-test` has been created. Please review details below to see what was generated.
 /// 
 /// Project directory, etc.
-
-
 impl ProjectCreated {
   pub fn complete(self) -> Completed {
       display_project_created_message(
