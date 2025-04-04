@@ -1,41 +1,79 @@
-use crate::RoverError;
 use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
 use serde::{Deserialize, Serialize};
-use anyhow::anyhow;
+use regex::Regex;
+use std::str::FromStr;
+use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
     #[arg(long = "project-name")]
-    pub project_name: Option<String>,
+    project_name: Option<ProjectName>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProjectName(String);
+
+impl FromStr for ProjectName {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        const MAX_LENGTH: usize = 64;
+        const MIN_LENGTH:usize = 2;
+
+        // Check if the length of the input is within the valid range
+        if input.len() < MIN_LENGTH || input.len() > MAX_LENGTH {
+            return Err(format!(
+                "Invalid project name length: must be between {} and {} characters.",
+                MIN_LENGTH, MAX_LENGTH
+            ));
+        }
+
+        // Regex pattern for allowed characters.
+        let pattern = r"^[a-zA-Z0-9\-!@#$%^&*()_+<>/?\\\[\]{};: ]+$";
+
+        let re = Regex::new(pattern).unwrap();
+
+        // Check if the input string matches the regex.
+        if re.is_match(input) {
+            // If the input matches, wrap it in the ProjectName struct.
+            Ok(ProjectName(input.to_string()))
+        } else {
+            // If the input doesn't match, return an error.
+            Err(format!("Invalid project name: '{}'", input))
+        }
+    }
+}
+
+impl fmt::Display for ProjectName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 impl ProjectNameOpt {
-    pub fn get_project_name(&self) -> Option<String> {
+    pub fn get_project_name(&self) -> Option<ProjectName> {
         self.project_name.clone()
     }
 
-    pub fn prompt_project_name(&self) -> RoverResult<String> {
+    pub fn prompt_project_name(&self) -> RoverResult<ProjectName> {
         let default = self.suggest_default_name();
-        let max_length = 64;
-        let min_length = 2;
-        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+<>/?\\[]{};: ";
 
         loop {
-            let input: Input<String> = Input::new().with_prompt("? Name your GraphQL API").default(default.to_string());
-            let name = input.interact_text()?.to_string();
+            // Prompt for user input
+            let input: Input<String> = Input::new().with_prompt("? Name your GraphQL API").default(default.clone());
+            let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap(); // Handle input error
 
-            let valid_name =
-                self.validate_name(&name, allowed_chars, max_length, min_length);
+            // Try to parse the input into a ProjectName
+            let project_name: Result<ProjectName, _> = input_name.parse();
 
-            match valid_name {
-                Ok(valid_name) => {
-                    return Ok(valid_name);
-                }
-                Err(invalid_name) => {
-                    println!("{invalid_name}")
+            // Check for a valid project name
+            match project_name {
+                Ok(name) => return Ok(name),
+                Err(err) => {
+                    eprintln!("{}", err); // Print the error and continue the loop for another attempt
                 }
             }
         }
@@ -45,7 +83,7 @@ impl ProjectNameOpt {
         "My API".to_string()
     }
 
-    pub fn get_or_prompt_project_name(&self) -> RoverResult<String> {
+    pub fn get_or_prompt_project_name(&self) -> RoverResult<ProjectName> {
         // If a project name was provided via command line, validate and use it
         if let Some(name) = self.get_project_name() {
             return Ok(name);
@@ -53,65 +91,6 @@ impl ProjectNameOpt {
 
         self.prompt_project_name()
     }
-
-    pub fn validate_name(
-        &self,
-        input: &str,
-        allowed_chars: &str,
-        max_length: usize,
-        min_length: usize,
-    ) -> RoverResult<String> {
-        // Check length
-        if !validate_max_length(input, max_length) {
-            return Err(RoverError::new(anyhow!(
-                "Names must be a maximum of {} characters long.",
-                max_length
-            )));
-        }
-
-        if !validate_min_length(input, min_length) {
-            return Err(RoverError::new(anyhow!(
-                "Names must be a minimum of {} characters long.",
-                min_length
-            )));
-        }
-
-        // Check characters
-        if !validate_allowed_chars(input, allowed_chars) {
-            return Err(RoverError::new(anyhow!(
-                "Names may only contain the following characters: {}",
-                allowed_chars
-            )));
-        }
-
-        Ok(input.to_string())
-    }
-}
-
-fn validate_max_length(input: &str, max_length: usize) -> bool {
-    if input.len() > max_length {
-        return false;
-    }
-
-    return true;
-}
-
-fn validate_min_length(input: &str, min_length: usize) -> bool {
-    if input.len() < min_length {
-        return false;
-    }
-
-    return true;
-}
-
-fn validate_allowed_chars(input: &str, allowed_chars: &str) -> bool {
-    for char in input.chars() {
-        if !allowed_chars.contains(char) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 #[cfg(test)]
@@ -119,144 +98,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_validate_max_length_returns_false_when_input_length_is_greater_than_max_length() {
-        let input = "test";
-        let max_length = 3;
-        let result = validate_max_length(input, max_length);
-
-        assert_eq!(result, false);
-    }
-
-    #[test]
-    fn test_validate_max_length_returns_true_when_input_length_is_equal_to_max_length() {
-        let input = "test";
-        let max_length = 4;
-        let result = validate_max_length(input, max_length);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_max_length_returns_true_when_input_length_is_less_than_max_length() {
-        let input = "test";
-        let max_length = 5;
-        let result = validate_max_length(input, max_length);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_min_length_returns_false_when_input_length_is_less_than_min_length() {
-        let input = "t";
-        let min_length = 2;
-        let result = validate_min_length(input, min_length);
-
-        assert_eq!(result, false);
-    }
-
-    #[test]
-    fn test_validate_min_length_returns_true_when_input_length_is_equal_to_min_length() {
-        let input = "test";
-        let min_length = 4;
-        let result = validate_min_length(input, min_length);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_min_length_returns_true_when_input_length_is_greater_than_min_length() {
-        let input = "test";
-        let min_length = 3;
-        let result = validate_min_length(input, min_length);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_allowed_chars_returns_false_when_input_contains_invalid_characters() {
-        let input = "test";
-        let allowed_chars = "abc";
-        let result = validate_allowed_chars(input, allowed_chars);
-
-        assert_eq!(result, false);
-    }
-
-    #[test]
-    fn test_validate_allowed_chars_returns_true_when_input_contains_allowed_characters() {
-        let input = "test";
-        let allowed_chars = "tes";
-        let result = validate_allowed_chars(input, allowed_chars);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_allowed_chars_returns_true_when_input_contains_allowed_special_characters() {
-        let input = "!@#$%^&*()";
-        let allowed_chars = "0123456789!@#$%^&*()";
-        let result = validate_allowed_chars(input, allowed_chars);
-
-        assert_eq!(result, true);
-    }
-
-    #[test]
-    fn test_validate_returns_error_when_input_has_invalid_length() {
-        let instance = ProjectNameOpt {
-            project_name: Some("my-project".to_string()),
-        };
-
-        let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let allowed_chars =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let max_length = 1;
-        let min_length = 0;
-
-        let result = instance.validate_name(input, allowed_chars, max_length, min_length);
-
+    fn test_parse_errors_when_input_length_is_greater_than_max_length() {
+        let result: Result<ProjectName, _> = "This is a string that contains more than sixty-five characters!".parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_validate_returns_error_when_input_has_invalid_chars() {
-        let instance = ProjectNameOpt {
-            project_name: Some("my-project".to_string()),
-        };
-
-        let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-        let max_length = 100;
-        let min_length = 1;
-
-        let result = instance.validate_name(input, allowed_chars, max_length, min_length);
-
+    fn test_parse_errors_when_input_length_is_less_than_min_length() {
+        let result: Result<ProjectName, _> = "x".parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_validate_returns_ok_when_input_has_valid_chars_and_length() {
-        let instance = ProjectNameOpt {
-            project_name: Some("my-project".to_string()),
-        };
+    fn test_parse_errors_when_input_includes_invalid_char() {
+        let result: Result<ProjectName, _> = "\"".parse();
+        assert!(result.is_err());
+    }
 
-        let input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let allowed_chars =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-!@#$%^&*()_+";
-        let max_length = 100;
-        let min_length = 1;
-
-        let result = instance.validate_name(input, allowed_chars, max_length, min_length);
-
+    #[test]
+    fn test_parse_ok_when_input_includes_valid_chars_and_is_valid_length() {
+        let result: Result<ProjectName, _> = "My Project".parse();
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_get_project_name_with_preset_value() {
         let instance = ProjectNameOpt {
-            project_name: Some("my-project".to_string()),
+            project_name: "My Project".parse::<ProjectName>().ok(),
         };
 
         let result = instance.get_project_name();
-        assert_eq!(result, Some("my-project".to_string()));
+        assert_eq!(result, "My Project".parse::<ProjectName>().ok());
     }
 
     #[test]
@@ -273,7 +145,7 @@ mod tests {
         let result = instance.prompt_project_name();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "My API");
+        assert_eq!(result.unwrap(), "My API".parse::<ProjectName>().ok().unwrap());
     }
 
     #[test]
@@ -282,7 +154,7 @@ mod tests {
         let result = instance.get_or_prompt_project_name();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "My API");
+        assert_eq!(result.unwrap(), "My API".parse::<ProjectName>().ok().unwrap());
     }
 
     // Default trait implementation tests
@@ -298,7 +170,7 @@ mod tests {
     #[test]
     fn test_debug_trait() {
         let instance = ProjectNameOpt {
-            project_name: Some("test-project".to_string()),
+            project_name: "test-project".parse::<ProjectName>().ok(),
         };
         // Check that Debug formatting doesn't panic and has the expected content
         let debug_str = format!("{:?}", instance);
@@ -308,7 +180,7 @@ mod tests {
     #[test]
     fn test_clone_trait() {
         let original = ProjectNameOpt {
-            project_name: Some("clone-test".to_string()),
+            project_name: "clone-project".parse::<ProjectName>().ok(),
         };
         let cloned = original.clone();
 

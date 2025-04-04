@@ -30,7 +30,7 @@ use anyhow::anyhow;
 /// > Add a subgraph to an existing GraphQL API
 impl Welcome {
     pub fn new() -> Self {
-        Welcome
+        Welcome {}
     }
 
     pub fn select_project_type(self, options: &ProjectTypeOpt, override_install_path: &Option<PathBuf>) -> RoverResult<ProjectTypeSelected> {
@@ -130,7 +130,7 @@ impl UseCaseSelected {
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
     pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options.get_or_prompt_graph_id(&self.project_name)?;
+        let graph_id = options.get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(GraphIdConfirmed {
             output_path: self.output_path,
@@ -161,7 +161,7 @@ impl GraphIdConfirmed {
         ProjectConfig {
             organization: self.organization.clone(),
             use_case: self.use_case.clone(),
-            project_name: self.project_name.clone(),
+            project_name: self.project_name.to_string(),
             graph_id: self.graph_id.clone(),
             project_type: self.project_type.clone(),
         }

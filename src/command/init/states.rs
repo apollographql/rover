@@ -1,5 +1,5 @@
 use crate::command::init::config::ProjectConfig;
-use crate::options::{ProjectType, ProjectUseCase, TemplateProject};
+use crate::options::{ProjectName, ProjectType, ProjectUseCase, TemplateProject};
 use camino::Utf8PathBuf;
 
 #[derive(Debug)]
@@ -32,7 +32,7 @@ pub struct ProjectNamed {
     pub project_type: ProjectType,
     pub organization: String,
     pub use_case: ProjectUseCase,
-    pub project_name: String,
+    pub project_name: ProjectName,
 }
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub struct GraphIdConfirmed {
     pub project_type: ProjectType,
     pub organization: String,
     pub use_case: ProjectUseCase,
-    pub project_name: String,
+    pub project_name: ProjectName,
     pub graph_id: String,
 }
 
