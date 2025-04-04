@@ -64,7 +64,7 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new().with_prompt("? Name your GraphQL API").default(default.clone());
-            let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap(); // Handle input error
+            let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
             // Try to parse the input into a ProjectName
             let project_name: Result<ProjectName, _> = input_name.parse();
