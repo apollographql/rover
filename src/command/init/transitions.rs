@@ -126,12 +126,12 @@ impl UseCaseSelected {
 ///
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
-    pub fn confirm_graph_id(
+    pub async fn confirm_graph_id(
         self,
         options: &GraphIdOpt,
         client_config: StudioClientConfig,
     ) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options.get_or_prompt_graph_id(&self.project_name, client_config)?;
+        let graph_id = options.get_or_prompt_graph_id(client_config, &self.project_name).await?;
 
         Ok(GraphIdConfirmed {
             project_type: self.project_type,
@@ -172,9 +172,7 @@ impl GraphIdConfirmed {
         http_service: ReqwestService,
     ) -> RoverResult<Option<CreationConfirmed>> {
         // Check if graph ID is available
-        if let Err(e) = GraphIdOperations::check_graph_id_availability(&self.graph_id).await {
-            return Err(e);
-        }
+        GraphIdOperations::check_graph_id_availability(&self.graph_id).await?;
 
         // Create the configuration
         let config = self.create_config();

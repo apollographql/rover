@@ -8,6 +8,8 @@ use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
 use rand::Rng;
+use rover_client::operations::init::check;
+use rover_client::operations::init::CheckGraphIdAvailabilityInput;
 use serde::{Deserialize, Serialize};
 
 use crate::options::ProfileOpt;
@@ -69,21 +71,6 @@ impl GraphIdOpt {
         }
     }
 
-    fn validate_graph_id_format(
-        &self,
-        graph_id: &str,
-        attempt: usize,
-        max_retries: usize,
-    ) -> RoverResult<()> {
-        match GraphIdOperations::validate_graph_id(graph_id) {
-            Err(validation_error) => {
-                self.handle_validation_error(validation_error, attempt, max_retries)?;
-                Err(self.create_retry_error(attempt, max_retries))
-            }
-            Ok(()) => Ok(()),
-        }
-    }
-
     fn handle_validation_error(
         &self,
         validation_error: GraphIdValidationError,
@@ -125,12 +112,6 @@ impl GraphIdOpt {
         Ok(())
     }
 
-    fn check_graph_id_availability(&self) -> RoverResult<()> {
-        // TODO: Check if the graph ID already exists
-        // Return an error if it does
-        Ok(())
-    }
-
     fn create_retry_error(&self, attempt: usize, max_retries: usize) -> RoverError {
         RoverError::new(anyhow!(
             "Invalid graph ID (attempt {}/{}). Please try again.",
@@ -139,20 +120,10 @@ impl GraphIdOpt {
         ))
     }
 
-    fn create_max_attempts_error(&self, max_retries: usize) -> RoverError {
-        RoverError::new(anyhow!(
-            "Failed to provide a valid graph ID after {} attempts.",
-            max_retries
-        ))
-        .with_suggestion(RoverErrorSuggestion::Adhoc(
-            "Try again with a valid graph ID that meets the requirements.".to_string(),
-        ))
-    }
-
-    pub fn get_or_prompt_graph_id(
+    pub async fn get_or_prompt_graph_id(
         &self,
-        project_name: &str,
         client_config: StudioClientConfig,
+        project_name: &str,
     ) -> RoverResult<String> {
         // If a graph ID was provided via command line, validate and use it
         if let Some(graph_id) = &self.graph_id {
@@ -160,9 +131,11 @@ impl GraphIdOpt {
             if let Err(e) = GraphIdOperations::validate_graph_id(graph_id) {
                 return Err(e.to_rover_error());
             }
-
+    
             // Step 2: Check if the graph ID already exists
-            let exists = self.check_if_graph_id_exists(client_config, graph_id)?;
+            let exists = self.check_if_graph_id_exists(client_config, graph_id).await?;
+            
+            // This is the corrected part - we should error if the graph ID exists
             if exists {
                 return Err(RoverError::new(anyhow!(
                     "The graph ID '{}' is already in use.",
@@ -172,35 +145,34 @@ impl GraphIdOpt {
                     "Please choose a different graph ID and try again.".to_string(),
                 )));
             }
-
+    
             // Return a clone of the String to satisfy ownership requirements
             return Ok(graph_id.clone());
         }
-
+    
         // If no graph ID was provided, prompt the user
         self.prompt_graph_id(project_name)
     }
 
-    // Helper method to check if a graph ID exists
-    fn check_if_graph_id_exists(
+    /// Checks if the provided graph ID already exists in the Apollo graph registry.
+    ///
+    /// Returns `true` if the graph ID exists, `false` otherwise.
+    async fn check_if_graph_id_exists(
         &self,
         client_config: StudioClientConfig,
         graph_id: &str,
     ) -> RoverResult<bool> {
+        // Create a StudioClient from the config
         let client = client_config.get_authenticated_client(&self.profile)?;
-
-        // Fix the async/await issue by using blocking approach or returning a future
-        // Since the rest of the code is not async, we'll assume there's a blocking alternative
-
-        // Define the GraphId availability query types (these would ideally be imported)
-        #[derive(Serialize)]
-        struct CheckGraphIdAvailabilityInput {
-            account_id: String,
-            graph_id: String,
-        }
-
-        // TODO: implement check_graph_id_exists
-        Ok(false)
+        
+        let client_call = check::run(
+            CheckGraphIdAvailabilityInput {
+                graph_id: graph_id.to_string(),
+            },
+            &client,
+        )
+        .await?;
+        Ok(client_call.available)
     }
 }
 
