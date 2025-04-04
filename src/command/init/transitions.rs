@@ -131,7 +131,9 @@ impl ProjectNamed {
         options: &GraphIdOpt,
         client_config: StudioClientConfig,
     ) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options.get_or_prompt_graph_id(client_config, &self.project_name).await?;
+        let graph_id = options
+            .get_or_prompt_graph_id(client_config, &self.project_name)
+            .await?;
 
         Ok(GraphIdConfirmed {
             project_type: self.project_type,

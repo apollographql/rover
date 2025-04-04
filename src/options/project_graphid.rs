@@ -131,10 +131,12 @@ impl GraphIdOpt {
             if let Err(e) = GraphIdOperations::validate_graph_id(graph_id) {
                 return Err(e.to_rover_error());
             }
-    
+
             // Step 2: Check if the graph ID already exists
-            let exists = self.check_if_graph_id_exists(client_config, graph_id).await?;
-            
+            let exists = self
+                .check_if_graph_id_exists(client_config, graph_id)
+                .await?;
+
             // This is the corrected part - we should error if the graph ID exists
             if exists {
                 return Err(RoverError::new(anyhow!(
@@ -145,11 +147,11 @@ impl GraphIdOpt {
                     "Please choose a different graph ID and try again.".to_string(),
                 )));
             }
-    
+
             // Return a clone of the String to satisfy ownership requirements
             return Ok(graph_id.clone());
         }
-    
+
         // If no graph ID was provided, prompt the user
         self.prompt_graph_id(project_name)
     }
@@ -164,7 +166,7 @@ impl GraphIdOpt {
     ) -> RoverResult<bool> {
         // Create a StudioClient from the config
         let client = client_config.get_authenticated_client(&self.profile)?;
-        
+
         let client_call = check::run(
             CheckGraphIdAvailabilityInput {
                 graph_id: graph_id.to_string(),
