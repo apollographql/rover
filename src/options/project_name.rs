@@ -10,7 +10,7 @@ use std::fmt;
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
     #[arg(long = "project-name")]
-    project_name: Option<ProjectName>,
+    pub(crate) project_name: Option<ProjectName>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
