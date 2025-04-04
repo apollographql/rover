@@ -1,19 +1,11 @@
 use crate::error::{RoverError, RoverErrorSuggestion};
 use crate::RoverResult;
-use clap::arg;
-use clap::Parser;
-use dialoguer::{theme::ColorfulTheme, Input};
+use anyhow::anyhow;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
-pub struct ProjectNameOpt {
-    #[arg(long = "project-name")]
-    pub project_name: Option<String>,
-}
-
+// Error enum for graph ID validation failures
 #[derive(Debug)]
 pub enum GraphIdValidationError {
     Empty,
@@ -24,122 +16,99 @@ pub enum GraphIdValidationError {
 }
 
 impl GraphIdValidationError {
+    // Convert the validation error to a RoverError with appropriate message and suggestion
     pub fn to_rover_error(self) -> RoverError {
         match self {
-            Self::Empty => RoverError::new(
-                "Graph ID cannot be empty".to_string(),
-                RoverErrorSuggestion::Adhoc(
+            Self::Empty => {
+                let message = "Graph ID cannot be empty";
+                let suggestion = RoverErrorSuggestion::Adhoc(
                     "Please enter a valid graph ID starting with a letter and containing only letters, numbers, underscores, and hyphens.".to_string(),
-                ),
-            ),
-            Self::DoesNotStartWithLetter => RoverError::new(
-                "Graph ID must start with a letter".to_string(),
-                RoverErrorSuggestion::Adhoc(
+                );
+                // Create RoverError using proper method instead of direct field assignment
+                RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+            }
+            Self::DoesNotStartWithLetter => {
+                let message = "Graph ID must start with a letter";
+                let suggestion = RoverErrorSuggestion::Adhoc(
                     "Please ensure your graph ID starts with a letter (a-z, A-Z).".to_string(),
-                ),
-            ),
-            Self::ContainsInvalidCharacters => RoverError::new(
-                "Graph ID contains invalid characters".to_string(),
-                RoverErrorSuggestion::Adhoc(
-                    "Graph IDs can only contain letters, numbers, underscores, and hyphens.".to_string(),
-                ),
-            ),
-            Self::TooLong => RoverError::new(
-                format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH),
-                RoverErrorSuggestion::Adhoc(
-                    format!("Please ensure your graph ID is no longer than {} characters.", MAX_GRAPH_ID_LENGTH),
-                ),
-            ),
-            Self::AlreadyExists => RoverError::new(
-                "Graph ID already exists".to_string(),
-                RoverErrorSuggestion::Adhoc(
+                );
+                RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+            }
+            Self::ContainsInvalidCharacters => {
+                let message = "Graph ID contains invalid characters";
+                let suggestion = RoverErrorSuggestion::Adhoc(
+                    "Graph IDs can only contain letters, numbers, underscores, and hyphens."
+                        .to_string(),
+                );
+                RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+            }
+            Self::TooLong => {
+                let message = format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH);
+                let suggestion = RoverErrorSuggestion::Adhoc(format!(
+                    "Please ensure your graph ID is no longer than {} characters.",
+                    MAX_GRAPH_ID_LENGTH
+                ));
+                RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+            }
+            Self::AlreadyExists => {
+                let message = "Graph ID already exists";
+                let suggestion = RoverErrorSuggestion::Adhoc(
                     "This graph ID is already in use. Please choose a different name for your GraphQL API.".to_string(),
-                ),
-            ),
+                );
+                RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+            }
         }
     }
 }
 
-impl ProjectNameOpt {
-    pub fn get_project_name(&self) -> Option<String> {
-        self.project_name.clone()
-    }
+pub struct GraphIdOperations;
 
-    fn suggest_default_name(&self) -> String {
-        "my-graphql-api".to_string()
-    }
-
-    fn validate_project_name(project_name: &str) -> Result<(), GraphIdValidationError> {
-        if project_name.is_empty() {
+impl GraphIdOperations {
+    pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
+        if graph_id.is_empty() {
             return Err(GraphIdValidationError::Empty);
         }
 
-        let first_char = project_name.chars().next().unwrap();
+        // Check if it starts with a letter
+        let first_char = graph_id.chars().next().unwrap();
         if !first_char.is_alphabetic() {
             return Err(GraphIdValidationError::DoesNotStartWithLetter);
         }
 
+        // Check if it contains only valid characters
         let valid_pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]*$").unwrap();
-        if !valid_pattern.is_match(project_name) {
+        if !valid_pattern.is_match(graph_id) {
             return Err(GraphIdValidationError::ContainsInvalidCharacters);
         }
 
-        if project_name.len() > MAX_GRAPH_ID_LENGTH {
+        // Check length
+        if graph_id.len() > MAX_GRAPH_ID_LENGTH {
             return Err(GraphIdValidationError::TooLong);
         }
 
         Ok(())
     }
 
-    async fn check_name_availability(project_name: &str) -> RoverResult<bool> {
-        // TODO: REPLACE WITH API CALL
-        Ok(true)
+    pub fn suggest_graph_id_from_project_name(project_name: &str) -> String {
+        let sanitized = project_name
+            .to_lowercase()
+            .replace(' ', "-")
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+            .collect::<String>();
+
+        sanitized
     }
 
-    pub async fn prompt_project_name(&self) -> RoverResult<String> {
-        let default = self.suggest_default_name();
-
-        let mut input: Input<String> = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Name your GraphQL API")
-            .with_initial_text(default.clone())
-            .allow_empty(false);
-
-        loop {
-            let project_name = input.interact()?;
-
-            match Self::validate_project_name(&project_name) {
-                Ok(()) => match Self::check_name_availability(&project_name).await {
-                    Ok(true) => return Ok(project_name),
-                    Ok(false) => {
-                        eprintln!("Error: This name is already in use. Please choose a different name for your GraphQL API.");
-                        continue;
-                    }
-                    Err(e) => return Err(e),
-                },
-                Err(e) => {
-                    eprintln!("Error: {}", e.to_rover_error().message);
-                    eprintln!("Suggestion: {}", e.to_rover_error().suggestion);
-                    continue;
-                }
-            }
+    pub async fn check_graph_id_availability(graph_id: &str) -> RoverResult<()> {
+        if graph_id == "apollo-test-id" {
+            return Err(GraphIdValidationError::AlreadyExists.to_rover_error());
         }
-    }
 
-    pub async fn get_or_prompt_project_name(&self) -> RoverResult<String> {
-        // If a project name was provided via command line, validate and use it
-        if let Some(name) = self.get_project_name() {
-            if let Err(e) = Self::validate_project_name(&name) {
-                return Err(e.to_rover_error());
-            }
+        // TODO: Replace with actual API call
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-            match Self::check_name_availability(&name).await {
-                Ok(true) => Ok(name),
-                Ok(false) => Err(GraphIdValidationError::AlreadyExists.to_rover_error()),
-                Err(e) => Err(e),
-            }
-        } else {
-            self.prompt_project_name().await
-        }
+        Ok(())
     }
 }
 
@@ -148,51 +117,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_project_name_with_preset_value() {
-        let instance = ProjectNameOpt {
-            project_name: Some("my-project".to_string()),
-        };
+    fn test_suggest_graph_id_from_project_name() {
+        assert_eq!(
+            GraphIdOperations::suggest_graph_id_from_project_name("My Cool Project"),
+            "my-cool-project"
+        );
 
-        let result = instance.get_project_name();
-        assert_eq!(result, Some("my-project".to_string()));
+        assert_eq!(
+            GraphIdOperations::suggest_graph_id_from_project_name("123-invalid-start"),
+            "g-123-invalid-start"
+        );
+
+        assert_eq!(
+            GraphIdOperations::suggest_graph_id_from_project_name("!!!"),
+            "g-"
+        );
+
+        assert_eq!(
+            GraphIdOperations::suggest_graph_id_from_project_name(""),
+            "g-"
+        );
     }
 
     #[test]
-    fn test_suggest_default_name() {
-        let instance = ProjectNameOpt { project_name: None };
-        let default_name = instance.suggest_default_name();
+    fn test_validate_graph_id() {
+        // Valid IDs
+        assert!(GraphIdOperations::validate_graph_id("valid-id").is_ok());
+        assert!(GraphIdOperations::validate_graph_id("a").is_ok());
+        assert!(GraphIdOperations::validate_graph_id("valid_id_with_underscore").is_ok());
+        assert!(GraphIdOperations::validate_graph_id("validIdWith123Numbers").is_ok());
 
-        assert_eq!(default_name, "my-graphql-api");
-    }
-
-    #[test]
-    fn test_validate_project_name() {
-        // Valid names
-        assert!(ProjectNameOpt::validate_project_name("valid-id").is_ok());
-        assert!(ProjectNameOpt::validate_project_name("a").is_ok());
-        assert!(ProjectNameOpt::validate_project_name("valid_id_with_underscore").is_ok());
-        assert!(ProjectNameOpt::validate_project_name("validIdWith123Numbers").is_ok());
-
-        // Invalid names
+        // Invalid IDs
         assert!(matches!(
-            ProjectNameOpt::validate_project_name(""),
+            GraphIdOperations::validate_graph_id(""),
             Err(GraphIdValidationError::Empty)
         ));
 
         assert!(matches!(
-            ProjectNameOpt::validate_project_name("123-invalid-start"),
+            GraphIdOperations::validate_graph_id("123-invalid-start"),
             Err(GraphIdValidationError::DoesNotStartWithLetter)
         ));
 
         assert!(matches!(
-            ProjectNameOpt::validate_project_name("invalid!chars"),
+            GraphIdOperations::validate_graph_id("invalid!chars"),
             Err(GraphIdValidationError::ContainsInvalidCharacters)
         ));
 
         let too_long = "a".repeat(MAX_GRAPH_ID_LENGTH + 1);
         assert!(matches!(
-            ProjectNameOpt::validate_project_name(&too_long),
+            GraphIdOperations::validate_graph_id(&too_long),
             Err(GraphIdValidationError::TooLong)
         ));
+    }
+
+    #[tokio::test]
+    async fn test_check_graph_id_availability() {
+        // Available ID
+        assert!(
+            GraphIdOperations::check_graph_id_availability("available-id")
+                .await
+                .is_ok()
+        );
+
+        // Unavailable ID
+        assert!(
+            GraphIdOperations::check_graph_id_availability("apollo-test-id")
+                .await
+                .is_err()
+        );
     }
 }

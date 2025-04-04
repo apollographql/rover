@@ -1,5 +1,5 @@
 mod config;
-mod graph_id_operations;
+pub mod graph_id_operations;
 mod helpers;
 mod states;
 mod template_operations;
@@ -8,6 +8,7 @@ mod transitions;
 use crate::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -40,7 +41,7 @@ pub struct Init {
 }
 
 impl Init {
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
@@ -49,7 +50,7 @@ impl Init {
             .select_organization(&self.organization)?
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
-            .confirm_graph_id(&self.graph_id)?
+            .confirm_graph_id(&self.graph_id, client_config)?
             .preview_and_confirm_creation(http_service)
             .await?;
 

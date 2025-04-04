@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
+use crate::command::init::graph_id_operations::GraphIdOperations;
 use crate::command::init::helpers::*;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::TemplateOperations;
@@ -13,6 +14,7 @@ use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
 use crate::options::TemplateFetcher;
 use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
@@ -107,8 +109,8 @@ impl OrganizationSelected {
 ///
 /// ? Name your GraphQL API:
 impl UseCaseSelected {
-    pub async fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
-        let project_name = options.get_or_prompt_project_name().await?;
+    pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
+        let project_name = options.get_or_prompt_project_name()?;
 
         Ok(ProjectNamed {
             project_type: self.project_type,
@@ -124,8 +126,12 @@ impl UseCaseSelected {
 ///
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
-    pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options.get_or_prompt_graph_id(&self.project_name)?;
+    pub fn confirm_graph_id(
+        self,
+        options: &GraphIdOpt,
+        client_config: StudioClientConfig,
+    ) -> RoverResult<GraphIdConfirmed> {
+        let graph_id = options.get_or_prompt_graph_id(&self.project_name, client_config)?;
 
         Ok(GraphIdConfirmed {
             project_type: self.project_type,
@@ -165,6 +171,11 @@ impl GraphIdConfirmed {
         self,
         http_service: ReqwestService,
     ) -> RoverResult<Option<CreationConfirmed>> {
+        // Check if graph ID is available
+        if let Err(e) = GraphIdOperations::check_graph_id_availability(&self.graph_id).await {
+            return Err(e);
+        }
+
         // Create the configuration
         let config = self.create_config();
 

@@ -17,6 +17,8 @@ impl ProjectNameOpt {
 
     pub fn prompt_project_name(&self) -> RoverResult<String> {
         // TODO: Include Taylor's prompt, validation, and return project name logic here
+        // we skip this step right now and pass the suggested_default_name to the next step
+        // to generate the graph_id
         let _prompt = "Name your GraphQL API";
         let default = self.suggest_default_name();
 
