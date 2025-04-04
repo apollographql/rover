@@ -8,12 +8,13 @@ mod transitions;
 use crate::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::RoverOutput;
+use crate::RoverResult;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_http::ReqwestService;
 use serde::Serialize;
+use crate::utils::client::StudioClientConfig;
 
 #[cfg(test)]
 pub mod tests;
@@ -50,7 +51,7 @@ impl Init {
             .select_organization(&self.organization)?
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
-            .confirm_graph_id(&self.graph_id, client_config)?
+            .confirm_graph_id(&self.graph_id, client_config).await?
             .preview_and_confirm_creation(http_service)
             .await?;
 

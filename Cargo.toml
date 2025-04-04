@@ -200,7 +200,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
-rover-client = { workspace = true }
+rover-client = { workspace = true, features = ["init"] }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
