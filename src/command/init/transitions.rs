@@ -161,7 +161,7 @@ impl GraphIdConfirmed {
         ProjectConfig {
             organization: self.organization.clone(),
             use_case: self.use_case.clone(),
-            project_name: self.project_name.to_string(),
+            project_name: self.project_name.clone(),
             graph_id: self.graph_id.clone(),
             project_type: self.project_type.clone(),
         }
@@ -253,7 +253,7 @@ impl CreationConfirmed {
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
         display_project_created_message(
-            &self.config.project_name,
+            &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
             &self.api_key,
