@@ -4,11 +4,12 @@ mod states;
 mod template_operations;
 mod transitions;
 
+use std::path::PathBuf;
+
 use crate::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
 use crate::{RoverOutput, RoverResult};
-use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_http::ReqwestService;
 use serde::Serialize;
@@ -35,7 +36,7 @@ pub struct Init {
     graph_id: GraphIdOpt,
 
     #[clap(long, hide(true))]
-    path: Option<Utf8PathBuf>,
+    path: Option<PathBuf>,
 }
 
 impl Init {
@@ -44,7 +45,7 @@ impl Init {
         let http_service = ReqwestService::new(None, None)?;
 
         let creation_confirmed_option = Welcome::new()
-            .select_project_type(&self.project_type)?
+            .select_project_type(&self.project_type, &self.path)?
             .select_organization(&self.organization)?
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
