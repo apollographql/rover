@@ -30,7 +30,7 @@ use anyhow::anyhow;
 /// > Add a subgraph to an existing GraphQL API
 impl Welcome {
     pub fn new() -> Self {
-        Welcome
+        Welcome {}
     }
 
     pub fn select_project_type(
