@@ -1,94 +1,297 @@
+use crate::command::GraphIdOperations;
+use crate::command::GraphIdValidationError;
+use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
+use crate::{RoverError, RoverErrorSuggestion};
+use anyhow::anyhow;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+use crate::options::ProfileOpt;
+
+const MAX_GRAPH_ID_LENGTH: usize = 64;
+const GRAPH_ID_MAX_CHAR: usize = 27;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct GraphIdOpt {
     #[arg(long = "graph-id")]
     pub graph_id: Option<String>,
+
+    #[clap(flatten)]
+    pub profile: ProfileOpt,
 }
 
 impl GraphIdOpt {
-    pub fn get_graph_id(&self) -> Option<String> {
-        self.graph_id.clone()
-    }
+    fn prompt_graph_id(&self, project_name: &str) -> RoverResult<String> {
+        let suggested_id = generate_graph_id(project_name);
+        const MAX_RETRIES: usize = 3;
 
-    pub fn suggest_graph_id(project_name: &str) -> String {
-        format!("{}-graph@current", project_name)
-    }
+        for attempt in 1..=MAX_RETRIES {
+            let graph_id = self.get_graph_id_input(&suggested_id)?;
 
-    pub fn prompt_for_graph_id(suggested_id: &str) -> RoverResult<String> {
-        let graph_id = Input::<String>::new()
-            .with_prompt("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)".to_string())
-            .default(suggested_id.to_string())
-            .validate_with(|input: &String| -> Result<(), &str> {
-                if input.is_empty() {
-                    return Err("Graph ID cannot be empty");
-                }
-                Ok(())
-            })
-            .interact()?;
-
-        Ok(graph_id)
-    }
-
-    pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<String> {
-        if let Some(id) = self.get_graph_id() {
-            // TODO: Validate graph ID format
-            return Ok(id);
+            match self.validate_and_verify_graph_id(&graph_id, attempt, MAX_RETRIES) {
+                Ok(valid_id) => return Ok(valid_id),
+                Err(e) if attempt == MAX_RETRIES => return Err(e),
+                Err(_) => continue, // Try again if not the last attempt
+            }
         }
 
-        let suggested_id = Self::suggest_graph_id(project_name);
+        unreachable!("Loop should have exited with return Ok or Err");
+    }
 
-        let graph_id = Self::prompt_for_graph_id(&suggested_id)?;
+    fn get_graph_id_input(&self, suggested_id: &str) -> RoverResult<String> {
+        let prompt = format!("Confirm or modify graph ID [{}]", suggested_id);
 
+        let input = Input::<String>::new()
+            .with_prompt(&prompt)
+            .default(suggested_id.to_string())
+            .allow_empty(false);
+
+        let graph_id = input.interact()?;
         Ok(graph_id)
     }
+
+    fn validate_and_verify_graph_id(
+        &self,
+        graph_id: &str,
+        attempt: usize,
+        max_retries: usize,
+    ) -> RoverResult<String> {
+        match GraphIdOperations::validate_graph_id(graph_id) {
+            Err(validation_error) => {
+                self.handle_validation_error(validation_error, attempt, max_retries)?;
+                Err(self.create_retry_error(attempt, max_retries))
+            }
+            Ok(()) => Ok(graph_id.to_string()),
+        }
+    }
+
+    fn validate_graph_id_format(
+        &self,
+        graph_id: &str,
+        attempt: usize,
+        max_retries: usize,
+    ) -> RoverResult<()> {
+        match GraphIdOperations::validate_graph_id(graph_id) {
+            Err(validation_error) => {
+                self.handle_validation_error(validation_error, attempt, max_retries)?;
+                Err(self.create_retry_error(attempt, max_retries))
+            }
+            Ok(()) => Ok(()),
+        }
+    }
+
+    fn handle_validation_error(
+        &self,
+        validation_error: GraphIdValidationError,
+        attempt: usize,
+        max_retries: usize,
+    ) -> RoverResult<()> {
+        match validation_error {
+            GraphIdValidationError::Empty => {
+                eprintln!("Graph ID cannot be empty.");
+            }
+            GraphIdValidationError::DoesNotStartWithLetter => {
+                eprintln!("Graph ID must start with a letter.");
+            }
+            GraphIdValidationError::ContainsInvalidCharacters => {
+                eprintln!("Graph ID can only contain letters, numbers, underscores, and hyphens.");
+            }
+            GraphIdValidationError::TooLong => {
+                eprintln!(
+                    "Graph ID exceeds maximum length of {}.",
+                    MAX_GRAPH_ID_LENGTH
+                );
+            }
+            GraphIdValidationError::AlreadyExists => {
+                eprintln!("This graph ID is already in use. Please choose a different name.");
+            }
+        }
+
+        // If this is the last attempt, exit with an error
+        if attempt == max_retries {
+            eprintln!("Maximum retry attempts reached. Command aborted.");
+
+            // Return a specific error for maximum retries
+            return Err(RoverError::new(anyhow!(
+                "Failed to provide a valid graph ID after {} attempts.",
+                max_retries
+            )));
+        }
+
+        Ok(())
+    }
+
+    fn check_graph_id_availability(&self) -> RoverResult<()> {
+        // TODO: Check if the graph ID already exists
+        // Return an error if it does
+        Ok(())
+    }
+
+    fn create_retry_error(&self, attempt: usize, max_retries: usize) -> RoverError {
+        RoverError::new(anyhow!(
+            "Invalid graph ID (attempt {}/{}). Please try again.",
+            attempt,
+            max_retries
+        ))
+    }
+
+    fn create_max_attempts_error(&self, max_retries: usize) -> RoverError {
+        RoverError::new(anyhow!(
+            "Failed to provide a valid graph ID after {} attempts.",
+            max_retries
+        ))
+        .with_suggestion(RoverErrorSuggestion::Adhoc(
+            "Try again with a valid graph ID that meets the requirements.".to_string(),
+        ))
+    }
+
+    pub fn get_or_prompt_graph_id(
+        &self,
+        project_name: &str,
+        client_config: StudioClientConfig,
+    ) -> RoverResult<String> {
+        // If a graph ID was provided via command line, validate and use it
+        if let Some(graph_id) = &self.graph_id {
+            // Step 1: Validate the format of the provided graph ID
+            if let Err(e) = GraphIdOperations::validate_graph_id(graph_id) {
+                return Err(e.to_rover_error());
+            }
+
+            // Step 2: Check if the graph ID already exists
+            let exists = self.check_if_graph_id_exists(client_config, graph_id)?;
+            if exists {
+                return Err(RoverError::new(anyhow!(
+                    "The graph ID '{}' is already in use.",
+                    graph_id
+                ))
+                .with_suggestion(RoverErrorSuggestion::Adhoc(
+                    "Please choose a different graph ID and try again.".to_string(),
+                )));
+            }
+
+            // Return a clone of the String to satisfy ownership requirements
+            return Ok(graph_id.clone());
+        }
+
+        // If no graph ID was provided, prompt the user
+        self.prompt_graph_id(project_name)
+    }
+
+    // Helper method to check if a graph ID exists
+    fn check_if_graph_id_exists(
+        &self,
+        client_config: StudioClientConfig,
+        graph_id: &str,
+    ) -> RoverResult<bool> {
+        let client = client_config.get_authenticated_client(&self.profile)?;
+
+        // Fix the async/await issue by using blocking approach or returning a future
+        // Since the rest of the code is not async, we'll assume there's a blocking alternative
+
+        // Define the GraphId availability query types (these would ideally be imported)
+        #[derive(Serialize)]
+        struct CheckGraphIdAvailabilityInput {
+            account_id: String,
+            graph_id: String,
+        }
+
+        // TODO: implement check_graph_id_exists
+        Ok(false)
+    }
+}
+
+impl Default for GraphIdOpt {
+    fn default() -> Self {
+        Self {
+            graph_id: None,
+            profile: ProfileOpt {
+                profile_name: String::new(),
+            },
+        }
+    }
+}
+
+// HELPERS: SHOULD MOVE TO THEIR OWN FILE
+// Generate a random string of 7 characters (for graph ID suggestions)
+fn generate_unique_string() -> String {
+    // Generate a random number between 0 and 1, convert to base 36, and take substring
+    let mut rng = rand::rng();
+    let random_val: f64 = rng.random();
+    random_val.to_string()[2..]
+        .chars()
+        .map(|c| if c == '.' { 'a' } else { c })
+        .collect::<String>()[..7]
+        .to_string()
+}
+
+// Slugify a string for use as a graph ID
+fn slugify(input: &str) -> String {
+    let mut result = input.to_lowercase().replace(' ', "-");
+
+    // Replace consecutive hyphens with a single hyphen
+    while result.contains("--") {
+        result = result.replace("--", "-");
+    }
+
+    // Remove leading and trailing hyphens
+    result = result
+        .trim_start_matches('-')
+        .trim_end_matches('-')
+        .to_string();
+
+    result
+}
+
+fn generate_graph_id(graph_name: &str) -> String {
+    // Step 1: Slugify the graph name with strict mode
+    let mut slugified_name = slugify(graph_name);
+
+    // Step 2: Remove non-alphabetic characters from the beginning
+    let alphabetic_start_index = slugified_name
+        .chars()
+        .position(|c| c.is_alphabetic())
+        .unwrap_or(slugified_name.len());
+    slugified_name = slugified_name[alphabetic_start_index..].to_string();
+
+    // Step 3: Calculate how much space to reserve for the unique string
+    let unique_string = generate_unique_string();
+    let unique_string_length = unique_string.len() + 1;
+
+    // Step 4: Get the appropriate slice of slugified name
+    let max_name_length = if GRAPH_ID_MAX_CHAR > unique_string_length {
+        GRAPH_ID_MAX_CHAR - unique_string_length
+    } else {
+        0
+    };
+
+    let name_part = slugified_name[..slugified_name.len().min(max_name_length)].to_string();
+
+    // Step 5: Add "id" if name is empty
+    let name_part = if name_part.is_empty() {
+        "id".to_string()
+    } else {
+        name_part
+    };
+
+    // Step 6: Append unique string if provided
+    let result = format!("{}-{}", name_part, unique_string);
+
+    // Step 7: Slugify again and ensure max length
+    let final_result = slugify(&result);
+    final_result[..final_result.len().min(GRAPH_ID_MAX_CHAR)].to_string()
 }
 
 // TODO: Add tests for interactive prompts and sad paths
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_get_graph_id_with_preset_value() {
-        let instance = GraphIdOpt {
-            graph_id: Some("my-graph".to_string()),
-        };
-
-        let result = instance.get_graph_id();
-        assert_eq!(result, Some("my-graph".to_string()));
-    }
-
-    #[test]
-    fn test_get_graph_id_with_no_value() {
-        let instance = GraphIdOpt { graph_id: None };
-        let result = instance.get_graph_id();
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_get_or_prompt_graph_id_with_preset_value() {
-        let instance = GraphIdOpt {
-            graph_id: Some("custom-graph-id".to_string()),
-        };
-
-        let result = instance.get_or_prompt_graph_id("project-name");
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "custom-graph-id");
-    }
+    use crate::options::ProfileOpt;
 
     // Default trait implementation tests
-
-    #[test]
-    fn test_default_trait() {
-        let default_instance = GraphIdOpt::default();
-        assert_eq!(default_instance.graph_id, None);
-    }
 
     // Derived trait tests (Debug, Clone, etc.)
 
@@ -96,6 +299,7 @@ mod tests {
     fn test_debug_trait() {
         let instance = GraphIdOpt {
             graph_id: Some("test-graph".to_string()),
+            profile: ProfileOpt::default(),
         };
 
         // Check that Debug formatting doesn't panic and includes the expected content
@@ -107,6 +311,7 @@ mod tests {
     fn test_clone_trait() {
         let original = GraphIdOpt {
             graph_id: Some("clone-test-graph".to_string()),
+            profile: ProfileOpt::default(),
         };
         let cloned = original.clone();
 

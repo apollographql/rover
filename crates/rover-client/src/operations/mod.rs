@@ -24,3 +24,7 @@ pub mod config;
 
 /// all rover-client functionality for the "license" commands in rover
 pub mod license;
+
+/// all rover-client functionality for the "init" commands in rover
+#[cfg(feature = "init")]
+pub mod init;

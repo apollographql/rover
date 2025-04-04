@@ -41,3 +41,6 @@ pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
 pub use template::Template;
 pub use update::Update;
+
+#[cfg(feature = "init")]
+pub use init::graph_id_operations::{GraphIdOperations, GraphIdValidationError};

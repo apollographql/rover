@@ -3,8 +3,8 @@ mod tests {
     use crate::command::init::config::ProjectConfig;
     use crate::command::init::states::*;
     use crate::options::{
-        GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectUseCase,
-        ProjectUseCaseOpt,
+        GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
+        ProjectUseCase, ProjectUseCaseOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -152,6 +152,7 @@ mod tests {
 
         let options = GraphIdOpt {
             graph_id: Some("test-graph-id".to_string()),
+            profile: ProfileOpt::default(),
         };
 
         let result: RoverResult<GraphIdConfirmed> = {
