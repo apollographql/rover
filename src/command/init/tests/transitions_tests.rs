@@ -3,7 +3,8 @@ mod tests {
     use crate::command::init::config::ProjectConfig;
     use crate::command::init::states::*;
     use crate::options::{
-        GraphIdOpt, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectUseCase, ProjectUseCaseOpt
+        GraphIdOpt, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
+        ProjectUseCase, ProjectUseCaseOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -128,7 +129,6 @@ mod tests {
         };
 
         let result: RoverResult<ProjectNamed> = {
-
             let project_name = options.project_name.ok_or(|| {}).ok().unwrap();
             Ok(ProjectNamed {
                 output_path: ".".into(),
@@ -144,7 +144,10 @@ mod tests {
         assert_eq!(next_state.project_type, ProjectType::CreateNew);
         assert_eq!(next_state.organization, "test-org");
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
-        assert_eq!(next_state.project_name, "test-project".parse::<ProjectName>().unwrap());
+        assert_eq!(
+            next_state.project_name,
+            "test-project".parse::<ProjectName>().unwrap()
+        );
     }
 
     #[test]
@@ -204,7 +207,10 @@ mod tests {
         assert_eq!(config.project_type, ProjectType::CreateNew);
         assert_eq!(config.organization, "test-org");
         assert_eq!(config.use_case, ProjectUseCase::Connectors);
-        assert_eq!(config.project_name, "test-project".parse::<ProjectName>().unwrap());
+        assert_eq!(
+            config.project_name,
+            "test-project".parse::<ProjectName>().unwrap()
+        );
         assert_eq!(config.graph_id, "test-graph-id");
     }
 
@@ -254,7 +260,10 @@ mod tests {
         assert_eq!(next_state.config.project_type, ProjectType::CreateNew);
         assert_eq!(next_state.config.organization, "test-org");
         assert_eq!(next_state.config.use_case, ProjectUseCase::Connectors);
-        assert_eq!(next_state.config.project_name, "test-project".parse::<ProjectName>().unwrap());
+        assert_eq!(
+            next_state.config.project_name,
+            "test-project".parse::<ProjectName>().unwrap()
+        );
         assert_eq!(next_state.config.graph_id, "test-graph-id");
     }
 

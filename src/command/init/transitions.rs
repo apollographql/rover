@@ -30,15 +30,21 @@ use anyhow::anyhow;
 /// > Add a subgraph to an existing GraphQL API
 impl Welcome {
     pub fn new() -> Self {
-        Welcome {}
+        Welcome
     }
 
-    pub fn select_project_type(self, options: &ProjectTypeOpt, override_install_path: &Option<PathBuf>) -> RoverResult<ProjectTypeSelected> {
+    pub fn select_project_type(
+        self,
+        options: &ProjectTypeOpt,
+        override_install_path: &Option<PathBuf>,
+    ) -> RoverResult<ProjectTypeSelected> {
         display_welcome_message();
 
         // Check if directory is empty before proceeding
         let current_dir = env::current_dir()?;
-        let output_path =  Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir)).map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
+        let output_path =
+            Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
+                .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
         match read_dir(&output_path) {
             Ok(mut dir) => {
                 if dir.next().is_some() {
@@ -58,7 +64,10 @@ impl Welcome {
             None => options.prompt_project_type()?,
         };
 
-        Ok(ProjectTypeSelected { project_type, output_path })
+        Ok(ProjectTypeSelected {
+            project_type,
+            output_path,
+        })
     }
 }
 
