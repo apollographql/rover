@@ -2,10 +2,10 @@ use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
-use serde::{Deserialize, Serialize};
 use regex::Regex;
-use std::str::FromStr;
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
@@ -21,7 +21,7 @@ impl FromStr for ProjectName {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         const MAX_LENGTH: usize = 64;
-        const MIN_LENGTH:usize = 2;
+        const MIN_LENGTH: usize = 2;
 
         // Check if the length of the input is within the valid range
         if input.len() < MIN_LENGTH || input.len() > MAX_LENGTH {
@@ -63,7 +63,9 @@ impl ProjectNameOpt {
 
         loop {
             // Prompt for user input
-            let input: Input<String> = Input::new().with_prompt("? Name your GraphQL API").default(default.clone());
+            let input: Input<String> = Input::new()
+                .with_prompt("? Name your GraphQL API")
+                .default(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
             // Try to parse the input into a ProjectName
@@ -99,7 +101,8 @@ mod tests {
 
     #[test]
     fn test_parse_errors_when_input_length_is_greater_than_max_length() {
-        let result: Result<ProjectName, _> = "This is a string that contains more than sixty-five characters!".parse();
+        let result: Result<ProjectName, _> =
+            "This is a string that contains more than sixty-five characters!".parse();
         assert!(result.is_err());
     }
 
@@ -145,7 +148,10 @@ mod tests {
         let result = instance.prompt_project_name();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "My API".parse::<ProjectName>().ok().unwrap());
+        assert_eq!(
+            result.unwrap(),
+            "My API".parse::<ProjectName>().ok().unwrap()
+        );
     }
 
     #[test]
@@ -154,7 +160,10 @@ mod tests {
         let result = instance.get_or_prompt_project_name();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "My API".parse::<ProjectName>().ok().unwrap());
+        assert_eq!(
+            result.unwrap(),
+            "My API".parse::<ProjectName>().ok().unwrap()
+        );
     }
 
     // Default trait implementation tests
