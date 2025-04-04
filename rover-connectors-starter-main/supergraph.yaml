@@ -1,8 +1,0 @@
-# A federated GraphQL API (aka a supergraph) is a unified GraphQL API composed of different services—known as subgraphs—that are managed through a router.
-
-federation_version: 2.10.0
-
-subgraphs: # Use this section to add all of the services that make up your GraphQL API
-  products: # The subgraph name. Populate this with your service's name.    routing_url: http://placeholder # This value is ignored
-    schema:
-      file: products.graphql # The path to your schema (.graphql) file

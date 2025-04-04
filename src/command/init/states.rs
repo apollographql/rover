@@ -3,21 +3,24 @@ use crate::options::{ProjectType, ProjectUseCase, TemplateProject};
 use camino::Utf8PathBuf;
 
 #[derive(Debug)]
-pub struct Welcome;
+pub struct Welcome {}
 
 #[derive(Debug)]
 pub struct ProjectTypeSelected {
+    pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
 }
 
 #[derive(Debug)]
 pub struct OrganizationSelected {
+    pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: String,
 }
 
 #[derive(Debug)]
 pub struct UseCaseSelected {
+    pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: String,
     pub use_case: ProjectUseCase,
@@ -25,6 +28,7 @@ pub struct UseCaseSelected {
 
 #[derive(Debug)]
 pub struct ProjectNamed {
+    pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: String,
     pub use_case: ProjectUseCase,
@@ -33,6 +37,7 @@ pub struct ProjectNamed {
 
 #[derive(Debug)]
 pub struct GraphIdConfirmed {
+    pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: String,
     pub use_case: ProjectUseCase,
@@ -42,9 +47,9 @@ pub struct GraphIdConfirmed {
 
 #[derive(Debug)]
 pub struct CreationConfirmed {
+    pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
     pub template: TemplateProject,
-    pub output_path: Option<Utf8PathBuf>,
 }
 
 #[derive(Debug)]
