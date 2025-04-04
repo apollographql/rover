@@ -1,0 +1,5 @@
+query CheckGraphIdAvailabilityQuery($graphId: ID!) {
+  graph(id: $graphId) {
+    id
+  }
+}

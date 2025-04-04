@@ -7,7 +7,7 @@ mod explain;
 mod graph;
 mod info;
 #[cfg(feature = "init")]
-mod init;
+pub(crate) mod init;
 pub(crate) mod install;
 mod license;
 #[cfg(feature = "composition-js")]

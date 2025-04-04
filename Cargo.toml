@@ -123,6 +123,7 @@ os_info = "3.7"
 os_type = "2.6"
 predicates = "3"
 pretty_assertions = "1"
+rand = "=0.9.0"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
@@ -195,10 +196,11 @@ lazycell = { workspace = true }
 lazy_static = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
+rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
-rover-client = { workspace = true }
+rover-client = { workspace = true, features = ["init"] }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
@@ -245,7 +247,6 @@ mime = "=0.3.17"
 mockall = "=0.13.1"
 portpicker = "=0.1.1"
 predicates = { workspace = true }
-rand = "=0.9.0"
 rand_regex = "=0.18.0"
 reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }

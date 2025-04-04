@@ -3,12 +3,15 @@ mod helpers;
 mod states;
 mod template_operations;
 mod transitions;
+pub mod graph_id;
 
 use std::path::PathBuf;
 
 use crate::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
+    GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
+    ProjectUseCaseOpt,
 };
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use rover_http::ReqwestService;
@@ -35,12 +38,17 @@ pub struct Init {
     #[clap(flatten)]
     graph_id: GraphIdOpt,
 
+    #[clap(flatten)]
+    profile: ProfileOpt,
+
     #[clap(long, hide(true))]
     path: Option<PathBuf>,
 }
 
 impl Init {
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(&self.profile)?;
+
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
@@ -49,7 +57,8 @@ impl Init {
             .select_organization(&self.organization)?
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
-            .confirm_graph_id(&self.graph_id)?
+            .confirm_graph_id(&self.graph_id, &client)
+            .await?
             .preview_and_confirm_creation(http_service)
             .await?;
 

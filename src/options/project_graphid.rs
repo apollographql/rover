@@ -1,116 +1,98 @@
-use crate::RoverResult;
+use crate::command::init::graph_id::{
+    validate_and_check_availability,
+    generate_unique_graph_id
+};
+use crate::{RoverError, RoverResult};
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
+use rover_client::blocking::StudioClient;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct GraphIdOpt {
     #[arg(long = "graph-id")]
     pub graph_id: Option<String>,
 }
 
-impl GraphIdOpt {
-    pub fn get_graph_id(&self) -> Option<String> {
-        self.graph_id.clone()
-    }
-
-    pub fn suggest_graph_id(project_name: &str) -> String {
-        format!("{}-graph@current", project_name)
-    }
-
-    pub fn prompt_for_graph_id(suggested_id: &str) -> RoverResult<String> {
-        let graph_id = Input::<String>::new()
-            .with_prompt("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)".to_string())
-            .default(suggested_id.to_string())
-            .validate_with(|input: &String| -> Result<(), &str> {
-                if input.is_empty() {
-                    return Err("Graph ID cannot be empty");
-                }
-                Ok(())
-            })
-            .interact()?;
-
-        Ok(graph_id)
-    }
-
-    pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<String> {
-        if let Some(id) = self.get_graph_id() {
-            // TODO: Validate graph ID format
-            return Ok(id);
-        }
-
-        let suggested_id = Self::suggest_graph_id(project_name);
-
-        let graph_id = Self::prompt_for_graph_id(&suggested_id)?;
-
-        Ok(graph_id)
+impl Default for GraphIdOpt {
+    fn default() -> Self {
+        Self { graph_id: None }
     }
 }
 
-// TODO: Add tests for interactive prompts and sad paths
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_graph_id_with_preset_value() {
-        let instance = GraphIdOpt {
-            graph_id: Some("my-graph".to_string()),
-        };
-
-        let result = instance.get_graph_id();
-        assert_eq!(result, Some("my-graph".to_string()));
+impl GraphIdOpt {
+    fn get_initial_graph_id(&self, project_name: &str) -> String {
+        // If user provides in the command line use that
+        if let Some(ref id) = self.graph_id {
+            id.clone()
+        } else {
+            // Otherwise use suggested default
+            generate_unique_graph_id(project_name)
+        }
     }
 
-    #[test]
-    fn test_get_graph_id_with_no_value() {
-        let instance = GraphIdOpt { graph_id: None };
-        let result = instance.get_graph_id();
-        assert_eq!(result, None);
+    pub async fn get_or_prompt_graph_id(
+        &self,
+        client: &StudioClient,
+        project_name: &str,
+    ) -> RoverResult<String> {
+        let initial_id = self.get_initial_graph_id(project_name);
+
+        // If a value is provided, validate it without prompting
+        if self.graph_id.is_some() {
+            validate_and_check_availability(&initial_id, client).await?;
+            return Ok(initial_id);
+        }
+
+        // Otherwise enter prompt/validate loop
+        self.prompt_graph_id(initial_id, client).await
     }
 
-    #[test]
-    fn test_get_or_prompt_graph_id_with_preset_value() {
-        let instance = GraphIdOpt {
-            graph_id: Some("custom-graph-id".to_string()),
-        };
+    async fn prompt_graph_id(
+        &self,
+        suggested_id: String,
+        client: &StudioClient,
+    ) -> RoverResult<String> {
+        const MAX_RETRIES: usize = 3;
 
-        let result = instance.get_or_prompt_graph_id("project-name");
+        for attempt in 1..=MAX_RETRIES {
+            let input = self.prompt_for_input(&suggested_id)?;
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "custom-graph-id");
+            match validate_and_check_availability(&input, client).await {
+                Ok(()) => return Ok(input),
+                Err(e) => self.handle_validation_error(e, attempt, MAX_RETRIES)?,
+            }
+        }
+
+        unreachable!("Loop should have exited with return Ok or Err");
     }
 
-    // Default trait implementation tests
+    fn prompt_for_input(&self, suggested_id: &str) -> RoverResult<String> {
+        let prompt = format!("Confirm or modify graph ID [{}]", suggested_id);
+        let input = Input::<String>::new()
+            .with_prompt(&prompt)
+            .default(suggested_id.to_string())
+            .allow_empty(false)
+            .interact()?;
 
-    #[test]
-    fn test_default_trait() {
-        let default_instance = GraphIdOpt::default();
-        assert_eq!(default_instance.graph_id, None);
+        Ok(input)
     }
 
-    // Derived trait tests (Debug, Clone, etc.)
+    fn handle_validation_error(
+        &self,
+        error: RoverError,
+        attempt: usize,
+        max_retries: usize,
+    ) -> RoverResult<()> {
+        // If last attempt, propagate the error
+        if attempt == max_retries {
+            return Err(error);
+        }
 
-    #[test]
-    fn test_debug_trait() {
-        let instance = GraphIdOpt {
-            graph_id: Some("test-graph".to_string()),
-        };
-
-        // Check that Debug formatting doesn't panic and includes the expected content
-        let debug_str = format!("{:?}", instance);
-        assert!(debug_str.contains("test-graph"));
-    }
-
-    #[test]
-    fn test_clone_trait() {
-        let original = GraphIdOpt {
-            graph_id: Some("clone-test-graph".to_string()),
-        };
-        let cloned = original.clone();
-
-        // Ensure the cloned instance has the same data
-        assert_eq!(original.graph_id, cloned.graph_id);
+        // Otherwise display error and signal to retry
+        eprintln!("Error: {}", error);
+        eprintln!("Please try again (attempt {}/{})", attempt, max_retries);
+        Ok(())
     }
 }
