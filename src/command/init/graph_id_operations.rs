@@ -1,11 +1,12 @@
 use crate::error::{RoverError, RoverErrorSuggestion};
 use crate::RoverResult;
 use anyhow::anyhow;
-use regex::Regex;
+use regex::Regex;   
+use rover_client::blocking::StudioClient;
+use rover_client::operations::init::{CheckGraphIdAvailabilityInput, check};
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 
-// Error enum for graph ID validation failures
 #[derive(Debug)]
 pub enum GraphIdValidationError {
     Empty,
@@ -24,7 +25,6 @@ impl GraphIdValidationError {
                 let suggestion = RoverErrorSuggestion::Adhoc(
                     "Please enter a valid graph ID starting with a letter and containing only letters, numbers, underscores, and hyphens.".to_string(),
                 );
-                // Create RoverError using proper method instead of direct field assignment
                 RoverError::new(anyhow!(message)).with_suggestion(suggestion)
             }
             Self::DoesNotStartWithLetter => {
@@ -100,14 +100,23 @@ impl GraphIdOperations {
         sanitized
     }
 
-    pub async fn check_graph_id_availability(graph_id: &str) -> RoverResult<()> {
-        if graph_id == "apollo-test-id" {
+    pub async fn check_graph_id_availability(
+        graph_id: &str, 
+        client: &StudioClient,
+    ) -> RoverResult<()> {
+        let result = check::run(
+            CheckGraphIdAvailabilityInput {
+                graph_id: graph_id.to_string(),
+            },
+            client,
+        )
+        .await
+        .map_err(|e| RoverError::new(anyhow!("Failed to check graph ID availability: {}", e)))?;
+    
+        if !result.available {
             return Err(GraphIdValidationError::AlreadyExists.to_rover_error());
         }
-
-        // TODO: Replace with actual API call
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
+    
         Ok(())
     }
 }

@@ -14,11 +14,11 @@ use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
 use crate::options::TemplateFetcher;
 use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
-use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
 use anyhow::anyhow;
+use rover_client::blocking::StudioClient;
 
 /// PROMPT UX:
 /// ==========
@@ -129,10 +129,10 @@ impl ProjectNamed {
     pub async fn confirm_graph_id(
         self,
         options: &GraphIdOpt,
-        client_config: StudioClientConfig,
+        client: &StudioClient,
     ) -> RoverResult<GraphIdConfirmed> {
         let graph_id = options
-            .get_or_prompt_graph_id(client_config, &self.project_name)
+            .get_or_prompt_graph_id(client, &self.project_name)
             .await?;
 
         Ok(GraphIdConfirmed {
@@ -172,9 +172,10 @@ impl GraphIdConfirmed {
     pub async fn preview_and_confirm_creation(
         self,
         http_service: ReqwestService,
+        client: &StudioClient,
     ) -> RoverResult<Option<CreationConfirmed>> {
         // Check if graph ID is available
-        GraphIdOperations::check_graph_id_availability(&self.graph_id).await?;
+        GraphIdOperations::check_graph_id_availability(&self.graph_id, client).await?;
 
         // Create the configuration
         let config = self.create_config();

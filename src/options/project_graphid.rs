@@ -1,6 +1,5 @@
 use crate::command::GraphIdOperations;
 use crate::command::GraphIdValidationError;
-use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
 use crate::{RoverError, RoverErrorSuggestion};
 use anyhow::anyhow;
@@ -8,6 +7,7 @@ use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
 use rand::Rng;
+use rover_client::blocking::StudioClient;
 use rover_client::operations::init::check;
 use rover_client::operations::init::CheckGraphIdAvailabilityInput;
 use serde::{Deserialize, Serialize};
@@ -122,7 +122,7 @@ impl GraphIdOpt {
 
     pub async fn get_or_prompt_graph_id(
         &self,
-        client_config: StudioClientConfig,
+        client: &StudioClient,
         project_name: &str,
     ) -> RoverResult<String> {
         // If a graph ID was provided via command line, validate and use it
@@ -134,7 +134,7 @@ impl GraphIdOpt {
 
             // Step 2: Check if the graph ID already exists
             let exists = self
-                .check_if_graph_id_exists(client_config, graph_id)
+                .check_if_graph_id_exists(client, graph_id)
                 .await?;
 
             // This is the corrected part - we should error if the graph ID exists
@@ -161,17 +161,14 @@ impl GraphIdOpt {
     /// Returns `true` if the graph ID exists, `false` otherwise.
     async fn check_if_graph_id_exists(
         &self,
-        client_config: StudioClientConfig,
+        client: &StudioClient,
         graph_id: &str,
     ) -> RoverResult<bool> {
-        // Create a StudioClient from the config
-        let client = client_config.get_authenticated_client(&self.profile)?;
-
         let client_call = check::run(
             CheckGraphIdAvailabilityInput {
                 graph_id: graph_id.to_string(),
             },
-            &client,
+            client,
         )
         .await?;
         Ok(client_call.available)
