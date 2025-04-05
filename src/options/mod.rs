@@ -18,7 +18,6 @@ mod project_organization;
 mod project_type;
 #[cfg(feature = "init")]
 mod project_use_case;
-
 mod schema;
 mod subgraph;
 mod template;
