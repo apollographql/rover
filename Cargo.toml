@@ -39,7 +39,7 @@ members = [
 ]
 
 [features]
-default = ["composition-js"]
+default = ["composition-js", "init"]
 
 # this feature exists to enable composition
 # notably, it is disabled for x86_64-unknown-linux-musl builds

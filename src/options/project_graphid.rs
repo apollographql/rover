@@ -1,4 +1,4 @@
-use crate::command::GraphIdOperations;
+use crate::command::init::graph_id_operations::validate_graph_id;
 use crate::command::GraphIdValidationError;
 use crate::RoverResult;
 use crate::{RoverError, RoverErrorSuggestion};
@@ -12,8 +12,6 @@ use rover_client::operations::init::check;
 use rover_client::operations::init::CheckGraphIdAvailabilityInput;
 use serde::{Deserialize, Serialize};
 
-use crate::options::ProfileOpt;
-
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 const GRAPH_ID_MAX_CHAR: usize = 27;
 
@@ -21,9 +19,6 @@ const GRAPH_ID_MAX_CHAR: usize = 27;
 pub struct GraphIdOpt {
     #[arg(long = "graph-id")]
     pub graph_id: Option<String>,
-
-    #[clap(flatten)]
-    pub profile: ProfileOpt,
 }
 
 impl GraphIdOpt {
@@ -62,7 +57,7 @@ impl GraphIdOpt {
         attempt: usize,
         max_retries: usize,
     ) -> RoverResult<String> {
-        match GraphIdOperations::validate_graph_id(graph_id) {
+        match validate_graph_id(graph_id) {
             Err(validation_error) => {
                 self.handle_validation_error(validation_error, attempt, max_retries)?;
                 Err(self.create_retry_error(attempt, max_retries))
@@ -128,14 +123,12 @@ impl GraphIdOpt {
         // If a graph ID was provided via command line, validate and use it
         if let Some(graph_id) = &self.graph_id {
             // Step 1: Validate the format of the provided graph ID
-            if let Err(e) = GraphIdOperations::validate_graph_id(graph_id) {
+            if let Err(e) = validate_graph_id(graph_id) {
                 return Err(e.to_rover_error());
             }
 
             // Step 2: Check if the graph ID already exists
-            let exists = self
-                .check_if_graph_id_exists(client, graph_id)
-                .await?;
+            let exists = self.check_if_graph_id_exists(client, graph_id).await?;
 
             // This is the corrected part - we should error if the graph ID exists
             if exists {
@@ -177,12 +170,7 @@ impl GraphIdOpt {
 
 impl Default for GraphIdOpt {
     fn default() -> Self {
-        Self {
-            graph_id: None,
-            profile: ProfileOpt {
-                profile_name: String::new(),
-            },
-        }
+        Self { graph_id: None }
     }
 }
 
@@ -260,7 +248,6 @@ fn generate_graph_id(graph_name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::options::ProfileOpt;
 
     // Default trait implementation tests
 
@@ -270,7 +257,6 @@ mod tests {
     fn test_debug_trait() {
         let instance = GraphIdOpt {
             graph_id: Some("test-graph".to_string()),
-            profile: ProfileOpt::default(),
         };
 
         // Check that Debug formatting doesn't panic and includes the expected content
@@ -282,7 +268,6 @@ mod tests {
     fn test_clone_trait() {
         let original = GraphIdOpt {
             graph_id: Some("clone-test-graph".to_string()),
-            profile: ProfileOpt::default(),
         };
         let cloned = original.clone();
 

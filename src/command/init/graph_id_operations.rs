@@ -1,11 +1,13 @@
 use crate::error::{RoverError, RoverErrorSuggestion};
 use crate::RoverResult;
 use anyhow::anyhow;
-use regex::Regex;   
+use regex::Regex;
 use rover_client::blocking::StudioClient;
-use rover_client::operations::init::{CheckGraphIdAvailabilityInput, check};
+use rover_client::operations::init::{check, CheckGraphIdAvailabilityInput};
+use termimad::minimad::once_cell::sync::Lazy;
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
+static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
 
 #[derive(Debug)]
 pub enum GraphIdValidationError {
@@ -61,64 +63,46 @@ impl GraphIdValidationError {
     }
 }
 
-pub struct GraphIdOperations;
-
-impl GraphIdOperations {
-    pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
-        if graph_id.is_empty() {
-            return Err(GraphIdValidationError::Empty);
-        }
-
-        // Check if it starts with a letter
-        let first_char = graph_id.chars().next().unwrap();
-        if !first_char.is_alphabetic() {
-            return Err(GraphIdValidationError::DoesNotStartWithLetter);
-        }
-
-        // Check if it contains only valid characters
-        let valid_pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]*$").unwrap();
-        if !valid_pattern.is_match(graph_id) {
-            return Err(GraphIdValidationError::ContainsInvalidCharacters);
-        }
-
-        // Check length
-        if graph_id.len() > MAX_GRAPH_ID_LENGTH {
-            return Err(GraphIdValidationError::TooLong);
-        }
-
-        Ok(())
+pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
+    // Check if empty
+    if graph_id.is_empty() {
+        return Err(GraphIdValidationError::Empty);
     }
 
-    pub fn suggest_graph_id_from_project_name(project_name: &str) -> String {
-        let sanitized = project_name
-            .to_lowercase()
-            .replace(' ', "-")
-            .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
-            .collect::<String>();
-
-        sanitized
+    // Check if starts with a letter
+    let first_char = graph_id.chars().next().unwrap();
+    if !first_char.is_alphabetic() {
+        return Err(GraphIdValidationError::DoesNotStartWithLetter);
     }
 
-    pub async fn check_graph_id_availability(
-        graph_id: &str, 
-        client: &StudioClient,
-    ) -> RoverResult<()> {
-        let result = check::run(
-            CheckGraphIdAvailabilityInput {
-                graph_id: graph_id.to_string(),
-            },
-            client,
-        )
-        .await
-        .map_err(|e| RoverError::new(anyhow!("Failed to check graph ID availability: {}", e)))?;
-    
-        if !result.available {
-            return Err(GraphIdValidationError::AlreadyExists.to_rover_error());
-        }
-    
-        Ok(())
+    // Check if there are any invalid characters
+    if INVALID_CHARS_PATTERN.is_match(graph_id) {
+        return Err(GraphIdValidationError::ContainsInvalidCharacters);
     }
+
+    // Check length
+    if graph_id.len() > MAX_GRAPH_ID_LENGTH {
+        return Err(GraphIdValidationError::TooLong);
+    }
+
+    Ok(())
+}
+
+pub async fn check_graph_id_availability(graph_id: &str, client: &StudioClient) -> RoverResult<()> {
+    let result = check::run(
+        CheckGraphIdAvailabilityInput {
+            graph_id: graph_id.to_string(),
+        },
+        client,
+    )
+    .await
+    .map_err(|e| RoverError::new(anyhow!("Failed to check graph ID availability: {}", e)))?;
+
+    if !result.available {
+        return Err(GraphIdValidationError::AlreadyExists.to_rover_error());
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -126,73 +110,113 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_suggest_graph_id_from_project_name() {
-        assert_eq!(
-            GraphIdOperations::suggest_graph_id_from_project_name("My Cool Project"),
-            "my-cool-project"
-        );
+    fn test_validate_graph_id_valid_cases() {
+        // Valid IDs
+        let valid_ids = vec![
+            "valid-id".to_string(),
+            "a".to_string(),
+            "valid_id_with_underscore".to_string(),
+            "validIdWith123Numbers".to_string(),
+            "a-b-c-d".to_string(),
+            "a_b_c_d".to_string(),
+            "aZ09".to_string(),                          // Mixed case and numbers
+            "a".repeat(MAX_GRAPH_ID_LENGTH).to_string(), // Exactly max length
+        ];
 
-        assert_eq!(
-            GraphIdOperations::suggest_graph_id_from_project_name("123-invalid-start"),
-            "g-123-invalid-start"
-        );
-
-        assert_eq!(
-            GraphIdOperations::suggest_graph_id_from_project_name("!!!"),
-            "g-"
-        );
-
-        assert_eq!(
-            GraphIdOperations::suggest_graph_id_from_project_name(""),
-            "g-"
-        );
+        for id in valid_ids {
+            assert!(
+                validate_graph_id(&id).is_ok(),
+                "Expected '{}' to be valid",
+                id
+            );
+        }
     }
 
     #[test]
-    fn test_validate_graph_id() {
-        // Valid IDs
-        assert!(GraphIdOperations::validate_graph_id("valid-id").is_ok());
-        assert!(GraphIdOperations::validate_graph_id("a").is_ok());
-        assert!(GraphIdOperations::validate_graph_id("valid_id_with_underscore").is_ok());
-        assert!(GraphIdOperations::validate_graph_id("validIdWith123Numbers").is_ok());
+    fn test_validate_graph_id_invalid_cases() {
+        let test_cases = vec![
+            ("".to_string(), GraphIdValidationError::Empty),
+            (
+                "123-invalid-start".to_string(),
+                GraphIdValidationError::DoesNotStartWithLetter,
+            ),
+            (
+                "_invalid-start".to_string(),
+                GraphIdValidationError::DoesNotStartWithLetter,
+            ),
+            (
+                "-invalid-start".to_string(),
+                GraphIdValidationError::DoesNotStartWithLetter,
+            ),
+            (
+                "invalid!chars".to_string(),
+                GraphIdValidationError::ContainsInvalidCharacters,
+            ),
+            (
+                "invalid@chars".to_string(),
+                GraphIdValidationError::ContainsInvalidCharacters,
+            ),
+            (
+                "invalid chars".to_string(),
+                GraphIdValidationError::ContainsInvalidCharacters,
+            ),
+            (
+                "invalid/chars".to_string(),
+                GraphIdValidationError::ContainsInvalidCharacters,
+            ),
+            (
+                "a".repeat(MAX_GRAPH_ID_LENGTH + 1),
+                GraphIdValidationError::TooLong,
+            ),
+        ];
 
-        // Invalid IDs
-        assert!(matches!(
-            GraphIdOperations::validate_graph_id(""),
-            Err(GraphIdValidationError::Empty)
-        ));
-
-        assert!(matches!(
-            GraphIdOperations::validate_graph_id("123-invalid-start"),
-            Err(GraphIdValidationError::DoesNotStartWithLetter)
-        ));
-
-        assert!(matches!(
-            GraphIdOperations::validate_graph_id("invalid!chars"),
-            Err(GraphIdValidationError::ContainsInvalidCharacters)
-        ));
-
-        let too_long = "a".repeat(MAX_GRAPH_ID_LENGTH + 1);
-        assert!(matches!(
-            GraphIdOperations::validate_graph_id(&too_long),
-            Err(GraphIdValidationError::TooLong)
-        ));
+        for (id, expected_error) in test_cases {
+            match validate_graph_id(&id) {
+                Err(error) => assert!(
+                    std::mem::discriminant(&error) == std::mem::discriminant(&expected_error),
+                    "Expected '{}' to fail with {:?}, got {:?}",
+                    id,
+                    expected_error,
+                    error
+                ),
+                Ok(_) => panic!("Expected '{}' to be invalid", id),
+            }
+        }
     }
 
-    #[tokio::test]
-    async fn test_check_graph_id_availability() {
-        // Available ID
-        assert!(
-            GraphIdOperations::check_graph_id_availability("available-id")
-                .await
-                .is_ok()
-        );
+    #[test]
+    fn test_error_to_rover_error() {
+        let test_cases = vec![
+            (GraphIdValidationError::Empty, "Graph ID cannot be empty"),
+            (
+                GraphIdValidationError::DoesNotStartWithLetter,
+                "Graph ID must start with a letter",
+            ),
+            (
+                GraphIdValidationError::ContainsInvalidCharacters,
+                "Graph ID contains invalid characters",
+            ),
+            (
+                GraphIdValidationError::AlreadyExists,
+                "Graph ID already exists",
+            ),
+        ];
 
-        // Unavailable ID
-        assert!(
-            GraphIdOperations::check_graph_id_availability("apollo-test-id")
-                .await
-                .is_err()
-        );
+        for (error, expected_message) in test_cases {
+            let rover_error = error.to_rover_error();
+            // Check that the error message matches what we expect
+            assert!(
+                rover_error.to_string().contains(expected_message),
+                "Expected error message to contain '{}', got '{}'",
+                expected_message,
+                rover_error
+            );
+
+            // Verify that a suggestion was provided
+            assert!(
+                !rover_error.suggestions().is_empty(),
+                "Expected error to have a suggestion"
+            );
+        }
     }
 }

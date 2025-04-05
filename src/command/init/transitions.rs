@@ -5,7 +5,7 @@ use camino::Utf8PathBuf;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
-use crate::command::init::graph_id_operations::GraphIdOperations;
+use crate::command::init::graph_id_operations::check_graph_id_availability;
 use crate::command::init::helpers::*;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::TemplateOperations;
@@ -175,7 +175,7 @@ impl GraphIdConfirmed {
         client: &StudioClient,
     ) -> RoverResult<Option<CreationConfirmed>> {
         // Check if graph ID is available
-        GraphIdOperations::check_graph_id_availability(&self.graph_id, client).await?;
+        check_graph_id_availability(&self.graph_id, client).await?;
 
         // Create the configuration
         let config = self.create_config();

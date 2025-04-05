@@ -1,6 +1,6 @@
-use graphql_client::*;
-use crate::RoverClientError;
 use crate::blocking::StudioClient;
+use crate::RoverClientError;
+use graphql_client::*;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(

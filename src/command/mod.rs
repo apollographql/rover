@@ -7,7 +7,7 @@ mod explain;
 mod graph;
 mod info;
 #[cfg(feature = "init")]
-mod init;
+pub(crate) mod init;
 pub(crate) mod install;
 mod license;
 #[cfg(feature = "composition-js")]
@@ -43,4 +43,4 @@ pub use template::Template;
 pub use update::Update;
 
 #[cfg(feature = "init")]
-pub use init::graph_id_operations::{GraphIdOperations, GraphIdValidationError};
+pub use init::graph_id_operations::GraphIdValidationError;

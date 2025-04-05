@@ -6,7 +6,8 @@ mod template_operations;
 mod transitions;
 
 use crate::options::{
-    GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
+    GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
+    ProjectUseCaseOpt,
 };
 use crate::utils::client::StudioClientConfig;
 use crate::RoverOutput;
@@ -47,7 +48,7 @@ pub struct Init {
 impl Init {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        
+
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
