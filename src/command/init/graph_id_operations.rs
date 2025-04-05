@@ -1,11 +1,13 @@
 use crate::error::{RoverError, RoverErrorSuggestion};
 use crate::RoverResult;
 use anyhow::anyhow;
+use rand::Rng;
 use regex::Regex;
 use rover_client::blocking::StudioClient;
 use rover_client::operations::init::{check, CheckGraphIdAvailabilityInput};
 use termimad::minimad::once_cell::sync::Lazy;
 
+const GRAPH_ID_MAX_CHAR: usize = 27;
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
 
@@ -88,6 +90,73 @@ pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
     Ok(())
 }
 
+pub fn generate_unique_string() -> String {
+    // Generate a random number between 0 and 1, convert to base 36, and take substring
+    let mut rng = rand::rng();
+    let random_val: f64 = rng.random();
+    random_val.to_string()[2..]
+        .chars()
+        .map(|c| if c == '.' { 'a' } else { c })
+        .collect::<String>()[..7]
+        .to_string()
+}
+
+pub fn slugify(input: &str) -> String {
+    let mut result = input.to_lowercase().replace(' ', "-");
+
+    // Replace consecutive hyphens with a single hyphen
+    while result.contains("--") {
+        result = result.replace("--", "-");
+    }
+
+    // Remove leading and trailing hyphens
+    result = result
+        .trim_start_matches('-')
+        .trim_end_matches('-')
+        .to_string();
+
+    result
+}
+
+pub fn generate_graph_id(graph_name: &str) -> String {
+    // Step 1: Slugify the graph name with strict mode
+    let mut slugified_name = slugify(graph_name);
+
+    // Step 2: Remove non-alphabetic characters from the beginning
+    let alphabetic_start_index = slugified_name
+        .chars()
+        .position(|c| c.is_alphabetic())
+        .unwrap_or(slugified_name.len());
+    slugified_name = slugified_name[alphabetic_start_index..].to_string();
+
+    // Step 3: Calculate how much space to reserve for the unique string
+    let unique_string = generate_unique_string();
+    let unique_string_length = unique_string.len() + 1;
+
+    // Step 4: Get the appropriate slice of slugified name
+    let max_name_length = if GRAPH_ID_MAX_CHAR > unique_string_length {
+        GRAPH_ID_MAX_CHAR - unique_string_length
+    } else {
+        0
+    };
+
+    let name_part = slugified_name[..slugified_name.len().min(max_name_length)].to_string();
+
+    // Step 5: Add "id" if name is empty
+    let name_part = if name_part.is_empty() {
+        "id".to_string()
+    } else {
+        name_part
+    };
+
+    // Step 6: Append unique string if provided
+    let result = format!("{}-{}", name_part, unique_string);
+
+    // Step 7: Slugify again and ensure max length
+    let final_result = slugify(&result);
+    final_result[..final_result.len().min(GRAPH_ID_MAX_CHAR)].to_string()
+}
+
 pub async fn check_graph_id_availability(graph_id: &str, client: &StudioClient) -> RoverResult<()> {
     let result = check::run(
         CheckGraphIdAvailabilityInput {
@@ -103,6 +172,19 @@ pub async fn check_graph_id_availability(graph_id: &str, client: &StudioClient) 
     }
 
     Ok(())
+}
+
+pub async fn validate_and_check_availability(
+    graph_id: &str,
+    client: &StudioClient,
+) -> RoverResult<()> {
+    // First validate the format
+    if let Err(validation_error) = validate_graph_id(graph_id) {
+        return Err(validation_error.to_rover_error());
+    }
+
+    // Then check if available
+    check_graph_id_availability(graph_id, client).await
 }
 
 #[cfg(test)]
