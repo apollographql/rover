@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 
-use crate::error::{RoverError, RoverErrorSuggestion};
-use super::super::validation::GraphIdValidationError;
 use super::super::availability::AvailabilityError;
+use super::super::validation::GraphIdValidationError;
+use crate::error::{RoverError, RoverErrorSuggestion};
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 
@@ -68,7 +68,8 @@ mod tests {
 
     #[test]
     fn test_validation_error_to_rover_error() {
-        let expected_message = format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH);
+        let expected_message =
+            format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH);
         let test_cases = vec![
             (GraphIdValidationError::Empty, "Graph ID cannot be empty"),
             (
@@ -79,10 +80,7 @@ mod tests {
                 GraphIdValidationError::ContainsInvalidCharacters,
                 "Graph ID contains invalid characters",
             ),
-            (
-                GraphIdValidationError::TooLong,
-                &expected_message,
-            ),
+            (GraphIdValidationError::TooLong, &expected_message),
         ];
 
         for (error, expected_message) in test_cases {
@@ -108,15 +106,17 @@ mod tests {
         // Test AlreadyExists error
         let already_exists = availability_error_to_rover_error(AvailabilityError::AlreadyExists);
         assert!(
-            already_exists.to_string().contains("Graph ID already exists"),
+            already_exists
+                .to_string()
+                .contains("Graph ID already exists"),
             "Expected error message to contain 'Graph ID already exists'"
         );
         assert!(!already_exists.suggestions().is_empty());
 
         // Test NetworkError
-        let network_error = availability_error_to_rover_error(
-            AvailabilityError::NetworkError(anyhow!("Connection timeout"))
-        );
+        let network_error = availability_error_to_rover_error(AvailabilityError::NetworkError(
+            anyhow!("Connection timeout"),
+        ));
         assert!(
             network_error.to_string().contains("Network error"),
             "Expected error message to contain 'Network error'"

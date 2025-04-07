@@ -21,7 +21,9 @@ pub async fn check_availability(
         client,
     )
     .await
-    .map_err(|e| AvailabilityError::NetworkError(anyhow!("Failed to check graph ID availability: {}", e)))?;
+    .map_err(|e| {
+        AvailabilityError::NetworkError(anyhow!("Failed to check graph ID availability: {}", e))
+    })?;
 
     if !result.available {
         return Err(AvailabilityError::AlreadyExists);

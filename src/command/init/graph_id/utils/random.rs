@@ -9,7 +9,7 @@ impl RandomStringGenerator for DefaultRandomStringGenerator {
     fn generate_string(&mut self, length: usize) -> String {
         let mut rng = rand::rng();
         let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
-        
+
         (0..length)
             .map(|_| {
                 let idx = rng.random_range(0..chars.len());
@@ -44,7 +44,7 @@ mod tests {
         let mut generator = DefaultRandomStringGenerator;
         let s1 = generator.generate_string(7);
         let s2 = generator.generate_string(7);
-        
+
         // Each string should be the requested length
         assert_eq!(s1.len(), 7);
         assert_eq!(s2.len(), 7);
@@ -55,7 +55,7 @@ mod tests {
         let mut generator = TestRandomStringGenerator {
             value: "testvalue".to_string(),
         };
-        
+
         assert_eq!(generator.generate_string(4), "test");
         assert_eq!(generator.generate_string(10), "testvaluea");
     }

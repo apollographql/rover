@@ -68,10 +68,7 @@ mod tests {
         );
 
         // Empty string
-        assert_eq!(
-            generate_graph_id("", &mut generator),
-            "id-teststr"
-        );
+        assert_eq!(generate_graph_id("", &mut generator), "id-teststr");
 
         // Very long name (should be truncated)
         let long_name = "a".repeat(100);

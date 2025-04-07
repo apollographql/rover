@@ -1,7 +1,4 @@
-use crate::command::init::graph_id::{
-    validate_and_check_availability,
-    generate_unique_graph_id
-};
+use crate::command::init::graph_id::{generate_unique_graph_id, validate_and_check_availability};
 use crate::{RoverError, RoverResult};
 use clap::arg;
 use clap::Parser;
