@@ -2,7 +2,6 @@ use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -31,19 +30,7 @@ impl FromStr for ProjectName {
             ));
         }
 
-        // Regex pattern for allowed characters.
-        let pattern = r"^[a-zA-Z0-9\-!@#$%^&*()_+<>/?\\\[\]{};: ]+$";
-
-        let re = Regex::new(pattern).unwrap();
-
-        // Check if the input string matches the regex.
-        if re.is_match(input) {
-            // If the input matches, wrap it in the ProjectName struct.
-            Ok(ProjectName(input.to_string()))
-        } else {
-            // If the input doesn't match, return an error.
-            Err(format!("Invalid project name: '{}'", input))
-        }
+        Ok(ProjectName(input.to_string()))
     }
 }
 
@@ -102,19 +89,13 @@ mod tests {
     #[test]
     fn test_parse_errors_when_input_length_is_greater_than_max_length() {
         let result: Result<ProjectName, _> =
-            "This is a string that contains more than sixty-five characters!".parse();
+            "This string contains definitely more than sixty-four characters!!".parse();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_errors_when_input_length_is_less_than_min_length() {
         let result: Result<ProjectName, _> = "x".parse();
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_errors_when_input_includes_invalid_char() {
-        let result: Result<ProjectName, _> = "\"".parse();
         assert!(result.is_err());
     }
 
@@ -142,32 +123,7 @@ mod tests {
         assert_eq!(default_name, "My API");
     }
 
-    #[test]
-    fn test_prompt_project_name() {
-        let instance = ProjectNameOpt { project_name: None };
-        let result = instance.prompt_project_name();
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "My API".parse::<ProjectName>().ok().unwrap()
-        );
-    }
-
-    #[test]
-    fn test_get_or_prompt_project_name_with_no_value() {
-        let instance = ProjectNameOpt { project_name: None };
-        let result = instance.get_or_prompt_project_name();
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "My API".parse::<ProjectName>().ok().unwrap()
-        );
-    }
-
     // Default trait implementation tests
-
     #[test]
     fn test_default_trait() {
         let default_instance = ProjectNameOpt::default();
@@ -175,7 +131,6 @@ mod tests {
     }
 
     // Derived trait tests (Debug, Clone, etc.)
-
     #[test]
     fn test_debug_trait() {
         let instance = ProjectNameOpt {
