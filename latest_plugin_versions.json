@@ -9,7 +9,7 @@
   "router": {
     "repository": "https://github.com/apollographql/router",
     "versions": {
-      "latest-1": "v1.61.1",
+      "latest-1": "v1.61.2",
       "latest-2": "v2.1.1"
     }
   }
