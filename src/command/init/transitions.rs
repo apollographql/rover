@@ -1,5 +1,6 @@
 use std::env;
 use std::fs::read_dir;
+use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
 use rover_http::ReqwestService;
@@ -29,22 +30,29 @@ use anyhow::anyhow;
 /// > Add a subgraph to an existing GraphQL API
 impl Welcome {
     pub fn new() -> Self {
-        Welcome
+        Welcome {}
     }
 
-    pub fn select_project_type(self, options: &ProjectTypeOpt) -> RoverResult<ProjectTypeSelected> {
+    pub fn select_project_type(
+        self,
+        options: &ProjectTypeOpt,
+        override_install_path: &Option<PathBuf>,
+    ) -> RoverResult<ProjectTypeSelected> {
         display_welcome_message();
 
         // Check if directory is empty before proceeding
         let current_dir = env::current_dir()?;
-        match read_dir(&current_dir) {
+        let output_path =
+            Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
+                .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
+        match read_dir(&output_path) {
             Ok(mut dir) => {
                 if dir.next().is_some() {
                     return Err(RoverError::new(anyhow!(
                         "Cannot initialize the project because the current directory is not empty."
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        "Please run Init on an empty directory".to_string(),
+                        "Please run `init` on an empty directory".to_string(),
                     )));
                 }
             }
@@ -56,7 +64,10 @@ impl Welcome {
             None => options.prompt_project_type()?,
         };
 
-        Ok(ProjectTypeSelected { project_type })
+        Ok(ProjectTypeSelected {
+            project_type,
+            output_path,
+        })
     }
 }
 
@@ -78,6 +89,7 @@ impl ProjectTypeSelected {
         let organization = options.get_or_prompt_organization(&organizations)?;
 
         Ok(OrganizationSelected {
+            output_path: self.output_path,
             project_type: self.project_type,
             organization,
         })
@@ -95,6 +107,7 @@ impl OrganizationSelected {
         let use_case = options.get_or_prompt_use_case()?;
 
         Ok(UseCaseSelected {
+            output_path: self.output_path,
             project_type: self.project_type,
             organization: self.organization,
             use_case,
@@ -111,6 +124,7 @@ impl UseCaseSelected {
         let project_name = options.get_or_prompt_project_name()?;
 
         Ok(ProjectNamed {
+            output_path: self.output_path,
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
@@ -125,9 +139,10 @@ impl UseCaseSelected {
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
     pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options.get_or_prompt_graph_id(&self.project_name)?;
+        let graph_id = options.get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(GraphIdConfirmed {
+            output_path: self.output_path,
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
@@ -191,7 +206,7 @@ impl GraphIdConfirmed {
                 Ok(Some(CreationConfirmed {
                     config,
                     template: template_fetcher,
-                    output_path: None, // Default to current directory
+                    output_path: self.output_path,
                 }))
             }
             Ok(false) => {
@@ -212,15 +227,9 @@ impl CreationConfirmed {
     pub async fn create_project(self) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
 
-        // Get the output path (current directory or specified path)
-        let current_dir = env::current_dir()?;
-        let current_dir = Utf8PathBuf::from_path_buf(current_dir)
-            .map_err(|_| anyhow::anyhow!("Failed to parse current directory"))?;
-        let output_path = self.output_path.unwrap_or(current_dir);
-
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
-        self.template.write_template(&output_path)?;
+        self.template.write_template(&self.output_path)?;
 
         // Get the list of created files
         let artifacts = self.template.list_files()?;
@@ -253,7 +262,7 @@ impl CreationConfirmed {
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
         display_project_created_message(
-            &self.config.project_name,
+            &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
             &self.api_key,
