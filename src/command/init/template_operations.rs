@@ -75,7 +75,8 @@ impl TemplateOperations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{env, fs};
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     pub fn test_writing_supergraph_yaml_new() {
@@ -86,13 +87,13 @@ mod tests {
         )
         .unwrap();
 
-        let temp_dir = env::temp_dir();
-        let output_dir = Utf8PathBuf::from_path_buf(temp_dir).unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = Utf8PathBuf::from_path_buf(temp_dir.into_path()).unwrap();
         let expected_path = output_dir.join("supergraph.yaml");
 
         TemplateOperations::generate_supergraph(output_dir, subgraph).unwrap();
 
-        let supergraph_yaml_content = std::fs::read_to_string(expected_path).unwrap();
+        let supergraph_yaml_content = fs::read_to_string(expected_path).unwrap();
         assert_eq!(
             supergraph_yaml_content,
             "subgraphs:\n  test:\n    routing_url: http://localhost:4000\n    schema:\n      file: test.graphql\nfederation_version: '2'\n"
@@ -101,8 +102,8 @@ mod tests {
 
     #[test]
     pub fn test_writing_supergraph_yaml_replace_existing() {
-        let temp_dir = env::temp_dir();
-        let output_dir = Utf8PathBuf::from_path_buf(temp_dir).unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = Utf8PathBuf::from_path_buf(temp_dir.into_path()).unwrap();
         let original_path = output_dir.join("supergraph.yaml");
         let expected_path = original_path.clone();
 
@@ -118,7 +119,7 @@ mod tests {
 
         TemplateOperations::generate_supergraph(output_dir, subgraph).unwrap();
 
-        let supergraph_yaml_content = std::fs::read_to_string(expected_path).unwrap();
+        let supergraph_yaml_content = fs::read_to_string(expected_path).unwrap();
         assert_eq!(
             supergraph_yaml_content,
             "subgraphs:\n  test:\n    routing_url: http://localhost:4000\n    schema:\n      file: test.graphql\nfederation_version: '2'\n"
