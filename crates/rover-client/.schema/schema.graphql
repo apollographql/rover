@@ -23,6 +23,12 @@ type Organization {
   sessionDurationInSeconds: Int
   auditLogExports: [AuditLogExport!]
 
+  """Checks if a graph ID is available for use (case-insensitive)."""
+  graphIDAvailable(
+    """The graph ID to check."""
+    id: ID!
+  ): Boolean!
+
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
 
@@ -1072,6 +1078,9 @@ type SubgraphPublicationResult {
 
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
+
+  """All subgraphs that were updated from this mutation"""
+  subgraphsUpdated: [String!]!
 
   """The Launch result part of this subgraph publish."""
   launch: Launch

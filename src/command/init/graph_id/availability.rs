@@ -12,10 +12,12 @@ pub enum AvailabilityError {
 /// Checks if a graph ID is available for use on the server.
 pub async fn check_availability(
     graph_id: &str,
+    organization_id: &str,
     client: &StudioClient,
 ) -> Result<(), AvailabilityError> {
     let result = check::run(
         CheckGraphIdAvailabilityInput {
+            organization_id: organization_id.to_string(),
             graph_id: graph_id.to_string(),
         },
         client,

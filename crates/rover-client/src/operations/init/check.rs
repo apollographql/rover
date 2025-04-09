@@ -1,6 +1,7 @@
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
@@ -24,24 +25,31 @@ pub async fn run(
 fn build_response(
     data: check_graph_id_availability_query::ResponseData,
 ) -> Result<CheckGraphIdAvailabilityResponse, RoverClientError> {
-    Ok(CheckGraphIdAvailabilityResponse {
-        available: data.graph.is_none(),
-    })
+    match data.organization {
+        Some(org) => Ok(CheckGraphIdAvailabilityResponse {
+            available: org.graph_id_available,
+        }),
+        None => Err(RoverClientError::AdhocError {
+            msg: "Organization not found".to_string(),
+        }),
+    }
 }
 
 impl From<CheckGraphIdAvailabilityInput> for check_graph_id_availability_query::Variables {
     fn from(input: CheckGraphIdAvailabilityInput) -> Self {
         Self {
+            organization_id: input.organization_id,
             graph_id: input.graph_id,
         }
     }
 }
 
 pub struct CheckGraphIdAvailabilityInput {
+    pub organization_id: String,
     pub graph_id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CheckGraphIdAvailabilityResponse {
     pub available: bool,
 }

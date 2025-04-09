@@ -1,5 +1,5 @@
-query CheckGraphIdAvailabilityQuery($graphId: ID!) {
-  graph(id: $graphId) {
-    id
+query CheckGraphIdAvailabilityQuery($organizationId: ID!, $graphId: ID!) {
+  organization(id: $organizationId) {
+    graphIDAvailable(id: $graphId)
   }
 }

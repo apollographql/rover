@@ -33,22 +33,24 @@ impl GraphIdOpt {
         &self,
         client: &StudioClient,
         project_name: &str,
+        organization_id: &str,
     ) -> RoverResult<String> {
         let initial_id = self.get_initial_graph_id(project_name);
 
         // If a value is provided, validate it without prompting
         if self.graph_id.is_some() {
-            validate_and_check_availability(&initial_id, client).await?;
+            validate_and_check_availability(&initial_id, organization_id, client).await?;
             return Ok(initial_id);
         }
 
         // Otherwise enter prompt/validate loop
-        self.prompt_graph_id(initial_id, client).await
+        self.prompt_graph_id(initial_id, organization_id, client).await
     }
 
     async fn prompt_graph_id(
         &self,
         suggested_id: String,
+        organization_id: &str,
         client: &StudioClient,
     ) -> RoverResult<String> {
         const MAX_RETRIES: usize = 3;
@@ -56,7 +58,7 @@ impl GraphIdOpt {
         for attempt in 1..=MAX_RETRIES {
             let input = self.prompt_for_input(&suggested_id)?;
 
-            match validate_and_check_availability(&input, client).await {
+            match validate_and_check_availability(&input, organization_id, client).await {
                 Ok(()) => return Ok(input),
                 Err(e) => self.handle_validation_error(e, attempt, MAX_RETRIES)?,
             }

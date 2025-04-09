@@ -18,11 +18,12 @@ use self::validation::validate_graph_id;
 /// Validate a graph ID format and checks its availability
 pub async fn validate_and_check_availability(
     graph_id: &str,
+    organization_id: &str,
     client: &StudioClient,
 ) -> RoverResult<()> {
     validate_graph_id(graph_id).map_err(validation_error_to_rover_error)?;
 
-    check_availability(graph_id, client)
+    check_availability(graph_id, organization_id, client)
         .await
         .map_err(availability_error_to_rover_error)?;
 
