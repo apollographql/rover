@@ -1,3 +1,5 @@
 * @apollographql/graph-tooling
 docs @apollographql/docs @apollographql/graph-tooling
 src/command/init @apollographql/team-growth
+src/command/tests @apollographql/team-growth
+src/options @apollographql/team-growth
