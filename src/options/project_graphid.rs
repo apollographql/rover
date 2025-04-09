@@ -19,32 +19,23 @@ impl Default for GraphIdOpt {
 }
 
 impl GraphIdOpt {
-    fn get_initial_graph_id(&self, project_name: &str) -> String {
-        // If user provides in the command line use that
-        if let Some(ref id) = self.graph_id {
-            id.clone()
-        } else {
-            // Otherwise use suggested default
-            generate_unique_graph_id(project_name)
-        }
-    }
-
     pub async fn get_or_prompt_graph_id(
         &self,
         client: &StudioClient,
         project_name: &str,
         organization_id: &str,
     ) -> RoverResult<String> {
-        let initial_id = self.get_initial_graph_id(project_name);
-
-        // If a value is provided, validate it without prompting
-        if self.graph_id.is_some() {
-            validate_and_check_availability(&initial_id, organization_id, client).await?;
-            return Ok(initial_id);
+        // Handle the case when graph_id is provided via command line
+        if let Some(ref id) = self.graph_id {
+            validate_and_check_availability(id, organization_id, client).await?;
+            return Ok(id.clone());
         }
-
-        // Otherwise enter prompt/validate loop
-        self.prompt_graph_id(initial_id, organization_id, client).await
+        
+        // Generate a suggested ID for the prompt
+        let suggested_id = generate_unique_graph_id(project_name);
+        
+        // Enter prompt/validate loop
+        self.prompt_graph_id(suggested_id, organization_id, client).await
     }
 
     async fn prompt_graph_id(
