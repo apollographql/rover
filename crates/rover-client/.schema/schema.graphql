@@ -23,12 +23,6 @@ type Organization {
   sessionDurationInSeconds: Int
   auditLogExports: [AuditLogExport!]
 
-  """Checks if a graph ID is available for use (case-insensitive)."""
-  graphIDAvailable(
-    """The graph ID to check."""
-    id: ID!
-  ): Boolean!
-
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
 
