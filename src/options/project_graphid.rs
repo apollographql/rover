@@ -1,7 +1,7 @@
-use crate::command::init::graph_id::generation::generate_graph_id;
-use crate::command::init::graph_id::{GraphId, validation::GraphIdValidationError};
 use crate::command::init::graph_id::errors::conversions::validation_error_to_rover_error;
+use crate::command::init::graph_id::generation::generate_graph_id;
 use crate::command::init::graph_id::utils::random::DefaultRandomStringGenerator;
+use crate::command::init::graph_id::{validation::GraphIdValidationError, GraphId};
 use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
@@ -22,28 +22,22 @@ impl Default for GraphIdOpt {
 }
 
 impl GraphIdOpt {
-    pub fn get_or_prompt_graph_id(
-        &self,
-        project_name: &str,
-    ) -> RoverResult<GraphId> {
+    pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<GraphId> {
         // Handle the case when graph_id is provided via command line
         if let Some(ref id) = self.graph_id {
             // Parse string into GraphId
             let graph_id = GraphId::from_str(id)?;
             return Ok(graph_id);
         }
-        
+
         // Generate a suggested ID for the prompt
         let suggested_id = generate_graph_id(project_name, &mut DefaultRandomStringGenerator);
-        
+
         // Enter prompt/validate loop
         self.prompt_graph_id(suggested_id)
     }
 
-    fn prompt_graph_id(
-        &self,
-        suggested_id: String,
-    ) -> RoverResult<GraphId> {
+    fn prompt_graph_id(&self, suggested_id: String) -> RoverResult<GraphId> {
         const MAX_RETRIES: usize = 3;
 
         for attempt in 1..=MAX_RETRIES {

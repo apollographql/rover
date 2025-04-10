@@ -55,7 +55,8 @@ impl Init {
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
             .confirm_graph_id(&self.graph_id)?
-            .preview_and_confirm_creation(http_service).await?;
+            .preview_and_confirm_creation(http_service)
+            .await?;
 
         match creation_confirmed_option {
             Some(creation_confirmed) => {

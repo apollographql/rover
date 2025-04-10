@@ -1,9 +1,9 @@
 use regex::Regex;
-use termimad::minimad::once_cell::sync::Lazy;
-use std::fmt;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::fmt;
 use std::str::FromStr;
-use serde::{Serialize, Deserialize};
+use termimad::minimad::once_cell::sync::Lazy;
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
@@ -18,7 +18,7 @@ impl GraphId {
     pub fn _as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Consumes self and returns the inner String
     pub fn _into_string(self) -> String {
         self.0
@@ -44,14 +44,10 @@ pub enum GraphIdValidationError {
 impl fmt::Display for GraphIdValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GraphIdValidationError::Empty => 
-                write!(f, "Graph ID cannot be empty"),
-            GraphIdValidationError::DoesNotStartWithLetter => 
-                write!(f, "Graph ID must start with a letter"),
-            GraphIdValidationError::ContainsInvalidCharacters => 
-                write!(f, "Graph ID contains invalid characters (only letters, numbers, underscores, and hyphens are allowed)"),
-            GraphIdValidationError::TooLong => 
-                write!(f, "Graph ID exceeds maximum length of {} characters", MAX_GRAPH_ID_LENGTH),
+            GraphIdValidationError::Empty => write!(f, "Graph ID cannot be empty"),
+            GraphIdValidationError::DoesNotStartWithLetter => write!(f, "Graph ID must start with a letter"),
+            GraphIdValidationError::ContainsInvalidCharacters => write!(f, "Graph ID contains invalid characters (only letters, numbers, underscores, and hyphens are allowed)"),
+            GraphIdValidationError::TooLong => write!(f, "Graph ID exceeds maximum length of {} characters", MAX_GRAPH_ID_LENGTH),
         }
     }
 }

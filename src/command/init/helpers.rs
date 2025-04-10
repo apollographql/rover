@@ -1,5 +1,5 @@
-use camino::Utf8PathBuf;
 use crate::command::init::graph_id::validation::GraphId;
+use camino::Utf8PathBuf;
 
 pub fn display_welcome_message() {
     println!("\nWelcome! This command helps you initialize a federated GraphQL API in your current directory.");

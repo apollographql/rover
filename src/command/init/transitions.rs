@@ -138,12 +138,8 @@ impl UseCaseSelected {
 ///
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
-    pub fn confirm_graph_id(
-        self,
-        options: &GraphIdOpt,
-    ) -> RoverResult<GraphIdConfirmed> {
-        let graph_id = options
-            .get_or_prompt_graph_id(&self.project_name.to_string())?;
+    pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
+        let graph_id = options.get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(GraphIdConfirmed {
             output_path: self.output_path,

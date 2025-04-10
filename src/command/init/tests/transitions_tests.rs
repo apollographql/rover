@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::command::init::config::ProjectConfig;
-    use crate::command::init::states::*;
     use crate::command::init::graph_id::GraphId;
+    use crate::command::init::states::*;
     use crate::options::{
-        ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
-        ProjectUseCase, ProjectUseCaseOpt,
+        ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectUseCase,
+        ProjectUseCaseOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -179,7 +179,10 @@ mod tests {
         assert_eq!(next_state.organization, "test-org");
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
         assert_eq!(next_state.project_name, "test-project".parse().unwrap());
-        assert_eq!(next_state.graph_id, "test-graph-id".parse::<GraphId>().unwrap());
+        assert_eq!(
+            next_state.graph_id,
+            "test-graph-id".parse::<GraphId>().unwrap()
+        );
     }
 
     #[test]
@@ -261,7 +264,10 @@ mod tests {
             next_state.config.project_name,
             "test-project".parse::<ProjectName>().unwrap()
         );
-        assert_eq!(next_state.config.graph_id, "test-graph-id".parse::<GraphId>().unwrap());
+        assert_eq!(
+            next_state.config.graph_id,
+            "test-graph-id".parse::<GraphId>().unwrap()
+        );
     }
 
     #[tokio::test]
