@@ -1,5 +1,7 @@
 use regex::Regex;
 use termimad::minimad::once_cell::sync::Lazy;
+use std::fmt;
+use std::error::Error;
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
@@ -13,6 +15,23 @@ pub enum GraphIdValidationError {
     ContainsInvalidCharacters,
     TooLong,
 }
+
+impl fmt::Display for GraphIdValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GraphIdValidationError::Empty => 
+                write!(f, "Graph ID cannot be empty"),
+            GraphIdValidationError::DoesNotStartWithLetter => 
+                write!(f, "Graph ID must start with a letter"),
+            GraphIdValidationError::ContainsInvalidCharacters => 
+                write!(f, "Graph ID contains invalid characters (only letters, numbers, underscores, and hyphens are allowed)"),
+            GraphIdValidationError::TooLong => 
+                write!(f, "Graph ID exceeds maximum length of {} characters", MAX_GRAPH_ID_LENGTH),
+        }
+    }
+}
+
+impl Error for GraphIdValidationError {}
 
 pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
     if graph_id.is_empty() {

@@ -18,7 +18,6 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
 use anyhow::anyhow;
-use rover_client::blocking::StudioClient;
 
 /// PROMPT UX:
 /// ==========
@@ -139,14 +138,12 @@ impl UseCaseSelected {
 ///
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
-    pub async fn confirm_graph_id(
+    pub fn confirm_graph_id(
         self,
         options: &GraphIdOpt,
-        client: &StudioClient,
     ) -> RoverResult<GraphIdConfirmed> {
         let graph_id = options
-            .get_or_prompt_graph_id(client, &self.project_name, &self.organization)
-            .await?;
+            .get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(GraphIdConfirmed {
             output_path: self.output_path,

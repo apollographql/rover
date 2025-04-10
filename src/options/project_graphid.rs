@@ -1,9 +1,11 @@
-use crate::command::init::graph_id::{generate_unique_graph_id, validate_and_check_availability};
-use crate::{RoverError, RoverResult};
+use crate::command::init::graph_id::generation::generate_graph_id;
+use crate::command::init::graph_id::validation::{validate_graph_id, GraphIdValidationError};
+use crate::command::init::graph_id::errors::conversions::validation_error_to_rover_error;
+use crate::command::init::graph_id::utils::random::DefaultRandomStringGenerator;
+use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
-use rover_client::blocking::StudioClient;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
@@ -19,37 +21,33 @@ impl Default for GraphIdOpt {
 }
 
 impl GraphIdOpt {
-    pub async fn get_or_prompt_graph_id(
+    pub fn get_or_prompt_graph_id(
         &self,
-        client: &StudioClient,
         project_name: &str,
-        organization_id: &str,
     ) -> RoverResult<String> {
         // Handle the case when graph_id is provided via command line
         if let Some(ref id) = self.graph_id {
-            validate_and_check_availability(id, organization_id, client).await?;
+            validate_graph_id(id)?;
             return Ok(id.clone());
         }
         
         // Generate a suggested ID for the prompt
-        let suggested_id = generate_unique_graph_id(project_name);
+        let suggested_id = generate_graph_id(project_name, &mut DefaultRandomStringGenerator);
         
         // Enter prompt/validate loop
-        self.prompt_graph_id(suggested_id, organization_id, client).await
+        self.prompt_graph_id(suggested_id)
     }
 
-    async fn prompt_graph_id(
+    fn prompt_graph_id(
         &self,
         suggested_id: String,
-        organization_id: &str,
-        client: &StudioClient,
     ) -> RoverResult<String> {
         const MAX_RETRIES: usize = 3;
 
         for attempt in 1..=MAX_RETRIES {
             let input = self.prompt_for_input(&suggested_id)?;
 
-            match validate_and_check_availability(&input, organization_id, client).await {
+            match validate_graph_id(&input) {
                 Ok(()) => return Ok(input),
                 Err(e) => self.handle_validation_error(e, attempt, MAX_RETRIES)?,
             }
@@ -71,17 +69,17 @@ impl GraphIdOpt {
 
     fn handle_validation_error(
         &self,
-        error: RoverError,
+        error: GraphIdValidationError,
         attempt: usize,
         max_retries: usize,
     ) -> RoverResult<()> {
         // If last attempt, propagate the error
         if attempt == max_retries {
-            return Err(error);
+            return Err(validation_error_to_rover_error(error));
         }
 
         // Otherwise display error and signal to retry
-        eprintln!("Error: {}", error);
+        eprintln!("{}", error);
         eprintln!("Please try again (attempt {}/{})", attempt, max_retries);
         Ok(())
     }

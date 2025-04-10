@@ -11,7 +11,6 @@ use crate::options::{
     GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
-use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use rover_http::ReqwestService;
@@ -46,9 +45,7 @@ pub struct Init {
 }
 
 impl Init {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
-
+    pub async fn run(&self) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
@@ -57,10 +54,8 @@ impl Init {
             .select_organization(&self.organization)?
             .select_use_case(&self.project_use_case)?
             .enter_project_name(&self.project_name)?
-            .confirm_graph_id(&self.graph_id, &client)
-            .await?
-            .preview_and_confirm_creation(http_service)
-            .await?;
+            .confirm_graph_id(&self.graph_id)?
+            .preview_and_confirm_creation(http_service).await?;
 
         match creation_confirmed_option {
             Some(creation_confirmed) => {

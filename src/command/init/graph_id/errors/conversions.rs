@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 
-use super::super::availability::AvailabilityError;
 use super::super::validation::GraphIdValidationError;
 use crate::error::{RoverError, RoverErrorSuggestion};
 
@@ -37,26 +36,6 @@ pub fn validation_error_to_rover_error(error: GraphIdValidationError) -> RoverEr
                 "Please ensure your graph ID is no longer than {} characters.",
                 MAX_GRAPH_ID_LENGTH
             ));
-            RoverError::new(anyhow!(message)).with_suggestion(suggestion)
-        }
-    }
-}
-
-/// Convert an AvailabilityError to a RoverError with suggestion
-pub fn availability_error_to_rover_error(error: AvailabilityError) -> RoverError {
-    match error {
-        AvailabilityError::NetworkError(e) => {
-            let message = format!("Network error while checking graph ID availability: {}", e);
-            let suggestion = RoverErrorSuggestion::Adhoc(
-                "Please check your network connection and try again.".to_string(),
-            );
-            RoverError::new(anyhow!(message)).with_suggestion(suggestion)
-        }
-        AvailabilityError::AlreadyExists => {
-            let message = "Graph ID already exists";
-            let suggestion = RoverErrorSuggestion::Adhoc(
-                "This graph ID is already in use. Please choose a different name for your GraphQL API.".to_string(),
-            );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
     }
@@ -99,28 +78,5 @@ mod tests {
                 "Expected error to have a suggestion"
             );
         }
-    }
-
-    #[test]
-    fn test_availability_error_to_rover_error() {
-        // Test AlreadyExists error
-        let already_exists = availability_error_to_rover_error(AvailabilityError::AlreadyExists);
-        assert!(
-            already_exists
-                .to_string()
-                .contains("Graph ID already exists"),
-            "Expected error message to contain 'Graph ID already exists'"
-        );
-        assert!(!already_exists.suggestions().is_empty());
-
-        // Test NetworkError
-        let network_error = availability_error_to_rover_error(AvailabilityError::NetworkError(
-            anyhow!("Connection timeout"),
-        ));
-        assert!(
-            network_error.to_string().contains("Network error"),
-            "Expected error message to contain 'Network error'"
-        );
-        assert!(!network_error.suggestions().is_empty());
     }
 }
