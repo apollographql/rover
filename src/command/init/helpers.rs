@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use crate::command::init::graph_id::validation::GraphId;
 
 pub fn display_welcome_message() {
     println!("\nWelcome! This command helps you initialize a federated GraphQL API in your current directory.");
@@ -8,8 +9,8 @@ pub fn display_welcome_message() {
 pub fn display_project_created_message(
     project_name: &str,
     artifacts: &Vec<Utf8PathBuf>,
-    graph_id: &str,
-    api_key: &str,
+    graph_id: &GraphId,
+    _api_key: &str,
 ) {
     println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", project_name);
 
@@ -20,14 +21,10 @@ pub fn display_project_created_message(
     }
 
     // Display credentials
-    println!("\nGraphOS credentials for your GraphQL API");
-    println!("✓ APOLLO_GRAPH_REF={}@current (Formatted graph-id@variant, references a GraphQL API in the Apollo GraphOS platform)", graph_id);
-    println!(
-        "✓ APOLLO_KEY={} (This is your project's API key, also known as a graph API key)",
-        api_key
-    );
+    println!("\nGraphOS credentials");
+    println!("Graph: {}", graph_id);
+    println!("API Key: TODO");
 
-    // Display next steps
     println!("\n️▲ Before you proceed:");
     println!("- Set your graph API key as an environment variable (learn more about env vars by running `rover docs open config`)");
     println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");

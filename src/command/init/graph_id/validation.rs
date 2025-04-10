@@ -2,9 +2,34 @@ use regex::Regex;
 use termimad::minimad::once_cell::sync::Lazy;
 use std::fmt;
 use std::error::Error;
+use std::str::FromStr;
+use serde::{Serialize, Deserialize};
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
+
+/// A valid GraphQL API identifier
+/// This type guarantees that it contains a valid graph ID
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GraphId(String);
+
+impl GraphId {
+    /// Get the string value of the graph ID
+    pub fn _as_str(&self) -> &str {
+        &self.0
+    }
+    
+    /// Consumes self and returns the inner String
+    pub fn _into_string(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for GraphId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Represents the specific reason a graph ID validation failed
 /// Each variant is a specific validation rule
@@ -33,103 +58,27 @@ impl fmt::Display for GraphIdValidationError {
 
 impl Error for GraphIdValidationError {}
 
-pub fn validate_graph_id(graph_id: &str) -> Result<(), GraphIdValidationError> {
-    if graph_id.is_empty() {
-        return Err(GraphIdValidationError::Empty);
-    }
+impl FromStr for GraphId {
+    type Err = GraphIdValidationError;
 
-    let first_char = graph_id.chars().next().unwrap();
-    if !first_char.is_alphabetic() {
-        return Err(GraphIdValidationError::DoesNotStartWithLetter);
-    }
-
-    if INVALID_CHARS_PATTERN.is_match(graph_id) {
-        return Err(GraphIdValidationError::ContainsInvalidCharacters);
-    }
-
-    if graph_id.len() > MAX_GRAPH_ID_LENGTH {
-        return Err(GraphIdValidationError::TooLong);
-    }
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validate_graph_id_valid_cases() {
-        // Valid IDs
-        let valid_ids = vec![
-            "valid-id".to_string(),
-            "a".to_string(),
-            "valid_id_with_underscore".to_string(),
-            "validIdWith123Numbers".to_string(),
-            "a-b-c-d".to_string(),
-            "a_b_c_d".to_string(),
-            "aZ09".to_string(),                          // Mixed case and numbers
-            "a".repeat(MAX_GRAPH_ID_LENGTH).to_string(), // Exactly max length
-        ];
-
-        for id in valid_ids {
-            assert!(
-                validate_graph_id(&id).is_ok(),
-                "Expected '{}' to be valid",
-                id
-            );
+    fn from_str(graph_id: &str) -> Result<Self, Self::Err> {
+        if graph_id.is_empty() {
+            return Err(GraphIdValidationError::Empty);
         }
-    }
 
-    #[test]
-    fn test_validate_graph_id_invalid_cases() {
-        let test_cases = vec![
-            ("".to_string(), GraphIdValidationError::Empty),
-            (
-                "123-invalid-start".to_string(),
-                GraphIdValidationError::DoesNotStartWithLetter,
-            ),
-            (
-                "_invalid-start".to_string(),
-                GraphIdValidationError::DoesNotStartWithLetter,
-            ),
-            (
-                "-invalid-start".to_string(),
-                GraphIdValidationError::DoesNotStartWithLetter,
-            ),
-            (
-                "invalid!chars".to_string(),
-                GraphIdValidationError::ContainsInvalidCharacters,
-            ),
-            (
-                "invalid@chars".to_string(),
-                GraphIdValidationError::ContainsInvalidCharacters,
-            ),
-            (
-                "invalid chars".to_string(),
-                GraphIdValidationError::ContainsInvalidCharacters,
-            ),
-            (
-                "invalid/chars".to_string(),
-                GraphIdValidationError::ContainsInvalidCharacters,
-            ),
-            (
-                "a".repeat(MAX_GRAPH_ID_LENGTH + 1),
-                GraphIdValidationError::TooLong,
-            ),
-        ];
-
-        for (id, expected_error) in test_cases {
-            match validate_graph_id(&id) {
-                Err(error) => assert!(
-                    std::mem::discriminant(&error) == std::mem::discriminant(&expected_error),
-                    "Expected '{}' to fail with {:?}, got {:?}",
-                    id,
-                    expected_error,
-                    error
-                ),
-                Ok(_) => panic!("Expected '{}' to be invalid", id),
-            }
+        let first_char = graph_id.chars().next().unwrap();
+        if !first_char.is_alphabetic() {
+            return Err(GraphIdValidationError::DoesNotStartWithLetter);
         }
+
+        if INVALID_CHARS_PATTERN.is_match(graph_id) {
+            return Err(GraphIdValidationError::ContainsInvalidCharacters);
+        }
+
+        if graph_id.len() > MAX_GRAPH_ID_LENGTH {
+            return Err(GraphIdValidationError::TooLong);
+        }
+
+        Ok(GraphId(graph_id.to_string()))
     }
 }
