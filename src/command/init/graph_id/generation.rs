@@ -12,16 +12,16 @@ pub fn generate_graph_id<T: RandomStringGenerator>(
     random_generator: &mut T,
     user_provided_id: Option<String>,
 ) -> GraphId {
-    // If user manually provided an ID, format it with 
+    // If user manually provided an ID, format it with
     // a slug and correct character length
     // and return it if it is valid (if invalid, return a default)
     if let Some(id) = user_provided_id {
         let slugified_id = slugify(&id);
-        return slugified_id[..slugified_id.len().min(GRAPH_ID_MAX_CHAR)].parse().unwrap_or_else(|_| {
-            generate_default_graph_id(graph_name, random_generator)
-        });
+        return slugified_id[..slugified_id.len().min(GRAPH_ID_MAX_CHAR)]
+            .parse()
+            .unwrap_or_else(|_| generate_default_graph_id(graph_name, random_generator));
     }
-    
+
     // Otherwise, generate an ID
     generate_default_graph_id(graph_name, random_generator)
 }
@@ -32,14 +32,14 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
     random_generator: &mut T,
 ) -> GraphId {
     let mut slugified_name = slugify(graph_name);
-    
+
     let alphabetic_start_index = slugified_name
         .chars()
         .position(|c| c.is_alphabetic())
         .unwrap_or(slugified_name.len());
     slugified_name = slugified_name[alphabetic_start_index..].to_string();
-    
-    // Use "id" if name is empty 
+
+    // Use "id" if name is empty
     let name_part = if slugified_name.is_empty() {
         "id".to_string()
     } else {
@@ -51,14 +51,16 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
         };
         slugified_name[..slugified_name.len().min(max_name_length)].to_string()
     };
-    
+
     // Generate and append random suffix
     let unique_string = random_generator.generate_string(UNIQUE_STRING_LENGTH);
     let result = format!("{}-{}", name_part, unique_string);
-    
+
     // Ensure final ID is no longer than maximum length
     let final_result = slugify(&result);
-    final_result[..final_result.len().min(GRAPH_ID_MAX_CHAR)].parse().unwrap()
+    final_result[..final_result.len().min(GRAPH_ID_MAX_CHAR)]
+        .parse()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -98,7 +100,11 @@ mod tests {
 
         // Test with user-provided ID
         assert_eq!(
-            generate_graph_id("Ignored Name", &mut generator, Some("custom-id".to_string())),
+            generate_graph_id(
+                "Ignored Name",
+                &mut generator,
+                Some("custom-id".to_string())
+            ),
             GraphId::from_str("custom-id").unwrap()
         );
     }
