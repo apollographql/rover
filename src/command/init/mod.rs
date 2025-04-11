@@ -1,4 +1,5 @@
 mod config;
+pub mod graph_id;
 mod helpers;
 mod states;
 mod template_operations;
@@ -7,7 +8,8 @@ mod transitions;
 use std::path::PathBuf;
 
 use crate::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
+    GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
+    ProjectUseCaseOpt,
 };
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
@@ -34,6 +36,9 @@ pub struct Init {
 
     #[clap(flatten)]
     graph_id: GraphIdOpt,
+
+    #[clap(flatten)]
+    profile: ProfileOpt,
 
     #[clap(long, hide(true))]
     path: Option<PathBuf>,

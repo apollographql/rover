@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::command::init::config::ProjectConfig;
+    use crate::command::init::graph_id::GraphId;
     use crate::command::init::states::*;
     use crate::options::{
-        GraphIdOpt, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
-        ProjectUseCase, ProjectUseCaseOpt,
+        ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectUseCase,
+        ProjectUseCaseOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -160,12 +161,8 @@ mod tests {
             project_name: "test-project".parse().unwrap(),
         };
 
-        let options = GraphIdOpt {
-            graph_id: Some("test-graph-id".to_string()),
-        };
-
         let result: RoverResult<GraphIdConfirmed> = {
-            let graph_id = options.graph_id.clone().unwrap();
+            let graph_id = "test-graph-id".parse::<GraphId>().unwrap();
             Ok(GraphIdConfirmed {
                 output_path: ".".into(),
                 project_type: project_named.project_type.clone(),
@@ -182,7 +179,10 @@ mod tests {
         assert_eq!(next_state.organization, "test-org");
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
         assert_eq!(next_state.project_name, "test-project".parse().unwrap());
-        assert_eq!(next_state.graph_id, "test-graph-id");
+        assert_eq!(
+            next_state.graph_id,
+            "test-graph-id".parse::<GraphId>().unwrap()
+        );
     }
 
     #[test]
@@ -193,7 +193,7 @@ mod tests {
             organization: "test-org".to_string(),
             use_case: ProjectUseCase::Connectors,
             project_name: "test-project".parse().unwrap(),
-            graph_id: "test-graph-id".to_string(),
+            graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
         let config = ProjectConfig {
@@ -211,7 +211,7 @@ mod tests {
             config.project_name,
             "test-project".parse::<ProjectName>().unwrap()
         );
-        assert_eq!(config.graph_id, "test-graph-id");
+        assert_eq!(config.graph_id, "test-graph-id".parse::<GraphId>().unwrap());
     }
 
     #[tokio::test]
@@ -222,7 +222,7 @@ mod tests {
             organization: "test-org".to_string(),
             use_case: ProjectUseCase::Connectors,
             project_name: "test-project".parse().unwrap(),
-            graph_id: "test-graph-id".to_string(),
+            graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
         let http_service = mock::MockHttpService::default();
@@ -264,7 +264,10 @@ mod tests {
             next_state.config.project_name,
             "test-project".parse::<ProjectName>().unwrap()
         );
-        assert_eq!(next_state.config.graph_id, "test-graph-id");
+        assert_eq!(
+            next_state.config.graph_id,
+            "test-graph-id".parse::<GraphId>().unwrap()
+        );
     }
 
     #[tokio::test]
@@ -274,7 +277,7 @@ mod tests {
             organization: "test-org".to_string(),
             use_case: ProjectUseCase::GraphQLTemplate,
             project_name: "test-project".parse::<ProjectName>().unwrap(),
-            graph_id: "test-graph-id".to_string(),
+            graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
             output_path: ".".into(),
         };
 

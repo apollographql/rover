@@ -18,6 +18,9 @@ type Organization {
 
   """Name of the organization, which can change over time and isn't unique."""
   name: String!
+
+  """The session length in seconds for a user in this org"""
+  sessionDurationInSeconds: Int
   auditLogExports: [AuditLogExport!]
 
   """Graphs belonging to this organization."""
@@ -65,6 +68,9 @@ type AccountMembership {
 type OrganizationMutation {
   """Send an invitation to join the organization by E-mail"""
   invite(email: String!, role: UserPermission): AccountInvitation
+
+  """Create or update a custom session length for an org"""
+  setCustomSessionLength(sessionDurationInSeconds: Int!): Int!
 
   """Update a user's role within an organization"""
   updateUserRole(role: UserPermission!, userID: ID!): User
@@ -1066,6 +1072,9 @@ type SubgraphPublicationResult {
 
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
+
+  """All subgraphs that were updated from this mutation"""
+  subgraphsUpdated: [String!]!
 
   """The Launch result part of this subgraph publish."""
   launch: Launch
@@ -4246,8 +4255,15 @@ type ProposalsCheckTask implements CheckWorkflowTask {
   """The results of this proposal check were overridden"""
   didOverrideProposalsCheckTask: Boolean!
 
-  """Diff items in this Check task."""
+  """
+  Diff items in this Check task. Will be empty list if hasExceededMaxDiffs is true.
+  """
   diffs: [ProposalsCheckTaskDiff!]!
+
+  """
+  Indicates if the number of diffs in this check has exceeded the maximum allowed. null if this check was run before this field was added.
+  """
+  hasExceededMaxDiffs: Boolean
 
   """
   Indicates the level of coverage a check's changeset is in approved Proposals. PENDING while Check is still running.
