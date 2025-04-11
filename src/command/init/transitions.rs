@@ -231,7 +231,18 @@ impl CreationConfirmed {
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
 
-        // Get the list of created files
+        let subgraph = match self.config.use_case {
+            ProjectUseCase::Connectors => TemplateOperations::create_subgraph_config(
+                String::from("http://ignore"),
+                String::from("products.graphql"),
+                String::from("schema"),
+            ),
+            ProjectUseCase::GraphQLTemplate => {
+                Err(anyhow!("GraphQL Template is coming soon!").into())
+            }
+        };
+        TemplateOperations::generate_supergraph(self.output_path, subgraph.unwrap())?;
+
         let artifacts = self.template.list_files()?;
 
         // TODO: Implement API key creation -- generate_api_key() is not implemented
@@ -244,6 +255,8 @@ impl CreationConfirmed {
                 .into())
             }
         };
+
+        // write supergraph.yaml
 
         Ok(ProjectCreated {
             config: self.config,
