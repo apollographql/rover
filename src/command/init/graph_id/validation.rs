@@ -15,12 +15,14 @@ pub struct GraphId(String);
 
 impl GraphId {
     /// Get the string value of the graph ID
-    pub fn _as_str(&self) -> &str {
+    /// This is used for testing purposes
+    #[allow(dead_code)]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consumes self and returns the inner String
-    pub fn _into_string(self) -> String {
+    pub fn into_string(self) -> String {
         self.0
     }
 }

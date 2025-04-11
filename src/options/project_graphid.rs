@@ -30,11 +30,10 @@ impl GraphIdOpt {
             return Ok(graph_id);
         }
 
-        // Generate a suggested ID for the prompt
-        let suggested_id = generate_graph_id(project_name, &mut DefaultRandomStringGenerator);
+        let suggested_id = generate_graph_id(project_name, &mut DefaultRandomStringGenerator, None);
 
         // Enter prompt/validate loop
-        self.prompt_graph_id(suggested_id)
+        self.prompt_graph_id(suggested_id.into_string())
     }
 
     fn prompt_graph_id(&self, suggested_id: String) -> RoverResult<GraphId> {
