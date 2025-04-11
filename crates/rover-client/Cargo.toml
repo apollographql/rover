@@ -7,9 +7,6 @@ version = "0.0.0"
 
 publish = false
 
-[features]
-init = []
-
 [dependencies]
 ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
