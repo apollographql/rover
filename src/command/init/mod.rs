@@ -48,10 +48,11 @@ impl Init {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
-
+        
+        let welcome = UserAuthenticated::new().check_authentication(client_config, &self.profile).await?;
         let project_type_selected =
-            Welcome::new().select_project_type(&self.project_type, &self.path)?;
-            
+            welcome.select_project_type(&self.project_type, &self.path)?;
+
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
@@ -81,4 +82,4 @@ impl Init {
     }
 }
 
-pub use states::Welcome;
+use states::UserAuthenticated;

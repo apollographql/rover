@@ -4,6 +4,9 @@ use crate::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase, T
 use camino::Utf8PathBuf;
 
 #[derive(Debug)]
+pub struct UserAuthenticated {}
+
+#[derive(Debug)]
 pub struct Welcome {}
 
 #[derive(Debug)]
