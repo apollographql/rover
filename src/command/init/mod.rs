@@ -11,6 +11,7 @@ use crate::options::{
     GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use helpers::display_use_template_message;
@@ -43,12 +44,20 @@ pub struct Init {
 }
 
 impl Init {
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
-        let project_type_selected =
-            Welcome::new().select_project_type(&self.project_type, &self.path)?;
+        let welcome = UserAuthenticated::new().check_authentication(client_config, &self.profile).await?;
+
+        let creation_confirmed_option = welcome
+            .select_project_type(&self.project_type, &self.path)?
+            .select_organization(&self.organization)?
+            .select_use_case(&self.project_use_case)?
+            .enter_project_name(&self.project_name)?
+            .confirm_graph_id(&self.graph_id)?
+            .preview_and_confirm_creation(http_service)
+            .await?;
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
@@ -76,4 +85,4 @@ impl Init {
     }
 }
 
-pub use states::Welcome;
+use states::UserAuthenticated;

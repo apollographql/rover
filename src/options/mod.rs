@@ -18,6 +18,9 @@ mod project_organization;
 mod project_type;
 #[cfg(feature = "init")]
 mod project_use_case;
+#[cfg(feature = "init")]
+mod project_authentication;
+
 mod schema;
 mod subgraph;
 mod template;
@@ -42,6 +45,9 @@ pub(crate) use project_organization::*;
 pub(crate) use project_type::*;
 #[cfg(feature = "init")]
 pub(crate) use project_use_case::*;
+#[cfg(feature = "init")]
+pub(crate) use project_authentication::*;
+
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
