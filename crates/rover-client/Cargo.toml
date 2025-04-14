@@ -70,10 +70,3 @@ strip-ansi-escapes = { workspace = true }
 tower-test = { workspace = true }
 tokio-test = { workspace = true }
 tracing-test = { workspace = true }
-
-[features]
-default = []
-
-# this feature exists to enable the
-# init command
-init = []

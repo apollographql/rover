@@ -10,7 +10,6 @@ use comfy_table::CellAlignment::Center;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
-#[cfg(feature = "init")]
 use rover_client::operations::init::memberships::InitMembershipsResponse;
 use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
