@@ -501,7 +501,7 @@ impl RoverOutput {
                   "api_key": api_key,
                 })
             }
-    #[cfg(feature = "init")]
+            #[cfg(feature = "init")]
             RoverOutput::InitMembershipsOutput(memberships_response) => json!(memberships_response),
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
