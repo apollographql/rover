@@ -39,7 +39,7 @@ members = [
 ]
 
 [features]
-default = ["composition-js"]
+default = ["composition-js", "init"]
 
 # this feature exists to enable composition
 # notably, it is disabled for x86_64-unknown-linux-musl builds
@@ -48,7 +48,7 @@ composition-js = []
 
 # this feature exists to enable the
 # init command
-init = []
+init = ["dep:inquire", "dep:secrecy"]
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -114,6 +114,7 @@ http-body-util = "0.1.2"
 httpmock = "0.7"
 hyper = "1.0"
 indoc = "2"
+inquire = "0.7.5"
 itertools = "0.14.0"
 lazycell = "1"
 lazy_static = "1.4"
@@ -128,6 +129,7 @@ regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
 schemars = "0.8.21"
+secrecy = "0.10.3"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -191,6 +193,7 @@ heck = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 houston = { workspace = true }
+inquire = { workspace = true, optional = true }
 itertools = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
@@ -206,6 +209,7 @@ rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
 schemars = { workspace = true }
+secrecy = { workspace = true, optional = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

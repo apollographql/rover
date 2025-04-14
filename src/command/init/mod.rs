@@ -50,7 +50,7 @@ impl Init {
         let http_service = ReqwestService::new(None, None)?;
         
         let welcome = UserAuthenticated::new()
-            .check_authentication(client_config, &self.profile)
+            .check_authentication(&client_config, &self.profile)
             .await?;
         let project_type_selected =
             welcome.select_project_type(&self.project_type, &self.path)?;
