@@ -10,6 +10,7 @@ use comfy_table::CellAlignment::Center;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+#[cfg(feature = "init")]
 use rover_client::operations::init::memberships::InitMembershipsResponse;
 use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
@@ -49,6 +50,7 @@ pub enum RoverOutput {
         origin: String,
         user_id: Option<String>,
     },
+    #[cfg(feature = "init")]
     InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
@@ -140,6 +142,7 @@ impl RoverOutput {
 
                 Some(format!("{table}"))
             }
+            #[cfg(feature = "init")]
             RoverOutput::InitMembershipsOutput(init_memberships_response) => {
                 let mut table = table::get_table();
                 table.add_row(vec![
@@ -498,6 +501,7 @@ impl RoverOutput {
                   "api_key": api_key,
                 })
             }
+    #[cfg(feature = "init")]
             RoverOutput::InitMembershipsOutput(memberships_response) => json!(memberships_response),
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
