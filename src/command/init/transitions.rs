@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
 use rover_client::operations::init::create_graph;
+use rover_client::operations::init::memberships::{self};
 use rover_client::operations::subgraph::publish;
 use rover_client::shared::GitContext;
 use rover_client::shared::GraphRef;
@@ -16,6 +17,7 @@ use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
+use crate::options::Organization;
 use crate::options::ProfileOpt;
 use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
@@ -89,15 +91,20 @@ impl Welcome {
 /// > Org2
 /// > Org3
 impl ProjectTypeSelected {
-    pub fn select_organization(
+    pub async fn select_organization(
         self,
         options: &ProjectOrganizationOpt,
+        profile: &ProfileOpt,
+        client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
-        // TODO: Get list of organizations from Studio Client
-        let organizations: Vec<String> = vec!["second-test-org".to_string()];
-
+        let client = client_config.get_authenticated_client(profile)?;
+        let memberships_response = memberships::run(&client).await?;
+        let organizations = memberships_response
+            .memberships
+            .iter()
+            .map(|m| Organization::new(m.name.clone(), m.id.clone()))
+            .collect::<Vec<_>>();
         let organization = options.get_or_prompt_organization(&organizations)?;
-
         Ok(OrganizationSelected {
             output_path: self.output_path,
             project_type: self.project_type,
@@ -242,15 +249,6 @@ impl CreationConfirmed {
         println!("⣾ Creating files and generating GraphOS credentials...");
         let client = client_config.get_authenticated_client(profile)?;
 
-        // Create a new API key for the project first
-        let api_key = create_api_key(
-            client_config,
-            profile,
-            self.config.graph_id.to_string(),
-            self.config.project_name.to_string(),
-        )
-        .await?;
-
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
@@ -265,7 +263,7 @@ impl CreationConfirmed {
                 hidden_from_uninvited_non_admin: false,
                 create_graph_id: self.config.graph_id.to_string(),
                 title: self.config.project_name.to_string(),
-                organization_id: self.config.organization.clone(),
+                organization_id: self.config.organization.to_string(),
             },
             &client,
         )
@@ -296,17 +294,15 @@ impl CreationConfirmed {
             .await?;
         }
 
-        // // TODO: Implement API key creation -- generate_api_key() is not implemented
-        // let api_key = match env::var("GRAPHOS_API_KEY") {
-        //     Ok(key) => key,
-        //     Err(_) => {
-        //         return Err(anyhow::anyhow!(
-        //             "API key required. Please set the GRAPHOS_API_KEY environment variable."
-        //         )
-        //         .into())
-        //     }
-        // };
-
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
+    
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
