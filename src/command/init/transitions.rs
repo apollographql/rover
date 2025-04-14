@@ -8,7 +8,7 @@ use rover_http::ReqwestService;
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::states::*;
-use crate::command::init::template_operations::TemplateOperations;
+use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
 use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
@@ -231,7 +231,8 @@ impl CreationConfirmed {
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
 
-        // Get the list of created files
+        SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
+
         let artifacts = self.template.list_files()?;
 
         // TODO: Implement API key creation -- generate_api_key() is not implemented
