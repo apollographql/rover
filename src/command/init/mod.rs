@@ -1,9 +1,10 @@
 mod config;
 pub mod graph_id;
 mod helpers;
-mod states;
-mod template_operations;
-mod transitions;
+pub mod states;
+pub mod template_operations;
+pub mod transitions;
+pub mod ui;
 
 use std::path::PathBuf;
 
