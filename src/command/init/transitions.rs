@@ -275,21 +275,13 @@ impl CreationConfirmed {
 
         let artifacts = self.template.list_files()?;
 
-        // TODO: Implement API key creation -- generate_api_key() is not implemented
-        let api_key = match env::var("GRAPHOS_API_KEY") {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "API key required. Please set the GRAPHOS_API_KEY environment variable."
-                )
-                .into())
-            }
-        };
-
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
+            // TODO: Implement API key creation -- generate_api_key() is not implemented
+            // See https://apollographql.atlassian.net/browse/ONB-600 for GraphOS publishing details
+            // See https://apollographql.atlassian.net/browse/ONB-601 for details on API key generation
+            // api_key: "dummy-api-key".to_string(),
         })
     }
 }
@@ -306,7 +298,9 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            &self.api_key,
+            // TODO: implement API key creation
+            // See https://apollographql.atlassian.net/browse/ONB-601
+            // api_key: "dummy-api-key",
         );
 
         Completed

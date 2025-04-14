@@ -10,7 +10,9 @@ pub fn display_project_created_message(
     project_name: &str,
     artifacts: &Vec<Utf8PathBuf>,
     graph_id: &GraphId,
-    _api_key: &str,
+    // TODO: implement API key creation
+    // See https://apollographql.atlassian.net/browse/ONB-601
+    // api_key: &str,
 ) {
     println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", project_name);
 
