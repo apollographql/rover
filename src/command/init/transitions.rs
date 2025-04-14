@@ -1,30 +1,32 @@
-use std::env;
-use std::fs::read_dir;
-use std::path::PathBuf;
+use std::{env, fs::read_dir, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use rover_client::operations::init::create_graph::*;
-use rover_client::operations::init::memberships::{self};
-use rover_client::operations::init::create_graph;
-use rover_client::operations::subgraph::publish;
-use rover_client::operations::subgraph::publish::*;
-use rover_client::shared::GitContext;
-use rover_client::shared::GraphRef;
+use rover_client::{
+    operations::{
+        init::{create_graph, create_graph::*, memberships::{self}},
+        subgraph::publish::{self, *},
+    },
+    shared::{GitContext, GraphRef},
+};
 use rover_http::ReqwestService;
 
-use crate::command::init::config::ProjectConfig;
-use crate::command::init::graph_id::GraphId;
-use crate::command::init::helpers::*;
-use crate::command::init::operations::create_api_key;
-use crate::command::init::states::*;
-use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-use crate::options::{
-    GraphIdOpt, Organization, ProfileOpt, ProjectAuthenticationOpt, ProjectNameOpt,
-    ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher,
+use crate::{
+    command::init::{
+        config::ProjectConfig,
+        graph_id::GraphId,
+        helpers::*,
+        operations::create_api_key,
+        states::*,
+        template_operations::{SupergraphBuilder, TemplateOperations},
+    },
+    options::{
+        GraphIdOpt, Organization, ProfileOpt, ProjectAuthenticationOpt, ProjectNameOpt,
+        ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher,
+    },
+    utils::client::StudioClientConfig,
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 /// PROMPT UX:
 /// =========
@@ -280,15 +282,6 @@ impl CreationConfirmed {
         println!("⣾ Creating files and generating GraphOS credentials...");
         let client = client_config.get_authenticated_client(profile)?;
 
-        // Create a new API key for the project first
-        let api_key = create_api_key(
-            client_config,
-            profile,
-            self.config.graph_id.to_string(),
-            self.config.project_name.to_string(),
-        )
-        .await?;
-
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
@@ -334,17 +327,15 @@ impl CreationConfirmed {
             .await?;
         }
 
-        // // TODO: Implement API key creation -- generate_api_key() is not implemented
-        // let api_key = match env::var("GRAPHOS_API_KEY") {
-        //     Ok(key) => key,
-        //     Err(_) => {
-        //         return Err(anyhow::anyhow!(
-        //             "API key required. Please set the GRAPHOS_API_KEY environment variable."
-        //         )
-        //         .into())
-        //     }
-        // };
-
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
+    
         Ok(ProjectCreated {
             config: self.config,
             artifacts,

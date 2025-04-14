@@ -6,3 +6,5 @@ pub mod memberships;
 pub mod create_graph;
 /// runner for rover init key creation
 pub mod key;
+/// runner for rover init memberships
+pub mod memberships;
