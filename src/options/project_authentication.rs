@@ -3,8 +3,15 @@ use clap::Parser;
 use config::Profile;
 use dialoguer::{theme::ColorfulTheme, Password};
 use houston as config;
+<<<<<<< HEAD
 use rover_std::symbols::success_message;
 use rover_std::url::hyperlink;
+=======
+#[cfg(feature = "init")]
+use inquire::{Password, PasswordDisplayMode};
+#[cfg(feature = "init")]
+use secrecy::{ExposeSecret, SecretString};
+>>>>>>> 2df08e75 (Fix linting errors)
 use serde::{Deserialize, Serialize};
 
 use crate::command::init::ui::symbols;
@@ -46,9 +53,9 @@ impl ProjectAuthenticationOpt {
         };
 
         Profile::set_api_key(
-            &profile.profile_name, 
-            &client_config.config, 
-            secure_api_key.expose_secret()
+            &profile.profile_name,
+            &client_config.config,
+            secure_api_key.expose_secret(),
         )?;
 
         // Validate key was stored successfully
@@ -60,7 +67,18 @@ impl ProjectAuthenticationOpt {
                     ));
                 }
 
+<<<<<<< HEAD
                 println!("{}", success_message("Successfully saved your API key."));
+=======
+                if credential.api_key != *secure_api_key.expose_secret() {
+                    return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
+                }
+
+                println!(
+                    "{}",
+                    symbols::success_message("Successfully saved your API key.")
+                );
+>>>>>>> 2df08e75 (Fix linting errors)
 
                 Ok(())
             }
