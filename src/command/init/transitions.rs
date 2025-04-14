@@ -361,7 +361,7 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.graph_id,
+            &self.config.graph_id,
             &self.api_key,
         );
 
