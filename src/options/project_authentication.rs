@@ -5,7 +5,7 @@ use houston as config;
 #[cfg(feature = "init")]
 use inquire::{Password, PasswordDisplayMode};
 #[cfg(feature = "init")]
-use secrecy::{SecretString, ExposeSecret};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 use crate::command::init::ui::symbols;
@@ -21,30 +21,36 @@ impl ProjectAuthenticationOpt {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> Result<()> {
-        println!("No credentials found. Please go to {} and create a new Personal API key.\n", symbols::hyperlink("https://studio.apollographql.com/user-settings/api-keys", "https://studio.apollographql.com/user-settings/api-keys"));
+        println!(
+            "No credentials found. Please go to {} and create a new Personal API key.\n",
+            symbols::hyperlink(
+                "https://studio.apollographql.com/user-settings/api-keys",
+                "https://studio.apollographql.com/user-settings/api-keys"
+            )
+        );
         println!("Copy the key and paste it into the prompt below.\n");
 
         let password_result = Password::new("")
-            .with_display_mode(PasswordDisplayMode::Masked) 
+            .with_display_mode(PasswordDisplayMode::Masked)
             .without_confirmation()
             .prompt();
-            
+
         let api_key = match password_result {
             Ok(input) => {
                 if input.is_empty() {
                     return Err(anyhow::anyhow!("API key cannot be empty"));
                 }
                 input
-            },
+            }
             Err(e) => return Err(anyhow::anyhow!("Failed to read API key: {}", e)),
         };
 
         let secure_api_key: SecretString = api_key.into();
 
         Profile::set_api_key(
-            &profile.profile_name, 
-            &client_config.config, 
-            secure_api_key.expose_secret()
+            &profile.profile_name,
+            &client_config.config,
+            secure_api_key.expose_secret(),
         )?;
 
         // Validate key was stored successfully
@@ -57,8 +63,11 @@ impl ProjectAuthenticationOpt {
                 if credential.api_key != *secure_api_key.expose_secret() {
                     return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
                 }
-                
-                println!("{}", symbols::success_message("Successfully saved your API key."));
+
+                println!(
+                    "{}",
+                    symbols::success_message("Successfully saved your API key.")
+                );
 
                 Ok(())
             }
