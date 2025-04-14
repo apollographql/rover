@@ -7,7 +7,7 @@ use tower::{Service, ServiceExt};
 use super::service::{Memberships, MembershipsRequest};
 
 /// Get info from the registry about the user's memberships, i.e. the name/id of each of
-/// the organizations
+/// the organizations the user is a member of
 pub async fn run(client: &StudioClient) -> Result<InitMembershipsResponse, RoverClientError> {
     let mut service = Memberships::new(
         client
