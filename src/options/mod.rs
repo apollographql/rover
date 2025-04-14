@@ -20,6 +20,10 @@ mod project_organization;
 mod project_type;
 #[cfg(feature = "init")]
 mod project_use_case;
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2dcd79ae (feat(init): Pass client_config to init command for authentication validation)
 mod schema;
 mod subgraph;
 mod template;
