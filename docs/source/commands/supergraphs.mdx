@@ -81,7 +81,6 @@ A single configuration file can pull subgraph schemas from a variety of sources.
 ```yaml title="supergraph.yaml"
 federation_version: =2.3.2
 subgraphs:
-
   # Local .graphql file
   films:
     routing_url: https://films.example.com
@@ -103,6 +102,19 @@ subgraphs:
       graphref: mygraph@current
       subgraph: actors
 ```
+
+####  Subgraph configuration fields
+
+Each subgraph in your `supergraph.yaml` defines a `routing_url` and `schema`. Each field serves a different purposes in the supergraph lifecycle:
+Every subgraph in your `supergraph.yaml` includes two key fields:
+
+- `schema`: Used by Rover at composition time to load and validate subgraph schemas and create your supergraph schema.
+- `routing_url`: Used at runtime by GraphOS Router or @apollo/gateway to send incoming GraphQL requests to the correct subgraph service.
+
+Having separate fields lets you compose against local files or test environments, while routing requests to different endpoints in production. It also makes it easy to swap environments without changing your schemas. For example:
+
+- You might compose your supergraph using local schema files, a development subgraph URL, or a schema pulled from Studio—even though the live subgraph services run elsewhere in production.
+- You can override `routing_url` values when deploying the supergraph to different environments (e.g., staging vs. production) without needing to update your subgraph schemas or their source locations.
 
 #### Variable expansion
 
