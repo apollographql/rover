@@ -3,6 +3,7 @@ use std::fs::read_dir;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
+#[cfg(feature = "init")]
 use rover_client::operations::init::memberships::{self};
 use rover_http::ReqwestService;
 
