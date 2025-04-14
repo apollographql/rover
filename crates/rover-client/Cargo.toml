@@ -72,7 +72,7 @@ tokio-test = { workspace = true }
 tracing-test = { workspace = true }
 
 [features]
-default = ["init"]
+default = []
 
 # this feature exists to enable the
 # init command
