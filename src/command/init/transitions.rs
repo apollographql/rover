@@ -78,13 +78,12 @@ impl UserAuthenticated {
 
     pub async fn check_authentication(
         self,
-        client_config: StudioClientConfig,
+        client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => Ok(Welcome::new()),
             Err(_) => {
-                // Use the new prompt_for_api_key function to handle authentication
                 match ProjectAuthenticationOpt::default()
                     .prompt_for_api_key(&client_config, profile)
                 {

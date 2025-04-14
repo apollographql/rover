@@ -7,6 +7,7 @@ use rover_std::symbols::success_message;
 use rover_std::url::hyperlink;
 use serde::{Deserialize, Serialize};
 
+use crate::command::init::ui::symbols;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 
@@ -44,7 +45,11 @@ impl ProjectAuthenticationOpt {
             Err(e) => return Err(anyhow::anyhow!("Failed to read API key: {}", e)),
         };
 
-        Profile::set_api_key(&profile.profile_name, &client_config.config, &api_key)?;
+        Profile::set_api_key(
+            &profile.profile_name, 
+            &client_config.config, 
+            secure_api_key.expose_secret()
+        )?;
 
         // Validate key was stored successfully
         match Profile::get_credential(&profile.profile_name, &client_config.config) {
