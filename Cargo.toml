@@ -39,7 +39,7 @@ members = [
 ]
 
 [features]
-default = ["composition-js"]
+default = ["composition-js", "init"]
 
 # this feature exists to enable composition
 # notably, it is disabled for x86_64-unknown-linux-musl builds
@@ -58,7 +58,7 @@ init = []
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
-rover-client = { path = "./crates/rover-client" }
+rover-client = { path = "./crates/rover-client", features = ["init"] }
 rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-std = { path = "./crates/rover-std" }
