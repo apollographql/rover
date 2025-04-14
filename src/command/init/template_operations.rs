@@ -8,7 +8,7 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -70,7 +70,6 @@ impl SupergraphBuilder {
     */
     fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
         let mut subgraphs = BTreeMap::new();
-        let mut name_counts = HashMap::new();
 
         // Collect all graphql schemas
         let graphql_files = self.find_graphql_files(&self.directory, self.max_depth)?;
@@ -81,28 +80,17 @@ impl SupergraphBuilder {
             )));
         }
 
-        for file_path in &graphql_files {
-            let name = self.determine_subgraph_name(file_path)?;
-            *name_counts.entry(name).or_insert(0) += 1;
-        }
-
-        // create subgraphs with disambiguated names if needed
         for file_path in graphql_files {
-            let basic_name = self.determine_subgraph_name(&file_path)?;
+            let mut name = self.determine_subgraph_name(&file_path)?;
 
-            let name = if name_counts.get(&basic_name).unwrap_or(&0) > &1 {
-                self.disambiguate_name(&file_path, &basic_name)?
-            } else {
-                basic_name
-            };
-
-            // hardcoding for now, we need to find a
-            // way to resolve this for template based projects
-            let url = "http://ignore".to_string();
+            // Check if the name already exists amd disambiguate if so
+            if subgraphs.contains_key(&name) {
+                name = self.disambiguate_name(&file_path, &name)?;
+            }
 
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
-                .routing_url(url.clone())
+                .routing_url("http://ignore".to_string()) // Hardcoded URL
                 .schema(SchemaSource::File {
                     file: file_path.clone(),
                 })
