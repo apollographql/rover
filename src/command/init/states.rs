@@ -61,7 +61,6 @@ pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     // TODO: implement API key creation
-    // See https://apollographql.atlassian.net/browse/ONB-601
     // pub _api_key: String,
 }
 

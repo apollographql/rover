@@ -278,8 +278,6 @@ impl CreationConfirmed {
             config: self.config,
             artifacts,
             // TODO: Implement API key creation -- generate_api_key() is not implemented
-            // See https://apollographql.atlassian.net/browse/ONB-600 for GraphOS publishing details
-            // See https://apollographql.atlassian.net/browse/ONB-601 for details on API key generation
             // api_key: "dummy-api-key".to_string(),
         })
     }
@@ -298,7 +296,6 @@ impl ProjectCreated {
             &self.artifacts,
             &self.config.graph_id,
             // TODO: implement API key creation
-            // See https://apollographql.atlassian.net/browse/ONB-601
             // api_key: "dummy-api-key",
         );
 
