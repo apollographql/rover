@@ -7,7 +7,7 @@ use dialoguer::Select;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-
+use rover_std::Style;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub struct Organization {
@@ -37,8 +37,6 @@ impl fmt::Display for OrganizationId {
         write!(f, "{}", self.0)
     }
 }
-use rover_std::Style;
-
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
     #[arg(long = "organization")]

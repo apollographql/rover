@@ -3,9 +3,9 @@ use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
+use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
-use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
