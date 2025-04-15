@@ -4,9 +4,8 @@ use clap::arg;
 use clap::Parser;
 use console::Term;
 use dialoguer::Select;
-use serde::{Deserialize, Serialize};
 use rover_std::Style;
-
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
     #[arg(long = "organization")]

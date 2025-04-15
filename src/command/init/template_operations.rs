@@ -8,11 +8,11 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
+use rover_std::Style;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use rover_std::Style;
 
 pub struct TemplateOperations;
 

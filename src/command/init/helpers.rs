@@ -3,8 +3,14 @@ use camino::Utf8PathBuf;
 use rover_std::Style;
 
 pub fn display_welcome_message() {
-    println!("\nWelcome! This command helps you initialize a federated Graph in your current directory.");
-    println!("\nTo learn more about init, run `{}` or visit {}\n", Style::Command.paint("rover init -h"), Style::Link.paint("https://www.apollographql.com/docs/rover/commands/init"));
+    println!(
+        "\nWelcome! This command helps you initialize a federated Graph in your current directory."
+    );
+    println!(
+        "\nTo learn more about init, run `{}` or visit {}\n",
+        Style::Command.paint("rover init -h"),
+        Style::Link.paint("https://www.apollographql.com/docs/rover/commands/init")
+    );
 }
 
 pub fn display_project_created_message(
