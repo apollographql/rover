@@ -100,7 +100,7 @@ impl ProjectTypeSelected {
 /// =========
 ///
 /// ? Select use case:
-/// > Connect one or more REST APIs
+/// > Start a GraphQL API with one or more REST APIs
 /// > Start a GraphQL API with recommended libraries
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
