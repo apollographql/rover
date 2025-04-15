@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use config::Profile;
-use dialoguer::{Password, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Password};
 use houston as config;
 use rover_std::{hyperlink, success_message};
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ impl ProjectAuthenticationOpt {
         profile: &ProfileOpt,
     ) -> Result<()> {
         let api_url = "https://studio.apollographql.com/user-settings/api-keys";
-        
+
         println!(
             "No credentials found. Please go to {} and create a new Personal API key.\n",
             hyperlink(api_url)
@@ -54,6 +54,13 @@ impl ProjectAuthenticationOpt {
                     ));
                 }
 
+<<<<<<< HEAD
+=======
+                if credential.api_key != api_key {
+                    return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
+                }
+
+>>>>>>> 2d4bf8ee (feat(init) fix lint errors)
                 println!("{}", success_message("Successfully saved your API key."));
 
                 Ok(())
