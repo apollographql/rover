@@ -223,7 +223,7 @@ For more information try --help
 
 ##### Setting up a command to work with `rover-client`
 
-Most of Rover's commands make requests to Apollo Studio's API, or to another GraphQL API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
+Most of Rover's commands make requests to Apollo Studio's API, or to another Graph. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
 
 To access functionality from `rover-client` in our `rover graph hello` command, we'll need to pass down a client from the entry to our command in `src/command/graph/mod.rs`.
 

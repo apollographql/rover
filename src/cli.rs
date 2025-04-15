@@ -10,6 +10,7 @@ use houston as config;
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
 use rover_client::shared::GitContext;
+use rover_std::Style;
 use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
@@ -36,28 +37,35 @@ const STYLES: Styles = Styles::styled()
     version,
     styles = STYLES,
     about = "Rover - Your Graph Companion",
-    after_help = "Read the getting started guide by running:
+    after_help = format!("Read the getting started guide by running:
 
-    $ rover docs open start
+    {}
 
 To begin working with Rover and to authenticate with Apollo Studio,
 run the following command:
 
-    $ rover config auth
+    {}
 
 This will prompt you for an API Key that can be generated in Apollo Studio.
 
 The most common commands from there are:
 
-    - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
+    {}: Fetch a graph schema from the Apollo graph registry
+    {}: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
 registry
-    - rover graph publish: Publish an updated graph schema to the Apollo graph registry
+    {}: Publish an updated graph schema to the Apollo graph registry
 
 You can open the full documentation for Rover by running:
 
-    $ rover docs open
-"
+    {}
+",
+        Style::Command.paint("$ rover docs open start"),
+        Style::Command.paint("$ rover config auth"),
+        Style::Command.paint("$ rover graph fetch"),
+        Style::Command.paint("$ rover graph check"),
+        Style::Command.paint("$ rover graph publish"),
+        Style::Command.paint("$ rover docs open"),
+    )
 )]
 #[command(next_line_help = true)]
 pub struct Rover {
@@ -367,7 +375,7 @@ impl Rover {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Initialize a GraphQL API project using Apollo Federation with Apollo Router
+    /// Initialize a Graph project using Apollo Federation with Apollo Router
     #[cfg(feature = "init")]
     Init(command::Init),
 
@@ -381,7 +389,7 @@ pub enum Command {
     Contract(command::Contract),
 
     /// This command starts a local router that can query across one or more
-    /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
+    /// running Graphs (subgraphs) through one endpoint (supergraph).
     /// As you add, edit, and remove subgraphs, `rover dev` automatically
     /// composes all of their schemas into a new supergraph schema, and the
     /// router reloads.

@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
+use rover_std::Style;
 
 pub struct TemplateOperations;
 
@@ -24,7 +25,7 @@ impl TemplateOperations {
         Self::print_grouped_files(artifacts_sorted);
 
         println!();
-        prompt_confirm_default_yes("Proceed with creation?")
+        prompt_confirm_default_yes(&Style::Prompt.paint("? Proceed with creation?"))
     }
 
     pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {

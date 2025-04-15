@@ -5,6 +5,7 @@ use clap::Parser;
 use console::Term;
 use dialoguer::Select;
 use serde::{Deserialize, Serialize};
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
@@ -23,7 +24,7 @@ impl ProjectOrganizationOpt {
         }
 
         let selection = Select::new()
-            .with_prompt("? Select an organization")
+            .with_prompt(Style::Prompt.paint("? Select an organization"))
             .items(organizations)
             .default(0)
             .interact_on_opt(&Term::stderr())?;

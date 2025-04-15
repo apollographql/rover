@@ -20,9 +20,11 @@ pub enum Style {
     TotalOperationCount,
     NewOperationCount,
     PersistedQueryList,
+    Prompt,
 }
 
 impl Style {
+    
     pub fn paint<S: AsRef<str>>(&self, message: S) -> String {
         let message_ref = message.as_ref();
 
@@ -31,8 +33,9 @@ impl Style {
         }
 
         match &self {
-            Style::Link | Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
-            Style::Command | Style::TotalOperationCount => style(message_ref).yellow(),
+            Style::Link | Style::PersistedQueryList | Style::Version => style(message_ref).underlined().bold(),
+            Style::Command | Style::TotalOperationCount => style(message_ref).cyan(),
+            Style::Prompt => style(message_ref).bold(),
             Style::CallToAction => style(message_ref).yellow().italic(),
             Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),

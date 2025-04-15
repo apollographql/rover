@@ -5,6 +5,7 @@ use dialoguer::Input;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
@@ -51,8 +52,8 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new()
-                .with_prompt("? Name your GraphQL API")
-                .default(default.clone());
+                .with_prompt(Style::Prompt.paint("? Name your Graph"))
+                .with_initial_text(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
             // Try to parse the input into a ProjectName

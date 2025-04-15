@@ -45,7 +45,7 @@ Commands:
   contract
           Contract configuration commands
   dev
-          This command starts a local router that can query across one or more running GraphQL APIs (subgraphs) through one endpoint (supergraph). As you add, edit, and remove subgraphs, `rover dev` automatically composes all of their schemas into a new supergraph schema, and the router reloads
+          This command starts a local router that can query across one or more running Graphs (subgraphs) through one endpoint (supergraph). As you add, edit, and remove subgraphs, `rover dev` automatically composes all of their schemas into a new supergraph schema, and the router reloads
   supergraph
           Supergraph schema commands
   graph
