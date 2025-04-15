@@ -15,7 +15,6 @@ pub fn sanitize_url(url: &str) -> Option<String> {
 
 pub fn hyperlink(url: &str) -> String {
     let sanitized_url = sanitize_url(url).unwrap_or_else(|| url.to_string());
-
     Style::Link.paint(sanitized_url)
 }
 
