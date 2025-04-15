@@ -47,7 +47,7 @@ impl Init {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
-        let project_type_selected = 
+        let project_type_selected =
             Welcome::new().select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
@@ -59,8 +59,8 @@ impl Init {
                     .confirm_graph_id(&self.graph_id)?
                     .preview_and_confirm_creation(http_service)
                     .await?;
-    
-                match creation_confirmed_option {
+
+                    match creation_confirmed_option {
                     Some(creation_confirmed) => {
                         let project_created = creation_confirmed.create_project().await?;
                         Ok(project_created.complete().success())
