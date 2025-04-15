@@ -45,7 +45,7 @@ impl GraphIdOpt {
                 Ok(graph_id) => return Ok(graph_id),
                 Err(e) => self.handle_validation_error(e, attempt)?,
             }
-            
+
             attempt += 1;
         }
     }
@@ -67,9 +67,9 @@ impl GraphIdOpt {
         attempt: usize,
     ) -> RoverResult<()> {
         let rover_error = validation_error_to_rover_error(error);
-        
+
         eprintln!("{}", rover_error);
-        
+
         eprintln!("Please try again (attempt {})", attempt);
         Ok(())
     }
