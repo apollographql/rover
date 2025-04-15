@@ -21,6 +21,7 @@ pub enum Style {
     NewOperationCount,
     PersistedQueryList,
     Prompt,
+    WarningHeading,
 }
 
 impl Style {
@@ -48,6 +49,7 @@ impl Style {
             Style::Path | Style::Heading => style(message_ref).bold(),
             Style::Pending => style(message_ref).yellow(),
             Style::Success => style(message_ref).green(),
+            Style::WarningHeading => style(message_ref).yellow().bold(),
         }
         .to_string()
     }

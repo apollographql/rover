@@ -18,7 +18,9 @@ pub struct TemplateOperations;
 
 impl TemplateOperations {
     pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
-        println!("The following files will be created:");
+        println!();
+    
+        infoln!("You’re about to create a local directory with the following files:\n");
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
 
@@ -35,7 +37,7 @@ impl TemplateOperations {
         {
             for file in files {
                 if file.file_name().is_some() {
-                    infoln!("{}", file);
+                    println!("- {}", file);
                 }
             }
         }
