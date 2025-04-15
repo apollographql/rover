@@ -60,7 +60,7 @@ impl Init {
                     .preview_and_confirm_creation(http_service)
                     .await?;
 
-                    match creation_confirmed_option {
+                match creation_confirmed_option {
                     Some(creation_confirmed) => {
                         let project_created = creation_confirmed.create_project().await?;
                         Ok(project_created.complete().success())
