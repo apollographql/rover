@@ -9,6 +9,7 @@ pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str>
     links.insert("contributing", "Contributing to Rover");
     links.insert("migration", "Migrate from the Apollo CLI to Rover");
     links.insert("start", "Getting Started with Rover");
+    links.insert("configuring", "Configuring Rover");
     links
 }
 
