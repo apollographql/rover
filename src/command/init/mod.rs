@@ -57,7 +57,8 @@ impl Init {
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
-                    .select_organization(&self.organization)?
+                    .select_organization(&self.organization, &self.profile, client_config)
+                    .await?
                     .select_use_case(&self.project_use_case)?
                     .enter_project_name(&self.project_name)?
                     .confirm_graph_id(&self.graph_id)?
@@ -74,7 +75,7 @@ impl Init {
             }
             crate::options::ProjectType::AddSubgraph => {
                 display_use_template_message();
-                return Ok(RoverOutput::EmptySuccess);
+                Ok(RoverOutput::EmptySuccess)
             }
         }
     }
