@@ -1357,7 +1357,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Dynamic templates - @dbanty, #1388**
 
-  Rover now fetches templates from a GraphQL API. New templates can be contributed to [the templates repo](https://github.com/apollographql/templates) and will not require a new release of Rover to be used. To see the latest templates, run `rover template list`.
+  Rover now fetches templates from a Graph. New templates can be contributed to [the templates repo](https://github.com/apollographql/templates) and will not require a new release of Rover to be used. To see the latest templates, run `rover template list`.
 
 ## 🐛 Fixes
 

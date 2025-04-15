@@ -58,12 +58,12 @@ impl UserAuthenticated {
 /// PROMPT UX:
 /// ==========
 ///
-/// Welcome! This command helps you initialize a federated GraphQL API in your current directory.
+/// Welcome! This command helps you initialize a federated Graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Select option:
-/// > Create a new GraphQL API
-/// > Add a subgraph to an existing GraphQL API
+/// > Create a new Graph
+/// > Add a subgraph to an existing Graph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}
@@ -159,7 +159,7 @@ impl OrganizationSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your GraphQL API:
+/// ? Name your Graph:
 impl UseCaseSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;

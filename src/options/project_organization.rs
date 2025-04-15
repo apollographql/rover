@@ -37,6 +37,7 @@ impl fmt::Display for OrganizationId {
         write!(f, "{}", self.0)
     }
 }
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
@@ -64,8 +65,8 @@ impl ProjectOrganizationOpt {
             .map(|o| o.name.as_str())
             .collect::<Vec<_>>();
         let selection = Select::new()
-            .with_prompt("? Select an organization")
-            .items(&organization_names)
+            .with_prompt(Style::Prompt.paint("? Select an organization"))
+            .items(organizations)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
 

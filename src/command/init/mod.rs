@@ -20,7 +20,7 @@ use rover_http::ReqwestService;
 use serde::Serialize;
 
 #[derive(Debug, Parser, Clone, Serialize)]
-#[clap(about = "Initialize a new GraphQL API project")]
+#[clap(about = "Initialize a new Graph project")]
 pub struct Init {
     #[clap(flatten)]
     project_type: ProjectTypeOpt,
