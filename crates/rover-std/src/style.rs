@@ -33,11 +33,11 @@ impl Style {
         }
 
         match &self {
-            Style::Link | Style::PersistedQueryList | Style::Version => {
-                style(message_ref).underlined().bold()
-            }
             Style::Command | Style::TotalOperationCount => style(message_ref).cyan(),
             Style::Prompt => style(message_ref).bold(),
+            Style::Link => style(message_ref).bold().underlined(),
+            Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
+            Style::Command | Style::TotalOperationCount => style(message_ref).yellow(),
             Style::CallToAction => style(message_ref).yellow().italic(),
             Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
