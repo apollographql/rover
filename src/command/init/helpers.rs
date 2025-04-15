@@ -28,18 +28,21 @@ pub fn display_project_created_message(
     }
 
     // Display credentials
-    println!("\nGraphOS credentials");
-    println!("Graph: {}", graph_id);
-    println!("API Key: TODO");
+    println!("\n{}", Style::Heading.paint("GraphOS credentials"));
+    println!("{}: {}", Style::Command.paint("Graph"), graph_id);
+    println!("{}: TODO", Style::Command.paint("API Key"));
 
-    println!("\n️▲ Before you proceed:");
+    println!("{}", Style::WarningHeading.paint("Before you proceed:"));
     println!("- Set your graph API key as an environment variable; learn more about env vars by running `rover docs open configuring`");
     println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");
 
-    println!("\nNext steps Run the following command to start a local development session:  $ rover dev --supergraph-config supergraph.yaml  For more information, check out `getting-started.md`.");
+    println!("\n{}", Style::Heading.paint("Next steps"));
+    println!("Run the following command to start a local development session:\n");
+    println!("{}", Style::Command.paint("$ rover dev --supergraph-config supergraph.yaml\n"));  
+    println!("For more information, check out `{}`.", Style::Link.paint("getting-started.md"));
 }
 
 pub fn display_use_template_message() {
-    println!("\nTo add a new subgraph to an existing API project, use `rover template`.");
-    println!("To learn more about templates, run `rover docs open template`");
+    println!("\nTo add a new subgraph to an existing API project, use `{}`.", Style::Command.paint("rover template"));
+    println!("To learn more about templates, run `{}`", Style::Link.paint("rover docs open template"));
 }
