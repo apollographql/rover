@@ -5,6 +5,7 @@ use console::Term;
 use dialoguer::Select;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTypeOpt {
@@ -20,7 +21,7 @@ impl ProjectTypeOpt {
     pub fn prompt_project_type(&self) -> RoverResult<ProjectType> {
         let project_types = <ProjectType as ValueEnum>::value_variants();
         let selection = Select::new()
-            .with_prompt("? Select project type")
+            .with_prompt(Style::Prompt.paint("? Select option"))
             .items(project_types)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
@@ -50,8 +51,8 @@ impl Display for ProjectType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectType::*;
         let readable = match self {
-            CreateNew => "Create a new GraphQL API",
-            AddSubgraph => "Add a subgraph to an existing GraphQL API",
+            CreateNew => "Create a new Graph",
+            AddSubgraph => "Add a subgraph to an existing Graph",
         };
         write!(f, "{}", readable)
     }
@@ -108,7 +109,7 @@ mod tests {
     #[test]
     fn test_display_trait_for_create_new() {
         let project_type = ProjectType::CreateNew;
-        assert_eq!(project_type.to_string(), "Create a new GraphQL API");
+        assert_eq!(project_type.to_string(), "Create a new Graph");
     }
 
     #[test]
@@ -116,7 +117,7 @@ mod tests {
         let project_type = ProjectType::AddSubgraph;
         assert_eq!(
             project_type.to_string(),
-            "Add a subgraph to an existing GraphQL API"
+            "Add a subgraph to an existing Graph"
         );
     }
 

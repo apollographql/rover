@@ -5,6 +5,7 @@ use console::Term;
 use dialoguer::Select;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
@@ -20,7 +21,7 @@ impl ProjectUseCaseOpt {
             let use_cases = <ProjectUseCase as ValueEnum>::value_variants();
 
             let selection = Select::new()
-                .with_prompt("? Select use case")
+                .with_prompt(Style::Prompt.paint("? Select use case"))
                 .items(use_cases)
                 .default(0)
                 .interact_on_opt(&Term::stderr())?;
