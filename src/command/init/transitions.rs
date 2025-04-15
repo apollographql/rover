@@ -32,7 +32,7 @@ impl Welcome {
     pub fn new() -> Self {
         Welcome {}
     }
-
+    
     pub fn select_project_type(
         self,
         options: &ProjectTypeOpt,

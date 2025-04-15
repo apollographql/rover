@@ -31,3 +31,8 @@ pub fn display_project_created_message(
 
     println!("\nNext steps Run the following command to start a local development session:  $ rover dev --supergraph-config supergraph.yaml  For more information, check out `getting-started.md`.");
 }
+
+pub fn display_use_template_message() {
+    println!("\nTo add a new subgraph to an existing API project, use `rover template`.");
+    println!("To learn more about templates, run `rover docs open template`");
+}
