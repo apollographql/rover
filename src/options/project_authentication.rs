@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use config::Profile;
-use dialoguer::{Password, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Password};
 use houston as config;
 use serde::{Deserialize, Serialize};
 
@@ -44,11 +44,7 @@ impl ProjectAuthenticationOpt {
             Err(e) => return Err(anyhow::anyhow!("Failed to read API key: {}", e)),
         };
 
-        Profile::set_api_key(
-            &profile.profile_name,
-            &client_config.config,
-            &api_key,
-        )?;
+        Profile::set_api_key(&profile.profile_name, &client_config.config, &api_key)?;
 
         // Validate key was stored successfully
         match Profile::get_credential(&profile.profile_name, &client_config.config) {
