@@ -38,11 +38,21 @@ pub fn display_project_created_message(
 
     println!("\n{}", Style::Heading.paint("Next steps"));
     println!("Run the following command to start a local development session:\n");
-    println!("{}", Style::Command.paint("$ rover dev --supergraph-config supergraph.yaml\n"));  
-    println!("For more information, check out `{}`.", Style::Link.paint("getting-started.md"));
+    println!(
+        "{}",
+        Style::Command.paint("$ rover dev --supergraph-config supergraph.yaml\n")
+    );
+    println!("For more information, check out `getting-started.md`.");
 }
 
 pub fn display_use_template_message() {
-    println!("\nTo add a new subgraph to an existing API project, use `{}`.", Style::Command.paint("rover template"));
-    println!("To learn more about templates, run `{}`", Style::Link.paint("rover docs open template"));
+    println!();
+    println!(
+        "To add a new subgraph to an existing API project, use `{}`.",
+        Style::Command.paint("rover template")
+    );
+    println!(
+        "To learn more about templates, run `{}`",
+        Style::Link.paint("rover docs open template")
+    );
 }
