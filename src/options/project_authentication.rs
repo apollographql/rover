@@ -1,11 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 use config::Profile;
+use dialoguer::{Password, theme::ColorfulTheme};
 use houston as config;
-#[cfg(feature = "init")]
-use inquire::{Password, PasswordDisplayMode};
-#[cfg(feature = "init")]
-use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 use crate::command::init::ui::symbols;
@@ -30,10 +27,12 @@ impl ProjectAuthenticationOpt {
         );
         println!("Copy the key and paste it into the prompt below.\n");
 
-        let password_result = Password::new("")
-            .with_display_mode(PasswordDisplayMode::Masked)
-            .without_confirmation()
-            .prompt();
+        let theme = ColorfulTheme::default();
+
+        let password_result = Password::with_theme(&theme)
+            .allow_empty_password(false)
+            .report(true)
+            .interact();
 
         let api_key = match password_result {
             Ok(input) => {
@@ -45,12 +44,10 @@ impl ProjectAuthenticationOpt {
             Err(e) => return Err(anyhow::anyhow!("Failed to read API key: {}", e)),
         };
 
-        let secure_api_key: SecretString = api_key.into();
-
         Profile::set_api_key(
             &profile.profile_name,
             &client_config.config,
-            secure_api_key.expose_secret(),
+            &api_key,
         )?;
 
         // Validate key was stored successfully
@@ -60,7 +57,7 @@ impl ProjectAuthenticationOpt {
                     return Err(anyhow::anyhow!("API key was saved but appears to be empty when retrieved. Please try again."));
                 }
 
-                if credential.api_key != *secure_api_key.expose_secret() {
+                if credential.api_key != api_key {
                     return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
                 }
 
