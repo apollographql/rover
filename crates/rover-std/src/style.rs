@@ -24,7 +24,6 @@ pub enum Style {
 }
 
 impl Style {
-    
     pub fn paint<S: AsRef<str>>(&self, message: S) -> String {
         let message_ref = message.as_ref();
 

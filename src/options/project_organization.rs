@@ -38,7 +38,7 @@ impl fmt::Display for OrganizationId {
     }
 }
 use rover_std::Style;
-
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
     #[arg(long = "organization")]
