@@ -47,18 +47,18 @@ impl Init {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
-        let project_type_selected = Welcome::new()
-            .select_project_type(&self.project_type, &self.path)?;
+        let project_type_selected = 
+            Welcome::new().select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
-                .select_organization(&self.organization)?
-                .select_use_case(&self.project_use_case)?
-                .enter_project_name(&self.project_name)?
-                .confirm_graph_id(&self.graph_id)?
-                .preview_and_confirm_creation(http_service)
-                .await?;
+                    .select_organization(&self.organization)?
+                    .select_use_case(&self.project_use_case)?
+                    .enter_project_name(&self.project_name)?
+                    .confirm_graph_id(&self.graph_id)?
+                    .preview_and_confirm_creation(http_service)
+                    .await?;
     
                 match creation_confirmed_option {
                     Some(creation_confirmed) => {
@@ -67,11 +67,11 @@ impl Init {
                     }
                     None => Ok(RoverOutput::EmptySuccess),
                 }
-            },
+            }
             crate::options::ProjectType::AddSubgraph => {
                 display_use_template_message();
                 return Ok(RoverOutput::EmptySuccess);
-            },
+            }
         }
     }
 }
