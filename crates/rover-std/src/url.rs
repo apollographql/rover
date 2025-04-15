@@ -13,16 +13,10 @@ pub fn sanitize_url(url: &str) -> Option<String> {
     })
 }
 
-/// Clickable link with URL sanitization and styling
 pub fn hyperlink(url: &str) -> String {
     let sanitized_url = sanitize_url(url).unwrap_or_else(|| url.to_string());
     
     Style::Link.paint(sanitized_url)
-
-    // format!(
-    //     "\u{001b}]8;;{}\u{001b}\\{}\u{001b}]8;;\u{001b}\\",
-    //     sanitized_url, styled_text
-    // )
 }
 
 #[cfg(test)]
