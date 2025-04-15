@@ -1,11 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
 use config::Profile;
-use dialoguer::{theme::ColorfulTheme, Password};
+use dialoguer::{Password, theme::ColorfulTheme};
 use houston as config;
+use rover_std::{hyperlink, success_message};
 use serde::{Deserialize, Serialize};
 
-use crate::command::init::ui::symbols;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 
@@ -18,12 +18,11 @@ impl ProjectAuthenticationOpt {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> Result<()> {
+        let api_url = "https://studio.apollographql.com/user-settings/api-keys";
+        
         println!(
             "No credentials found. Please go to {} and create a new Personal API key.\n",
-            symbols::hyperlink(
-                "https://studio.apollographql.com/user-settings/api-keys",
-                "https://studio.apollographql.com/user-settings/api-keys"
-            )
+            hyperlink(api_url)
         );
         println!("Copy the key and paste it into the prompt below.\n");
 
@@ -59,7 +58,7 @@ impl ProjectAuthenticationOpt {
 
                 println!(
                     "{}",
-                    symbols::success_message("Successfully saved your API key.")
+                    success_message("Successfully saved your API key.")
                 );
 
                 Ok(())
