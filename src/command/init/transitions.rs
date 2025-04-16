@@ -331,7 +331,7 @@ impl CreationConfirmed {
                     },
                     subgraph: subgraph_name.to_string(),
                     url: subgraph_config.routing_url.clone(),
-                    schema: "type Query { id: ID! }".to_string(),
+                    schema: "type Query { id: ID! }".to_string(), // TODO: Get the SDL from the subgraph config
                     git_context: GitContext {
                         branch: None,
                         commit: None,
