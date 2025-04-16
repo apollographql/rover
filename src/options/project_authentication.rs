@@ -54,13 +54,6 @@ impl ProjectAuthenticationOpt {
                     ));
                 }
 
-<<<<<<< HEAD
-=======
-                if credential.api_key != api_key {
-                    return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
-                }
-
->>>>>>> 2d4bf8ee (feat(init) fix lint errors)
                 println!("{}", success_message("Successfully saved your API key."));
 
                 Ok(())
