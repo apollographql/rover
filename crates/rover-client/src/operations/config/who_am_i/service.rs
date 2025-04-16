@@ -115,7 +115,6 @@ where
                         // I believe for the purposes of the CLI, we only care about users and
                         // graphs as api key actors, since that's all we _should_ get.
                         // I think it's safe to only include those two kinds of actors in the enum
-                        // more here: https://studio-staging.apollographql.com/graph/engine/schema/reference/enums/ActorType?variant=prod
 
                         let key_actor_type = match me.as_actor.type_ {
                             config_who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
