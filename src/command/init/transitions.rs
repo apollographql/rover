@@ -7,13 +7,16 @@ use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
+use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
+use crate::options::ProfileOpt;
 use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
 use crate::options::TemplateFetcher;
 use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
@@ -224,8 +227,21 @@ impl GraphIdConfirmed {
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
-    pub async fn create_project(self) -> RoverResult<ProjectCreated> {
+    pub async fn create_project(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
+
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
@@ -234,17 +250,6 @@ impl CreationConfirmed {
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
-
-        // TODO: Implement API key creation -- generate_api_key() is not implemented
-        let api_key = match env::var("GRAPHOS_API_KEY") {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "API key required. Please set the GRAPHOS_API_KEY environment variable."
-                )
-                .into())
-            }
-        };
 
         Ok(ProjectCreated {
             config: self.config,

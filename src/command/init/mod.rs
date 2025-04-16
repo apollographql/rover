@@ -1,6 +1,7 @@
 mod config;
 pub mod graph_id;
 mod helpers;
+mod operations;
 mod states;
 mod template_operations;
 mod transitions;
@@ -11,6 +12,7 @@ use crate::options::{
     GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use helpers::display_use_template_message;
@@ -43,13 +45,12 @@ pub struct Init {
 }
 
 impl Init {
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
         let project_type_selected =
             Welcome::new().select_project_type(&self.project_type, &self.path)?;
-
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
@@ -62,7 +63,9 @@ impl Init {
 
                 match creation_confirmed_option {
                     Some(creation_confirmed) => {
-                        let project_created = creation_confirmed.create_project().await?;
+                        let project_created = creation_confirmed
+                            .create_project(&client_config, &self.profile)
+                            .await?;
                         Ok(project_created.complete().success())
                     }
                     None => Ok(RoverOutput::EmptySuccess),
@@ -70,7 +73,7 @@ impl Init {
             }
             crate::options::ProjectType::AddSubgraph => {
                 display_use_template_message();
-                return Ok(RoverOutput::EmptySuccess);
+                Ok(RoverOutput::EmptySuccess)
             }
         }
     }
