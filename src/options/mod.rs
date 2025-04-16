@@ -20,10 +20,6 @@ mod project_organization;
 mod project_type;
 #[cfg(feature = "init")]
 mod project_use_case;
-<<<<<<< HEAD
-=======
-
->>>>>>> 2dcd79ae (feat(init): Pass client_config to init command for authentication validation)
 mod schema;
 mod subgraph;
 mod template;
@@ -39,13 +35,13 @@ pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
 #[cfg(feature = "init")]
-pub(crate) use project_authentication::*;
+pub use project_authentication::*;
 #[cfg(feature = "init")]
-pub(crate) use project_graphid::*;
+pub use project_graphid::*;
 #[cfg(feature = "init")]
-pub(crate) use project_name::*;
+pub use project_name::*;
 #[cfg(feature = "init")]
-pub(crate) use project_organization::*;
+pub use project_organization::*;
 #[cfg(feature = "init")]
 pub(crate) use project_type::*;
 #[cfg(feature = "init")]
