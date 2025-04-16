@@ -1,4 +1,5 @@
 * @apollographql/graph-tooling
+crates/rover-client @apollographql/team-growth @apollographql/graph-tooling
 Cargo.lock @apollographql/team-growth @apollographql/graph-tooling
 docs @apollographql/docs @apollographql/graph-tooling
 src/command/init @apollographql/team-growth @apollographql/graph-tooling
