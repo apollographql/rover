@@ -1,10 +1,18 @@
 use crate::operations::init::key::runner::init_new_key_mutation;
+<<<<<<< HEAD
+=======
+use crate::shared::GraphRef;
+>>>>>>> 2026a3ce (Adding Graph key creation)
 
 type MutationVariables = init_new_key_mutation::Variables;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InitNewKeyInput {
+<<<<<<< HEAD
     pub graph_id: String,
+=======
+    pub graph_ref: GraphRef,
+>>>>>>> 2026a3ce (Adding Graph key creation)
     pub key_name: String,
     pub role: UserPermission,
 }
