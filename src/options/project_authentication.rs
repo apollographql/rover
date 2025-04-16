@@ -3,8 +3,8 @@ use clap::Parser;
 use config::Profile;
 use dialoguer::{theme::ColorfulTheme, Password};
 use houston as config;
-use rover_std::url::hyperlink;
 use rover_std::symbols::success_message;
+use rover_std::url::hyperlink;
 use serde::{Deserialize, Serialize};
 
 use crate::options::ProfileOpt;
