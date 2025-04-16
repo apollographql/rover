@@ -2,9 +2,9 @@ mod config;
 pub mod graph_id;
 mod helpers;
 mod operations;
-mod states;
-mod template_operations;
-mod transitions;
+pub mod states;
+pub mod template_operations;
+pub mod transitions;
 
 use std::path::PathBuf;
 
@@ -49,8 +49,12 @@ impl Init {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
-        let project_type_selected =
-            Welcome::new().select_project_type(&self.project_type, &self.path)?;
+        let welcome = UserAuthenticated::new()
+            .check_authentication(client_config, &self.profile)
+            .await?;
+
+        let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
+
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
@@ -79,4 +83,4 @@ impl Init {
     }
 }
 
-pub use states::Welcome;
+use states::UserAuthenticated;

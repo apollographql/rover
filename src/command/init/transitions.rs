@@ -11,16 +11,53 @@ use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
-use crate::options::ProfileOpt;
+use crate::options::ProjectAuthenticationOpt;
 use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
 use crate::options::TemplateFetcher;
-use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::options::{ProfileOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
 use anyhow::anyhow;
+
+/// PROMPT UX:
+/// =========
+///
+/// No credentials found. Please go to http://studio.apollographql.com/user-settings/api-keys and create a new Personal API key.
+///
+/// Copy the key and paste it into the prompt below.
+/// ?
+impl UserAuthenticated {
+    pub fn new() -> Self {
+        UserAuthenticated {}
+    }
+
+    pub async fn check_authentication(
+        self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<Welcome> {
+        match client_config.get_authenticated_client(profile) {
+            Ok(_) => Ok(Welcome::new()),
+            Err(_) => {
+                match ProjectAuthenticationOpt::default()
+                    .prompt_for_api_key(&client_config, profile)
+                {
+                    Ok(_) => {
+                        // Try to authenticate again with the new credentials
+                        match client_config.get_authenticated_client(profile) {
+                            Ok(_) => Ok(Welcome::new()),
+                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
+                        }
+                    }
+                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                }
+            }
+        }
+    }
+}
 
 /// PROMPT UX:
 /// ==========
@@ -188,7 +225,7 @@ impl GraphIdConfirmed {
 
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
-          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-connectors-starter/archive/refs/heads/main.tar.gz",
+          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/refs/heads/main.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
               println!("\nGraphQL Template is coming soon!\n");
               return Ok(None); // Early return if template not available
@@ -254,7 +291,8 @@ impl CreationConfirmed {
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
+            // TODO: Implement API key creation -- generate_api_key() is not implemented
+            // api_key: "dummy-api-key".to_string(),
         })
     }
 }
@@ -271,7 +309,8 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            &self.api_key,
+            // TODO: implement API key creation
+            // api_key: "dummy-api-key",
         );
 
         Completed
