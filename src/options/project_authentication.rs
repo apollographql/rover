@@ -48,12 +48,10 @@ impl ProjectAuthenticationOpt {
         // Validate key was stored successfully
         match Profile::get_credential(&profile.profile_name, &client_config.config) {
             Ok(credential) => {
-                if credential.api_key.is_empty() {
-                    return Err(anyhow::anyhow!("API key was saved but appears to be empty when retrieved. Please try again."));
-                }
-
-                if credential.api_key != api_key {
-                    return Err(anyhow::anyhow!("API key was saved but differs from what was provided. There may be an issue with your configuration."));
+                if credential.api_key.is_empty() || credential.api_key != api_key {
+                    return Err(anyhow::anyhow!(
+                        "Received an unexpected server error. This isn't your fault! Please try again."
+                    ));
                 }
 
                 println!("{}", success_message("Successfully saved your API key."));
