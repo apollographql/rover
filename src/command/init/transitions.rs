@@ -322,7 +322,7 @@ impl CreationConfirmed {
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
 
-        let supergraph = SupergraphBuilder::new(self.output_path, 5);
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
         supergraph.build_and_write()?;
 
         let artifacts = self.template.list_files()?;
@@ -341,6 +341,23 @@ impl CreationConfirmed {
         let subgraphs = supergraph.generate_subgraphs()?;
         for (subgraph_name, subgraph_config) in subgraphs.iter() {
             println!("Publishing subgraph: {}", subgraph_name);
+            let schema_path = match &subgraph_config.schema {
+                SchemaSource::File { file } => Utf8PathBuf::from_path_buf(file.to_path_buf()),
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported schema source for subgraph: {}",
+                        subgraph_name
+                    )
+                    .into());
+                }
+            };
+
+            let unresolved =
+                UnresolvedSubgraph::new(subgraph_name.clone(), subgraph_config.clone());
+            let schema_path =
+                unresolved.resolve_file_path(&self.output_path, &schema_path.unwrap())?;
+            let sdl = read_to_string(schema_path)?;
+
             publish::run(
                 SubgraphPublishInput {
                     graph_ref: GraphRef {
@@ -349,7 +366,7 @@ impl CreationConfirmed {
                     },
                     subgraph: subgraph_name.to_string(),
                     url: subgraph_config.routing_url.clone(),
-                    schema: "type Query { id: ID! }".to_string(), // TODO: Get the SDL from the subgraph config
+                    schema: sdl, // TODO: Get the SDL from the subgraph config
                     git_context: GitContext {
                         branch: None,
                         commit: None,
