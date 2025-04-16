@@ -1,6 +1,7 @@
 mod config;
 pub mod graph_id;
 mod helpers;
+mod operations;
 mod states;
 mod template_operations;
 mod transitions;
@@ -50,7 +51,6 @@ impl Init {
 
         let project_type_selected =
             Welcome::new().select_project_type(&self.project_type, &self.path)?;
-
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
                 let creation_confirmed_option = project_type_selected
@@ -64,7 +64,7 @@ impl Init {
                 match creation_confirmed_option {
                     Some(creation_confirmed) => {
                         let project_created = creation_confirmed
-                            .create_project(&self.profile, client_config)
+                            .create_project(&client_config, &self.profile)
                             .await?;
                         Ok(project_created.complete().success())
                     }

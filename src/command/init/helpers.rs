@@ -17,7 +17,7 @@ pub fn display_project_created_message(
     project_name: &str,
     artifacts: &Vec<Utf8PathBuf>,
     graph_id: &GraphId,
-    _api_key: &str,
+    api_key: &str,
 ) {
     println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", project_name);
     let success_check = Style::Success.paint("✓");

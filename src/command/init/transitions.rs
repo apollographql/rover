@@ -12,6 +12,7 @@ use rover_http::ReqwestService;
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::GraphId;
 use crate::command::init::helpers::*;
+use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
@@ -235,11 +236,20 @@ impl GraphIdConfirmed {
 impl CreationConfirmed {
     pub async fn create_project(
         self,
+        client_config: &StudioClientConfig,
         profile: &ProfileOpt,
-        client_config: StudioClientConfig,
     ) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
         let client = client_config.get_authenticated_client(profile)?;
+
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
