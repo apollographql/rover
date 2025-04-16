@@ -52,8 +52,9 @@ impl Init {
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
             .await?;
-        let project_type_selected =
-            welcome.select_project_type(&self.project_type, &self.path)?;
+
+        let project_type_selected = welcome
+            .select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {

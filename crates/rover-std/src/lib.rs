@@ -1,8 +1,8 @@
 mod error;
 mod fs;
 mod style;
-mod symbols;
-mod url;
+pub mod symbols;
+pub mod url;
 
 pub mod print;
 pub mod prompt;
