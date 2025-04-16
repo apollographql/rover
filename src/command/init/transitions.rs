@@ -10,14 +10,53 @@ use crate::command::init::helpers::*;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
+use crate::options::ProjectAuthenticationOpt;
 use crate::options::ProjectNameOpt;
 use crate::options::ProjectUseCase;
 use crate::options::TemplateFetcher;
-use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::options::{ProfileOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::{RoverOutput, RoverResult};
 use anyhow::anyhow;
+
+/// PROMPT UX:
+/// =========
+///
+/// No credentials found. Please go to http://studio.apollographql.com/user-settings/api-keys and create a new Personal API key.
+///
+/// Copy the key and paste it into the prompt below.
+/// ?
+impl UserAuthenticated {
+    pub fn new() -> Self {
+        UserAuthenticated {}
+    }
+
+    pub async fn check_authentication(
+        self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<Welcome> {
+        match client_config.get_authenticated_client(profile) {
+            Ok(_) => Ok(Welcome::new()),
+            Err(_) => {
+                match ProjectAuthenticationOpt::default()
+                    .prompt_for_api_key(&client_config, profile)
+                {
+                    Ok(_) => {
+                        // Try to authenticate again with the new credentials
+                        match client_config.get_authenticated_client(profile) {
+                            Ok(_) => Ok(Welcome::new()),
+                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
+                        }
+                    }
+                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                }
+            }
+        }
+    }
+}
 
 /// PROMPT UX:
 /// ==========
@@ -235,21 +274,11 @@ impl CreationConfirmed {
 
         let artifacts = self.template.list_files()?;
 
-        // TODO: Implement API key creation -- generate_api_key() is not implemented
-        let api_key = match env::var("GRAPHOS_API_KEY") {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "API key required. Please set the GRAPHOS_API_KEY environment variable."
-                )
-                .into())
-            }
-        };
-
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
+            // TODO: Implement API key creation -- generate_api_key() is not implemented
+            // api_key: "dummy-api-key".to_string(),
         })
     }
 }
@@ -266,7 +295,8 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            &self.api_key,
+            // TODO: implement API key creation
+            // api_key: "dummy-api-key",
         );
 
         Completed

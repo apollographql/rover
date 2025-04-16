@@ -4,6 +4,9 @@ use crate::options::{ProjectName, ProjectType, ProjectUseCase, TemplateProject};
 use camino::Utf8PathBuf;
 
 #[derive(Debug)]
+pub struct UserAuthenticated {}
+
+#[derive(Debug)]
 pub struct Welcome {}
 
 #[derive(Debug)]
@@ -57,7 +60,8 @@ pub struct CreationConfirmed {
 pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
-    pub api_key: String,
+    // TODO: implement API key creation
+    // pub _api_key: String,
 }
 
 #[derive(Debug)]

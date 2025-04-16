@@ -1,9 +1,9 @@
 mod config;
 pub mod graph_id;
 mod helpers;
-mod states;
-mod template_operations;
-mod transitions;
+pub mod states;
+pub mod template_operations;
+pub mod transitions;
 
 use std::path::PathBuf;
 
@@ -11,6 +11,7 @@ use crate::options::{
     GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use helpers::display_use_template_message;
@@ -43,12 +44,15 @@ pub struct Init {
 }
 
 impl Init {
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
-        let project_type_selected =
-            Welcome::new().select_project_type(&self.project_type, &self.path)?;
+        let welcome = UserAuthenticated::new()
+            .check_authentication(client_config, &self.profile)
+            .await?;
+
+        let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
@@ -76,4 +80,4 @@ impl Init {
     }
 }
 
-pub use states::Welcome;
+use states::UserAuthenticated;
