@@ -51,8 +51,7 @@ impl UserAuthenticated {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => Ok(Welcome::new()),
             Err(_) => {
-                match ProjectAuthenticationOpt::default()
-                    .prompt_for_api_key(&client_config, profile)
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
                     Ok(_) => {
                         // Try to authenticate again with the new credentials
@@ -361,7 +360,7 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            &self.api_key,
+            &self.api_key.to_string(),
         );
 
         Completed

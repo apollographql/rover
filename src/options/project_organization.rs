@@ -4,7 +4,6 @@ use clap::arg;
 use clap::Parser;
 use console::Term;
 use dialoguer::Select;
-use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
