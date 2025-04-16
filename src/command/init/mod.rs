@@ -52,14 +52,8 @@ impl Init {
             .check_authentication(client_config, &self.profile)
             .await?;
 
-        let creation_confirmed_option = welcome
-            .select_project_type(&self.project_type, &self.path)?
-            .select_organization(&self.organization)?
-            .select_use_case(&self.project_use_case)?
-            .enter_project_name(&self.project_name)?
-            .confirm_graph_id(&self.graph_id)?
-            .preview_and_confirm_creation(http_service)
-            .await?;
+        let project_type_selected = welcome
+            .select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {

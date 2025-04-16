@@ -36,13 +36,13 @@ pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
 #[cfg(feature = "init")]
-pub(crate) use project_authentication::*;
+pub use project_authentication::*;
 #[cfg(feature = "init")]
-pub(crate) use project_graphid::*;
+pub use project_graphid::*;
 #[cfg(feature = "init")]
-pub(crate) use project_name::*;
+pub use project_name::*;
 #[cfg(feature = "init")]
-pub(crate) use project_organization::*;
+pub use project_organization::*;
 #[cfg(feature = "init")]
 pub(crate) use project_type::*;
 #[cfg(feature = "init")]
