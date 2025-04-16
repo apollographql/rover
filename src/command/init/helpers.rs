@@ -42,7 +42,7 @@ pub fn display_project_created_message(
         "{} {}={}",
         success_check,
         Style::Command.paint("APOLLO_KEY"),
-        "TODO"
+        api_key
     );
     println!();
 
