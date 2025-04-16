@@ -58,6 +58,7 @@ pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
+    pub graph_id: GraphId,
 }
 
 #[derive(Debug)]
