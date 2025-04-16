@@ -25,7 +25,6 @@ impl GraphIdOpt {
     pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<GraphId> {
         // Handle the case when graph_id is provided via command line
         if let Some(ref id) = self.graph_id {
-            // Parse string into GraphId
             let graph_id = GraphId::from_str(id)?;
             return Ok(graph_id);
         }
@@ -37,18 +36,18 @@ impl GraphIdOpt {
     }
 
     fn prompt_graph_id(&self, suggested_id: String) -> RoverResult<GraphId> {
-        const MAX_RETRIES: usize = 3;
+        let mut attempt = 1;
 
-        for attempt in 1..=MAX_RETRIES {
+        loop {
             let input = self.prompt_for_input(&suggested_id)?;
 
             match GraphId::from_str(&input) {
                 Ok(graph_id) => return Ok(graph_id),
-                Err(e) => self.handle_validation_error(e, attempt, MAX_RETRIES)?,
+                Err(e) => self.handle_validation_error(e, attempt)?,
             }
-        }
 
-        unreachable!("Loop should have exited with return Ok or Err");
+            attempt += 1;
+        }
     }
 
     fn prompt_for_input(&self, suggested_id: &str) -> RoverResult<String> {
@@ -66,16 +65,12 @@ impl GraphIdOpt {
         &self,
         error: GraphIdValidationError,
         attempt: usize,
-        max_retries: usize,
     ) -> RoverResult<()> {
-        // If last attempt, propagate the error
-        if attempt == max_retries {
-            return Err(validation_error_to_rover_error(error));
-        }
+        let rover_error = validation_error_to_rover_error(error);
 
-        // Otherwise display error and signal to retry
-        eprintln!("{}", error);
-        eprintln!("Please try again (attempt {}/{})", attempt, max_retries);
+        eprintln!("{}", rover_error);
+
+        eprintln!("Please try again (attempt {})", attempt);
         Ok(())
     }
 }

@@ -51,7 +51,7 @@ impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectUseCase::*;
         let readable = match self {
-            Connectors => "Connect one or more REST APIs",
+            Connectors => "Start a GraphQL API with one or more REST APIs",
             GraphQLTemplate => "Start a GraphQL API with recommended libraries",
         };
         write!(f, "{}", readable)

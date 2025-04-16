@@ -26,8 +26,13 @@ pub fn display_project_created_message(
     println!("API Key: TODO");
 
     println!("\n️▲ Before you proceed:");
-    println!("- Set your graph API key as an environment variable (learn more about env vars by running `rover docs open config`)");
+    println!("- Set your graph API key as an environment variable; learn more about env vars by running `rover docs open configuring`");
     println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");
 
     println!("\nNext steps Run the following command to start a local development session:  $ rover dev --supergraph-config supergraph.yaml  For more information, check out `getting-started.md`.");
+}
+
+pub fn display_use_template_message() {
+    println!("\nTo add a new subgraph to an existing API project, use `rover template`.");
+    println!("To learn more about templates, run `rover docs open template`");
 }
