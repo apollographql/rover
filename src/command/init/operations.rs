@@ -1,7 +1,6 @@
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
-use rover_client::shared::GraphRef;
 use thiserror::Error;
 
 const DEFAULT_VARIANT: &str = "current";
@@ -26,11 +25,8 @@ pub(crate) async fn create_api_key(
         .get_authenticated_client(profile)
         .map_err(|_| GraphOperationError::AuthenticationFailed)?;
 
-    let graph_ref = GraphRef::new(graph_id.clone(), Some(DEFAULT_VARIANT.to_string()))
-        .map_err(|_| GraphOperationError::InvalidGraphId(graph_id))?;
-
     let key_input = rover_client::operations::init::key::InitNewKeyInput {
-        graph_ref,
+        graph_id,
         key_name,
         role: rover_client::operations::init::key::UserPermission::GraphAdmin,
     };
