@@ -91,13 +91,10 @@ impl SupergraphBuilder {
             }
 
             let file = self.directory.as_std_path().join(file_path);
-            println!("File: {}", file.display());
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
                 .routing_url("http://ignore".to_string()) // Hardcoded URL
-                .schema(SchemaSource::File {
-                    file: file.clone(),
-                })
+                .schema(SchemaSource::File { file: file.clone() })
                 .build();
 
             subgraphs.insert(name, SubgraphConfig::from(subgraph));
