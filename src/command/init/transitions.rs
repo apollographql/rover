@@ -292,7 +292,7 @@ impl CreationConfirmed {
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
+            api_key: "TODO".to_string(),
         })
     }
 }

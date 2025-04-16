@@ -20,20 +20,34 @@ pub fn display_project_created_message(
     api_key: &str,
 ) {
     println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", project_name);
-
+    let success_check = Style::Success.paint("✓");
     // Display created files
     println!("\nProject directory");
     for artifact in artifacts {
-        println!("✓ {}", artifact);
+        println!("{} {}", success_check, artifact);
     }
 
     // Display credentials
-    println!("\n{}", Style::Heading.paint("GraphOS credentials"));
-    println!("{}: {}", Style::Command.paint("Graph"), graph_id);
-    println!("{}: {}", Style::Command.paint("API Key"), api_key);
+    println!(
+        "\n{}",
+        Style::Heading.paint("GraphOS credentials for your graph")
+    );
+    println!(
+        "{} {}={}",
+        success_check,
+        Style::Command.paint("APOLLO_GRAPH_REF"),
+        graph_id
+    );
+    println!(
+        "{} {}={}",
+        success_check,
+        Style::Command.paint("APOLLO_KEY"),
+        api_key
+    );
+    println!();
 
-    println!("{}", Style::WarningHeading.paint("Before you proceed:"));
-    println!("- Set your graph API key as an environment variable; learn more about env vars by running `rover docs open configuring`");
+    println!("{}", Style::WarningHeading.paint("️▲ Before you proceed:"));
+    println!("- Set your graph API key as an environment variable; learn more about env vars by running {}",Style::Command.paint("`rover docs open configuring`"));
     println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");
 
     println!("\n{}", Style::Heading.paint("Next steps"));
