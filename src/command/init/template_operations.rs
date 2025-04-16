@@ -68,7 +68,7 @@ impl SupergraphBuilder {
            /model
              /schema.graphql
     */
-    fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
+    pub fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
         let mut subgraphs = BTreeMap::new();
 
         // Collect all graphql schemas
@@ -88,11 +88,13 @@ impl SupergraphBuilder {
                 name = self.disambiguate_name(&file_path, &name)?;
             }
 
+            let file = self.directory.as_std_path().join(file_path);
+            println!("File: {}", file.display());
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
                 .routing_url("http://ignore".to_string()) // Hardcoded URL
                 .schema(SchemaSource::File {
-                    file: file_path.clone(),
+                    file: file.clone(),
                 })
                 .build();
 

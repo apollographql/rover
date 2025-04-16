@@ -2,11 +2,19 @@ use std::env;
 use std::fs::read_dir;
 use std::path::PathBuf;
 
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships::{self};
+use rover_client::operations::init::create_graph;
+use rover_client::operations::subgraph::publish;
+use rover_client::operations::subgraph::publish::*;
+use rover_client::shared::GitContext;
+use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
+use crate::command::init::graph_id::GraphId;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
@@ -17,7 +25,6 @@ use crate::options::{
 };
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-use anyhow::anyhow;
 
 /// PROMPT UX:
 /// =========
@@ -271,6 +278,7 @@ impl CreationConfirmed {
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
+        let client = client_config.get_authenticated_client(profile)?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -284,15 +292,65 @@ impl CreationConfirmed {
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
-
-        SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
-
+        
+        let supergraph = SupergraphBuilder::new(self.output_path, 5);
+        supergraph.build_and_write()?;
+        
         let artifacts = self.template.list_files()?;
+
+        let create_graph_response = create_graph::run(
+            CreateGraphInput {
+                hidden_from_uninvited_non_admin: false,
+                create_graph_id: self.config.graph_id.to_string(),
+                title: self.config.project_name.to_string(),
+                organization_id: self.config.organization.to_string(),
+            },
+            &client,
+        )
+        .await?;
+    
+        let subgraphs = supergraph.generate_subgraphs()?;
+        for (subgraph_name, subgraph_config) in subgraphs.iter() {
+            println!("Publishing subgraph: {}", subgraph_name);
+            publish::run(
+                SubgraphPublishInput {
+                    graph_ref: GraphRef {
+                        name: create_graph_response.id.clone(),
+                        variant: "current".to_string(),
+                    },
+                    subgraph: subgraph_name.to_string(),
+                    url: subgraph_config.routing_url.clone(),
+                    schema: "type Query { id: ID! }".to_string(),
+                    git_context: GitContext {
+                        branch: None,
+                        commit: None,
+                        author: None,
+                        remote_url: None,
+                    },
+                    convert_to_federated_graph: false,
+                },
+                &client,
+            )
+            .await?;
+        }
+
+        // // TODO: Implement API key creation -- generate_api_key() is not implemented
+        // let api_key = match env::var("GRAPHOS_API_KEY") {
+        //     Ok(key) => key,
+        //     Err(_) => {
+        //         return Err(anyhow::anyhow!(
+        //             "API key required. Please set the GRAPHOS_API_KEY environment variable."
+        //         )
+        //         .into())
+        //     }
+        // };
+        let api_key = "test-api-key".to_string();
 
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
+            graph_id: create_graph_response.id.parse::<GraphId>().unwrap(),
         })
     }
 }
@@ -308,7 +366,7 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.config.graph_id,
+            &self.graph_id,
             &self.api_key,
         );
 
