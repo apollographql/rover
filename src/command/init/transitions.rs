@@ -288,10 +288,10 @@ impl CreationConfirmed {
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
-        
+
         let supergraph = SupergraphBuilder::new(self.output_path, 5);
         supergraph.build_and_write()?;
-        
+
         let artifacts = self.template.list_files()?;
 
         let create_graph_response = create_graph::run(
@@ -304,7 +304,7 @@ impl CreationConfirmed {
             &client,
         )
         .await?;
-    
+
         let subgraphs = supergraph.generate_subgraphs()?;
         for (subgraph_name, subgraph_config) in subgraphs.iter() {
             println!("Publishing subgraph: {}", subgraph_name);
@@ -338,7 +338,7 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
-    
+
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
@@ -359,7 +359,7 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.config.graph_id,
+            &self.graph_id,
             &self.api_key.to_string(),
         );
 
