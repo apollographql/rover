@@ -296,7 +296,6 @@ impl CreationConfirmed {
         //         .into())
         //     }
         // };
-        let api_key = "test-api-key".to_string();
 
         Ok(ProjectCreated {
             config: self.config,
