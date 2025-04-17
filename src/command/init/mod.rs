@@ -2,10 +2,10 @@ mod config;
 pub mod graph_id;
 mod helpers;
 mod operations;
+pub mod spinner;
 pub mod states;
 pub mod template_operations;
 pub mod transitions;
-
 use std::path::PathBuf;
 
 use crate::options::{

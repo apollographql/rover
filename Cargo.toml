@@ -231,7 +231,6 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true }
-spinners = "4.1.1"
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

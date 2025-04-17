@@ -1,4 +1,3 @@
-use spinners::{Spinner, Spinners};
 use std::env;
 use std::fs::read_dir;
 use std::path::PathBuf;
@@ -6,11 +5,11 @@ use std::path::PathBuf;
 use camino::Utf8PathBuf;
 use rover_client::operations::init::memberships::{self};
 use rover_http::ReqwestService;
-use rover_std::Style;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
+use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::{
@@ -20,7 +19,6 @@ use crate::options::{
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::anyhow;
-
 /// PROMPT UX:
 /// =========
 ///
@@ -274,9 +272,9 @@ impl CreationConfirmed {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
-        let mut spinner = Spinner::new(
-            Spinners::Dots9,
-            "Creating files and generating GraphOS credentials...".to_string(),
+        let spinner = Spinner::new(
+            "Creating files and generating GraphOS credentials...",
+            vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
         );
 
         // Create a new API key for the project first
@@ -287,7 +285,7 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
-
+    
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
@@ -295,11 +293,9 @@ impl CreationConfirmed {
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
-        let success_message = format!(
-            "{} Successfully created files and generated GraphOS credentials.",
-            Style::Success.paint("✓")
+        spinner.success(
+            "Successfully created files and generated GraphOS credentials.",
         );
-        spinner.stop_with_message(success_message);
 
         Ok(ProjectCreated {
             config: self.config,
