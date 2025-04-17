@@ -54,6 +54,15 @@ impl SupergraphBuilder {
         }
     }
 
+    fn strip_base_prefix(&self, path: &Path, base_prefix: &Path) -> PathBuf {
+        let canonical_base = base_prefix.canonicalize().unwrap();
+        let canonical_path = path.canonicalize().unwrap();
+        canonical_path
+            .strip_prefix(canonical_base.clone())
+            .unwrap()
+            .to_owned()
+    }
+
     /*
        In this fn we collect all graphql schemas found in the directory,
        also try to disambiguate names in case that they end up being duplicate
@@ -68,7 +77,7 @@ impl SupergraphBuilder {
            /model
              /schema.graphql
     */
-    fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
+    pub fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
         let mut subgraphs = BTreeMap::new();
 
         // Collect all graphql schemas
@@ -88,11 +97,12 @@ impl SupergraphBuilder {
                 name = self.disambiguate_name(&file_path, &name)?;
             }
 
+            let file = file_path.to_string_lossy().to_string();
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
                 .routing_url("http://ignore".to_string()) // Hardcoded URL
                 .schema(SchemaSource::File {
-                    file: file_path.clone(),
+                    file: file.parse()?,
                 })
                 .build();
 
@@ -127,18 +137,13 @@ impl SupergraphBuilder {
                 if path.is_dir() {
                     self.visit_dirs(&path, current_depth + 1, max_depth, result)?;
                 } else if self.is_graphql_file(&path) {
-                    let path =
-                        Self::strip_base_prefix(path.as_path(), self.directory.as_std_path());
+                    let path = self.strip_base_prefix(path.as_path(), self.directory.as_std_path());
                     result.push(path);
                 }
             }
         }
 
         Ok(())
-    }
-
-    fn strip_base_prefix(path: &Path, base_prefix: &Path) -> PathBuf {
-        path.strip_prefix(base_prefix).unwrap().to_owned()
     }
 
     fn is_graphql_file(&self, path: &Path) -> bool {
