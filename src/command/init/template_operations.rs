@@ -8,6 +8,7 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
+use rover_std::Style;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -17,14 +18,16 @@ pub struct TemplateOperations;
 
 impl TemplateOperations {
     pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
-        println!("The following files will be created:");
+        println!();
+        infoln!("You’re about to create a local directory with the following files:");
+        println!();
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
 
         Self::print_grouped_files(artifacts_sorted);
 
         println!();
-        prompt_confirm_default_yes("Proceed with creation?")
+        prompt_confirm_default_yes(&Style::Prompt.paint("? Proceed with creation?"))
     }
 
     pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
@@ -34,7 +37,7 @@ impl TemplateOperations {
         {
             for file in files {
                 if file.file_name().is_some() {
-                    infoln!("{}", file);
+                    println!("- {}", file);
                 }
             }
         }

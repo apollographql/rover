@@ -44,3 +44,15 @@ macro_rules! errln {
         eprintln!($($t)*);
     }};
 }
+
+/// Prints to the standard error, with a newline.
+///
+/// Equivalent to the [`eprintln!`] macro except that a checkmark prefix is
+/// printed before the message.
+#[macro_export]
+macro_rules! successln {
+    ($($t:tt)*) => {{
+        eprint!("{} ", $crate::Style::SuccessPrefix.paint("✓"));
+        eprintln!($($t)*);
+    }};
+}

@@ -3,6 +3,7 @@ use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
+use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -20,7 +21,7 @@ impl ProjectUseCaseOpt {
             let use_cases = <ProjectUseCase as ValueEnum>::value_variants();
 
             let selection = Select::new()
-                .with_prompt("? Select use case")
+                .with_prompt(Style::Prompt.paint("? Select use case"))
                 .items(use_cases)
                 .default(0)
                 .interact_on_opt(&Term::stderr())?;
@@ -51,8 +52,8 @@ impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectUseCase::*;
         let readable = match self {
-            Connectors => "Start a GraphQL API with one or more REST APIs",
-            GraphQLTemplate => "Start a GraphQL API with recommended libraries",
+            Connectors => "Start a graph with one or more REST APIs",
+            GraphQLTemplate => "Start a graph with recommended libraries",
         };
         write!(f, "{}", readable)
     }

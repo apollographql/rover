@@ -9,6 +9,7 @@ use rover_http::ReqwestService;
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
+use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::{
@@ -18,7 +19,6 @@ use crate::options::{
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::anyhow;
-
 /// PROMPT UX:
 /// =========
 ///
@@ -58,12 +58,12 @@ impl UserAuthenticated {
 /// PROMPT UX:
 /// ==========
 ///
-/// Welcome! This command helps you initialize a federated GraphQL API in your current directory.
+/// Welcome! This command helps you initialize a federated Graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Select option:
-/// > Create a new GraphQL API
-/// > Add a subgraph to an existing GraphQL API
+/// > Create a new graph
+/// > Add a subgraph to an existing graph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}
@@ -141,8 +141,8 @@ impl ProjectTypeSelected {
 /// =========
 ///
 /// ? Select use case:
-/// > Start a GraphQL API with one or more REST APIs
-/// > Start a GraphQL API with recommended libraries
+/// > Start a graph with one or more REST APIs
+/// > Start a graph with recommended libraries
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
         let use_case = options.get_or_prompt_use_case()?;
@@ -159,7 +159,7 @@ impl OrganizationSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your GraphQL API:
+/// ? Name your Graph:
 impl UseCaseSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
@@ -228,7 +228,9 @@ impl GraphIdConfirmed {
         let repo_url = match self.use_case {
           ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/refs/heads/main.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
-              println!("\nGraphQL Template is coming soon!\n");
+              println!();
+              println!("GraphQL Template is coming soon!");
+              println!();
               return Ok(None); // Early return if template not available
           },
       };
@@ -270,7 +272,10 @@ impl CreationConfirmed {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
-        println!("⣾ Creating files and generating GraphOS credentials...");
+        let spinner = Spinner::new(
+            "Creating files and generating GraphOS credentials...",
+            vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
+        );
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -288,6 +293,7 @@ impl CreationConfirmed {
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
+        spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
             config: self.config,

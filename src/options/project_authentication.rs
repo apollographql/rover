@@ -3,8 +3,7 @@ use clap::Parser;
 use config::Profile;
 use dialoguer::{theme::ColorfulTheme, Password};
 use houston as config;
-use rover_std::symbols::success_message;
-use rover_std::url::hyperlink;
+use rover_std::{hyperlink, successln};
 use serde::{Deserialize, Serialize};
 
 use crate::options::ProfileOpt;
@@ -19,14 +18,13 @@ impl ProjectAuthenticationOpt {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> Result<()> {
-        let api_url = "https://studio.apollographql.com/user-settings/api-keys";
-
         println!(
-            "No credentials found. Please go to {} and create a new Personal API key.\n",
-            hyperlink(api_url)
+            "No credentials found. Please go to {} and create a new Personal API key.",
+            hyperlink("https://studio.apollographql.com/user-settings/api-keys")
         );
-        println!("Copy the key and paste it into the prompt below.\n");
-
+        println!();
+        println!("Copy the key and paste it into the prompt below.");
+        println!();
         let theme = ColorfulTheme::default();
 
         let password_result = Password::with_theme(&theme)
@@ -55,7 +53,7 @@ impl ProjectAuthenticationOpt {
                     ));
                 }
 
-                println!("{}", success_message("Successfully saved your API key."));
+                successln!("Successfully saved your API key.");
 
                 Ok(())
             }

@@ -2,10 +2,10 @@ mod config;
 pub mod graph_id;
 mod helpers;
 mod operations;
+pub mod spinner;
 pub mod states;
 pub mod template_operations;
 pub mod transitions;
-
 use std::path::PathBuf;
 
 use crate::options::{
@@ -20,7 +20,7 @@ use rover_http::ReqwestService;
 use serde::Serialize;
 
 #[derive(Debug, Parser, Clone, Serialize)]
-#[clap(about = "Initialize a new GraphQL API project")]
+#[clap(about = "Initialize a new graph project")]
 pub struct Init {
     #[clap(flatten)]
     project_type: ProjectTypeOpt,

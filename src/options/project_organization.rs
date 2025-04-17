@@ -4,6 +4,7 @@ use clap::arg;
 use clap::Parser;
 use console::Term;
 use dialoguer::Select;
+use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -64,7 +65,7 @@ impl ProjectOrganizationOpt {
             .map(|o| o.name.as_str())
             .collect::<Vec<_>>();
         let selection = Select::new()
-            .with_prompt("? Select an organization")
+            .with_prompt(Style::Prompt.paint("? Select an organization"))
             .items(&organization_names)
             .default(0)
             .interact_on_opt(&Term::stderr())?;

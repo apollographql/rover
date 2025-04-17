@@ -1,5 +1,7 @@
+use crate::Style;
+
 pub fn confirm_delete() -> std::io::Result<bool> {
-    prompt_confirm_default_no("Would you like to continue?")
+    prompt_confirm_default_no(&Style::Prompt.paint("Would you like to continue?"))
 }
 
 pub fn prompt_confirm_default_no(message: &str) -> std::io::Result<bool> {

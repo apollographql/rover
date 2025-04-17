@@ -60,8 +60,7 @@ impl TemplateFetcher {
     }
 
     pub async fn call(&mut self, download_url: Uri) -> RoverResult<TemplateProject> {
-        println!("Downloading from {}", &download_url);
-        println!();
+        tracing::debug!("Downloading from {}", &download_url);
         let req = http::Request::builder()
             .method(http::Method::GET)
             .header(reqwest::header::ACCEPT, "application/octet-stream")
