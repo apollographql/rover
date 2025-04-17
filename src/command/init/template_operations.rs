@@ -55,18 +55,12 @@ impl SupergraphBuilder {
     }
 
     fn strip_base_prefix(&self, path: &Path, base_prefix: &Path) -> PathBuf {
-        if let Ok(stripped) = path.strip_prefix(base_prefix) {
-            stripped.to_owned()
-        } else {
-            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            let canonical_base = base_prefix
-                .canonicalize()
-                .unwrap_or_else(|_| base_prefix.to_path_buf());
-            canonical_path
-                .strip_prefix(canonical_base)
-                .unwrap()
-                .to_owned()
-        }
+        let canonical_base = base_prefix.canonicalize().unwrap();
+        let canonical_path = path.canonicalize().unwrap();
+        canonical_path
+            .strip_prefix(canonical_base.clone())
+            .unwrap()
+            .to_owned()
     }
 
     /*
