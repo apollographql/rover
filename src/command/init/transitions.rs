@@ -410,7 +410,6 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-
             &self.api_key.to_string(),
             GraphRef {
                 name: self.graph_id.to_string(),
