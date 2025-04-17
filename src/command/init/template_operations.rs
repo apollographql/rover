@@ -8,7 +8,6 @@ use camino::Utf8PathBuf;
 use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
-use rover_std::Style;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -27,7 +26,7 @@ impl TemplateOperations {
         Self::print_grouped_files(artifacts_sorted);
 
         println!();
-        prompt_confirm_default_yes(&Style::Prompt.paint("? Proceed with creation?"))
+        prompt_confirm_default_yes("? Proceed with creation?")
     }
 
     pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
