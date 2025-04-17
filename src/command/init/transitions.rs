@@ -1,24 +1,38 @@
-use std::env;
-use std::fs::read_dir;
-use std::path::PathBuf;
+use std::{env, fs::read_dir, path::PathBuf};
 
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use rover_client::operations::init::memberships::{self};
+use rover_client::operations::init::create_graph;
+use rover_client::operations::init::create_graph::*;
+use rover_client::operations::init::memberships;
+use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
+use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-use crate::options::{
-    GraphIdOpt, Organization, ProfileOpt, ProjectAuthenticationOpt, ProjectNameOpt,
-    ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher,
-};
+use crate::options::GraphIdOpt;
+use crate::options::Organization;
+use crate::options::ProfileOpt;
+use crate::options::ProjectAuthenticationOpt;
+use crate::options::ProjectNameOpt;
+use crate::options::ProjectOrganizationOpt;
+use crate::options::ProjectTypeOpt;
+use crate::options::ProjectUseCase;
+use crate::options::ProjectUseCaseOpt;
+use crate::options::TemplateFetcher;
 use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-use anyhow::anyhow;
+use crate::RoverError;
+use crate::RoverErrorSuggestion;
+use crate::RoverOutput;
+use crate::RoverResult;
+
+const DEFAULT_VARIANT: &str = "current";
+
 /// PROMPT UX:
 /// =========
 ///
@@ -272,10 +286,40 @@ impl CreationConfirmed {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
+        println!();
         let spinner = Spinner::new(
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
         );
+        let client = client_config.get_authenticated_client(profile)?;
+
+        // Write the template files without asking for confirmation again
+        // (confirmation was done in the previous state)
+        self.template.write_template(&self.output_path)?;
+
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
+        supergraph.build_and_write()?;
+
+        let artifacts = self.template.list_files()?;
+
+        let create_graph_response = create_graph::run(
+            CreateGraphInput {
+                hidden_from_uninvited_non_admin: false,
+                create_graph_id: self.config.graph_id.to_string(),
+                title: self.config.project_name.to_string(),
+                organization_id: self.config.organization.to_string(),
+            },
+            &client,
+        )
+        .await?;
+
+        let subgraphs = supergraph.generate_subgraphs()?;
+        let graph_ref = GraphRef {
+            name: create_graph_response.id.clone(),
+            variant: DEFAULT_VARIANT.to_string(),
+        };
+
+        publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -286,19 +330,13 @@ impl CreationConfirmed {
         )
         .await?;
 
-        // Write the template files without asking for confirmation again
-        // (confirmation was done in the previous state)
-        self.template.write_template(&self.output_path)?;
-
-        SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
-
-        let artifacts = self.template.list_files()?;
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
+            graph_ref,
         })
     }
 }
@@ -314,8 +352,8 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.config.graph_id,
-            &self.api_key,
+            &self.graph_ref,
+            &self.api_key.to_string(),
         );
 
         Completed

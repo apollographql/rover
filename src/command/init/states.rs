@@ -2,7 +2,7 @@ use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
 use crate::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase, TemplateProject};
 use camino::Utf8PathBuf;
-
+use rover_client::shared::GraphRef;
 #[derive(Debug)]
 pub struct UserAuthenticated {}
 
@@ -61,6 +61,7 @@ pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
+    pub graph_ref: GraphRef,
 }
 
 #[derive(Debug)]
