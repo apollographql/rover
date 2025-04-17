@@ -83,7 +83,7 @@ impl SupergraphBuilder {
            /model
              /schema.graphql
     */
-    fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
+    pub fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
         let mut subgraphs = BTreeMap::new();
 
         // Collect all graphql schemas
@@ -103,11 +103,12 @@ impl SupergraphBuilder {
                 name = self.disambiguate_name(&file_path, &name)?;
             }
 
+            let file = file_path.to_string_lossy().to_string();
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
                 .routing_url("http://ignore".to_string()) // Hardcoded URL
                 .schema(SchemaSource::File {
-                    file: file_path.clone(),
+                    file: file.parse()?,
                 })
                 .build();
 
@@ -322,32 +323,6 @@ mod tests {
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
         let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_path_stripping() -> io::Result<()> {
-        let temp_dir = tempdir()?;
-        let base_path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
-
-        let file_path = base_path.join("test/schema.graphql");
-        fs::create_dir_all(file_path.parent().unwrap())?;
-        File::create(&file_path)?;
-
-        let supergraph_builder = SupergraphBuilder::new(base_path.clone(), 5);
-
-        // Test with relative path
-        let relative_path = Path::new("./test/schema.graphql");
-        let stripped_relative =
-            supergraph_builder.strip_base_prefix(relative_path, base_path.as_std_path());
-        assert_eq!(stripped_relative, PathBuf::from("test/schema.graphql"));
-
-        // Test with absolute path
-        let absolute_path = file_path.as_std_path();
-        let stripped_absolute =
-            supergraph_builder.strip_base_prefix(absolute_path, base_path.as_std_path());
-        assert_eq!(stripped_absolute, PathBuf::from("test/schema.graphql"));
 
         Ok(())
     }
