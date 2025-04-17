@@ -1,5 +1,5 @@
-use crate::command::init::graph_id::validation::GraphId;
 use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 use rover_std::Style;
 
 pub fn display_welcome_message() {
@@ -16,8 +16,8 @@ pub fn display_welcome_message() {
 pub fn display_project_created_message(
     project_name: &str,
     artifacts: &Vec<Utf8PathBuf>,
-    graph_id: &GraphId,
     api_key: &str,
+    graph_ref: GraphRef,
 ) {
     println!("\n=> All set! Your project `{}` has been created. Please review details below to see what was generated.", project_name);
     let success_check = Style::Success.paint("✓");
@@ -36,7 +36,7 @@ pub fn display_project_created_message(
         "{} {}={}",
         success_check,
         Style::Command.paint("APOLLO_GRAPH_REF"),
-        graph_id
+        graph_ref
     );
     println!(
         "{} {}={}",

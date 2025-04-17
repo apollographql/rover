@@ -65,8 +65,6 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
     use crate::command::init::graph_id::utils::random::TestRandomStringGenerator;
 

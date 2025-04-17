@@ -64,6 +64,8 @@ impl UserAuthenticated {
     }
 }
 
+const DEFAULT_VARIANT: &str = "current";
+
 /// PROMPT UX:
 /// =========
 ///
@@ -340,7 +342,6 @@ impl CreationConfirmed {
 
         let subgraphs = supergraph.generate_subgraphs()?;
         for (subgraph_name, subgraph_config) in subgraphs.iter() {
-            println!("Publishing subgraph: {}", subgraph_name);
             let schema_path = match &subgraph_config.schema {
                 SchemaSource::File { file } => Utf8PathBuf::from_path_buf(file.to_path_buf()),
                 _ => {
@@ -362,11 +363,11 @@ impl CreationConfirmed {
                 SubgraphPublishInput {
                     graph_ref: GraphRef {
                         name: create_graph_response.id.clone(),
-                        variant: "current".to_string(),
+                        variant: DEFAULT_VARIANT.to_string(),
                     },
                     subgraph: subgraph_name.to_string(),
                     url: subgraph_config.routing_url.clone(),
-                    schema: sdl, // TODO: Get the SDL from the subgraph config
+                    schema: sdl,
                     git_context: GitContext {
                         branch: None,
                         commit: None,
@@ -409,8 +410,12 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.graph_id,
+
             &self.api_key.to_string(),
+            GraphRef {
+                name: self.graph_id.to_string(),
+                variant: DEFAULT_VARIANT.to_string(),
+            },
         );
 
         Completed
