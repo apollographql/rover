@@ -31,36 +31,34 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
     graph_name: &str,
     random_generator: &mut T,
 ) -> GraphId {
-    let mut slugified_name = slugify(graph_name);
 
+    // Total max length (27) - random suffix (7) - hyphen (1) = 19 chars for name
+    const MAX_NAME_LENGTH: usize = GRAPH_ID_MAX_CHAR - UNIQUE_STRING_LENGTH - 1;
+
+    // Slugify the name and find the first alphabetic character
+    let mut slugified_name = slugify(graph_name);
     let alphabetic_start_index = slugified_name
         .chars()
         .position(|c| c.is_alphabetic())
         .unwrap_or(slugified_name.len());
     slugified_name = slugified_name[alphabetic_start_index..].to_string();
 
-    // Use "id" if name is empty
+    // Use "id" if name is empty or doesn't start with a letter
     let name_part = if slugified_name.is_empty() {
         "id".to_string()
     } else {
-        let unique_string_length = UNIQUE_STRING_LENGTH + 1; // +1 for hyphen
-        let max_name_length = if GRAPH_ID_MAX_CHAR > unique_string_length {
-            GRAPH_ID_MAX_CHAR - unique_string_length
-        } else {
-            0
-        };
-        slugified_name[..slugified_name.len().min(max_name_length)].to_string()
+        slugified_name.chars().take(MAX_NAME_LENGTH).collect()
     };
 
     // Generate and append random suffix
     let unique_string = random_generator.generate_string(UNIQUE_STRING_LENGTH);
     let result = format!("{}-{}", name_part, unique_string);
 
-    // Ensure final ID is no longer than maximum length
-    let final_result = slugify(&result);
-    final_result[..final_result.len().min(GRAPH_ID_MAX_CHAR)]
-        .parse()
-        .unwrap()
+    // Parse the result... this should always succeed since we've ensured:
+    // 1. It starts with a letter (either from name or "id")
+    // 2. It's within length limits
+    // 3. It only contains valid characters (from slugify)
+    result.parse().expect("This should not fail as we've ensured all validation rules are met")
 }
 
 #[cfg(test)]
