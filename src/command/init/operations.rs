@@ -14,8 +14,6 @@ use rover_client::operations::subgraph::publish::*;
 use rover_client::shared::GitContext;
 use rover_client::shared::GraphRef;
 
-const DEFAULT_VARIANT: &str = "current";
-
 #[derive(Debug, Error)]
 pub enum GraphOperationError {
     #[error("Failed to authenticate with GraphOS")]
@@ -50,7 +48,7 @@ pub(crate) async fn create_api_key(
 pub(crate) async fn publish_subgraphs(
     client: &StudioClient,
     output_path: &Utf8PathBuf,
-    graph_id: String,
+    graph_ref: &GraphRef,
     subgraphs: BTreeMap<String, SubgraphConfig>,
 ) -> RoverResult<()> {
     for (subgraph_name, subgraph_config) in subgraphs.iter() {
@@ -67,10 +65,7 @@ pub(crate) async fn publish_subgraphs(
         let sdl = read_to_string(schema_path)?;
         rover_client::operations::subgraph::publish::run(
             SubgraphPublishInput {
-                graph_ref: GraphRef {
-                    name: graph_id.clone(),
-                    variant: DEFAULT_VARIANT.to_string(),
-                },
+                graph_ref: graph_ref.clone(),
                 subgraph: subgraph_name.to_string(),
                 url: subgraph_config.routing_url.clone(),
                 schema: sdl,

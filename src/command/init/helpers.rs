@@ -1,5 +1,5 @@
-use crate::command::init::graph_id::validation::GraphId;
 use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 use rover_std::{hyperlink, successln, Style};
 
 pub fn display_welcome_message() {
@@ -18,15 +18,16 @@ pub fn display_welcome_message() {
 
 pub fn display_project_created_message(
     project_name: &str,
-    artifacts: &Vec<Utf8PathBuf>,
-    graph_id: &GraphId,
+    artifacts: &[Utf8PathBuf],
+    graph_ref: &GraphRef,
     api_key: &str,
 ) {
     println!();
     println!("{} All set! Your project `{}` has been created. Please review details below to see what was generated.", Style::InfoPrefix.paint("=>"), Style::File.paint(project_name));
     println!();
-    println!("Project directory");
-    for artifact in artifacts {
+    println!("{}", Style::Heading.paint("Project directory"));
+
+    for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
         successln!("{}", artifact);
     }
     println!();
@@ -34,7 +35,7 @@ pub fn display_project_created_message(
         "{}",
         Style::Heading.paint("GraphOS credentials for your graph")
     );
-    successln!("{}={}", Style::Command.paint("APOLLO_GRAPH_REF"), graph_id);
+    successln!("{}={}", Style::Command.paint("APOLLO_GRAPH_REF"), graph_ref);
     successln!("{}={}", Style::Command.paint("APOLLO_KEY"), api_key);
     println!();
     println!("{}", Style::WarningHeading.paint("️▲ Before you proceed:"));

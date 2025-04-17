@@ -5,14 +5,14 @@ use camino::Utf8PathBuf;
 use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
+use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
-use crate::command::init::graph_id::GraphId;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
-use crate::command::init::spinner::Spinner;
 use crate::command::init::operations::publish_subgraphs;
+use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
@@ -30,6 +30,8 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
+
+const DEFAULT_VARIANT: &str = "current";
 
 /// PROMPT UX:
 /// =========
@@ -284,6 +286,7 @@ impl CreationConfirmed {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
+        println!();
         let spinner = Spinner::new(
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
@@ -298,7 +301,6 @@ impl CreationConfirmed {
         supergraph.build_and_write()?;
 
         let artifacts = self.template.list_files()?;
-        spinner.success("Successfully created files and generated GraphOS credentials.");
 
         let create_graph_response = create_graph::run(
             CreateGraphInput {
@@ -312,14 +314,12 @@ impl CreationConfirmed {
         .await?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
+        let graph_ref = GraphRef {
+            name: create_graph_response.id.clone(),
+            variant: DEFAULT_VARIANT.to_string(),
+        };
 
-        publish_subgraphs(
-            &client,
-            &self.output_path,
-            create_graph_response.id.clone(),
-            subgraphs,
-        )
-        .await?;
+        publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -329,12 +329,14 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
+    
+        spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
-            graph_id: create_graph_response.id.parse::<GraphId>().unwrap(),
+            graph_ref,
         })
     }
 }
@@ -350,7 +352,7 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.graph_id,
+            &self.graph_ref,
             &self.api_key.to_string(),
         );
 
