@@ -20,4 +20,4 @@ mutation CreateGraphMutation(
       }
     }
   }
-} 
+}
