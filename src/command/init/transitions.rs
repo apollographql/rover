@@ -36,14 +36,13 @@ impl UserAuthenticated {
 
     pub async fn check_authentication(
         self,
-        client_config: StudioClientConfig,
+        client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => Ok(Welcome::new()),
             Err(_) => {
-                match ProjectAuthenticationOpt::default()
-                    .prompt_for_api_key(&client_config, profile)
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
                     Ok(_) => {
                         // Try to authenticate again with the new credentials
@@ -291,8 +290,7 @@ impl CreationConfirmed {
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            // TODO: Implement API key creation -- generate_api_key() is not implemented
-            // api_key: "dummy-api-key".to_string(),
+            api_key,
         })
     }
 }
@@ -309,8 +307,7 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            // TODO: implement API key creation
-            // api_key: "dummy-api-key",
+            &self.api_key,
         );
 
         Completed

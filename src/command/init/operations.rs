@@ -3,14 +3,10 @@ use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
 use thiserror::Error;
 
-const DEFAULT_VARIANT: &str = "current";
-
 #[derive(Debug, Error)]
 pub enum GraphOperationError {
     #[error("Failed to authenticate with GraphOS")]
     AuthenticationFailed,
-    #[error("Invalid graph ID: {0}")]
-    InvalidGraphId(String),
     #[error("Failed to create API key: {0}")]
     KeyCreationFailed(String),
 }
