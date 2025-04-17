@@ -15,12 +15,6 @@ pub struct GraphIdOpt {
     pub graph_id: Option<String>,
 }
 
-impl Default for GraphIdOpt {
-    fn default() -> Self {
-        Self { graph_id: None }
-    }
-}
-
 impl GraphIdOpt {
     pub fn get_or_prompt_graph_id(&self, project_name: &str) -> RoverResult<GraphId> {
         // Handle the case when graph_id is provided via command line

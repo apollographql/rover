@@ -3,22 +3,19 @@ use std::fs::read_dir;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
+use rover_client::operations::init::memberships::{self};
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-use crate::options::GraphIdOpt;
-use crate::options::ProjectAuthenticationOpt;
-use crate::options::ProjectNameOpt;
-use crate::options::ProjectUseCase;
-use crate::options::TemplateFetcher;
-use crate::options::{ProfileOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::options::{
+    GraphIdOpt, Organization, ProfileOpt, ProjectAuthenticationOpt, ProjectNameOpt,
+    ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher,
+};
 use crate::utils::client::StudioClientConfig;
-use crate::RoverError;
-use crate::RoverErrorSuggestion;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::anyhow;
 
 /// PROMPT UX:
@@ -35,14 +32,13 @@ impl UserAuthenticated {
 
     pub async fn check_authentication(
         self,
-        client_config: StudioClientConfig,
+        client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => Ok(Welcome::new()),
             Err(_) => {
-                match ProjectAuthenticationOpt::default()
-                    .prompt_for_api_key(&client_config, profile)
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
                     Ok(_) => {
                         // Try to authenticate again with the new credentials
@@ -118,15 +114,20 @@ impl Welcome {
 /// > Org2
 /// > Org3
 impl ProjectTypeSelected {
-    pub fn select_organization(
+    pub async fn select_organization(
         self,
         options: &ProjectOrganizationOpt,
+        profile: &ProfileOpt,
+        client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
-        // TODO: Get list of organizations from Studio Client
-        let organizations: Vec<String> = vec!["default-organization".to_string()];
-
+        let client = client_config.get_authenticated_client(profile)?;
+        let memberships_response = memberships::run(&client).await?;
+        let organizations = memberships_response
+            .memberships
+            .iter()
+            .map(|m| Organization::new(m.name.clone(), m.id.clone()))
+            .collect::<Vec<_>>();
         let organization = options.get_or_prompt_organization(&organizations)?;
-
         Ok(OrganizationSelected {
             output_path: self.output_path,
             project_type: self.project_type,
