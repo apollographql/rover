@@ -8,6 +8,7 @@ use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
+use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::{
@@ -264,8 +265,21 @@ impl GraphIdConfirmed {
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
-    pub async fn create_project(self) -> RoverResult<ProjectCreated> {
+    pub async fn create_project(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<ProjectCreated> {
         println!("⣾ Creating files and generating GraphOS credentials...");
+
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
@@ -278,8 +292,7 @@ impl CreationConfirmed {
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            // TODO: Implement API key creation -- generate_api_key() is not implemented
-            // api_key: "dummy-api-key".to_string(),
+            api_key,
         })
     }
 }
@@ -296,8 +309,7 @@ impl ProjectCreated {
             &self.config.project_name.to_string(),
             &self.artifacts,
             &self.config.graph_id,
-            // TODO: implement API key creation
-            // api_key: "dummy-api-key",
+            &self.api_key,
         );
 
         Completed

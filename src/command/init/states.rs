@@ -60,8 +60,7 @@ pub struct CreationConfirmed {
 pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
-    // TODO: implement API key creation
-    // pub _api_key: String,
+    pub api_key: String,
 }
 
 #[derive(Debug)]
