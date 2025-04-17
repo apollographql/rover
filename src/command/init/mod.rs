@@ -1,6 +1,7 @@
 mod config;
 pub mod graph_id;
 mod helpers;
+mod operations;
 pub mod states;
 pub mod template_operations;
 pub mod transitions;
@@ -67,7 +68,9 @@ impl Init {
 
                 match creation_confirmed_option {
                     Some(creation_confirmed) => {
-                        let project_created = creation_confirmed.create_project().await?;
+                        let project_created = creation_confirmed
+                            .create_project(&client_config, &self.profile)
+                            .await?;
                         Ok(project_created.complete().success())
                     }
                     None => Ok(RoverOutput::EmptySuccess),

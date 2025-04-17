@@ -25,5 +25,5 @@ pub mod config;
 /// all rover-client functionality for the "license" commands in rover
 pub mod license;
 
-/// all rover-client functionality for the "init" commands in rover
+// all rover-client functionality for the "init" command
 pub mod init;
