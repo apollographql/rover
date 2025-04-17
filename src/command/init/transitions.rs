@@ -1,4 +1,4 @@
-use std::{env, fs::read_dir, path::PathBuf};
+use std::{env, fs::read_dir, fs::read_to_string, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
