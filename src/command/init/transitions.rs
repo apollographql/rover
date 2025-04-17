@@ -1,9 +1,11 @@
 use std::env;
 use std::fs::read_dir;
 use std::path::PathBuf;
+use spinners::{Spinner, Spinners};
 
 use camino::Utf8PathBuf;
 use rover_client::operations::init::memberships::{self};
+use rover_std::Style;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
@@ -141,8 +143,8 @@ impl ProjectTypeSelected {
 /// =========
 ///
 /// ? Select use case:
-/// > Start a GraphQL API with one or more REST APIs
-/// > Start a GraphQL API with recommended libraries
+/// > Start a graph with one or more REST APIs
+/// > Start a graph with recommended libraries
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
         let use_case = options.get_or_prompt_use_case()?;
@@ -228,7 +230,9 @@ impl GraphIdConfirmed {
         let repo_url = match self.use_case {
           ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/refs/heads/main.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
-              println!("\nGraphQL Template is coming soon!\n");
+              println!();
+              println!("GraphQL Template is coming soon!");
+              println!();
               return Ok(None); // Early return if template not available
           },
       };
@@ -265,12 +269,12 @@ impl GraphIdConfirmed {
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
-    pub async fn create_project(
+pub async fn create_project(
         self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
-        println!("⣾ Creating files and generating GraphOS credentials...");
+        let mut spinner = Spinner::new(Spinners::Dots9, "Creating files and generating GraphOS credentials...".to_string());
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -288,11 +292,13 @@ impl CreationConfirmed {
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
+        let success_message = format!("{} Successfully created files and generated GraphOS credentials.", Style::Success.paint("✓"));
+        spinner.stop_with_message(success_message);
 
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key: "TODO".to_string(),
+            api_key,
         })
     }
 }

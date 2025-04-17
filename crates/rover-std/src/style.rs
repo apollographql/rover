@@ -11,6 +11,7 @@ pub enum Style {
     DebugPrefix,   // "DEBUG" text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
+    SuccessPrefix, // "✓" text
     Heading,
     CallToAction,
     WhoAmIKey,
@@ -22,6 +23,7 @@ pub enum Style {
     PersistedQueryList,
     Prompt,
     WarningHeading,
+    File
 }
 
 impl Style {
@@ -48,8 +50,9 @@ impl Style {
             Style::Variant => style(message_ref).white().bold(),
             Style::Path | Style::Heading => style(message_ref).bold(),
             Style::Pending => style(message_ref).yellow(),
-            Style::Success => style(message_ref).green(),
+            Style::Success | Style::SuccessPrefix => style(message_ref).green(),
             Style::WarningHeading => style(message_ref).yellow().bold(),
+            Style::File => style(message_ref).magenta(),
         }
         .to_string()
     }

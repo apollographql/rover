@@ -7,6 +7,7 @@ use dialoguer::Select;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
+use rover_std::Style;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
@@ -37,8 +38,7 @@ impl fmt::Display for OrganizationId {
         write!(f, "{}", self.0)
     }
 }
-use rover_std::Style;
-use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
     #[arg(long = "organization")]
@@ -66,7 +66,7 @@ impl ProjectOrganizationOpt {
             .collect::<Vec<_>>();
         let selection = Select::new()
             .with_prompt(Style::Prompt.paint("? Select an organization"))
-            .items(organizations)
+            .items(&organization_names)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
 

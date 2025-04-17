@@ -48,12 +48,9 @@ run the following command:
 
 This will prompt you for an API Key that can be generated in Apollo Studio.
 
-The most common commands from there are:
+Once you're authenticated, you can kick off a new graph project by running:
 
-    {}: Fetch a graph schema from the Apollo graph registry
-    {}: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
-registry
-    {}: Publish an updated graph schema to the Apollo graph registry
+    {}
 
 You can open the full documentation for Rover by running:
 
@@ -61,9 +58,7 @@ You can open the full documentation for Rover by running:
 ",
         Style::Command.paint("$ rover docs open start"),
         Style::Command.paint("$ rover config auth"),
-        Style::Command.paint("$ rover graph fetch"),
-        Style::Command.paint("$ rover graph check"),
-        Style::Command.paint("$ rover graph publish"),
+        Style::Command.paint("$ rover init"),
         Style::Command.paint("$ rover docs open"),
     )
 )]
