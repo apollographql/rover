@@ -54,6 +54,21 @@ impl SupergraphBuilder {
         }
     }
 
+    fn strip_base_prefix(&self, path: &Path, base_prefix: &Path) -> PathBuf {
+        if let Ok(stripped) = path.strip_prefix(base_prefix) {
+            stripped.to_owned()
+        } else {
+            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+            let canonical_base = base_prefix
+                .canonicalize()
+                .unwrap_or_else(|_| base_prefix.to_path_buf());
+            canonical_path
+                .strip_prefix(canonical_base)
+                .unwrap()
+                .to_owned()
+        }
+    }
+
     /*
        In this fn we collect all graphql schemas found in the directory,
        also try to disambiguate names in case that they end up being duplicate
@@ -127,18 +142,13 @@ impl SupergraphBuilder {
                 if path.is_dir() {
                     self.visit_dirs(&path, current_depth + 1, max_depth, result)?;
                 } else if self.is_graphql_file(&path) {
-                    let path =
-                        Self::strip_base_prefix(path.as_path(), self.directory.as_std_path());
+                    let path = self.strip_base_prefix(path.as_path(), self.directory.as_std_path());
                     result.push(path);
                 }
             }
         }
 
         Ok(())
-    }
-
-    fn strip_base_prefix(path: &Path, base_prefix: &Path) -> PathBuf {
-        path.strip_prefix(base_prefix).unwrap().to_owned()
     }
 
     fn is_graphql_file(&self, path: &Path) -> bool {
@@ -312,6 +322,32 @@ mod tests {
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
         let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_path_stripping() -> io::Result<()> {
+        let temp_dir = tempdir()?;
+        let base_path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
+
+        let file_path = base_path.join("test/schema.graphql");
+        fs::create_dir_all(file_path.parent().unwrap())?;
+        File::create(&file_path)?;
+
+        let supergraph_builder = SupergraphBuilder::new(base_path.clone(), 5);
+
+        // Test with relative path
+        let relative_path = Path::new("./test/schema.graphql");
+        let stripped_relative =
+            supergraph_builder.strip_base_prefix(relative_path, base_path.as_std_path());
+        assert_eq!(stripped_relative, PathBuf::from("test/schema.graphql"));
+
+        // Test with absolute path
+        let absolute_path = file_path.as_std_path();
+        let stripped_absolute =
+            supergraph_builder.strip_base_prefix(absolute_path, base_path.as_std_path());
+        assert_eq!(stripped_absolute, PathBuf::from("test/schema.graphql"));
 
         Ok(())
     }
