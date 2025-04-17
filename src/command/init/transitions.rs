@@ -1,11 +1,13 @@
-use std::env;
-use std::fs::read_dir;
-use std::path::PathBuf;
+use std::{env, fs::read_dir, fs::read_to_string, path::PathBuf};
 
+use anyhow::anyhow;
+use apollo_language_server::SchemaSource;
 use camino::Utf8PathBuf;
 use rover_client::operations::init::memberships;
 use rover_client::operations::init::create_graph;
-use rover_client::operations::subgraph::publish;
+use rover_client::operations::init::create_graph::*;
+use rover_client::operations::init::memberships::{self};
+use rover_client::operations::subgraph::publish::{self, *};
 use rover_client::shared::GitContext;
 use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
@@ -17,19 +19,60 @@ use crate::command::init::operations::create_api_key;
 use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::options::GraphIdOpt;
+use crate::options::Organization;
 use crate::options::ProfileOpt;
+use crate::options::ProjectAuthenticationOpt;
 use crate::options::ProjectNameOpt;
+use crate::options::ProjectOrganizationOpt;
+use crate::options::ProjectTypeOpt;
 use crate::options::ProjectUseCase;
+use crate::options::ProjectUseCaseOpt;
 use crate::options::TemplateFetcher;
-use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
-use crate::{RoverOutput, RoverResult};
-use anyhow::anyhow;
-use rover_client::operations::init::create_graph::*;
-use rover_client::operations::subgraph::publish::*;
+use crate::RoverOutput;
+use crate::RoverResult;
+
+const DEFAULT_VARIANT: &str = "current";
+
+/// PROMPT UX:
+/// =========
+///
+/// No credentials found. Please go to http://studio.apollographql.com/user-settings/api-keys and create a new Personal API key.
+///
+/// Copy the key and paste it into the prompt below.
+/// ?
+impl UserAuthenticated {
+    pub fn new() -> Self {
+        UserAuthenticated {}
+    }
+
+    pub async fn check_authentication(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<Welcome> {
+        match client_config.get_authenticated_client(profile) {
+            Ok(_) => Ok(Welcome::new()),
+            Err(_) => {
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
+                {
+                    Ok(_) => {
+                        // Try to authenticate again with the new credentials
+                        match client_config.get_authenticated_client(profile) {
+                            Ok(_) => Ok(Welcome::new()),
+                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
+                        }
+                    }
+                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                }
+            }
+        }
+    }
+}
 
 /// PROMPT UX:
 /// =========
@@ -303,7 +346,7 @@ impl CreationConfirmed {
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
 
-        let supergraph = SupergraphBuilder::new(self.output_path, 5);
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
         supergraph.build_and_write()?;
 
         let artifacts = self.template.list_files()?;
@@ -314,7 +357,7 @@ impl CreationConfirmed {
                 hidden_from_uninvited_non_admin: false,
                 create_graph_id: self.config.graph_id.to_string(),
                 title: self.config.project_name.to_string(),
-                organization_id: self.config.organization.clone(),
+                organization_id: self.config.organization.to_string(),
             },
             &client,
         )
@@ -322,16 +365,32 @@ impl CreationConfirmed {
 
         let subgraphs = supergraph.generate_subgraphs()?;
         for (subgraph_name, subgraph_config) in subgraphs.iter() {
-            println!("Publishing subgraph: {}", subgraph_name);
+            let schema_path = match &subgraph_config.schema {
+                SchemaSource::File { file } => Utf8PathBuf::from_path_buf(file.to_path_buf()),
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported schema source for subgraph: {}",
+                        subgraph_name
+                    )
+                    .into());
+                }
+            };
+
+            let unresolved =
+                UnresolvedSubgraph::new(subgraph_name.clone(), subgraph_config.clone());
+            let schema_path =
+                unresolved.resolve_file_path(&self.output_path, &schema_path.unwrap())?;
+            let sdl = read_to_string(schema_path)?;
+
             publish::run(
                 SubgraphPublishInput {
                     graph_ref: GraphRef {
                         name: create_graph_response.id.clone(),
-                        variant: "current".to_string(),
+                        variant: DEFAULT_VARIANT.to_string(),
                     },
                     subgraph: subgraph_name.to_string(),
                     url: subgraph_config.routing_url.clone(),
-                    schema: "type Query { id: ID! }".to_string(), // TODO: Get the SDL from the subgraph config
+                    schema: sdl,
                     git_context: GitContext {
                         branch: None,
                         commit: None,
@@ -345,17 +404,14 @@ impl CreationConfirmed {
             .await?;
         }
 
-        // // TODO: Implement API key creation -- generate_api_key() is not implemented
-        // let api_key = match env::var("GRAPHOS_API_KEY") {
-        //     Ok(key) => key,
-        //     Err(_) => {
-        //         return Err(anyhow::anyhow!(
-        //             "API key required. Please set the GRAPHOS_API_KEY environment variable."
-        //         )
-        //         .into())
-        //     }
-        // };
-        let api_key = "test-api-key".to_string();
+        // Create a new API key for the project first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
 
         Ok(ProjectCreated {
             config: self.config,
@@ -377,8 +433,11 @@ impl ProjectCreated {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.graph_id,
-            &self.api_key,
+            &self.api_key.to_string(),
+            GraphRef {
+                name: self.graph_id.to_string(),
+                variant: DEFAULT_VARIANT.to_string(),
+            },
         );
 
         Completed
