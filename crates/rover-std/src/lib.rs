@@ -1,10 +1,10 @@
 mod error;
 mod fs;
+pub mod print;
+pub mod prompt;
 mod style;
 pub mod symbols;
 pub mod url;
-pub mod print;
-pub mod prompt;
 pub use error::RoverStdError;
 pub use fs::Fs;
 pub use style::is_no_color_set;
