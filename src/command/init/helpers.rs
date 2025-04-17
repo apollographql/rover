@@ -1,7 +1,6 @@
 use crate::command::init::graph_id::validation::GraphId;
 use camino::Utf8PathBuf;
-use rover_std::{Style, hyperlink, successln};
-
+use rover_std::{hyperlink, successln, Style};
 
 pub fn display_welcome_message() {
     println!();

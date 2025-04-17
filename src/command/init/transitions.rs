@@ -1,12 +1,12 @@
+use spinners::{Spinner, Spinners};
 use std::env;
 use std::fs::read_dir;
 use std::path::PathBuf;
-use spinners::{Spinner, Spinners};
 
 use camino::Utf8PathBuf;
 use rover_client::operations::init::memberships::{self};
-use rover_std::Style;
 use rover_http::ReqwestService;
+use rover_std::Style;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
@@ -269,12 +269,15 @@ impl GraphIdConfirmed {
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
-pub async fn create_project(
+    pub async fn create_project(
         self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
-        let mut spinner = Spinner::new(Spinners::Dots9, "Creating files and generating GraphOS credentials...".to_string());
+        let mut spinner = Spinner::new(
+            Spinners::Dots9,
+            "Creating files and generating GraphOS credentials...".to_string(),
+        );
 
         // Create a new API key for the project first
         let api_key = create_api_key(
@@ -292,7 +295,10 @@ pub async fn create_project(
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
-        let success_message = format!("{} Successfully created files and generated GraphOS credentials.", Style::Success.paint("✓"));
+        let success_message = format!(
+            "{} Successfully created files and generated GraphOS credentials.",
+            Style::Success.paint("✓")
+        );
         spinner.stop_with_message(success_message);
 
         Ok(ProjectCreated {

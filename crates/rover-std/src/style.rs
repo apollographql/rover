@@ -23,7 +23,7 @@ pub enum Style {
     PersistedQueryList,
     Prompt,
     WarningHeading,
-    File
+    File,
 }
 
 impl Style {
