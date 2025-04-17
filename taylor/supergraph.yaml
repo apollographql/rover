@@ -1,6 +1,0 @@
-subgraphs:
-  products:
-    routing_url: http://ignore
-    schema:
-      file: /Users/taylorjones/Projects/rover/taylor/products.graphql
-federation_version: '2'
