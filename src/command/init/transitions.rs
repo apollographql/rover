@@ -64,8 +64,8 @@ impl UserAuthenticated {
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Select option:
-/// > Create a new Graph
-/// > Add a subgraph to an existing Graph
+/// > Create a new graph
+/// > Add a subgraph to an existing graph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}

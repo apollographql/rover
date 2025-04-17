@@ -51,8 +51,8 @@ impl Display for ProjectType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectType::*;
         let readable = match self {
-            CreateNew => "Create a new Graph",
-            AddSubgraph => "Add a subgraph to an existing Graph",
+            CreateNew => "Create a new graph",
+            AddSubgraph => "Add a subgraph to an existing graph",
         };
         write!(f, "{}", readable)
     }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_display_trait_for_create_new() {
         let project_type = ProjectType::CreateNew;
-        assert_eq!(project_type.to_string(), "Create a new Graph");
+        assert_eq!(project_type.to_string(), "Create a new graph");
     }
 
     #[test]
@@ -117,7 +117,7 @@ mod tests {
         let project_type = ProjectType::AddSubgraph;
         assert_eq!(
             project_type.to_string(),
-            "Add a subgraph to an existing Graph"
+            "Add a subgraph to an existing graph"
         );
     }
 

@@ -8,7 +8,7 @@ use termimad::minimad::once_cell::sync::Lazy;
 const MAX_GRAPH_ID_LENGTH: usize = 64;
 static INVALID_CHARS_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9_-]").unwrap());
 
-/// A valid Graph identifier
+/// A valid GraphQL API identifier
 /// This type guarantees that it contains a valid graph ID
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphId(String);
