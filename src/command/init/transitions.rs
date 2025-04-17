@@ -1,15 +1,10 @@
-use std::{env, fs::read_dir, fs::read_to_string, path::PathBuf};
+use std::{env, fs::read_dir, path::PathBuf};
 
 use anyhow::anyhow;
-use apollo_language_server::SchemaSource;
 use camino::Utf8PathBuf;
 use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
-use rover_client::operations::subgraph::publish;
-use rover_client::operations::subgraph::publish::*;
-use rover_client::shared::GitContext;
-use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
@@ -20,7 +15,6 @@ use crate::command::init::spinner::Spinner;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::options::GraphIdOpt;
 use crate::options::Organization;
 use crate::options::ProfileOpt;
@@ -36,8 +30,6 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
-
-const DEFAULT_VARIANT: &str = "current";
 
 /// PROMPT UX:
 /// =========
@@ -320,13 +312,14 @@ impl CreationConfirmed {
         .await?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
-        
+
         publish_subgraphs(
             &client,
             &self.output_path,
             create_graph_response.id.clone(),
             subgraphs,
-        ).await?;
+        )
+        .await?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
