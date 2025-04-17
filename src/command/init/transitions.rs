@@ -1,6 +1,7 @@
 use std::{env, fs::read_dir, fs::read_to_string, path::PathBuf};
 
 use anyhow::anyhow;
+use apollo_language_server::SchemaSource;
 use camino::Utf8PathBuf;
 use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
@@ -8,8 +9,6 @@ use rover_client::operations::init::memberships::{self};
 use rover_client::operations::subgraph::publish::{self, *};
 use rover_client::shared::GitContext;
 use rover_client::shared::GraphRef;
-use rover_client::SchemaSource;
-use rover_client::UnresolvedSubgraph;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
@@ -18,6 +17,7 @@ use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
+use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::options::GraphIdOpt;
 use crate::options::Organization;
 use crate::options::ProfileOpt;
@@ -33,42 +33,6 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
-
-/// PROMPT UX:
-/// =========
-///
-/// No credentials found. Please go to http://studio.apollographql.com/user-settings/api-keys and create a new Personal API key.
-///
-/// Copy the key and paste it into the prompt below.
-/// ?
-impl UserAuthenticated {
-    pub fn new() -> Self {
-        UserAuthenticated {}
-    }
-
-    pub async fn check_authentication(
-        self,
-        client_config: &StudioClientConfig,
-        profile: &ProfileOpt,
-    ) -> RoverResult<Welcome> {
-        match client_config.get_authenticated_client(profile) {
-            Ok(_) => Ok(Welcome::new()),
-            Err(_) => {
-                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
-                {
-                    Ok(_) => {
-                        // Try to authenticate again with the new credentials
-                        match client_config.get_authenticated_client(profile) {
-                            Ok(_) => Ok(Welcome::new()),
-                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
-                        }
-                    }
-                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
-                }
-            }
-        }
-    }
-}
 
 const DEFAULT_VARIANT: &str = "current";
 
