@@ -329,7 +329,7 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
-    
+
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
