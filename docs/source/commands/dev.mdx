@@ -1,10 +1,10 @@
 ---
 title: The Rover dev Command
 subtitle: Run your supergraph in your local dev environment
-description: Use the Rover CLI dev command to run your federated Graph in your local development environment. Learn how to start a router session, add and remove subgraphs, and more.
+description: Use the Rover CLI dev command to run your federated GraphQL API in your local development environment. Learn how to start a router session, add and remove subgraphs, and more.
 ---
 
-A _supergraph_ is an architecture consisting of multiple Graphs (_subgraphs_) and a _graph router_ that runs in front of them:
+A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a _graph router_ that runs in front of them:
 
 ```mermaid
 graph LR;
@@ -37,7 +37,7 @@ Rover v0.27.0 introduces some new features and breaking changes to `rover dev`. 
 
 ## Starting a router session
 
-To use `rover dev`, you need at least one running Graph (subgraph). Rover can obtain a subgraph's schema via introspection (either standard or [federated introspection](/federation/subgraph-spec#enhanced-introspection-with-query_service)), or you can provide a local schema file.
+To use `rover dev`, you need at least one running GraphQL API (subgraph). Rover can obtain a subgraph's schema via introspection (either standard or [federated introspection](/federation/subgraph-spec#enhanced-introspection-with-query_service)), or you can provide a local schema file.
 
 Here's an example `rover dev` command that points to a locally running subgraph and provides its schema via a local file:
 

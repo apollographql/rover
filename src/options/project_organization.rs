@@ -105,11 +105,11 @@ mod tests {
     #[test]
     fn test_get_organization_with_preset_value() {
         let instance = ProjectOrganizationOpt {
-            organization: Some(OrganizationId("apollo".to_string())),
+            organization: Some(OrganizationId("test-org".to_string())),
         };
 
         let result = instance.get_organization();
-        assert_eq!(result, Some(OrganizationId("apollo".to_string())));
+        assert_eq!(result, Some(OrganizationId("test-org".to_string())));
     }
 
     #[test]
@@ -158,17 +158,17 @@ mod tests {
     #[test]
     fn test_debug_trait() {
         let instance = ProjectOrganizationOpt {
-            organization: Some(OrganizationId("apollo".to_string())),
+            organization: Some(OrganizationId("test-org".to_string())),
         };
         // Check that Debug formatting doesn't panic
         let debug_str = format!("{:?}", instance);
-        assert!(debug_str.contains("apollo"));
+        assert!(debug_str.contains("test-org"));
     }
 
     #[test]
     fn test_clone_trait() {
         let original = ProjectOrganizationOpt {
-            organization: Some(OrganizationId("apollo".to_string())),
+            organization: Some(OrganizationId("test-org".to_string())),
         };
         let cloned = original.clone();
 
