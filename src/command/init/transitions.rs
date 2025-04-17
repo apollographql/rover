@@ -302,10 +302,10 @@ impl CreationConfirmed {
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
-        
+
         let supergraph = SupergraphBuilder::new(self.output_path, 5);
         supergraph.build_and_write()?;
-        
+
         let artifacts = self.template.list_files()?;
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
@@ -319,7 +319,7 @@ impl CreationConfirmed {
             &client,
         )
         .await?;
-    
+
         let subgraphs = supergraph.generate_subgraphs()?;
         for (subgraph_name, subgraph_config) in subgraphs.iter() {
             println!("Publishing subgraph: {}", subgraph_name);
