@@ -285,7 +285,7 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
-    
+
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
@@ -293,9 +293,7 @@ impl CreationConfirmed {
         SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
 
         let artifacts = self.template.list_files()?;
-        spinner.success(
-            "Successfully created files and generated GraphOS credentials.",
-        );
+        spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
             config: self.config,
