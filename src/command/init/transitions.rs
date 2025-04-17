@@ -2,35 +2,37 @@ use std::{env, fs::read_dir, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use rover_client::{
-    operations::{
-        init::{
-            create_graph,
-            create_graph::*,
-            memberships::{self},
-        },
-        subgraph::publish::{self, *},
-    },
-    shared::{GitContext, GraphRef},
-};
+use rover_client::operations::init::create_graph;
+use rover_client::operations::init::create_graph::*;
+use rover_client::operations::init::memberships::{self};
+use rover_client::operations::subgraph::publish::{self, *};
+use rover_client::shared::GitContext;
+use rover_client::shared::GraphRef;
+use rover_client::SchemaSource;
+use rover_client::UnresolvedSubgraph;
 use rover_http::ReqwestService;
 
-use crate::{
-    command::init::{
-        config::ProjectConfig,
-        graph_id::GraphId,
-        helpers::*,
-        operations::create_api_key,
-        states::*,
-        template_operations::{SupergraphBuilder, TemplateOperations},
-    },
-    options::{
-        GraphIdOpt, Organization, ProfileOpt, ProjectAuthenticationOpt, ProjectNameOpt,
-        ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt, TemplateFetcher,
-    },
-    utils::client::StudioClientConfig,
-    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-};
+use crate::command::init::config::ProjectConfig;
+use crate::command::init::graph_id::GraphId;
+use crate::command::init::helpers::*;
+use crate::command::init::operations::create_api_key;
+use crate::command::init::states::*;
+use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
+use crate::options::GraphIdOpt;
+use crate::options::Organization;
+use crate::options::ProfileOpt;
+use crate::options::ProjectAuthenticationOpt;
+use crate::options::ProjectNameOpt;
+use crate::options::ProjectOrganizationOpt;
+use crate::options::ProjectTypeOpt;
+use crate::options::ProjectUseCase;
+use crate::options::ProjectUseCaseOpt;
+use crate::options::TemplateFetcher;
+use crate::utils::client::StudioClientConfig;
+use crate::RoverError;
+use crate::RoverErrorSuggestion;
+use crate::RoverOutput;
+use crate::RoverResult;
 
 /// PROMPT UX:
 /// =========
