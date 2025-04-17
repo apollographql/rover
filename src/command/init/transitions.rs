@@ -32,14 +32,13 @@ impl UserAuthenticated {
 
     pub async fn check_authentication(
         self,
-        client_config: StudioClientConfig,
+        client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => Ok(Welcome::new()),
             Err(_) => {
-                match ProjectAuthenticationOpt::default()
-                    .prompt_for_api_key(&client_config, profile)
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
                     Ok(_) => {
                         // Try to authenticate again with the new credentials
@@ -119,7 +118,7 @@ impl ProjectTypeSelected {
         self,
         options: &ProjectOrganizationOpt,
         profile: &ProfileOpt,
-        client_config: StudioClientConfig,
+        client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
         let client = client_config.get_authenticated_client(profile)?;
         let memberships_response = memberships::run(&client).await?;
