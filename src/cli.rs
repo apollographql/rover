@@ -383,11 +383,7 @@ pub enum Command {
     /// Contract configuration commands
     Contract(command::Contract),
 
-    /// This command starts a local router that can query across one or more
-    /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
-    /// As you add, edit, and remove subgraphs, `rover dev` automatically
-    /// composes all of their schemas into a new supergraph schema, and the
-    /// router reloads.
+    /// Run a supergraph locally to develop and test subgraph changes
     ///
     /// ⚠️ Do not run this command in production!
     /// ⚠️ It is intended for local development.
