@@ -10,6 +10,8 @@ use comfy_table::CellAlignment::Center;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+#[cfg(feature = "init")]
+use rover_client::operations::init::memberships::InitMembershipsResponse;
 use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
@@ -48,6 +50,8 @@ pub enum RoverOutput {
         origin: String,
         user_id: Option<String>,
     },
+    #[cfg(feature = "init")]
+    InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
@@ -135,6 +139,19 @@ impl RoverOutput {
 
                 table.add_row(vec![&Style::WhoAmIKey.paint("Origin"), origin]);
                 table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{table}"))
+            }
+            #[cfg(feature = "init")]
+            RoverOutput::InitMembershipsOutput(init_memberships_response) => {
+                let mut table = table::get_table();
+                table.add_row(vec![
+                    &Style::WhoAmIKey.paint("Organization Name"),
+                    &Style::WhoAmIKey.paint("Organization ID"),
+                ]);
+                for o in init_memberships_response.memberships.iter().cycle() {
+                    table.add_row(vec![o.name.clone(), o.id.clone()]);
+                }
 
                 Some(format!("{table}"))
             }
@@ -484,6 +501,8 @@ impl RoverOutput {
                   "api_key": api_key,
                 })
             }
+            #[cfg(feature = "init")]
+            RoverOutput::InitMembershipsOutput(memberships_response) => json!(memberships_response),
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
