@@ -17,6 +17,7 @@ use crate::command::init::graph_id::GraphId;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::spinner::Spinner;
+use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
@@ -319,45 +320,13 @@ impl CreationConfirmed {
         .await?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
-        for (subgraph_name, subgraph_config) in subgraphs.iter() {
-            let schema_path = match &subgraph_config.schema {
-                SchemaSource::File { file } => Utf8PathBuf::from_path_buf(file.to_path_buf()),
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported schema source for subgraph: {}",
-                        subgraph_name
-                    )
-                    .into());
-                }
-            };
-
-            let unresolved =
-                UnresolvedSubgraph::new(subgraph_name.clone(), subgraph_config.clone());
-            let schema_path =
-                unresolved.resolve_file_path(&self.output_path, &schema_path.unwrap())?;
-            let sdl = read_to_string(schema_path)?;
-
-            publish::run(
-                SubgraphPublishInput {
-                    graph_ref: GraphRef {
-                        name: create_graph_response.id.clone(),
-                        variant: DEFAULT_VARIANT.to_string(),
-                    },
-                    subgraph: subgraph_name.to_string(),
-                    url: subgraph_config.routing_url.clone(),
-                    schema: sdl,
-                    git_context: GitContext {
-                        branch: None,
-                        commit: None,
-                        author: None,
-                        remote_url: None,
-                    },
-                    convert_to_federated_graph: false,
-                },
-                &client,
-            )
-            .await?;
-        }
+        
+        publish_subgraphs(
+            &client,
+            &self.output_path,
+            create_graph_response.id.clone(),
+            subgraphs,
+        ).await?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
