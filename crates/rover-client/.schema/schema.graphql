@@ -1215,6 +1215,11 @@ type CoreSchema {
   """The composed API schema document."""
   apiDocument: GraphQLDocument!
 
+  """
+  The API schema document's SHA256 hash, represented as a hexadecimal string.
+  """
+  apiHash: String!
+
   """The composed supergraph schema document."""
   coreDocument: GraphQLDocument!
 
