@@ -69,7 +69,7 @@ impl SupergraphBuilder {
        In this fn we collect all graphql schemas found in the directory,
        also try to disambiguate names in case that they end up being duplicate
        by counting all resolved names to make sure there are no duplicates,
-       depending on the structure of the project, there is a chance that if we only use
+       depending on the structure of the graph, there is a chance that if we only use
        the parent for naming, there might be duplicates. for example
        /root
          /products

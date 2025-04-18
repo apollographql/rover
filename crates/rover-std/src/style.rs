@@ -24,6 +24,7 @@ pub enum Style {
     Prompt,
     WarningHeading,
     File,
+    SuccessHeading,
 }
 
 impl Style {
@@ -53,6 +54,7 @@ impl Style {
             Style::Success | Style::SuccessPrefix => style(message_ref).green(),
             Style::WarningHeading => style(message_ref).yellow().bold(),
             Style::File => style(message_ref).magenta(),
+            Style::SuccessHeading => style(message_ref).green().bold(),
         }
         .to_string()
     }
