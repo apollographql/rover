@@ -319,11 +319,11 @@ impl CreationConfirmed {
             name: create_graph_response.id.clone(),
             variant: DEFAULT_VARIANT.to_string(),
         };
-        
+
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
-    
+
         update_variant_federation_version(&client, &graph_ref).await?;
-        
+
         // Create a new API key for the project first
         let api_key = create_api_key(
             client_config,
