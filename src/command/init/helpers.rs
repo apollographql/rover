@@ -23,9 +23,9 @@ pub fn display_project_created_message(
     api_key: &str,
 ) {
     println!();
-    println!("{} All set! Your project `{}` has been created. Please review details below to see what was generated.", Style::InfoPrefix.paint("=>"), Style::File.paint(project_name));
+    println!("{} All set! Your graph `{}` has been created. Please review details below to see what was generated.", Style::InfoPrefix.paint("=>"), Style::File.paint(project_name));
     println!();
-    println!("{}", Style::Heading.paint("Project directory"));
+    println!("{}", Style::Heading.paint("Files created:"));
 
     for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
         successln!("{}", artifact);
@@ -35,19 +35,18 @@ pub fn display_project_created_message(
         "{}",
         Style::Heading.paint("GraphOS credentials for your graph")
     );
-    successln!("{}={}", Style::Command.paint("APOLLO_GRAPH_REF"), graph_ref);
-    successln!("{}={}", Style::Command.paint("APOLLO_KEY"), api_key);
+    successln!("{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)", Style::Command.paint("APOLLO_GRAPH_REF"), graph_ref);
+    successln!("{}={} (This is your graph’s API key)", Style::Command.paint("APOLLO_KEY"), api_key);
     println!();
     println!("{}", Style::WarningHeading.paint("️▲ Before you proceed:"));
-    println!("- Set your graph API key as an environment variable; learn more about env vars by running {}",Style::Command.paint("`rover docs open configuring`"));
-    println!("- Save your graph ref (You can also get it from Studio by visiting your graph variant's home page)");
+    println!("- Store your graph API key securely, you won’t be able to access it again!");
     println!();
     println!("{}", Style::Heading.paint("Next steps"));
     println!("Run the following command to start a local development session:");
     println!();
     println!(
         "{}",
-        Style::Command.paint("$ rover dev --supergraph-config supergraph.yaml")
+        Style::Command.paint(format!("$ APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml", api_key, graph_ref))
     );
     println!();
     println!("For more information, check out `getting-started.md`.");
@@ -57,7 +56,7 @@ pub fn display_project_created_message(
 pub fn display_use_template_message() {
     println!();
     println!(
-        "To add a new subgraph to an existing API project, use `{}`.",
+        "To add a new subgraph to an existing graph, use `{}`.",
         Style::Command.paint("rover template")
     );
     println!(
