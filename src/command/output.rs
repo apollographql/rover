@@ -2,6 +2,11 @@ use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::io::{self, IsTerminal};
 
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::{JsonVersion, ProjectLanguage};
+use crate::utils::table;
+use crate::RoverError;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::Attribute::Bold;
@@ -16,6 +21,7 @@ use rover_client::operations::persisted_queries::publish::PersistedQueriesPublis
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
+use rover_client::operations::subgraph::publish_manifest::SubgraphsPublishResponse;
 use rover_client::shared::{
     CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
     SdlType,
@@ -26,19 +32,13 @@ use serde_json::{json, Value};
 use termimad::crossterm::style::Attribute::Underlined;
 use termimad::MadSkin;
 
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::{JsonVersion, ProjectLanguage};
-use crate::utils::table;
-use crate::RoverError;
-
-/// RoverOutput defines all of the different types of data that are printed
+/// RoverOutput defines all the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
 /// in this enum, and its print logic should be handled in `RoverOutput::get_stdout`
 ///
-/// Not all commands will output machine readable information, and those should
-/// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
+/// Not all commands will output machine-readable information, and those should
+/// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added, and it needs to
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
@@ -71,6 +71,11 @@ pub enum RoverOutput {
         graph_ref: GraphRef,
         subgraph: String,
         publish_response: SubgraphPublishResponse,
+    },
+    PublishManifestResponse {
+        graph_ref: GraphRef,
+        subgraphs: Vec<String>,
+        publish_response: SubgraphsPublishResponse,
     },
     SubgraphDeleteResponse {
         graph_ref: GraphRef,
@@ -229,6 +234,54 @@ impl RoverOutput {
 
                 if publish_response.supergraph_was_updated {
                     stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
+                } else {
+                    stderrln!(
+                        "The supergraph schema for '{}' was NOT updated with a new schema",
+                        graph_ref
+                    )?;
+                }
+
+                if let Some(launch_cli_copy) = &publish_response.launch_cli_copy {
+                    stderrln!("{}", launch_cli_copy)?;
+                }
+
+                if !publish_response.build_errors.is_empty() {
+                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                    stderrln!("{} The following build errors occurred:", warn_prefix)?;
+                    stderrln!("{}", &publish_response.build_errors)?;
+                }
+                None
+            }
+            RoverOutput::PublishManifestResponse {
+                graph_ref,
+                subgraphs,
+                publish_response,
+            } => {
+                if publish_response.subgraph_was_created {
+                    stderrln!(
+                        "New subgraph(s) '{}' were created in '{}'",
+                        publish_response.subgraphs_created.join(" ,"),
+                        graph_ref
+                    )?;
+                } else if publish_response.subgraph_was_updated {
+                    stderrln!(
+                        "Subgraph(s) '{}' in '{}' were updated",
+                        publish_response.subgraphs_updated.join(" ,"),
+                        graph_ref
+                    )?;
+                } else {
+                    stderrln!(
+                        "'{}' subgraph(s) were NOT updated because no changes were detected",
+                        subgraphs.join(" ,")
+                    )?;
+                }
+
+                if publish_response.supergraph_was_updated {
+                    stderrln!(
+                        "The supergraph schema for '{}' was updated, composed from the requested '{}' subgraph(s)",
+                        graph_ref,
+                        subgraphs.join(" ,")
+                    )?;
                 } else {
                     stderrln!(
                         "The supergraph schema for '{}' was NOT updated with a new schema",
@@ -538,6 +591,11 @@ impl RoverOutput {
             RoverOutput::SubgraphPublishResponse {
                 graph_ref: _,
                 subgraph: _,
+                publish_response,
+            } => json!(publish_response),
+            RoverOutput::PublishManifestResponse {
+                graph_ref: _,
+                subgraphs: _,
                 publish_response,
             } => json!(publish_response),
             RoverOutput::SubgraphDeleteResponse {
