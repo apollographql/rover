@@ -12,6 +12,7 @@ use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
+use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
@@ -320,6 +321,8 @@ impl CreationConfirmed {
         };
 
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
+
+        update_variant_federation_version(&client, &graph_ref).await?;
 
         // Create a new API key for the project first
         let api_key = create_api_key(
