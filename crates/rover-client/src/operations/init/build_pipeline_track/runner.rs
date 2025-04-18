@@ -57,7 +57,7 @@ mod tests {
                     "updateVariantFederationVersion": {
                         "__typename": "Graph",
                         "id": "123",
-                        "federationVersion": "FED_2_9"
+                        "federationVersion": "FED_2_10"
                     }
                 }
             }
@@ -67,7 +67,7 @@ mod tests {
             serde_json::from_value(json_response).unwrap();
         let build_pipeline_track_response = build_response(data).unwrap();
         assert_eq!(build_pipeline_track_response.id, "123");
-        assert_eq!(build_pipeline_track_response.federation_version, "FED_2_9");
+        assert_eq!(build_pipeline_track_response.federation_version, "FED_2_10");
     }
 
     #[test]

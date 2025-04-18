@@ -93,7 +93,7 @@ pub(crate) async fn update_variant_federation_version(
     let build_pipeline_track_input = BuildPipelineTrackInput {
         graph_id: graph_ref.name.clone(),
         variant_name: graph_ref.variant.clone(),
-        version: BuildPipelineTrack::FED_2_9,
+        version: BuildPipelineTrack::FED_2_10,
     };
 
     let build_pipeline_track_response =
