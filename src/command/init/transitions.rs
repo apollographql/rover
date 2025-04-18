@@ -9,12 +9,10 @@ use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
-use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::spinner::Spinner;
-use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
 use crate::options::Organization;
@@ -241,7 +239,7 @@ impl GraphIdConfirmed {
 
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
-          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/refs/heads/main.tar.gz",
+          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/e44aa32dec89c386051b0f06264307a230946a3c.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
               println!();
               println!("GraphQL Template is coming soon!");
