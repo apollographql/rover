@@ -56,7 +56,8 @@ mod tests {
                 "variant": {
                     "updateVariantFederationVersion": {
                         "__typename": "Graph",
-                        "id": "123"
+                        "id": "123",
+                        "federationVersion": "FED_2_9"
                     }
                 }
             }
@@ -66,17 +67,41 @@ mod tests {
             serde_json::from_value(json_response).unwrap();
         let build_pipeline_track_response = build_response(data).unwrap();
         assert_eq!(build_pipeline_track_response.id, "123");
+        assert_eq!(build_pipeline_track_response.federation_version, "FED_2_9");
     }
 
     #[test]
-    fn test_build_response_error() {
+    fn test_build_response_error_when_graph_is_null() {
+        let json_response = json!({
+            "graph": null
+        });
+
+        let data: build_pipeline_track_mutation::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let build_pipeline_track_response = build_response(data);
+        assert!(build_pipeline_track_response.is_err());
+    }
+
+    #[test]
+    fn test_build_response_error_when_variant_is_null() {
+        let json_response = json!({
+            "graph": {
+                "variant": null
+            }
+        });
+
+        let data: build_pipeline_track_mutation::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let build_pipeline_track_response = build_response(data);
+        assert!(build_pipeline_track_response.is_err());
+    }
+
+    #[test]
+    fn test_build_response_error_when_update_variant_federation_version_is_null() {
         let json_response = json!({
             "graph": {
                 "variant": {
-                    "updateVariantFederationVersion": {
-                        "__typename": "BuildPipelineTrackError",
-                        "message": "Build pipeline track failed"
-                    }
+                    "updateVariantFederationVersion": null
                 }
             }
         });
