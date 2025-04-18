@@ -241,7 +241,7 @@ impl GraphIdConfirmed {
 
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
-          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/c7e979849bc32e17008355f7edfc543cd3a434d3.tar.gz",
+          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/1d586fc21f6e66f94aae9205b7c2be0a79edb312.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
               println!();
               println!("GraphQL Template is coming soon!");
