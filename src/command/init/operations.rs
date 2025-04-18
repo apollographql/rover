@@ -4,12 +4,14 @@ use crate::utils::client::StudioClientConfig;
 use crate::RoverResult;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use rover_client::blocking::StudioClient;
+use rover_client::operations::init::build_pipeline_track;
 use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use thiserror::Error;
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use rover_client::operations::init::build_pipeline_track::*;
 use rover_client::operations::subgraph::publish::*;
 use rover_client::shared::GitContext;
 use rover_client::shared::GraphRef;
@@ -82,4 +84,20 @@ pub(crate) async fn publish_subgraphs(
         .await?;
     }
     Ok(())
+}
+
+pub(crate) async fn update_variant_federation_version(
+    client: &StudioClient,
+    graph_ref: &GraphRef,
+) -> RoverResult<BuildPipelineTrackResponse> {
+    let build_pipeline_track_input = BuildPipelineTrackInput {
+        graph_id: graph_ref.name.clone(),
+        variant_name: graph_ref.variant.clone(),
+        version: BuildPipelineTrack::FED_2_9,
+    };
+
+    let build_pipeline_track_response =
+        build_pipeline_track::run(build_pipeline_track_input, client).await?;
+
+    Ok(build_pipeline_track_response)
 }

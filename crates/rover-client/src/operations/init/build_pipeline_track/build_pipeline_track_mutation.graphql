@@ -1,0 +1,14 @@
+mutation BuildPipelineTrackMutation(
+  $graphId: ID!
+  $version: BuildPipelineTrack!
+  $name: String!
+) {
+  graph(id: $graphId) {
+    variant(name: $name) {
+      updateVariantFederationVersion(version: $version) {
+        federationVersion
+        id
+      }
+    }
+  }
+}
