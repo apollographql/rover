@@ -112,22 +112,19 @@ Options:
   -V, --version
           Print version
 
-Read the getting started guide by running:
 
-    $ rover docs open start
 
-To begin working with Rover and to authenticate with Apollo Studio,
-run the following command:
+** Getting Started with Rover **
+
+Run the following command to authenticate with GraphOS:
 
     $ rover config auth
 
-This will prompt you for an API Key that can be generated in Apollo Studio.
-
-Once you're authenticated, you can kick off a new graph project by running:
+Once you're authenticated, create a new graph by running:
 
     $ rover init
 
-You can open the full documentation for Rover by running:
+To learn more about Rover, you can view the full documentation by running:
 
     $ rover docs open
 ```
