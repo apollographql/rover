@@ -184,7 +184,7 @@ iwr 'https://rover.apollo.dev/win/latest' | iex
 
 To install a specific version of Rover (note the `v` prefixing the version number):
 
-> Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
+> Note: If you are installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
 iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
