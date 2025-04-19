@@ -1,0 +1,108 @@
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+"URL is a String implementing the [URL Standard](http://url.spec.whatwg.org/)"
+scalar Url
+type CodegenHeading {
+  text: String!
+}
+type CodegenMessage {
+  text: String!
+}
+type CodegenParagraph {
+  text: String!
+}
+type CodegenResolverChunk {
+  text: String!
+  index: Int!
+}
+type CodegenResult {
+  sandboxUrl: String!
+}
+type CodegenSchemaChunk {
+  text: String!
+  index: Int!
+}
+type CodegenStatusPayload {
+  status: String!
+  schema: String
+  resolvers: String
+  sandboxUrl: String
+}
+type Mutation {
+  getOperationsFromSpec(input: GetOperationsFromSpecInput!): [Operation!]!
+  startCodegen(input: StartCodegenInput!): StartCodegenPayload!
+}
+type Operation {
+  id: ID!
+  path: String!
+  type: String!
+  method: Method!
+  description: String
+  summary: String
+}
+type Query {
+  codegenStatus(id: ID!): CodegenStatusPayload
+  "Get an optionally filtered list of templates"
+  templates(language: Language): [Template!]!
+  "Get a template by ID"
+  template(id: ID!): Template
+}
+type StartCodegenPayload {
+  id: String!
+}
+type Subscription {
+  codegenStatus(id: ID!): CodegenChunkPayload!
+}
+"Describes a single template that can be used to create a new subgraph via `rover template use`"
+type Template {
+  "A unique identifier for the template to be used with the `--template` argument of `rover template use`"
+  id: ID!
+  "A short, human-readable name for the template."
+  name: String!
+  "An extended description of what the template does."
+  description: String!
+  "Where the source code for this template can be found, along with a README describing how to use it."
+  repoUrl: Url!
+  "The URL where the template can be downloaded from"
+  downloadUrl: Url!
+  "The programming language of the template"
+  language: Language!
+}
+union CodegenChunkPayload = CodegenMessage | CodegenSchemaChunk | CodegenResolverChunk | CodegenResult | CodegenHeading | CodegenParagraph
+enum Language {
+  C_SHARP
+  GO
+  JAVA
+  JAVASCRIPT
+  KOTLIN
+  PYTHON
+  RUST
+  TYPESCRIPT
+}
+enum Method {
+  GET
+  POST
+  PUT
+  DELETE
+  PATCH
+}
+input GetOperationsFromSpecInput {
+  url: String!
+  email: String!
+}
+input StartCodegenInput {
+  recaptchaToken: String
+  graphosToken: String
+  url: String!
+  email: String = null
+  operations: [String!]!
+}
+"Exposes a URL that specifies the behavior of this scalar."
+directive @specifiedBy(
+    "The URL that specifies the behavior of this scalar."
+    url: String!
+  ) on SCALAR
+directive @defer(label: String, if: Boolean! = true) on FRAGMENT_SPREAD | INLINE_FRAGMENT
