@@ -11,6 +11,7 @@ use rover_std::prompt::prompt_confirm_default_yes;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::{fs, io};
 
 pub struct TemplateOperations;
@@ -179,7 +180,7 @@ impl SupergraphBuilder {
         let subgraphs = self.generate_subgraphs()?;
         Ok(SupergraphConfig::new(
             subgraphs,
-            Some(FederationVersion::LatestFedTwo),
+            Some(FederationVersion::from_str("=2.10.0")?),
         ))
     }
 
