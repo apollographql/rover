@@ -43,11 +43,11 @@ Run the following command to authenticate with GraphOS:
 
     {}
 
-Once you're authenticated, create a new graph by running:
+Once you're authenticated, create a new graph:
 
     {}
 
-To learn more about Rover, you can view the full documentation by running:
+To learn more about Rover, view the full documentation:
 
     {}
 ",
@@ -365,7 +365,7 @@ impl Rover {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Initialize a Graph project using Apollo Federation with Apollo Router
+    /// Initialize a graph project using Apollo Federation with Apollo Router
     #[cfg(feature = "init")]
     Init(command::Init),
 

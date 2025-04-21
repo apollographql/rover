@@ -72,6 +72,6 @@ pub fn display_use_template_message() {
     );
     println!(
         "To learn more about templates, run `{}`",
-        Style::Link.paint("rover docs open template")
+        Style::Command.paint("rover docs open template")
     );
 }
