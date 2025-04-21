@@ -40,7 +40,14 @@ The `auth` command is interactive to prevent your API key from appearing in your
 
 #### With an environment variable
 
-You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable. This method is recommended for automated environments such as CI.
+You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
+You can also set your graph ref via the `GRAPH_REF` environment variable. See all [supported environment variables](#supported-environment-variables).
+
+
+
+#### With an environment variable
+
+You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
 See all [supported environment variables](#supported-environment-variables).
 
 <ExpansionPanel title="Need help setting environment variables?">
@@ -48,63 +55,50 @@ See all [supported environment variables](#supported-environment-variables).
   For CI/CD environments see [Using Rover in CI/CD](/rover/ci-cd).
   <Tabs>
 
-    <Tab label="Unix-based systems (Linux/macOS)">
+    <Tab label="Linux/macOS">
 
-      <Tab label="Temporary (current terminal session only)">
+      #### Current terminal session only
 
-      ```bash
+      Run the following in your terminal:
+
+      ```bash showLineNumbers=false
       export APOLLO_KEY="your_api_key_here"
       ```
 
-      </Tab>
 
-      <Tab label="Permanent (in your shell profile)">
+      #### Permanent (in your shell profile)
 
-      1. Edit your shell profile file (`~/.bashrc`, `~/.zshrc`, etc.):
+      1. Edit your shell profile file (`~/.bashrc`, `~/.zshrc`, etc.) to include the environment variables you want to set as exports:
 
-          ```bash
-          nano ~/.bashrc
+          ```bash showLineNumbers=false
+          export APOLLO_KEY="your_api_key_here"
           ```
 
-      2. Add the exports:
+      2. Apply changes before running any other commands.
 
-      ```bash
-      export APOLLO_KEY="your_api_key_here"
-      ```
+          ```bash showLineNumbers=false
+          source ~/.bashrc
+          ```
 
-      3. Apply changes:
-
-      ```bash
-      source ~/.bashrc
-      ```
-
-      </Tab>
     </Tab>
-
     <Tab label="Windows">
-      <Tab label="Command Prompt (temporary)">
+      #### Command Prompt (temporary)
 
-        ```cmd
+        ```cmd showLineNumbers=false
         set APOLLO_KEY=your_api_key_here
         ```
 
-      </Tab>
+      #### PowerShell (temporary)
 
-      <Tab label="PowerShell (temporary)">
-
-      ```powershell
+      ```powershell showLineNumbers=false
       $env:APOLLO_KEY = "your_api_key_here"
       ```
-      </Tab>
 
-      <Tab label="Permanent (System Variables)">
+      #### Permanent (System Variables)
 
       1. Search for **Environment Variables** in Windows search.
-      1. Click **Edit the system environment variables**.
-      1. Click **Environment Variables** button.
       1. Add new user or system variables with the appropriate names and values.
 
-      </Tab>
     </Tab>
   </Tabs>
 
