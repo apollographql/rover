@@ -7,6 +7,7 @@ use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
+use rover_std::Style;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
@@ -103,7 +104,11 @@ impl Welcome {
                         "Cannot initialize the graph because the current directory is not empty."
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        "Please run `init` on an empty directory".to_string(),
+                        format!(
+                            "Please run `{}` on an empty directory",
+                            Style::Command.paint("init")
+                        )
+                        .to_string(),
                     )));
                 }
             }
