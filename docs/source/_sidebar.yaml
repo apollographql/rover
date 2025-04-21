@@ -1,0 +1,55 @@
+items:
+  - label: Overview
+    href: ./
+  - label: Install
+    href: ./getting-started
+  - label: Configure
+    href: ./configuring
+  - label: Proxy Configuration
+    href: ./proxy
+  - label: CI/CD
+    href: ./ci-cd
+  - label: Conventions
+    href: ./conventions
+  - label: Privacy and Data Collection
+    href: ./privacy
+  - label: Contributing
+    href: ./contributing
+  - label: Error Codes
+    href: ./errors
+  - label: Commands
+    children:
+      - label: cloud
+        href: ./commands/cloud    
+      - label: config
+        href: ./commands/config
+      - label: contract
+        href: ./commands/contracts
+      - label: dev
+        href: ./commands/dev
+      - label: explain
+        href: ./commands/explain
+      - label: graph
+        href: ./commands/graphs
+      - label: init
+        href: ./commands/init
+      - label: license
+        href: ./commands/license
+      - label: persisted-queries
+        href: ./commands/persisted-queries
+      - label: readme
+        href: ./commands/readmes
+      - label: subgraph
+        href: ./commands/subgraphs
+      - label: supergraph
+        href: ./commands/supergraphs
+      - label: template
+        href: ./commands/template
+  - label: The Apollo CLI (deprecated)
+    children:
+      - label: Installation
+        href: ./apollo-cli
+      - label: Validating Client Operations
+        href: ./validating-client-operations
+      - label: Moving to Rover
+        href: ./migration
