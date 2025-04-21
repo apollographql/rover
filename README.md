@@ -120,11 +120,11 @@ Run the following command to authenticate with GraphOS:
 
     $ rover config auth
 
-Once you're authenticated, create a new graph by running:
+Once you're authenticated, create a new graph:
 
     $ rover init
 
-To learn more about Rover, you can view the full documentation by running:
+To learn more about Rover, view the full documentation:
 
     $ rover docs open
 ```
