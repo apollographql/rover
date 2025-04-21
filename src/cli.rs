@@ -10,6 +10,7 @@ use houston as config;
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
 use rover_client::shared::GitContext;
+use rover_std::Style;
 use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
@@ -36,28 +37,25 @@ const STYLES: Styles = Styles::styled()
     version,
     styles = STYLES,
     about = "Rover - Your Graph Companion",
-    after_help = "Read the getting started guide by running:
+    after_help = format!("\n\n{}
+    
+Run the following command to authenticate with GraphOS:
 
-    $ rover docs open start
+    {}
 
-To begin working with Rover and to authenticate with Apollo Studio,
-run the following command:
+Once you're authenticated, create a new graph by running:
 
-    $ rover config auth
+    {}
 
-This will prompt you for an API Key that can be generated in Apollo Studio.
+To learn more about Rover, you can view the full documentation by running:
 
-The most common commands from there are:
-
-    - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
-registry
-    - rover graph publish: Publish an updated graph schema to the Apollo graph registry
-
-You can open the full documentation for Rover by running:
-
-    $ rover docs open
-"
+    {}
+",
+        Style::SuccessHeading.paint("** Getting Started with Rover **"),
+        Style::Command.paint("$ rover config auth"),
+        Style::Command.paint("$ rover init"),
+        Style::Command.paint("$ rover docs open\n"),
+    )
 )]
 #[command(next_line_help = true)]
 pub struct Rover {
@@ -188,7 +186,7 @@ impl Rover {
 
         match &self.command {
             #[cfg(feature = "init")]
-            Command::Init(command) => command.run().await,
+            Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
             Command::Contract(command) => command.run(self.get_client_config()?).await,
@@ -367,7 +365,7 @@ impl Rover {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Initialize a GraphQL API project using Apollo Federation with Apollo Router
+    /// Initialize a Graph project using Apollo Federation with Apollo Router
     #[cfg(feature = "init")]
     Init(command::Init),
 
@@ -380,11 +378,7 @@ pub enum Command {
     /// Contract configuration commands
     Contract(command::Contract),
 
-    /// This command starts a local router that can query across one or more
-    /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
-    /// As you add, edit, and remove subgraphs, `rover dev` automatically
-    /// composes all of their schemas into a new supergraph schema, and the
-    /// router reloads.
+    /// Run a supergraph locally to develop and test subgraph changes
     ///
     /// ⚠️ Do not run this command in production!
     /// ⚠️ It is intended for local development.

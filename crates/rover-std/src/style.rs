@@ -11,6 +11,7 @@ pub enum Style {
     DebugPrefix,   // "DEBUG" text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
+    SuccessPrefix, // "✓" text
     Heading,
     CallToAction,
     WhoAmIKey,
@@ -20,6 +21,10 @@ pub enum Style {
     TotalOperationCount,
     NewOperationCount,
     PersistedQueryList,
+    Prompt,
+    WarningHeading,
+    File,
+    SuccessHeading,
 }
 
 impl Style {
@@ -31,8 +36,10 @@ impl Style {
         }
 
         match &self {
-            Style::Link | Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
-            Style::Command | Style::TotalOperationCount => style(message_ref).yellow(),
+            Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
+            Style::Link => style(message_ref).underlined().bold(),
+            Style::Command | Style::TotalOperationCount => style(message_ref).cyan(),
+            Style::Prompt => style(message_ref).bold(),
             Style::CallToAction => style(message_ref).yellow().italic(),
             Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
@@ -44,7 +51,10 @@ impl Style {
             Style::Variant => style(message_ref).white().bold(),
             Style::Path | Style::Heading => style(message_ref).bold(),
             Style::Pending => style(message_ref).yellow(),
-            Style::Success => style(message_ref).green(),
+            Style::Success | Style::SuccessPrefix => style(message_ref).green(),
+            Style::WarningHeading => style(message_ref).yellow().bold(),
+            Style::File => style(message_ref).magenta(),
+            Style::SuccessHeading => style(message_ref).green().bold(),
         }
         .to_string()
     }

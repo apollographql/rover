@@ -1,33 +1,84 @@
-use std::env;
-use std::fs::read_dir;
-use std::path::PathBuf;
+use std::{env, fs::read_dir, path::PathBuf};
 
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use rover_client::operations::init::create_graph;
+use rover_client::operations::init::create_graph::*;
+use rover_client::operations::init::memberships;
+use rover_client::shared::GraphRef;
 use rover_http::ReqwestService;
 
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
+use crate::command::init::operations::create_api_key;
+use crate::command::init::operations::publish_subgraphs;
+use crate::command::init::operations::update_variant_federation_version;
+use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 use crate::options::GraphIdOpt;
+use crate::options::Organization;
+use crate::options::ProfileOpt;
+use crate::options::ProjectAuthenticationOpt;
 use crate::options::ProjectNameOpt;
+use crate::options::ProjectOrganizationOpt;
+use crate::options::ProjectTypeOpt;
 use crate::options::ProjectUseCase;
+use crate::options::ProjectUseCaseOpt;
 use crate::options::TemplateFetcher;
-use crate::options::{ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
-use crate::{RoverOutput, RoverResult};
-use anyhow::anyhow;
+use crate::RoverOutput;
+use crate::RoverResult;
+
+const DEFAULT_VARIANT: &str = "current";
+
+/// PROMPT UX:
+/// =========
+///
+/// No credentials found. Please go to http://studio.apollographql.com/user-settings/api-keys and create a new Personal API key.
+///
+/// Copy the key and paste it into the prompt below.
+/// ?
+impl UserAuthenticated {
+    pub fn new() -> Self {
+        UserAuthenticated {}
+    }
+
+    pub async fn check_authentication(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<Welcome> {
+        match client_config.get_authenticated_client(profile) {
+            Ok(_) => Ok(Welcome::new()),
+            Err(_) => {
+                match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
+                {
+                    Ok(_) => {
+                        // Try to authenticate again with the new credentials
+                        match client_config.get_authenticated_client(profile) {
+                            Ok(_) => Ok(Welcome::new()),
+                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
+                        }
+                    }
+                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                }
+            }
+        }
+    }
+}
 
 /// PROMPT UX:
 /// ==========
 ///
-/// Welcome! This command helps you initialize a federated GraphQL API in your current directory.
+/// Welcome! This command helps you initialize a federated Graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Select option:
-/// > Create a new GraphQL API
-/// > Add a subgraph to an existing GraphQL API
+/// > Create a new graph
+/// > Add a subgraph to an existing graph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}
@@ -49,7 +100,7 @@ impl Welcome {
             Ok(mut dir) => {
                 if dir.next().is_some() {
                     return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the project because the current directory is not empty."
+                        "Cannot initialize the graph because the current directory is not empty."
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         "Please run `init` on an empty directory".to_string(),
@@ -79,15 +130,20 @@ impl Welcome {
 /// > Org2
 /// > Org3
 impl ProjectTypeSelected {
-    pub fn select_organization(
+    pub async fn select_organization(
         self,
         options: &ProjectOrganizationOpt,
+        profile: &ProfileOpt,
+        client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
-        // TODO: Get list of organizations from Studio Client
-        let organizations: Vec<String> = vec!["default-organization".to_string()];
-
+        let client = client_config.get_authenticated_client(profile)?;
+        let memberships_response = memberships::run(&client).await?;
+        let organizations = memberships_response
+            .memberships
+            .iter()
+            .map(|m| Organization::new(m.name.clone(), m.id.clone()))
+            .collect::<Vec<_>>();
         let organization = options.get_or_prompt_organization(&organizations)?;
-
         Ok(OrganizationSelected {
             output_path: self.output_path,
             project_type: self.project_type,
@@ -100,8 +156,8 @@ impl ProjectTypeSelected {
 /// =========
 ///
 /// ? Select use case:
-/// > Start a GraphQL API with one or more REST APIs
-/// > Start a GraphQL API with recommended libraries
+/// > Start a graph with one or more REST APIs
+/// > Start a graph with recommended libraries
 impl OrganizationSelected {
     pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
         let use_case = options.get_or_prompt_use_case()?;
@@ -118,7 +174,7 @@ impl OrganizationSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your GraphQL API:
+/// ? Name your Graph:
 impl UseCaseSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
@@ -185,9 +241,11 @@ impl GraphIdConfirmed {
 
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
-          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-connectors-starter/archive/refs/heads/main.tar.gz",
+          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/refs/heads/main.tar.gz",
           ProjectUseCase::GraphQLTemplate => {
-              println!("\nGraphQL Template is coming soon!\n");
+              println!();
+              println!("GraphQL Template is coming soon!");
+              println!();
               return Ok(None); // Early return if template not available
           },
       };
@@ -211,7 +269,7 @@ impl GraphIdConfirmed {
             }
             Ok(false) => {
                 // User canceled
-                println!("Project creation canceled. You can run this command again anytime.");
+                println!("Graph creation canceled. You can run this command again anytime.");
                 Ok(None)
             }
             Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
@@ -224,32 +282,64 @@ impl GraphIdConfirmed {
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
-    pub async fn create_project(self) -> RoverResult<ProjectCreated> {
-        println!("⣾ Creating files and generating GraphOS credentials...");
+    pub async fn create_project(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<ProjectCreated> {
+        println!();
+        let spinner = Spinner::new(
+            "Creating files and generating GraphOS credentials...",
+            vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
+        );
+        let client = client_config.get_authenticated_client(profile)?;
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.template.write_template(&self.output_path)?;
 
-        SupergraphBuilder::new(self.output_path, 5).build_and_write()?;
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
+        supergraph.build_and_write()?;
 
         let artifacts = self.template.list_files()?;
 
-        // TODO: Implement API key creation -- generate_api_key() is not implemented
-        let api_key = match env::var("GRAPHOS_API_KEY") {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "API key required. Please set the GRAPHOS_API_KEY environment variable."
-                )
-                .into())
-            }
+        let create_graph_response = create_graph::run(
+            CreateGraphInput {
+                hidden_from_uninvited_non_admin: false,
+                create_graph_id: self.config.graph_id.to_string(),
+                title: self.config.project_name.to_string(),
+                organization_id: self.config.organization.to_string(),
+            },
+            &client,
+        )
+        .await?;
+
+        let subgraphs = supergraph.generate_subgraphs()?;
+        let graph_ref = GraphRef {
+            name: create_graph_response.id.clone(),
+            variant: DEFAULT_VARIANT.to_string(),
         };
+
+        publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
+
+        update_variant_federation_version(&client, &graph_ref).await?;
+
+        // Create a new API key for the graph first
+        let api_key = create_api_key(
+            client_config,
+            profile,
+            self.config.graph_id.to_string(),
+            self.config.project_name.to_string(),
+        )
+        .await?;
+
+        spinner.success("Successfully created files and generated GraphOS credentials.");
 
         Ok(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
+            graph_ref,
         })
     }
 }
@@ -257,16 +347,16 @@ impl CreationConfirmed {
 /// PROMPT UX:
 /// =========
 ///
-/// => All set! Your project `ana-test` has been created. Please review details below to see what was generated.
+/// => All set! Your graph `ana-test` has been created. Please review details below to see what was generated.
 ///
-/// Project directory, etc.
+/// Graph directory, etc.
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
         display_project_created_message(
             &self.config.project_name.to_string(),
             &self.artifacts,
-            &self.config.graph_id,
-            &self.api_key,
+            &self.graph_ref,
+            &self.api_key.to_string(),
         );
 
         Completed

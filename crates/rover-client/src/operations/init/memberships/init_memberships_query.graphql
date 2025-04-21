@@ -1,0 +1,14 @@
+query InitMembershipsQuery {
+    me {
+    __typename
+    ... on User {
+      memberships {
+        account {
+          id
+          name
+        }
+      }
+    }
+    id
+  }
+}

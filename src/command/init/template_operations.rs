@@ -17,14 +17,16 @@ pub struct TemplateOperations;
 
 impl TemplateOperations {
     pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
-        println!("The following files will be created:");
+        println!();
+        infoln!("You’re about to create a local directory with the following files:");
+        println!();
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
 
         Self::print_grouped_files(artifacts_sorted);
 
         println!();
-        prompt_confirm_default_yes("Proceed with creation?")
+        prompt_confirm_default_yes("? Proceed with creation?")
     }
 
     pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
@@ -34,7 +36,7 @@ impl TemplateOperations {
         {
             for file in files {
                 if file.file_name().is_some() {
-                    infoln!("{}", file);
+                    println!("- {}", file);
                 }
             }
         }
@@ -54,11 +56,20 @@ impl SupergraphBuilder {
         }
     }
 
+    fn strip_base_prefix(&self, path: &Path, base_prefix: &Path) -> PathBuf {
+        let canonical_base = base_prefix.canonicalize().unwrap();
+        let canonical_path = path.canonicalize().unwrap();
+        canonical_path
+            .strip_prefix(canonical_base.clone())
+            .unwrap()
+            .to_owned()
+    }
+
     /*
        In this fn we collect all graphql schemas found in the directory,
        also try to disambiguate names in case that they end up being duplicate
        by counting all resolved names to make sure there are no duplicates,
-       depending on the structure of the project, there is a chance that if we only use
+       depending on the structure of the graph, there is a chance that if we only use
        the parent for naming, there might be duplicates. for example
        /root
          /products
@@ -68,7 +79,7 @@ impl SupergraphBuilder {
            /model
              /schema.graphql
     */
-    fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
+    pub fn generate_subgraphs(&self) -> RoverResult<BTreeMap<String, SubgraphConfig>> {
         let mut subgraphs = BTreeMap::new();
 
         // Collect all graphql schemas
@@ -88,11 +99,12 @@ impl SupergraphBuilder {
                 name = self.disambiguate_name(&file_path, &name)?;
             }
 
+            let file = file_path.to_string_lossy().to_string();
             let subgraph = LazilyResolvedSubgraph::builder()
                 .name(name.clone())
                 .routing_url("http://ignore".to_string()) // Hardcoded URL
                 .schema(SchemaSource::File {
-                    file: file_path.clone(),
+                    file: file.parse()?,
                 })
                 .build();
 
@@ -127,18 +139,13 @@ impl SupergraphBuilder {
                 if path.is_dir() {
                     self.visit_dirs(&path, current_depth + 1, max_depth, result)?;
                 } else if self.is_graphql_file(&path) {
-                    let path =
-                        Self::strip_base_prefix(path.as_path(), self.directory.as_std_path());
+                    let path = self.strip_base_prefix(path.as_path(), self.directory.as_std_path());
                     result.push(path);
                 }
             }
         }
 
         Ok(())
-    }
-
-    fn strip_base_prefix(path: &Path, base_prefix: &Path) -> PathBuf {
-        path.strip_prefix(base_prefix).unwrap().to_owned()
     }
 
     fn is_graphql_file(&self, path: &Path) -> bool {

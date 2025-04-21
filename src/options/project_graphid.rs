@@ -6,19 +6,14 @@ use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
+use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct GraphIdOpt {
     #[arg(long = "graph-id")]
     pub graph_id: Option<String>,
-}
-
-impl Default for GraphIdOpt {
-    fn default() -> Self {
-        Self { graph_id: None }
-    }
 }
 
 impl GraphIdOpt {
@@ -51,12 +46,11 @@ impl GraphIdOpt {
     }
 
     fn prompt_for_input(&self, suggested_id: &str) -> RoverResult<String> {
-        let prompt = format!("Confirm or modify graph ID [{}]", suggested_id);
         let input = Input::<String>::new()
-            .with_prompt(&prompt)
-            .default(suggested_id.to_string())
+            .with_prompt(Style::Prompt.paint("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
+            .with_initial_text(suggested_id.to_string())
             .allow_empty(false)
-            .interact()?;
+            .interact_text()?;
 
         Ok(input)
     }

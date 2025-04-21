@@ -1,3 +1,4 @@
+use crate::style::Style;
 use url::Url;
 
 pub fn sanitize_url(url: &str) -> Option<String> {
@@ -10,6 +11,12 @@ pub fn sanitize_url(url: &str) -> Option<String> {
             Some(parsed_url.to_string())
         }
     })
+}
+
+pub fn hyperlink(url: &str) -> String {
+    let sanitized_url = sanitize_url(url).unwrap_or_else(|| url.to_string());
+
+    Style::Link.paint(sanitized_url)
 }
 
 #[cfg(test)]

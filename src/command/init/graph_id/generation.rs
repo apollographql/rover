@@ -67,7 +67,6 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
 mod tests {
     use super::*;
     use crate::command::init::graph_id::utils::random::TestRandomStringGenerator;
-    use std::str::FromStr;
 
     #[test]
     fn test_generate_graph_id() {
@@ -78,19 +77,19 @@ mod tests {
         // Test with normal name
         assert_eq!(
             generate_graph_id("My Test API", &mut generator, None),
-            GraphId::from_str("my-test-api-teststr").unwrap()
+            "my-test-api-teststr".parse::<GraphId>().unwrap()
         );
 
         // Name starting with non-alphabetic
         assert_eq!(
             generate_graph_id("123My API", &mut generator, None),
-            GraphId::from_str("my-api-teststr").unwrap()
+            "my-api-teststr".parse::<GraphId>().unwrap()
         );
 
         // Empty string
         assert_eq!(
             generate_graph_id("", &mut generator, None),
-            GraphId::from_str("id-teststr").unwrap()
+            "id-teststr".parse::<GraphId>().unwrap()
         );
 
         // Very long name (should be truncated)
@@ -106,7 +105,7 @@ mod tests {
                 &mut generator,
                 Some("custom-id".to_string())
             ),
-            GraphId::from_str("custom-id").unwrap()
+            "custom-id".parse::<GraphId>().unwrap()
         );
     }
 }

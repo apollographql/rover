@@ -254,6 +254,13 @@ pub enum RoverClientError {
         source: Box<dyn std::error::Error + Send + Sync>,
         endpoint_kind: EndpointKind,
     },
+
+    /// Failed to parse Graph creation response coming from server.
+    #[error("{msg}")]
+    GraphCreationError {
+        /// Graph creation error coming from schema encoder.
+        msg: String,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {

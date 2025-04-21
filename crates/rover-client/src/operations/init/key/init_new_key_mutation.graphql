@@ -1,0 +1,8 @@
+mutation InitNewKeyMutation($graph_id: ID!, $key_name: String!, $role: UserPermission!) {
+    graph(id: $graph_id) {
+        newKey(keyName: $key_name, role: $role) {
+            id
+            token
+        }
+    }
+} 

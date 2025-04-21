@@ -37,9 +37,66 @@ This method is recommended for local development. If you have more than one API 
 
 The `auth` command is interactive to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
 
+
 #### With an environment variable
 
-You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable. This method is recommended for automated environments such as CI.
+
+You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
+See all [supported environment variables](#supported-environment-variables).
+
+<ExpansionPanel title="Need help setting environment variables?">
+
+  For CI/CD environments see [Using Rover in CI/CD](/rover/ci-cd).
+  <Tabs>
+
+    <Tab label="Linux/macOS">
+
+      #### Session
+
+      Run the following in your terminal
+
+      ```bash showLineNumbers=false
+      export APOLLO_KEY="your_api_key_here"
+      ```
+
+
+      #### User profile
+
+      1. Edit your shell profile file (`~/.bashrc`, `~/.zshrc`, etc.) to include the environment variables you want to set as exports:
+
+          ```bash showLineNumbers=false
+          export APOLLO_KEY="your_api_key_here"
+          ```
+
+      2. Apply changes before running any other commands.
+
+          ```bash showLineNumbers=false
+          source ~/.bashrc
+          ```
+
+    </Tab>
+    <Tab label="Windows">
+      #### Session (Command Prompt)
+
+        ```cmd showLineNumbers=false
+        set APOLLO_KEY=your_api_key_here
+        ```
+
+      #### Session (PowerShell)
+
+      ```powershell showLineNumbers=false
+      $env:APOLLO_KEY = "your_api_key_here"
+      ```
+
+      #### System Variables
+
+      1. Search for **Environment Variables** in Windows search.
+      1. Add new user or system variables with the appropriate names and values.
+
+    </Tab>
+  </Tabs>
+
+</ExpansionPanel>
 
 ## Configuration profiles
 

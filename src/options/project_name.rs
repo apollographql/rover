@@ -2,6 +2,7 @@ use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
 use dialoguer::Input;
+use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -51,8 +52,8 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new()
-                .with_prompt("? Name your GraphQL API")
-                .default(default.clone());
+                .with_prompt(Style::Prompt.paint("? Name your graph"))
+                .with_initial_text(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
             // Try to parse the input into a ProjectName

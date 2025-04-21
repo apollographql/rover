@@ -38,6 +38,8 @@ Rover - Your Graph Companion
 Usage: rover [OPTIONS] <COMMAND>
 
 Commands:
+  init
+          Initialize a Graph project using Apollo Federation with Apollo Router
   cloud
           Cloud configuration commands
   config
@@ -45,7 +47,7 @@ Commands:
   contract
           Contract configuration commands
   dev
-          This command starts a local router that can query across one or more running GraphQL APIs (subgraphs) through one endpoint (supergraph). As you add, edit, and remove subgraphs, `rover dev` automatically composes all of their schemas into a new supergraph schema, and the router reloads
+          Run a supergraph locally to develop and test subgraph changes
   supergraph
           Supergraph schema commands
   graph
@@ -110,25 +112,19 @@ Options:
   -V, --version
           Print version
 
-Read the getting started guide by running:
 
-    $ rover docs open start
 
-To begin working with Rover and to authenticate with Apollo Studio,
-run the following command:
+** Getting Started with Rover **
+
+Run the following command to authenticate with GraphOS:
 
     $ rover config auth
 
-This will prompt you for an API Key that can be generated in Apollo Studio.
+Once you're authenticated, create a new graph by running:
 
-The most common commands from there are:
+    $ rover init
 
-    - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
-registry
-    - rover graph publish: Publish an updated graph schema to the Apollo graph registry
-
-You can open the full documentation for Rover by running:
+To learn more about Rover, you can view the full documentation by running:
 
     $ rover docs open
 ```
@@ -188,7 +184,7 @@ iwr 'https://rover.apollo.dev/win/latest' | iex
 
 To install a specific version of Rover (note the `v` prefixing the version number):
 
-> Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
+> Note: If you are installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
 iwr 'https://rover.apollo.dev/win/v0.10.0' | iex

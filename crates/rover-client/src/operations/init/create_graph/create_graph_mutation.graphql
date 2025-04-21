@@ -1,0 +1,23 @@
+mutation CreateGraphMutation(
+  $hiddenFromUninvitedNonAdmin: Boolean!,
+  $createGraphId: ID!,
+  $title: String!,
+  $organizationId: ID!
+) {
+  organization(id: $organizationId) {
+    createGraph(
+      graphType: SELF_HOSTED_SUPERGRAPH,
+      hiddenFromUninvitedNonAdmin: $hiddenFromUninvitedNonAdmin,
+      id: $createGraphId,
+      title: $title
+    ) {
+      __typename
+      ... on GraphCreationError {
+        message
+      }
+      ... on Graph {
+        id
+      }
+    }
+  }
+}

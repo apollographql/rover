@@ -4,8 +4,8 @@ mod tests {
     use crate::command::init::graph_id::GraphId;
     use crate::command::init::states::*;
     use crate::options::{
-        ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectUseCase,
-        ProjectUseCaseOpt,
+        OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
+        ProjectUseCase, ProjectUseCaseOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -63,14 +63,14 @@ mod tests {
         };
 
         let options = ProjectOrganizationOpt {
-            organization: Some("test-org".to_string()),
+            organization: "test-org".parse::<OrganizationId>().ok(),
         };
 
-        let organizations = ["test-org".to_string(), "other-org".to_string()];
+        let organizations = vec!["test-org".to_string(), "other-org".to_string()];
 
         let result: RoverResult<OrganizationSelected> = {
             let organization = options.get_organization().unwrap();
-            if organizations.contains(&organization) {
+            if organizations.contains(&organization.to_string()) {
                 Ok(OrganizationSelected {
                     project_type: project_type_selected.project_type.clone(),
                     organization,
@@ -84,14 +84,17 @@ mod tests {
         assert!(result.is_ok());
         let next_state = result.unwrap();
         assert_eq!(next_state.project_type, ProjectType::CreateNew);
-        assert_eq!(next_state.organization, "test-org");
+        assert_eq!(
+            next_state.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
     }
 
     #[test]
     fn test_organization_selected_transition() {
         let org_selected = OrganizationSelected {
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             output_path: ".".into(),
         };
 
@@ -112,7 +115,10 @@ mod tests {
         assert!(result.is_ok());
         let next_state = result.unwrap();
         assert_eq!(next_state.project_type, ProjectType::CreateNew);
-        assert_eq!(next_state.organization, "test-org");
+        assert_eq!(
+            next_state.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
     }
 
@@ -121,12 +127,12 @@ mod tests {
         let use_case_selected = UseCaseSelected {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
         };
 
         let options = ProjectNameOpt {
-            project_name: Some("test-project".parse::<ProjectName>().unwrap()),
+            project_name: Some("test-graph".parse::<ProjectName>().unwrap()),
         };
 
         let result: RoverResult<ProjectNamed> = {
@@ -143,11 +149,14 @@ mod tests {
         assert!(result.is_ok());
         let next_state = result.unwrap();
         assert_eq!(next_state.project_type, ProjectType::CreateNew);
-        assert_eq!(next_state.organization, "test-org");
+        assert_eq!(
+            next_state.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             next_state.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
     }
 
@@ -156,9 +165,9 @@ mod tests {
         let project_named = ProjectNamed {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
         };
 
         let result: RoverResult<GraphIdConfirmed> = {
@@ -176,9 +185,12 @@ mod tests {
         assert!(result.is_ok());
         let next_state = result.unwrap();
         assert_eq!(next_state.project_type, ProjectType::CreateNew);
-        assert_eq!(next_state.organization, "test-org");
+        assert_eq!(
+            next_state.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
-        assert_eq!(next_state.project_name, "test-project".parse().unwrap());
+        assert_eq!(next_state.project_name, "test-graph".parse().unwrap());
         assert_eq!(
             next_state.graph_id,
             "test-graph-id".parse::<GraphId>().unwrap()
@@ -190,9 +202,9 @@ mod tests {
         let graph_id_confirmed = GraphIdConfirmed {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
@@ -205,11 +217,14 @@ mod tests {
         };
 
         assert_eq!(config.project_type, ProjectType::CreateNew);
-        assert_eq!(config.organization, "test-org");
+        assert_eq!(
+            config.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
         assert_eq!(config.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             config.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
         assert_eq!(config.graph_id, "test-graph-id".parse::<GraphId>().unwrap());
     }
@@ -219,9 +234,9 @@ mod tests {
         let graph_id_confirmed = GraphIdConfirmed {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
@@ -258,11 +273,14 @@ mod tests {
         assert!(next_state_option.is_some());
         let next_state = next_state_option.unwrap();
         assert_eq!(next_state.config.project_type, ProjectType::CreateNew);
-        assert_eq!(next_state.config.organization, "test-org");
+        assert_eq!(
+            next_state.config.organization,
+            "test-org".parse::<OrganizationId>().unwrap()
+        );
         assert_eq!(next_state.config.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             next_state.config.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
         assert_eq!(
             next_state.config.graph_id,
@@ -274,9 +292,9 @@ mod tests {
     async fn test_graph_id_confirmed_preview_for_graphql_template() {
         let graph_id_confirmed = GraphIdConfirmed {
             project_type: ProjectType::CreateNew,
-            organization: "test-org".to_string(),
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::GraphQLTemplate,
-            project_name: "test-project".parse::<ProjectName>().unwrap(),
+            project_name: "test-graph".parse::<ProjectName>().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
             output_path: ".".into(),
         };
