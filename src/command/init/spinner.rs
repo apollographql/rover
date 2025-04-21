@@ -30,9 +30,8 @@ impl Spinner {
         // Get initial cursor position
         let mut stdout = io::stdout();
         let initial_position = if let Ok((_, row)) = size() {
-            // Ensure we start at column 0 of the current row
-            execute!(stdout, MoveTo(0, row.saturating_sub(1))).unwrap();
-            (0, row.saturating_sub(1))
+            execute!(stdout, MoveTo(0, row + 1)).unwrap();
+            (0, row + 1)
         } else {
             (0, 0)
         };

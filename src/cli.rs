@@ -365,7 +365,7 @@ impl Rover {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Initialize a graph project using Apollo Federation with Apollo Router
+    /// Initialize a federated graph in your current directory
     #[cfg(feature = "init")]
     Init(command::Init),
 
