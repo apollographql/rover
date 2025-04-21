@@ -29,7 +29,7 @@ impl Spinner {
 
         // Get initial cursor position
         let mut stdout = io::stdout();
-        let initial_position = if let Ok((_, row)) = size() {        
+        let initial_position = if let Ok((_, row)) = size() {
             execute!(stdout, MoveTo(0, row + 1)).unwrap();
             (0, row + 1)
         } else {
