@@ -53,7 +53,7 @@ impl Display for ProjectUseCase {
         use ProjectUseCase::*;
         let readable = match self {
             Connectors => "Start a graph with one or more REST APIs",
-            GraphQLTemplate => "Start a graph with recommended libraries",
+            GraphQLTemplate => "Start a graph with recommended libraries - coming soon",
         };
         write!(f, "{}", readable)
     }
