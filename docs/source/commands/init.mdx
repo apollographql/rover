@@ -21,7 +21,7 @@ The wizard walks you through a set of questions to help you choose the best opti
 - A new graph in GraphOS
 - A set of local configuration files and boilerplate code that represent the graph 
 - Credentials to interact with GraphOS
-    - These credentials are necessary for actions like [publishing graph updates](/graphos/platform/schema-management/delivery/publish).
+    - These credentials are necessary for actions like [developing your graph locally](/rover/commands/dev) or [publishing graph updates](/graphos/platform/schema-management/delivery/publish).
 
 ### Choosing your use case
 
@@ -39,6 +39,7 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 - **Graph ID**- A unique identifier for your graph. It represents your graph across all of Apollo.
 - **Graph ref**- A reference for a specific variant of your graph. It's formatted `graph-id@variant`. To start, GraphOS automatically creates a variant titled `current` for you.
 - **Graph API key**- Once it's generated, store it securely—you won't be able to access it later.
+    - See the [configuration docs](/rover/configuring#with-an-environment-variable) to learn how to set your API key as an environment variable
 
 ## Next steps
 
