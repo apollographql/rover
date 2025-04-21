@@ -14,7 +14,7 @@
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-$package_version = 'v0.29.0-rc.3'
+$package_version = 'v0.29.0'
 
 function Install-Binary($rover_install_args) {
   $old_erroractionpreference = $ErrorActionPreference
