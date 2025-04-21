@@ -40,12 +40,6 @@ The `auth` command is interactive to prevent your API key from appearing in your
 
 #### With an environment variable
 
-You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
-You can also set your graph ref via the `GRAPH_REF` environment variable. See all [supported environment variables](#supported-environment-variables).
-
-
-
-#### With an environment variable
 
 You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
 See all [supported environment variables](#supported-environment-variables).
@@ -57,16 +51,16 @@ See all [supported environment variables](#supported-environment-variables).
 
     <Tab label="Linux/macOS">
 
-      #### Current terminal session only
+      #### Session
 
-      Run the following in your terminal:
+      Run the following in your terminal
 
       ```bash showLineNumbers=false
       export APOLLO_KEY="your_api_key_here"
       ```
 
 
-      #### Permanent (in your shell profile)
+      #### User profile
 
       1. Edit your shell profile file (`~/.bashrc`, `~/.zshrc`, etc.) to include the environment variables you want to set as exports:
 
@@ -82,19 +76,19 @@ See all [supported environment variables](#supported-environment-variables).
 
     </Tab>
     <Tab label="Windows">
-      #### Command Prompt (temporary)
+      #### Session (Command Prompt)
 
         ```cmd showLineNumbers=false
         set APOLLO_KEY=your_api_key_here
         ```
 
-      #### PowerShell (temporary)
+      #### Session (PowerShell)
 
       ```powershell showLineNumbers=false
       $env:APOLLO_KEY = "your_api_key_here"
       ```
 
-      #### Permanent (System Variables)
+      #### System Variables
 
       1. Search for **Environment Variables** in Windows search.
       1. Add new user or system variables with the appropriate names and values.
