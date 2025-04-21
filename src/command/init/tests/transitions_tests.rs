@@ -132,7 +132,7 @@ mod tests {
         };
 
         let options = ProjectNameOpt {
-            project_name: Some("test-project".parse::<ProjectName>().unwrap()),
+            project_name: Some("test-graph".parse::<ProjectName>().unwrap()),
         };
 
         let result: RoverResult<ProjectNamed> = {
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             next_state.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
     }
 
@@ -167,7 +167,7 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
         };
 
         let result: RoverResult<GraphIdConfirmed> = {
@@ -190,7 +190,7 @@ mod tests {
             "test-org".parse::<OrganizationId>().unwrap()
         );
         assert_eq!(next_state.use_case, ProjectUseCase::Connectors);
-        assert_eq!(next_state.project_name, "test-project".parse().unwrap());
+        assert_eq!(next_state.project_name, "test-graph".parse().unwrap());
         assert_eq!(
             next_state.graph_id,
             "test-graph-id".parse::<GraphId>().unwrap()
@@ -204,7 +204,7 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(config.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             config.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
         assert_eq!(config.graph_id, "test-graph-id".parse::<GraphId>().unwrap());
     }
@@ -236,7 +236,7 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            project_name: "test-project".parse().unwrap(),
+            project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         };
 
@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(next_state.config.use_case, ProjectUseCase::Connectors);
         assert_eq!(
             next_state.config.project_name,
-            "test-project".parse::<ProjectName>().unwrap()
+            "test-graph".parse::<ProjectName>().unwrap()
         );
         assert_eq!(
             next_state.config.graph_id,
@@ -294,7 +294,7 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::GraphQLTemplate,
-            project_name: "test-project".parse::<ProjectName>().unwrap(),
+            project_name: "test-graph".parse::<ProjectName>().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
             output_path: ".".into(),
         };

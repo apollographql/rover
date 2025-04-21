@@ -308,6 +308,9 @@ enum BuildPipelineTrack {
 
   """Apollo Federation 2.9"""
   FED_2_9
+
+  """Apollo Federation 2.10"""
+  FED_2_10
 }
 
 union BuildResult = BuildFailure | BuildSuccess

@@ -12,6 +12,7 @@ use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
+use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
@@ -99,7 +100,7 @@ impl Welcome {
             Ok(mut dir) => {
                 if dir.next().is_some() {
                     return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the project because the current directory is not empty."
+                        "Cannot initialize the graph because the current directory is not empty."
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         "Please run `init` on an empty directory".to_string(),
@@ -268,7 +269,7 @@ impl GraphIdConfirmed {
             }
             Ok(false) => {
                 // User canceled
-                println!("Project creation canceled. You can run this command again anytime.");
+                println!("Graph creation canceled. You can run this command again anytime.");
                 Ok(None)
             }
             Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
@@ -321,7 +322,9 @@ impl CreationConfirmed {
 
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
-        // Create a new API key for the project first
+        update_variant_federation_version(&client, &graph_ref).await?;
+
+        // Create a new API key for the graph first
         let api_key = create_api_key(
             client_config,
             profile,
@@ -344,9 +347,9 @@ impl CreationConfirmed {
 /// PROMPT UX:
 /// =========
 ///
-/// => All set! Your project `ana-test` has been created. Please review details below to see what was generated.
+/// => All set! Your graph `ana-test` has been created. Please review details below to see what was generated.
 ///
-/// Project directory, etc.
+/// Graph directory, etc.
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
         display_project_created_message(

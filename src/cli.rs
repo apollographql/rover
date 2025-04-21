@@ -37,29 +37,24 @@ const STYLES: Styles = Styles::styled()
     version,
     styles = STYLES,
     about = "Rover - Your Graph Companion",
-    after_help = format!("Read the getting started guide by running:
+    after_help = format!("\n\n{}
+    
+Run the following command to authenticate with GraphOS:
 
     {}
 
-To begin working with Rover and to authenticate with Apollo Studio,
-run the following command:
+Once you're authenticated, create a new graph by running:
 
     {}
 
-This will prompt you for an API Key that can be generated in Apollo Studio.
-
-Once you're authenticated, you can kick off a new graph project by running:
-
-    {}
-
-You can open the full documentation for Rover by running:
+To learn more about Rover, you can view the full documentation by running:
 
     {}
 ",
-        Style::Command.paint("$ rover docs open start"),
+        Style::SuccessHeading.paint("** Getting Started with Rover **"),
         Style::Command.paint("$ rover config auth"),
         Style::Command.paint("$ rover init"),
-        Style::Command.paint("$ rover docs open"),
+        Style::Command.paint("$ rover docs open\n"),
     )
 )]
 #[command(next_line_help = true)]
