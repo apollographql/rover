@@ -74,7 +74,7 @@ impl UserAuthenticated {
 /// PROMPT UX:
 /// ==========
 ///
-/// Welcome! This command helps you initialize a federated Graph in your current directory.
+/// Welcome! This command helps you initialize a federated graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Select option:
