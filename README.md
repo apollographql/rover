@@ -39,7 +39,7 @@ Usage: rover [OPTIONS] <COMMAND>
 
 Commands:
   init
-          Initialize a Graph project using Apollo Federation with Apollo Router
+          Initialize a federated graph in your current directory
   cloud
           Cloud configuration commands
   config
