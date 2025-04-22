@@ -29,21 +29,21 @@ pub async fn run(
 }
 
 fn build_response(data: ResponseData) -> Result<CreateGraphResponse, RoverClientError> {
-    let organization = data.organization.ok_or_else(|| RoverClientError::MalformedResponse {
-        null_field: "organization".to_string(),
-    })?;
+    let organization = data
+        .organization
+        .ok_or_else(|| RoverClientError::MalformedResponse {
+            null_field: "organization".to_string(),
+        })?;
 
     let graph_response = organization.create_graph;
 
     match graph_response {
-        CreateGraphMutationOrganizationCreateGraph::Graph(graph) => {
-            Ok(CreateGraphResponse::from(
-                CreateGraphMutationOrganizationCreateGraph::Graph(graph),
-            ))
-        }
+        CreateGraphMutationOrganizationCreateGraph::Graph(graph) => Ok(CreateGraphResponse::from(
+            CreateGraphMutationOrganizationCreateGraph::Graph(graph),
+        )),
         CreateGraphMutationOrganizationCreateGraph::GraphCreationError(error) => {
-            Err(RoverClientError::GraphCreationError { 
-                msg: format!("Failed to create graph: {}", error.message)
+            Err(RoverClientError::GraphCreationError {
+                msg: format!("Failed to create graph: {}", error.message),
             })
         }
     }
