@@ -2,6 +2,7 @@ use std::{env, fs::read_dir, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use houston::Profile;
 use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
@@ -53,7 +54,24 @@ impl UserAuthenticated {
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
         match client_config.get_authenticated_client(profile) {
-            Ok(_) => Ok(Welcome::new()),
+            Ok(_) => {
+                let is_user_api_key = self.check_is_user_api_key(client_config, profile)?;
+                println!("is_user_api_key: {}", is_user_api_key);
+                if !is_user_api_key {
+                    return Err(RoverError::new(anyhow!(
+                        "Invalid API key found."
+                    ))
+                    .with_suggestion(RoverErrorSuggestion::Adhoc(
+                        format!(
+                            "If you have previously set a graph's API key as the environment variable `APOLLO_KEY`, unset the variable and run `{}` again.",
+                            Style::Command.paint("init")
+                        )
+                        .to_string(),
+                    )));
+                };
+
+                Ok(Welcome::new())
+            }
             Err(_) => {
                 match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
@@ -68,6 +86,19 @@ impl UserAuthenticated {
                 }
             }
         }
+    }
+
+    pub fn check_is_user_api_key(
+        self,
+        client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<bool> {
+        let credential = Profile::get_credential(&profile.profile_name, &client_config.config)?;
+        if credential.api_key.starts_with("user:") {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }
 
