@@ -55,7 +55,7 @@ pub fn display_project_created_message(
     println!(
         "{}",
         Style::Command.paint(format!(
-            "$ APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
+            "APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
             api_key, graph_ref
         ))
     );
