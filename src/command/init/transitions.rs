@@ -173,7 +173,19 @@ impl ProjectTypeSelected {
         client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
         let client = client_config.get_authenticated_client(profile)?;
-        let memberships_response = memberships::run(&client).await?;
+        let memberships_response = memberships::run(&client).await.map_err(|e| match e {
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => RoverError::new(
+                anyhow!("Invalid API key found."),
+            )
+            .with_suggestion(RoverErrorSuggestion::Adhoc(
+                format!(
+                    "Try running {} to reset your rover configuration",
+                    Style::Command.paint("rover config clear")
+                )
+                .to_string(),
+            )),
+            e => e.into(),
+        })?;
         let organizations = memberships_response
             .memberships
             .iter()
