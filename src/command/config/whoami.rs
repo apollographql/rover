@@ -12,6 +12,7 @@ use crate::utils::env::RoverEnvKey;
 use crate::{RoverError, RoverOutput, RoverResult};
 
 use houston as config;
+use rover_client::RoverClientError;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct WhoAmI {
@@ -32,7 +33,15 @@ impl WhoAmI {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = who_am_i::run(&client).await?;
+        let identity = who_am_i::run(&client).await.map_err(|e| match e {
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
+                RoverError::new(anyhow!(
+                    "The API key at `{origin}` is invalid - {msg}.",
+                    origin = self.get_origin(&client)
+                ))
+            }
+            e => e.into(),
+        })?;
 
         if !self.is_valid_actor_type(&identity) {
             return Err(RoverError::from(anyhow!(
