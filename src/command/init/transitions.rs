@@ -202,7 +202,7 @@ impl OrganizationSelected {
 
         if use_case == ProjectUseCase::GraphQLTemplate {
             println!();
-            println!("GraphQL Template is coming soon!");
+            println!("This feature is coming soon!");
             println!();
             return Ok(None);
         }
