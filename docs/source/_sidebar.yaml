@@ -31,6 +31,8 @@ items:
         href: ./commands/explain
       - label: graph
         href: ./commands/graphs
+      - label: init
+        href: ./commands/init
       - label: license
         href: ./commands/license
       - label: persisted-queries
