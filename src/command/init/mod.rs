@@ -57,21 +57,28 @@ impl Init {
 
         match project_type_selected.project_type {
             crate::options::ProjectType::CreateNew => {
-                let creation_confirmed_option = project_type_selected
+                let use_case_selected_option = project_type_selected
                     .select_organization(&self.organization, &self.profile, &client_config)
                     .await?
-                    .select_use_case(&self.project_use_case)?
-                    .enter_project_name(&self.project_name)?
-                    .confirm_graph_id(&self.graph_id)?
-                    .preview_and_confirm_creation(http_service)
-                    .await?;
+                    .select_use_case(&self.project_use_case)?;
 
-                match creation_confirmed_option {
-                    Some(creation_confirmed) => {
-                        let project_created = creation_confirmed
-                            .create_project(&client_config, &self.profile)
+                match use_case_selected_option {
+                    Some(use_case_selected) => {
+                        let creation_confirmed_option = use_case_selected
+                            .enter_project_name(&self.project_name)?
+                            .confirm_graph_id(&self.graph_id)?
+                            .preview_and_confirm_creation(http_service)
                             .await?;
-                        Ok(project_created.complete().success())
+
+                        match creation_confirmed_option {
+                            Some(creation_confirmed) => {
+                                let project_created = creation_confirmed
+                                    .create_project(&client_config, &self.profile)
+                                    .await?;
+                                Ok(project_created.complete().success())
+                            }
+                            None => Ok(RoverOutput::EmptySuccess),
+                        }
                     }
                     None => Ok(RoverOutput::EmptySuccess),
                 }

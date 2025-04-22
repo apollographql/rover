@@ -5,7 +5,7 @@ use rover_std::{hyperlink, successln, Style};
 pub fn display_welcome_message() {
     println!();
     println!(
-        "Welcome! This command helps you initialize a federated Graph in your current directory."
+        "Welcome! This command helps you initialize a federated graph in your current directory."
     );
     println!();
     println!(
