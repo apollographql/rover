@@ -34,7 +34,7 @@ impl From<create_graph_mutation::CreateGraphMutationOrganizationCreateGraph>
         match graph {
             create_graph_mutation::CreateGraphMutationOrganizationCreateGraph::Graph(graph) => Self { id: graph.id },
             create_graph_mutation::CreateGraphMutationOrganizationCreateGraph::GraphCreationError(error) => {
-                panic!("Graph creation failed: {}", error.message)
+                Self { id: String::new() }
             }
         }
     }
