@@ -352,7 +352,9 @@ impl CreationConfirmed {
         .await
         {
             Ok(response) => response,
-            Err(RoverClientError::GraphCreationError { msg }) if msg.contains("Service already exists") => {
+            Err(RoverClientError::GraphCreationError { msg })
+                if msg.contains("Service already exists") =>
+            {
                 return Err(RoverError::new(anyhow!(
                     "Graph ID is already in use. Run {} again with a different graph ID.",
                     Style::Command.paint("`rover init`")
