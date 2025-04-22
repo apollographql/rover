@@ -194,7 +194,10 @@ impl ProjectTypeSelected {
 /// > Start a graph with one or more REST APIs
 /// > Start a graph with recommended libraries
 impl OrganizationSelected {
-    pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<Option<UseCaseSelected>> {
+    pub fn select_use_case(
+        self,
+        options: &ProjectUseCaseOpt,
+    ) -> RoverResult<Option<UseCaseSelected>> {
         let use_case = options.get_or_prompt_use_case()?;
 
         if use_case == ProjectUseCase::GraphQLTemplate {
