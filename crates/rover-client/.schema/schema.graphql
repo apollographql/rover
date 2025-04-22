@@ -2168,7 +2168,7 @@ type GraphVariantMutation {
   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
   to check status, or an error object if the checks workflow failed to start.
   
-  Rate limited to 3000 per min.
+  Rate limited to 3000 per min. Schema checks cannot be performed on contract variants.
   """
   submitCheckSchemaAsync(input: CheckSchemaAsyncInput!): CheckRequestResult!
 
@@ -2178,7 +2178,7 @@ type GraphVariantMutation {
    Returns a `CheckRequestSuccess` object with a workflow ID that you can use
    to check status, or an error object if the checks workflow failed to start.
   
-  Rate limited to 3000 per min.
+  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
   """
   submitMultiSubgraphCheckAsync(input: MultiSubgraphCheckAsyncInput!): CheckRequestResult!
 
@@ -2188,7 +2188,7 @@ type GraphVariantMutation {
   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
   to check status, or an error object if the checks workflow failed to start.
   
-  Rate limited to 3000 per min.
+  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
   """
   submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
   updateCheckConfigurationCustomChecks(

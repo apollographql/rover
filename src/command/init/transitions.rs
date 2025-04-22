@@ -7,6 +7,7 @@ use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
+use rover_client::RoverClientError;
 use rover_http::ReqwestService;
 use rover_std::Style;
 
@@ -172,7 +173,19 @@ impl ProjectTypeSelected {
         client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
         let client = client_config.get_authenticated_client(profile)?;
-        let memberships_response = memberships::run(&client).await?;
+        let memberships_response = memberships::run(&client).await.map_err(|e| match e {
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => RoverError::new(
+                anyhow!("Invalid API key found."),
+            )
+            .with_suggestion(RoverErrorSuggestion::Adhoc(
+                format!(
+                    "Try running {} to reset your rover configuration",
+                    Style::Command.paint("rover config clear")
+                )
+                .to_string(),
+            )),
+            e => e.into(),
+        })?;
         let organizations = memberships_response
             .memberships
             .iter()
@@ -339,16 +352,7 @@ impl CreationConfirmed {
         );
         let client = client_config.get_authenticated_client(profile)?;
 
-        // Write the template files without asking for confirmation again
-        // (confirmation was done in the previous state)
-        self.template.write_template(&self.output_path)?;
-
-        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
-        supergraph.build_and_write()?;
-
-        let artifacts = self.template.list_files()?;
-
-        let create_graph_response = create_graph::run(
+        let create_graph_response = match create_graph::run(
             CreateGraphInput {
                 hidden_from_uninvited_non_admin: false,
                 create_graph_id: self.config.graph_id.to_string(),
@@ -357,7 +361,28 @@ impl CreationConfirmed {
             },
             &client,
         )
-        .await?;
+        .await
+        {
+            Ok(response) => response,
+            Err(RoverClientError::GraphCreationError { msg })
+                if msg.contains("Service already exists") =>
+            {
+                return Err(RoverError::new(anyhow!(
+                    "Graph ID is already in use. Run {} again with a different graph ID.",
+                    Style::Command.paint("`rover init`")
+                )));
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+        // Write the template files without asking for confirmation again
+        // (confirmation was done in the previous state)
+        self.template.write_template(&self.output_path)?;
+
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
+        supergraph.build_and_write()?;
+
+        let artifacts = self.template.list_files()?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
         let graph_ref = GraphRef {
