@@ -56,7 +56,6 @@ impl UserAuthenticated {
         match client_config.get_authenticated_client(profile) {
             Ok(_) => {
                 let is_user_api_key = self.check_is_user_api_key(client_config, profile)?;
-                println!("is_user_api_key: {}", is_user_api_key);
                 if !is_user_api_key {
                     return Err(RoverError::new(anyhow!(
                         "Invalid API key found."
@@ -195,15 +194,25 @@ impl ProjectTypeSelected {
 /// > Start a graph with one or more REST APIs
 /// > Start a graph with recommended libraries
 impl OrganizationSelected {
-    pub fn select_use_case(self, options: &ProjectUseCaseOpt) -> RoverResult<UseCaseSelected> {
+    pub fn select_use_case(
+        self,
+        options: &ProjectUseCaseOpt,
+    ) -> RoverResult<Option<UseCaseSelected>> {
         let use_case = options.get_or_prompt_use_case()?;
 
-        Ok(UseCaseSelected {
+        if use_case == ProjectUseCase::GraphQLTemplate {
+            println!();
+            println!("This feature is coming soon!");
+            println!();
+            return Ok(None);
+        }
+
+        Ok(Some(UseCaseSelected {
             output_path: self.output_path,
             project_type: self.project_type,
             organization: self.organization,
             use_case,
-        })
+        }))
     }
 }
 
@@ -272,19 +281,19 @@ impl GraphIdConfirmed {
         self,
         http_service: ReqwestService,
     ) -> RoverResult<Option<CreationConfirmed>> {
+        // If this is a GraphQL Template, we've already shown the message and can exit
+        if self.use_case == ProjectUseCase::GraphQLTemplate {
+            return Ok(None);
+        }
+
         // Create the configuration
         let config = self.create_config();
 
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
-          ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/78e96e5a0c3f2023d8862a2572dd4da44cac726f.tar.gz",
-          ProjectUseCase::GraphQLTemplate => {
-              println!();
-              println!("GraphQL Template is coming soon!");
-              println!();
-              return Ok(None); // Early return if template not available
-          },
-      };
+            ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/78e96e5a0c3f2023d8862a2572dd4da44cac726f.tar.gz",
+            ProjectUseCase::GraphQLTemplate => unreachable!(), // This case is handled above
+        };
 
         // Fetch the template to get the list of files
         let template_fetcher = TemplateFetcher::new(http_service)
