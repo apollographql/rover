@@ -43,6 +43,40 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 
 ## Next steps
 
-- After running `rover init`, follow the instructions in the cloned repository's `getting-started.md`.
+- Once you've completed the wizard, it provides a [`rover dev`](./dev) command with prepopulated credentials. Run this command to start developing your graph.
+
+    <Tabs>
+
+        <Tab label="Linux / MacOS">
+
+        ```terminal showLineNumbers=false
+        APOLLO_KEY=<key> \
+        rover dev --graph-ref <graph-ref> \
+        --supergraph-config supergraph.yaml
+        ```
+
+        (If you set `APOLLO_KEY` as an environment variable, you don't need to include it in your command.)
+
+        </Tab>
+        <Tab label="Windows">
+
+        ##### Powershell
+
+        ```terminal showLineNumbers=false
+        $env:APOLLO_KEY = "<key>"; rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        ```
+
+        ##### Command Prompt
+
+        ```terminal showLineNumbers=false
+        set APOLLO_KEY=<key> rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        ```
+
+        </Tab>
+
+    </Tabs>
+
+
+- Follow the instructions in the cloned repository's `getting-started.md`.
 - To go further, check out the [Getting started guide](/graphos/get-started/guides/rest) to learn what else you can do with Apollo Connectors.
 - If you learn best with videos and exercises, this [interactive course](https://www.apollographql.com/tutorials/connectors-intro-rest) teaches you how to integrate a demo REST API into a graph using Apollo Connectors.
