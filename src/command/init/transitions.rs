@@ -348,10 +348,14 @@ impl CreationConfirmed {
             },
             &client,
         )
-        .await {
+        .await
+        {
             Ok(response) => response,
             Err(_) => {
-                return Err(RoverError::new(anyhow!("Graph ID is already in use. Run {} again with a different graph ID.", Style::Command.paint("`rover init`"))));
+                return Err(RoverError::new(anyhow!(
+                    "Graph ID is already in use. Run {} again with a different graph ID.",
+                    Style::Command.paint("`rover init`")
+                )));
             }
         };
 
