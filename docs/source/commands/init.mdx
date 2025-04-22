@@ -16,6 +16,39 @@ Running `rover init` starts a short wizard that helps you create a new graph.
 rover init
 ```
 
+<ExpansionPanel title="Experiencing issues?">
+
+    - If you experience a crash, run `rover config clear` and then run `rover config auth` before running `rover init` again.
+
+    - If you receive `error: Invalid API key found.` unset the `APOLLO_KEY` environment variable:
+
+        <Tabs>
+            <Tab label="Linux / MacOS">
+
+            ```terminal showLineNumbers=false
+            unset APOLLO_KEY
+            ```
+
+            </Tab>
+            <Tab label="Windows">
+            #### Powershell
+
+            ```terminal
+            Remove-Item Env:APOLLO_KEY
+            ```
+
+            #### Command Prompt
+            ```terminal
+            set APOLLO_KEY=
+            ```
+
+            </Tab>
+        </Tabs>
+
+     Then, run `rover config auth` before running `rover init` again.
+
+</ExpansionPanel>
+
 The wizard walks you through a set of questions to help you choose the best option for your use case. When you're done, you'll have:
 
 - A new graph in GraphOS
