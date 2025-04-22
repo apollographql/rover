@@ -65,7 +65,12 @@ jobs:
 
 ### Apollo-provided GitHub Actions
 
-Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant commands. For full documentation of the parameters of the GitHub Action, see the [README within the repository](https://github.com/apollographql/rover-actions).
+Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant commands. For full documentation of the parameters of the GitHub Action, see the GitHub Marketplace listing for each:
+
+- [Installing Rover](https://github.com/marketplace/actions/install-apollo-rover-cli)
+- [Running `rover subgraph check`](https://github.com/marketplace/actions/apollo-rover-subgraph-check)
+- [Running `rover subgraph lint`](https://github.com/marketplace/actions/apollo-rover-subgraph-lint)
+- [Running `rover subgraph publish`](https://github.com/marketplace/actions/apollo-rover-subgraph-publish)
 
 #### Full example using the Apollo-provided GitHub Actions
 
@@ -99,10 +104,22 @@ jobs:
       - uses: actions/checkout@v2
 
       # Installs Rover into $PATH for use with subsequent steps
-      - uses: apollographql/rover-actions/install-rover-cli@v1
+      - uses: apollographql-gh-actions/install-rover@v1
 
-      # Only run this command with the `background` setting if you have the Apollo Studio GitHub integration enabled on your repository
-      - uses: apollographql/rover-actions/subgraph-check@v1
+      # To run the schema check against your graph:
+      - uses: apollographql-gh-actions/rover-subgraph-check@v1
+        with:
+          apollo-key: ${{ secrets.APOLLO_KEY }}
+          # This could also be provided via an environment variable or GitHub Action variable
+          graph-ref: ${{ secrets.APOLLO_GRAPH_REF }}
+          name: subgraph-name
+          # If you use a code-first subgraph, you can generate the schema in another step for use with this action
+          schema: ./path/to/schema.graphql
+          # Only run this command with the `background` setting if you have the Apollo Studio GitHub integration enabled on your repository
+          background: true
+      
+      # To run the linter on your subgraph schema:
+      - uses: apollographql-gh-actions/rover-subgraph-lint@v1
         with:
           apollo-key: ${{ secrets.APOLLO_KEY }}
           # This could also be provided via an environment variable or GitHub Action variable
@@ -111,6 +128,24 @@ jobs:
           # If you use a code-first subgraph, you can generate the schema in another step for use with this action
           schema: ./path/to/schema.graphql
 
+      # To publish the subgraph to Apollo Studio:
+      - uses: apollographql-gh-actions/rover-subgraph-publish@v1
+        with:
+          apollo-key: ${{ secrets.APOLLO_KEY }}
+          # This could also be provided via an environment variable or GitHub Action variable
+          graph-ref: ${{ secrets.APOLLO_GRAPH_REF }}
+          name: subgraph-name
+          # If you use a code-first subgraph, you can generate the schema in another step for use with this action
+          schema: ./path/to/schema.graphql
+
+          # If running the first time, you will need to pass the `routing-url` parameter to the publish action. 
+          # This URL is used for the Apollo Router to route requests to your subgraph.
+          routing-url: http://localhost:4000/graphql 
+          # If the routing-url is invalid for one reason or another, you can also pass the `allow-invalid-routing-url` parameter to the publish action.
+          allow-invalid-routing-url: true
+
+          # If you are publishing to a Connectors-based subgraph, you can pass the `no-url` parameter to the publish action, which is equivalent to passing "" to `routing-url` and true to `allow-invalid-routing-url`.
+          no-url: true
 ```
 
 ### Linux/MacOS jobs using the `curl` installer
