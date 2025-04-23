@@ -25,7 +25,7 @@ The wizard walks you through a set of questions to help you choose the best opti
 
 #### Options
 
-You can also pass options directly to `rover init` to skip parts or all of the wizard. This is useful in automated environments or scripts.
+You can also pass options directly to `rover init` instead of answering prompts in the wizard. The wizard still asks for any information not provided via an option and will always ask for confirmation before creating any files locally.
 
 ```terminal showLineNumbers=false
 rover init \
@@ -35,8 +35,6 @@ rover init \
   --project-name <PROJECT_NAME> \
   --graph-id <GRAPH_ID>
 ```
-
-Each option passed to `rover init` skips its corresponding wizard prompt. The wizard still asks for any information not provided via an option. To fully automate and skip the entire wizard, you must provide all options. 
 
 ##### Available options
 
@@ -68,7 +66,7 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 
 ## Next steps
 
-- Once you've completed the wizard, it provides a [`rover dev`](./dev) command with prepopulated credentials. Run this command to start developing your graph.
+Once you've completed the wizard, it provides a [`rover dev`](./dev) command with prepopulated credentials. Run this command to start developing your graph.
 
     <Tabs>
 
@@ -101,6 +99,8 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 
     </Tabs>
 
+
+### Additional resources
 
 - To go further, follow the instructions in the cloned repository's `getting-started.md`.
 - Check out the [Getting started guide](/graphos/get-started/guides/rest) to learn what else you can do with Apollo Connectors.
