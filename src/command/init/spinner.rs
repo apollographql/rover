@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use termimad::crossterm::{
-    cursor::{Hide, MoveTo, Show, position},
+    cursor::{position, Hide, MoveTo, Show},
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{Clear, ClearType},
