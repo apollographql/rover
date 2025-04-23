@@ -31,7 +31,7 @@ use crate::RoverResult;
 #[derive(Debug)]
 pub enum CreateProjectResult {
     Created(ProjectCreated),
-    Restart(ProjectNamed)
+    Restart(ProjectNamed),
 }
 
 const DEFAULT_VARIANT: &str = "current";

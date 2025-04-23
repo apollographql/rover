@@ -86,48 +86,20 @@ impl Init {
                 let use_case_selected_option = project_type_selected
                     .select_organization(&self.organization, &self.profile, &client_config)
                     .await?
-                    .select_use_case(&self.project_use_case)?;
+                {
+                    Some(confirmed) => confirmed,
+                    None => return Ok(RoverOutput::EmptySuccess),
+                };
 
-                match use_case_selected_option {
-                    Some(use_case_selected) => {
-                        let creation_confirmed_option = use_case_selected
-                            .enter_project_name(&self.project_name)?
-                            .confirm_graph_id(&self.graph_id)?
-                            .preview_and_confirm_creation(http_service.clone())
-                            .await?;
-
-                        match creation_confirmed_option {
-                            Some(creation_confirmed) => {
-                                let project_created = creation_confirmed
-                                    .create_project(&client_config, &self.profile)
-                                    .await?;
-                                match project_created {
-                                    CreateProjectResult::Created(project) => Ok(project.complete().success()),
-                                    CreateProjectResult::Restart(project_named) => {
-                                        // Recursively handle restarts
-                                        let mut current_project = project_named;
-                                        loop {
-                                            let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
-                                            match graph_id_confirmed.preview_and_confirm_creation(http_service.clone()).await? {
-                                                Some(creation_confirmed) => {
-                                                    match creation_confirmed.create_project(&client_config, &self.profile).await? {
-                                                        CreateProjectResult::Created(project) => return Ok(project.complete().success()),
-                                                        CreateProjectResult::Restart(project_named) => {
-                                                            current_project = project_named;
-                                                            continue;
-                                                        }
-                                                    }
-                                                }
-                                                None => return Ok(RoverOutput::EmptySuccess),
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            None => Ok(RoverOutput::EmptySuccess),
-                        }
+                match creation_confirmed
+                    .create_project(&client_config, &self.profile)
+                    .await?
+                {
+                    CreateProjectResult::Created(project) => return Ok(project.complete().success()),
+                    CreateProjectResult::Restart(project_named) => {
+                        current_project = project_named;
+                        continue;
                     }
-                    None => Ok(RoverOutput::EmptySuccess),
                 }
             }
             ProjectType::AddSubgraph => {
@@ -135,6 +107,8 @@ impl Init {
                 Ok(RoverOutput::EmptySuccess)
             }
         }
+
+        Ok(RoverOutput::EmptySuccess)
     }
 
     #[cfg(not(feature = "composition-js"))]
