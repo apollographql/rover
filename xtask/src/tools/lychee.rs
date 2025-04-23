@@ -156,18 +156,16 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use std::time::Duration;
 
     use anyhow::Result;
     use http::StatusCode;
-    use lychee_lib::{Client, ClientBuilder, InputSource, Request, Result as LycheeResult, Uri};
+    use lychee_lib::{Client, InputSource, Request, Uri};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tokio::runtime::Runtime;
 
     use super::get_failed_request;
-    use crate::info;
     use crate::tools::LycheeRunner;
 
     #[fixture]
