@@ -95,7 +95,9 @@ impl Init {
                     .create_project(&client_config, &self.profile)
                     .await?
                 {
-                    CreateProjectResult::Created(project) => return Ok(project.complete().success()),
+                    CreateProjectResult::Created(project) => {
+                        return Ok(project.complete().success())
+                    }
                     CreateProjectResult::Restart(project_named) => {
                         current_project = project_named;
                         continue;
