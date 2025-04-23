@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use console::style;
+use rover_std::Style;
 
 mod commands;
 
@@ -58,7 +58,8 @@ impl Xtask {
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
         }?;
-        eprintln!("{}", style("Success!").green().bold());
+        eprintln!("{}", Style::Success.paint("Success!"));
+        
         Ok(())
     }
 }
