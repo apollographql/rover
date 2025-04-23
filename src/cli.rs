@@ -365,6 +365,7 @@ impl Rover {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
+    #[cfg(feature = "composition-js")]
     Init(command::Init),
 
     /// Cloud configuration commands
