@@ -1,19 +1,19 @@
 mod config;
 pub mod graph_id;
-pub mod options;
 mod helpers;
 mod operations;
+pub mod options;
 pub mod spinner;
 pub mod states;
 pub mod template_operations;
 pub mod transitions;
 use std::path::PathBuf;
 
-use crate::options::ProfileOpt;
 use crate::command::init::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectType,
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
