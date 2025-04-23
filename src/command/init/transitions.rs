@@ -345,7 +345,6 @@ impl CreationConfirmed {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<ProjectCreated> {
-        println!();
         let spinner = Spinner::new(
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
