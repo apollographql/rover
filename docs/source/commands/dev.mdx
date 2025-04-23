@@ -191,20 +191,20 @@ To configure advanced router functionality like CORS settings or header passthro
 
 If you want to use [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features), you must provide both:
 
-1 A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
-1. A graph ref via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option. Learn about the difference between these in the section below.
+1 A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment variable or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
+1. A graph ref either via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option. Learn about the difference between these in the section below.
 
-#### Understanding `--graph-ref` vs `APOLLO_GRAPH_REF`
+#### Understanding `APOLLO_GRAPH_REF` vs `--graph-ref` 
 
-While both the `--graph-ref` option and `APOLLO_GRAPH_REF` environment variables provide a graph ref to `rover dev`, they work slightly differently:
+While both the `APOLLO_GRAPH_REF` environment variable and `--graph-ref` option provide a graph ref to `rover dev`, they work slightly differently:
 
 | Method | Purpose |
 |-----------|---------|
+| `APOLLO_GRAPH_REF` environment variable | Passed directly to the router that `rover dev` spins up in order to enable [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features). This environment variable is used only by the router and not by Rover for schema retrieval. |
 | `--graph-ref` option | Tells Rover to pull the supergraph schema from GraphOS, allowing you to [use a published variant](#starting-a-session-from-a-graphos-studio-variant) as the foundation for your local development. |
-| `APOLLO_GRAPH_REF` environment variable | Passed directly to the router that `rover dev` spins up to enable GraphOS features. This environment variable is only used by the router component, not by Rover for schema retrieval. |
 
 This means you should:
-- Use `APOLLO_GRAPH_REF` environment variable when you are using local schema files for development and need to enable [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features).
+- Use `APOLLO_GRAPH_REF` environment variable when you are using local schema files for development and need to enable GraphOS Router features.
 - Use the `--graph-ref` option when you want to develop against a published graph variant, pulling its schema from GraphOS. This option also enables GraphOS Router features if the referenced graph has access to them.
 
 ## Federation 2 ELv2 license
