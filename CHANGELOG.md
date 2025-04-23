@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 📚 Documentation
 - **docs: add graph ref environment variable info - @Meschreiber PR #2531**
 - **updating docs for new repos/marketplace listings - @Meschreiber #2529**
+- **docs: rover init update - @Meschreiber #2532**
 
 # [0.29.0] - 2025-04-22
 
