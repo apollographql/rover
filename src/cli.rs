@@ -185,6 +185,7 @@ impl Rover {
         }
 
         match &self.command {
+            #[cfg(feature = "composition-js")]
             Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
