@@ -33,8 +33,8 @@ impl From<create_graph_mutation::CreateGraphMutationOrganizationCreateGraph>
     fn from(graph: create_graph_mutation::CreateGraphMutationOrganizationCreateGraph) -> Self {
         match graph {
             create_graph_mutation::CreateGraphMutationOrganizationCreateGraph::Graph(graph) => Self { id: graph.id },
-            create_graph_mutation::CreateGraphMutationOrganizationCreateGraph::GraphCreationError(error) => {
-                panic!("Graph creation failed: {}", error.message)
+            create_graph_mutation::CreateGraphMutationOrganizationCreateGraph::GraphCreationError(_error) => {
+                Self { id: String::new() }
             }
         }
     }

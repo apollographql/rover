@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use termimad::crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{position, Hide, MoveTo, Show},
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
-    terminal::{size, Clear, ClearType},
+    terminal::{Clear, ClearType},
 };
 
 /// A simple command line spinner component
@@ -29,7 +29,7 @@ impl Spinner {
 
         // Get initial cursor position
         let mut stdout = io::stdout();
-        let initial_position = if let Ok((_, row)) = size() {
+        let initial_position = if let Ok((_, row)) = position() {
             execute!(stdout, MoveTo(0, row + 1)).unwrap();
             (0, row + 1)
         } else {
