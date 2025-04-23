@@ -8,12 +8,6 @@ mod lint;
 mod output;
 mod persisted_queries;
 mod profile;
-mod project_authentication;
-mod project_graphid;
-mod project_name;
-mod project_organization;
-mod project_type;
-mod project_use_case;
 
 mod schema;
 mod subgraph;
@@ -29,12 +23,6 @@ pub(crate) use lint::*;
 pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
-pub use project_authentication::*;
-pub use project_graphid::*;
-pub use project_name::*;
-pub use project_organization::*;
-pub(crate) use project_type::*;
-pub(crate) use project_use_case::*;
 
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;

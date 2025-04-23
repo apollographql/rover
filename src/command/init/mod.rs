@@ -1,5 +1,6 @@
 mod config;
 pub mod graph_id;
+pub mod options;
 mod helpers;
 mod operations;
 pub mod spinner;
@@ -8,8 +9,9 @@ pub mod template_operations;
 pub mod transitions;
 use std::path::PathBuf;
 
-use crate::options::{
-    GraphIdOpt, ProfileOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
+use crate::options::ProfileOpt;
+use crate::command::init::options::{
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectType,
     ProjectUseCaseOpt,
 };
 use crate::utils::client::StudioClientConfig;
@@ -56,7 +58,7 @@ impl Init {
         let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
 
         match project_type_selected.project_type {
-            crate::options::ProjectType::CreateNew => {
+            ProjectType::CreateNew => {
                 let use_case_selected_option = project_type_selected
                     .select_organization(&self.organization, &self.profile, &client_config)
                     .await?
@@ -83,7 +85,7 @@ impl Init {
                     None => Ok(RoverOutput::EmptySuccess),
                 }
             }
-            crate::options::ProjectType::AddSubgraph => {
+            ProjectType::AddSubgraph => {
                 display_use_template_message();
                 Ok(RoverOutput::EmptySuccess)
             }

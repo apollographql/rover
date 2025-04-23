@@ -1,5 +1,5 @@
 use crate::command::init::graph_id::validation::GraphId;
-use crate::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
+use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
