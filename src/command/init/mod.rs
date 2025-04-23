@@ -9,13 +9,11 @@ pub mod states;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
 #[cfg(feature = "composition-js")]
-
 pub mod transitions;
 use std::path::PathBuf;
 
 use crate::command::init::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
-    ProjectUseCaseOpt,
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
