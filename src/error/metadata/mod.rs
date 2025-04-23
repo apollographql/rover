@@ -245,7 +245,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E027),
                 ),
                 RoverClientError::AdhocError { .. } => (None, None),
-                RoverClientError::InvalidGraphRef { .. } => {
+                RoverClientError::InvalidGraphRef => {
                     unreachable!("Graph ref parse errors should be caught via clap")
                 }
                 RoverClientError::InvalidValidationPeriodDuration(_)
@@ -308,7 +308,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     None,
                 ),
                 RoverClientError::RelayOperationParseFailures { .. } => (None, None),
-                RoverClientError::OfflineLicenseNotEnabled { .. } => (
+                RoverClientError::OfflineLicenseNotEnabled => (
                     Some(RoverErrorSuggestion::ContactApolloAccountManager),
                     Some(RoverErrorCode::E044),
                 ),

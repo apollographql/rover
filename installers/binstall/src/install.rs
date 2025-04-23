@@ -113,7 +113,7 @@ impl Installer {
                 // this should be unreachable
                 InstallerError::IoError(io::Error::new(io::ErrorKind::InvalidData, e))
             })?;
-            if let Some(version) = url.path_segments().and_then(|s| s.last()) {
+            if let Some(version) = url.path_segments().and_then(|mut s| s.next_back()) {
                 if version.starts_with('v') {
                     Ok(version.to_string())
                 } else {

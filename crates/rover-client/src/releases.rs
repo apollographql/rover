@@ -16,14 +16,14 @@ pub async fn get_latest_release(client: Client) -> Result<Version, RoverClientEr
     })?;
 
     // this will return a response with a redirect to the latest tagged release
-    let url_path_segments = response
+    let mut url_path_segments = response
         .url()
         .path_segments()
         .ok_or(RoverClientError::BadReleaseUrl)?;
 
     // the last section of the URL will have the latest version in `v0.1.1` format
     let version_string = url_path_segments
-        .last()
+        .next_back()
         .ok_or(RoverClientError::BadReleaseUrl)?
         .to_string();
 
