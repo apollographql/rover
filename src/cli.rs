@@ -185,7 +185,6 @@ impl Rover {
         }
 
         match &self.command {
-            #[cfg(feature = "init")]
             Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
@@ -366,7 +365,6 @@ impl Rover {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
-    #[cfg(feature = "init")]
     Init(command::Init),
 
     /// Cloud configuration commands

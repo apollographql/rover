@@ -27,7 +27,6 @@ use tracing::warn;
 mod config;
 mod dev;
 mod graph;
-#[cfg(feature = "init")]
 mod init;
 mod install;
 mod options;

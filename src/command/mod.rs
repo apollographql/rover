@@ -6,7 +6,6 @@ mod docs;
 mod explain;
 mod graph;
 mod info;
-#[cfg(feature = "init")]
 pub(crate) mod init;
 pub(crate) mod install;
 mod license;
@@ -28,7 +27,6 @@ pub use docs::Docs;
 pub use explain::Explain;
 pub use graph::Graph;
 pub use info::Info;
-#[cfg(feature = "init")]
 pub use init::Init;
 pub use install::Install;
 pub use license::License;
