@@ -1,4 +1,14 @@
 #![warn(missing_docs)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::exit,
+        clippy::panic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+    )
+)]
 
 //! Provides GraphQL Middleware for HTTP Services
 
@@ -36,24 +46,25 @@ struct SimplifiedErrorList {
 }
 
 impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
-    fn from(x: &Vec<graphql_client::Error>) -> Self {
-        let mut friendly_errors_detail: Vec<String> = vec![];
-
-        for err in x.iter() {
-            let json_root = err.extensions.as_ref().unwrap().get("response").unwrap();
-
-            serde_json::from_str::<PartialErrorInnerBody>(&json_root.to_string())
-                .unwrap()
-                .body
-                .errors
-                .iter()
-                .for_each(|x| {
-                    friendly_errors_detail.push(x.clone().message);
-                });
-        }
-
+    fn from(errors: &Vec<graphql_client::Error>) -> Self {
         Self {
-            errors: friendly_errors_detail,
+            errors: errors
+                .iter()
+                .flat_map(|error| {
+                    error
+                        .extensions
+                        .as_ref()
+                        .and_then(|extensions| extensions.get("response"))
+                        .map(ToString::to_string)
+                        .and_then(|response| {
+                            serde_json::from_str::<PartialErrorInnerBody>(&response).ok()
+                        })
+                        .map(|partial_error_inner_body| partial_error_inner_body.body.errors)
+                        .into_iter()
+                        .flatten()
+                        .map(|partial_error_inner_error| partial_error_inner_error.message)
+                })
+                .collect(),
         }
     }
 }
@@ -194,7 +205,7 @@ where
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        tower::Service::poll_ready(&mut self.inner, cx)
+        Service::poll_ready(&mut self.inner, cx)
             .map_err(|err| GraphQLServiceError::UpstreamService(Box::new(err)))
     }
 
@@ -267,6 +278,7 @@ where
     }
 }
 
+//noinspection HttpUrlsUsage
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -302,7 +314,7 @@ mod tests {
         type Variables = TestQueryVariables;
         type ResponseData = TestQueryResponse;
 
-        fn build_query(variables: Self::Variables) -> graphql_client::QueryBody<Self::Variables> {
+        fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables> {
             QueryBody {
                 variables,
                 query: "query AskAQuestion { __typename }",
@@ -369,9 +381,7 @@ mod tests {
             .layer(GraphQLLayer::new(endpoint.clone()))
             .map_err(HttpServiceError::Unexpected)
             .service(mock_service.into_inner());
-        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
-            .await
-            .unwrap();
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service).await?;
 
         let variables = TestQueryVariables { variable: 7 };
         let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);
