@@ -7,10 +7,10 @@
 //!   2. Load subgraphs from local config (if a supergraph config file is provided)
 //!   3. Resolve subgraphs into one of: [`LazilyResolvedsupergraphConfig`] or [`FullyResolvedSupergraphConfig`]
 //!      a. [`LazilyResolvedsupergraphConfig`] is used to spin up a [`SubgraphWatchers`] object, which
-//!         provides SDL updates as subgraphs change
+//!      provides SDL updates as subgraphs change
 //!      b. [`FullyResolvedSupergraphConfig`] is used to produce a composition result
-//!         from [`SupergraphBinary`]. This must be written to a file first, using the format defined
-//!         by [`SupergraphConfig`]
+//!      from [`SupergraphBinary`]. This must be written to a file first, using the format defined
+//!      by [`SupergraphConfig`]
 
 use std::collections::BTreeMap;
 use std::io::IsTerminal;
