@@ -1,24 +1,26 @@
 mod config;
 pub mod graph_id;
 mod helpers;
+#[cfg(feature = "composition-js")]
 mod operations;
 pub mod options;
 pub mod spinner;
 pub mod states;
+#[cfg(feature = "composition-js")]
 pub mod template_operations;
+#[cfg(feature = "composition-js")]
+
 pub mod transitions;
 use std::path::PathBuf;
 
 use crate::command::init::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
-use helpers::display_use_template_message;
-use rover_http::ReqwestService;
 use serde::Serialize;
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -47,7 +49,12 @@ pub struct Init {
 }
 
 impl Init {
+    #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        use crate::command::init::options::ProjectType;
+        use helpers::display_use_template_message;
+        use rover_http::ReqwestService;
+
         // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
@@ -91,6 +98,24 @@ impl Init {
             }
         }
     }
+
+    #[cfg(not(feature = "composition-js"))]
+    pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        use crate::RoverError;
+        use crate::RoverErrorSuggestion;
+        use anyhow::anyhow;
+        use rover_std::Style;
+
+        let mut err = RoverError::new(anyhow!(
+            "This version of Rover does not support this command."
+        ));
+        err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+            "It looks like you are running a Rover binary that does not have the ability to run `{}`, please try re-installing.",
+            Style::Command.paint("rover init")
+        )));
+        Err(err)
+    }
 }
 
+#[cfg_attr(not(feature = "composition-js"), allow(dead_code))]
 use states::UserAuthenticated;
