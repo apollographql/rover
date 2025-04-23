@@ -18,11 +18,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.29.1] - 2025-04-23
+
+## 🐛 Fixes
+- **Fix crash and improve error handling for invalid API keys - @pubmodmatt PR #2533**
+- **Increase telemetry timeout @pubmodmatt PR #2534**
+- **bugfix(init): handle errors gracefully during graph creation - @gocamille PR #2523**
+
+## 📚 Documentation
+- **docs: add graph ref environment variable info - @Meschreiber PR #2531**
+- **updating docs for new repos/marketplace listings - @Meschreiber #2529**
+- **docs: rover init update - @Meschreiber #2532**
+
 # [0.29.0] - 2025-04-22
-
-<!-- > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
-
-## ❗ BREAKING ❗ -->
 
 ## 🚀 Features
 
@@ -63,7 +71,6 @@ More information: <insert doc link here>
 - [#2466](https://github.com/apollographql/rover/pull/2466) - Separating Fetching from writing templates to support confirmation of files before writing
 - [#2462](https://github.com/apollographql/rover/pull/2462) - Adding prompt for project use case to init command
 
-
 ## 🛠 Maintenance
 
 - [#2501](https://github.com/apollographql/rover/pull/2501) - Update CODEOWNERS - adding growth to rover-client crate  
@@ -81,7 +88,6 @@ More information: <insert doc link here>
 - [#2436](https://github.com/apollographql/rover/pull/2436) - chore(deps): update dependency gh to v2.7.0
 - [#2435](https://github.com/apollographql/rover/pull/2435) - chore(deps): update all non-major packages >= 1.0
 - [#2434](https://github.com/apollographql/rover/pull/2434) - chore(deps): pin rust crate jsonschema to =0.29.0
-
 
 ## 📚 Documentation
 
