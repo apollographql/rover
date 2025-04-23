@@ -28,6 +28,12 @@ use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
 
+#[derive(Debug)]
+pub enum CreateProjectResult {
+    Created(ProjectCreated),
+    Restart(ProjectNamed)
+}
+
 const DEFAULT_VARIANT: &str = "current";
 
 /// PROMPT UX:
@@ -333,7 +339,8 @@ impl CreationConfirmed {
         self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
-    ) -> RoverResult<ProjectCreated> {
+    ) -> RoverResult<CreateProjectResult> {
+        println!();
         let spinner = Spinner::new(
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
@@ -355,10 +362,14 @@ impl CreationConfirmed {
             Err(RoverClientError::GraphCreationError { msg })
                 if msg.contains("Service already exists") =>
             {
-                return Err(RoverError::new(anyhow!(
-                    "Graph ID is already in use. Run {} again with a different graph ID.",
-                    Style::Command.paint("`rover init`")
-                )));
+                println!("\n\n{} Graph ID is already in use. Please try again with a different graph ID.", Style::Failure.paint("Error:"));
+                return Ok(CreateProjectResult::Restart(ProjectNamed {
+                    output_path: self.output_path,
+                    project_type: self.config.project_type,
+                    organization: self.config.organization,
+                    use_case: self.config.use_case,
+                    project_name: self.config.project_name,
+                }));
             }
             Err(e) => return Err(e.into()),
         };
@@ -393,12 +404,12 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
-        Ok(ProjectCreated {
+        Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
             graph_ref,
-        })
+        }))
     }
 }
 

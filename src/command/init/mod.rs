@@ -31,6 +31,7 @@ use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use serde::Serialize;
 use std::path::PathBuf;
+use transitions::CreateProjectResult;
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
@@ -92,7 +93,7 @@ impl Init {
                         let creation_confirmed_option = use_case_selected
                             .enter_project_name(&self.project_name)?
                             .confirm_graph_id(&self.graph_id)?
-                            .preview_and_confirm_creation(http_service)
+                            .preview_and_confirm_creation(http_service.clone())
                             .await?;
 
                         match creation_confirmed_option {
@@ -100,7 +101,28 @@ impl Init {
                                 let project_created = creation_confirmed
                                     .create_project(&client_config, &self.profile)
                                     .await?;
-                                Ok(project_created.complete().success())
+                                match project_created {
+                                    CreateProjectResult::Created(project) => Ok(project.complete().success()),
+                                    CreateProjectResult::Restart(project_named) => {
+                                        // Recursively handle restarts
+                                        let mut current_project = project_named;
+                                        loop {
+                                            let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
+                                            match graph_id_confirmed.preview_and_confirm_creation(http_service.clone()).await? {
+                                                Some(creation_confirmed) => {
+                                                    match creation_confirmed.create_project(&client_config, &self.profile).await? {
+                                                        CreateProjectResult::Created(project) => return Ok(project.complete().success()),
+                                                        CreateProjectResult::Restart(project_named) => {
+                                                            current_project = project_named;
+                                                            continue;
+                                                        }
+                                                    }
+                                                }
+                                                None => return Ok(RoverOutput::EmptySuccess),
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             None => Ok(RoverOutput::EmptySuccess),
                         }
