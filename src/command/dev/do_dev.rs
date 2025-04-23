@@ -149,14 +149,8 @@ impl Dev {
             None => RouterVersion::LatestTwo,
         };
 
-        let api_key_override = match std::env::var(RoverEnvKey::Key.to_string()) {
-            Ok(key) => Some(key),
-            Err(_err) => None,
-        };
-        let home_override = match std::env::var(RoverEnvKey::Home.to_string()) {
-            Ok(home) => Some(home),
-            Err(_err) => None,
-        };
+        let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
+        let home_override = std::env::var(RoverEnvKey::Home.to_string()).ok();
 
         // Set up an updater config, but only if we're not overriding the version ourselves. If
         // we are then we don't need one, so it becomes None.

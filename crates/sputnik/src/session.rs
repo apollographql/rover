@@ -19,7 +19,7 @@ use crate::{Report, SputnikError};
 
 /// Timeout for reporting telemetry. Note that this includes the entire time to make the request
 /// and receive the response, including on the client side. This is not just the server latency.
-const REPORT_TIMEOUT: Duration = Duration::from_millis(500);
+const REPORT_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// The Session represents a usage of the CLI analogous to a web session
 /// It contains the "url" (command path + flags) but doesn't contain any
