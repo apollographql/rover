@@ -1,15 +1,22 @@
+#[cfg(feature = "composition-js")]
 mod config;
-pub mod graph_id;
+#[cfg(feature = "composition-js")]
+mod graph_id;
+#[cfg(feature = "composition-js")]
 mod helpers;
 #[cfg(feature = "composition-js")]
 mod operations;
+#[cfg(feature = "composition-js")]
 pub mod options;
+#[cfg(feature = "composition-js")]
 pub mod spinner;
+#[cfg(feature = "composition-js")]
 pub mod states;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
+
 use std::path::PathBuf;
 
 use crate::command::init::options::{
@@ -107,13 +114,14 @@ impl Init {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
         ));
-        err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
-            "It looks like you are running a Rover binary that does not have the ability to run `{}`, please try re-installing.",
-            Style::Command.paint("rover init")
-        )));
+        if cfg!(target_env = "musl") {
+            let suggestion = format!("Unfortunately, Deno does not currently support musl architectures. You can follow along with this issue for updates on musl support: {}, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.", hyperlink("https://github.com/denoland/deno/issues/3711"));
+
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!()));
+        }
+
         Err(err)
     }
 }
 
-#[cfg_attr(not(feature = "composition-js"), allow(dead_code))]
-use states::UserAuthenticated;
+use crate::command::init::states::UserAuthenticated;

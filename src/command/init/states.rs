@@ -5,7 +5,7 @@ use crate::options::TemplateProject;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 #[derive(Debug)]
-pub struct UserAuthenticated {}
+pub struct UserAuthenticated;
 
 #[derive(Debug)]
 pub struct Welcome {}

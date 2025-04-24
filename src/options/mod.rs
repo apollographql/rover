@@ -23,7 +23,6 @@ pub(crate) use lint::*;
 pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
-
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
