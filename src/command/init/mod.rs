@@ -70,9 +70,9 @@ pub struct Init {
 impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
         use rover_http::ReqwestService;
-        use crate::command::init::states::UserAuthenticated;
 
         let http_service = ReqwestService::new(None, None)?;
 
