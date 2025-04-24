@@ -9,9 +9,9 @@ use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_http::ReqwestService;
-use rover_std::{hyperlink_with_text, Style};
+use rover_std::Style;
 
-use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
+use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
@@ -63,7 +63,9 @@ impl UserAuthenticated {
                         // Try to authenticate again with the new credentials
                         match client_config.get_authenticated_client(profile) {
                             Ok(_) => Ok(Welcome::new()),
-                            Err(_) => Err(auth_error_to_rover_error(AuthenticationError::SecondChanceAuthFailure).into()),
+                            Err(_) => Err(auth_error_to_rover_error(
+                                AuthenticationError::SecondChanceAuthFailure,
+                            )),
                         }
                     }
                     Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
@@ -159,14 +161,17 @@ impl ProjectTypeSelected {
         let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
             Err(_) => {
-                return Err(auth_error_to_rover_error(AuthenticationError::NoCredentialsFound));
+                return Err(auth_error_to_rover_error(
+                    AuthenticationError::NoCredentialsFound,
+                ));
             }
         };
 
         // Try to get memberships
         let memberships_response = memberships::run(&client).await.map_err(|e| match e {
-            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => 
-                auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(msg)),
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
+                auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(msg))
+            }
             e => e.into(),
         })?;
 

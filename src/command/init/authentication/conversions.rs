@@ -2,7 +2,7 @@ use anyhow::anyhow;
 
 use super::errors::AuthenticationError;
 use crate::error::{RoverError, RoverErrorSuggestion};
-use rover_std::{Style, hyperlink_with_text};
+use rover_std::{hyperlink_with_text, Style};
 
 fn create_invalid_api_key_error() -> RoverError {
     let message = "Invalid API key found";
@@ -39,7 +39,8 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::SystemError(err) => {
             let message = format!("Unexpected system error: {}", err);
             let suggestion = RoverErrorSuggestion::Adhoc(
-                "This isn't your fault! Please try again or contact support if the issue persists.".to_string(),
+                "This isn't your fault! Please try again or contact support if the issue persists."
+                    .to_string(),
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }

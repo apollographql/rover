@@ -21,7 +21,11 @@ pub fn hyperlink(url: &str) -> String {
 /// Creates a clickable link with custom display text
 pub fn hyperlink_with_text(url: &str, display_text: &str) -> String {
     let sanitized_url = sanitize_url(url).unwrap_or_else(|| url.to_string());
-    format!("\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\", sanitized_url, Style::Link.paint(display_text))
+    format!(
+        "\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\",
+        sanitized_url,
+        Style::Link.paint(display_text)
+    )
 }
 
 #[cfg(test)]

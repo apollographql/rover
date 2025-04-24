@@ -1,5 +1,5 @@
-pub mod errors;
 pub mod conversions;
+pub mod errors;
 
-pub use errors::AuthenticationError;
 pub use conversions::auth_error_to_rover_error;
+pub use errors::AuthenticationError;
