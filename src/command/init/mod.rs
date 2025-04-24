@@ -32,6 +32,8 @@ use clap::Parser;
 use serde::Serialize;
 use std::path::PathBuf;
 use transitions::CreateProjectResult;
+#[cfg(feature = "composition-js")]
+use crate::command::init::options::ProjectType;
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
@@ -67,12 +69,9 @@ pub struct Init {
 impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        use crate::command::init::options::ProjectType;
-        use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
         use rover_http::ReqwestService;
 
-        // Create a new ReqwestService instance for template preview
         let http_service = ReqwestService::new(None, None)?;
 
         let welcome = UserAuthenticated::new()
@@ -81,10 +80,47 @@ impl Init {
 
         let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
 
-        match project_type_selected.project_type {
-            ProjectType::CreateNew => {
-                let use_case_selected_option = project_type_selected
-                    .select_organization(&self.organization, &self.profile, &client_config)
+        // Early return for AddSubgraph case
+        if project_type_selected.project_type == ProjectType::AddSubgraph {
+            display_use_template_message();
+            return Ok(RoverOutput::EmptySuccess);
+        }
+
+        // Handle new project creation flow
+        let use_case_selected = match project_type_selected
+            .select_organization(&self.organization, &self.profile, &client_config)
+            .await?
+            .select_use_case(&self.project_use_case)?
+        {
+            Some(use_case) => use_case,
+            None => return Ok(RoverOutput::EmptySuccess),
+        };
+
+        let creation_confirmed = match use_case_selected
+            .enter_project_name(&self.project_name)?
+            .confirm_graph_id(&self.graph_id)?
+            .preview_and_confirm_creation(http_service.clone())
+            .await?
+        {
+            Some(confirmed) => confirmed,
+            None => return Ok(RoverOutput::EmptySuccess),
+        };
+
+        let project_created = creation_confirmed
+            .create_project(&client_config, &self.profile)
+            .await?;
+
+        // Handle project creation result
+        if let CreateProjectResult::Created(project) = project_created {
+            return Ok(project.complete().success());
+        }
+
+        // Handle restart loop
+        if let CreateProjectResult::Restart(mut current_project) = project_created {
+            loop {
+                let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
+                let creation_confirmed = match graph_id_confirmed
+                    .preview_and_confirm_creation(http_service.clone())
                     .await?
                 {
                     Some(confirmed) => confirmed,
@@ -103,10 +139,6 @@ impl Init {
                         continue;
                     }
                 }
-            }
-            ProjectType::AddSubgraph => {
-                display_use_template_message();
-                Ok(RoverOutput::EmptySuccess)
             }
         }
 
@@ -130,3 +162,5 @@ impl Init {
         Err(err)
     }
 }
+
+use states::UserAuthenticated;
