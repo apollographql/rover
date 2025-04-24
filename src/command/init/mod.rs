@@ -6,7 +6,6 @@ mod graph_id;
 mod helpers;
 #[cfg(feature = "composition-js")]
 mod operations;
-#[cfg(feature = "composition-js")]
 pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod spinner;
@@ -17,36 +16,43 @@ pub mod template_operations;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
 
-use std::path::PathBuf;
-
+#[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
+#[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use serde::Serialize;
+use std::path::PathBuf;
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
+    #[cfg(feature = "composition-js")]
     #[clap(flatten)]
     project_type: ProjectTypeOpt,
 
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     organization: ProjectOrganizationOpt,
 
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     project_use_case: ProjectUseCaseOpt,
 
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     project_name: ProjectNameOpt,
 
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     graph_id: GraphIdOpt,
 
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     profile: ProfileOpt,
 
     #[clap(long, hide(true))]
@@ -57,6 +63,7 @@ impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         use crate::command::init::options::ProjectType;
+        use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
         use rover_http::ReqwestService;
 
@@ -109,19 +116,15 @@ impl Init {
         use crate::RoverError;
         use crate::RoverErrorSuggestion;
         use anyhow::anyhow;
-        use rover_std::Style;
+        use rover_std::hyperlink;
 
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
         ));
         if cfg!(target_env = "musl") {
-            let suggestion = format!("Unfortunately, Deno does not currently support musl architectures. You can follow along with this issue for updates on musl support: {}, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.", hyperlink("https://github.com/denoland/deno/issues/3711"));
-
-            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!()));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("Unfortunately, Deno does not currently support musl architectures. You can follow along with this issue for updates on musl support: {}, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.", hyperlink("https://github.com/denoland/deno/issues/3711"))));
         }
 
         Err(err)
     }
 }
-
-use crate::command::init::states::UserAuthenticated;
