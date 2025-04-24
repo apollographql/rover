@@ -1,9 +1,9 @@
 #[cfg(feature = "composition-js")]
 mod authentication;
-#[cfg(feature = "composition-js")]
 mod config;
 #[cfg(feature = "composition-js")]
 mod graph_id;
+#[cfg(feature = "composition-js")]
 mod helpers;
 #[cfg(feature = "composition-js")]
 mod operations;
@@ -16,6 +16,8 @@ pub mod states;
 pub mod template_operations;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
+#[cfg(all(test, feature = "composition-js"))]
+pub mod tests;
 
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
