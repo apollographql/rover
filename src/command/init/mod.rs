@@ -1,9 +1,9 @@
 #[cfg(feature = "composition-js")]
+mod authentication;
+#[cfg(feature = "composition-js")]
 mod config;
 #[cfg(feature = "composition-js")]
 mod graph_id;
-#[cfg(feature = "composition-js")]
-mod authentication;
 mod helpers;
 #[cfg(feature = "composition-js")]
 mod operations;

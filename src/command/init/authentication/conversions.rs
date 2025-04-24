@@ -35,7 +35,8 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
                     "Please get a valid key from {} and re-run {}.",
                     hyperlink("https://studio.apollographql.com/user-settings/api-keys"),
                     Style::Command.paint("rover init")
-                ).to_string(),
+                )
+                .to_string(),
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
