@@ -97,7 +97,6 @@ impl TemplateProject {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "init"), allow(dead_code))]
     pub fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);

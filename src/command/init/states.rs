@@ -1,10 +1,11 @@
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
-use crate::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase, TemplateProject};
+use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
+use crate::options::TemplateProject;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 #[derive(Debug)]
-pub struct UserAuthenticated {}
+pub struct UserAuthenticated;
 
 #[derive(Debug)]
 pub struct Welcome {}
