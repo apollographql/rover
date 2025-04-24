@@ -3,15 +3,13 @@ mod tests {
     use crate::command::init::config::ProjectConfig;
     use crate::command::init::graph_id::GraphId;
     use crate::command::init::states::*;
-    use crate::options::{
+    use crate::command::init::options::{
         OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
         ProjectUseCase, ProjectUseCaseOpt, ProjectTypeOpt,
     };
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
-    use crate::utils::client::StudioClientConfig;
-    use crate::options::ProfileOpt;
 
     mod mock {
         use super::*;
@@ -334,8 +332,12 @@ mod tests {
     #[test]
     fn test_project_type_dialog() {
         let options = ProjectTypeOpt::default();
-        let result = options.prompt_project_type();
-        println!("Project type selection result: {:?}", result);
-        assert!(result.is_err());
+        
+        assert_eq!(options.get_project_type(), None);
+        
+        let options_with_value = ProjectTypeOpt {
+            project_type: Some(ProjectType::CreateNew),
+        };
+        assert_eq!(options_with_value.get_project_type(), Some(ProjectType::CreateNew));
     }
 }

@@ -45,8 +45,10 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::SystemError(err) => {
             let message = format!("Unexpected system error: {}", err);
             let suggestion = RoverErrorSuggestion::Adhoc(
-                "This isn't your fault! Please try again or contact support if the issue persists."
-                    .to_string(),
+                format!(
+                    "This isn't your fault! Please try again or contact the Apollo team at {} if the issue persists.",
+                    hyperlink_with_text("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230", "https://support.apollographql.com")
+                ).to_string()
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }

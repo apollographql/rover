@@ -59,18 +59,33 @@ mod tests {
     #[test]
     fn it_creates_hyperlink_with_custom_text() {
         let result = hyperlink_with_text(UNAUTHENTICATED_URL, DISPLAY_TEXT);
-        assert_eq!(result, Style::Link.paint(DISPLAY_TEXT));
+        let expected = format!(
+            "\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\",
+            UNAUTHENTICATED_URL,
+            Style::Link.paint(DISPLAY_TEXT)
+        );
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn it_creates_hyperlink_with_custom_text_for_authenticated_url() {
         let result = hyperlink_with_text(AUTHENTICATED_URL, DISPLAY_TEXT);
-        assert_eq!(result, Style::Link.paint(DISPLAY_TEXT));
+        let expected = format!(
+            "\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\",
+            SANITIZED_AUTHENTICATED_URL,
+            Style::Link.paint(DISPLAY_TEXT)
+        );
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn it_creates_hyperlink_with_custom_text_for_invalid_url() {
         let result = hyperlink_with_text(INVALID_URL, DISPLAY_TEXT);
-        assert_eq!(result, Style::Link.paint(DISPLAY_TEXT));
+        let expected = format!(
+            "\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\",
+            INVALID_URL,
+            Style::Link.paint(DISPLAY_TEXT)
+        );
+        assert_eq!(result, expected);
     }
 }
