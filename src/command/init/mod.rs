@@ -3,12 +3,10 @@ mod config;
 #[cfg(feature = "composition-js")]
 mod graph_id;
 #[cfg(feature = "composition-js")]
-pub mod authentication;
-#[cfg(feature = "composition-js")]
+mod authentication;
 mod helpers;
 #[cfg(feature = "composition-js")]
 mod operations;
-#[cfg(feature = "composition-js")]
 pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod spinner;
