@@ -11,6 +11,7 @@ use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser};
 use dialoguer::Input;
 use rover_http::ReqwestService;
+use rover_std::Style;
 use serde::Serialize;
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
@@ -42,9 +43,10 @@ impl Use {
                 (template_id.clone(), result.download_url)
             } else {
                 let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
-                err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                    "Run `rover template list` to see all available templates.".to_string(),
-                ));
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                    "Run `{}` to see all available templates.",
+                    Style::Command.paint("rover template list")
+                )));
                 return Err(err);
             }
         } else {

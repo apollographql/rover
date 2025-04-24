@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use rover_std::Style;
+use rover_std::{hyperlink, successln, Style};
 use serde::Serialize;
 
 use binstall::{Installer, InstallerError};
@@ -56,14 +56,14 @@ impl Install {
                 .install().map_err(|e| {
                     let mut err = RoverError::from(anyhow!("Could not install '{binary_name}' because {}", e.to_string().to_lowercase()));
                     if matches!(e, InstallerError::NoTty) {
-                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Try re-running this command with the `--force` flag to overwrite the existing binary.".to_string()));
+                        err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("Try re-running this command with the `{}` flag to overwrite the existing binary.", Style::Command.paint("--force"))));
                     }
                     err
                 })?;
 
             if install_location.is_some() {
                 let bin_dir_path = rover_installer.get_bin_dir_path()?;
-                eprintln!("{} was successfully installed. Great!", &binary_name);
+                successln!("Successfully installed `{}`.", &binary_name);
 
                 if !cfg!(windows) {
                     if let Some(path_var) = env::var_os("PATH") {
@@ -90,10 +90,10 @@ impl Install {
                     );
                 eprintln!(
                     "You can check out our documentation at {}.",
-                    Style::Link.paint(shortlinks::get_url_from_slug("docs"))
+                    hyperlink(&shortlinks::get_url_from_slug("docs"))
                 );
             } else {
-                eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
+                eprintln!("{} was not installed. To override the existing installation, you can pass the `{}` flag to the installer.", &binary_name, Style::Command.paint("--force"));
             }
 
             Ok(RoverOutput::EmptySuccess)

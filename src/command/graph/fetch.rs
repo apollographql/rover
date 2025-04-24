@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
@@ -21,11 +21,11 @@ impl Fetch {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Fetching SDL from {} using credentials from the {} profile.",
-            Style::Link.paint(graph_ref),
+            Style::GraphRef.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         let fetch_response = fetch::run(
             GraphFetchInput {
@@ -34,6 +34,8 @@ impl Fetch {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::FetchResponse(fetch_response))
     }

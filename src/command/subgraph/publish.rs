@@ -13,7 +13,7 @@ use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
 use rover_client::shared::GitContext;
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -81,12 +81,12 @@ impl Publish {
         )
         .await?;
 
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-            Style::Link.paint(self.graph.graph_ref.to_string()),
+            Style::GraphRef.paint(self.graph.graph_ref.to_string()),
             Style::Link.paint(&self.subgraph.subgraph_name),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         let schema = self
             .schema
@@ -106,6 +106,8 @@ impl Publish {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::SubgraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),
@@ -135,7 +137,9 @@ impl Publish {
     {
         if no_url && routing_url.is_some() {
             return Err(RoverError::new(anyhow!(
-                "You cannot use --no-url and --routing-url at the same time."
+                "You cannot use `{}` and `{}` at the same time.",
+                Style::Command.paint("--no-url"),
+                Style::Command.paint("--routing-url")
             )));
         }
 

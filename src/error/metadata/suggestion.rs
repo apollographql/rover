@@ -5,7 +5,7 @@ use std::{
 
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use rover_std::Style;
+use rover_std::{hyperlink, Style};
 use serde::Serialize;
 
 use crate::utils::env::RoverEnvKey;
@@ -101,7 +101,7 @@ impl Display for RoverErrorSuggestion {
 
         let suggestion = match self {
             SubmitIssue => {
-                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Style::Link.paint("https://github.com/apollographql/rover/issues/new/choose"))
+                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", hyperlink("https://github.com/apollographql/rover/issues/new/choose"))
             }
             SetConfigHome => {
                 format!(
@@ -110,27 +110,27 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             MigrateConfigHomeOrCreateConfig => {
-                format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
+                format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running `{}`.",
                 Style::Command.paint(format!("${}", RoverEnvKey::ConfigHome)),
-                Style::Command.paint("`rover config auth`"))
+                Style::Command.paint("rover config auth"))
             }
             CreateConfig => {
                 format!(
-                    "Try setting up a configuration profile by running {}",
-                    Style::Command.paint("`rover config auth`")
+                    "Try setting up a configuration profile by running `{}`.",
+                    Style::Command.paint("rover config auth")
                 )
             }
             RecreateConfig(profile_name) => {
-                format!("Recreate this configuration profile by running {}.", Style::Command.paint(format!("`rover config auth{}`", match profile_name.as_str() {
+                format!("Recreate this configuration profile by running `{}`.", Style::Command.paint(format!("rover config auth{}", match profile_name.as_str() {
                     "default" => "".to_string(),
                     profile_name => format!(" --profile {}", profile_name)
                 })))
             }
             ListProfiles => {
                 format!(
-                    "Try running {} to see the possible values for the {} argument.",
-                    Style::Command.paint("`rover config list`"),
-                    Style::Command.paint("`--profile`")
+                    "Try running `{}` to see the possible values for the `{}` argument.",
+                    Style::Command.paint("rover config list"),
+                    Style::Command.paint("--profile")
                 )
             }
             RunComposition => {
@@ -144,9 +144,9 @@ impl Display for RoverErrorSuggestion {
             }
             CheckGraphNameAndAuth => {
                 format!(
-                    "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
-                    Style::Command.paint("`rover config whoami`"),
-                    Style::Link.paint("https://studio.apollographql.com")
+                    "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run `{}` to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
+                    Style::Command.paint("rover config whoami"),
+                    hyperlink("https://studio.apollographql.com")
                 )
             }
             ProvideValidSubgraph(valid_subgraphs) => {
@@ -157,21 +157,21 @@ impl Display for RoverErrorSuggestion {
             }
             ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
                 if let Some(maybe_variant) = did_you_mean(&graph_ref.variant, valid_variants).pop()  {
-                    format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
+                    format!("Did you mean '{}'?", Style::GraphRef.paint(format!("{}@{}", graph_ref.name, maybe_variant)))
                 } else {
                     let num_valid_variants = valid_variants.len();
-                    let color_graph_name = Style::Link.paint(&graph_ref.name);
+                    let color_graph_name = hyperlink(&graph_ref.name);
                     match num_valid_variants {
-                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Style::Command.paint("`rover graph publish`"), Style::Command.paint("`rover subgraph publish`")),
-                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Style::Link.paint(&valid_variants[0])),
-                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Style::Link.paint(&valid_variants[0]), Style::Link.paint(&valid_variants[1])),
+                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running `{}` for your graph schema, or a new federated variant by running `{}` for all of your subgraph schemas.", &color_graph_name, Style::Command.paint("rover graph publish"), Style::Command.paint("rover subgraph publish")),
+                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, hyperlink(&valid_variants[0])),
+                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, hyperlink(&valid_variants[0]), hyperlink(&valid_variants[1])),
                         3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
                                 if i == num_valid_variants - 1 {
                                     valid_variants_msg.push_str("and ");
                                 }
-                                let _ = write!(valid_variants_msg, "{}", Style::Link.paint(variant));
+                                let _ = write!(valid_variants_msg, "{}", hyperlink(variant));
                                 if i < num_valid_variants - 1 {
                                     valid_variants_msg.push_str(", ");
                                 }
@@ -180,7 +180,7 @@ impl Display for RoverErrorSuggestion {
                         }
                         _ => {
                             let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(graph_url))
+                            format!("You can view the variants for graph \"{}\" by visiting {}.", &color_graph_name, hyperlink(&graph_url))
                         }
                     }
                 }
@@ -190,9 +190,9 @@ impl Display for RoverErrorSuggestion {
             }
             TryUnsetKey => {
                 format!(
-                    "Try to unset your {} key if you want to use {}.",
+                    "Try to unset your {} key if you want to use `{}`.",
                     Style::Command.paint(format!("`${}`", RoverEnvKey::Key)),
-                    Style::Command.paint("`--profile default`")
+                    Style::Command.paint("--profile default")
                 )
             }
             ProperKey => {
@@ -216,9 +216,9 @@ impl Display for RoverErrorSuggestion {
             CheckGnuVersion => {
                 let mut suggestion = "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing.";
                 if cfg!(target_env = "musl") {
-                    suggestion = "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.";
+                    suggestion = format!("Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: {}, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.", hyperlink("https://github.com/denoland/deno/issues/3711"))
                 }
-                suggestion.to_string()
+                suggestion
             },
             FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
             FixSupergraphConfigErrors => {
@@ -229,14 +229,14 @@ impl Display for RoverErrorSuggestion {
                     1 => "The subgraph schema you provided is invalid.".to_string(),
                     _ => "The subgraph schemas you provided are incompatible with each other.".to_string()
                 };
-                format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
+                format!("{} See {} for more information on resolving build errors.", prefix, hyperlink("https://www.apollographql.com/docs/federation/errors/"))
             },
             FixContractPublishErrors => {
-                format!("Try resolving any configuration errors, and publish the configuration with the {} command.", Style::Command.paint("`rover contract publish`"))
+                format!("Try resolving any configuration errors, and publish the configuration with the `{}` command.", Style::Command.paint("rover contract publish"))
             },
             FixCheckFailures => format!(
                 "See {} for more information on resolving check errors.",
-                    Style::Link.paint("https://www.apollographql.com/docs/graphos/delivery/schema-checks")
+                    hyperlink("https://www.apollographql.com/docs/graphos/delivery/schema-checks")
                 ),
             FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
             FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
@@ -248,21 +248,21 @@ impl Display for RoverErrorSuggestion {
             UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
             ProvideRoutingUrl { subgraph_name, graph_ref } => {
                 format!("The subgraph {} does not exist for {}. You cannot add a subgraph to a supergraph without a routing URL.
-                Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
+                Try re-running this command with a `{}` argument.", Style::Command.paint(subgraph_name), Style::GraphRef.paint(graph_ref.to_string()), Style::Command.paint("--routing-url"))
             }
             LinkPersistedQueryList { graph_ref, frontend_url_root } => {
-                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)
+                format!("Link a persisted query list to {} by heading to {}", Style::GraphRef.paint(graph_ref.to_string()), hyperlink(&format!("{frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)))
             }
             CreateOrFindValidPersistedQueryList { graph_id, frontend_url_root } => {
-                format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {frontend_url_root}/graph/{graph_id}/persisted-queries")
+                format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {}", hyperlink(&format!("{frontend_url_root}/graph/{graph_id}/persisted-queries")))
             },
             AddRoutingUrlToSupergraphYaml => {
-                String::from("Try specifying a routing URL in the supergraph YAML file. See https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more details.")
+                format!("Try specifying a routing URL in the supergraph YAML file. See {} for more details.", hyperlink("https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file"))
             },
             PublishSubgraphWithRoutingUrl { graph_ref, subgraph_name } => {
-                format!("Try publishing the subgraph with a routing URL like so `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>`")
+                format!("Try publishing the subgraph with a routing URL like so `{}`", Style::Command.paint(format!("rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>")))
             },
-            AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the {} option.", Style::Command.paint("`--allow-invalid-routing-url`")),
+            AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the `{}` option.", Style::Command.paint("--allow-invalid-routing-url")),
             ContactApolloAccountManager => {"Discuss your requirements with your Apollo point of contact.".to_string()},
             TryAgainLater => {"Please try again later.".to_string()},
             ContactApolloSupport => format!(
@@ -271,7 +271,7 @@ impl Display for RoverErrorSuggestion {
             ),
             InvalidSupergraphYamlSubgraphSchemaPath {
                 subgraph_name, supergraph_yaml_path
-            } => format!("Make sure the specified path for subgraph '{}' is relative to the location of the supergraph schema file ({})", subgraph_name, Style::Path.paint(supergraph_yaml_path))
+            } => format!("Make sure the specified path for subgraph '{}' is relative to the location of the supergraph schema file ({})", Style::Command.paint(subgraph_name), Style::Path.paint(supergraph_yaml_path))
         };
         write!(formatter, "{}", &suggestion)
     }

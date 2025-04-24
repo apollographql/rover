@@ -132,7 +132,7 @@ pub enum RoverClientError {
     /// `can_operation_convert` is only set to true when a non-federated graph
     /// was encountered during an operation that could potentially convert a non-federated graph
     /// to a federated graph.
-    #[error("The graph `{graph_ref}` is a non-federated graph. This operation is only possible for federated graphs.")]
+    #[error("The graph '{graph_ref}' is a non-federated graph. This operation is only possible for federated graphs.")]
     ExpectedFederatedGraph {
         graph_ref: GraphRef,
         can_operation_convert: bool,
@@ -140,7 +140,7 @@ pub enum RoverClientError {
 
     /// This error occurs when an operation expected a contract variant but a non-contract variant
     /// was supplied.
-    #[error("The variant `{graph_ref}` is a non-contract variant. This operation is only possible for contract variants.")]
+    #[error("The variant '{graph_ref}' is a non-contract variant. This operation is only possible for contract variants.")]
     ExpectedContractVariant { graph_ref: GraphRef },
 
     /// The API returned an invalid ChangeSeverity value

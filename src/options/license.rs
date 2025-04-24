@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
-use rover_std::prompt;
+use rover_std::{hyperlink, prompt, Style};
 
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, Serialize, Parser, Clone, Copy)]
@@ -51,7 +51,7 @@ impl LicenseAccepter {
             let mut err = RoverError::new(anyhow!(
                 "This command requires that you accept the terms of the ELv2 license."
             ));
-            let mut suggestion = "Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument.".to_string();
+            let mut suggestion = format!("Before running this command again, you need to either set `{}` as an environment variable, or pass the `{}` argument.", Style::Command.paint("APOLLO_ELV2_LICENSE=accept"), Style::Command.paint("--elv2-license=accept"));
             if std::env::var_os("CI").is_none() {
                 suggestion.push_str(" You will only need to do this once on this machine.")
             }
@@ -59,7 +59,10 @@ impl LicenseAccepter {
             Err(err)
         } else {
             eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
-            eprintln!("More information on the ELv2 license can be found here: https://go.apollo.dev/elv2.");
+            eprintln!(
+                "More information on the ELv2 license can be found here: {}",
+                hyperlink("https://go.apollo.dev/elv2")
+            );
 
             let did_accept = prompt::prompt_confirm_default_no(
                 "Do you accept the terms and conditions of the ELv2 license?",

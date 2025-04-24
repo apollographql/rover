@@ -59,7 +59,7 @@ impl Xtask {
             Command::SecurityChecks(command) => command.run(),
         }?;
         eprintln!("{}", Style::Success.paint("Success!"));
-        
+
         Ok(())
     }
 }

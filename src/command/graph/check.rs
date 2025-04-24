@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 use serde::Serialize;
 
 use rover_client::operations::graph::{
@@ -40,10 +40,11 @@ impl Check {
             .schema
             .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Checking the proposed schema against {}",
-            Style::Link.paint(self.graph.graph_ref.to_string())
-        );
+            Style::GraphRef.paint(self.graph.graph_ref.to_string())
+        ));
+
         let workflow_res = check::run(
             CheckSchemaAsyncInput {
                 graph_ref: self.graph.graph_ref.clone(),
@@ -59,6 +60,7 @@ impl Check {
         )
         .await?;
         if self.config.background {
+            spinner.stop();
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(
@@ -70,6 +72,7 @@ impl Check {
                 &client,
             )
             .await?;
+            spinner.stop();
             Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }
     }

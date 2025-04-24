@@ -3,7 +3,7 @@ use futures::TryFutureExt;
 use houston::{Config, Credential, HoustonProblem, Profile};
 use rover_client::operations::config::who_am_i::{Actor, WhoAmI, WhoAmIRequest};
 use rover_client::shared::GraphRef;
-use rover_std::warnln;
+use rover_std::{hyperlink, warnln, Style};
 use tower::{Service, ServiceExt};
 
 use crate::options::ProfileOpt;
@@ -30,7 +30,7 @@ impl RemoteRouterConfig {
                 Ok(client) => match client.studio_graphql_service() {
                     Ok(service) => WhoAmI::new(service),
                     Err(err) => {
-                        warnln!("APOLLO_GRAPH_REF is set, but could not communicate with Studio. Router may fail to start if Enterprise features are enabled: {err}");
+                        warnln!("{} is set, but could not communicate with Studio. Router may fail to start if Enterprise features are enabled: {err}", Style::Command.paint("APOLLO_GRAPH_REF"));
                         return RemoteRouterConfig {
                             graph_ref,
                             api_key: None,
@@ -38,7 +38,7 @@ impl RemoteRouterConfig {
                     }
                 },
                 Err(e) => {
-                    warnln!("APOLLO_GRAPH_REF is set, but could not authenticate with Studio. Router may fail to start if Enterprise features are enabled: {e}");
+                    warnln!("{} is set, but could not authenticate with Studio. Router may fail to start if Enterprise features are enabled: {e}", Style::Command.paint("APOLLO_GRAPH_REF"));
                     return RemoteRouterConfig {
                         graph_ref,
                         api_key: None,
@@ -60,12 +60,16 @@ impl RemoteRouterConfig {
                     }
                     _ => {
                         warnln!(
-                            "APOLLO_GRAPH_REF is set, but the key provided is not a graph key. \
+                            "{} is set, but the key provided is not a graph key. \
                              Enterprise features within the router will not function. \
-                             Either select a `--profile` that is configured with a graph-specific \
-                             key, or provide one via the APOLLO_KEY environment variable. \
+                             Either select a `{}` that is configured with a graph-specific \
+                             key, or provide one via the {} environment variable. \
                              You can configure a graph key by following the instructions at \
-                             https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys"
+                             {}",
+                            Style::Command.paint("APOLLO_GRAPH_REF"),
+                            Style::Command.paint("--profile"),
+                            Style::Command.paint("APOLLO_KEY"),
+                            hyperlink("https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys")
                         );
                     }
                 },
@@ -74,7 +78,7 @@ impl RemoteRouterConfig {
                 }
             }
         } else {
-            warnln!("APOLLO_GRAPH_REF is set, but credentials could not be loaded. Enterprise features within the router will not function.");
+            warnln!("{} is set, but credentials could not be loaded. Enterprise features within the router will not function.", Style::Command.paint("APOLLO_GRAPH_REF"));
         }
         RemoteRouterConfig {
             api_key: None,

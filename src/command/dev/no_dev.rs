@@ -13,8 +13,9 @@ impl Dev {
         _client_config: StudioClientConfig,
         _log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
-        Err(RoverError::new(anyhow!(
-            "rover dev is not supported on this platform"
-        )))
+        Err(RoverError::new(anyhow!(format!(
+            "`{}` is not supported on this platform",
+            Style::Command.paint("rover dev")
+        ))))
     }
 }

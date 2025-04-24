@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 use serde::Serialize;
 
 use crate::options::{GraphRefOpt, ProfileOpt};
@@ -22,11 +22,12 @@ impl Fetch {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Fetching README for {} using credentials from the {} profile.",
-            Style::Link.paint(graph_ref),
+            Style::GraphRef.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
+
         let readme = fetch::run(
             ReadmeFetchInput {
                 graph_ref: self.graph.graph_ref.clone(),
@@ -34,6 +35,9 @@ impl Fetch {
             &client,
         )
         .await?;
+
+        spinner.stop();
+
         Ok(RoverOutput::ReadmeFetchResponse {
             graph_ref: self.graph.graph_ref.clone(),
             content: readme.content,

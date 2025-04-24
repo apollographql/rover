@@ -13,6 +13,7 @@ use crate::{RoverError, RoverOutput, RoverResult};
 
 use houston as config;
 use rover_client::RoverClientError;
+use rover_std::Spinner;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct WhoAmI {
@@ -31,7 +32,7 @@ pub struct WhoAmI {
 impl WhoAmI {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        eprintln!("Checking identity of your API key against the registry.");
+        let spinner = Spinner::new("Checking identity of your API key against the registry.");
 
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
@@ -44,6 +45,7 @@ impl WhoAmI {
         })?;
 
         if !self.is_valid_actor_type(&identity) {
+            spinner.stop();
             return Err(RoverError::from(anyhow!(
                 "The key provided is invalid. Rover only accepts personal and graph API keys"
             )));
@@ -51,6 +53,8 @@ impl WhoAmI {
 
         let credential =
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
+
+        spinner.stop();
 
         Ok(RoverOutput::ConfigWhoAmIOutput {
             api_key: self.get_maybe_masked_api_key(&credential),

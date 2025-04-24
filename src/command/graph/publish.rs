@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::GitContext;
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
@@ -30,11 +30,11 @@ impl Publish {
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Publishing SDL to {} using credentials from the {} profile.",
-            Style::Link.paint(graph_ref),
+            Style::GraphRef.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         let proposed_schema = self
             .schema
@@ -51,6 +51,8 @@ impl Publish {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::GraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),

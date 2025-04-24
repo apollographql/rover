@@ -1,18 +1,24 @@
 #![warn(missing_docs)]
-use rover_std::Style;
-
+use rover_std::warnln;
+use rover_std::{hyperlink, Style};
 pub struct VersionUpgradeMessage {}
 
 impl VersionUpgradeMessage {
     pub fn print() {
         eprintln!();
-        eprintln!(
+        warnln!(
             "{}",
-            Style::WarningPrefix.paint("** Notice: Changes in This Release! **")
+            Style::Heading.paint("** Notice: Changes in This Release! **")
         );
-        eprintln!("This version includes significant updates to the `rover dev` command.");
+        eprintln!(
+            "This version includes significant updates to the `{}` command.",
+            Style::Command.paint("rover dev")
+        );
         eprintln!("We highly recommend reviewing the updated documentation to ensure a smooth experience.");
-        eprintln!("Read more: https://www.apollographql.com/docs/rover/commands/dev");
+        eprintln!(
+            "Read more: {}",
+            hyperlink("https://www.apollographql.com/docs/rover/commands/dev")
+        );
         eprintln!();
     }
 }

@@ -229,7 +229,7 @@ where
                         }
                         Err(err) => {
                             if self.profile.profile_name != DEFAULT_PROFILE {
-                                warnln!("Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY", self.profile.profile_name, err)
+                                warnln!("Could not retrieve {} for profile {}.\n{}\nContinuing to load router without an {}", Style::Command.paint("APOLLO_KEY"), self.profile.profile_name, err, Style::Command.paint("APOLLO_KEY"))
                             }
                         }
                     };

@@ -6,7 +6,7 @@ use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_client::RoverClientError;
-use rover_std::{errln, infoln, warnln};
+use rover_std::{errln, infoln, warnln, Style};
 use semver::Version;
 use timber::Level;
 use tower::ServiceExt;
@@ -59,7 +59,10 @@ impl Dev {
         let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
-            eprintln!("retrieving subgraphs remotely from {graph_ref}")
+            eprintln!(
+                "Retrieving subgraphs remotely from {}",
+                Style::GraphRef.paint(graph_ref.to_string())
+            )
         }
         let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
 
@@ -274,7 +277,7 @@ impl Dev {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
-                    eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
+                    eprintln!("\nreceived shutdown signal, stopping `{}` processes...", Style::Command.paint("rover dev"));
                     run_router.shutdown();
                     break
                 },
@@ -302,7 +305,7 @@ impl Dev {
                                     tracing::error!("Router process exited without status code. Error: {err}")
                                 }
                             }
-                            eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                            eprintln!("\nRouter binary exited, stopping `{}` processes...", Style::Command.paint("rover dev"));
                             break;
                         }
                         Err(err) => {
