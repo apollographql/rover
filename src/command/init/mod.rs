@@ -14,10 +14,10 @@ pub mod spinner;
 pub mod states;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
-#[cfg(feature = "composition-js")]
-pub mod transitions;
 #[cfg(all(test, feature = "composition-js"))]
 pub mod tests;
+#[cfg(feature = "composition-js")]
+pub mod transitions;
 
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
