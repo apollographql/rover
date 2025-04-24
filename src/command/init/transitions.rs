@@ -68,7 +68,7 @@ impl UserAuthenticated {
                             )),
                         }
                     }
-                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                    Err(e) => Err(e.into()),
                 }
             }
         }

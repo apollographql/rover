@@ -2,16 +2,17 @@ use anyhow::anyhow;
 
 use super::errors::AuthenticationError;
 use crate::error::{RoverError, RoverErrorSuggestion};
-use rover_std::{hyperlink_with_text, Style};
+use rover_std::{hyperlink, hyperlink_with_text, Style};
 
 fn create_invalid_api_key_error() -> RoverError {
     let message = "Invalid API key found";
     let suggestion = RoverErrorSuggestion::Adhoc(
         format!(
-            "If you have previously set a graph's API key as the environment variable APOLLO_KEY, unset it by running one of these commands:\n\n        Bash/Zsh: {}\n        Cmd Prompt: {}\n        PowerShell: {}\n\n        Then run {} again.",
+            "You can try one of the following solutions:\n\n1. If you have previously set a graph's API key as the environment variable APOLLO_KEY, unset it by running one of these commands:\n\n        Bash/Zsh: {}\n        Cmd Prompt: {}\n        PowerShell: {}\n\n2. Alternatively, you can run {} to reset all your rover configuration profiles (Warning: this will remove ALL saved profiles).\n\nThen run {} again.",
             Style::Command.paint("unset APOLLO_KEY"),
             Style::Command.paint("set APOLLO_KEY="),
             Style::Command.paint("Remove-Item Env:APOLLO_KEY"),
+            Style::Command.paint("rover config clear"),
             Style::Command.paint("rover init")
         ).to_string()
     );
@@ -30,7 +31,11 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::InvalidKeyFormat => {
             let message = "Invalid API key format";
             let suggestion = RoverErrorSuggestion::Adhoc(
-                "Please get a valid key from https://studio.apollographql.com/user-settings/api-keys".to_string(),
+                format!(
+                    "Please get a valid key from {} and re-run {}.",
+                    hyperlink("https://studio.apollographql.com/user-settings/api-keys"),
+                    Style::Command.paint("rover init")
+                ).to_string(),
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
