@@ -33,6 +33,7 @@ use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use serde::Serialize;
 use std::path::PathBuf;
+#[cfg(feature = "composition-js")]
 use transitions::CreateProjectResult;
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -71,6 +72,7 @@ impl Init {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         use helpers::display_use_template_message;
         use rover_http::ReqwestService;
+        use crate::command::init::states::UserAuthenticated;
 
         let http_service = ReqwestService::new(None, None)?;
 
@@ -162,5 +164,3 @@ impl Init {
         Err(err)
     }
 }
-
-use states::UserAuthenticated;
