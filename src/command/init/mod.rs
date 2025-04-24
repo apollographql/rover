@@ -21,6 +21,8 @@ pub mod tests;
 pub mod transitions;
 
 #[cfg(feature = "composition-js")]
+use crate::command::init::options::ProjectType;
+#[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
 };
@@ -32,8 +34,6 @@ use clap::Parser;
 use serde::Serialize;
 use std::path::PathBuf;
 use transitions::CreateProjectResult;
-#[cfg(feature = "composition-js")]
-use crate::command::init::options::ProjectType;
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
