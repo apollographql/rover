@@ -9,7 +9,7 @@ use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use houston::{Config, Credential, HoustonProblem, Profile};
 use regex::Regex;
-use rover_std::{infoln, warnln, Style};
+use rover_std::{hyperlink, infoln, warnln, Style};
 use semver::Version;
 use tap::TapFallible;
 use timber::Level;
@@ -60,7 +60,10 @@ fn produce_special_message(raw_message: &str) {
                         Some(RouterPort::CliOption(socket_addr.port())),
                     )
                     .pretty_string();
-                    format!("Your supergraph is running! head to {router_address} to query your supergraph")
+                    format!(
+                        "Your supergraph is running! head to {} to query your supergraph",
+                        hyperlink(&router_address)
+                    )
                 }
                 _ => raw_message.to_string(),
             }

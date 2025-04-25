@@ -1,14 +1,13 @@
 #![warn(missing_docs)]
-use rover_std::warnln;
 use rover_std::{hyperlink, Style};
 pub struct VersionUpgradeMessage {}
 
 impl VersionUpgradeMessage {
     pub fn print() {
         eprintln!();
-        warnln!(
+        eprintln!(
             "{}",
-            Style::Heading.paint("** Notice: Changes in This Release! **")
+            Style::WarningHeading.paint("** Notice: Changes in This Release! **")
         );
         eprintln!(
             "This version includes significant updates to the `{}` command.",

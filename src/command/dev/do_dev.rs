@@ -6,7 +6,7 @@ use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_client::RoverClientError;
-use rover_std::{errln, infoln, warnln, Style};
+use rover_std::{errln, hyperlink, infoln, warnln, Style};
 use semver::Version;
 use timber::Level;
 use tower::ServiceExt;
@@ -255,7 +255,7 @@ impl Dev {
 
         infoln!(
             "Attempting to start router at {}.",
-            router_address.pretty_string()
+            hyperlink(&router_address.pretty_string())
         );
 
         let mut run_router = run_router

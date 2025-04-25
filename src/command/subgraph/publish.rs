@@ -323,7 +323,11 @@ mod tests {
         .unwrap_err();
         assert_eq!(
             result.message(),
-            format!("You cannot use `{}` and `{}` at the same time.", Style::Command.paint("--no-url"), Style::Command.paint("--routing-url"))
+            format!(
+                "You cannot use `{}` and `{}` at the same time.",
+                Style::Command.paint("--no-url"),
+                Style::Command.paint("--routing-url")
+            )
         );
     }
 
