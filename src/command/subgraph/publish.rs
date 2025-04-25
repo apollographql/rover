@@ -268,6 +268,7 @@ impl Publish {
 #[cfg(test)]
 mod tests {
     use crate::command::subgraph::publish::Publish;
+    use rover_std::Style;
 
     #[tokio::test]
     async fn test_no_url() {
@@ -322,7 +323,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(
             result.message(),
-            "You cannot use --no-url and --routing-url at the same time."
+            format!("You cannot use `{}` and `{}` at the same time.", Style::Command.paint("--no-url"), Style::Command.paint("--routing-url"))
         );
     }
 
