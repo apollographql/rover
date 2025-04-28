@@ -32,7 +32,7 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
             let message = "Invalid API key format";
             let suggestion = RoverErrorSuggestion::Adhoc(
                 format!(
-                    "Please get a valid key from {} and re-run {}.",
+                    "Please get a valid key from {} and re-run `{}`.",
                     hyperlink("https://studio.apollographql.com/user-settings/api-keys"),
                     Style::Command.paint("rover init")
                 )
