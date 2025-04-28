@@ -55,7 +55,12 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::NoCredentialsFound => {
             let message = "No authentication credentials found";
             let suggestion = RoverErrorSuggestion::Adhoc(
-                format!("Please configure your API key using `{}` or set the {} environment variable.", Style::Command.paint("rover config auth"), Style::Command.paint("APOLLO_KEY")).to_string(),
+                format!(
+                    "Please configure your API key using `{}` or set the {} environment variable.",
+                    Style::Command.paint("rover config auth"),
+                    Style::Command.paint("APOLLO_KEY")
+                )
+                .to_string(),
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
