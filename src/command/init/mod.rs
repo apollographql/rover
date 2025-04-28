@@ -21,10 +21,8 @@ pub mod tests;
 pub mod transitions;
 
 #[cfg(feature = "composition-js")]
-use crate::command::init::options::ProjectType;
-#[cfg(feature = "composition-js")]
 use crate::command::init::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTypeOpt, ProjectUseCaseOpt,
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt, ProjectUseCaseOpt,
 };
 #[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
