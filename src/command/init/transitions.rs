@@ -362,7 +362,9 @@ impl CreationConfirmed {
             Err(RoverClientError::GraphCreationError { msg })
                 if msg.contains("Service already exists") =>
             {
-                println!("\n\n{} Graph ID is already in use. Please try again with a different graph ID.", Style::Failure.paint("Error:"));
+                println!();
+                println!();
+                println!("{} Graph ID is already in use. Please try again with a different graph ID.", Style::Failure.paint("Error:"));
                 return Ok(CreateProjectResult::Restart(ProjectNamed {
                     output_path: self.output_path,
                     project_type: self.config.project_type,
