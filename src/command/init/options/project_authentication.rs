@@ -63,7 +63,7 @@ impl ProjectAuthenticationOpt {
             Ok(credential) => {
                 if credential.api_key.is_empty() || credential.api_key != api_key {
                     return Err(auth_error_to_rover_error(AuthenticationError::SystemError(
-                        "Received an unexpected server error".to_string(),
+                        "Received an unexpected server error.".to_string(),
                     )));
                 }
 
