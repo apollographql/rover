@@ -3,6 +3,7 @@ use std::env;
 pub use code::RoverErrorCode;
 use houston::HoustonProblem;
 use rover_client::{EndpointKind, RoverClientError};
+use rover_std::hyperlink;
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
@@ -320,6 +321,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
+                RoverClientError::MaxRetriesExceeded { .. } => (
+                    Some(RoverErrorSuggestion::ContactApolloSupport),
+                    Some(RoverErrorCode::E045),
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

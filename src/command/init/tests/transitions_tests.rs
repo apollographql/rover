@@ -10,6 +10,7 @@ mod tests {
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
+    use rover_client::RoverClientError;
 
     mod mock {
         use super::*;
@@ -342,5 +343,55 @@ mod tests {
             options_with_value.get_project_type(),
             Some(ProjectType::CreateNew)
         );
+    #[tokio::test]
+    async fn test_max_retries_error() {
+        let project_named = ProjectNamed {
+            output_path: ".".into(),
+            project_type: ProjectType::CreateNew,
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
+            use_case: ProjectUseCase::Connectors,
+            project_name: "test-graph".parse().unwrap(),
+        };
+
+        let graph_id_confirmed = GraphIdConfirmed {
+            output_path: ".".into(),
+            project_type: project_named.project_type.clone(),
+            organization: project_named.organization.clone(),
+            use_case: project_named.use_case.clone(),
+            project_name: project_named.project_name.clone(),
+            graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
+        };
+
+        let http_service = mock::MockHttpService::default();
+        let template_fetcher = mock::MockTemplateFetcher::new(http_service.clone());
+
+        // Create a mock that will always return Restart
+        let mut retry_count = 0;
+        let result = loop {
+            if retry_count >= 3 {
+                break Err(RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: 3 }));
+            }
+            retry_count += 1;
+            let config = ProjectConfig {
+                project_type: graph_id_confirmed.project_type.clone(),
+                organization: graph_id_confirmed.organization.clone(),
+                use_case: graph_id_confirmed.use_case.clone(),
+                project_name: graph_id_confirmed.project_name.clone(),
+                graph_id: graph_id_confirmed.graph_id.clone(),
+            };
+            let creation_confirmed = CreationConfirmed {
+                output_path: ".".into(),
+                config,
+                template: TemplateProject::new(template_fetcher.clone()),
+            };
+            break Ok(CreateProjectResult::Restart(project_named.clone()));
+        };
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(matches!(
+            error.downcast_ref::<RoverClientError>(),
+            Some(RoverClientError::MaxRetriesExceeded { max_retries: 3 })
+        ));
     }
-}
+    }}
