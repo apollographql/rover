@@ -3,7 +3,6 @@ use std::env;
 pub use code::RoverErrorCode;
 use houston::HoustonProblem;
 use rover_client::{EndpointKind, RoverClientError};
-use rover_std::hyperlink;
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 

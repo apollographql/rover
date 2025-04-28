@@ -25,6 +25,7 @@ use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
@@ -36,7 +37,6 @@ use serde::Serialize;
 use std::path::PathBuf;
 #[cfg(feature = "composition-js")]
 use transitions::CreateProjectResult;
-use crate::error::RoverErrorSuggestion;
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
@@ -123,7 +123,7 @@ impl Init {
         if let CreateProjectResult::Restart(mut current_project) = project_created {
             const MAX_RETRIES: u32 = 3;
             let mut retry_count = 0;
-            
+
             loop {
                 if retry_count >= MAX_RETRIES {
                     let suggestion = RoverErrorSuggestion::Adhoc(
@@ -132,10 +132,12 @@ impl Init {
                             hyperlink("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
                         ).to_string()
                     );
-                    return Err(RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: MAX_RETRIES })
-                        .with_suggestion(suggestion));
+                    return Err(RoverError::from(RoverClientError::MaxRetriesExceeded {
+                        max_retries: MAX_RETRIES,
+                    })
+                    .with_suggestion(suggestion));
                 }
-                
+
                 let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
                 let creation_confirmed = match graph_id_confirmed
                     .preview_and_confirm_creation(http_service.clone())
