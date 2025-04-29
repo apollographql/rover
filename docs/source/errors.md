@@ -332,4 +332,8 @@ Please view the check in [Apollo Studio](https://studio.apollographql.com/) at t
 
 Offline enterprise license support for Apollo is available on an as-needed basis. It must be enabled on your Studio organization. For access, send a request to your Apollo contact.
 
+### E045
 
+This error occurs when Rover tries to create a project but creating the project fails.
+
+This is likely a temporary issue and you can try again. If the problem persists, please contact [Apollo Support](https://support.apollographql.com).
