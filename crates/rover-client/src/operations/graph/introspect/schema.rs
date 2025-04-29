@@ -280,7 +280,7 @@ impl Schema {
                 let ty = Self::encode_type(ty.of_type().unwrap());
                 Type_::List { ty: Box::new(ty) }
             }
-            Other(ty) => panic!("Unknown type: {}", ty),
+            Other(ty) => unreachable!("Unknown type kind: {}", ty),
         }
     }
 }

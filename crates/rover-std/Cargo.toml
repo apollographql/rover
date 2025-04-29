@@ -23,3 +23,6 @@ notify = { workspace = true }
 rstest = { workspace = true }
 speculoos = { workspace = true }
 tempfile = { workspace = true }
+
+[lints]
+workspace = true
