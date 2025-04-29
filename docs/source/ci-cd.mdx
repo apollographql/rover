@@ -68,6 +68,7 @@ jobs:
 Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant commands. For full documentation of the parameters of the GitHub Action, see the GitHub Marketplace listing for each:
 
 - [Installing Rover](https://github.com/marketplace/actions/install-apollo-rover-cli)
+- [Running `rover persisted-queries publish`](https://github.com/marketplace/actions/apollo-rover-persisted-queries-publish)
 - [Running `rover subgraph check`](https://github.com/marketplace/actions/apollo-rover-subgraph-check)
 - [Running `rover subgraph lint`](https://github.com/marketplace/actions/apollo-rover-subgraph-lint)
 - [Running `rover subgraph publish`](https://github.com/marketplace/actions/apollo-rover-subgraph-publish)
@@ -75,9 +76,7 @@ Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant com
 #### Full example using the Apollo-provided GitHub Actions
 
 ```yaml
-# .github/workflows/check.yml
-
-name: Check Schema
+name: Rover Actions
 
 # Controls when the action will run. Triggers the workflow on push or pull request events
 on: [push, pull_request]
@@ -89,16 +88,12 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # https://docs.github.com/en/actions/reference/environments
-    environment: apollo
-
     # https://docs.github.com/en/actions/reference/encrypted-secrets
     # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstepsenv
     env:
       APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
       APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
@@ -146,6 +141,23 @@ jobs:
 
           # If you are publishing to a Connectors-based subgraph, you can pass the `no-url` parameter to the publish action, which is equivalent to passing "" to `routing-url` and true to `allow-invalid-routing-url`.
           no-url: true
+
+      # To publish persisted queries to Apollo Studio:
+      # Using graph-ref:
+      - uses: apollographql-gh-actions/rover-persisted-queries-publish@v1
+        with:
+            apollo-key: ${{ secrets.APOLLO_KEY }}
+            graph-ref: ${{ secrets.APOLLO_GRAPH_REF }}
+            for-client-name: example-publish
+            manifest: ./path/to/persisted-queries-manifest.json
+      # Using graph-id and list-id:
+      - uses: apollographql-gh-actions/rover-persisted-queries-publish@v1
+        with:
+            apollo-key: ${{ secrets.APOLLO_KEY }}
+            graph-id: ${{ vars.APOLLO_GRAPH_ID }}
+            list-id: 1234-5678
+            for-client-name: example-publish
+            manifest: ./path/to/persisted-queries-manifest.json
 ```
 
 ### Linux/MacOS jobs using the `curl` installer
