@@ -36,7 +36,7 @@ use rover_std::hyperlink;
 use serde::Serialize;
 use std::path::PathBuf;
 #[cfg(feature = "composition-js")]
-use transitions::CreateProjectResult;
+use transitions::{CreateProjectResult, RestartReason};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
@@ -120,17 +120,22 @@ impl Init {
         }
 
         // Handle restart loop
-        if let CreateProjectResult::Restart(mut current_project) = project_created {
+        if let CreateProjectResult::Restart { state: mut current_project, reason } = project_created {
             const MAX_RETRIES: u8 = 3;
 
             for attempt in 0..MAX_RETRIES {
                 if attempt >= MAX_RETRIES {
-                    let suggestion = RoverErrorSuggestion::Adhoc(
-                        format!(
-                            "If the error persists, please contact the Apollo team at {}.",
-                            hyperlink("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
-                        ).to_string()
-                    );
+                    let suggestion = match reason {
+                        RestartReason::GraphIdExists => RoverErrorSuggestion::Adhoc(
+                            format!(
+                                "If the error persists, please contact the Apollo team at {}.",
+                                hyperlink("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
+                            ).to_string()
+                        ),
+                        RestartReason::FullRestart => RoverErrorSuggestion::Adhoc(
+                            "Please try the operation again from the beginning.".to_string()
+                        ),
+                    };
                     return Err(RoverError::from(RoverClientError::MaxRetriesExceeded {
                         max_retries: MAX_RETRIES,
                     })
@@ -153,9 +158,20 @@ impl Init {
                     CreateProjectResult::Created(project) => {
                         return Ok(project.complete().success())
                     }
-                    CreateProjectResult::Restart(project_named) => {
-                        current_project = project_named;
-                        continue;
+                    CreateProjectResult::Restart { state: project_named, reason } => {
+                        match reason {
+                            RestartReason::FullRestart => {
+                                let welcome = UserAuthenticated::new()
+                                    .check_authentication(&client_config, &self.profile)
+                                    .await?;
+                                welcome.select_project_type(&self.project_type, &self.path)?;
+                                return Ok(RoverOutput::EmptySuccess);
+                            }
+                            _ => {
+                                current_project = project_named;
+                                continue;
+                            }
+                        }
                     }
                 }
             }

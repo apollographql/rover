@@ -11,6 +11,7 @@ mod tests {
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
     use rover_client::RoverClientError;
+    use super::super::transitions::{CreateProjectResult, RestartReason};
 
     mod mock {
         use super::*;
@@ -384,7 +385,10 @@ mod tests {
                 config,
                 template: TemplateProject::new(template_fetcher.clone()),
             };
-            break Ok(CreateProjectResult::Restart(project_named.clone()));
+            break Ok(CreateProjectResult::Restart {
+                state: project_named.clone(),
+                reason: RestartReason::GraphIdExists,
+            });
         };
 
         assert!(result.is_err());

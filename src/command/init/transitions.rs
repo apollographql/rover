@@ -29,9 +29,18 @@ use crate::RoverOutput;
 use crate::RoverResult;
 
 #[derive(Debug)]
+pub enum RestartReason {
+    GraphIdExists,
+    FullRestart,
+}
+
+#[derive(Debug)]
 pub enum CreateProjectResult {
     Created(ProjectCreated),
-    Restart(ProjectNamed),
+    Restart {
+        state: ProjectNamed,
+        reason: RestartReason,
+    },
 }
 
 const DEFAULT_VARIANT: &str = "current";
@@ -345,7 +354,26 @@ impl CreationConfirmed {
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
         );
-        let client = client_config.get_authenticated_client(profile)?;
+        let client = match client_config.get_authenticated_client(profile) {
+            Ok(client) => client,
+            Err(e) => {
+                println!();
+                println!(
+                    "{} Invalid API key. Please authenticate again.",
+                    Style::Failure.paint("Error:")
+                );
+                return Ok(CreateProjectResult::Restart {
+                    state: ProjectNamed {
+                        output_path: self.output_path,
+                        project_type: self.config.project_type,
+                        organization: self.config.organization,
+                        use_case: self.config.use_case,
+                        project_name: self.config.project_name,
+                    },
+                    reason: RestartReason::FullRestart,
+                });
+            }
+        };
 
         let create_graph_response = match create_graph::run(
             CreateGraphInput {
@@ -368,13 +396,16 @@ impl CreationConfirmed {
                     "{} Graph ID is already in use. Please try again with a different graph ID.",
                     Style::Failure.paint("Error:")
                 );
-                return Ok(CreateProjectResult::Restart(ProjectNamed {
-                    output_path: self.output_path,
-                    project_type: self.config.project_type,
-                    organization: self.config.organization,
-                    use_case: self.config.use_case,
-                    project_name: self.config.project_name,
-                }));
+                return Ok(CreateProjectResult::Restart {
+                    state: ProjectNamed {
+                        output_path: self.output_path,
+                        project_type: self.config.project_type,
+                        organization: self.config.organization,
+                        use_case: self.config.use_case,
+                        project_name: self.config.project_name,
+                    },
+                    reason: RestartReason::GraphIdExists,
+                });
             }
             Err(e) => return Err(e.into()),
         };
