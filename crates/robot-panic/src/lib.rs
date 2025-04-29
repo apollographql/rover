@@ -1,5 +1,3 @@
-#![cfg_attr(not(test), deny(clippy::panic,))]
-
 //! Panic messages for humans by robots
 //!
 //! Handles panics by calling

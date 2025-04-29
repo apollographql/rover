@@ -1,4 +1,3 @@
-#![cfg_attr(not(test), deny(clippy::panic,))]
 #![deny(missing_docs)]
 
 //! Utilites for configuring the rover CLI tool.

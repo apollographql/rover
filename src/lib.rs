@@ -1,5 +1,3 @@
-#![cfg_attr(not(test), deny(clippy::panic,))]
-
 pub mod cli;
 pub mod command;
 #[cfg(feature = "composition-js")]

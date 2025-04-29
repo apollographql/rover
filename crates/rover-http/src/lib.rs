@@ -1,4 +1,3 @@
-#![cfg_attr(not(test), deny(clippy::panic,))]
 #![warn(missing_docs)]
 
 //! Provides [`tower`] implementations for HTTP Requests

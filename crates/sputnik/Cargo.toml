@@ -30,3 +30,6 @@ httpmock = { workspace = true }
 rstest = { workspace = true }
 speculoos = { workspace = true }
 reqwest = { workspace = true }
+
+[lints]
+workspace = true
