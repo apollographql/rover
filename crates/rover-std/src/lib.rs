@@ -1,3 +1,10 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::panic,
+    )
+)]
+
 mod error;
 mod fs;
 mod style;
