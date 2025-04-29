@@ -45,7 +45,10 @@ fn api_key_prompt() -> RoverResult<String> {
         hyperlink("https://studio.apollographql.com/user-settings/api-keys")
     );
     eprintln!();
-    eprintln!("{}", Style::Prompt.paint("Copy the key and paste it into the prompt below."));
+    eprintln!(
+        "{}",
+        Style::Prompt.paint("Copy the key and paste it into the prompt below.")
+    );
     term.write_str("> ")?;
     let api_key = term.read_secure_line()?;
     validate(api_key)

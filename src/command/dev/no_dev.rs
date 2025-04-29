@@ -5,6 +5,7 @@ use timber::Level;
 use crate::command::dev::Dev;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
+use rover_std::Style;
 
 impl Dev {
     pub async fn run(
