@@ -370,7 +370,8 @@ mod tests {
         let mut retry_count = 0;
         let result = loop {
             if retry_count >= 3 {
-                break Err(RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: 3 }));
+                let suggestion = RoverErrorSuggestion::Adhoc("If the issue persists, please contact support at https://support.apollographql.com.".to_string());
+                break Err(RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: 3 }).with_suggestion(suggestion);
             }
             retry_count += 1;
             let config = ProjectConfig {
@@ -397,5 +398,6 @@ mod tests {
             error.downcast_ref::<RoverClientError>(),
             Some(RoverClientError::MaxRetriesExceeded { max_retries: 3 })
         ));
+        assert!(!error.suggestions().is_empty());
     }
     }}

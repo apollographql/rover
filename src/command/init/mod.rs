@@ -122,28 +122,16 @@ impl Init {
         // Handle restart loop
         if let CreateProjectResult::Restart {
             state: mut current_project,
-            reason,
+            reason: _,
         } = project_created
         {
             const MAX_RETRIES: u8 = 3;
 
             for attempt in 0..MAX_RETRIES {
                 if attempt >= MAX_RETRIES {
-                    let suggestion = match reason {
-                        RestartReason::GraphIdExists => RoverErrorSuggestion::Adhoc(
-                            format!(
-                                "If the error persists, please contact the Apollo team at {}.",
-                                hyperlink("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
-                            ).to_string()
-                        ),
-                        RestartReason::FullRestart => RoverErrorSuggestion::Adhoc(
-                            "Please try the operation again from the beginning.".to_string()
-                        ),
-                    };
-                    return Err(RoverError::from(RoverClientError::MaxRetriesExceeded {
-                        max_retries: MAX_RETRIES,
-                    })
-                    .with_suggestion(suggestion));
+                    let suggestion = RoverErrorSuggestion::Adhoc(format!("If the issue persists, please contact support at {}.", hyperlink("https://support.apollographql.com")).to_string());
+
+                    return Err(RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: MAX_RETRIES }).with_suggestion(suggestion));
                 }
 
                 let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;

@@ -9,6 +9,7 @@ use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_http::ReqwestService;
+use rover_std::hyperlink;
 use rover_std::Style;
 
 use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
@@ -407,7 +408,13 @@ impl CreationConfirmed {
                     reason: RestartReason::GraphIdExists,
                 });
             }
-            Err(e) => return Err(e.into()),
+            Err(_) => {
+                let suggestion = RoverErrorSuggestion::Adhoc(
+                    format!("If the issue persists, please contact support at {}.", hyperlink("https://support.apollographql.com")).to_string()
+                );
+                return Err(RoverClientError::GraphProjectInitError.into())
+                .with_suggestion(suggestion);
+            }
         };
 
         // Write the template files without asking for confirmation again

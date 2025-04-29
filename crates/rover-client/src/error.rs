@@ -249,6 +249,9 @@ pub enum RoverClientError {
     #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
     NonCloudGraphRef { graph_ref: GraphRef },
 
+    #[error("Something went wrong on our end. This isn't your fault! Please try again.")]
+    GraphProjectInitError,
+
     #[error("Service failed to become ready")]
     ServiceReady(Box<dyn std::error::Error + Send + Sync>),
 
