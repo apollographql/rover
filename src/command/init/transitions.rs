@@ -356,7 +356,7 @@ impl CreationConfirmed {
         );
         let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
-            Err(e) => {
+            Err(_) => {
                 println!();
                 println!(
                     "{} Invalid API key. Please authenticate again.",
