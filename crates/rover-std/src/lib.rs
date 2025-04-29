@@ -1,9 +1,4 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::panic,
-    )
-)]
+#![cfg_attr(not(test), deny(clippy::panic,))]
 
 mod error;
 mod fs;

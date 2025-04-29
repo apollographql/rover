@@ -1,10 +1,4 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::panic,
-    )
-)]
-
+#![cfg_attr(not(test), deny(clippy::panic,))]
 #![warn(missing_docs)]
 
 //! Provides middleware that injects studio headers into all requests

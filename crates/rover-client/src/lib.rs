@@ -1,10 +1,4 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::panic,
-    )
-)]
-
+#![cfg_attr(not(test), deny(clippy::panic,))]
 // #![deny(missing_docs)]
 
 //! HTTP client for making GraphQL requests for the Rover CLI tool.
