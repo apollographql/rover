@@ -16,3 +16,6 @@ toml = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 url = { workspace = true}
 
+[lints]
+workspace = true
+

@@ -27,3 +27,6 @@ speculoos = { workspace = true }
 tower-test = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-test = { workspace = true }
+
+[lints]
+workspace = true
