@@ -38,6 +38,9 @@ members = [
     "installers/binstall",
 ]
 
+[workspace.lints.clippy]
+panic = "deny"
+
 [features]
 default = ["composition-js"]
 
