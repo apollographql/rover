@@ -121,11 +121,10 @@ impl Init {
 
         // Handle restart loop
         if let CreateProjectResult::Restart(mut current_project) = project_created {
-            const MAX_RETRIES: u32 = 3;
-            let mut retry_count = 0;
+            const MAX_RETRIES: u8 = 3;
 
-            loop {
-                if retry_count >= MAX_RETRIES {
+            for attempt in 0..MAX_RETRIES {
+                if attempt >= MAX_RETRIES {
                     let suggestion = RoverErrorSuggestion::Adhoc(
                         format!(
                             "If the error persists, please contact the Apollo team at {}.",
@@ -156,7 +155,6 @@ impl Init {
                     }
                     CreateProjectResult::Restart(project_named) => {
                         current_project = project_named;
-                        retry_count += 1;
                         continue;
                     }
                 }
