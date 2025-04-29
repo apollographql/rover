@@ -236,8 +236,51 @@ impl OrganizationSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your Graph:
+/// ? Select a language and server library template:
+/// > Template A
+/// > Template B
+/// > Template C
 impl UseCaseSelected {
+    pub fn select_template(
+        self,
+        options: &ProjectTemplateOpt,
+        // http_service: ReqwestService,
+    ) -> RoverResult<TemplateSelected> {
+        // TODO: fetch the template manifest
+        // // Fetch the template to get the list of files
+        // let template_fetcher = TemplateFetcher::new(http_service)
+        // .call(repo_url.parse()?)
+        // .await?;
+
+        // Determine the list of templates based on the use case
+        let templates = match self.use_case {
+            ProjectUseCase::Connectors => vec![Template::new(
+                "connectors".to_string(),
+                "connectors".to_string(),
+            )],
+            ProjectUseCase::GraphQLTemplate => vec![Template::new(
+                "typescript".to_string(),
+                "typescript".to_string(),
+            )],
+        };
+
+        let template_id = options.get_or_prompt_template(&templates)?;
+
+        Ok(TemplateSelected {
+            output_path: self.output_path,
+            project_type: self.project_type,
+            organization: self.organization,
+            use_case: self.use_case,
+            template_id,
+        })
+    }
+}
+
+/// PROMPT UX:
+/// =========
+///
+/// ? Name your Graph:
+impl TemplateSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
 
@@ -246,6 +289,7 @@ impl UseCaseSelected {
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
+            template_id: self.template_id,
             project_name,
         })
     }
@@ -264,6 +308,7 @@ impl ProjectNamed {
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
+            template_id: self.template_id,
             project_name: self.project_name,
             graph_id,
         })
@@ -310,6 +355,7 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
 
+        tracing::debug!("Selected template: {}", self.template_id);
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
             ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/04a2455e89adfd89a07b8ae7da98be4e01bf6897.tar.gz",

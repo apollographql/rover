@@ -21,8 +21,8 @@ pub mod tests;
 pub mod transitions;
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
-    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
-    ProjectUseCaseOpt,
+    GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectTemplateOpt, ProjectType,
+    ProjectTypeOpt, ProjectUseCaseOpt,
 };
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
@@ -42,6 +42,10 @@ use transitions::{CreateProjectResult, RestartReason};
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
+    #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
+    project_template: ProjectTemplateOpt,
+
     #[clap(flatten)]
     #[cfg(feature = "composition-js")]
     project_type: ProjectTypeOpt,
