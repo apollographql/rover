@@ -203,7 +203,7 @@ pub enum RoverClientError {
     PermissionError { msg: String },
 
     #[error("Failed to create project after {max_retries} retries. Please try again.")]
-    MaxRetriesExceeded { max_retries: u32 },
+    MaxRetriesExceeded { max_retries: u8 },
 
     #[error(
         "You cannot perform this operation due to a limit imposed by your current billing plan"
