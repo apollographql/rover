@@ -4,7 +4,7 @@ use serde::Serialize;
 use houston as config;
 
 use crate::{RoverOutput, RoverResult};
-use rover_std::successln;
+use rover_std::{successln, Style};
 
 #[derive(Debug, Serialize, Parser)]
 /// Delete a configuration profile
@@ -22,7 +22,7 @@ pub struct Delete {
 impl Delete {
     pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         config::Profile::delete(&self.name, &config)?;
-        successln!("Successfully deleted profile '{}'", &self.name);
+        successln!("Successfully deleted profile '{}'", Style::Command.paint(&self.name));
         Ok(RoverOutput::EmptySuccess)
     }
 }

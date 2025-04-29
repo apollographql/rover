@@ -36,6 +36,7 @@ impl WhoAmI {
 
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
+                spinner.stop();
                 RoverError::new(anyhow!(
                     "The API key at `{origin}` is invalid - {msg}.",
                     origin = self.get_origin(&client)

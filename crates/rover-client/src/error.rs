@@ -51,11 +51,11 @@ pub enum RoverClientError {
     },
 
     /// when a graph does not have an account associated with it.
-    #[error("Could not find organization associated with graph '{graph_id}'")]
+    #[error("Could not find organization associated with graph \"{graph_id}\"")]
     OrganizationNotFound { graph_id: String },
 
     /// The user provided an invalid subgraph name.
-    #[error("Could not find subgraph '{invalid_subgraph}'.")]
+    #[error("Could not find subgraph \"{invalid_subgraph}\".")]
     NoSubgraphInGraph {
         /// The invalid subgraph name
         invalid_subgraph: String,
@@ -68,7 +68,7 @@ pub enum RoverClientError {
 
     /// The Studio API could not find a variant for a graph
     #[error(
-        "The graph registry does not contain variant '{}' for graph '{}'", graph_ref.variant, graph_ref.name
+        "The graph registry does not contain variant \"{}\" for graph \"{}\"", graph_ref.variant, graph_ref.name
     )]
     NoSchemaForVariant {
         /// The graph ref.
@@ -91,16 +91,16 @@ pub enum RoverClientError {
     /// when someone provides a bad graph/variant combination or isn't
     /// validated properly, we don't know which reason is at fault for data.service
     /// being empty, so this error tells them to check both.
-    #[error("Could not find graph with name '{graph_ref}'")]
+    #[error("Could not find graph with name \"{graph_ref}\"")]
     GraphNotFound { graph_ref: GraphRef },
 
     /// when someone provides a graph ID that doesn't exist.
-    #[error("Could not find graph with ID '{graph_id}'")]
+    #[error("Could not find graph with ID \"{graph_id}\"")]
     GraphIdNotFound { graph_id: String },
 
     /// if someone attempts to get a core schema from a supergraph that has
     /// no successful build in the API, we return this error.
-    #[error("No supergraph SDL exists for '{graph_ref}' because its subgraphs failed to build.")]
+    #[error("No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to build.")]
     NoSupergraphBuilds {
         graph_ref: GraphRef,
         source: BuildErrors,
@@ -112,7 +112,7 @@ pub enum RoverClientError {
         num_subgraphs: usize,
     },
 
-    #[error("Encountered {} while trying to build subgraph '{subgraph}' into supergraph '{graph_ref}'.", .source.length_string())]
+    #[error("Encountered {} while trying to build subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
     SubgraphBuildErrors {
         subgraph: String,
         graph_ref: GraphRef,
@@ -124,7 +124,7 @@ pub enum RoverClientError {
 
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!
-    #[error("The response from Apollo Studio was malformed. Response body contains `null` value for '{null_field}'")]
+    #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]
     MalformedResponse { null_field: String },
 
     /// This error occurs when an operation expected a federated graph but a non-federated
@@ -132,7 +132,7 @@ pub enum RoverClientError {
     /// `can_operation_convert` is only set to true when a non-federated graph
     /// was encountered during an operation that could potentially convert a non-federated graph
     /// to a federated graph.
-    #[error("The graph '{graph_ref}' is a non-federated graph. This operation is only possible for federated graphs.")]
+    #[error("The graph `{graph_ref}` is a non-federated graph. This operation is only possible for federated graphs.")]
     ExpectedFederatedGraph {
         graph_ref: GraphRef,
         can_operation_convert: bool,
@@ -140,7 +140,7 @@ pub enum RoverClientError {
 
     /// This error occurs when an operation expected a contract variant but a non-contract variant
     /// was supplied.
-    #[error("The variant '{graph_ref}' is a non-contract variant. This operation is only possible for contract variants.")]
+    #[error("The variant `{graph_ref}` is a non-contract variant. This operation is only possible for contract variants.")]
     ExpectedContractVariant { graph_ref: GraphRef },
 
     /// The API returned an invalid ChangeSeverity value
