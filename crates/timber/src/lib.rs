@@ -1,3 +1,10 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::panic,
+    )
+)]
+
 #![deny(missing_docs)]
 
 //! Defines the output format of traces, events, and spans produced
