@@ -410,9 +410,14 @@ impl CreationConfirmed {
             }
             Err(_) => {
                 let suggestion = RoverErrorSuggestion::Adhoc(
-                    format!("If the issue persists, please contact support at {}.", hyperlink("https://support.apollographql.com")).to_string()
+                    format!(
+                        "If the issue persists, please contact support at {}.",
+                        hyperlink("https://support.apollographql.com")
+                    )
+                    .to_string(),
                 );
-                let error = RoverError::from(RoverClientError::GraphProjectInitError).with_suggestion(suggestion);
+                let error = RoverError::from(RoverClientError::GraphProjectInitError)
+                    .with_suggestion(suggestion);
                 return Err(error);
             }
         };

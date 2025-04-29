@@ -129,8 +129,17 @@ impl Init {
 
             for attempt in 0..MAX_RETRIES {
                 if attempt >= MAX_RETRIES {
-                    let suggestion = RoverErrorSuggestion::Adhoc(format!("If the issue persists, please contact support at {}.", hyperlink("https://support.apollographql.com")).to_string());
-                    let error = RoverError::from(RoverClientError::MaxRetriesExceeded { max_retries: MAX_RETRIES }).with_suggestion(suggestion);
+                    let suggestion = RoverErrorSuggestion::Adhoc(
+                        format!(
+                            "If the issue persists, please contact support at {}.",
+                            hyperlink("https://support.apollographql.com")
+                        )
+                        .to_string(),
+                    );
+                    let error = RoverError::from(RoverClientError::MaxRetriesExceeded {
+                        max_retries: MAX_RETRIES,
+                    })
+                    .with_suggestion(suggestion);
                     return Err(error);
                 }
 

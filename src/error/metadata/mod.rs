@@ -39,7 +39,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
-                RoverClientError::InvalidJson(_) => (
+                &RoverClientError::InvalidJson(_) => (
+                    Some(RoverErrorSuggestion::SubmitIssue),
+                    Some(RoverErrorCode::E001),
+                ),
+                &RoverClientError::GraphProjectInitError => (
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E001),
                 ),
