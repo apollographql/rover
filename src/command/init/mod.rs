@@ -120,7 +120,11 @@ impl Init {
         }
 
         // Handle restart loop
-        if let CreateProjectResult::Restart { state: mut current_project, reason } = project_created {
+        if let CreateProjectResult::Restart {
+            state: mut current_project,
+            reason,
+        } = project_created
+        {
             const MAX_RETRIES: u8 = 3;
 
             for attempt in 0..MAX_RETRIES {
@@ -158,21 +162,22 @@ impl Init {
                     CreateProjectResult::Created(project) => {
                         return Ok(project.complete().success())
                     }
-                    CreateProjectResult::Restart { state: project_named, reason } => {
-                        match reason {
-                            RestartReason::FullRestart => {
-                                let welcome = UserAuthenticated::new()
-                                    .check_authentication(&client_config, &self.profile)
-                                    .await?;
-                                welcome.select_project_type(&self.project_type, &self.path)?;
-                                return Ok(RoverOutput::EmptySuccess);
-                            }
-                            _ => {
-                                current_project = project_named;
-                                continue;
-                            }
+                    CreateProjectResult::Restart {
+                        state: project_named,
+                        reason,
+                    } => match reason {
+                        RestartReason::FullRestart => {
+                            let welcome = UserAuthenticated::new()
+                                .check_authentication(&client_config, &self.profile)
+                                .await?;
+                            welcome.select_project_type(&self.project_type, &self.path)?;
+                            return Ok(RoverOutput::EmptySuccess);
                         }
-                    }
+                        _ => {
+                            current_project = project_named;
+                            continue;
+                        }
+                    },
                 }
             }
         }
