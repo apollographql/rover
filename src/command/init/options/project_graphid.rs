@@ -46,7 +46,7 @@ impl GraphIdOpt {
             match GraphId::from_str(input_to_validate) {
                 Ok(graph_id) => {
                     return Ok(graph_id);
-                },
+                }
                 Err(e) => {
                     let _ = self.handle_validation_error(e, attempt);
                 }
