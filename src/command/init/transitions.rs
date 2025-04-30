@@ -412,9 +412,11 @@ impl CreationConfirmed {
                     .to_string(),
                 );
                 let error = RoverError::from(RoverClientError::ClientError {
-                    msg: "Something went wrong on our end. This isn't your fault! Please try again.".to_string(),
+                    msg:
+                        "Something went wrong on our end. This isn't your fault! Please try again."
+                            .to_string(),
                 })
-                    .with_suggestion(suggestion);
+                .with_suggestion(suggestion);
                 return Err(error);
             }
         };
