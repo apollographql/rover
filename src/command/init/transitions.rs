@@ -11,6 +11,7 @@ use rover_client::RoverClientError;
 use rover_http::ReqwestService;
 use rover_std::Style;
 
+use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
@@ -50,16 +51,7 @@ impl UserAuthenticated {
             Ok(_) => {
                 let is_user_api_key = self.check_is_user_api_key(client_config, profile)?;
                 if !is_user_api_key {
-                    return Err(RoverError::new(anyhow!(
-                        "Invalid API key found."
-                    ))
-                    .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        format!(
-                            "If you have previously set a graph's API key as the environment variable `APOLLO_KEY`, unset the variable and run `{}` again.",
-                            Style::Command.paint("init")
-                        )
-                        .to_string(),
-                    )));
+                    return Err(auth_error_to_rover_error(AuthenticationError::NotUserKey));
                 };
 
                 Ok(Welcome::new())
@@ -71,10 +63,12 @@ impl UserAuthenticated {
                         // Try to authenticate again with the new credentials
                         match client_config.get_authenticated_client(profile) {
                             Ok(_) => Ok(Welcome::new()),
-                            Err(_) => Err(anyhow!("Failed to get authenticated client").into()),
+                            Err(_) => Err(auth_error_to_rover_error(
+                                AuthenticationError::SecondChanceAuthFailure,
+                            )),
                         }
                     }
-                    Err(e) => Err(anyhow!("Failed to set API key: {}", e).into()),
+                    Err(e) => Err(e),
                 }
             }
         }
@@ -164,20 +158,23 @@ impl ProjectTypeSelected {
         profile: &ProfileOpt,
         client_config: &StudioClientConfig,
     ) -> RoverResult<OrganizationSelected> {
-        let client = client_config.get_authenticated_client(profile)?;
+        let client = match client_config.get_authenticated_client(profile) {
+            Ok(client) => client,
+            Err(_) => {
+                return Err(auth_error_to_rover_error(
+                    AuthenticationError::NoCredentialsFound,
+                ));
+            }
+        };
+
+        // Try to get memberships
         let memberships_response = memberships::run(&client).await.map_err(|e| match e {
-            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => RoverError::new(
-                anyhow!("Invalid API key found."),
-            )
-            .with_suggestion(RoverErrorSuggestion::Adhoc(
-                format!(
-                    "Try running {} to reset your rover configuration",
-                    Style::Command.paint("rover config clear")
-                )
-                .to_string(),
-            )),
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
+                auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(msg))
+            }
             e => e.into(),
         })?;
+
         let organizations = memberships_response
             .memberships
             .iter()

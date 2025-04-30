@@ -2,11 +2,11 @@
 mod tests {
     use crate::command::init::config::ProjectConfig;
     use crate::command::init::graph_id::GraphId;
-    use crate::command::init::states::*;
-    use crate::options::{
+    use crate::command::init::options::{
         OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
-        ProjectUseCase, ProjectUseCaseOpt,
+        ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
     };
+    use crate::command::init::states::*;
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
@@ -327,5 +327,20 @@ mod tests {
         assert!(result.is_ok());
         let next_state_option = result.unwrap();
         assert!(next_state_option.is_none());
+    }
+
+    #[test]
+    fn test_project_type_dialog() {
+        let options = ProjectTypeOpt::default();
+
+        assert_eq!(options.get_project_type(), None);
+
+        let options_with_value = ProjectTypeOpt {
+            project_type: Some(ProjectType::CreateNew),
+        };
+        assert_eq!(
+            options_with_value.get_project_type(),
+            Some(ProjectType::CreateNew)
+        );
     }
 }
