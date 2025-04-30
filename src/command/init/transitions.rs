@@ -359,9 +359,8 @@ impl CreationConfirmed {
             Ok(client) => client,
             Err(_) => {
                 println!();
-                println!(
-                    "{} Invalid API key. Please authenticate again.",
-                    Style::Failure.paint("Error:")
+                errln!(
+                    "Invalid API key. Please authenticate again."
                 );
                 return Ok(CreateProjectResult::Restart {
                     state: ProjectNamed {
