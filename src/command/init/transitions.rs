@@ -393,9 +393,8 @@ impl CreationConfirmed {
             {
                 println!();
                 println!();
-                println!(
-                    "{} Graph ID is already in use. Please try again with a different graph ID.",
-                    Style::Failure.paint("Error:")
+                errln!(
+                    "Graph ID is already in use. Please try again with a different graph ID."
                 );
                 return Ok(CreateProjectResult::Restart {
                     state: ProjectNamed {
