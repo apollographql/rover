@@ -202,6 +202,9 @@ pub enum RoverClientError {
     #[error("You don't have the required permissions to perform this operation: {msg}.")]
     PermissionError { msg: String },
 
+    #[error("Failed to create graph after {max_retries} retries. Please try again.")]
+    MaxRetriesExceeded { max_retries: u8 },
+
     #[error(
         "You cannot perform this operation due to a limit imposed by your current billing plan"
     )]
@@ -245,6 +248,9 @@ pub enum RoverClientError {
 
     #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
     NonCloudGraphRef { graph_ref: GraphRef },
+
+    #[error("Something went wrong on our end. This isn't your fault! Please try again.")]
+    GraphProjectInitError,
 
     #[error("Service failed to become ready")]
     ServiceReady(Box<dyn std::error::Error + Send + Sync>),

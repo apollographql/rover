@@ -39,7 +39,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
-                RoverClientError::InvalidJson(_) => (
+                &RoverClientError::InvalidJson(_) => (
+                    Some(RoverErrorSuggestion::SubmitIssue),
+                    Some(RoverErrorCode::E001),
+                ),
+                &RoverClientError::GraphProjectInitError => (
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E001),
                 ),
@@ -320,6 +324,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
+                RoverClientError::MaxRetriesExceeded { .. } => (
+                    Some(RoverErrorSuggestion::ContactApolloSupport),
+                    Some(RoverErrorCode::E045),
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

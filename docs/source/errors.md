@@ -332,4 +332,8 @@ Please view the check in [Apollo Studio](https://studio.apollographql.com/) at t
 
 Offline enterprise license support for Apollo is available on an as-needed basis. It must be enabled on your Studio organization. For access, send a request to your Apollo contact.
 
+### E045
 
+This error occurs when Rover tries to [create a graph](/rover/commands/init) but fails.
+
+This is likely temporary. Please try again or contact [Apollo Support](https://support.apollographql.com) if the issue persists.

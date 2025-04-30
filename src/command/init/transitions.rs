@@ -9,6 +9,8 @@ use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_http::ReqwestService;
+use rover_std::errln;
+use rover_std::hyperlink;
 use rover_std::Style;
 
 use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
@@ -27,6 +29,21 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
+
+#[derive(Debug)]
+pub enum RestartReason {
+    GraphIdExists,
+    FullRestart,
+}
+
+#[derive(Debug)]
+pub enum CreateProjectResult {
+    Created(ProjectCreated),
+    Restart {
+        state: ProjectNamed,
+        reason: RestartReason,
+    },
+}
 
 const DEFAULT_VARIANT: &str = "current";
 
@@ -333,12 +350,29 @@ impl CreationConfirmed {
         self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
-    ) -> RoverResult<ProjectCreated> {
+    ) -> RoverResult<CreateProjectResult> {
+        println!();
         let spinner = Spinner::new(
             "Creating files and generating GraphOS credentials...",
             vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
         );
-        let client = client_config.get_authenticated_client(profile)?;
+        let client = match client_config.get_authenticated_client(profile) {
+            Ok(client) => client,
+            Err(_) => {
+                println!();
+                errln!("Invalid API key. Please authenticate again.");
+                return Ok(CreateProjectResult::Restart {
+                    state: ProjectNamed {
+                        output_path: self.output_path,
+                        project_type: self.config.project_type,
+                        organization: self.config.organization,
+                        use_case: self.config.use_case,
+                        project_name: self.config.project_name,
+                    },
+                    reason: RestartReason::FullRestart,
+                });
+            }
+        };
 
         let create_graph_response = match create_graph::run(
             CreateGraphInput {
@@ -355,12 +389,36 @@ impl CreationConfirmed {
             Err(RoverClientError::GraphCreationError { msg })
                 if msg.contains("Service already exists") =>
             {
-                return Err(RoverError::new(anyhow!(
-                    "Graph ID is already in use. Run {} again with a different graph ID.",
-                    Style::Command.paint("`rover init`")
-                )));
+                println!();
+                println!();
+                errln!("Graph ID is already in use. Please try again with a different graph ID.");
+                return Ok(CreateProjectResult::Restart {
+                    state: ProjectNamed {
+                        output_path: self.output_path,
+                        project_type: self.config.project_type,
+                        organization: self.config.organization,
+                        use_case: self.config.use_case,
+                        project_name: self.config.project_name,
+                    },
+                    reason: RestartReason::GraphIdExists,
+                });
             }
-            Err(e) => return Err(e.into()),
+            Err(_) => {
+                let suggestion = RoverErrorSuggestion::Adhoc(
+                    format!(
+                        "If the issue persists, please contact support at {}.",
+                        hyperlink("https://support.apollographql.com")
+                    )
+                    .to_string(),
+                );
+                let error = RoverError::from(RoverClientError::ClientError {
+                    msg:
+                        "Something went wrong on our end. This isn't your fault! Please try again."
+                            .to_string(),
+                })
+                .with_suggestion(suggestion);
+                return Err(error);
+            }
         };
 
         // Write the template files without asking for confirmation again
@@ -393,12 +451,12 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
-        Ok(ProjectCreated {
+        Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
             graph_ref,
-        })
+        }))
     }
 }
 

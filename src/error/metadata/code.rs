@@ -50,6 +50,7 @@ pub enum RoverErrorCode {
     E042,
     E043,
     E044,
+    E045,
 }
 
 impl Display for RoverErrorCode {
@@ -238,6 +239,10 @@ impl RoverErrorCode {
             (
                 RoverErrorCode::E044,
                 include_str!("./codes/E044.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E045,
+                include_str!("./codes/E045.md").to_string(),
             ),
         ];
         contents.into_iter().collect()

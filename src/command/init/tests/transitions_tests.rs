@@ -17,6 +17,7 @@ mod tests {
         #[derive(Clone, Default)]
         pub struct MockHttpService {}
 
+        #[derive(Clone)]
         pub struct MockTemplateFetcher {
             pub files: Vec<String>,
         }
@@ -42,7 +43,6 @@ mod tests {
 
         impl MockTemplateOperations {
             pub fn prompt_creation(_artifacts: Vec<String>) -> RoverResult<bool> {
-                // For testing, we'll return true always as if the user always confirmed
                 Ok(true)
             }
         }
