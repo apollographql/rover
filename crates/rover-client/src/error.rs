@@ -202,7 +202,7 @@ pub enum RoverClientError {
     #[error("You don't have the required permissions to perform this operation: {msg}.")]
     PermissionError { msg: String },
 
-    #[error("Failed to create project after {max_retries} retries. Please try again.")]
+    #[error("Failed to create graph after {max_retries} retries. Please try again.")]
     MaxRetriesExceeded { max_retries: u8 },
 
     #[error(
