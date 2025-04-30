@@ -334,6 +334,6 @@ Offline enterprise license support for Apollo is available on an as-needed basis
 
 ### E045
 
-This error occurs when Rover tries to create a project but creating the project fails.
+This error occurs when Rover tries to [create a graph](/rover/commands/init) but fails.
 
 This is likely a temporary issue and you can try again. If the problem persists, please contact [Apollo Support](https://support.apollographql.com).
