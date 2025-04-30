@@ -336,4 +336,4 @@ Offline enterprise license support for Apollo is available on an as-needed basis
 
 This error occurs when Rover tries to [create a graph](/rover/commands/init) but fails.
 
-This is likely a temporary issue and you can try again. If the problem persists, please contact [Apollo Support](https://support.apollographql.com).
+This is likely temporary. Please try again or contact [Apollo Support](https://support.apollographql.com) if the issue persists.
