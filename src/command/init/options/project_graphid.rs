@@ -48,7 +48,7 @@ impl GraphIdOpt {
                     return Ok(graph_id);
                 },
                 Err(e) => {
-                    self.handle_validation_error(e, attempt)?;
+                    let _ = self.handle_validation_error(e, attempt);
                 }
             }
 
