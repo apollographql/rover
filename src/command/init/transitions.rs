@@ -9,6 +9,7 @@ use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 use rover_http::ReqwestService;
+use rover_std::errln;
 use rover_std::hyperlink;
 use rover_std::Style;
 
@@ -359,9 +360,7 @@ impl CreationConfirmed {
             Ok(client) => client,
             Err(_) => {
                 println!();
-                errln!(
-                    "Invalid API key. Please authenticate again."
-                );
+                errln!("Invalid API key. Please authenticate again.");
                 return Ok(CreateProjectResult::Restart {
                     state: ProjectNamed {
                         output_path: self.output_path,
@@ -392,9 +391,7 @@ impl CreationConfirmed {
             {
                 println!();
                 println!();
-                errln!(
-                    "Graph ID is already in use. Please try again with a different graph ID."
-                );
+                errln!("Graph ID is already in use. Please try again with a different graph ID.");
                 return Ok(CreateProjectResult::Restart {
                     state: ProjectNamed {
                         output_path: self.output_path,
@@ -414,7 +411,9 @@ impl CreationConfirmed {
                     )
                     .to_string(),
                 );
-                let error = RoverError::from(RoverClientError::GraphProjectInitError)
+                let error = RoverError::from(RoverClientError::ClientError {
+                    msg: "Something went wrong on our end. This isn't your fault! Please try again.".to_string(),
+                })
                     .with_suggestion(suggestion);
                 return Err(error);
             }
