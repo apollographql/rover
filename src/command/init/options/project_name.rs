@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
-    #[arg(long = "project-name")]
+    #[arg(long = "project-name", short = 'n')]
     pub(crate) project_name: Option<ProjectName>,
 }
 

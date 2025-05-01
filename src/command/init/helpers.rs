@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use rover_std::{hyperlink, successln, Style};
+use rover_std::{hyperlink, infoln, successln, Style};
 
 pub fn display_welcome_message() {
     println!();
@@ -23,7 +23,7 @@ pub fn display_project_created_message(
     api_key: &str,
 ) {
     println!();
-    println!("{} All set! Your graph `{}` has been created. Please review details below to see what was generated.", Style::InfoPrefix.paint("=>"), Style::File.paint(project_name));
+    infoln!("All set! Your graph '{}' has been created. Please review details below to see what was generated.",Style::File.paint(project_name));
     println!();
     println!("{}", Style::Heading.paint("Files created:"));
 
@@ -37,7 +37,7 @@ pub fn display_project_created_message(
     );
     successln!(
         "{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)",
-        Style::Command.paint("APOLLO_GRAPH_REF"),
+        Style::GraphRef.paint("APOLLO_GRAPH_REF"),
         graph_ref
     );
     successln!(
@@ -60,7 +60,7 @@ pub fn display_project_created_message(
         ))
     );
     println!();
-    println!("For more information, check out `getting-started.md`.");
+    println!("For more information, check out 'getting-started.md'.");
     println!();
 }
 

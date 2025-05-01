@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct GraphIdOpt {
-    #[arg(long = "graph-id")]
+    #[arg(long = "graph-id", short = 'g')]
     pub graph_id: Option<String>,
 }
 

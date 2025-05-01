@@ -5,7 +5,7 @@ pub fn confirm_delete() -> std::io::Result<bool> {
 }
 
 pub fn prompt_confirm_default_no(message: &str) -> std::io::Result<bool> {
-    eprintln!("{} [y/N]", message);
+    eprintln!("{} [y/N]", &Style::Prompt.paint(message));
     let term = console::Term::stdout();
     let confirm = term.read_line()?;
     if confirm.to_lowercase() == *"y" {
@@ -16,7 +16,7 @@ pub fn prompt_confirm_default_no(message: &str) -> std::io::Result<bool> {
 }
 
 pub fn prompt_confirm_default_yes(message: &str) -> std::io::Result<bool> {
-    eprintln!("{} [Y/n]", message);
+    eprintln!("{} [Y/n]", &Style::Prompt.paint(message));
     let term = console::Term::stdout();
     let confirm = term.read_line()?;
     if confirm.to_lowercase() == *"n" {

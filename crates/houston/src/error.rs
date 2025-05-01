@@ -11,19 +11,19 @@ pub enum HoustonProblem {
     DefaultConfigDirNotFound,
 
     /// CouldNotCreateConfig occurs when a configuration directory could not be created.
-    #[error("Could not create a configuration directory at \"{0}\".")]
+    #[error("Could not create a configuration directory at '{0}'.")]
     CouldNotCreateConfigHome(String),
 
     /// InvalidOverrideConfigDir occurs when a user provides a path to a non-directory.
-    #[error("\"{0}\" already exists and is not a directory.")]
+    #[error("'{0}' already exists and is not a directory.")]
     InvalidOverrideConfigDir(String),
 
     /// NoConfigFound occurs when a global configuration directory can't be found.
-    #[error("Could not find a configuration directory at \"{0}\".")]
+    #[error("Could not find a configuration directory at '{0}'.")]
     NoConfigFound(String),
 
     /// ProfileNotFound occurs when a profile with a specified name can't be found.
-    #[error("There is no profile named \"{0}\".")]
+    #[error("There is no profile named '{0}'.")]
     ProfileNotFound(String),
 
     /// NoProfilesFound occurs when there are no profiles at all, often for new users
@@ -31,11 +31,11 @@ pub enum HoustonProblem {
     NoConfigProfiles,
 
     /// NoNonSensitiveConfigFound occurs when non-sensitive config can't be found for a profile.
-    #[error("No non-sensitive configuration found for profile \"{0}\".")]
+    #[error("No non-sensitive configuration found for profile '{0}'.")]
     NoNonSensitiveConfigFound(String),
 
     /// CorruptedProfile occurs on Windows when `rover config auth` was run with older versions of Rover.
-    #[error("The API key associated with profile \"{0}\" is corrupt.")]
+    #[error("The API key associated with profile '{0}' is corrupt.")]
     CorruptedProfile(String),
 
     /// PathNotUtf8 occurs when Houston encounters a file path that is not valid UTF-8
@@ -46,7 +46,7 @@ pub enum HoustonProblem {
     #[error(transparent)]
     TomlSerialization(#[from] toml::ser::Error),
 
-    /// TomlDeserialization occurs when a profile's configruation can't be deserialized from a String.
+    /// TomlDeserialization occurs when a profile's configuration can't be deserialized from a String.
     #[error(transparent)]
     TomlDeserialization(#[from] toml::de::Error),
 

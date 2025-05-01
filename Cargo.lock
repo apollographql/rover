@@ -5208,6 +5208,7 @@ dependencies = [
  "speculoos",
  "tap",
  "tempfile",
+ "termimad",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
