@@ -10,8 +10,6 @@ mod helpers;
 mod operations;
 pub mod options;
 #[cfg(feature = "composition-js")]
-pub mod spinner;
-#[cfg(feature = "composition-js")]
 pub mod states;
 #[cfg(feature = "init")]
 mod template_fetcher;
@@ -44,8 +42,8 @@ use transitions::{CreateProjectResult, RestartReason};
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
-    #[cfg(feature = "composition-js")]
     #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
     project_type: ProjectTypeOpt,
 
     #[clap(flatten)]

@@ -25,6 +25,7 @@ pub enum Style {
     WarningHeading,
     File,
     SuccessHeading,
+    GraphRef,
 }
 
 impl Style {
@@ -38,7 +39,9 @@ impl Style {
         match &self {
             Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
             Style::Link => style(message_ref).underlined().bold(),
-            Style::Command | Style::TotalOperationCount => style(message_ref).cyan(),
+            Style::Command | Style::TotalOperationCount | Style::GraphRef => {
+                style(message_ref).cyan()
+            }
             Style::Prompt => style(message_ref).bold(),
             Style::CallToAction => style(message_ref).yellow().italic(),
             Style::Failure => style(message_ref).red(),

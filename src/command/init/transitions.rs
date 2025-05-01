@@ -9,9 +9,7 @@ use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 #[cfg(not(feature = "init"))]
 use rover_http::ReqwestService;
-use rover_std::errln;
-use rover_std::hyperlink;
-use rover_std::Style;
+use rover_std::{errln, hyperlink, Spinner, Style};
 
 use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
 use crate::command::init::config::ProjectConfig;
@@ -20,7 +18,6 @@ use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::options::*;
-use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
@@ -396,10 +393,7 @@ impl CreationConfirmed {
         profile: &ProfileOpt,
     ) -> RoverResult<CreateProjectResult> {
         println!();
-        let spinner = Spinner::new(
-            "Creating files and generating GraphOS credentials...",
-            vec!['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
-        );
+        let spinner = Spinner::new("Creating files and generating GraphOS credentials...");
         let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
             Err(_) => {

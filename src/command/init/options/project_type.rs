@@ -9,7 +9,7 @@ use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTypeOpt {
-    #[arg(long = "project-type", value_enum)]
+    #[arg(long = "project-type", short = 't', value_enum)]
     pub project_type: Option<ProjectType>,
 }
 
