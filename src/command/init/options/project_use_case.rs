@@ -49,7 +49,7 @@ pub enum ProjectUseCase {
 }
 
 #[cfg(feature = "init")]
-const USE_CASE_DESCRIPTION: &str = "Select the type of project to start";
+const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
 #[cfg(not(feature = "init"))]
 const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries - coming soon";
 
