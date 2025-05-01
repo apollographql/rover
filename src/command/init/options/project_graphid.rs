@@ -36,9 +36,20 @@ impl GraphIdOpt {
         loop {
             let input = self.prompt_for_input(&suggested_id)?;
 
-            match GraphId::from_str(&input) {
-                Ok(graph_id) => return Ok(graph_id),
-                Err(e) => self.handle_validation_error(e, attempt)?,
+            // If the user just pressed Enter (empty input), use the suggested ID
+            let input_to_validate = if input.is_empty() {
+                &suggested_id
+            } else {
+                &input
+            };
+
+            match GraphId::from_str(input_to_validate) {
+                Ok(graph_id) => {
+                    return Ok(graph_id);
+                }
+                Err(e) => {
+                    let _ = self.handle_validation_error(e, attempt);
+                }
             }
 
             attempt += 1;
@@ -49,10 +60,14 @@ impl GraphIdOpt {
         let input = Input::<String>::new()
             .with_prompt(Style::Prompt.paint("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
             .with_initial_text(suggested_id.to_string())
-            .allow_empty(false)
+            .allow_empty(true)
             .interact_text()?;
 
-        Ok(input)
+        if input.is_empty() {
+            Ok(suggested_id.to_string())
+        } else {
+            Ok(input)
+        }
     }
 
     fn handle_validation_error(
