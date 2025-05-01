@@ -11,7 +11,7 @@ mod profile;
 
 mod schema;
 mod subgraph;
-mod template;
+pub(crate) mod template;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;

@@ -11,13 +11,14 @@ mod operations;
 pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod states;
+#[cfg(feature = "init")]
+mod template_fetcher;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
 #[cfg(all(test, feature = "composition-js"))]
 pub mod tests;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
-
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
@@ -33,6 +34,8 @@ use rover_client::RoverClientError;
 use rover_std::hyperlink;
 use serde::Serialize;
 use std::path::PathBuf;
+#[cfg(feature = "init")]
+pub use template_fetcher::{InitTemplateFetcher, Template};
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 
@@ -69,6 +72,7 @@ pub struct Init {
 
 impl Init {
     #[cfg(feature = "composition-js")]
+    #[cfg(not(feature = "init"))]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
@@ -149,6 +153,113 @@ impl Init {
                     Some(confirmed) => confirmed,
                     None => return Ok(RoverOutput::EmptySuccess),
                 };
+
+                match creation_confirmed
+                    .create_project(&client_config, &self.profile)
+                    .await?
+                {
+                    CreateProjectResult::Created(project) => {
+                        return Ok(project.complete().success())
+                    }
+                    CreateProjectResult::Restart {
+                        state: project_named,
+                        reason,
+                    } => match reason {
+                        RestartReason::FullRestart => {
+                            let welcome = UserAuthenticated::new()
+                                .check_authentication(&client_config, &self.profile)
+                                .await?;
+                            welcome.select_project_type(&self.project_type, &self.path)?;
+                            return Ok(RoverOutput::EmptySuccess);
+                        }
+                        _ => {
+                            current_project = project_named;
+                            continue;
+                        }
+                    },
+                }
+            }
+        }
+
+        Ok(RoverOutput::EmptySuccess)
+    }
+
+    #[cfg(feature = "composition-js")]
+    #[cfg(feature = "init")]
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        use crate::command::init::states::UserAuthenticated;
+        use helpers::display_use_template_message;
+        let welcome = UserAuthenticated::new()
+            .check_authentication(&client_config, &self.profile)
+            .await?;
+
+        let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
+
+        // Early return for AddSubgraph case
+        if project_type_selected.project_type == ProjectType::AddSubgraph {
+            display_use_template_message();
+            return Ok(RoverOutput::EmptySuccess);
+        }
+
+        // Handle new project creation flow
+        let use_case_selected = match project_type_selected
+            .select_organization(&self.organization, &self.profile, &client_config)
+            .await?
+            .select_use_case(&self.project_use_case)?
+        {
+            Some(use_case) => use_case,
+            None => return Ok(RoverOutput::EmptySuccess),
+        };
+
+        let creation_confirmed = match use_case_selected
+            .enter_project_name(&self.project_name)?
+            .confirm_graph_id(&self.graph_id)?
+            .preview_and_confirm_creation()
+            .await?
+        {
+            Some(confirmed) => confirmed,
+            None => return Ok(RoverOutput::EmptySuccess),
+        };
+
+        let project_created = creation_confirmed
+            .create_project(&client_config, &self.profile)
+            .await?;
+
+        // Handle project creation result
+        if let CreateProjectResult::Created(project) = project_created {
+            return Ok(project.complete().success());
+        }
+
+        // Handle restart loop
+        if let CreateProjectResult::Restart {
+            state: mut current_project,
+            reason: _,
+        } = project_created
+        {
+            const MAX_RETRIES: u8 = 3;
+
+            for attempt in 0..MAX_RETRIES {
+                if attempt >= MAX_RETRIES {
+                    let suggestion = RoverErrorSuggestion::Adhoc(
+                        format!(
+                            "If the issue persists, please contact support at {}.",
+                            hyperlink("https://support.apollographql.com")
+                        )
+                        .to_string(),
+                    );
+                    let error = RoverError::from(RoverClientError::MaxRetriesExceeded {
+                        max_retries: MAX_RETRIES,
+                    })
+                    .with_suggestion(suggestion);
+                    return Err(error);
+                }
+
+                let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
+                let creation_confirmed =
+                    match graph_id_confirmed.preview_and_confirm_creation().await? {
+                        Some(confirmed) => confirmed,
+                        None => return Ok(RoverOutput::EmptySuccess),
+                    };
 
                 match creation_confirmed
                     .create_project(&client_config, &self.profile)
