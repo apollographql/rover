@@ -51,7 +51,7 @@ pub struct TemplateFetcher {
 
 #[derive(Debug)]
 pub struct TemplateProject {
-    contents: Vec<u8>,
+    pub contents: Vec<u8>,
 }
 
 impl TemplateFetcher {
@@ -80,24 +80,8 @@ impl TemplateFetcher {
     }
 }
 
-impl TemplateProject {
-    pub fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
-        let cursor = Cursor::new(&self.contents);
-        let tar = flate2::read::GzDecoder::new(cursor);
-        let mut archive = tar::Archive::new(tar);
-
-        archive.unpack(template_path)?;
-
-        let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
-        if let Some(Ok(extra_dir_name)) = extra_dir_name {
-            Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
-            Fs::remove_dir_all(extra_dir_name.path())?;
-        }
-
-        Ok(())
-    }
-
-    pub fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
+impl TemplateListFiles for TemplateProject {
+    fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);
         let mut archive = tar::Archive::new(tar);
@@ -122,6 +106,32 @@ impl TemplateProject {
 
         Ok(files)
     }
+}
+
+impl TemplateWrite for TemplateProject {
+    fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
+        let cursor = Cursor::new(&self.contents);
+        let tar = flate2::read::GzDecoder::new(cursor);
+        let mut archive = tar::Archive::new(tar);
+
+        archive.unpack(template_path)?;
+
+        let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
+        if let Some(Ok(extra_dir_name)) = extra_dir_name {
+            Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
+            Fs::remove_dir_all(extra_dir_name.path())?;
+        }
+
+        Ok(())
+    }
+}
+
+pub trait TemplateListFiles {
+    fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>>;
+}
+
+pub trait TemplateWrite {
+    fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()>;
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]

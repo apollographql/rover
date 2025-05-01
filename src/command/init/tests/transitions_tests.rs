@@ -66,7 +66,7 @@ mod tests {
             organization: "test-org".parse::<OrganizationId>().ok(),
         };
 
-        let organizations = vec!["test-org".to_string(), "other-org".to_string()];
+        let organizations = ["test-org".to_string(), "other-org".to_string()];
 
         let result: RoverResult<OrganizationSelected> = {
             let organization = options.get_organization().unwrap();

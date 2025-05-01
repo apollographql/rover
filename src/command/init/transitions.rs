@@ -3,11 +3,11 @@ use std::{env, fs::read_dir, path::PathBuf};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use houston::Profile;
-use rover_client::operations::init::create_graph;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
+#[cfg(not(feature = "init"))]
 use rover_http::ReqwestService;
 use rover_std::errln;
 use rover_std::hyperlink;
@@ -23,7 +23,15 @@ use crate::command::init::options::*;
 use crate::command::init::spinner::Spinner;
 use crate::command::init::states::*;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-use crate::options::{ProfileOpt, TemplateFetcher};
+
+#[cfg(feature = "init")]
+use crate::command::init::InitTemplateFetcher;
+
+use crate::options::{TemplateListFiles, TemplateWrite};
+
+use crate::options::ProfileOpt;
+#[cfg(not(feature = "init"))]
+use crate::options::TemplateFetcher;
 use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
@@ -219,13 +227,6 @@ impl OrganizationSelected {
     ) -> RoverResult<Option<UseCaseSelected>> {
         let use_case = options.get_or_prompt_use_case()?;
 
-        if use_case == ProjectUseCase::GraphQLTemplate {
-            println!();
-            println!("This feature is coming soon!");
-            println!();
-            return Ok(None);
-        }
-
         Ok(Some(UseCaseSelected {
             output_path: self.output_path,
             project_type: self.project_type,
@@ -296,12 +297,16 @@ impl GraphIdConfirmed {
         }
     }
 
+    #[cfg(not(feature = "init"))]
     pub async fn preview_and_confirm_creation(
         self,
         http_service: ReqwestService,
     ) -> RoverResult<Option<CreationConfirmed>> {
         // If this is a GraphQL Template, we've already shown the message and can exit
         if self.use_case == ProjectUseCase::GraphQLTemplate {
+            println!();
+            println!("This feature is coming soon!");
+            println!();
             return Ok(None);
         }
 
@@ -327,7 +332,46 @@ impl GraphIdConfirmed {
                 // User confirmed, proceed to create files
                 Ok(Some(CreationConfirmed {
                     config,
-                    template: template_fetcher,
+                    selected_template: template_fetcher,
+                    output_path: self.output_path,
+                }))
+            }
+            Ok(false) => {
+                // User canceled
+                println!("Graph creation canceled. You can run this command again anytime.");
+                Ok(None)
+            }
+            Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
+        }
+    }
+
+    #[cfg(feature = "init")]
+    pub async fn preview_and_confirm_creation(self) -> RoverResult<Option<CreationConfirmed>> {
+        // Create the configuration
+        let config = self.create_config();
+
+        // Fetch the template to get the list of files
+        // setting this to main for now. but this should be a specific tag/branch once we introduce versioning
+        let repo_ref = "main";
+        let template = InitTemplateFetcher::new().call(repo_ref).await?;
+
+        let templates = template.list_templates();
+
+        // Determine the repository URL based on the use case
+        let template_id = match self.use_case {
+            ProjectUseCase::Connectors => "connectors",
+            ProjectUseCase::GraphQLTemplate => templates[1].id.as_str(),
+        };
+
+        // Get list of files that will be created
+        let template = template.select_template(template_id)?;
+
+        match TemplateOperations::prompt_creation(template.list_files()?) {
+            Ok(true) => {
+                // User confirmed, proceed to create files
+                Ok(Some(CreationConfirmed {
+                    config,
+                    selected_template: template,
                     output_path: self.output_path,
                 }))
             }
@@ -374,7 +418,7 @@ impl CreationConfirmed {
             }
         };
 
-        let create_graph_response = match create_graph::run(
+        let create_graph_response = match run(
             CreateGraphInput {
                 hidden_from_uninvited_non_admin: false,
                 create_graph_id: self.config.graph_id.to_string(),
@@ -423,12 +467,17 @@ impl CreationConfirmed {
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
-        self.template.write_template(&self.output_path)?;
+        self.selected_template.write_template(&self.output_path)?;
 
-        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5);
+        #[cfg(feature = "init")]
+        let routing_url = self.selected_template.template.routing_url.clone();
+        #[cfg(not(feature = "init"))]
+        let routing_url = "http://ignore".to_string();
+
+        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5, routing_url);
         supergraph.build_and_write()?;
 
-        let artifacts = self.template.list_files()?;
+        let artifacts = self.selected_template.list_files()?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
         let graph_ref = GraphRef {

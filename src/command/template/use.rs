@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::cli::Rover;
-use crate::options::{TemplateFetcher, TemplateOpt};
+use crate::options::{TemplateFetcher, TemplateOpt, TemplateWrite};
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
