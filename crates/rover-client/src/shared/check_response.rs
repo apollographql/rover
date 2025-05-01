@@ -3,7 +3,7 @@ use comfy_table::presets::UTF8_FULL;
 use comfy_table::Attribute::Bold;
 use comfy_table::CellAlignment::Center;
 use comfy_table::{Cell, Table};
-use rover_std::Style;
+use rover_std::{hyperlink, Style};
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -285,7 +285,7 @@ impl LintCheckResponse {
         }
         if let Some(url) = &self.target_url {
             msg.push_str("View linter check details at: ");
-            msg.push_str(&Style::Link.paint(url));
+            msg.push_str(&hyperlink(url.as_str()));
         }
 
         msg
@@ -353,7 +353,7 @@ impl ProposalsCheckResponse {
                 ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
                 ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
             },
-            ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overriden in Studio".to_string(),
+            ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overridden in Studio".to_string(),
             ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
         }
     }
@@ -445,7 +445,7 @@ impl CustomCheckResponse {
 
         if let Some(url) = &self.target_url {
             msg.push_str("View custom check details at: ");
-            msg.push_str(&Style::Link.paint(url));
+            msg.push_str(&hyperlink(url.as_str()));
         }
 
         msg
@@ -492,7 +492,7 @@ impl DownstreamCheckResponse {
 
         if let Some(url) = &self.target_url {
             msg.push_str("View downstream check details at: ");
-            msg.push_str(&Style::Link.paint(url));
+            msg.push_str(&hyperlink(url.as_str()));
         }
 
         msg

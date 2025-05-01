@@ -9,7 +9,7 @@ use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
-    #[arg(long = "project-use-case", value_enum)]
+    #[arg(long = "project-use-case", short = 'u', value_enum)]
     pub project_use_case: Option<ProjectUseCase>,
 }
 
