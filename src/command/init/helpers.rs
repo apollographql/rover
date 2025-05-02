@@ -57,7 +57,10 @@ pub fn display_project_created_message(
     );
     if let Some(command) = command {
         println!("1) Start the project: {}", Style::Command.paint(command));
-        println!("2) Start a local development session: {}", Style::Command.paint(dev_command));
+        println!(
+            "2) Start a local development session: {}",
+            Style::Command.paint(dev_command)
+        );
     } else {
         println!("Start a local development session:");
         println!("{}", Style::Command.paint(dev_command));
