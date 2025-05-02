@@ -76,7 +76,6 @@ mod tests {
     // TYPE-BASED AUTHENTICATION TESTS
 
     struct ApiKey {
-        key: String,
         key_type: KeyType,
     }
 
@@ -91,24 +90,20 @@ mod tests {
         fn parse(key: &str) -> Self {
             if key.is_empty() {
                 return ApiKey {
-                    key: key.to_string(),
                     key_type: KeyType::Invalid,
                 };
             }
 
             if key.starts_with("user:") {
                 ApiKey {
-                    key: key.to_string(),
                     key_type: KeyType::User,
                 }
             } else if key.starts_with("graph:") {
                 ApiKey {
-                    key: key.to_string(),
                     key_type: KeyType::Graph,
                 }
             } else {
                 ApiKey {
-                    key: key.to_string(),
                     key_type: KeyType::Invalid,
                 }
             }

@@ -12,16 +12,14 @@ mod tests {
     // AUTHENTICATION WORKFLOW SIMULATION
 
     struct AuthWorkflowSimulation {
-        initial_key: Option<String>,
         entered_key: Option<String>,
         authenticated: bool,
         error: Option<AuthenticationError>,
     }
 
     impl AuthWorkflowSimulation {
-        fn new(initial_key: Option<String>) -> Self {
+        fn new() -> Self {
             AuthWorkflowSimulation {
-                initial_key,
                 entered_key: None,
                 authenticated: false,
                 error: None,
@@ -92,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_successful_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("user:valid_key");
 
@@ -105,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_empty_key_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("");
 
@@ -118,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_invalid_format_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("invalid_format");
 
@@ -131,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_graph_key_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("user:graph_mistake");
 
@@ -144,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_invalid_credentials_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("user:invalid_credentials");
 
@@ -160,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_system_error_authentication_flow() {
-        let mut workflow = AuthWorkflowSimulation::new(None);
+        let mut workflow = AuthWorkflowSimulation::new();
 
         workflow.enter_key("user:system_error_key");
 
