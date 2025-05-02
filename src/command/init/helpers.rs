@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use rover_std::{hyperlink, infoln, successln, Style};
+use rover_std::{hyperlink, Style};
 
 pub fn display_welcome_message() {
     println!();
@@ -16,6 +16,82 @@ pub fn display_welcome_message() {
     println!();
 }
 
+pub fn generate_project_created_message(
+    project_name: &str,
+    artifacts: &[Utf8PathBuf],
+    graph_ref: &GraphRef,
+    api_key: &str,
+    command: Option<&str>,
+) -> String {
+    let mut output = String::new();
+    
+    // Add welcome message
+    output.push_str(&format!(
+        "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n\n",
+        Style::File.paint(project_name)
+    ));
+    
+    // Add files section only if there are artifacts
+    if !artifacts.is_empty() {
+        output.push_str(&format!("{}\n", Style::Heading.paint("Files created:")));
+        for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
+            output.push_str(&format!("{}\n", Style::Success.paint(artifact.to_string())));
+        }
+        output.push('\n');
+    }
+    
+    // Add credentials section
+    output.push_str(&format!("{}\n", Style::Heading.paint("GraphOS credentials for your graph")));
+    output.push_str(&format!(
+        "{}\n",
+        Style::Success.paint(format!(
+            "{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)",
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            graph_ref
+        ))
+    ));
+    output.push_str(&format!(
+        "{}\n",
+        Style::Success.paint(format!(
+            "{}={} (This is your graph's API key)",
+            Style::Command.paint("APOLLO_KEY"),
+            api_key
+        ))
+    ));
+    output.push('\n');
+    
+    // Add warning section
+    output.push_str(&format!("{}\n", Style::WarningHeading.paint("️▲ Before you proceed:")));
+    output.push_str("- Store your graph API key securely, you won't be able to access it again!\n\n");
+    
+    // Add next steps section
+    output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
+    let dev_command = if !artifacts.is_empty() {
+        format!(
+            "APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
+            api_key, graph_ref
+        )
+    } else {
+        format!(
+            "APOLLO_KEY={} rover dev --graph-ref {}",
+            api_key, graph_ref
+        )
+    };
+    if let Some(command) = command {
+        output.push_str(&format!("1) Start the project: {}\n", Style::Command.paint(command)));
+        output.push_str(&format!(
+            "2) Start a local development session: {}\n",
+            Style::Command.paint(dev_command)
+        ));
+    } else {
+        output.push_str("Start a local development session:\n");
+        output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
+    }
+    output.push_str("\nFor more information, check out 'getting-started.md'.\n\n");
+    
+    output
+}
+
 pub fn display_project_created_message(
     project_name: &str,
     artifacts: &[Utf8PathBuf],
@@ -23,51 +99,14 @@ pub fn display_project_created_message(
     api_key: &str,
     command: Option<&str>,
 ) {
-    println!();
-    infoln!("All set! Your graph '{}' has been created. Please review details below to see what was generated.",Style::File.paint(project_name));
-    println!();
-    println!("{}", Style::Heading.paint("Files created:"));
-
-    for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
-        successln!("{}", artifact);
-    }
-    println!();
-    println!(
-        "{}",
-        Style::Heading.paint("GraphOS credentials for your graph")
+    let message = generate_project_created_message(
+        project_name,
+        artifacts,
+        graph_ref,
+        api_key,
+        command,
     );
-    successln!(
-        "{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)",
-        Style::GraphRef.paint("APOLLO_GRAPH_REF"),
-        graph_ref
-    );
-    successln!(
-        "{}={} (This is your graph’s API key)",
-        Style::Command.paint("APOLLO_KEY"),
-        api_key
-    );
-    println!();
-    println!("{}", Style::WarningHeading.paint("️▲ Before you proceed:"));
-    println!("- Store your graph API key securely, you won’t be able to access it again!");
-    println!();
-    println!("{}", Style::Heading.paint("Next steps"));
-    let dev_command = format!(
-        "APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
-        api_key, graph_ref
-    );
-    if let Some(command) = command {
-        println!("1) Start the project: {}", Style::Command.paint(command));
-        println!(
-            "2) Start a local development session: {}",
-            Style::Command.paint(dev_command)
-        );
-    } else {
-        println!("Start a local development session:");
-        println!("{}", Style::Command.paint(dev_command));
-    }
-    println!();
-    println!("For more information, check out 'getting-started.md'.");
-    println!();
+    println!("{}", message);
 }
 
 pub fn display_use_template_message() {
