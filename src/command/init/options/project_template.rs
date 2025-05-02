@@ -1,3 +1,4 @@
+use crate::command::init::template_fetcher::Template;
 use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use clap::arg;
@@ -8,19 +9,6 @@ use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-
-pub struct Template {
-    name: String,
-    id: String,
-}
-
-impl Template {
-    pub fn new(name: String, id: String) -> Self {
-        Self { name, id }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TemplateId(String);
@@ -60,13 +48,13 @@ impl ProjectTemplateOpt {
             return Ok(TemplateId(templates[0].id.to_string()));
         }
         // otherwise, let user select from list of templates
-        let template_names = templates
+        let template_display_names = templates
             .iter()
-            .map(|t| t.name.as_str())
+            .map(|t| t.display_name.as_str())
             .collect::<Vec<_>>();
         let selection = Select::new()
             .with_prompt(Style::Prompt.paint("? Select a language and server library template"))
-            .items(&template_names)
+            .items(&template_display_names)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
 

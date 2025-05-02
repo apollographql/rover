@@ -1,8 +1,6 @@
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
-use crate::command::init::options::{
-    OrganizationId, ProjectName, ProjectType, ProjectUseCase, TemplateId,
-};
+use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
 #[cfg(feature = "init")]
 use crate::command::init::Template;
 #[cfg(not(feature = "init"))]
@@ -39,12 +37,13 @@ pub struct UseCaseSelected {
     pub use_case: ProjectUseCase,
 }
 
+#[cfg(feature = "init")]
 pub struct TemplateSelected {
     pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: OrganizationId,
     pub use_case: ProjectUseCase,
-    pub template_id: TemplateId,
+    pub selected_template: SelectedTemplateState,
 }
 
 #[derive(Debug)]
@@ -53,7 +52,8 @@ pub struct ProjectNamed {
     pub project_type: ProjectType,
     pub organization: OrganizationId,
     pub use_case: ProjectUseCase,
-    pub template_id: TemplateId,
+    #[cfg(feature = "init")]
+    pub selected_template: SelectedTemplateState,
     pub project_name: ProjectName,
 }
 
@@ -65,7 +65,8 @@ pub struct GraphIdConfirmed {
     pub use_case: ProjectUseCase,
     pub project_name: ProjectName,
     pub graph_id: GraphId,
-    pub template_id: TemplateId,
+    #[cfg(feature = "init")]
+    pub selected_template: SelectedTemplateState,
 }
 
 #[derive(Debug)]

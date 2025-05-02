@@ -240,38 +240,40 @@ impl OrganizationSelected {
 /// > Template A
 /// > Template B
 /// > Template C
+#[cfg(feature = "init")]
 impl UseCaseSelected {
-    pub fn select_template(
+    pub async fn select_template(
         self,
         options: &ProjectTemplateOpt,
-        // http_service: ReqwestService,
     ) -> RoverResult<TemplateSelected> {
-        // TODO: fetch the template manifest
-        // // Fetch the template to get the list of files
-        // let template_fetcher = TemplateFetcher::new(http_service)
-        // .call(repo_url.parse()?)
-        // .await?;
+        // Fetch the template to get the list of files
+        // TODO: setting this to main for now. but this should be a specific tag/branch once we introduce versioning
+        let repo_ref = "main";
+        let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
-        let templates = match self.use_case {
-            ProjectUseCase::Connectors => vec![Template::new(
-                "connectors".to_string(),
-                "connectors".to_string(),
-            )],
-            ProjectUseCase::GraphQLTemplate => vec![Template::new(
-                "typescript".to_string(),
-                "typescript".to_string(),
-            )],
+        let selected_template: SelectedTemplateState = match self.use_case {
+            // Select the `connectors` template if using use_case is Connectors
+            ProjectUseCase::Connectors => template_fetcher.select_template("connectors")?,
+            // Otherwise, filter out the `connectors` template & show list of all others
+            ProjectUseCase::GraphQLTemplate => {
+                let templates = template_fetcher
+                    .list_templates()
+                    .iter()
+                    .filter(|&t| t.id != "connectors")
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let template_id = options.get_or_prompt_template(&templates)?;
+                template_fetcher.select_template(&template_id.to_string())?
+            }
         };
-
-        let template_id = options.get_or_prompt_template(&templates)?;
 
         Ok(TemplateSelected {
             output_path: self.output_path,
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
-            template_id,
+            selected_template,
         })
     }
 }
@@ -280,6 +282,7 @@ impl UseCaseSelected {
 /// =========
 ///
 /// ? Name your Graph:
+#[cfg(feature = "init")]
 impl TemplateSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
@@ -289,7 +292,26 @@ impl TemplateSelected {
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
-            template_id: self.template_id,
+            selected_template: self.selected_template,
+            project_name,
+        })
+    }
+}
+
+/// PROMPT UX:
+/// =========
+///
+/// ? Name your Graph:
+#[cfg(not(feature = "init"))]
+impl UseCaseSelected {
+    pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
+        let project_name = options.get_or_prompt_project_name()?;
+
+        Ok(ProjectNamed {
+            output_path: self.output_path,
+            project_type: self.project_type,
+            organization: self.organization,
+            use_case: self.use_case,
             project_name,
         })
     }
@@ -308,7 +330,8 @@ impl ProjectNamed {
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
-            template_id: self.template_id,
+            #[cfg(feature = "init")]
+            selected_template: self.selected_template,
             project_name: self.project_name,
             graph_id,
         })
@@ -354,7 +377,7 @@ impl GraphIdConfirmed {
 
         // Create the configuration
         let config = self.create_config();
-
+        #[cfg(feature = "init")]
         tracing::debug!("Selected template: {}", self.template_id);
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
@@ -393,28 +416,12 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
 
-        // Fetch the template to get the list of files
-        // setting this to main for now. but this should be a specific tag/branch once we introduce versioning
-        let repo_ref = "main";
-        let template = InitTemplateFetcher::new().call(repo_ref).await?;
-
-        let templates = template.list_templates();
-
-        // Determine the repository URL based on the use case
-        let template_id = match self.use_case {
-            ProjectUseCase::Connectors => "connectors",
-            ProjectUseCase::GraphQLTemplate => templates[1].id.as_str(),
-        };
-
-        // Get list of files that will be created
-        let template = template.select_template(template_id)?;
-
-        match TemplateOperations::prompt_creation(template.list_files()?) {
+        match TemplateOperations::prompt_creation(self.selected_template.list_files()?) {
             Ok(true) => {
                 // User confirmed, proceed to create files
                 Ok(Some(CreationConfirmed {
                     config,
-                    selected_template: template,
+                    selected_template: self.selected_template,
                     output_path: self.output_path,
                 }))
             }
@@ -451,6 +458,8 @@ impl CreationConfirmed {
                         project_type: self.config.project_type,
                         organization: self.config.organization,
                         use_case: self.config.use_case,
+                        #[cfg(feature = "init")]
+                        selected_template: self.selected_template,
                         project_name: self.config.project_name,
                     },
                     reason: RestartReason::FullRestart,
@@ -482,6 +491,8 @@ impl CreationConfirmed {
                         project_type: self.config.project_type,
                         organization: self.config.organization,
                         use_case: self.config.use_case,
+                        #[cfg(feature = "init")]
+                        selected_template: self.selected_template,
                         project_name: self.config.project_name,
                     },
                     reason: RestartReason::GraphIdExists,

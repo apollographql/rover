@@ -7,6 +7,7 @@ mod project_name;
 #[cfg(feature = "composition-js")]
 mod project_organization;
 #[cfg(feature = "composition-js")]
+#[cfg(feature = "init")]
 mod project_template;
 #[cfg(feature = "composition-js")]
 mod project_type;
@@ -22,6 +23,7 @@ pub(crate) use project_name::*;
 #[cfg(feature = "composition-js")]
 pub(crate) use project_organization::*;
 #[cfg(feature = "composition-js")]
+#[cfg(feature = "init")]
 pub(crate) use project_template::*;
 #[cfg(feature = "composition-js")]
 pub(crate) use project_type::*;

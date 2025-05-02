@@ -1,18 +1,17 @@
 use std::collections::HashMap;
 use std::io::Read;
 
+use crate::command::init::states::SelectedTemplateState;
+use crate::options::{TemplateListFiles, TemplateWrite};
+use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+use rover_client::operations::init::github::{GetTarRequest, GitHubService};
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::str::FromStr;
 use tower::Service;
-
-use crate::command::init::states::SelectedTemplateState;
-use crate::options::{TemplateListFiles, TemplateWrite};
-use crate::{RoverError, RoverResult};
-use rover_client::operations::init::github::{GetTarRequest, GitHubService};
-use rover_std::Fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
