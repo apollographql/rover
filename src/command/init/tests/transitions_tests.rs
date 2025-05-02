@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "init")]
     use std::collections::HashMap;
 
     use crate::command::init::config::ProjectConfig;
@@ -8,7 +9,9 @@ mod tests {
         OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
         ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
     };
-    use crate::command::init::{states::*, Template, TemplateId};
+    use crate::command::init::states::*;
+    #[cfg(feature = "init")]
+    use crate::command::init::template_fetcher::{Template, TemplateId};
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
@@ -252,7 +255,6 @@ mod tests {
                 },
                 files: HashMap::new(),
             },
-            
         };
 
         let config = ProjectConfig {

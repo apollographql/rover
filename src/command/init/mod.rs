@@ -12,7 +12,6 @@ pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod states;
 #[cfg(feature = "composition-js")]
-#[cfg(feature = "init")]
 mod template_fetcher;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
@@ -46,9 +45,11 @@ use rover_client::RoverClientError;
 use rover_std::hyperlink;
 use serde::Serialize;
 use std::path::PathBuf;
+
 #[cfg(feature = "composition-js")]
 #[cfg(feature = "init")]
-pub use template_fetcher::{InitTemplateFetcher, Template, TemplateId};
+pub use template_fetcher::InitTemplateFetcher;
+
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 

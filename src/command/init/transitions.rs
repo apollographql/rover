@@ -19,6 +19,8 @@ use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::options::*;
 use crate::command::init::states::*;
+#[cfg(feature = "init")]
+use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
 #[cfg(feature = "init")]
@@ -34,8 +36,6 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
-
-use super::TemplateId;
 
 #[derive(Debug)]
 pub enum RestartReason {

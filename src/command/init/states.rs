@@ -2,7 +2,7 @@ use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
 use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
 #[cfg(feature = "init")]
-use crate::command::init::Template;
+use crate::command::init::template_fetcher::Template;
 #[cfg(not(feature = "init"))]
 use crate::options::TemplateProject;
 use camino::Utf8PathBuf;

@@ -1,17 +1,28 @@
+#[cfg(feature = "init")]
 use std::collections::HashMap;
+#[cfg(feature = "init")]
 use std::io::Read;
 
+#[cfg(feature = "init")]
 use crate::command::init::states::SelectedTemplateState;
+#[cfg(feature = "init")]
 use crate::options::{TemplateListFiles, TemplateWrite};
+#[cfg(feature = "init")]
 use crate::{RoverError, RoverResult};
+#[cfg(feature = "init")]
 use anyhow::anyhow;
+#[cfg(feature = "init")]
 use camino::Utf8PathBuf;
+#[cfg(feature = "init")]
 use rover_client::operations::init::github::{GetTarRequest, GitHubService};
+#[cfg(feature = "init")]
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+#[cfg(feature = "init")]
 use std::io::Cursor;
 use std::str::FromStr;
+#[cfg(feature = "init")]
 use tower::Service;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,12 +60,14 @@ pub struct Template {
     pub command: Option<String>,
 }
 
+#[cfg(feature = "init")]
 #[derive(Debug)]
 pub struct InitTemplateOptions {
     pub contents: Vec<u8>,
     pub manifest: TemplateManifest,
 }
 
+#[cfg(feature = "init")]
 impl InitTemplateOptions {
     pub fn list_templates(&self) -> &[Template] {
         &self.manifest.templates
@@ -123,11 +136,13 @@ impl InitTemplateOptions {
     }
 }
 
+#[cfg(feature = "init")]
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
     service: GitHubService,
 }
 
+#[cfg(feature = "init")]
 impl InitTemplateFetcher {
     pub fn new() -> Self {
         Self {
@@ -174,12 +189,14 @@ impl InitTemplateFetcher {
     }
 }
 
+#[cfg(feature = "init")]
 impl TemplateListFiles for SelectedTemplateState {
     fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         Ok(self.files.keys().cloned().collect())
     }
 }
 
+#[cfg(feature = "init")]
 impl TemplateWrite for SelectedTemplateState {
     fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
         for (path, contents) in &self.files {
