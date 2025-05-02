@@ -35,6 +35,8 @@ use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
 
+use super::TemplateId;
+
 #[derive(Debug)]
 pub enum RestartReason {
     GraphIdExists,
@@ -236,7 +238,7 @@ impl OrganizationSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Select a language and server library template:
+/// ? Select a language and server library:
 /// > Template A
 /// > Template B
 /// > Template C
@@ -254,17 +256,19 @@ impl UseCaseSelected {
         // Determine the list of templates based on the use case
         let selected_template: SelectedTemplateState = match self.use_case {
             // Select the `connectors` template if using use_case is Connectors
-            ProjectUseCase::Connectors => template_fetcher.select_template("connectors")?,
+            ProjectUseCase::Connectors => {
+                template_fetcher.select_template(&TemplateId("connectors".to_string()))?
+            }
             // Otherwise, filter out the `connectors` template & show list of all others
             ProjectUseCase::GraphQLTemplate => {
                 let templates = template_fetcher
                     .list_templates()
                     .iter()
-                    .filter(|&t| t.id != "connectors")
+                    .filter(|&t| t.id != TemplateId("connectors".to_string()))
                     .cloned()
                     .collect::<Vec<_>>();
                 let template_id = options.get_or_prompt_template(&templates)?;
-                template_fetcher.select_template(&template_id.to_string())?
+                template_fetcher.select_template(&template_id)?
             }
         };
 

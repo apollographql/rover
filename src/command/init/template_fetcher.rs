@@ -9,6 +9,7 @@ use camino::Utf8PathBuf;
 use rover_client::operations::init::github::{GetTarRequest, GitHubService};
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::io::Cursor;
 use std::str::FromStr;
 use tower::Service;
@@ -18,9 +19,26 @@ pub struct TemplateManifest {
     pub templates: Vec<Template>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TemplateId(pub String);
+
+impl FromStr for TemplateId {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        Ok(TemplateId(input.to_string()))
+    }
+}
+
+impl fmt::Display for TemplateId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
-    pub id: String,
+    pub id: TemplateId,
     pub display_name: String,
     pub path: String,
     pub language: String,
@@ -42,12 +60,12 @@ impl InitTemplateOptions {
         &self.manifest.templates
     }
 
-    pub fn select_template(&self, template_id: &str) -> RoverResult<SelectedTemplateState> {
+    pub fn select_template(&self, template_id: &TemplateId) -> RoverResult<SelectedTemplateState> {
         let template = self
             .manifest
             .templates
             .iter()
-            .find(|t| t.id == template_id)
+            .find(|t| t.id == *template_id)
             .ok_or_else(|| {
                 RoverError::new(anyhow!("Template with id '{}' not found", template_id))
             })?;

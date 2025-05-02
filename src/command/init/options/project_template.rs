@@ -1,4 +1,4 @@
-use crate::command::init::template_fetcher::Template;
+use crate::command::init::template_fetcher::{Template, TemplateId};
 use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use clap::arg;
@@ -7,25 +7,6 @@ use console::Term;
 use dialoguer::Select;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TemplateId(String);
-
-impl FromStr for TemplateId {
-    type Err = String;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(TemplateId(input.to_string()))
-    }
-}
-
-impl fmt::Display for TemplateId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTemplateOpt {

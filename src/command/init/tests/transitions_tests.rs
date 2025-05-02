@@ -1,12 +1,14 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::command::init::config::ProjectConfig;
     use crate::command::init::graph_id::GraphId;
     use crate::command::init::options::{
         OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
         ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
     };
-    use crate::command::init::states::*;
+    use crate::command::init::{states::*, Template, TemplateId};
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
     use camino::Utf8PathBuf;
@@ -143,6 +145,20 @@ mod tests {
                 organization: use_case_selected.organization.clone(),
                 use_case: use_case_selected.use_case.clone(),
                 project_name,
+                #[cfg(feature = "init")]
+                selected_template: SelectedTemplateState {
+                    template: Template {
+                        id: TemplateId("connectors".to_string()),
+                        display_name: "Start with REST".to_string(),
+                        path: "start-with-rest".to_string(),
+                        language: "GraphQL".to_string(),
+                        federation_version: "=2.10.0".to_string(),
+                        max_schema_depth: 5,
+                        routing_url: "http://ignore".to_string(),
+                        command: None,
+                    },
+                    files: HashMap::new(),
+                },
             })
         };
 
@@ -167,6 +183,20 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
+            #[cfg(feature = "init")]
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("connectors".to_string()),
+                    display_name: "Start with REST".to_string(),
+                    path: "start-with-rest".to_string(),
+                    language: "GraphQL".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://ignore".to_string(),
+                    command: None,
+                },
+                files: HashMap::new(),
+            },
             project_name: "test-graph".parse().unwrap(),
         };
 
@@ -178,6 +208,8 @@ mod tests {
                 organization: project_named.organization.clone(),
                 use_case: project_named.use_case.clone(),
                 project_name: project_named.project_name.clone(),
+                #[cfg(feature = "init")]
+                selected_template: project_named.selected_template,
                 graph_id,
             })
         };
@@ -206,6 +238,21 @@ mod tests {
             use_case: ProjectUseCase::Connectors,
             project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
+            #[cfg(feature = "init")]
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("connectors".to_string()),
+                    display_name: "Start with REST".to_string(),
+                    path: "start-with-rest".to_string(),
+                    language: "GraphQL".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://ignore".to_string(),
+                    command: None,
+                },
+                files: HashMap::new(),
+            },
+            
         };
 
         let config = ProjectConfig {
@@ -238,6 +285,20 @@ mod tests {
             use_case: ProjectUseCase::Connectors,
             project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
+            #[cfg(feature = "init")]
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("connectors".to_string()),
+                    display_name: "Start with REST".to_string(),
+                    path: "start-with-rest".to_string(),
+                    language: "GraphQL".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://ignore".to_string(),
+                    command: None,
+                },
+                files: HashMap::new(),
+            },
         };
 
         let http_service = mock::MockHttpService::default();
@@ -297,6 +358,20 @@ mod tests {
             project_name: "test-graph".parse::<ProjectName>().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
             output_path: ".".into(),
+            #[cfg(feature = "init")]
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("connectors".to_string()),
+                    display_name: "Start with REST".to_string(),
+                    path: "start-with-rest".to_string(),
+                    language: "GraphQL".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://ignore".to_string(),
+                    command: None,
+                },
+                files: HashMap::new(),
+            },
         };
 
         let http_service = mock::MockHttpService::default();

@@ -48,7 +48,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 #[cfg(feature = "composition-js")]
 #[cfg(feature = "init")]
-pub use template_fetcher::{InitTemplateFetcher, Template};
+pub use template_fetcher::{InitTemplateFetcher, Template, TemplateId};
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 

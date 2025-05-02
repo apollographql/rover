@@ -126,6 +126,7 @@ impl TemplateWrite for TemplateProject {
         Ok(())
     }
 }
+
 #[cfg(feature = "composition-js")]
 pub trait TemplateListFiles {
     fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>>;
