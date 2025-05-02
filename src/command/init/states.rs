@@ -4,7 +4,7 @@ use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, Pr
 #[cfg(feature = "init")]
 use crate::command::init::template_fetcher::Template;
 #[cfg(not(feature = "init"))]
-use crate::options::TemplateProject;
+use crate::options::template::TemplateProject;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 #[cfg(feature = "init")]
@@ -91,6 +91,8 @@ pub struct ProjectCreated {
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
     pub graph_ref: GraphRef,
+    #[cfg(feature = "init")]
+    pub template: Option<Template>,
 }
 
 #[derive(Debug)]
