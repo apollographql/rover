@@ -29,17 +29,15 @@ fn test_display_project_created_message_with_command() {
     let api_key = "test-api-key";
     let command = Some("npm start");
 
-    let output = generate_project_created_message(
-        project_name,
-        &artifacts,
-        &graph_ref,
-        api_key,
-        command,
-    );
+    let output =
+        generate_project_created_message(project_name, &artifacts, &graph_ref, api_key, command);
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("All set! Your graph '{}' has been created", project_name)));
+    assert!(plain_output.contains(&format!(
+        "All set! Your graph '{}' has been created",
+        project_name
+    )));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains("getting-started.md"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
@@ -57,17 +55,15 @@ fn test_display_project_created_message_without_command() {
     let api_key = "test-api-key";
     let command = None;
 
-    let output = generate_project_created_message(
-        project_name,
-        &artifacts,
-        &graph_ref,
-        api_key,
-        command,
-    );
+    let output =
+        generate_project_created_message(project_name, &artifacts, &graph_ref, api_key, command);
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("All set! Your graph '{}' has been created", project_name)));
+    assert!(plain_output.contains(&format!(
+        "All set! Your graph '{}' has been created",
+        project_name
+    )));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", api_key)));
@@ -85,21 +81,19 @@ fn test_display_project_created_message_with_empty_artifacts() {
     let api_key = "test-api-key";
     let command = None;
 
-    let output = generate_project_created_message(
-        project_name,
-        &artifacts,
-        &graph_ref,
-        api_key,
-        command,
-    );
+    let output =
+        generate_project_created_message(project_name, &artifacts, &graph_ref, api_key, command);
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("All set! Your graph '{}' has been created", project_name)));
+    assert!(plain_output.contains(&format!(
+        "All set! Your graph '{}' has been created",
+        project_name
+    )));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", api_key)));
     // Should not contain the files section
     assert!(!plain_output.contains("Files created:"));
     // Should not contain supergraph.yaml in the files section
     assert!(!plain_output.contains("supergraph.yaml\n"));
-} 
+}

@@ -24,24 +24,27 @@ pub fn generate_project_created_message(
     command: Option<&str>,
 ) -> String {
     let mut output = String::new();
-    
+
     // Add welcome message
     output.push_str(&format!(
         "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n\n",
         Style::File.paint(project_name)
     ));
-    
+
     // Add files section only if there are artifacts
     if !artifacts.is_empty() {
         output.push_str(&format!("{}\n", Style::Heading.paint("Files created:")));
         for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
-            output.push_str(&format!("{}\n", Style::Success.paint(artifact.to_string())));
+            output.push_str(&format!("{}\n", Style::Success.paint(artifact)));
         }
         output.push('\n');
     }
-    
+
     // Add credentials section
-    output.push_str(&format!("{}\n", Style::Heading.paint("GraphOS credentials for your graph")));
+    output.push_str(&format!(
+        "{}\n",
+        Style::Heading.paint("GraphOS credentials for your graph")
+    ));
     output.push_str(&format!(
         "{}\n",
         Style::Success.paint(format!(
@@ -59,11 +62,15 @@ pub fn generate_project_created_message(
         ))
     ));
     output.push('\n');
-    
+
     // Add warning section
-    output.push_str(&format!("{}\n", Style::WarningHeading.paint("️▲ Before you proceed:")));
-    output.push_str("- Store your graph API key securely, you won't be able to access it again!\n\n");
-    
+    output.push_str(&format!(
+        "{}\n",
+        Style::WarningHeading.paint("️▲ Before you proceed:")
+    ));
+    output
+        .push_str("- Store your graph API key securely, you won't be able to access it again!\n\n");
+
     // Add next steps section
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
     let dev_command = if !artifacts.is_empty() {
@@ -72,13 +79,13 @@ pub fn generate_project_created_message(
             api_key, graph_ref
         )
     } else {
-        format!(
-            "APOLLO_KEY={} rover dev --graph-ref {}",
-            api_key, graph_ref
-        )
+        format!("APOLLO_KEY={} rover dev --graph-ref {}", api_key, graph_ref)
     };
     if let Some(command) = command {
-        output.push_str(&format!("1) Start the project: {}\n", Style::Command.paint(command)));
+        output.push_str(&format!(
+            "1) Start the project: {}\n",
+            Style::Command.paint(command)
+        ));
         output.push_str(&format!(
             "2) Start a local development session: {}\n",
             Style::Command.paint(dev_command)
@@ -88,7 +95,7 @@ pub fn generate_project_created_message(
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
     output.push_str("\nFor more information, check out 'getting-started.md'.\n\n");
-    
+
     output
 }
 
@@ -99,13 +106,8 @@ pub fn display_project_created_message(
     api_key: &str,
     command: Option<&str>,
 ) {
-    let message = generate_project_created_message(
-        project_name,
-        artifacts,
-        graph_ref,
-        api_key,
-        command,
-    );
+    let message =
+        generate_project_created_message(project_name, artifacts, graph_ref, api_key, command);
     println!("{}", message);
 }
 
