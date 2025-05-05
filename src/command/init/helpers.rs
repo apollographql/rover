@@ -95,7 +95,10 @@ pub fn generate_project_created_message(
         output.push_str("Start a local development session:\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
-    output.push_str(&format!("\nFor more information, check out '{}'.\n\n", start_point_file));
+    output.push_str(&format!(
+        "\nFor more information, check out '{}'.\n\n",
+        start_point_file
+    ));
 
     output
 }

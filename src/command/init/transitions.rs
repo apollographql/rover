@@ -598,7 +598,9 @@ impl ProjectCreated {
             &self.graph_ref,
             &self.api_key.to_string(),
             #[cfg(feature = "init")]
-            self.template.as_ref().map_or("getting-started.md", |t| &t.start_point_file),
+            self.template
+                .as_ref()
+                .map_or("getting-started.md", |t| &t.start_point_file),
             #[cfg(not(feature = "init"))]
             "getting-started.md",
         );

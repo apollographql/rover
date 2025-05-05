@@ -86,6 +86,7 @@ pub struct CreationConfirmed {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
