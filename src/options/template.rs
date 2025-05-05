@@ -80,6 +80,7 @@ impl TemplateFetcher {
     }
 }
 
+#[cfg(feature = "composition-js")]
 impl TemplateListFiles for TemplateProject {
     fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         let cursor = Cursor::new(&self.contents);
@@ -126,6 +127,7 @@ impl TemplateWrite for TemplateProject {
     }
 }
 
+#[cfg(feature = "composition-js")]
 pub trait TemplateListFiles {
     fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>>;
 }

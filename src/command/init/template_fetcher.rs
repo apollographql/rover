@@ -1,27 +1,55 @@
+#[cfg(feature = "init")]
 use std::collections::HashMap;
+#[cfg(feature = "init")]
 use std::io::Read;
 
+#[cfg(feature = "init")]
+use crate::command::init::states::SelectedTemplateState;
+#[cfg(feature = "init")]
+use crate::options::{TemplateListFiles, TemplateWrite};
+#[cfg(feature = "init")]
+use crate::{RoverError, RoverResult};
+#[cfg(feature = "init")]
 use anyhow::anyhow;
+#[cfg(feature = "init")]
 use camino::Utf8PathBuf;
+#[cfg(feature = "init")]
+use rover_client::operations::init::github::{GetTarRequest, GitHubService};
+#[cfg(feature = "init")]
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+#[cfg(feature = "init")]
 use std::io::Cursor;
 use std::str::FromStr;
+#[cfg(feature = "init")]
 use tower::Service;
-
-use crate::command::init::states::SelectedTemplateState;
-use crate::options::{TemplateListFiles, TemplateWrite};
-use crate::{RoverError, RoverResult};
-use rover_client::operations::init::github::{GetTarRequest, GitHubService};
-use rover_std::Fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
     pub templates: Vec<Template>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TemplateId(pub String);
+
+impl FromStr for TemplateId {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        Ok(TemplateId(input.to_string()))
+    }
+}
+
+impl fmt::Display for TemplateId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
-    pub id: String,
+    pub id: TemplateId,
     pub display_name: String,
     pub path: String,
     pub language: String,
@@ -32,23 +60,25 @@ pub struct Template {
     pub command: Option<String>,
 }
 
+#[cfg(feature = "init")]
 #[derive(Debug)]
 pub struct InitTemplateOptions {
     pub contents: Vec<u8>,
     pub manifest: TemplateManifest,
 }
 
+#[cfg(feature = "init")]
 impl InitTemplateOptions {
     pub fn list_templates(&self) -> &[Template] {
         &self.manifest.templates
     }
 
-    pub fn select_template(&self, template_id: &str) -> RoverResult<SelectedTemplateState> {
+    pub fn select_template(&self, template_id: &TemplateId) -> RoverResult<SelectedTemplateState> {
         let template = self
             .manifest
             .templates
             .iter()
-            .find(|t| t.id == template_id)
+            .find(|t| t.id == *template_id)
             .ok_or_else(|| {
                 RoverError::new(anyhow!("Template with id '{}' not found", template_id))
             })?;
@@ -106,11 +136,13 @@ impl InitTemplateOptions {
     }
 }
 
+#[cfg(feature = "init")]
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
     service: GitHubService,
 }
 
+#[cfg(feature = "init")]
 impl InitTemplateFetcher {
     pub fn new() -> Self {
         Self {
@@ -157,12 +189,14 @@ impl InitTemplateFetcher {
     }
 }
 
+#[cfg(feature = "init")]
 impl TemplateListFiles for SelectedTemplateState {
     fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         Ok(self.files.keys().cloned().collect())
     }
 }
 
+#[cfg(feature = "init")]
 impl TemplateWrite for SelectedTemplateState {
     fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
         for (path, contents) in &self.files {

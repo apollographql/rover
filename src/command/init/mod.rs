@@ -11,7 +11,7 @@ mod operations;
 pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod states;
-#[cfg(feature = "init")]
+#[cfg(feature = "composition-js")]
 mod template_fetcher;
 #[cfg(feature = "composition-js")]
 pub mod template_operations;
@@ -20,28 +20,47 @@ pub mod tests;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
 #[cfg(feature = "composition-js")]
+#[cfg(feature = "init")]
+use crate::command::init::options::ProjectTemplateOpt;
+#[cfg(feature = "composition-js")]
+#[cfg(not(feature = "init"))]
+use crate::command::init::options::ProjectUseCase;
+#[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+#[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverOutput, RoverResult};
+#[cfg(feature = "composition-js")]
+use crate::RoverError;
+use crate::{RoverOutput, RoverResult};
 use clap::Parser;
+#[cfg(feature = "composition-js")]
 use rover_client::RoverClientError;
+#[cfg(feature = "composition-js")]
 use rover_std::hyperlink;
 use serde::Serialize;
 use std::path::PathBuf;
+
+#[cfg(feature = "composition-js")]
 #[cfg(feature = "init")]
-pub use template_fetcher::{InitTemplateFetcher, Template};
+pub use template_fetcher::InitTemplateFetcher;
+
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
+    #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
+    #[cfg(feature = "init")]
+    project_template: ProjectTemplateOpt,
+
     #[clap(flatten)]
     #[cfg(feature = "composition-js")]
     project_type: ProjectTypeOpt,
@@ -101,6 +120,13 @@ impl Init {
             Some(use_case) => use_case,
             None => return Ok(RoverOutput::EmptySuccess),
         };
+
+        if use_case_selected.use_case == ProjectUseCase::GraphQLTemplate {
+            println!();
+            println!("This feature is coming soon!");
+            println!();
+            return Ok(RoverOutput::EmptySuccess);
+        }
 
         let creation_confirmed = match use_case_selected
             .enter_project_name(&self.project_name)?
@@ -212,6 +238,8 @@ impl Init {
         };
 
         let creation_confirmed = match use_case_selected
+            .select_template(&self.project_template)
+            .await?
             .enter_project_name(&self.project_name)?
             .confirm_graph_id(&self.graph_id)?
             .preview_and_confirm_creation()
