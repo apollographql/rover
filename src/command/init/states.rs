@@ -71,6 +71,7 @@ pub struct GraphIdConfirmed {
 
 #[derive(Debug)]
 #[cfg(feature = "init")]
+#[allow(dead_code)]
 pub struct CreationConfirmed {
     pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
