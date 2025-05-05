@@ -560,6 +560,8 @@ impl CreationConfirmed {
             artifacts,
             api_key,
             graph_ref,
+            #[cfg(feature = "init")]
+            template: Some(self.selected_template.template.clone()),
         }))
     }
 }
@@ -577,6 +579,10 @@ impl ProjectCreated {
             &self.artifacts,
             &self.graph_ref,
             &self.api_key.to_string(),
+            #[cfg(feature = "init")]
+            self.template.as_ref().and_then(|t| t.command.as_deref()),
+            #[cfg(not(feature = "init"))]
+            None,
         );
 
         Completed
