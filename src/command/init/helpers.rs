@@ -22,6 +22,7 @@ pub fn generate_project_created_message(
     graph_ref: &GraphRef,
     api_key: &str,
     command: Option<&str>,
+    start_point_file: &str,
 ) -> String {
     let mut output = String::new();
 
@@ -94,7 +95,10 @@ pub fn generate_project_created_message(
         output.push_str("Start a local development session:\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
-    output.push_str("\nFor more information, check out 'getting-started.md'.\n\n");
+    output.push_str(&format!(
+        "\nFor more information, check out '{}'.\n\n",
+        start_point_file
+    ));
 
     output
 }
@@ -104,10 +108,16 @@ pub fn display_project_created_message(
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
     api_key: &str,
-    command: Option<&str>,
+    start_point_file: &str,
 ) {
-    let message =
-        generate_project_created_message(project_name, artifacts, graph_ref, api_key, command);
+    let message = generate_project_created_message(
+        project_name,
+        artifacts,
+        graph_ref,
+        api_key,
+        None,
+        start_point_file,
+    );
     println!("{}", message);
 }
 

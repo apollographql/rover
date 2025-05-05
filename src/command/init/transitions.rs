@@ -20,7 +20,7 @@ use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::options::*;
 use crate::command::init::states::*;
 #[cfg(feature = "init")]
-use crate::command::init::template_fetcher::TemplateId;
+use crate::command::init::template_fetcher::{Template, TemplateId};
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
 #[cfg(feature = "init")]
@@ -443,6 +443,14 @@ impl GraphIdConfirmed {
 /// =========
 ///
 /// ⣾ Creating files and generating GraphOS credentials..
+#[derive(Debug)]
+#[cfg(feature = "init")]
+pub struct CreationConfirmed {
+    pub output_path: Utf8PathBuf,
+    pub config: ProjectConfig,
+    pub selected_template: SelectedTemplateState,
+}
+
 impl CreationConfirmed {
     pub async fn create_project(
         self,
@@ -561,7 +569,7 @@ impl CreationConfirmed {
             api_key,
             graph_ref,
             #[cfg(feature = "init")]
-            template: Some(self.selected_template.template.clone()),
+            template: Some(self.selected_template.template),
         }))
     }
 }
@@ -572,6 +580,16 @@ impl CreationConfirmed {
 /// => All set! Your graph `ana-test` has been created. Please review details below to see what was generated.
 ///
 /// Graph directory, etc.
+#[derive(Debug)]
+pub struct ProjectCreated {
+    pub config: ProjectConfig,
+    pub artifacts: Vec<Utf8PathBuf>,
+    pub api_key: String,
+    pub graph_ref: GraphRef,
+    #[cfg(feature = "init")]
+    pub template: Option<Template>,
+}
+
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
         display_project_created_message(
@@ -580,9 +598,11 @@ impl ProjectCreated {
             &self.graph_ref,
             &self.api_key.to_string(),
             #[cfg(feature = "init")]
-            self.template.as_ref().and_then(|t| t.command.as_deref()),
+            self.template
+                .as_ref()
+                .map_or("getting-started.md", |t| &t.start_point_file),
             #[cfg(not(feature = "init"))]
-            None,
+            "getting-started.md",
         );
 
         Completed
