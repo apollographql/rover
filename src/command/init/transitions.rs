@@ -36,6 +36,7 @@ use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
+use crate::command::init::template_fetcher::Template;
 
 #[derive(Debug)]
 pub enum RestartReason {
