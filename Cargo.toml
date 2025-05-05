@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.29.1"
+version = "0.30.0-rc.0"
 default-run = "rover"
 
 publish = false
@@ -42,7 +42,7 @@ members = [
 panic = "deny"
 
 [features]
-default = ["composition-js"]
+default = ["composition-js", "init"]
 
 # this feature exists to enable composition
 # notably, it is disabled for x86_64-unknown-linux-musl builds

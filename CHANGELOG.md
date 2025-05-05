@@ -18,6 +18,43 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.30.0]
+
+## 🚀 Features
+
+- **Add support for templates in the ```rover init``` command**
+
+  This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph.
+
+### PRs Included
+
+- [#2562](https://github.com/apollographql/rover/pull/2562) - feat(init): Adds `init` flag to default features - @tayrrible
+- [#2560](https://github.com/apollographql/rover/pull/2560) - feat(rover): Makes starter file configurable during project creation - @gocamille
+- [#2559](https://github.com/apollographql/rover/pull/2559) - feat(rover): Adds `start_point_file` to specify what file to use in output - @sanchezdale
+- [#2558](https://github.com/apollographql/rover/pull/2558) - feat(rover): Displays template commands during init flow if one exists - @gocamille
+- [#2557](https://github.com/apollographql/rover/pull/2557) - feat(init): Adds template selector for "recommended libraries" option - @tayrrible
+- [#2545](https://github.com/apollographql/rover/pull/2545) - Modifies existing logic to fetch from the new github service latest released version - @sanchezdale
+- [#2542](https://github.com/apollographql/rover/pull/2542) - refactor(init): Improves authentication error handling in init command - @gocamille
+- [#2539](https://github.com/apollographql/rover/pull/2539) - refactor(init): Improves error handling for graphId step, improve and code structure of rover init - @gocamille
+
+## 🐛 Fixes
+
+- [#2555](https://github.com/apollographql/rover/pull/2555) - fix(init): Properly handles default graph ID acceptance - @gocamille
+
+## 🛠 Maintenance
+
+- [#2556](https://github.com/apollographql/rover/pull/2556) - feat(init): Standardizes visual output and display messages for init command - @tayrrible
+- [#2552](https://github.com/apollographql/rover/pull/2552) - chore(all): Adds clippy::panic lint across all crates - @gocamille
+- [#2550](https://github.com/apollographql/rover/pull/2550) - chore(deps): Updates dependency apollographql/router to v1.61.5 - @renovate
+- [#2536](https://github.com/apollographql/rover/pull/2536) - feature(init): Removes init feature flag usage - @tayrrible
+
+## 📚 Documentation
+
+- [#2551](https://github.com/apollographql/rover/pull/2551) - Adds `pq publish` into docs - @lleadbet
+- [#2549](https://github.com/apollographql/rover/pull/2549) - Updates doc about key used with graph ref - @pubmodmatt
+- [#2541](https://github.com/apollographql/rover/pull/2541) - Update `rover init` resources - @Meschreiber
+- [#2540](https://github.com/apollographql/rover/pull/2540) - Uses `actions/checkout@v4` in GitHub Actions example workflows - @DaleSeo
+
 # [0.29.1] - 2025-04-23
 
 ## 🐛 Fixes
