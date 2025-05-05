@@ -83,7 +83,7 @@ pub fn generate_project_created_message(
     };
     if let Some(command) = command {
         output.push_str(&format!(
-            "1) Start the project: {}\n",
+            "1) Start the service: {}\n",
             Style::Command.paint(command)
         ));
         output.push_str(&format!(
