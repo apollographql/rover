@@ -70,7 +70,7 @@ fn test_display_project_created_message_without_command() {
     assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("rover dev"));
     // Should not contain any command-specific text
-    assert!(!plain_output.contains("Start the project"));
+    assert!(!plain_output.contains("Start the service"));
 }
 
 #[test]
