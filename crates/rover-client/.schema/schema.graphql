@@ -2131,6 +2131,8 @@ type GraphVariant {
   """
   A list of the subgraphs that have been published to since the variant was created.
   Does not include subgraphs that were created & deleted since the variant was created.
+  
+  TODO: @deprecated(reason: "use GraphVariant.updatedSubgraphsSinceCreation instead")
   """
   updatedSubgraphs: [GraphVariantSubgraph!]
 
