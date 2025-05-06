@@ -108,6 +108,7 @@ pub fn display_project_created_message(
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
     api_key: &str,
+    command: Option<&str>,
     start_point_file: &str,
 ) {
     let message = generate_project_created_message(
@@ -115,7 +116,7 @@ pub fn display_project_created_message(
         artifacts,
         graph_ref,
         api_key,
-        None,
+        command,
         start_point_file,
     );
     println!("{}", message);

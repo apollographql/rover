@@ -345,7 +345,7 @@ impl ProjectNamed {
 /// PROMPT UX:
 /// =========
 ///
-/// => You're about to create a local directory with the following files:
+/// => You're about to add the following files to your local directory:
 ///
 /// .vscode/extensions.json
 /// .idea/externalDependencies.xml
@@ -382,7 +382,7 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
         #[cfg(feature = "init")]
-        tracing::debug!("Selected template: {}", self.template_id);
+        tracing::debug!("Selected template: {}", self.selected_template.template_id);
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
             ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/04a2455e89adfd89a07b8ae7da98be4e01bf6897.tar.gz",
@@ -597,6 +597,10 @@ impl ProjectCreated {
             &self.artifacts,
             &self.graph_ref,
             &self.api_key.to_string(),
+            #[cfg(feature = "init")]
+            self.template.as_ref().and_then(|t| t.command.as_deref()),
+            #[cfg(not(feature = "init"))]
+            None,
             #[cfg(feature = "init")]
             self.template
                 .as_ref()
