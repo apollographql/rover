@@ -10,7 +10,7 @@ _N.B All the version numbers above follow Semantic Versioning, and specifically 
 ## Standard Release
 
 As noted above, a standard release takes the form of a tagged commit on the `main` branch, and includes all
-commits previous to it. Preparing it involves several phases:
+commits previous to it. Standard releases use a dedicated milestone named after the release version (e.g., "v1.5.0"). If this release follows one or more release candidates, the milestone should already exist and contain all relevant PRs. Preparing it involves several phases:
 
 ### Prepare The Changelog
 
@@ -72,7 +72,20 @@ This part of the release process is handled by CircleCI, and our binaries are di
 
 ## Release Candidate Builds
 
-These are releases that usually proceed a standard release as a way of getting features to customers faster
+These are releases that usually proceed a standard release as a way of getting features to customers faster. Release candidates use the milestone of their target standard release (e.g., RCs for v1.5.0 all use the "v1.5.0" milestone). This helps track all work going into the eventual standard release.
+
+### Milestone Management
+
+1. If this is the first RC (rc.0) for an upcoming release:
+   - Open the associated [milestone](https://github.com/apollographql/rover/milestones), it should be called `vNext`.
+   - Rename the milestone to the target release version (e.g., "v1.5.0")
+   - Set the due date to the expected final release date
+   - Create a new empty `vNext` milestone for future work
+   - If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` milestone.
+
+2. Go through the commit history since the last release. Ensure that all merged PRs included in this RC are tagged with the target release milestone.
+
+3. Note: Do not close the milestone until the final standard release is published.
 
 ### Create a release PR
 
@@ -85,7 +98,8 @@ These are releases that usually proceed a standard release as a way of getting f
 7. Open a Pull Request from the branch you pushed. The description for this PR should include the salient changes in this release candidate, and what testing should be applied to it.
 8. Paste the changelog entry into the description of the Pull Request.
 9. Add the "🚢release" label to the PR.
-10. Get the PR reviewed
+10. Add the RC release PR to the target release milestone.
+11. Get the PR reviewed
     1. If this necessitates making changes, squash or fixup all changes into a single commit. Use the `Squash and Merge` GitHub button.
 
 ### Tag and build release
@@ -114,10 +128,11 @@ This part of the release process is handled by CircleCI, and our binaries are di
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
+4. Review the milestone progress to ensure all issues and PRs are properly labeled and their status is accurate
 
 ## Pre-Release Release
 
-Sometimes it's necessary to create a `rover` release from an arbitrary branch, this mostly happens in the situation where we want to quickly iterate on a customer fix.
+Sometimes it's necessary to create a `rover` release from an arbitrary branch, this mostly happens in the situation where we want to quickly iterate on a customer fix. For pre-releases, milestone tracking is optional.
 
 ### Create a release branch
 
@@ -209,4 +224,3 @@ In this case you need to do two things
    beta: <<PRE_RELEASE_VERSION>>
    latest: <<VERSION_NUMBER_FROM_STEP_3>>
    ```
-   
