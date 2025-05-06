@@ -363,6 +363,7 @@ impl Rover {
 }
 
 #[derive(Debug, Serialize, Parser)]
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),

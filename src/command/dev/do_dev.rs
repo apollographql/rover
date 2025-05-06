@@ -271,6 +271,16 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
+        #[cfg(feature = "mcp")]
+        if self.opts.mcp.enabled {
+            super::mcp::serve(
+                &self.opts.mcp,
+                router_address,
+                run_router.state.hot_reload_schema_path.clone(),
+            )
+            .await?;
+        }
+
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {

@@ -53,6 +53,9 @@ composition-js = []
 # init command
 init = []
 
+# Enable MCP server integration
+mcp = ["mcp-apollo-server", "secrecy"]
+
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }
@@ -131,6 +134,7 @@ regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
 schemars = "0.8.21"
+secrecy = "0.10.3"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -197,6 +201,7 @@ houston = { workspace = true }
 itertools = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
+mcp-apollo-server = { git = "https://github.com/apollographql/apollo-mcp-server.git", optional = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rand = { workspace = true }
@@ -209,6 +214,7 @@ rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
 schemars = { workspace = true }
+secrecy = { version = "0.10.3", optional = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -263,3 +269,6 @@ temp-env = { version = "=0.3.6", features = ["async_closure"] }
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
 [profile.test.package.sputnik]
 debug-assertions = false
+
+[patch."https://github.com/apollographql/apollo-mcp-server.git"]
+mcp-apollo-server = { git = "https://github.com//apollographql/apollo-mcp-server.git", branch = "pubmodmatt/uplink_schema" }
