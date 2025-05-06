@@ -345,7 +345,7 @@ impl ProjectNamed {
 /// PROMPT UX:
 /// =========
 ///
-/// => You're about to create a local directory with the following files:
+/// => You're about to add the following files to your local directory:
 ///
 /// .vscode/extensions.json
 /// .idea/externalDependencies.xml

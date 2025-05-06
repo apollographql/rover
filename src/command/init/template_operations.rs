@@ -19,7 +19,7 @@ pub struct TemplateOperations;
 impl TemplateOperations {
     pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
         println!();
-        infoln!("You’re about to create a local directory with the following files:");
+        infoln!("You’re about to add the following files to your local directory:");
         println!();
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
