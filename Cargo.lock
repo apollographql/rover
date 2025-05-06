@@ -3844,7 +3844,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 [[package]]
 name = "mcp-apollo-registry"
 version = "0.1.0"
-source = "git+https://github.com//apollographql/apollo-mcp-server.git?branch=pubmodmatt%2Fuplink_schema#d58917fee317c0ecab877c1cd5072c5139a43786"
+source = "git+https://github.com/apollographql/apollo-mcp-server.git#2e94aab86fbc5e7d252b4e7e3c72cb5fb021fa69"
 dependencies = [
  "derivative",
  "derive_more 2.0.1",
@@ -3871,7 +3871,7 @@ dependencies = [
 [[package]]
 name = "mcp-apollo-server"
 version = "0.1.0"
-source = "git+https://github.com//apollographql/apollo-mcp-server.git?branch=pubmodmatt%2Fuplink_schema#d58917fee317c0ecab877c1cd5072c5139a43786"
+source = "git+https://github.com/apollographql/apollo-mcp-server.git#2e94aab86fbc5e7d252b4e7e3c72cb5fb021fa69"
 dependencies = [
  "anyhow",
  "apollo-compiler",

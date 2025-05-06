@@ -269,6 +269,3 @@ temp-env = { version = "=0.3.6", features = ["async_closure"] }
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
 [profile.test.package.sputnik]
 debug-assertions = false
-
-[patch."https://github.com/apollographql/apollo-mcp-server.git"]
-mcp-apollo-server = { git = "https://github.com//apollographql/apollo-mcp-server.git", branch = "pubmodmatt/uplink_schema" }
