@@ -142,11 +142,11 @@ impl Welcome {
             Ok(mut dir) => {
                 if dir.next().is_some() {
                     return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the graph because the current directory is not empty."
+                        "Cannot initialize the graph because the current directory is not empty"
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         format!(
-                            "Please run `{}` on an empty directory",
+                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
                             Style::Command.paint("init")
                         )
                         .to_string(),
