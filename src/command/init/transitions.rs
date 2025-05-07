@@ -599,9 +599,7 @@ impl ProjectCreated {
             &self.graph_ref,
             self.api_key.to_string(),
             #[cfg(feature = "init")]
-            self.template
-                .as_ref()
-                .and_then(|t| t.commands.clone()),
+            self.template.as_ref().and_then(|t| t.commands.clone()),
             #[cfg(not(feature = "init"))]
             None,
             #[cfg(feature = "init")]
