@@ -114,13 +114,16 @@ mod tests {
             "custom-id".parse::<GraphId>().unwrap()
         );
     }
-    
+
     #[test]
     fn test_generate_graph_id_with_non_alphanumeric_characters() {
         let mut generator = TestRandomStringGenerator {
             value: "teststr".to_string(),
         };
 
-        assert_eq!(generate_graph_id("/-=My Test API=-/", &mut generator, None), "my-test-api-teststr".parse::<GraphId>().unwrap());
+        assert_eq!(
+            generate_graph_id("/-=My Test API=-/", &mut generator, None),
+            "my-test-api-teststr".parse::<GraphId>().unwrap()
+        );
     }
 }
