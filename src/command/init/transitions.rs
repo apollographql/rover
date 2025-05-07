@@ -601,7 +601,7 @@ impl ProjectCreated {
             #[cfg(feature = "init")]
             self.template
                 .as_ref()
-                .and_then(|t| t.command.as_deref().map(|cmd| vec![cmd.to_string()])),
+                .and_then(|t| t.commands.clone()),
             #[cfg(not(feature = "init"))]
             None,
             #[cfg(feature = "init")]
