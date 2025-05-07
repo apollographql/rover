@@ -87,8 +87,7 @@ pub fn generate_project_created_message(
                 ));
             }
         }
-        
-        // Add the rover dev command as the final step
+
         output.push_str(&format!(
             "{}) Start a local development session: {}\n",
             commands.len() + 1,

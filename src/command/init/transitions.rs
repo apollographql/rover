@@ -599,13 +599,17 @@ impl ProjectCreated {
             &self.graph_ref,
             self.api_key.to_string(),
             #[cfg(feature = "init")]
-            self.template.as_ref().and_then(|t| t.command.as_deref().map(|cmd| vec![cmd.to_string()])),
+            self.template
+                .as_ref()
+                .and_then(|t| t.command.as_deref().map(|cmd| vec![cmd.to_string()])),
             #[cfg(not(feature = "init"))]
             None,
             #[cfg(feature = "init")]
             self.template
                 .as_ref()
-                .map_or("getting-started.md".to_string(), |t| t.start_point_file.to_string()),
+                .map_or("getting-started.md".to_string(), |t| {
+                    t.start_point_file.to_string()
+                }),
             #[cfg(not(feature = "init"))]
             "getting-started.md".to_string(),
         );
