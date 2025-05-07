@@ -420,7 +420,10 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
 
-        match TemplateOperations::prompt_creation(self.selected_template.list_files()?) {
+        match TemplateOperations::prompt_creation(
+            self.selected_template.list_files()?,
+            self.selected_template.template.print_depth,
+        ) {
             Ok(true) => {
                 // User confirmed, proceed to create files
                 Ok(Some(CreationConfirmed {
@@ -563,6 +566,16 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
+        #[cfg(feature = "init")]
+        return Ok(CreateProjectResult::Created(ProjectCreated {
+            config: self.config,
+            artifacts,
+            api_key,
+            graph_ref,
+            template: self.selected_template.template,
+        }));
+
+        #[cfg(not(feature = "init"))]
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
@@ -587,10 +600,26 @@ pub struct ProjectCreated {
     pub api_key: String,
     pub graph_ref: GraphRef,
     #[cfg(feature = "init")]
-    pub template: Option<Template>,
+    pub template: Template,
 }
 
 impl ProjectCreated {
+    #[cfg(feature = "init")]
+    pub fn complete(self) -> Completed {
+        display_project_created_message(
+            &self.config.project_name.to_string(),
+            &self.artifacts,
+            &self.graph_ref,
+            &self.api_key.to_string(),
+            self.template.command.as_deref(),
+            self.template.start_point_file.as_str(),
+            self.template.print_depth,
+        );
+
+        Completed
+    }
+
+    #[cfg(not(feature = "init"))]
     pub fn complete(self) -> Completed {
         display_project_created_message(
             &self.config.project_name.to_string(),

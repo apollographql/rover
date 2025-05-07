@@ -37,6 +37,7 @@ fn test_display_project_created_message_with_command() {
         api_key,
         command,
         start_point_file,
+        None,
     );
     let plain_output = strip_ansi_codes(&output);
 
@@ -78,6 +79,7 @@ fn test_display_project_created_message_without_command() {
         api_key,
         command,
         start_point_file,
+        None
     );
     let plain_output = strip_ansi_codes(&output);
 
@@ -115,6 +117,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
         api_key,
         command,
         start_point_file,
+        None
     );
     let plain_output = strip_ansi_codes(&output);
 
@@ -151,6 +154,7 @@ fn test_display_project_created_message_with_custom_start_point() {
         api_key,
         command,
         start_point_file,
+        None
     );
     let plain_output = strip_ansi_codes(&output);
 
