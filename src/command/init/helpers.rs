@@ -19,13 +19,12 @@ pub fn display_welcome_message() {
 }
 
 pub fn generate_project_created_message(
-    project_name: &str,
+    project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: &str,
-    command: Option<&str>,
-    start_point_file: &str,
-    #[cfg(feature = "init")] print_depth: Option<u8>,
+    api_key: String,
+    commands: Option<Vec<String>>,
+    start_point_file: String,
 ) -> String {
     // Add welcome message
     println!(
@@ -77,19 +76,30 @@ pub fn generate_project_created_message(
     } else {
         format!("APOLLO_KEY={} rover dev --graph-ref {}", api_key, graph_ref)
     };
-    if let Some(command) = command {
+
+    if let Some(commands) = commands {
+        for (index, cmd) in commands.iter().enumerate() {
+            if !cmd.trim().is_empty() {
+                output.push_str(&format!(
+                    "{}) Run the command: {}\n",
+                    index + 1,
+                    Style::Command.paint(cmd.trim())
+                ));
+            }
+        }
+        
+        // Add the rover dev command as the final step
         output.push_str(&format!(
-            "1) Start the service: {}\n",
-            Style::Command.paint(command)
-        ));
-        output.push_str(&format!(
-            "2) Start a local development session: {}\n",
+            "{}) Start a local development session: {}\n",
+            commands.len() + 1,
             Style::Command.paint(dev_command)
         ));
     } else {
+        // If no command is provided, just show the rover dev command
         output.push_str("Start a local development session:\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
+
     output.push_str(&format!(
         "\nFor more information, check out '{}'.\n\n",
         start_point_file
@@ -99,13 +109,12 @@ pub fn generate_project_created_message(
 }
 
 pub fn display_project_created_message(
-    project_name: &str,
+    project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: &str,
-    command: Option<&str>,
-    start_point_file: &str,
-    #[cfg(feature = "init")] print_depth: Option<u8>,
+    api_key: String,
+    commands: Option<Vec<String>>,
+    start_point_file: String,
 ) {
     #[cfg(feature = "init")]
     let message = generate_project_created_message(
@@ -113,7 +122,7 @@ pub fn display_project_created_message(
         artifacts,
         graph_ref,
         api_key,
-        command,
+        commands,
         start_point_file,
         print_depth,
     );

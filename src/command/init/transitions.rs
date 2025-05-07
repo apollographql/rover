@@ -594,20 +594,20 @@ impl ProjectCreated {
     #[cfg(not(feature = "init"))]
     pub fn complete(self) -> Completed {
         display_project_created_message(
-            &self.config.project_name.to_string(),
+            self.config.project_name.to_string(),
             &self.artifacts,
             &self.graph_ref,
-            &self.api_key.to_string(),
+            self.api_key.to_string(),
             #[cfg(feature = "init")]
-            self.template.as_ref().and_then(|t| t.command.as_deref()),
+            self.template.as_ref().and_then(|t| t.command.as_deref().map(|cmd| vec![cmd.to_string()])),
             #[cfg(not(feature = "init"))]
             None,
             #[cfg(feature = "init")]
             self.template
                 .as_ref()
-                .map_or("getting-started.md", |t| &t.start_point_file),
+                .map_or("getting-started.md".to_string(), |t| t.start_point_file.to_string()),
             #[cfg(not(feature = "init"))]
-            "getting-started.md",
+            "getting-started.md".to_string(),
         );
 
         Completed
