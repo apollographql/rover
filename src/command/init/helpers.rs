@@ -28,10 +28,10 @@ pub fn generate_project_created_message(
     #[cfg(feature = "init")] print_depth: Option<u8>,
 ) -> String {
     // Add welcome message
-    println!("{}", format!(
+    println!(
         "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n",
         Style::File.paint(project_name)
-    ));
+    );
 
     print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
 
