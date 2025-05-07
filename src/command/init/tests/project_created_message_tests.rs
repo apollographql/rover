@@ -47,18 +47,36 @@ fn test_display_project_created_message_with_single_command() {
         "All set! Your graph '{}' has been created",
         "my-graph"
     )));
+    
+    // Files section
+    assert!(plain_output.contains("Files created:"));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains("getting-started.md"));
+    
+    // Credentials section
+    assert!(plain_output.contains("GraphOS credentials for your graph"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
+    
+    // Warning section
+    assert!(plain_output.contains("▲ Before you proceed:"));
     assert!(plain_output.contains("Store your graph API key securely"));
+    
+    // Next steps section
+    assert!(plain_output.contains("Next steps"));
     assert!(plain_output.contains("1) Run the command: npm ci && npm start"));
     assert!(plain_output.contains("2) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
+    
+    // Documentation reference
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "getting-started.md"
     )));
+
+    // Verify no unexpected command prefixes
+    assert!(!plain_output.contains("3) Run the command:"));
+    assert!(!plain_output.contains("4) Run the command:"));
 }
 
 #[test]
@@ -82,11 +100,16 @@ fn test_display_project_created_message_with_multiple_commands() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
+    assert!(plain_output.contains("Next steps"));
     assert!(plain_output.contains("1) Run the command: npm install"));
     assert!(plain_output.contains("2) Run the command: npm run build"));
     assert!(plain_output.contains("3) Run the command: npm start"));
     assert!(plain_output.contains("4) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
+
+    // Verify no unexpected command prefixes
+    assert!(!plain_output.contains("5) Run the command:"));
+    assert!(!plain_output.contains("0) Run the command:"));
 }
 
 #[test]
@@ -109,10 +132,14 @@ fn test_display_project_created_message_with_empty_command_array() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
+    assert!(plain_output.contains("Next steps"));
     assert!(plain_output.contains("1) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
-    // Should not contain any command-specific text
+
+    // Verify no command prefixes are present
+    assert!(!plain_output.contains("Run the command:"));
     assert!(!plain_output.contains("npm"));
+    assert!(!plain_output.contains("2)"));
 }
 
 #[test]
@@ -144,13 +171,14 @@ fn test_display_project_created_message_without_command() {
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
+    assert!(plain_output.contains("Start a local development session"));
     assert!(plain_output.contains("rover dev"));
-    // Should not contain any command-specific text
-    assert!(!plain_output.contains("Start the service"));
-    assert!(plain_output.contains(&format!(
-        "For more information, check out '{}'",
-        "getting-started.md"
-    )));
+
+    // Verify no command prefixes or numbered steps are present
+    assert!(!plain_output.contains("Run the command:"));
+    assert!(!plain_output.contains("1)"));
+    assert!(!plain_output.contains("2)"));
+    assert!(!plain_output.contains("npm"));
 }
 
 #[test]
@@ -180,14 +208,18 @@ fn test_display_project_created_message_with_empty_artifacts() {
     )));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
-    // Should not contain the files section
-    assert!(!plain_output.contains("Files created:"));
-    // Should not contain supergraph.yaml in the files section
-    assert!(!plain_output.contains("supergraph.yaml\n"));
+    assert!(plain_output.contains("Start a local development session"));
+    assert!(plain_output.contains("rover dev"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "getting-started.md"
     )));
+
+    // Verify files section is not present
+    assert!(!plain_output.contains("Files created:"));
+    assert!(!plain_output.contains("supergraph.yaml"));
+    // Only check for supergraph.yaml in the files section
+    assert!(!plain_output.contains("supergraph.yaml\n"));
 }
 
 #[test]
@@ -217,11 +249,15 @@ fn test_display_project_created_message_with_custom_start_point() {
     )));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
-    // Should contain the custom start point file
+    assert!(plain_output.contains("Start a local development session"));
+    assert!(plain_output.contains("rover dev"));
+    
+    // Verify custom start point file is referenced
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "readme.md"
     )));
-    // Should not contain the default start point file
+    
+    // Verify default start point file is not referenced
     assert!(!plain_output.contains("For more information, check out 'getting-started.md'"));
 }
