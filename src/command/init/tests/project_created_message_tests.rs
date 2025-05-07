@@ -47,27 +47,27 @@ fn test_display_project_created_message_with_single_command() {
         "All set! Your graph '{}' has been created",
         "my-graph"
     )));
-    
+
     // Files section
     assert!(plain_output.contains("Files created:"));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains("getting-started.md"));
-    
+
     // Credentials section
     assert!(plain_output.contains("GraphOS credentials for your graph"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
-    
+
     // Warning section
     assert!(plain_output.contains("▲ Before you proceed:"));
     assert!(plain_output.contains("Store your graph API key securely"));
-    
+
     // Next steps section
     assert!(plain_output.contains("Next steps"));
     assert!(plain_output.contains("1) Run the command: npm ci && npm start"));
     assert!(plain_output.contains("2) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
-    
+
     // Documentation reference
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
@@ -251,13 +251,13 @@ fn test_display_project_created_message_with_custom_start_point() {
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Start a local development session"));
     assert!(plain_output.contains("rover dev"));
-    
+
     // Verify custom start point file is referenced
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "readme.md"
     )));
-    
+
     // Verify default start point file is not referenced
     assert!(!plain_output.contains("For more information, check out 'getting-started.md'"));
 }
