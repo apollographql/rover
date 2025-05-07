@@ -27,15 +27,13 @@ pub fn generate_project_created_message(
     start_point_file: &str,
     #[cfg(feature = "init")] print_depth: Option<u8>,
 ) -> String {
-
-
     // Add welcome message
     println!("{}", format!(
         "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n",
         Style::File.paint(project_name)
     ));
 
-    print_grouped_files(artifacts.to_vec(), print_depth,Confirmation);
+    print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
 
     let mut output = String::new();
     // Add credentials section
@@ -109,7 +107,6 @@ pub fn display_project_created_message(
     start_point_file: &str,
     #[cfg(feature = "init")] print_depth: Option<u8>,
 ) {
-
     #[cfg(feature = "init")]
     let message = generate_project_created_message(
         project_name,
@@ -118,7 +115,7 @@ pub fn display_project_created_message(
         api_key,
         command,
         start_point_file,
-        print_depth
+        print_depth,
     );
     println!("{}", message);
 }
