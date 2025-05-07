@@ -92,6 +92,7 @@ jobs:
     # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstepsenv
     env:
       APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+      APOLLO_VCS_BRANCH: ${{ github.head_ref }}
       APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
 
     steps:
@@ -202,6 +203,7 @@ jobs:
     # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstepsenv
     env:
       APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+      APOLLO_VCS_BRANCH: ${{ github.head_ref }}
       APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
