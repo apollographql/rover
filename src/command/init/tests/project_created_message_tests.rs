@@ -64,7 +64,7 @@ fn test_display_project_created_message_with_single_command() {
 
     // Next steps section
     assert!(plain_output.contains("Next steps"));
-    assert!(plain_output.contains("1) Run the command: npm ci && npm start"));
+    assert!(plain_output.contains("1) Run: npm ci && npm start"));
     assert!(plain_output.contains("2) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
 
@@ -75,8 +75,8 @@ fn test_display_project_created_message_with_single_command() {
     )));
 
     // Verify no unexpected command prefixes
-    assert!(!plain_output.contains("3) Run the command:"));
-    assert!(!plain_output.contains("4) Run the command:"));
+    assert!(!plain_output.contains("3) Run:"));
+    assert!(!plain_output.contains("4) Run:"));
 }
 
 #[test]
@@ -101,15 +101,15 @@ fn test_display_project_created_message_with_multiple_commands() {
 
     // Test that the output contains expected content
     assert!(plain_output.contains("Next steps"));
-    assert!(plain_output.contains("1) Run the command: npm install"));
-    assert!(plain_output.contains("2) Run the command: npm run build"));
-    assert!(plain_output.contains("3) Run the command: npm start"));
+    assert!(plain_output.contains("1) Run: npm install"));
+    assert!(plain_output.contains("2) Run: npm run build"));
+    assert!(plain_output.contains("3) Run: npm start"));
     assert!(plain_output.contains("4) Start a local development session"));
     assert!(plain_output.contains("rover dev"));
 
     // Verify no unexpected command prefixes
-    assert!(!plain_output.contains("5) Run the command:"));
-    assert!(!plain_output.contains("0) Run the command:"));
+    assert!(!plain_output.contains("5) Run:"));
+    assert!(!plain_output.contains("0) Run:"));
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn test_display_project_created_message_with_empty_command_array() {
     assert!(plain_output.contains("rover dev"));
 
     // Verify no command prefixes are present
-    assert!(!plain_output.contains("Run the command:"));
+    assert!(!plain_output.contains("Run:"));
     assert!(!plain_output.contains("npm"));
     assert!(!plain_output.contains("2)"));
 }
@@ -175,7 +175,7 @@ fn test_display_project_created_message_without_command() {
     assert!(plain_output.contains("rover dev"));
 
     // Verify no command prefixes or numbered steps are present
-    assert!(!plain_output.contains("Run the command:"));
+    assert!(!plain_output.contains("Run:"));
     assert!(!plain_output.contains("1)"));
     assert!(!plain_output.contains("2)"));
     assert!(!plain_output.contains("npm"));

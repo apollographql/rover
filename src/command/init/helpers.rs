@@ -81,7 +81,7 @@ pub fn generate_project_created_message(
         for (index, cmd) in commands.iter().enumerate() {
             if !cmd.trim().is_empty() {
                 output.push_str(&format!(
-                    "{}) Run the command: {}\n",
+                    "{}) Run: {}\n",
                     index + 1,
                     Style::Command.paint(cmd.trim())
                 ));
