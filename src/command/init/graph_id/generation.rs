@@ -31,13 +31,19 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
     graph_name: &str,
     random_generator: &mut T,
 ) -> GraphId {
-    let mut slugified_name = slugify(graph_name);
-
-    let alphabetic_start_index = slugified_name
+    // Slugify the name and remove non-alphanumeric characters
+    let mut slugified_name = slugify(graph_name)
         .chars()
-        .position(|c| c.is_alphabetic())
-        .unwrap_or(slugified_name.len());
-    slugified_name = slugified_name[alphabetic_start_index..].to_string();
+        .filter(|c| c.is_alphanumeric() || *c == '-')
+        .collect::<String>();
+
+    // Ensure it starts with a letter
+    if !slugified_name.is_empty() && !slugified_name.chars().next().unwrap().is_alphabetic() {
+        slugified_name = slugified_name
+            .chars()
+            .skip_while(|c| !c.is_alphabetic())
+            .collect::<String>();
+    }
 
     // Use "id" if name is empty
     let name_part = if slugified_name.is_empty() {
@@ -106,6 +112,18 @@ mod tests {
                 Some("custom-id".to_string())
             ),
             "custom-id".parse::<GraphId>().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_generate_graph_id_with_non_alphanumeric_characters() {
+        let mut generator = TestRandomStringGenerator {
+            value: "teststr".to_string(),
+        };
+
+        assert_eq!(
+            generate_graph_id("/-=My Test API=-/", &mut generator, None),
+            "my-test-api-teststr".parse::<GraphId>().unwrap()
         );
     }
 }
