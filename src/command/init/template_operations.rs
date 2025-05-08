@@ -10,9 +10,9 @@ use camino::Utf8PathBuf;
 #[cfg(not(feature = "init"))]
 use itertools::Itertools;
 use rover_std::infoln;
+use rover_std::successln;
 use rover_std::prompt::prompt_confirm_default_yes;
 #[cfg(feature = "init")]
-use rover_std::Style;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -73,7 +73,7 @@ fn print_node(
         };
         match print_mode {
             Normal => println!("{}{}", prefix, display_name),
-            Confirmation => println!("{}{}", prefix, Style::SuccessPrefix.paint(&display_name)),
+            Confirmation => successln!("{}{}", prefix, &display_name),
         }
         if !child.is_file {
             let mut new_parent = parent_has_sibling.to_vec();
@@ -86,9 +86,9 @@ fn print_node(
 #[cfg(feature = "init")]
 fn build_prefix(
     parent_has_sibling: &[bool],
-    is_first: bool,
-    is_last: bool,
-    current_level: u8,
+    _is_first: bool,
+    _is_last: bool,
+    _current_level: u8,
 ) -> String {
     let mut prefix = String::new();
     for &has_sibling in parent_has_sibling {
@@ -99,17 +99,18 @@ fn build_prefix(
         }
         prefix.push(' ');
     }
-    if current_level == 0 {
-        if is_first {
-            prefix.push_str("┌ ");
-        } else if is_last {
-            prefix.push_str("└ ");
-        } else {
-            prefix.push_str("├ ");
-        }
-    } else {
-        prefix.push_str(if is_last { "└ " } else { "├ " });
-    }
+    // TODO: Add back in once we have accessibility mode
+    // if current_level == 0 {
+    //     if is_first {
+    //         prefix.push_str("┌ ");
+    //     } else if is_last {
+    //         prefix.push_str("└ ");
+    //     } else {
+    //         prefix.push_str("├ ");
+    //     }
+    // } else {
+    //     prefix.push_str(if is_last { "└ " } else { "├ " });
+    // }
     prefix
 }
 
