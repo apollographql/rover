@@ -237,7 +237,7 @@ mod tests {
             "language": "Typescript",
             "federation_version": "=2.10.0",
             "max_schema_depth": 5,
-            "commands": ["npm ci && npm start"],
+            "commands": ["npm ci", "npm start"],
             "routing_url": "http://localhost:4001"
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
@@ -253,7 +253,7 @@ mod tests {
             "language": "Typescript",
             "federation_version": "=2.10.0",
             "max_schema_depth": 5,
-            "commands": ["npm ci && npm start"],
+            "commands": ["npm ci", "npm start"],
             "routing_url": "http://localhost:4001",
             "start_point_file": "readme.md"
         }"#;
