@@ -274,43 +274,19 @@ type BuildFailure {
 
 union BuildInput = CompositionBuildInput | FilterBuildInput
 
-"""Build Pipeline Tracks"""
 enum BuildPipelineTrack {
-  """Apollo Federation 1.0"""
   FED_1_0
-
-  """Apollo Federation 1.1"""
   FED_1_1
-
-  """Apollo Federation 2.0"""
   FED_2_0
-
-  """Apollo Federation 2.1"""
   FED_2_1
-
-  """Apollo Federation 2.3"""
-  FED_2_3
-
-  """Apollo Federation 2.4"""
-  FED_2_4
-
-  """Apollo Federation 2.5"""
-  FED_2_5
-
-  """Apollo Federation 2.6"""
-  FED_2_6
-
-  """Apollo Federation 2.7"""
-  FED_2_7
-
-  """Apollo Federation 2.8"""
-  FED_2_8
-
-  """Apollo Federation 2.9"""
-  FED_2_9
-
-  """Apollo Federation 2.10"""
   FED_2_10
+  FED_2_3
+  FED_2_4
+  FED_2_5
+  FED_2_6
+  FED_2_7
+  FED_2_8
+  FED_2_9
 }
 
 union BuildResult = BuildFailure | BuildSuccess
