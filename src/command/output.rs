@@ -20,7 +20,7 @@ use rover_client::shared::{
     SdlType,
 };
 use rover_client::RoverClientError;
-use rover_std::Style;
+use rover_std::{hyperlink, successln, warnln, Style};
 use serde_json::{json, Value};
 use termimad::crossterm::style::Attribute::Underlined;
 use termimad::MadSkin;
@@ -155,7 +155,7 @@ impl RoverOutput {
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
                 description = &describe_response.description,
-                variant_config = Style::Link.paint(format!(
+                variant_config = hyperlink(&format!(
                     "{}/graph/{}/settings/variant?variant={}",
                     describe_response.root_url,
                     describe_response.graph_ref.name,
@@ -174,8 +174,8 @@ impl RoverOutput {
             }
             RoverOutput::DocsList(shortlinks) => {
                 stderrln!(
-                    "You can open any of these documentation pages by running {}.\n",
-                    Style::Command.paint("`rover docs open <slug>`")
+                    "You can open any of these documentation pages by running `{}`.\n",
+                    Style::Command.paint("rover docs open <slug>")
                 )?;
                 let mut table = table::get_table();
 
@@ -198,7 +198,7 @@ impl RoverOutput {
             } => {
                 stderrln!(
                     "{}#{} published successfully {}",
-                    graph_ref,
+                    Style::GraphRef.paint(graph_ref.to_string()),
                     publish_response.api_schema_hash,
                     publish_response.change_summary
                 )?;
@@ -213,10 +213,14 @@ impl RoverOutput {
                     stderrln!(
                         "A new subgraph called '{}' was created in '{}'",
                         subgraph,
-                        graph_ref
+                        Style::GraphRef.paint(graph_ref.to_string())
                     )?;
                 } else if publish_response.subgraph_was_updated {
-                    stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
+                    stderrln!(
+                        "The '{}' subgraph in '{}' was updated",
+                        subgraph,
+                        Style::GraphRef.paint(graph_ref.to_string())
+                    )?;
                 } else {
                     stderrln!(
                         "The '{}' subgraph was NOT updated because no changes were detected",
@@ -225,11 +229,11 @@ impl RoverOutput {
                 }
 
                 if publish_response.supergraph_was_updated {
-                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
+                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", Style::GraphRef.paint(graph_ref.to_string()), subgraph)?;
                 } else {
                     stderrln!(
                         "The supergraph schema for '{}' was NOT updated with a new schema",
-                        graph_ref
+                        Style::GraphRef.paint(graph_ref.to_string())
                     )?;
                 }
 
@@ -238,8 +242,7 @@ impl RoverOutput {
                 }
 
                 if !publish_response.build_errors.is_empty() {
-                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                    stderrln!("{} The following build errors occurred:", warn_prefix)?;
+                    warnln!("The following build errors occurred:");
                     stderrln!("{}", &publish_response.build_errors)?;
                 }
                 None
@@ -250,21 +253,21 @@ impl RoverOutput {
                 dry_run,
                 delete_response,
             } => {
-                let warn_prefix = Style::WarningPrefix.paint("WARN:");
                 if *dry_run {
                     if !delete_response.build_errors.is_empty() {
-                        stderrln!(
-                            "{} Deleting the {} subgraph from {} would result in the following build errors:",
-                            warn_prefix,
+                        warnln!(
+                            "Deleting the {} subgraph from {} would result in the following build errors:",
                             Style::Link.paint(subgraph),
-                            Style::Link.paint(graph_ref.to_string()),
-                        )?;
+                            Style::GraphRef.paint(graph_ref.to_string()),
+                        );
 
                         stderrln!("{}", &delete_response.build_errors)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
+                        warnln!("This is only a prediction. If the graph changes before confirming, these errors could change.");
                     } else {
-                        stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?;
+                        warnln!("At the time of checking, there would be no build errors resulting from the deletion of this subgraph.");
+                        warnln!(
+                            "If the graph changes before confirming, there could be build errors."
+                        );
                     }
                     None
                 } else {
@@ -272,23 +275,21 @@ impl RoverOutput {
                         stderrln!(
                             "The '{}' subgraph was removed from '{}'. The remaining subgraphs were composed.",
                             Style::Link.paint(subgraph),
-                            Style::Link.paint(graph_ref.to_string()),
+                            Style::GraphRef.paint(graph_ref.to_string()),
                         )?;
                     } else {
-                        stderrln!(
-                            "{} The supergraph schema for '{}' was not updated. See errors below.",
-                            warn_prefix,
-                            Style::Link.paint(graph_ref.to_string())
-                        )?;
+                        warnln!(
+                            "The supergraph schema for '{}' was not updated. See errors below.",
+                            Style::GraphRef.paint(graph_ref.to_string())
+                        );
                     }
 
                     if !delete_response.build_errors.is_empty() {
-                        stderrln!(
-                            "{} There were build errors as a result of deleting the '{}' subgraph from '{}':",
-                            warn_prefix,
+                        warnln!(
+                            "There were build errors as a result of deleting the '{}' subgraph from '{}':",
                             Style::Link.paint(subgraph),
-                            Style::Link.paint(graph_ref.to_string())
-                        )?;
+                            Style::GraphRef.paint(graph_ref.to_string())
+                        );
 
                         stderrln!("{}", &delete_response.build_errors)?;
                     }
@@ -298,14 +299,14 @@ impl RoverOutput {
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::JsonSchema(schema) => Some(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
-                let warn_prefix = Style::HintPrefix.paint("HINT:");
+                let hint_prefix = Style::HintPrefix.paint("hint:");
 
                 let hints_string =
                     composition_output
                         .hints
                         .iter()
                         .fold(String::new(), |mut output, hint| {
-                            let _ = writeln!(output, "{} {}", warn_prefix, hint.message);
+                            let _ = writeln!(output, "{} {}", hint_prefix, hint.message);
                             output
                         });
 
@@ -342,8 +343,12 @@ impl RoverOutput {
                     table.add_row(vec![subgraph.name.clone(), url, formatted_updated_at]);
                 }
                 Some(format!(
-                    "{}\n View full details at {}/graph/{}/service-list",
-                    table, details.root_url, details.graph_ref.name
+                    "{}\n View full details at {}",
+                    table,
+                    hyperlink(&format!(
+                        "{}/graph/{}/service-list",
+                        details.root_url, details.graph_ref.name
+                    ))
                 ))
             }
             RoverOutput::TemplateList(templates) => {
@@ -370,11 +375,12 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 let template_id = Style::Command.paint(template_id);
                 let path = Style::Path.paint(path.as_str());
-                let readme = Style::Path.paint("README.md");
-                let forum_call_to_action = Style::CallToAction.paint(
+                let readme = Style::File.paint("README.md");
+                let forum_call_to_action = Style::CallToAction.paint(format!(
                     "Have a question or suggestion about templates? Let us know at \
-                    https://community.apollographql.com/",
-                );
+                    {}.",
+                    hyperlink("https://community.apollographql.com/")
+                ));
                 Some(format!("Successfully created a new project from the '{}' template in {}\n Read the generated '{}' file for next steps.\n{}",
                 template_id,
                 path,
@@ -383,8 +389,9 @@ impl RoverOutput {
             }
             RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
-                "Check successfully started with workflow ID: {}\nView full details at {}",
-                check_response.workflow_id, check_response.target_url
+                "Check successfully started with workflow ID: {}\nView full details at {}.",
+                check_response.workflow_id,
+                hyperlink(check_response.target_url.as_str())
             )),
             RoverOutput::LintResponse(lint_response) => Some(lint_response.get_ariadne()?),
             RoverOutput::Profiles(profiles) => {
@@ -413,7 +420,10 @@ impl RoverOutput {
                 new_content: _,
                 last_updated_time: _,
             } => {
-                stderrln!("Readme for {} published successfully", graph_ref,)?;
+                successln!(
+                    "Successfully published README for {}",
+                    Style::GraphRef.paint(graph_ref.to_string())
+                );
                 None
             }
             RoverOutput::PersistedQueriesPublishResponse(response) => {
@@ -454,7 +464,7 @@ impl RoverOutput {
                             (None, Some(updated), None) => {
                                 format!("updated {}, creating", updated)
                             }
-                            (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
+                            (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0.", response.list_id),
                         });
 
                     result.push_str(&format!(
@@ -470,7 +480,7 @@ impl RoverOutput {
                 Some(result)
             }
             RoverOutput::LicenseResponse { jwt, .. } => {
-                stderrln!("Success!")?;
+                successln!("Success!");
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
@@ -681,7 +691,7 @@ impl RoverOutput {
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
             RoverOutput::Introspection(_) => Some("Introspection Response"),
-            RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
+            RoverOutput::ReadmeFetchResponse { .. } => Some("README"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
             _ => None,
         }

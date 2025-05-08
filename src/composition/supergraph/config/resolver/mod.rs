@@ -24,6 +24,7 @@ use clap::error::ErrorKind as ClapErrorKind;
 use clap::CommandFactory;
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
+use rover_std::Style;
 use tower::{MakeService, Service, ServiceExt};
 use tracing::warn;
 use url::Url;
@@ -436,7 +437,10 @@ impl Prompt for SubgraphPrompt {
             let mut cmd = Rover::command();
             cmd.error(
                 ClapErrorKind::MissingRequiredArgument,
-                "--name <SUBGRAPH_NAME> is required when not attached to a TTY",
+                format!(
+                    "`{}` is required when not attached to a TTY",
+                    Style::Command.paint("--name <SUBGRAPH_NAME>")
+                ),
             )
             .exit();
         }
@@ -462,7 +466,10 @@ impl Prompt for SubgraphPrompt {
             let mut cmd = Rover::command();
             cmd.error(
                 ClapErrorKind::MissingRequiredArgument,
-                "--url <SUBGRAPH_URL> is required when not attached to a TTY",
+                format!(
+                    "`{}` is required when not attached to a TTY",
+                    Style::Command.paint("--url <SUBGRAPH_URL>")
+                ),
             )
             .exit();
         }

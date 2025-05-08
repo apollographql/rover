@@ -6,7 +6,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::contract::publish::{self, ContractPublishInput};
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 
 #[derive(Debug, Serialize, Parser)]
 #[clap(
@@ -71,11 +71,11 @@ pub struct Publish {
 impl Publish {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Publishing configuration to {} using credentials from the {} profile.\n",
-            Style::Link.paint(self.graph.graph_ref.to_string()),
+            Style::GraphRef.paint(self.graph.graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         let include_tags = if self.no_include_tags {
             Vec::new()
@@ -103,6 +103,8 @@ impl Publish {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::ContractPublish(publish_response))
     }

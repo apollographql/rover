@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use console::Term;
 use dialoguer::Select;
 use reqwest::Client;
+use rover_std::Style;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -71,9 +72,10 @@ pub async fn list_templates(
 pub fn error_if_empty<T>(values: Vec<T>) -> RoverResult<Vec<T>> {
     if values.is_empty() {
         let mut err = RoverError::new(anyhow!("No matching template found"));
-        err.set_suggestion(RoverErrorSuggestion::Adhoc(
-            "Run `rover template list` to see all available templates.".to_string(),
-        ));
+        err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+            "Run `{}` to see all available templates.",
+            Style::Command.paint("rover template list")
+        )));
         Err(err)
     } else {
         Ok(values)

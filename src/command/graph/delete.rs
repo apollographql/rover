@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::delete::{self, GraphDeleteInput};
-use rover_std::{prompt, Style};
+use rover_std::{prompt, Spinner, Style};
 
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
@@ -26,14 +26,14 @@ impl Delete {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
-
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Deleting {} using credentials from the {} profile.",
-            Style::Link.paint(&graph_ref),
+            Style::GraphRef.paint(&graph_ref),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         if !self.confirm && !prompt::confirm_delete()? {
+            spinner.stop();
             eprintln!("Delete cancelled by user");
             return Ok(RoverOutput::EmptySuccess);
         }
@@ -46,7 +46,10 @@ impl Delete {
         )
         .await?;
 
-        eprintln!("Successfully deleted {}.", Style::Link.paint(&graph_ref));
+        spinner.success(&format!(
+            "Successfully deleted {}.",
+            Style::GraphRef.paint(&graph_ref)
+        ));
         Ok(RoverOutput::EmptySuccess)
     }
 }

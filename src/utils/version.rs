@@ -59,10 +59,10 @@ async fn do_update_check(
     let pretty_latest = Style::Version.paint(format!("v{}", latest_version));
     if latest_version > Version::parse(PKG_VERSION)? {
         let message = format!(
-            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",
+            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run `{}`",
             &pretty_latest,
             PKG_VERSION,
-            Style::Command.paint("`rover docs open start`")
+            Style::Command.paint("rover docs open start")
         );
         Billboard::builder()
             .box_alignment(Alignment::Left)

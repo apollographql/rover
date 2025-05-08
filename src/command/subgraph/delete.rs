@@ -6,7 +6,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
-use rover_std::{prompt, Style};
+use rover_std::{prompt, Spinner, Style};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Delete {
@@ -29,12 +29,12 @@ pub struct Delete {
 impl Delete {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Style::Link.paint(&self.subgraph.subgraph_name),
-            Style::Link.paint(self.graph.graph_ref.to_string()),
+            Style::GraphRef.paint(self.graph.graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
-        );
+        ));
 
         // this is probably the normal path -- preview a subgraph delete
         // and make the user confirm it manually.
@@ -61,6 +61,7 @@ impl Delete {
 
             // I chose not to error here, since this is a perfectly valid path
             if !prompt::confirm_delete()? {
+                spinner.stop();
                 eprintln!("Delete cancelled by user");
                 return Ok(RoverOutput::EmptySuccess);
             }
@@ -77,6 +78,8 @@ impl Delete {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::SubgraphDeleteResponse {
             graph_ref: self.graph.graph_ref.clone(),

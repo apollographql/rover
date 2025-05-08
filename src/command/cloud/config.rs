@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::options::{FileOpt, GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
+use rover_std::{Spinner, Style};
 
 use rover_client::blocking::StudioClient;
 use rover_client::operations::cloud::config::{
@@ -75,7 +76,10 @@ impl Config {
         client: StudioClient,
         graph: &GraphRefOpt,
     ) -> RoverResult<RoverOutput> {
-        eprintln!("Fetching cloud router config for: {}", graph.graph_ref);
+        let spinner = Spinner::new(&format!(
+            "Fetching cloud router config for: {}",
+            Style::GraphRef.paint(graph.graph_ref.to_string())
+        ));
 
         let cloud_config = fetch::run(
             CloudConfigFetchInput {
@@ -84,6 +88,8 @@ impl Config {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::CloudConfigFetchResponse {
             config: cloud_config.config,
@@ -96,7 +102,10 @@ impl Config {
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
-        eprintln!("Updating cloud router config for: {}", graph.graph_ref);
+        let spinner = Spinner::new(&format!(
+            "Updating cloud router config for: {}",
+            Style::GraphRef.paint(graph.graph_ref.to_string())
+        ));
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
@@ -109,6 +118,8 @@ impl Config {
         )
         .await?;
 
+        spinner.stop();
+
         Ok(RoverOutput::MessageResponse { msg: res.msg })
     }
 
@@ -118,7 +129,10 @@ impl Config {
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
-        eprintln!("Validating cloud router config for: {}", graph.graph_ref);
+        let spinner = Spinner::new(&format!(
+            "Validating cloud router config for: {}",
+            Style::GraphRef.paint(graph.graph_ref.to_string())
+        ));
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
@@ -130,6 +144,8 @@ impl Config {
             &client,
         )
         .await?;
+
+        spinner.stop();
 
         Ok(RoverOutput::MessageResponse { msg: res.msg })
     }

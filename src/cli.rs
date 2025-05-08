@@ -394,7 +394,7 @@ pub enum Command {
     /// Commands for working with templates
     Template(command::Template),
 
-    /// Readme commands
+    /// README commands
     Readme(command::Readme),
 
     /// Subgraph schema commands

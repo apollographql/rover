@@ -1,6 +1,6 @@
 use clap::Parser;
 use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
-use rover_std::Style;
+use rover_std::{Spinner, Style};
 use serde::Serialize;
 
 use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
@@ -42,11 +42,11 @@ impl Check {
             .schema
             .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
-        eprintln!(
+        let spinner = Spinner::new(&format!(
             "Checking the proposed schema for subgraph {} against {}",
             &self.subgraph.subgraph_name,
-            Style::Link.paint(self.graph.graph_ref.to_string())
-        );
+            Style::GraphRef.paint(self.graph.graph_ref.to_string())
+        ));
 
         let workflow_res = check::run(
             SubgraphCheckAsyncInput {
@@ -63,7 +63,9 @@ impl Check {
             &client,
         )
         .await?;
+
         if self.config.background {
+            spinner.stop();
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(
@@ -76,6 +78,7 @@ impl Check {
                 &client,
             )
             .await?;
+            spinner.stop();
 
             Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }

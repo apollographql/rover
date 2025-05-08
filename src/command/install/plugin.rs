@@ -7,7 +7,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use binstall::Installer;
-use rover_std::{sanitize_url, Fs};
+use rover_std::{sanitize_url, Fs, Spinner, Style};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -216,13 +216,15 @@ impl PluginInstaller {
                 version,
             ));
             if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
-                err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                    "Try runnning `npm install` to reinstall the plugin.".to_string(),
-                ));
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                    "Try running `{}` to reinstall the plugin.",
+                    Style::Command.paint("npm install")
+                )));
             } else {
-                err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                    "Try re-running this command without the `--skip-update` flag.".to_string(),
-                ));
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                    "Try re-running this command without the `{}` flag.",
+                    Style::Command.paint("--skip-update")
+                )));
             }
             err
         };
@@ -357,10 +359,10 @@ impl PluginInstaller {
                 &plugin_name,
                 &plugin_dir
             ));
-            err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                "Re-run this command without the `--skip-update` flag to install the proper plugin."
-                    .to_string(),
-            ));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                "Re-run this command without the `{}` flag to install the proper plugin.",
+                Style::Command.paint("--skip-update")
+            )));
             Err(err)
         } else {
             // installed_plugins are sorted by semver
@@ -418,12 +420,15 @@ impl PluginInstaller {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         // only print the download message if the username and password have been stripped from the URL
+        let spinner;
         if let Some(sanitized_url) = sanitize_url(&plugin_tarball_url) {
-            eprintln!("downloading the '{plugin_name}' plugin from {sanitized_url}");
+            spinner = Spinner::new(&format!(
+                "Downloading the '{plugin_name}' plugin from {sanitized_url}"
+            ));
         } else {
-            eprintln!("downloading the '{plugin_name}' plugin");
+            spinner = Spinner::new(&format!("Downloading the '{plugin_name}' plugin"));
         }
-        Ok(self
+        let result = self
             .rover_installer
             .install_plugin(
                 &plugin_name,
@@ -431,7 +436,9 @@ impl PluginInstaller {
                 &self.client_config.get_reqwest_client()?,
                 is_latest,
             )
-            .await?)
+            .await?;
+        spinner.stop();
+        Ok(result)
     }
 }
 
@@ -496,13 +503,15 @@ fn find_installed_plugin(
     } else {
         let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
         if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
-            err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                "Try runnning `npm install` to reinstall the plugin.".to_string(),
-            ));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                "Try running `{}` to reinstall the plugin.",
+                Style::Command.paint("npm install")
+            )));
         } else {
-            err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                "Try re-running this command without the `--skip-update` flag.".to_string(),
-            ));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                "Try re-running this command without the `{}` flag.",
+                Style::Command.paint("--skip-update")
+            )));
         }
         Err(err)
     }

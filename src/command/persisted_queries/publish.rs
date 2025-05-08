@@ -59,7 +59,10 @@ impl Publish {
             .read_file_descriptor("operation manifest", &mut std::io::stdin())?;
 
         let invalid_json_err = |manifest, format| {
-            format!("JSON in {manifest} did not match '--manifest-format {format}'")
+            format!(
+                "JSON in {manifest} did not match `{}`",
+                Style::Command.paint(format!("--manifest-format {format}"))
+            )
         };
 
         let mut operation_manifest = match self.manifest_format {
@@ -92,21 +95,21 @@ impl Publish {
                 (graph_id.to_string(), list_id.to_string(), list_name)
             },
             (None, Some(graph_id), None) => {
-                return Err(anyhow!("You must specify a --list-id <LIST_ID> when publishing operations to --graph-id {graph_id}, or, if a list is linked to a specific variant, you can leave --graph-id unspecified, and pass a full graph ref as a positional argument.").into())
+                return Err(anyhow!("You must specify a {} when publishing operations to {}, or, if a list is linked to a specific variant, you can leave {} unspecified, and pass a full graph ref as a positional argument.", Style::Command.paint("--list-id <LIST_ID>"), Style::Command.paint(format!("--graph-id {graph_id}")), Style::Command.paint("--graph-id")).into())
             }
             (None, None, Some(list_id)) => {
-                return Err(anyhow!("You must specify a --graph-id <GRAPH_ID> when publishing operations to --list-id {list_id}, or, if {list_id} is linked to a specific variant, you can leave --list-id unspecified, and pass a full graph ref as a positional argument.").into())
+                return Err(anyhow!("You must specify a {} when publishing operations to {}, or, if {} is linked to a specific variant, you can leave {} unspecified, and pass a full graph ref as a positional argument.", Style::Command.paint("--graph-id <GRAPH_ID>"), Style::Command.paint(format!("--list-id {list_id}")), Style::Command.paint(format!("--list-id {list_id}")), Style::Command.paint("--graph-id")).into())
             }
             (None, None, None) => {
-                return Err(anyhow!("You must either specify a <GRAPH_REF> that has a linked persisted query list OR both a --graph_id <GRAPH_ID> and --list_id <LIST_ID>").into())
+                return Err(anyhow!("You must either specify a {} that has a linked persisted query list OR both a {} and {}.", Style::GraphRef.paint("<GRAPH_REF>"), Style::Command.paint("--graph-id <GRAPH_ID>"), Style::Command.paint("--list-id <LIST_ID>")).into())
             },
             (Some(_), Some(_), Some(_)) | (Some(_), Some(_), None) | (Some(_), None, Some(_)) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
         };
 
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
-            Style::Link.paint(list_name),
-            Style::Link.paint(&graph_id),
+            Style::PersistedQueryList.paint(list_name),
+            Style::GraphRef.paint(&graph_id),
             Style::Command.paint(&self.profile.profile_name)
         );
 

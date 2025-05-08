@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use clap::Parser;
-use rover_std::Style;
+use rover_std::{hyperlink, successln, Style};
 use serde::Serialize;
 
 use config::Profile;
@@ -29,7 +29,9 @@ impl Auth {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;
         Profile::get_credential(&self.profile.profile_name, &config).map(|_| {
-            eprintln!("Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.");
+            eprintln!();
+            successln!("Successfully saved API key. Consider running `{}` to verify your API authentication.", Style::Command.paint("rover config whoami"));
+            eprintln!();
         })?;
         Ok(RoverOutput::EmptySuccess)
     }
@@ -37,12 +39,16 @@ impl Auth {
 
 fn api_key_prompt() -> RoverResult<String> {
     let term = console::Term::stderr();
+    eprintln!();
     eprintln!(
         "Go to {} and create a new Personal API Key.",
-        Style::Link.paint("https://studio.apollographql.com/user-settings/api-keys")
+        hyperlink("https://studio.apollographql.com/user-settings/api-keys")
     );
-
-    eprintln!("Copy the key and paste it into the prompt below.");
+    eprintln!();
+    eprintln!(
+        "{}",
+        Style::Prompt.paint("Copy the key and paste it into the prompt below.")
+    );
     term.write_str("> ")?;
     let api_key = term.read_secure_line()?;
     validate(api_key)
