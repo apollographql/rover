@@ -81,7 +81,11 @@ pub fn generate_project_created_message(
         // If commands vec is not empty, display the commands
         if !commands.is_empty() {
             // Filter out empty commands and enumerate the valid ones
-            for (i, cmd) in commands.iter().filter(|cmd| !cmd.trim().is_empty()).enumerate() {
+            for (i, cmd) in commands
+                .iter()
+                .filter(|cmd| !cmd.trim().is_empty())
+                .enumerate()
+            {
                 output.push_str(&format!(
                     "{}) Run: {}\n",
                     i + 1,

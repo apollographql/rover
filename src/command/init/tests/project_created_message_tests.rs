@@ -130,7 +130,7 @@ fn test_display_project_created_message_with_empty_command_array() {
         start_point_file,
     );
     let plain_output = strip_ansi_codes(&output);
-    
+
     // Test that the output contains expected content
     assert!(plain_output.contains("Next steps"));
     assert!(plain_output.contains("Start a local development session"));
@@ -294,7 +294,7 @@ fn test_display_project_created_message_with_empty_string_commands() {
     assert!(plain_output.contains("rover dev"));
 
     // Verify empty commands are not displayed
-    assert!(!plain_output.contains("Run:   "));  // Whitespace-only command
-    assert!(!plain_output.contains("Run: \n"));  // Empty command
-    assert!(!plain_output.contains("4)"));       // No extra command numbers
+    assert!(!plain_output.contains("Run:   ")); // Whitespace-only command
+    assert!(!plain_output.contains("Run: \n")); // Empty command
+    assert!(!plain_output.contains("4)")); // No extra command numbers
 }
