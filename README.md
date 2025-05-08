@@ -115,7 +115,7 @@ Options:
 
 
 ** Getting Started with Rover **
-    
+
 Run the following command to authenticate with GraphOS:
 
     $ rover config auth

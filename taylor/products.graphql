@@ -1,0 +1,26 @@
+# To learn more about how to write a GraphQL schema: 🔗 https://graphql.com/learn/schema/
+
+# For a guided tutorial covering TypeScript and Apollo Server: 🔗 https://www.apollographql.com/tutorials/intro-typescript
+
+
+type Product @key(fields: "id") {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+# The Query type defines the entry points to our data: what users can request.
+# Check out the src/resolvers/Query.ts file to view the corresponding resolver functions for the fields in this type.
+type Query {
+  product(id: ID!): Product
+  products: [Product!]!
+}
+
+type Mutation {
+  createProduct(input: CreateProductInput!): Product
+}
+
+input CreateProductInput {
+  name: String!
+  description: String!
+}
