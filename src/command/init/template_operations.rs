@@ -86,30 +86,15 @@ fn print_node(
 #[cfg(feature = "init")]
 fn build_prefix(
     parent_has_sibling: &[bool],
-    is_first: bool,
-    is_last: bool,
-    current_level: u8,
+    _is_first: bool,
+    _is_last: bool,
+    _current_level: u8,
 ) -> String {
     let mut prefix = String::new();
-    for &has_sibling in parent_has_sibling {
-        if has_sibling {
-            prefix.push('│');
-        } else {
-            prefix.push(' ');
-        }
-        prefix.push(' ');
+    for _ in parent_has_sibling {
+        prefix.push_str("  "); // two spaces per level
     }
-    if current_level == 0 {
-        if is_first {
-            prefix.push_str("┌ ");
-        } else if is_last {
-            prefix.push_str("└ ");
-        } else {
-            prefix.push_str("├ ");
-        }
-    } else {
-        prefix.push_str(if is_last { "└ " } else { "├ " });
-    }
+    prefix.push_str("- ");
     prefix
 }
 
