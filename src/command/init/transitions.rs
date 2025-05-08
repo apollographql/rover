@@ -250,7 +250,7 @@ impl UseCaseSelected {
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
         // TODO: setting this to main for now. but this should be a specific tag/branch once we introduce versioning
-        let repo_ref = "releases/v1";
+        let repo_ref = "tayrrible-patch-2";
         let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
