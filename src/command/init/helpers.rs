@@ -78,21 +78,30 @@ pub fn generate_project_created_message(
     };
 
     if let Some(commands) = commands {
-        for (index, cmd) in commands.iter().enumerate() {
-            if !cmd.trim().is_empty() {
+        // If commands vec is not empty, display the commands
+        if !commands.is_empty() {
+            // Filter out empty commands and enumerate the valid ones
+            for (i, cmd) in commands.iter().filter(|cmd| !cmd.trim().is_empty()).enumerate() {
                 output.push_str(&format!(
                     "{}) Run: {}\n",
-                    index + 1,
+                    i + 1,
                     Style::Command.paint(cmd.trim())
                 ));
             }
-        }
 
-        output.push_str(&format!(
-            "{}) Start a local development session: {}\n",
-            commands.len() + 1,
-            Style::Command.paint(dev_command)
-        ));
+            // Number the development command after all valid commands
+            // i.e. if we had 2 valid commands, it will be numbered 3)
+            let next_number = commands.iter().filter(|cmd| !cmd.trim().is_empty()).count() + 1;
+            output.push_str(&format!(
+                "{}) Start a local development session: {}\n",
+                next_number,
+                Style::Command.paint(dev_command)
+            ));
+        } else {
+            // If commands vec is empty, just show the rover dev command
+            output.push_str("Start a local development session:\n");
+            output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
+        }
     } else {
         // If no command is provided, just show the rover dev command
         output.push_str("Start a local development session:\n");
