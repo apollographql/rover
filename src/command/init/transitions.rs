@@ -20,7 +20,7 @@ use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::options::*;
 use crate::command::init::states::*;
 #[cfg(feature = "init")]
-use crate::command::init::template_fetcher::{Template, TemplateId};
+use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
 #[cfg(feature = "init")]
@@ -420,7 +420,10 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
 
-        match TemplateOperations::prompt_creation(self.selected_template.list_files()?) {
+        match TemplateOperations::prompt_creation(
+            self.selected_template.list_files()?,
+            self.selected_template.template.print_depth,
+        ) {
             Ok(true) => {
                 // User confirmed, proceed to create files
                 Ok(Some(CreationConfirmed {
@@ -437,18 +440,6 @@ impl GraphIdConfirmed {
             Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
         }
     }
-}
-
-/// PROMPT UX:
-/// =========
-///
-/// ⣾ Creating files and generating GraphOS credentials..
-#[derive(Debug)]
-#[cfg(feature = "init")]
-pub struct CreationConfirmed {
-    pub output_path: Utf8PathBuf,
-    pub config: ProjectConfig,
-    pub selected_template: SelectedTemplateState,
 }
 
 impl CreationConfirmed {
@@ -563,6 +554,16 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
+        #[cfg(feature = "init")]
+        return Ok(CreateProjectResult::Created(ProjectCreated {
+            config: self.config,
+            artifacts,
+            api_key,
+            graph_ref,
+            template: self.selected_template.template,
+        }));
+
+        #[cfg(not(feature = "init"))]
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
@@ -574,23 +575,23 @@ impl CreationConfirmed {
     }
 }
 
-/// PROMPT UX:
-/// =========
-///
-/// => All set! Your graph `ana-test` has been created. Please review details below to see what was generated.
-///
-/// Graph directory, etc.
-#[derive(Debug)]
-pub struct ProjectCreated {
-    pub config: ProjectConfig,
-    pub artifacts: Vec<Utf8PathBuf>,
-    pub api_key: String,
-    pub graph_ref: GraphRef,
-    #[cfg(feature = "init")]
-    pub template: Option<Template>,
-}
-
 impl ProjectCreated {
+    #[cfg(feature = "init")]
+    pub fn complete(self) -> Completed {
+        display_project_created_message(
+            &self.config.project_name.to_string(),
+            &self.artifacts,
+            &self.graph_ref,
+            &self.api_key.to_string(),
+            self.template.command.as_deref(),
+            self.template.start_point_file.as_str(),
+            self.template.print_depth,
+        );
+
+        Completed
+    }
+
+    #[cfg(not(feature = "init"))]
     pub fn complete(self) -> Completed {
         display_project_created_message(
             &self.config.project_name.to_string(),

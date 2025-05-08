@@ -37,17 +37,13 @@ fn test_display_project_created_message_with_command() {
         api_key,
         command,
         start_point_file,
+        None,
     );
     let plain_output = strip_ansi_codes(&output);
 
     // Print the actual message content for verification
     println!("\nGenerated message:\n{}", plain_output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!(
-        "All set! Your graph '{}' has been created",
-        project_name
-    )));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains("getting-started.md"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
@@ -78,14 +74,10 @@ fn test_display_project_created_message_without_command() {
         api_key,
         command,
         start_point_file,
+        None,
     );
     let plain_output = strip_ansi_codes(&output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!(
-        "All set! Your graph '{}' has been created",
-        project_name
-    )));
     assert!(plain_output.contains("supergraph.yaml"));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", api_key)));
@@ -115,14 +107,10 @@ fn test_display_project_created_message_with_empty_artifacts() {
         api_key,
         command,
         start_point_file,
+        None,
     );
     let plain_output = strip_ansi_codes(&output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!(
-        "All set! Your graph '{}' has been created",
-        project_name
-    )));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", api_key)));
     // Should not contain the files section
@@ -151,17 +139,13 @@ fn test_display_project_created_message_with_custom_start_point() {
         api_key,
         command,
         start_point_file,
+        None,
     );
     let plain_output = strip_ansi_codes(&output);
 
     // Print the actual message content for verification
     println!("\nGenerated message:\n{}", plain_output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!(
-        "All set! Your graph '{}' has been created",
-        project_name
-    )));
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", api_key)));
     // Should contain the custom start point file

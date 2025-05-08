@@ -1,3 +1,5 @@
+use crate::command::init::template_operations::print_grouped_files;
+use crate::command::init::template_operations::PrintMode::Confirmation;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::{hyperlink, Style};
@@ -23,24 +25,17 @@ pub fn generate_project_created_message(
     api_key: &str,
     command: Option<&str>,
     start_point_file: &str,
+    #[cfg(feature = "init")] print_depth: Option<u8>,
 ) -> String {
-    let mut output = String::new();
-
     // Add welcome message
-    output.push_str(&format!(
-        "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n\n",
+    println!(
+        "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n",
         Style::File.paint(project_name)
-    ));
+    );
 
-    // Add files section only if there are artifacts
-    if !artifacts.is_empty() {
-        output.push_str(&format!("{}\n", Style::Heading.paint("Files created:")));
-        for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
-            output.push_str(&format!("{}\n", Style::Success.paint(artifact)));
-        }
-        output.push('\n');
-    }
+    print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
 
+    let mut output = String::new();
     // Add credentials section
     output.push_str(&format!(
         "{}\n",
@@ -110,7 +105,9 @@ pub fn display_project_created_message(
     api_key: &str,
     command: Option<&str>,
     start_point_file: &str,
+    #[cfg(feature = "init")] print_depth: Option<u8>,
 ) {
+    #[cfg(feature = "init")]
     let message = generate_project_created_message(
         project_name,
         artifacts,
@@ -118,6 +115,7 @@ pub fn display_project_created_message(
         api_key,
         command,
         start_point_file,
+        print_depth,
     );
     println!("{}", message);
 }

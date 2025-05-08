@@ -71,7 +71,6 @@ pub struct GraphIdConfirmed {
 
 #[derive(Debug)]
 #[cfg(feature = "init")]
-#[allow(dead_code)]
 pub struct CreationConfirmed {
     pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
@@ -87,14 +86,13 @@ pub struct CreationConfirmed {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
     pub graph_ref: GraphRef,
     #[cfg(feature = "init")]
-    pub template: Option<Template>,
+    pub template: Template,
 }
 
 #[derive(Debug)]

@@ -63,6 +63,8 @@ pub struct Template {
         rename = "start_point_file"
     )]
     pub start_point_file: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub print_depth: Option<u8>,
 }
 
 impl Template {
