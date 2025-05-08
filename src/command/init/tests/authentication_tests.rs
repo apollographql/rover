@@ -42,7 +42,7 @@ mod tests {
         let suggestion = format!("{:?}", format_error);
 
         assert!(suggestion.contains("Please get a valid key"));
-        assert!(suggestion.contains("https://studio.apollographql.com"));
+        assert!(suggestion.contains("https://go.apollo.dev/r/init"));
     }
 
     #[test]
