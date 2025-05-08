@@ -24,7 +24,11 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::EmptyKey => {
             let message = "API key cannot be empty";
             let suggestion = RoverErrorSuggestion::Adhoc(
-                "Please enter a valid API key from https://go.apollo.dev/r/init".to_string(),
+                format!(
+                    "Please enter a valid API key from {}",
+                    hyperlink("https://go.apollo.dev/r/init"),
+                )
+                .to_string(),
             );
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
