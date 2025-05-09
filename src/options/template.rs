@@ -145,7 +145,7 @@ pub enum ProjectLanguage {
     Kotlin,
     Python,
     Rust,
-    Typescript,
+    TypeScript,
     #[clap(skip)]
     Other(String),
 }
@@ -161,7 +161,7 @@ impl Display for ProjectLanguage {
             Kotlin => "Kotlin",
             Python => "Python",
             Rust => "Rust",
-            Typescript => "TypeScript",
+            TypeScript => "TypeScript",
             Other(other) => other,
         };
         write!(f, "{}", readable)
@@ -178,7 +178,7 @@ impl From<ProjectLanguage> for get_templates_for_language::Language {
             ProjectLanguage::Kotlin => get_templates_for_language::Language::KOTLIN,
             ProjectLanguage::Python => get_templates_for_language::Language::PYTHON,
             ProjectLanguage::Rust => get_templates_for_language::Language::RUST,
-            ProjectLanguage::Typescript => get_templates_for_language::Language::TYPESCRIPT,
+            ProjectLanguage::TypeScript => get_templates_for_language::Language::TYPESCRIPT,
             ProjectLanguage::Other(other) => get_templates_for_language::Language::Other(other),
         }
     }
@@ -194,7 +194,7 @@ impl From<ProjectLanguage> for list_templates_for_language::Language {
             ProjectLanguage::Kotlin => list_templates_for_language::Language::KOTLIN,
             ProjectLanguage::Python => list_templates_for_language::Language::PYTHON,
             ProjectLanguage::Rust => list_templates_for_language::Language::RUST,
-            ProjectLanguage::Typescript => list_templates_for_language::Language::TYPESCRIPT,
+            ProjectLanguage::TypeScript => list_templates_for_language::Language::TYPESCRIPT,
             ProjectLanguage::Other(other) => list_templates_for_language::Language::Other(other),
         }
     }
@@ -210,7 +210,7 @@ impl From<list_templates_for_language::Language> for ProjectLanguage {
             list_templates_for_language::Language::KOTLIN => ProjectLanguage::Kotlin,
             list_templates_for_language::Language::PYTHON => ProjectLanguage::Python,
             list_templates_for_language::Language::RUST => ProjectLanguage::Rust,
-            list_templates_for_language::Language::TYPESCRIPT => ProjectLanguage::Typescript,
+            list_templates_for_language::Language::TYPESCRIPT => ProjectLanguage::TypeScript,
             list_templates_for_language::Language::Other(other) => ProjectLanguage::Other(other),
         }
     }
