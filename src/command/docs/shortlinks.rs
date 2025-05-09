@@ -10,6 +10,10 @@ pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str>
     links.insert("migration", "Migrate from the Apollo CLI to Rover");
     links.insert("start", "Getting Started with Rover");
     links.insert("configuring", "Configuring Rover");
+    links.insert(
+        "template",
+        "Learn how to add a template to an existing graph",
+    );
     links
 }
 
