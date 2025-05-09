@@ -92,7 +92,7 @@ pub fn generate_project_created_message(
             if valid_commands.len() == 1 {
                 output.push_str("1) Start the subgraph server by running the following command:\n");
                 output.push_str(&format!(
-                    "  - {}\n",
+                    "  {}\n",
                     Style::Command.paint(valid_commands[0])
                 ));
             } else {
@@ -100,19 +100,19 @@ pub fn generate_project_created_message(
                     "1) Start the subgraph server by running the following commands in order:\n",
                 );
                 for cmd in valid_commands {
-                    output.push_str(&format!("  - {}\n", Style::Command.paint(cmd)));
+                    output.push_str(&format!("  {}\n", Style::Command.paint(cmd)));
                 }
             }
-            output.push_str("2) In a new terminal, start a local development session:\n");
-            output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
+            output.push_str("2) In a new terminal, start a local development session:\n\n");
+            output.push_str(&format!("{}\n\n", Style::Command.paint(dev_command)));
         } else {
             // If no valid commands, just show the rover dev command
-            output.push_str("Start a local development session:\n");
+            output.push_str("Start a local development session:\n\n");
             output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
         }
     } else {
         // If no commands provided, just show the rover dev command
-        output.push_str("Start a local development session:\n");
+        output.push_str("Start a local development session:\n\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
 

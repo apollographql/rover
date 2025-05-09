@@ -47,7 +47,7 @@ fn test_display_project_created_message_with_single_command() {
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("1) Start the subgraph server by running the following command:"));
-    assert!(plain_output.contains("  - npm ci"));
+    assert!(plain_output.contains("  npm ci"));
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     assert!(plain_output.contains(&format!(
@@ -80,9 +80,9 @@ fn test_display_project_created_message_with_multiple_commands() {
     // Test that the output contains expected content
     assert!(plain_output
         .contains("1) Start the subgraph server by running the following commands in order:"));
-    assert!(plain_output.contains("  - npm install"));
-    assert!(plain_output.contains("  - npm run build"));
-    assert!(plain_output.contains("  - npm start"));
+    assert!(plain_output.contains("  npm install"));
+    assert!(plain_output.contains("  npm run build"));
+    assert!(plain_output.contains("  npm start"));
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
     assert!(plain_output.contains("rover dev"));
 }
@@ -108,10 +108,10 @@ fn test_display_project_created_message_with_empty_command_array() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains("Start a local development session"));
+    assert!(plain_output.contains("Start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     // Should not contain any command-specific text
-    assert!(!plain_output.contains("npm"));
+    assert!(!plain_output.contains("Start the subgraph server"));
 }
 
 #[test]
@@ -138,9 +138,10 @@ fn test_display_project_created_message_without_command() {
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
+    assert!(plain_output.contains("Start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     // Should not contain any command-specific text
-    assert!(!plain_output.contains("Start the service"));
+    assert!(!plain_output.contains("Start the subgraph server"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "getting-started.md"
