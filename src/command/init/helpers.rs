@@ -34,7 +34,7 @@ pub fn generate_project_created_message(
     );
 
     print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
-    
+
     println!();
 
     let mut output = String::new();

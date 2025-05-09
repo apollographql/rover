@@ -10,8 +10,8 @@ use camino::Utf8PathBuf;
 #[cfg(not(feature = "init"))]
 use itertools::Itertools;
 use rover_std::infoln;
-use rover_std::successln;
 use rover_std::prompt::prompt_confirm_default_yes;
+use rover_std::successln;
 #[cfg(feature = "init")]
 use std::collections::BTreeMap;
 use std::fs::File;
