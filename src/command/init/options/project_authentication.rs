@@ -21,7 +21,7 @@ impl ProjectAuthenticationOpt {
     ) -> RoverResult<()> {
         println!(
             "No credentials found. Please go to {} and create a new Personal API key.",
-            hyperlink("https://studio.apollographql.com/user-settings/api-keys")
+            hyperlink("https://go.apollo.dev/r/init")
         );
         println!();
         println!("Copy the key and paste it into the prompt below.");
