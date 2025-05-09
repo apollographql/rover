@@ -232,7 +232,7 @@ mod tests {
     fn test_template_start_point_file_default() {
         let json = r#"{
             "id": "typescript",
-            "display_name": "Build an API with Typescript",
+            "display_name": "Build an API with TypeScript",
             "path": "start-with-typescript",
             "language": "Typescript",
             "federation_version": "=2.10.0",
@@ -248,7 +248,7 @@ mod tests {
     fn test_template_start_point_file_override() {
         let json = r#"{
             "id": "typescript",
-            "display_name": "Build an API with Typescript",
+            "display_name": "Build an API with TypeScript",
             "path": "start-with-typescript",
             "language": "Typescript",
             "federation_version": "=2.10.0",
