@@ -99,9 +99,22 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
 
     </Tabs>
 
+<Note>
+
+If you started with TypeScript, you also need to run the following command in a separate terminal window before running `rover dev`.
+
+```terminal
+npm ci
+npm start
+```
+
+These start a subgraph server `rover dev` depends on. Learn more in the `getting-started.md` generated when you run `rover init`.
+
+</Note>
+
 
 ### Additional resources
 
-- After running `rover init`, open the generated getting-started.md file for next steps.
+- After running `rover init`, open the generated `getting-started.md` file for next steps.
 - To go further, check out the [Getting started guide](/graphos/get-started/guides/rest) to learn what else you can do with Apollo Connectors.
 - If you learn best with videos and exercises, this [interactive course](https://www.apollographql.com/tutorials/connectors-intro-rest) teaches you how to integrate a demo REST API into a graph using Apollo Connectors.
