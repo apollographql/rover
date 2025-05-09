@@ -82,7 +82,8 @@ pub fn generate_project_created_message(
 
     if let Some(commands) = commands {
         // Filter out empty commands
-        let valid_commands: Vec<&str> = commands.iter()
+        let valid_commands: Vec<&str> = commands
+            .iter()
             .filter(|cmd| !cmd.trim().is_empty())
             .map(|cmd| cmd.trim())
             .collect();
@@ -90,9 +91,14 @@ pub fn generate_project_created_message(
         if !valid_commands.is_empty() {
             if valid_commands.len() == 1 {
                 output.push_str("1) Start the subgraph server by running the following command:\n");
-                output.push_str(&format!("  - {}\n", Style::Command.paint(valid_commands[0])));
+                output.push_str(&format!(
+                    "  - {}\n",
+                    Style::Command.paint(valid_commands[0])
+                ));
             } else {
-                output.push_str("1) Start the subgraph server by running the following commands in order:\n");
+                output.push_str(
+                    "1) Start the subgraph server by running the following commands in order:\n",
+                );
                 for cmd in valid_commands {
                     output.push_str(&format!("  - {}\n", Style::Command.paint(cmd)));
                 }
