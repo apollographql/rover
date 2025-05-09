@@ -39,7 +39,7 @@ fn api_key_prompt() -> RoverResult<String> {
     let term = console::Term::stderr();
     eprintln!(
         "Go to {} and create a new Personal API Key.",
-        Style::Link.paint("https://studio.apollographql.com/user-settings/api-keys")
+        Style::Link.paint("https://go.apollo.dev/r/auth")
     );
 
     eprintln!("Copy the key and paste it into the prompt below.");

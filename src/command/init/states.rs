@@ -92,7 +92,7 @@ pub struct ProjectCreated {
     pub api_key: String,
     pub graph_ref: GraphRef,
     #[cfg(feature = "init")]
-    pub template: Option<Template>,
+    pub template: Template,
 }
 
 #[derive(Debug)]

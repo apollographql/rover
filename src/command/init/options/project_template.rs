@@ -24,11 +24,8 @@ impl ProjectTemplateOpt {
         if templates.is_empty() {
             return Err(RoverError::new(anyhow!("No templates available")));
         }
-        // if only 1 template, return that template
-        if templates.len() == 1 {
-            return Ok(TemplateId(templates[0].id.to_string()));
-        }
-        // otherwise, let user select from list of templates
+
+        // let user select from list of templates
         let template_display_names = templates
             .iter()
             .map(|t| t.display_name.as_str())

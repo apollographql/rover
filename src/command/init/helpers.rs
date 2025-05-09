@@ -1,3 +1,5 @@
+use crate::command::init::template_operations::print_grouped_files;
+use crate::command::init::template_operations::PrintMode::Confirmation;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::{hyperlink, Style};
@@ -17,29 +19,25 @@ pub fn display_welcome_message() {
 }
 
 pub fn generate_project_created_message(
-    project_name: &str,
+    project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: &str,
-    command: Option<&str>,
+    api_key: String,
+    commands: Option<Vec<String>>,
+    start_point_file: String,
+    #[cfg(feature = "init")] print_depth: Option<u8>,
 ) -> String {
-    let mut output = String::new();
-
     // Add welcome message
-    output.push_str(&format!(
-        "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n\n",
+    println!(
+        "\nAll set! Your graph '{}' has been created. Please review details below to see what was generated.\n",
         Style::File.paint(project_name)
-    ));
+    );
 
-    // Add files section only if there are artifacts
-    if !artifacts.is_empty() {
-        output.push_str(&format!("{}\n", Style::Heading.paint("Files created:")));
-        for artifact in artifacts.iter().filter(|a| !a.as_str().is_empty()) {
-            output.push_str(&format!("{}\n", Style::Success.paint(artifact)));
-        }
-        output.push('\n');
-    }
+    print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
 
+    println!();
+
+    let mut output = String::new();
     // Add credentials section
     output.push_str(&format!(
         "{}\n",
@@ -81,33 +79,69 @@ pub fn generate_project_created_message(
     } else {
         format!("APOLLO_KEY={} rover dev --graph-ref {}", api_key, graph_ref)
     };
-    if let Some(command) = command {
-        output.push_str(&format!(
-            "1) Start the service: {}\n",
-            Style::Command.paint(command)
-        ));
-        output.push_str(&format!(
-            "2) Start a local development session: {}\n",
-            Style::Command.paint(dev_command)
-        ));
+
+    if let Some(commands) = commands {
+        // If commands vec is not empty, display the commands
+        if !commands.is_empty() {
+            // Filter out empty commands and enumerate the valid ones
+            for (i, cmd) in commands
+                .iter()
+                .filter(|cmd| !cmd.trim().is_empty())
+                .enumerate()
+            {
+                output.push_str(&format!(
+                    "{}) Run: {}\n",
+                    i + 1,
+                    Style::Command.paint(cmd.trim())
+                ));
+            }
+
+            // Number the development command after all valid commands
+            // i.e. if we had 2 valid commands, it will be numbered 3)
+            let next_number = commands.iter().filter(|cmd| !cmd.trim().is_empty()).count() + 1;
+            output.push_str(&format!(
+                "{}) Start a local development session: {}\n",
+                next_number,
+                Style::Command.paint(dev_command)
+            ));
+        } else {
+            // If commands vec is empty, just show the rover dev command
+            output.push_str("Start a local development session:\n");
+            output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
+        }
     } else {
+        // If no command is provided, just show the rover dev command
         output.push_str("Start a local development session:\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
-    output.push_str("\nFor more information, check out 'getting-started.md'.\n\n");
+
+    output.push_str(&format!(
+        "\nFor more information, check out '{}'.\n\n",
+        start_point_file
+    ));
 
     output
 }
 
 pub fn display_project_created_message(
-    project_name: &str,
+    project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: &str,
-    command: Option<&str>,
+    api_key: String,
+    commands: Option<Vec<String>>,
+    start_point_file: String,
+    #[cfg(feature = "init")] print_depth: Option<u8>,
 ) {
-    let message =
-        generate_project_created_message(project_name, artifacts, graph_ref, api_key, command);
+    #[cfg(feature = "init")]
+    let message = generate_project_created_message(
+        project_name,
+        artifacts,
+        graph_ref,
+        api_key,
+        commands,
+        start_point_file,
+        print_depth,
+    );
     println!("{}", message);
 }
 

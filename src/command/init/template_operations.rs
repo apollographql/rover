@@ -1,3 +1,5 @@
+#[cfg(feature = "init")]
+use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::{RoverError, RoverResult};
 use anyhow::format_err;
@@ -5,9 +7,12 @@ use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
+#[cfg(not(feature = "init"))]
 use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
+use rover_std::successln;
+#[cfg(feature = "init")]
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -16,31 +21,161 @@ use std::{fs, io};
 
 pub struct TemplateOperations;
 
+#[cfg(not(feature = "init"))]
+pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
+    for (_, files) in &artifacts
+        .into_iter()
+        .chunk_by(|artifact| artifact.parent().map(|p| p.to_owned()))
+    {
+        for file in files {
+            if file.file_name().is_some() {
+                println!("- {}", file);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "init")]
+struct FileNode {
+    children: BTreeMap<String, FileNode>,
+    is_file: bool,
+}
+#[cfg(feature = "init")]
+const DEFAULT_PRINT_LEVEL: u8 = 5;
+
+/// Recursively prints the file tree structure up to a given depth.
+#[cfg(feature = "init")]
+fn print_node(
+    node: &FileNode,
+    depth: Option<u8>,
+    current_level: u8,
+    parent_has_sibling: &[bool],
+    print_mode: PrintMode,
+) {
+    let max_depth = depth.unwrap_or(DEFAULT_PRINT_LEVEL);
+    if current_level >= max_depth {
+        return;
+    }
+
+    let mut entries: Vec<_> = node.children.iter().collect();
+    // Sort files so that directories are first, then sort alphabetically
+    entries.sort_by_key(|(_, child)| (!child.is_file, child.is_file));
+
+    for (i, (name, child)) in entries.iter().enumerate() {
+        let is_first = i == 0;
+        let is_last = i == entries.len() - 1;
+        let prefix = build_prefix(parent_has_sibling, is_first, is_last, current_level);
+        let display_name = if !child.is_file {
+            format!("{}/", name)
+        } else {
+            name.to_string()
+        };
+        match print_mode {
+            Normal => println!("{}{}", prefix, display_name),
+            Confirmation => successln!("{}{}", prefix, &display_name),
+        }
+        if !child.is_file {
+            let mut new_parent = parent_has_sibling.to_vec();
+            new_parent.push(!is_last);
+            print_node(child, depth, current_level + 1, &new_parent, print_mode);
+        }
+    }
+}
+
+#[cfg(feature = "init")]
+fn build_prefix(
+    parent_has_sibling: &[bool],
+    _is_first: bool,
+    _is_last: bool,
+    _current_level: u8,
+) -> String {
+    let mut prefix = String::new();
+    for &has_sibling in parent_has_sibling {
+        if has_sibling {
+            prefix.push('│');
+        } else {
+            prefix.push(' ');
+        }
+        prefix.push(' ');
+    }
+    // TODO: Add back in once we have accessibility mode
+    // if current_level == 0 {
+    //     if is_first {
+    //         prefix.push_str("┌ ");
+    //     } else if is_last {
+    //         prefix.push_str("└ ");
+    //     } else {
+    //         prefix.push_str("├ ");
+    //     }
+    // } else {
+    //     prefix.push_str(if is_last { "└ " } else { "├ " });
+    // }
+    prefix
+}
+
+#[derive(Clone, Copy)]
+#[cfg(feature = "init")]
+pub enum PrintMode {
+    Normal,
+    Confirmation,
+}
+
+#[cfg(feature = "init")]
+pub fn print_grouped_files(
+    artifacts: Vec<Utf8PathBuf>,
+    depth: Option<u8>,
+    confirmation: PrintMode,
+) {
+    use std::collections::BTreeMap;
+
+    let mut root = FileNode {
+        children: BTreeMap::new(),
+        is_file: false,
+    };
+
+    for artifact in artifacts {
+        let components = artifact
+            .components()
+            .map(|c| c.as_str().to_string())
+            .collect::<Vec<_>>();
+        if components.is_empty() {
+            continue;
+        }
+        let mut node = &mut root;
+        for (i, comp) in components.iter().enumerate() {
+            node = node
+                .children
+                .entry(comp.clone())
+                .or_insert_with(|| FileNode {
+                    children: BTreeMap::new(),
+                    is_file: i == components.len() - 1,
+                });
+        }
+    }
+
+    print_node(&root, depth, 0, &[], confirmation);
+}
+
 impl TemplateOperations {
-    pub fn prompt_creation(artifacts: Vec<Utf8PathBuf>) -> io::Result<bool> {
+    pub fn prompt_creation(
+        artifacts: Vec<Utf8PathBuf>,
+        #[cfg(feature = "init")] print_depth: Option<u8>,
+    ) -> io::Result<bool> {
         println!();
-        infoln!("You’re about to create a local directory with the following files:");
+        infoln!("You’re about to add the following files to your local directory:");
         println!();
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
 
-        Self::print_grouped_files(artifacts_sorted);
+        #[cfg(feature = "init")]
+        print_grouped_files(artifacts_sorted, print_depth, Normal);
+
+        #[cfg(not(feature = "init"))]
+        print_grouped_files(artifacts_sorted);
 
         println!();
         prompt_confirm_default_yes("? Proceed with creation?")
-    }
-
-    pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
-        for (_, files) in &artifacts
-            .into_iter()
-            .chunk_by(|artifact| artifact.parent().map(|p| p.to_owned()))
-        {
-            for file in files {
-                if file.file_name().is_some() {
-                    println!("- {}", file);
-                }
-            }
-        }
     }
 }
 

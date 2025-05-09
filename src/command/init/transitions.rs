@@ -142,11 +142,11 @@ impl Welcome {
             Ok(mut dir) => {
                 if dir.next().is_some() {
                     return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the graph because the current directory is not empty."
+                        "Cannot initialize the graph because the current directory is not empty"
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         format!(
-                            "Please run `{}` on an empty directory",
+                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
                             Style::Command.paint("init")
                         )
                         .to_string(),
@@ -345,7 +345,7 @@ impl ProjectNamed {
 /// PROMPT UX:
 /// =========
 ///
-/// => You're about to create a local directory with the following files:
+/// => You're about to add the following files to your local directory:
 ///
 /// .vscode/extensions.json
 /// .idea/externalDependencies.xml
@@ -382,7 +382,7 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
         #[cfg(feature = "init")]
-        tracing::debug!("Selected template: {}", self.template_id);
+        tracing::debug!("Selected template: {}", self.selected_template.template_id);
         // Determine the repository URL based on the use case
         let repo_url = match self.use_case {
             ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/04a2455e89adfd89a07b8ae7da98be4e01bf6897.tar.gz",
@@ -420,7 +420,10 @@ impl GraphIdConfirmed {
         // Create the configuration
         let config = self.create_config();
 
-        match TemplateOperations::prompt_creation(self.selected_template.list_files()?) {
+        match TemplateOperations::prompt_creation(
+            self.selected_template.list_files()?,
+            self.selected_template.template.print_depth,
+        ) {
             Ok(true) => {
                 // User confirmed, proceed to create files
                 Ok(Some(CreationConfirmed {
@@ -439,10 +442,6 @@ impl GraphIdConfirmed {
     }
 }
 
-/// PROMPT UX:
-/// =========
-///
-/// ⣾ Creating files and generating GraphOS credentials..
 impl CreationConfirmed {
     pub async fn create_project(
         self,
@@ -555,33 +554,52 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
+        #[cfg(feature = "init")]
+        return Ok(CreateProjectResult::Created(ProjectCreated {
+            config: self.config,
+            artifacts,
+            api_key,
+            graph_ref,
+            template: self.selected_template.template,
+        }));
+
+        #[cfg(not(feature = "init"))]
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
             graph_ref,
             #[cfg(feature = "init")]
-            template: Some(self.selected_template.template.clone()),
+            template: Some(self.selected_template.template),
         }))
     }
 }
 
-/// PROMPT UX:
-/// =========
-///
-/// => All set! Your graph `ana-test` has been created. Please review details below to see what was generated.
-///
-/// Graph directory, etc.
 impl ProjectCreated {
+    #[cfg(feature = "init")]
     pub fn complete(self) -> Completed {
         display_project_created_message(
-            &self.config.project_name.to_string(),
+            self.config.project_name.to_string(),
             &self.artifacts,
             &self.graph_ref,
-            &self.api_key.to_string(),
-            #[cfg(feature = "init")]
-            self.template.as_ref().and_then(|t| t.command.as_deref()),
-            #[cfg(not(feature = "init"))]
+            self.api_key.to_string(),
+            self.template.commands,
+            self.template.start_point_file,
+            self.template.print_depth,
+        );
+
+        Completed
+    }
+
+    #[cfg(not(feature = "init"))]
+    pub fn complete(self) -> Completed {
+        display_project_created_message(
+            self.config.project_name.to_string(),
+            &self.artifacts,
+            &self.graph_ref,
+            self.api_key.to_string(),
+            None,
+            "getting-started.md".to_string(),
             None,
         );
 

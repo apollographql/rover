@@ -57,12 +57,14 @@ pub struct Template {
     pub max_schema_depth: u32,
     pub routing_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub command: Option<String>,
+    pub commands: Option<Vec<String>>,
     #[serde(
         default = "Template::default_start_point_file",
         rename = "start_point_file"
     )]
     pub start_point_file: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub print_depth: Option<u8>,
 }
 
 impl Template {
@@ -230,12 +232,12 @@ mod tests {
     fn test_template_start_point_file_default() {
         let json = r#"{
             "id": "typescript",
-            "display_name": "Build an API with Typescript",
+            "display_name": "Build an API with TypeScript",
             "path": "start-with-typescript",
             "language": "Typescript",
             "federation_version": "=2.10.0",
             "max_schema_depth": 5,
-            "command": "npm ci && npm start",
+            "commands": ["npm ci", "npm start"],
             "routing_url": "http://localhost:4001"
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
@@ -246,12 +248,12 @@ mod tests {
     fn test_template_start_point_file_override() {
         let json = r#"{
             "id": "typescript",
-            "display_name": "Build an API with Typescript",
+            "display_name": "Build an API with TypeScript",
             "path": "start-with-typescript",
             "language": "Typescript",
             "federation_version": "=2.10.0",
             "max_schema_depth": 5,
-            "command": "npm ci && npm start",
+            "commands": ["npm ci", "npm start"],
             "routing_url": "http://localhost:4001",
             "start_point_file": "readme.md"
         }"#;
