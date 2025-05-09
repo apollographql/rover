@@ -100,7 +100,7 @@ pub fn generate_project_created_message(
                     output.push_str(&format!("  {}\n", Style::Command.paint(cmd)));
                 }
             }
-            output.push_str("2) In a new terminal, start a local development session:\n\n");
+            output.push_str("\n2) In a new terminal, start a local development session:\n\n");
             output.push_str(&format!("{}\n\n", Style::Command.paint(dev_command)));
         } else {
             // If no valid commands, just show the rover dev command
