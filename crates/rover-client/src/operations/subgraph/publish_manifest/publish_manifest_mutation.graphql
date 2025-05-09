@@ -1,0 +1,31 @@
+mutation SubgraphsPublishMutation(
+    $graphVariant: String!
+    $revision: String!
+    $subgraphInputs: [PublishSubgraphsSubgraphInput!]!
+    $graphId: ID!
+    $gitContext: GitContextInput!
+) {
+    graph(id: $graphId) {
+        publishSubgraphs(
+            graphVariant: $graphVariant
+            revision: $revision
+            subgraphInputs: $subgraphInputs
+            gitContext: $gitContext
+        ) {
+            compositionConfig {
+                schemaHash
+            }
+            errors {
+                message
+                code
+            }
+            didUpdateGateway: updatedGateway
+            serviceWasCreated: wasCreated
+            serviceWasUpdated: wasUpdated
+            launchCliCopy
+            launchUrl
+            subgraphsCreated
+            subgraphsUpdated
+        }
+    }
+}
