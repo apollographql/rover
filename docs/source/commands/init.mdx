@@ -74,7 +74,8 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
 
         ```terminal showLineNumbers=false
         APOLLO_KEY=<key> \
-        rover dev --graph-ref <graph-ref> \
+        APOLLO_GRAPH_REF=<graph-ref> \
+        rover dev
         --supergraph-config supergraph.yaml
         ```
 
@@ -86,13 +87,16 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
         ##### Powershell
 
         ```terminal showLineNumbers=false
-        $env:APOLLO_KEY = "<key>"; rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        & { $env:APOLLO_KEY = "<key>"; $env:APOLLO_GRAPH_REF = "<graph_ref>"; rover dev --supergraph-config supergraph.yaml }
         ```
 
         ##### Command Prompt
 
         ```terminal showLineNumbers=false
-        set APOLLO_KEY=<key> rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        set APOLLO_KEY=<key>
+        set APOLLO_GRAPH_REF=<graph_ref>
+        rover dev --supergraph-config supergraph.yaml
+
         ```
 
         </Tab>

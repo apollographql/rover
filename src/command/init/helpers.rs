@@ -73,11 +73,14 @@ pub fn generate_project_created_message(
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
     let dev_command = if !artifacts.is_empty() {
         format!(
-            "APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
+            "APOLLO_KEY={} APOLLO_GRAPH_REF={} rover dev --supergraph-config supergraph.yaml",
             api_key, graph_ref
         )
     } else {
-        format!("APOLLO_KEY={} rover dev --graph-ref {}", api_key, graph_ref)
+        format!(
+            "APOLLO_KEY={} APOLLO_GRAPH_REF={} rover dev",
+            api_key, graph_ref
+        )
     };
 
     if let Some(commands) = commands {
