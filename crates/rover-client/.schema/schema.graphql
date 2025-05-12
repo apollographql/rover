@@ -2045,7 +2045,7 @@ type GraphVariant {
   """
   Returns a list of the top operations reported for this variant within a given time range.
   
-  Note: Access to this field is restricted and not enabled by default. Please contact Apollo support if you require access.
+  Note: This field is in Private Preview and not enabled by default. Please contact Apollo support if you require access.
   """
   topOperationsReport(
     """Optional filters to refine the results"""
@@ -3921,6 +3921,10 @@ type PlanError {
 }
 
 type Proposal {
+  """
+  A list of the activities for this proposal.
+  If first and last are not specified, defaults to 25. If one is specified there is a max allowed value of 50.
+  """
   activities(after: String, before: String, first: Int, last: Int): ProposalActivityConnection!
 
   """The variant this Proposal is under the hood."""
@@ -4961,7 +4965,7 @@ type Graph implements Identity {
 
   """
   A list of the proposals for this graph sorted by created at date.
-  limit defaults to 25, offset defaults to 0
+  limit defaults to 25 and has an allowed max of 50, offset defaults to 0
   """
   proposals(filterBy: ProposalsFilterInput, limit: Int, offset: Int): ProposalsResult!
 
