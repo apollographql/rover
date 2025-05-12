@@ -4921,7 +4921,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.30.0-rc.2"
+version = "0.30.0"
 dependencies = [
  "anyhow",
  "apollo-federation-types",
