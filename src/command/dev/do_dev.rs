@@ -52,7 +52,7 @@ impl Dev {
         let exec_command_impl = TokioCommand::default();
 
         let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
-        let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
+        let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.keep())?;
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
