@@ -25,9 +25,13 @@ pub struct Opts {
     #[arg(long = "mcp")]
     pub enabled: bool,
 
+    /// The working directory to use
+    #[arg(long = "mcp-directory", required = false)]
+    directory: Option<PathBuf>,
+
     /// Start the server using the SSE transport on the given port
-    #[arg(long = "mcp-port", default_value = "5000")]
-    port: u16,
+    #[arg(long = "mcp-sse-port", default_value = "5000")]
+    sse_port: u16,
 
     /// Expose the schema to the MCP client through `schema` and `execute` tools - defaults to true
     #[arg(long = "mcp-introspection")]

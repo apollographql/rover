@@ -5,6 +5,7 @@ use std::{fmt, io};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+use clap::ValueEnum;
 use futures::TryFutureExt;
 use rover_std::Style;
 use semver::Version;
@@ -99,13 +100,23 @@ where
                 self.supergraph_schema_path.to_string(),
                 "--endpoint".to_string(),
                 self.router_address.to_string(),
-                "--sse_port".to_string(),
-                self.mcp_options.port.to_string(),
-                "--introspection".to_string(),
-                self.mcp_options.introspection.to_string(),
-                "--allow-mutations".to_string(),
-                self.mcp_options.allow_mutations.to_string(),
+                "--sse-port".to_string(),
+                self.mcp_options.sse_port.to_string(),
             ];
+
+            if let Some(directory) = self.mcp_options.directory {
+                args.push("--directory".to_string());
+                args.push(directory.display().to_string());
+            }
+
+            if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
+                args.push("--allow-mutations".to_string());
+                args.push(value.get_name().to_string());
+            }
+
+            if self.mcp_options.introspection {
+                args.push("--introspection".to_string());
+            }
 
             if !self.mcp_options.operations.is_empty() {
                 args.push("--operations".to_string());
