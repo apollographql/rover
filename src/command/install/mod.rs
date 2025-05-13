@@ -15,6 +15,7 @@ use std::convert::TryFrom;
 use std::env;
 
 mod plugin;
+pub(crate) use plugin::McpServerVersion;
 pub(crate) use plugin::{Plugin, PluginInstaller};
 
 #[derive(Debug, Serialize, Parser)]

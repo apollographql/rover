@@ -5,6 +5,8 @@ use camino::Utf8PathBuf;
 
 #[cfg(feature = "composition-js")]
 mod do_dev;
+#[cfg(feature = "composition-js")]
+mod mcp;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 #[cfg(feature = "composition-js")]
