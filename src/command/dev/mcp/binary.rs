@@ -101,7 +101,7 @@ where
                 "--sse_port".to_string(),
                 self.mcp_options.port.to_string(),
                 "--introspection".to_string(),
-                self.mcp_options.introspection.to_string(), // TODO: does rust convert bools to the right string?
+                self.mcp_options.introspection.to_string(),
                 "--allow-mutations".to_string(),
                 self.mcp_options.allow_mutations.to_string(),
             ];
