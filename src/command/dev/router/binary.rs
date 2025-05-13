@@ -7,9 +7,8 @@ use std::{fmt, io};
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
-use houston::{Config, Credential, HoustonProblem, Profile};
 use regex::Regex;
-use rover_std::{infoln, warnln, Style};
+use rover_std::{infoln, Style};
 use semver::Version;
 use tap::TapFallible;
 use timber::Level;
@@ -18,10 +17,8 @@ use tokio::process::Child;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::config::remote::RemoteRouterConfig;
 use super::hot_reload::HotReloadError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
-use crate::options::{ProfileOpt, DEFAULT_PROFILE};
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
 use crate::RoverError;
@@ -171,12 +168,9 @@ pub struct RunRouterBinary<Spawn: Send> {
     router_binary: RouterBinary,
     config_path: Utf8PathBuf,
     supergraph_schema_path: Utf8PathBuf,
-    remote_config: Option<RemoteRouterConfig>,
-    profile: ProfileOpt,
-    home_override: Option<String>,
-    api_key_override: Option<String>,
     spawn: Spawn,
     log_level: Option<Level>,
+    env: HashMap<String, String>,
 }
 
 impl<Spawn> SubtaskHandleUnit for RunRouterBinary<Spawn>
@@ -192,7 +186,6 @@ where
         cancellation_token: Option<CancellationToken>,
     ) {
         let mut spawn = self.spawn.clone();
-        let remote_config = self.remote_config.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::task::spawn(async move {
             let args = vec![
@@ -206,36 +199,6 @@ where
                 "--dev".to_string(),
             ];
 
-            let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
-
-            // We set the APOLLO_KEY here, but it might be overriden by RemoteRouterConfig. That
-            // struct takes the who_am_i service, gets an identity, and checks whether the
-            // associated API key (if present) is of a graph-level actor; if it is, we overwrite
-            // the env key with it because we know it's associated with the target graph_ref
-            match remote_config {
-                Some(remote_config) => {
-                    if let Some(api_key) = remote_config.api_key().clone() {
-                        env.insert("APOLLO_KEY".to_string(), api_key);
-                    }
-                    env.insert(
-                        "APOLLO_GRAPH_REF".to_string(),
-                        remote_config.graph_ref().to_string(),
-                    );
-                }
-                None => {
-                    match self.establish_credentials() {
-                        Ok(credential) => {
-                            env.insert("APOLLO_KEY".to_string(), credential.api_key.clone());
-                        }
-                        Err(err) => {
-                            if self.profile.profile_name != DEFAULT_PROFILE {
-                                warnln!("Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY", self.profile.profile_name, err)
-                            }
-                        }
-                    };
-                }
-            }
-
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
@@ -243,7 +206,7 @@ where
                         ExecCommandConfig::builder()
                             .exe(self.router_binary.exe.clone())
                             .args(args)
-                            .env(env)
+                            .env(self.env)
                             .output(
                                 ExecCommandOutput::builder()
                                     .stdin(Stdio::null())
@@ -358,19 +321,5 @@ where
                 }
             }
         });
-    }
-}
-
-impl<Spawn> RunRouterBinary<Spawn>
-where
-    Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
-    Spawn::Error: std::error::Error + Send + Sync,
-    Spawn::Future: Send,
-{
-    fn establish_credentials(&self) -> Result<Credential, HoustonProblem> {
-        Profile::get_credential(
-            &self.profile.profile_name,
-            &Config::new(self.home_override.as_ref(), self.api_key_override.clone())?,
-        )
     }
 }

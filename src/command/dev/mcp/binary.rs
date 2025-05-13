@@ -76,6 +76,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     spawn: Spawn,
     router_address: RouterAddress,
     mcp_options: Opts,
+    env: HashMap<String, String>,
 }
 
 impl<Spawn> SubtaskHandleUnit for RunMcpServerBinary<Spawn>
@@ -133,8 +134,6 @@ where
                 args.push(custom_scalars_config.display().to_string());
             }
 
-            let env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
-
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
@@ -142,7 +141,7 @@ where
                         ExecCommandConfig::builder()
                             .exe(self.mcp_server_binary.exe.clone())
                             .args(args)
-                            .env(env)
+                            .env(self.env)
                             .output(
                                 ExecCommandOutput::builder()
                                     .stdin(Stdio::null())

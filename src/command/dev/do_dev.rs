@@ -291,6 +291,7 @@ impl Dev {
                     run_router.state.hot_reload_schema_path.clone(),
                     router_address,
                     self.opts.mcp.clone(),
+                    run_router.state.env.clone(),
                 )
                 .await?;
 

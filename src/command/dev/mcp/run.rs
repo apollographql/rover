@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use camino::Utf8PathBuf;
 use tokio::process::Child;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -53,6 +55,7 @@ impl RunMcpServer<state::Run> {
         supergraph_schema_path: Utf8PathBuf,
         router_address: RouterAddress,
         mcp_options: Opts,
+        env: HashMap<String, String>,
     ) -> Result<RunMcpServer<state::Abort>, RunMcpServerBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -65,6 +68,7 @@ impl RunMcpServer<state::Run> {
             .spawn(spawn)
             .router_address(router_address)
             .mcp_options(mcp_options)
+            .env(env)
             .build();
 
         let (mcp_server_logs, run_mcp_server_binary_subtask): (
