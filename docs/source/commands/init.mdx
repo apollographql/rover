@@ -52,7 +52,7 @@ Once you run `rover init`, the wizard prompts you to select your use case.
 
 - **Start a graph with one or more REST APIs**
     - Select this option to integrate REST APIs into your graph using Apollo Connectors.
-- (Coming Soon) **Start a graph with recommended libraries**
+- **Start a graph with recommended libraries**
     - Select this option if you want to integrate data that's not accessible via a REST API. This option helps you set up a graph using the Apollo Server library.
 
 ### Created credentials
@@ -74,8 +74,8 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
 
         ```terminal showLineNumbers=false
         APOLLO_KEY=<key> \
-        rover dev --graph-ref <graph-ref> \
-        --supergraph-config supergraph.yaml
+        APOLLO_GRAPH_REF=<graph-ref> \
+        rover dev --supergraph-config supergraph.yaml
         ```
 
         (If you set `APOLLO_KEY` as an environment variable, you don't need to include it in your command.)
@@ -86,22 +86,35 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
         ##### Powershell
 
         ```terminal showLineNumbers=false
-        $env:APOLLO_KEY = "<key>"; rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        $env:APOLLO_KEY = "<key>"; $env:APOLLO_GRAPH_REF = "<graph-ref>"; rover dev --supergraph-config supergraph.yaml
         ```
 
         ##### Command Prompt
 
         ```terminal showLineNumbers=false
-        set APOLLO_KEY=<key> rover dev --graph-ref <graph-ref> --supergraph-config supergraph.yaml
+        set APOLLO_KEY=<key> && set APOLLO_GRAPH_REF=<graph-ref> && rover dev --supergraph-config supergraph.yaml
         ```
 
         </Tab>
 
     </Tabs>
 
+<Note>
+
+    If you started with TypeScript, you also need to run the following commands in a separate terminal window before running `rover dev`:
+
+    ```terminal
+    npm ci
+    npm start
+    ```
+
+    These commands start a subgraph server that `rover dev` depends on. Learn more in the `getting-started.md` generated when you run `rover init`.
+
+</Note>
+
 
 ### Additional resources
 
-- After running `rover init`, open the generated getting-started.md file for next steps.
+- After running `rover init`, open the generated `getting-started.md` file for next steps.
 - To go further, check out the [Getting started guide](/graphos/get-started/guides/rest) to learn what else you can do with Apollo Connectors.
 - If you learn best with videos and exercises, this [interactive course](https://www.apollographql.com/tutorials/connectors-intro-rest) teaches you how to integrate a demo REST API into a graph using Apollo Connectors.
