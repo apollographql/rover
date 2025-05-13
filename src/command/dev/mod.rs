@@ -43,6 +43,9 @@ pub struct DevOpts {
 
     #[clap(flatten)]
     pub supergraph_opts: SupergraphOpts,
+
+    #[clap(flatten)]
+    pub mcp: mcp::Opts,
 }
 
 #[derive(Debug, Parser, Serialize, Clone, Getters)]
