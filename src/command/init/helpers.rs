@@ -93,14 +93,14 @@ pub fn generate_project_created_message(
 
         if !valid_commands.is_empty() {
             if valid_commands.len() == 1 {
-                output.push_str("1) Start the subgraph server by running the following command:\n");
-                output.push_str(&format!("  {}\n", Style::Command.paint(valid_commands[0])));
+                output.push_str("1) Start the subgraph server by running the following command:\n\n");
+                output.push_str(&format!("{}\n", Style::Command.paint(valid_commands[0])));
             } else {
                 output.push_str(
-                    "1) Start the subgraph server by running the following commands in order:\n",
+                    "1) Start the subgraph server by running the following commands in order:\n\n",
                 );
                 for cmd in valid_commands {
-                    output.push_str(&format!("  {}\n", Style::Command.paint(cmd)));
+                    output.push_str(&format!("{}\n", Style::Command.paint(cmd)));
                 }
             }
             output.push_str("\n2) In a new terminal, start a local development session:\n\n");
