@@ -18,6 +18,8 @@ use crate::command::dev::router::config::RouterAddress;
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
 
+use super::Opts;
+
 pub enum McpServerLog {
     Stdout(String),
     Stderr(String),
@@ -73,6 +75,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
     router_address: RouterAddress,
+    mcp_options: Opts,
 }
 
 impl<Spawn> SubtaskHandleUnit for RunMcpServerBinary<Spawn>
@@ -90,15 +93,45 @@ where
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::task::spawn(async move {
-            let args = vec![
+            let mut args = vec![
                 "--schema".to_string(),
                 self.supergraph_schema_path.to_string(),
                 "--endpoint".to_string(),
                 self.router_address.to_string(),
                 "--sse_port".to_string(),
-                "5000".to_string(),
+                self.mcp_options.port.to_string(),
                 "--introspection".to_string(),
+                self.mcp_options.introspection.to_string(), // TODO: does rust convert bools to the right string?
+                "--allow-mutations".to_string(),
+                self.mcp_options.allow_mutations.to_string(),
             ];
+
+            if !self.mcp_options.operations.is_empty() {
+                args.push("--operations".to_string());
+                let mut operation_strings = self
+                    .mcp_options
+                    .operations
+                    .into_iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<String>>();
+                args.append(&mut operation_strings);
+            }
+
+            self.mcp_options.headers.into_iter().for_each(|h| {
+                args.push("--headers".to_string());
+                args.push(h);
+            });
+
+            // TODO: this needs auth
+            if let Some(manifest) = self.mcp_options.manifest {
+                args.push("--manifest".to_string());
+                args.push(manifest.display().to_string());
+            }
+
+            if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
+                args.push("--custom-scalars-config".to_string());
+                args.push(custom_scalars_config.display().to_string());
+            }
 
             let env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
 

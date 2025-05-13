@@ -290,6 +290,7 @@ impl Dev {
                     TokioSpawn::default(),
                     run_router.state.hot_reload_schema_path.clone(),
                     router_address,
+                    self.opts.mcp.clone(),
                 )
                 .await?;
 
@@ -379,10 +380,8 @@ impl Dev {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
                         run_router.shutdown();
-
                         break
                     },
-
                     Some(router_log) = run_router.router_logs().next() => {
                         match router_log {
                             Ok(router_log) => {
@@ -419,7 +418,6 @@ impl Dev {
                 }
             }
         };
-
         Ok(RoverOutput::EmptySuccess)
     }
 }
