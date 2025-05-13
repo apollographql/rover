@@ -44,6 +44,7 @@ pub struct DevOpts {
     #[clap(flatten)]
     pub supergraph_opts: SupergraphOpts,
 
+    #[cfg(feature = "composition-js")]
     #[clap(flatten)]
     pub mcp: mcp::Opts,
 }
