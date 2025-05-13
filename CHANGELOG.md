@@ -47,6 +47,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2579](https://github.com/apollographql/rover/pull/2579) - feat(rover)init: correctly capitalize TypeScript - @gocamille
 - [#2580](https://github.com/apollographql/rover/pull/2580) - feat(rover)init: Update Next steps section in project creation message - @gocamille
 - [#2582](https://github.com/apollographql/rover/pull/2582) - feat(init) Moving to using env var vs flag for graph ref when prompting user to run dev command - @tayrrible
+- [#2590](https://github.com/apollographql/rover/pull/2590) - feat(init): Fixing command spacing for final display message and removing extra char from file list - @tayrrible
 
 ## 🐛 Fixes
 
