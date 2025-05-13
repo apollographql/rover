@@ -24,7 +24,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add support for templates in the ```rover init``` command**
 
-  This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph.
+  This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph!
 
 ### PRs Included
 
