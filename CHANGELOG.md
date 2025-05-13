@@ -62,6 +62,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2536](https://github.com/apollographql/rover/pull/2536) - feature(init): Removes init feature flag usage - @tayrrible
 - [#2553](https://github.com/apollographql/rover/pull/2553) - chore(deps): update dependency apollographql/router to v2.2.0 - @renovate 
 - [#2565](https://github.com/apollographql/rover/pull/2565) - chore(deps): update dependency apollographql/router to v1.61.6 - @renovate
+- [#2581](https://github.com/apollographql/rover/pull/2581) - update language-server to 0.4.1 - @Jephuff
 
 ## 📚 Documentation
 
