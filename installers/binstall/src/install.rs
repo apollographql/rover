@@ -246,7 +246,7 @@ impl Installer {
         client: &reqwest::Client,
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
-        let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
+        let download_dir_path = Utf8PathBuf::try_from(download_dir.keep())?;
         let tarball_path = download_dir_path.join(format!("{}.tar.gz", plugin_name));
         let mut f = std::fs::File::create(&tarball_path)?;
         let response_bytes = client

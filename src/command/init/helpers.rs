@@ -73,45 +73,47 @@ pub fn generate_project_created_message(
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
     let dev_command = if !artifacts.is_empty() {
         format!(
-            "APOLLO_KEY={} rover dev --graph-ref {} --supergraph-config supergraph.yaml",
+            "APOLLO_KEY={} APOLLO_GRAPH_REF={} rover dev --supergraph-config supergraph.yaml",
             api_key, graph_ref
         )
     } else {
-        format!("APOLLO_KEY={} rover dev --graph-ref {}", api_key, graph_ref)
+        format!(
+            "APOLLO_KEY={} APOLLO_GRAPH_REF={} rover dev",
+            api_key, graph_ref
+        )
     };
 
     if let Some(commands) = commands {
-        // If commands vec is not empty, display the commands
-        if !commands.is_empty() {
-            // Filter out empty commands and enumerate the valid ones
-            for (i, cmd) in commands
-                .iter()
-                .filter(|cmd| !cmd.trim().is_empty())
-                .enumerate()
-            {
-                output.push_str(&format!(
-                    "{}) Run: {}\n",
-                    i + 1,
-                    Style::Command.paint(cmd.trim())
-                ));
-            }
+        // Filter out empty commands
+        let valid_commands: Vec<&str> = commands
+            .iter()
+            .filter(|cmd| !cmd.trim().is_empty())
+            .map(|cmd| cmd.trim())
+            .collect();
 
-            // Number the development command after all valid commands
-            // i.e. if we had 2 valid commands, it will be numbered 3)
-            let next_number = commands.iter().filter(|cmd| !cmd.trim().is_empty()).count() + 1;
-            output.push_str(&format!(
-                "{}) Start a local development session: {}\n",
-                next_number,
-                Style::Command.paint(dev_command)
-            ));
+        if !valid_commands.is_empty() {
+            if valid_commands.len() == 1 {
+                output
+                    .push_str("1) Start the subgraph server by running the following command:\n\n");
+                output.push_str(&format!("{}\n", Style::Command.paint(valid_commands[0])));
+            } else {
+                output.push_str(
+                    "1) Start the subgraph server by running the following commands in order:\n\n",
+                );
+                for cmd in valid_commands {
+                    output.push_str(&format!("{}\n", Style::Command.paint(cmd)));
+                }
+            }
+            output.push_str("\n2) In a new terminal, start a local development session:\n\n");
+            output.push_str(&format!("{}\n\n", Style::Command.paint(dev_command)));
         } else {
-            // If commands vec is empty, just show the rover dev command
-            output.push_str("Start a local development session:\n");
+            // If no valid commands, just show the rover dev command
+            output.push_str("Start a local development session:\n\n");
             output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
         }
     } else {
-        // If no command is provided, just show the rover dev command
-        output.push_str("Start a local development session:\n");
+        // If no commands provided, just show the rover dev command
+        output.push_str("Start a local development session:\n\n");
         output.push_str(&format!("{}\n", Style::Command.paint(dev_command)));
     }
 

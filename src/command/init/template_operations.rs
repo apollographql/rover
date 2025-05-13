@@ -93,7 +93,8 @@ fn build_prefix(
     let mut prefix = String::new();
     for &has_sibling in parent_has_sibling {
         if has_sibling {
-            prefix.push('│');
+            prefix.push(' ');
+            // prefix.push('│'); TODO: Add back in once we have accessibility mode
         } else {
             prefix.push(' ');
         }
