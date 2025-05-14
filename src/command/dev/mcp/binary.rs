@@ -140,6 +140,10 @@ where
                 args.push(manifest.display().to_string());
             }
 
+            if self.mcp_options.uplink {
+                args.push("--uplink".to_string());
+            }
+
             if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
                 args.push("--custom-scalars-config".to_string());
                 args.push(custom_scalars_config.display().to_string());

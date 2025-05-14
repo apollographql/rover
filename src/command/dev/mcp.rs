@@ -49,6 +49,10 @@ pub struct Opts {
     #[arg(long = "mcp-manifest")]
     manifest: Option<PathBuf>,
 
+    /// Enable use of uplink to get the schema and persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
+    #[arg(long = "mcp-uplink")]
+    uplink: bool,
+
     /// The path to the GraphQL custom_scalars_config file
     #[arg(long = "mcp-custom-scalars-config", required = false)]
     custom_scalars_config: Option<PathBuf>,
