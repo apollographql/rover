@@ -99,7 +99,7 @@ where
                 "--schema".to_string(),
                 self.supergraph_schema_path.to_string(),
                 "--endpoint".to_string(),
-                self.router_address.to_string(),
+                self.router_address.pretty_string(),
                 "--sse-port".to_string(),
                 self.mcp_options.sse_port.to_string(),
             ];
