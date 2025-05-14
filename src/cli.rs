@@ -383,7 +383,7 @@ pub enum Command {
     ///
     /// You can navigate to the supergraph endpoint in your browser
     /// to execute operations and see query plans using Apollo Sandbox.
-    Dev(command::Dev),
+    Dev(Box<command::Dev>),
 
     /// Supergraph schema commands
     Supergraph(command::Supergraph),

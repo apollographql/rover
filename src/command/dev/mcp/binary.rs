@@ -1,106 +1,39 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
-use std::net::{AddrParseError, SocketAddr};
 use std::process::{ExitStatus, Stdio};
 use std::{fmt, io};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+use clap::ValueEnum;
 use futures::TryFutureExt;
-use regex::Regex;
-use rover_std::{infoln, Style};
+use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
-use timber::Level;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Child;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::hot_reload::HotReloadError;
-use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
+use crate::command::dev::router::config::RouterAddress;
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
-use crate::RoverError;
 
-pub enum RouterLog {
+use super::Opts;
+
+pub enum McpServerLog {
     Stdout(String),
     Stderr(String),
 }
 
-fn should_select_log_message(log_message: &str) -> bool {
-    // For most info-level messages, we want to pipe them to tracing only.
-    // However, a few info-level messages (e.g. for confirming that the router started up)
-    // we want to pluck them so we can treat them differently.
-    //
-    // the match "exposed at http" captures expressions:
-    // * Health check exposed at http://127.0.0.1:8088/health
-    // * GraphQL endpoint exposed at http://127.0.0.1:4090/
-    !log_message
-        .matches("exposed at http")
-        .collect::<Vec<&str>>()
-        .is_empty()
-}
-
-fn produce_special_message(raw_message: &str) {
-    let starting_message_regex = Regex::new(r"^.*\s+.*://(.*:[0-9]+).*\s+.*").unwrap();
-
-    let contents = match starting_message_regex.captures(raw_message) {
-        None => raw_message.to_string(),
-        Some(captures) => {
-            let socket_address: Option<Result<SocketAddr, AddrParseError>> =
-                captures.get(1).map(|m| m.as_str().parse());
-            match socket_address {
-                Some(Ok(socket_addr)) => {
-                    let router_address = RouterAddress::new(
-                        Some(RouterHost::CliOption(socket_addr.ip())),
-                        Some(RouterPort::CliOption(socket_addr.port())),
-                    )
-                    .pretty_string();
-                    format!("Your supergraph is running! head to {router_address} to query your supergraph")
-                }
-                _ => raw_message.to_string(),
-            }
-        }
-    };
-    infoln!("{}", contents)
-}
-
-impl fmt::Display for RouterLog {
+impl fmt::Display for McpServerLog {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let warn_prefix = Style::WarningPrefix.paint("WARN:");
         let error_prefix = Style::ErrorPrefix.paint("ERROR:");
         let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
         match self {
             Self::Stdout(stdout) => {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(stdout) {
-                    let fields = &parsed["fields"];
-                    let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
-                    let message = fields["message"]
-                        .as_str()
-                        .or_else(|| {
-                            // Message is in a slightly different location depending on the
-                            // version of Router
-                            parsed["message"].as_str()
-                        })
-                        .unwrap_or(stdout);
-
-                    match level {
-                        "INFO" if should_select_log_message(message) => {
-                            produce_special_message(message);
-                        }
-                        "INFO" => tracing::info!(%message),
-                        "DEBUG" => tracing::debug!(%message),
-                        "TRACE" => tracing::trace!(%message),
-                        "WARN" => write!(f, "{} {}", warn_prefix, &message)?,
-                        "ERROR" => write!(f, "{} {}", error_prefix, &message)?,
-                        "UNKNOWN" => write!(f, "{} {}", unknown_prefix, &message)?,
-                        _ => write!(f, "{} {}", unknown_prefix, &message)?,
-                    };
-                    Ok(())
-                } else {
-                    write!(f, "{} {}", warn_prefix, &stdout)
-                }
+                // TODO: can we parse levels like router?
+                write!(f, "{} {}", unknown_prefix, &stdout)
             }
             Self::Stderr(stderr) => {
                 write!(f, "{} {}", error_prefix, &stderr)
@@ -110,76 +43,50 @@ impl fmt::Display for RouterLog {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum RunRouterBinaryError {
-    #[error("Service failed to come into a ready state: {:?}", .err)]
-    ServiceReadyError {
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Failed to run router command: {:?}", err)]
+pub enum RunMcpServerBinaryError {
+    #[error("Failed to run mcp server command: {:?}", err)]
     Spawn {
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+
     #[error("Failed to watch {descriptor} for logs")]
     OutputCapture { descriptor: String },
-    #[error("Failed healthcheck for router")]
-    HealthCheckFailed,
-    #[error("Something went wrong with an internal dependency, {}: {}", .dependency, .err)]
-    Internal { dependency: String, err: String },
-    #[error("Failed to write file to path: {}. {}", .path, .err)]
-    WriteFileError {
-        path: Utf8PathBuf,
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Failed to parse config: {}.", .err)]
-    Config {
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Failed to expand config: {}.", .err)]
-    Expansion { err: RoverError },
-    #[error("Router Binary exited")]
-    BinaryExited(io::Result<ExitStatus>),
-}
 
-impl From<HotReloadError> for RunRouterBinaryError {
-    fn from(value: HotReloadError) -> Self {
-        match value {
-            HotReloadError::Config { err } => Self::Config { err },
-            HotReloadError::Expansion { err } => Self::Expansion { err },
-        }
-    }
+    #[error("Mcp Server Binary exited")]
+    BinaryExited(io::Result<ExitStatus>),
 }
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
-pub struct RouterBinary {
+#[allow(unused)]
+pub struct McpServerBinary {
     exe: Utf8PathBuf,
-    #[allow(unused)]
     version: Version,
 }
 
-impl RouterBinary {
-    pub fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
-        RouterBinary { exe, version }
+impl McpServerBinary {
+    pub fn new(exe: Utf8PathBuf, version: Version) -> McpServerBinary {
+        McpServerBinary { exe, version }
     }
 }
 
 #[derive(Clone, Builder)]
-pub struct RunRouterBinary<Spawn: Send> {
-    router_binary: RouterBinary,
-    config_path: Utf8PathBuf,
+pub struct RunMcpServerBinary<Spawn: Send> {
+    mcp_server_binary: McpServerBinary,
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
-    log_level: Option<Level>,
+    router_address: RouterAddress,
+    mcp_options: Opts,
     env: HashMap<String, String>,
 }
 
-impl<Spawn> SubtaskHandleUnit for RunRouterBinary<Spawn>
+impl<Spawn> SubtaskHandleUnit for RunMcpServerBinary<Spawn>
 where
     Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
     Spawn::Error: std::error::Error + Send + Sync,
     Spawn::Future: Send,
 {
-    type Output = Result<RouterLog, RunRouterBinaryError>;
+    type Output = Result<McpServerLog, RunMcpServerBinaryError>;
     fn handle(
         self,
         sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
@@ -188,23 +95,74 @@ where
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::task::spawn(async move {
-            let args = vec![
-                "--supergraph".to_string(),
+            let mut args = vec![
+                "--schema".to_string(),
                 self.supergraph_schema_path.to_string(),
-                "--hot-reload".to_string(),
-                "--config".to_string(),
-                self.config_path.to_string(),
-                "--log".to_string(),
-                self.log_level.unwrap_or(Level::INFO).to_string(),
-                "--dev".to_string(),
+                "--endpoint".to_string(),
+                self.router_address.pretty_string(),
+                "--sse-port".to_string(),
+                self.mcp_options.sse_port.to_string(),
             ];
+
+            if let Some(directory) = self.mcp_options.directory {
+                args.push("--directory".to_string());
+                args.push(directory.display().to_string());
+            }
+
+            if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
+                args.push("--allow-mutations".to_string());
+                args.push(value.get_name().to_string());
+            }
+
+            if self.mcp_options.introspection {
+                args.push("--introspection".to_string());
+            }
+
+            if !self.mcp_options.operations.is_empty() {
+                args.push("--operations".to_string());
+                let mut operation_strings = self
+                    .mcp_options
+                    .operations
+                    .into_iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<String>>();
+                args.append(&mut operation_strings);
+            }
+
+            self.mcp_options.headers.into_iter().for_each(|h| {
+                args.push("--header".to_string());
+                args.push(h);
+            });
+
+            // TODO: this needs auth
+            if let Some(manifest) = self.mcp_options.manifest {
+                args.push("--manifest".to_string());
+                args.push(manifest.display().to_string());
+            }
+
+            if self.mcp_options.uplink {
+                args.push("--uplink".to_string());
+            }
+
+            if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
+                args.push("--custom-scalars-config".to_string());
+                args.push(custom_scalars_config.display().to_string());
+            }
+
+            if self.mcp_options.disable_type_description {
+                args.push("--disable-type-description".to_string());
+            }
+
+            if self.mcp_options.disable_schema_description {
+                args.push("--disable-schema-description".to_string());
+            }
 
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
                     spawn.call(
                         ExecCommandConfig::builder()
-                            .exe(self.router_binary.exe.clone())
+                            .exe(self.mcp_server_binary.exe.clone())
                             .args(args)
                             .env(self.env)
                             .output(
@@ -221,7 +179,7 @@ where
 
             match child {
                 Err(err) => {
-                    let err = RunRouterBinaryError::Spawn { err: Box::new(err) };
+                    let err = RunMcpServerBinaryError::Spawn { err: Box::new(err) };
                     let _ = sender
                         .send(Err(err))
                         .tap_err(|err| tracing::error!("Failed to send error message {:?}", err));
@@ -244,7 +202,7 @@ where
                                                 })
                                             {
                                                 let _ = sender
-                                                    .send(Ok(RouterLog::Stdout(line)))
+                                                    .send(Ok(McpServerLog::Stdout(line)))
                                                     .tap_err(|err| {
                                                         tracing::error!(
                                                     "Failed to send router stdout message. {:?}",
@@ -256,7 +214,7 @@ where
                                     });
                                 }
                                 None => {
-                                    let err = RunRouterBinaryError::OutputCapture {
+                                    let err = RunMcpServerBinaryError::OutputCapture {
                                         descriptor: "stdin".to_string(),
                                     };
                                     let _ = sender.send(Err(err)).tap_err(|err| {
@@ -279,7 +237,7 @@ where
                                                 })
                                             {
                                                 let _ = sender
-                                                    .send(Ok(RouterLog::Stderr(line)))
+                                                    .send(Ok(McpServerLog::Stderr(line)))
                                                     .tap_err(|err| {
                                                         tracing::error!(
                                                 "Failed to send router stderr message. {:?}",
@@ -291,7 +249,7 @@ where
                                     });
                                 }
                                 None => {
-                                    let err = RunRouterBinaryError::OutputCapture {
+                                    let err = RunMcpServerBinaryError::OutputCapture {
                                         descriptor: "stdin".to_string(),
                                     };
                                     let _ = sender.send(Err(err)).tap_err(|err| {
@@ -306,7 +264,7 @@ where
                                 async move {
                                     let res = child.wait().await;
                                     let _ = sender
-                                        .send(Err(RunRouterBinaryError::BinaryExited(res)))
+                                        .send(Err(RunMcpServerBinaryError::BinaryExited(res)))
                                         .tap_err(|err| {
                                             tracing::error!(
                                                 "Failed to send router stderr message. {:?}",
