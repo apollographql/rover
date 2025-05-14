@@ -18,13 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.30.0]
+# [0.30.0] - 2025-05-13
 
 ## 🚀 Features
 
 - **Add support for templates in the ```rover init``` command**
 
-  This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph.
+  This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph!
 
 ### PRs Included
 
@@ -36,10 +36,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2545](https://github.com/apollographql/rover/pull/2545) - Modifies existing logic to fetch from the new github service latest released version - @sanchezdale
 - [#2542](https://github.com/apollographql/rover/pull/2542) - refactor(init): Improves authentication error handling in init command - @gocamille
 - [#2539](https://github.com/apollographql/rover/pull/2539) - refactor(init): Improves error handling for graphId step, improve and code structure of rover init - @gocamille
+- [#2567](https://github.com/apollographql/rover/pull/2567) - feat(rover): init flow - update project creation copy for accuracy - @gocamille
+- [#2568](https://github.com/apollographql/rover/pull/2568) - feat(init): Always show template selector for recommended libraries flow - @tayrrible
+- [#2570](https://github.com/apollographql/rover/pull/2570) - feat(init): Updating error message for non-empty directory - @tayrrible
+- [#2572](https://github.com/apollographql/rover/pull/2572) - Improving file display in tree mode - @sanchezdale
+- [#3573](https://github.com/apollographql/rover/pull/2573) - feat(rover)init: allow multiple commands to be printed for graph creation message - @gocamille
+- [#2575](https://github.com/apollographql/rover/pull/2575) - feat(rover): updating file display to show success and remove extra chars for now - @tayrrible
+- [#2577](https://github.com/apollographql/rover/pull/2577) - feat(auth) Using shortlinks for hyperlinks to api keys - @tayrrible
+- [#7578](https://github.com/apollographql/rover/pull/2578) - adding template doc to docs list - @sanchezdale
+- [#2579](https://github.com/apollographql/rover/pull/2579) - feat(rover)init: correctly capitalize TypeScript - @gocamille
+- [#2580](https://github.com/apollographql/rover/pull/2580) - feat(rover)init: Update Next steps section in project creation message - @gocamille
+- [#2582](https://github.com/apollographql/rover/pull/2582) - feat(init) Moving to using env var vs flag for graph ref when prompting user to run dev command - @tayrrible
+- [#2590](https://github.com/apollographql/rover/pull/2590) - feat(init): Fixing command spacing for final display message and removing extra char from file list - @tayrrible
 
 ## 🐛 Fixes
 
 - [#2555](https://github.com/apollographql/rover/pull/2555) - fix(init): Properly handles default graph ID acceptance - @gocamille
+- [#2566](https://github.com/apollographql/rover/pull/2566) - fix(init): Display command in project creation message for typescript template - @gocamille
+- [#2571](https://github.com/apollographql/rover/pull/2571) - fix(init) Stripping all non-alphanumeric chars from graph id during generation and adding test - @tayrrible
 
 ## 🛠 Maintenance
 
@@ -47,6 +61,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2552](https://github.com/apollographql/rover/pull/2552) - chore(all): Adds clippy::panic lint across all crates - @gocamille
 - [#2550](https://github.com/apollographql/rover/pull/2550) - chore(deps): Updates dependency apollographql/router to v1.61.5 - @renovate
 - [#2536](https://github.com/apollographql/rover/pull/2536) - feature(init): Removes init feature flag usage - @tayrrible
+- [#2553](https://github.com/apollographql/rover/pull/2553) - chore(deps): update dependency apollographql/router to v2.2.0 - @renovate 
+- [#2565](https://github.com/apollographql/rover/pull/2565) - chore(deps): update dependency apollographql/router to v1.61.6 - @renovate
+- [#2581](https://github.com/apollographql/rover/pull/2581) - update language-server to 0.4.1 - @Jephuff
 
 ## 📚 Documentation
 
@@ -54,6 +71,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2549](https://github.com/apollographql/rover/pull/2549) - Updates doc about key used with graph ref - @pubmodmatt
 - [#2541](https://github.com/apollographql/rover/pull/2541) - Update `rover init` resources - @Meschreiber
 - [#2540](https://github.com/apollographql/rover/pull/2540) - Uses `actions/checkout@v4` in GitHub Actions example workflows - @DaleSeo
+- [#2569](https://github.com/apollographql/rover/pull/2569) - docs: Set the APOLLO_VCS_BRANCH environment variable in GitHub Actions - @DaleSeo
+- [#2561](https://github.com/apollographql/rover/pull/2561) - docs: rover init v.30 update - @Meschreiber
 
 # [0.29.1] - 2025-04-23
 

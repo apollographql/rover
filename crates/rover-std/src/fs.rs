@@ -419,7 +419,7 @@ mod tests {
         // Set up a temporary directory as required
         let bounding_dir = TempDir::new()
             .expect("failed to create temporary directory")
-            .into_path();
+            .keep();
         let mut path =
             Utf8PathBuf::from_path_buf(bounding_dir.clone()).expect("could not create UTF8-Path");
         let mut expected_path = path.clone();
