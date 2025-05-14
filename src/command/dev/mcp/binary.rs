@@ -130,7 +130,7 @@ where
             }
 
             self.mcp_options.headers.into_iter().for_each(|h| {
-                args.push("--headers".to_string());
+                args.push("--header".to_string());
                 args.push(h);
             });
 
