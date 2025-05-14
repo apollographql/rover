@@ -60,4 +60,12 @@ pub struct Opts {
     // Configure when to allow mutations
     #[arg(long = "mcp-allow-mutations", default_value_t, value_enum)]
     allow_mutations: MutationMode,
+
+    /// Disable operation root field types in tool description
+    #[arg(long = "mcp-disable-type-description")]
+    disable_type_description: bool,
+
+    /// Disable schema type definitions referenced by all fields returned by the operation in the tool description
+    #[arg(long = "mcp-disable-schema-description")]
+    disable_schema_description: bool,
 }

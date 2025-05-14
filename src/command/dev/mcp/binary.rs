@@ -149,6 +149,14 @@ where
                 args.push(custom_scalars_config.display().to_string());
             }
 
+            if self.mcp_options.disable_type_description {
+                args.push("--disable-type-description".to_string());
+            }
+
+            if self.mcp_options.disable_schema_description {
+                args.push("--disable-schema-description".to_string());
+            }
+
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
