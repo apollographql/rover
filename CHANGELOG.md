@@ -22,7 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **Add mcp to rover dev - @jeffrey, @pubmodmatt PR #2591**
+- **Add mcp to rover dev - @Jephuff, @pubmodmatt PR #2591**
   
   This release adds the ability to run the [Apollo MCP Server](https://github.com/apollographql/apollo-mcp-server) in addition to the Apollo Router when running `rover dev`. Specify the `--mcp` option to start the MCP server. Additional options are provided to configure the MCP server. Use `rover dev --help` for details.
 
