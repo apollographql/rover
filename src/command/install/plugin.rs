@@ -11,6 +11,11 @@ use rover_std::{sanitize_url, Fs};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
+mod error;
+mod mcp;
+
+pub(crate) use mcp::Version as McpServerVersion;
+
 // These OSX versions of the router were compiled for aarch64 only
 const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
     [Version::new(1, 38, 0), Version::new(1, 39, 0)];
@@ -19,6 +24,7 @@ const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
 pub enum Plugin {
     Supergraph(FederationVersion),
     Router(RouterVersion),
+    McpServer(mcp::Version),
 }
 
 impl Plugin {
@@ -26,6 +32,7 @@ impl Plugin {
         match self {
             Self::Supergraph(_) => "supergraph".to_string(),
             Self::Router(_) => "router".to_string(),
+            Self::McpServer(_) => "apollo-mcp-server".to_string(),
         }
     }
 
@@ -33,6 +40,7 @@ impl Plugin {
         match self {
             Self::Supergraph(v) => v.get_major_version() == 2,
             Self::Router(_) => true,
+            Self::McpServer(_) => true,
         }
     }
 
@@ -40,6 +48,7 @@ impl Plugin {
         match self {
             Self::Supergraph(v) => v.get_tarball_version(),
             Self::Router(v) => v.get_tarball_version(),
+            Self::McpServer(v) => v.get_tarball_version(),
         }
     }
 
@@ -75,7 +84,7 @@ impl Plugin {
                     Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_ONLY_ROUTER_VERSIONS[0]) => {
                          Ok("x86_64-apple-darwin")
                     },
-                    Self::Router(_) => {
+                    Self::Router(_) | Self::McpServer(_) => {
                        Ok("aarch64-apple-darwin")
                    },
                    Self::Supergraph(v) => {
@@ -116,7 +125,7 @@ impl Plugin {
                             }
                             Err(no_prebuilt_binaries)
                         }
-                    },
+                    }
                     Self::Router(v) => {
                         match v {
                             RouterVersion::Exact(v) => {
@@ -130,6 +139,7 @@ impl Plugin {
                             RouterVersion::LatestOne | RouterVersion::LatestTwo => Ok("aarch64-unknown-linux-gnu")
                         }
                     }
+                    Self::McpServer(_) => Ok("aarch64-unknown-linux-gnu"),
                 }
             }
             _ => Err(no_prebuilt_binaries),
@@ -166,20 +176,25 @@ impl FromStr for Plugin {
                 let federation_version = FederationVersion::from_str(&plugin_version)
                     .with_context(|| {
                         format!(
-                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-0', 'latest-2', or an exact version preceeded with an '='.",
+                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-0', 'latest-2', or an exact version preceded with an '='.",
                             &plugin_version
                         )
                     })?;
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', or an exact version (>= 1.0.0 & < 2.0.0) preceeded with a 'v'", &plugin_version)
+                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', or an exact version (>= 1.0.0 & < 2.0.0) preceded with a 'v'", &plugin_version)
                 })?;
                 Ok(Plugin::Router(router_version))
+            } else if plugin_name == "apollo-mcp-server" {
+                let mcp_version = mcp::Version::from_str(&plugin_version).with_context({
+                    || format!("Invalid version '{}' for 'apollo-mcp-server' plugin. Must be 'latest' or an exact version preceded with a 'v'", &plugin_version)
+                })?;
+                Ok(Plugin::McpServer(mcp_version))
             } else {
                 // TODO: this should probably use ArgEnum instead
                 Err(anyhow!(
-                    "Invalid plugin name {}. Possible values are [supergraph, router].",
+                    "Invalid plugin name {}. Possible values are [apollo-mcp-server, supergraph, router].",
                     plugin_name
                 ))
             }
@@ -194,147 +209,93 @@ pub struct PluginInstaller {
     /// StudioClientConfig for Studio and GraphQL client
     client_config: StudioClientConfig,
     /// The installer that fetches and installs the plugin
-    rover_installer: Installer,
+    installer: Installer,
     /// Whether to overwrite the plugin if it already exists
     force: bool,
 }
 
+fn skip_update_error(plugin_name: &str, version: &str) -> RoverError {
+    let mut err = RoverError::new(anyhow!(
+        "You do not have the '{}-v{}' plugin installed.",
+        plugin_name,
+        version,
+    ));
+    if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
+        err.set_suggestion(RoverErrorSuggestion::Adhoc(
+            "Try running `npm install` to reinstall the plugin.".to_string(),
+        ));
+    } else {
+        err.set_suggestion(RoverErrorSuggestion::Adhoc(
+            "Try re-running this command without the `--skip-update` flag.".to_string(),
+        ));
+    }
+    err
+}
+
+fn could_not_install_plugin(plugin_name: &str, version: &str) -> RoverError {
+    let mut err = RoverError::new(anyhow!(
+        "Could not install the '{plugin_name}-v{version}' plugin for an unknown reason."
+    ));
+    err.set_suggestion(RoverErrorSuggestion::SubmitIssue);
+    err
+}
+
 impl PluginInstaller {
-    pub fn new(client_config: StudioClientConfig, rover_installer: Installer, force: bool) -> Self {
+    pub fn new(client_config: StudioClientConfig, installer: Installer, force: bool) -> Self {
         Self {
             client_config,
-            rover_installer,
+            installer,
             force,
         }
     }
 
     pub async fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
-        let skip_update_err = |plugin_name: &str, version: &str| {
-            let mut err = RoverError::new(anyhow!(
-                "You do not have the '{}-v{}' plugin installed.",
-                plugin_name,
-                version,
-            ));
-            if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
-                err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                    "Try runnning `npm install` to reinstall the plugin.".to_string(),
-                ));
-            } else {
-                err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                    "Try re-running this command without the `--skip-update` flag.".to_string(),
-                ));
-            }
-            err
-        };
-
-        let could_not_install_plugin = |plugin_name: &str, version: &str| {
-            let mut err = RoverError::new(anyhow!(
-                "Could not install the '{plugin_name}-v{version}' plugin for an unknown reason."
-            ));
-            err.set_suggestion(RoverErrorSuggestion::SubmitIssue);
-            err
-        };
-
         let install_location = match plugin {
             Plugin::Router(version) => match version {
                 RouterVersion::Exact(version) => {
                     let version = version.to_string();
-                    if skip_update {
-                        self.find_existing_exact(plugin, &version)?
-                            .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
-                    } else {
-                        self.install_exact(plugin, &version)
-                            .await?
-                            .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
-                    }
+                    self.find_or_install_exact(plugin, &version, skip_update)
+                        .await
                 }
                 RouterVersion::LatestOne => {
                     let major_version = 1;
-                    if skip_update {
-                        self.find_existing_latest_major(plugin, major_version)?
-                            .ok_or_else(|| {
-                                skip_update_err(
-                                    &plugin.get_name(),
-                                    major_version.to_string().as_str(),
-                                )
-                            })
-                    } else {
-                        self.install_latest_major(plugin).await?.ok_or_else(|| {
-                            could_not_install_plugin(
-                                &plugin.get_name(),
-                                major_version.to_string().as_str(),
-                            )
-                        })
-                    }
+                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                        .await
                 }
                 RouterVersion::LatestTwo => {
                     let major_version = 2;
-                    if skip_update {
-                        self.find_existing_latest_major(plugin, major_version)?
-                            .ok_or_else(|| {
-                                skip_update_err(
-                                    &plugin.get_name(),
-                                    major_version.to_string().as_str(),
-                                )
-                            })
-                    } else {
-                        self.install_latest_major(plugin).await?.ok_or_else(|| {
-                            could_not_install_plugin(
-                                &plugin.get_name(),
-                                major_version.to_string().as_str(),
-                            )
-                        })
-                    }
+                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                        .await
                 }
             },
             Plugin::Supergraph(version) => match version {
                 FederationVersion::ExactFedOne(version)
                 | FederationVersion::ExactFedTwo(version) => {
                     let version = version.to_string();
-                    if skip_update {
-                        self.find_existing_exact(plugin, &version)?
-                            .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
-                    } else {
-                        self.install_exact(plugin, &version)
-                            .await?
-                            .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
-                    }
+                    self.find_or_install_exact(plugin, &version, skip_update)
+                        .await
                 }
                 FederationVersion::LatestFedOne => {
                     let major_version = 0;
-                    if skip_update {
-                        self.find_existing_latest_major(plugin, major_version)?
-                            .ok_or_else(|| {
-                                skip_update_err(&plugin.get_name(), version.to_string().as_str())
-                            })
-                    } else {
-                        self.install_latest_major(plugin).await?.ok_or_else(|| {
-                            could_not_install_plugin(
-                                &plugin.get_name(),
-                                major_version.to_string().as_str(),
-                            )
-                        })
-                    }
+                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                        .await
                 }
                 FederationVersion::LatestFedTwo => {
                     let major_version = 2;
-                    if skip_update {
-                        Ok(self
-                            .find_existing_latest_major(plugin, major_version)?
-                            .ok_or_else(|| {
-                                skip_update_err(
-                                    &plugin.get_name(),
-                                    major_version.to_string().as_str(),
-                                )
-                            })?)
-                    } else {
-                        self.install_latest_major(plugin).await?.ok_or_else(|| {
-                            could_not_install_plugin(
-                                &plugin.get_name(),
-                                major_version.to_string().as_str(),
-                            )
-                        })
-                    }
+                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                        .await
+                }
+            },
+            Plugin::McpServer(version) => match version {
+                mcp::Version::Exact(version) => {
+                    let version = version.to_string();
+                    self.find_or_install_exact(plugin, &version, skip_update)
+                        .await
+                }
+                mcp::Version::Latest => {
+                    let major_version = 0;
+                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                        .await
                 }
             },
         }?;
@@ -342,12 +303,44 @@ impl PluginInstaller {
         Ok(install_location)
     }
 
+    async fn find_or_install_exact(
+        &self,
+        plugin: &Plugin,
+        version: &str,
+        skip_update: bool,
+    ) -> RoverResult<Utf8PathBuf> {
+        if skip_update {
+            self.find_existing_exact(plugin, version)?
+                .ok_or_else(|| skip_update_error(&plugin.get_name(), version))
+        } else {
+            self.install_exact(plugin, version)
+                .await?
+                .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), version))
+        }
+    }
+
+    async fn find_or_install_latest_major(
+        &self,
+        plugin: &Plugin,
+        major_version: u64,
+        skip_update: bool,
+    ) -> RoverResult<Utf8PathBuf> {
+        if skip_update {
+            self.find_existing_latest_major(plugin, major_version)?
+                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()))
+        } else {
+            self.install_latest_major(plugin).await?.ok_or_else(|| {
+                could_not_install_plugin(&plugin.get_name(), &major_version.to_string())
+            })
+        }
+    }
+
     fn find_existing_latest_major(
         &self,
         plugin: &Plugin,
         major_version: u64,
     ) -> RoverResult<Option<Utf8PathBuf>> {
-        let plugin_dir = self.rover_installer.get_bin_dir_path()?;
+        let plugin_dir = self.installer.get_bin_dir_path()?;
         let plugin_name = plugin.get_name();
         let mut installed_plugins =
             find_installed_plugins(&plugin_dir, &plugin_name, major_version)?;
@@ -371,7 +364,7 @@ impl PluginInstaller {
 
     async fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let latest_version = self
-            .rover_installer
+            .installer
             .get_plugin_version(&plugin.get_tarball_url()?, true)
             .await?;
 
@@ -391,7 +384,7 @@ impl PluginInstaller {
         plugin: &Plugin,
         version: &str,
     ) -> RoverResult<Option<Utf8PathBuf>> {
-        let plugin_dir = self.rover_installer.get_bin_dir_path()?;
+        let plugin_dir = self.installer.get_bin_dir_path()?;
         let plugin_name = plugin.get_name();
         Ok(find_installed_plugin(&plugin_dir, &plugin_name, version).ok())
     }
@@ -424,7 +417,7 @@ impl PluginInstaller {
             eprintln!("downloading the '{plugin_name}' plugin");
         }
         Ok(self
-            .rover_installer
+            .installer
             .install_plugin(
                 &plugin_name,
                 &plugin_tarball_url,
@@ -497,7 +490,7 @@ fn find_installed_plugin(
         let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
         if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
             err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                "Try runnning `npm install` to reinstall the plugin.".to_string(),
+                "Try running `npm install` to reinstall the plugin.".to_string(),
             ));
         } else {
             err.set_suggestion(RoverErrorSuggestion::Adhoc(

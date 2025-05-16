@@ -12,11 +12,14 @@ use timber::Level;
 use tower::ServiceExt;
 
 use super::version_upgrade_message::VersionUpgradeMessage;
+use crate::command::dev::mcp::binary::RunMcpServerBinaryError;
+use crate::command::dev::mcp::run::RunMcpServer;
 use crate::command::dev::router::binary::RunRouterBinaryError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
+use crate::command::install::McpServerVersion;
 use crate::command::Dev;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
@@ -226,7 +229,7 @@ impl Dev {
             .install(
                 router_version,
                 client_config.clone(),
-                override_install_path,
+                override_install_path.clone(),
                 elv2_license_accepter,
                 skip_update,
             )
@@ -271,48 +274,151 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
-        loop {
-            tokio::select! {
-                _ = tokio::signal::ctrl_c() => {
-                    eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
-                    run_router.shutdown();
-                    break
-                },
-                Some(router_log) = run_router.router_logs().next() => {
-                    match router_log {
-                        Ok(router_log) => {
-                            if !router_log.to_string().is_empty() {
-                                eprintln!("{}", router_log);
-                            }
-                        }
-                        Err(RunRouterBinaryError::BinaryExited(res)) => {
-                            match res {
-                                Ok(status) => {
-                                    match status.code() {
-                                        None => {
-                                            eprintln!("Router process terminal by signal");
-                                        }
-                                        Some(code) => {
-                                            eprintln!("Router process exited with status code: {code}");
-                                        }
-                                    }
+        if self.opts.mcp.enabled {
+            let run_mcp_server = RunMcpServer::default()
+                .install(
+                    McpServerVersion::Latest,
+                    client_config.clone(),
+                    override_install_path,
+                    elv2_license_accepter,
+                    skip_update,
+                )
+                .await?;
 
-                                }
-                                Err(err) => {
-                                    tracing::error!("Router process exited without status code. Error: {err}")
+            let mut run_mcp_server = run_mcp_server
+                .run(
+                    TokioSpawn::default(),
+                    run_router.state.hot_reload_schema_path.clone(),
+                    router_address,
+                    self.opts.mcp.clone(),
+                    run_router.state.env.clone(),
+                )
+                .await?;
+
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
+                        run_router.shutdown();
+
+                            run_mcp_server.shutdown();
+
+                        break
+                    },
+
+                    Some(router_log) = run_router.router_logs().next() => {
+                        match router_log {
+                            Ok(router_log) => {
+                                if !router_log.to_string().is_empty() {
+                                    eprintln!("{}", router_log);
                                 }
                             }
-                            eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
-                            break;
+                            Err(RunRouterBinaryError::BinaryExited(res)) => {
+                                match res {
+                                    Ok(status) => {
+                                        match status.code() {
+                                            None => {
+                                                eprintln!("Router process terminal by signal");
+                                            }
+                                            Some(code) => {
+                                                eprintln!("Router process exited with status code: {code}");
+                                            }
+                                        }
+
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("Router process exited without status code. Error: {err}")
+                                    }
+                                }
+                                eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                                break;
+                            }
+                            Err(err) => {
+                                tracing::error!("{:?}", err);
+                            }
                         }
-                        Err(err) => {
-                            tracing::error!("{:?}", err);
+                    },
+
+                    Some(mcp_server_logs) = run_mcp_server.mcp_server_logs().next() => {
+                        match mcp_server_logs {
+                            Ok(mcp_server_logs) => {
+                                if !mcp_server_logs.to_string().is_empty() {
+                                    eprintln!("{}", mcp_server_logs);
+                                }
+                            }
+                            Err(RunMcpServerBinaryError::BinaryExited(res)) => {
+                                match res {
+                                    Ok(status) => {
+                                        match status.code() {
+                                            None => {
+                                                eprintln!("Mcp Server process terminal by signal");
+                                            }
+                                            Some(code) => {
+                                                eprintln!("Mcp Server process exited with status code: {code}");
+                                            }
+                                        }
+
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("Mcp Server process exited without status code. Error: {err}")
+                                    }
+                                }
+                                eprintln!("\nMcp Server binary exited, stopping `rover dev` processes...");
+                                break;
+                            }
+                            Err(err) => {
+                                tracing::error!("{:?}", err);
+                            }
                         }
-                    }
-                },
-                else => break,
+                    },
+
+                    else => break,
+                }
             }
-        }
+        } else {
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
+                        run_router.shutdown();
+                        break
+                    },
+                    Some(router_log) = run_router.router_logs().next() => {
+                        match router_log {
+                            Ok(router_log) => {
+                                if !router_log.to_string().is_empty() {
+                                    eprintln!("{}", router_log);
+                                }
+                            }
+                            Err(RunRouterBinaryError::BinaryExited(res)) => {
+                                match res {
+                                    Ok(status) => {
+                                        match status.code() {
+                                            None => {
+                                                eprintln!("Router process terminal by signal");
+                                            }
+                                            Some(code) => {
+                                                eprintln!("Router process exited with status code: {code}");
+                                            }
+                                        }
+
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("Router process exited without status code. Error: {err}")
+                                    }
+                                }
+                                eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                                break;
+                            }
+                            Err(err) => {
+                                tracing::error!("{:?}", err);
+                            }
+                        }
+                    },
+                    else => break,
+                }
+            }
+        };
         Ok(RoverOutput::EmptySuccess)
     }
 }

@@ -1,18 +1,5 @@
+use std::collections::HashMap;
 use std::time::Duration;
-
-use apollo_federation_types::config::RouterVersion;
-use camino::{Utf8Path, Utf8PathBuf};
-use futures::stream::{self, BoxStream};
-use futures::StreamExt;
-use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
-use rover_std::{debugln, errln, infoln, RoverStdError};
-use timber::Level;
-use tokio::process::Child;
-use tokio::time::sleep;
-use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_util::sync::CancellationToken;
-use tower::{Service, ServiceExt};
 
 use super::binary::{RouterLog, RunRouterBinary, RunRouterBinaryError};
 use super::config::remote::RemoteRouterConfig;
@@ -24,7 +11,7 @@ use crate::command::dev::router::hot_reload::{HotReloadConfig, HotReloadConfigOv
 use crate::command::dev::router::watchers::file::FileWatcher;
 use crate::composition::events::CompositionEvent;
 use crate::composition::CompositionError;
-use crate::options::{LicenseAccepter, ProfileOpt};
+use crate::options::{LicenseAccepter, ProfileOpt, DEFAULT_PROFILE};
 use crate::subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommandConfig;
@@ -32,6 +19,20 @@ use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::write_file::{WriteFile, WriteFileRequest};
 use crate::RoverError;
+use apollo_federation_types::config::RouterVersion;
+use camino::{Utf8Path, Utf8PathBuf};
+use futures::stream::{self, BoxStream};
+use futures::StreamExt;
+use houston::{Config, Profile};
+use rover_client::shared::GraphRef;
+use rover_client::RoverClientError;
+use rover_std::{debugln, errln, infoln, warnln, RoverStdError};
+use timber::Level;
+use tokio::process::Child;
+use tokio::time::sleep;
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_util::sync::CancellationToken;
+use tower::{Service, ServiceExt};
 
 pub struct RunRouter<S> {
     pub(crate) state: S,
@@ -208,14 +209,12 @@ impl RunRouter<state::Run> {
                 err: Box::new(err),
             })?;
 
+        let env = self.auth_env(profile, home_override, api_key_override);
         let run_router_binary = RunRouterBinary::builder()
             .router_binary(self.state.binary.clone())
             .config_path(hot_reload_config_path.clone())
             .supergraph_schema_path(hot_reload_schema_path.clone())
-            .and_remote_config(self.state.remote_config.clone())
-            .and_home_override(home_override)
-            .and_api_key_override(api_key_override)
-            .profile(profile)
+            .env(env.clone())
             .and_log_level(log_level)
             .spawn(spawn)
             .build();
@@ -237,8 +236,49 @@ impl RunRouter<state::Run> {
                 hot_reload_config_path,
                 hot_reload_schema_path,
                 router_logs,
+                env,
             },
         })
+    }
+
+    fn auth_env(
+        &self,
+        profile: ProfileOpt,
+        home_override: Option<String>,
+        api_key_override: Option<String>,
+    ) -> HashMap<String, String> {
+        let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+
+        // We set the APOLLO_KEY here, but it might be overridden by RemoteRouterConfig. That
+        // struct takes the who_am_i service, gets an identity, and checks whether the
+        // associated API key (if present) is of a graph-level actor; if it is, we overwrite
+        // the env key with it because we know it's associated with the target graph_ref
+        match &self.state.remote_config {
+            Some(remote_config) => {
+                if let Some(api_key) = remote_config.api_key().clone() {
+                    env.insert("APOLLO_KEY".to_string(), api_key);
+                }
+                env.insert(
+                    "APOLLO_GRAPH_REF".to_string(),
+                    remote_config.graph_ref().to_string(),
+                );
+            }
+            None => {
+                match Config::new(home_override.as_ref(), api_key_override.clone())
+                    .and_then(|config| Profile::get_credential(&profile.profile_name, &config))
+                {
+                    Ok(credential) => {
+                        env.insert("APOLLO_KEY".to_string(), credential.api_key.clone());
+                    }
+                    Err(err) => {
+                        if profile.profile_name != DEFAULT_PROFILE {
+                            warnln!("Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY", profile.profile_name, err)
+                        }
+                    }
+                };
+            }
+        }
+        env
     }
 
     async fn wait_for_healthy_router(
@@ -388,6 +428,7 @@ impl RunRouter<state::Watch> {
                 hot_reload_events,
                 router_logs: self.state.router_logs,
                 hot_reload_schema_path: self.state.hot_reload_schema_path,
+                env: self.state.env,
             },
         }
     }
@@ -406,6 +447,8 @@ impl RunRouter<state::Abort> {
 }
 
 mod state {
+    use std::collections::HashMap;
+
     use camino::Utf8PathBuf;
     use tokio_stream::wrappers::UnboundedReceiverStream;
     use tokio_util::sync::CancellationToken;
@@ -437,6 +480,7 @@ mod state {
         pub hot_reload_config_path: Utf8PathBuf,
         pub hot_reload_schema_path: Utf8PathBuf,
         pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
+        pub env: HashMap<String, String>,
     }
     pub struct Abort {
         pub router_logs: UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>>,
@@ -446,5 +490,6 @@ mod state {
         pub cancellation_token: CancellationToken,
         #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
+        pub env: HashMap<String, String>,
     }
 }
