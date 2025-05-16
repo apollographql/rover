@@ -102,10 +102,12 @@ where
                 self.mcp_options.sse_port.to_string(),
             ];
 
-            if let Some(directory) = self.mcp_options.directory {
-                args.push("--directory".to_string());
-                args.push(directory.display().to_string());
-            }
+            args.push("--directory".to_string());
+            args.push(
+                self.mcp_options
+                    .directory
+                    .map_or(".".to_string(), |d| d.to_string()),
+            );
 
             if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
                 args.push("--allow-mutations".to_string());
@@ -122,7 +124,7 @@ where
                     .mcp_options
                     .operations
                     .into_iter()
-                    .map(|p| p.display().to_string())
+                    .map(|p| p.to_string())
                     .collect::<Vec<String>>();
                 args.append(&mut operation_strings);
             }
@@ -135,7 +137,7 @@ where
             // TODO: this needs auth
             if let Some(manifest) = self.mcp_options.manifest {
                 args.push("--manifest".to_string());
-                args.push(manifest.display().to_string());
+                args.push(manifest.to_string());
             }
 
             if self.mcp_options.uplink {
@@ -144,7 +146,7 @@ where
 
             if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
                 args.push("--custom-scalars-config".to_string());
-                args.push(custom_scalars_config.display().to_string());
+                args.push(custom_scalars_config.to_string());
             }
 
             if self.mcp_options.disable_type_description {
