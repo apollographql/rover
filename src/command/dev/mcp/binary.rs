@@ -28,15 +28,13 @@ pub enum McpServerLog {
 
 impl fmt::Display for McpServerLog {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-        let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
         match self {
             Self::Stdout(stdout) => {
-                // TODO: can we parse levels like router?
-                write!(f, "{} {}", unknown_prefix, &stdout)
+                // TODO: add a JSON output option to the MCP Server so we can parse it
+                write!(f, "{}", &stdout)
             }
             Self::Stderr(stderr) => {
-                write!(f, "{} {}", error_prefix, &stderr)
+                write!(f, "{} {}", Style::ErrorPrefix.paint("ERROR:"), &stderr)
             }
         }
     }

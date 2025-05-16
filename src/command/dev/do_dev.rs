@@ -300,9 +300,7 @@ impl Dev {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
                         run_router.shutdown();
-
-                            run_mcp_server.shutdown();
-
+                        run_mcp_server.shutdown();
                         break
                     },
 
