@@ -227,84 +227,70 @@ where
                         .tap_err(|err| tracing::error!("Failed to send error message {:?}", err));
                 }
                 Ok(mut child) => {
-                    cancellation_token
-                        .run_until_cancelled(async move {
-                            match child.stdout.take() {
-                                Some(stdout) => {
-                                    tokio::task::spawn({
-                                        let sender = sender.clone();
-                                        async move {
-                                            let mut lines = BufReader::new(stdout).lines();
-                                            while let Ok(Some(line)) =
-                                                lines.next_line().await.tap_err(|err| {
-                                                    tracing::error!(
-                                                        "Error reading from router stdout: {:?}",
-                                                        err
-                                                    )
-                                                })
-                                            {
-                                                let _ = sender
-                                                    .send(Ok(RouterLog::Stdout(line)))
-                                                    .tap_err(|err| {
-                                                        tracing::error!(
-                                                    "Failed to send router stdout message. {:?}",
-                                                    err
-                                                )
-                                                    });
-                                            }
-                                        }
-                                    });
-                                }
-                                None => {
-                                    let err = RunRouterBinaryError::OutputCapture {
-                                        descriptor: "stdin".to_string(),
-                                    };
-                                    let _ = sender.send(Err(err)).tap_err(|err| {
-                                        tracing::error!("Failed to send error message {:?}", err)
-                                    });
+                    if let Some(stdout) = child.stdout.take() {
+                        tokio::task::spawn({
+                            let sender = sender.clone();
+                            async move {
+                                let mut lines = BufReader::new(stdout).lines();
+                                while let Ok(Some(line)) = lines.next_line().await.tap_err(|err| {
+                                    tracing::error!("Error reading from router stdout: {:?}", err)
+                                }) {
+                                    let _ =
+                                        sender.send(Ok(RouterLog::Stdout(line))).tap_err(|err| {
+                                            tracing::error!(
+                                                "Failed to send router stdout message. {:?}",
+                                                err
+                                            )
+                                        });
                                 }
                             }
-                            match child.stderr.take() {
-                                Some(stderr) => {
-                                    tokio::task::spawn({
-                                        let sender = sender.clone();
-                                        async move {
-                                            let mut lines = BufReader::new(stderr).lines();
-                                            while let Ok(Some(line)) =
-                                                lines.next_line().await.tap_err(|err| {
-                                                    tracing::error!(
-                                                        "Error reading from router stderr: {:?}",
-                                                        err
-                                                    )
-                                                })
-                                            {
-                                                let _ = sender
-                                                    .send(Ok(RouterLog::Stderr(line)))
-                                                    .tap_err(|err| {
-                                                        tracing::error!(
+                        });
+                    } else {
+                        let err = RunRouterBinaryError::OutputCapture {
+                            descriptor: "stdin".to_string(),
+                        };
+                        let _ = sender.send(Err(err)).tap_err(|err| {
+                            tracing::error!("Failed to send error message {:?}", err)
+                        });
+                    }
+
+                    if let Some(stderr) = child.stderr.take() {
+                        tokio::task::spawn({
+                            let sender = sender.clone();
+                            async move {
+                                let mut lines = BufReader::new(stderr).lines();
+                                while let Ok(Some(line)) = lines.next_line().await.tap_err(|err| {
+                                    tracing::error!("Error reading from router stderr: {:?}", err)
+                                }) {
+                                    let _ =
+                                        sender.send(Ok(RouterLog::Stderr(line))).tap_err(|err| {
+                                            tracing::error!(
                                                 "Failed to send router stderr message. {:?}",
                                                 err
                                             )
-                                                    });
-                                            }
-                                        }
-                                    });
-                                }
-                                None => {
-                                    let err = RunRouterBinaryError::OutputCapture {
-                                        descriptor: "stdin".to_string(),
-                                    };
-                                    let _ = sender.send(Err(err)).tap_err(|err| {
-                                        tracing::error!("Failed to send error message {:?}", err)
-                                    });
+                                        });
                                 }
                             }
-                            // Spawn a task that just sits listening to the Router binary, and if it
-                            // exits, fire an error to say so, such that we can stop Rover Dev
-                            // running if this happens.
-                            tokio::spawn({
-                                async move {
-                                    let res = child.wait().await;
+                        });
+                    } else {
+                        let err = RunRouterBinaryError::OutputCapture {
+                            descriptor: "stdin".to_string(),
+                        };
+                        let _ = sender.send(Err(err)).tap_err(|err| {
+                            tracing::error!("Failed to send error message {:?}", err)
+                        });
+                    }
+
+                    // Spawn a task that just sits listening to the Router binary, and if it
+                    // exits, fire an error to say so, such that we can stop Rover Dev
+                    // running if this happens.
+                    tokio::spawn({
+                        async move {
+                            tokio::select! {
+                                _ = cancellation_token.cancelled() => {
+                                    let _ = child.kill().await;
+                                },
+                                res = child.wait() => {
                                     let _ = sender
                                         .send(Err(RunRouterBinaryError::BinaryExited(res)))
                                         .tap_err(|err| {
@@ -314,10 +300,9 @@ where
                                             )
                                         });
                                 }
-                            })
-                            .await
-                        })
-                        .await;
+                            }
+                        }
+                    });
                 }
             }
         });

@@ -134,7 +134,6 @@ where
                 args.push(h);
             });
 
-            // TODO: this needs auth
             if let Some(manifest) = self.mcp_options.manifest {
                 args.push("--manifest".to_string());
                 args.push(manifest.to_string());
@@ -185,97 +184,90 @@ where
                         .tap_err(|err| tracing::error!("Failed to send error message {:?}", err));
                 }
                 Ok(mut child) => {
-                    cancellation_token
-                        .run_until_cancelled(async move {
-                            match child.stdout.take() {
-                                Some(stdout) => {
-                                    tokio::task::spawn({
-                                        let sender = sender.clone();
-                                        async move {
-                                            let mut lines = BufReader::new(stdout).lines();
-                                            while let Ok(Some(line)) =
-                                                lines.next_line().await.tap_err(|err| {
-                                                    tracing::error!(
-                                                        "Error reading from router stdout: {:?}",
-                                                        err
-                                                    )
-                                                })
-                                            {
-                                                let _ = sender
-                                                    .send(Ok(McpServerLog::Stdout(line)))
-                                                    .tap_err(|err| {
-                                                        tracing::error!(
-                                                    "Failed to send router stdout message. {:?}",
-                                                    err
-                                                )
-                                                    });
-                                            }
-                                        }
-                                    });
-                                }
-                                None => {
-                                    let err = RunMcpServerBinaryError::OutputCapture {
-                                        descriptor: "stdin".to_string(),
-                                    };
-                                    let _ = sender.send(Err(err)).tap_err(|err| {
-                                        tracing::error!("Failed to send error message {:?}", err)
-                                    });
-                                }
-                            }
-                            match child.stderr.take() {
-                                Some(stderr) => {
-                                    tokio::task::spawn({
-                                        let sender = sender.clone();
-                                        async move {
-                                            let mut lines = BufReader::new(stderr).lines();
-                                            while let Ok(Some(line)) =
-                                                lines.next_line().await.tap_err(|err| {
-                                                    tracing::error!(
-                                                        "Error reading from router stderr: {:?}",
-                                                        err
-                                                    )
-                                                })
-                                            {
-                                                let _ = sender
-                                                    .send(Ok(McpServerLog::Stderr(line)))
-                                                    .tap_err(|err| {
-                                                        tracing::error!(
-                                                "Failed to send router stderr message. {:?}",
+                    if let Some(stdout) = child.stdout.take() {
+                        tokio::task::spawn({
+                            let sender = sender.clone();
+                            async move {
+                                let mut lines = BufReader::new(stdout).lines();
+                                while let Ok(Some(line)) = lines.next_line().await.tap_err(|err| {
+                                    tracing::error!(
+                                        "Error reading from MCP Server stdout: {:?}",
+                                        err
+                                    )
+                                }) {
+                                    let _ = sender.send(Ok(McpServerLog::Stdout(line))).tap_err(
+                                        |err| {
+                                            tracing::error!(
+                                                "Failed to send MCP Server stdout message. {:?}",
                                                 err
                                             )
-                                                    });
-                                            }
-                                        }
-                                    });
-                                }
-                                None => {
-                                    let err = RunMcpServerBinaryError::OutputCapture {
-                                        descriptor: "stdin".to_string(),
-                                    };
-                                    let _ = sender.send(Err(err)).tap_err(|err| {
-                                        tracing::error!("Failed to send error message {:?}", err)
-                                    });
+                                        },
+                                    );
                                 }
                             }
-                            // Spawn a task that just sits listening to the Router binary, and if it
-                            // exits, fire an error to say so, such that we can stop Rover Dev
-                            // running if this happens.
-                            tokio::spawn({
-                                async move {
-                                    let res = child.wait().await;
+                        });
+                    } else {
+                        let err = RunMcpServerBinaryError::OutputCapture {
+                            descriptor: "stdin".to_string(),
+                        };
+                        let _ = sender.send(Err(err)).tap_err(|err| {
+                            tracing::error!("Failed to send error message {:?}", err)
+                        });
+                    }
+
+                    if let Some(stderr) = child.stderr.take() {
+                        tokio::task::spawn({
+                            let sender = sender.clone();
+                            async move {
+                                let mut lines = BufReader::new(stderr).lines();
+                                while let Ok(Some(line)) = lines.next_line().await.tap_err(|err| {
+                                    tracing::error!(
+                                        "Error reading from MCP Server stderr: {:?}",
+                                        err
+                                    )
+                                }) {
+                                    let _ = sender.send(Ok(McpServerLog::Stderr(line))).tap_err(
+                                        |err| {
+                                            tracing::error!(
+                                                "Failed to send MCP Server stderr message. {:?}",
+                                                err
+                                            )
+                                        },
+                                    );
+                                }
+                            }
+                        });
+                    } else {
+                        let err = RunMcpServerBinaryError::OutputCapture {
+                            descriptor: "stdin".to_string(),
+                        };
+                        let _ = sender.send(Err(err)).tap_err(|err| {
+                            tracing::error!("Failed to send error message {:?}", err)
+                        });
+                    }
+
+                    // Spawn a task that just sits listening to the MCP Server binary, and if it
+                    // exits, fire an error to say so, such that we can stop Rover Dev
+                    // running if this happens.
+                    tokio::spawn({
+                        async move {
+                            tokio::select! {
+                                _ = cancellation_token.cancelled() => {
+                                    let _ = child.kill().await;
+                                },
+                                res = child.wait() => {
                                     let _ = sender
                                         .send(Err(RunMcpServerBinaryError::BinaryExited(res)))
                                         .tap_err(|err| {
                                             tracing::error!(
-                                                "Failed to send router stderr message. {:?}",
+                                                "Failed to send MCP server stderr message. {:?}",
                                                 err
                                             )
                                         });
                                 }
-                            })
-                            .await
-                        })
-                        .await;
+                            }
+                        }
+                    });
                 }
             }
         });

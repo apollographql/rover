@@ -299,6 +299,9 @@ impl Dev {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
+
+                        // Note that these calls aren't strictly necessary. The OS will send the
+                        // SIGINT signal to forked child processes, so they would exit anyway.
                         run_router.shutdown();
                         run_mcp_server.shutdown();
                         break
@@ -329,6 +332,7 @@ impl Dev {
                                     }
                                 }
                                 eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                                run_mcp_server.shutdown();
                                 break;
                             }
                             Err(err) => {
@@ -362,6 +366,7 @@ impl Dev {
                                     }
                                 }
                                 eprintln!("\nMcp Server binary exited, stopping `rover dev` processes...");
+                                run_router.shutdown();
                                 break;
                             }
                             Err(err) => {
