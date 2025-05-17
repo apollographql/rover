@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [Unreleased]
+
+## 🐛 Fixes
+- **MCP fixes - @pubmodmatt PR #2596**
+  - `--mcp-directory` was optional, but `rover dev` failed if it was not specified
+  - All output from the MCP server was logged as `ERROR` or `UNKNOWN`
+  - If the Router or MCP Server process died, `rover dev` would exit but leave the other process running
+
 # [0.31.0] - 2025-05-14
 
 ## 🚀 Features

@@ -50,7 +50,7 @@ pub enum RunMcpServerBinaryError {
     #[error("Failed to watch {descriptor} for logs")]
     OutputCapture { descriptor: String },
 
-    #[error("Mcp Server Binary exited")]
+    #[error("MCP Server Binary exited")]
     BinaryExited(io::Result<ExitStatus>),
 }
 
