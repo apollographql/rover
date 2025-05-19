@@ -69,7 +69,7 @@ pub fn generate_project_created_message(
     api_key: String,
     commands: Option<Vec<String>>,
     start_point_file: String,
-    #[cfg(feature = "init")] print_depth: Option<u8>,
+    print_depth: Option<u8>,
 ) -> String {
     // Add welcome message
     println!(
@@ -166,9 +166,8 @@ pub fn display_project_created_message(
     api_key: String,
     commands: Option<Vec<String>>,
     start_point_file: String,
-    #[cfg(feature = "init")] print_depth: Option<u8>,
+    print_depth: Option<u8>,
 ) {
-    #[cfg(feature = "init")]
     let message = generate_project_created_message(
         project_name,
         artifacts,
