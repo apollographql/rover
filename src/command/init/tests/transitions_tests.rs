@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "init")]
     use std::collections::HashMap;
 
     use crate::command::init::config::ProjectConfig;
@@ -10,7 +9,6 @@ mod tests {
         ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
     };
     use crate::command::init::states::*;
-    #[cfg(feature = "init")]
     use crate::command::init::template_fetcher::{Template, TemplateId};
     use crate::{RoverError, RoverResult};
     use anyhow::anyhow;
@@ -148,7 +146,6 @@ mod tests {
                 organization: use_case_selected.organization.clone(),
                 use_case: use_case_selected.use_case.clone(),
                 project_name,
-                #[cfg(feature = "init")]
                 selected_template: SelectedTemplateState {
                     template: Template {
                         id: TemplateId("connectors".to_string()),
@@ -188,7 +185,6 @@ mod tests {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::Connectors,
-            #[cfg(feature = "init")]
             selected_template: SelectedTemplateState {
                 template: Template {
                     id: TemplateId("connectors".to_string()),
@@ -215,7 +211,6 @@ mod tests {
                 organization: project_named.organization.clone(),
                 use_case: project_named.use_case.clone(),
                 project_name: project_named.project_name.clone(),
-                #[cfg(feature = "init")]
                 selected_template: project_named.selected_template,
                 graph_id,
             })
@@ -245,7 +240,6 @@ mod tests {
             use_case: ProjectUseCase::Connectors,
             project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
-            #[cfg(feature = "init")]
             selected_template: SelectedTemplateState {
                 template: Template {
                     id: TemplateId("connectors".to_string()),
@@ -293,7 +287,6 @@ mod tests {
             use_case: ProjectUseCase::Connectors,
             project_name: "test-graph".parse().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
-            #[cfg(feature = "init")]
             selected_template: SelectedTemplateState {
                 template: Template {
                     id: TemplateId("connectors".to_string()),
@@ -368,7 +361,6 @@ mod tests {
             project_name: "test-graph".parse::<ProjectName>().unwrap(),
             graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
             output_path: ".".into(),
-            #[cfg(feature = "init")]
             selected_template: SelectedTemplateState {
                 template: Template {
                     id: TemplateId("connectors".to_string()),

@@ -1,13 +1,9 @@
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
 use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
-#[cfg(feature = "init")]
 use crate::command::init::template_fetcher::Template;
-#[cfg(not(feature = "init"))]
-use crate::options::template::TemplateProject;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-#[cfg(feature = "init")]
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -37,7 +33,6 @@ pub struct UseCaseSelected {
     pub use_case: ProjectUseCase,
 }
 
-#[cfg(feature = "init")]
 pub struct TemplateSelected {
     pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
@@ -52,7 +47,6 @@ pub struct ProjectNamed {
     pub project_type: ProjectType,
     pub organization: OrganizationId,
     pub use_case: ProjectUseCase,
-    #[cfg(feature = "init")]
     pub selected_template: SelectedTemplateState,
     pub project_name: ProjectName,
 }
@@ -65,24 +59,14 @@ pub struct GraphIdConfirmed {
     pub use_case: ProjectUseCase,
     pub project_name: ProjectName,
     pub graph_id: GraphId,
-    #[cfg(feature = "init")]
     pub selected_template: SelectedTemplateState,
 }
 
 #[derive(Debug)]
-#[cfg(feature = "init")]
 pub struct CreationConfirmed {
     pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
     pub selected_template: SelectedTemplateState,
-}
-
-#[derive(Debug)]
-#[cfg(not(feature = "init"))]
-pub struct CreationConfirmed {
-    pub output_path: Utf8PathBuf,
-    pub config: ProjectConfig,
-    pub selected_template: TemplateProject,
 }
 
 #[derive(Debug)]
@@ -91,7 +75,6 @@ pub struct ProjectCreated {
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
     pub graph_ref: GraphRef,
-    #[cfg(feature = "init")]
     pub template: Template,
 }
 
@@ -99,7 +82,6 @@ pub struct ProjectCreated {
 pub struct Completed;
 
 #[derive(Debug)]
-#[cfg(feature = "init")]
 pub struct SelectedTemplateState {
     pub template: Template,
     pub files: HashMap<Utf8PathBuf, Vec<u8>>,

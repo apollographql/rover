@@ -48,10 +48,7 @@ pub enum ProjectUseCase {
     GraphQLTemplate,
 }
 
-#[cfg(feature = "init")]
 const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
-#[cfg(not(feature = "init"))]
-const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries - coming soon";
 
 impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
