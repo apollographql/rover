@@ -100,14 +100,14 @@ where
                 self.router_address.pretty_string(),
                 "--sse-port".to_string(),
                 self.mcp_options.sse_port.to_string(),
+                "--sse-address".to_string(),
+                self.mcp_options.sse_address,
             ];
 
-            args.push("--directory".to_string());
-            args.push(
-                self.mcp_options
-                    .directory
-                    .map_or(".".to_string(), |d| d.to_string()),
-            );
+            if let Some(directory) = self.mcp_options.directory {
+                args.push("--directory".to_string());
+                args.push(directory.to_string());
+            }
 
             if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
                 args.push("--allow-mutations".to_string());

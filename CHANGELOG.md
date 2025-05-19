@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🐛 Fixes
 - **MCP fixes - @pubmodmatt PR #2596**
   - `--mcp-directory` was optional, but `rover dev` failed if it was not specified
+  - Added `--mcp-sse-address` to set the bind address for the MCP server started by `rover dev`
   - All output from the MCP server was logged as `ERROR` or `UNKNOWN`
   - If the Router or MCP Server process died, `rover dev` would exit but leave the other process running
 

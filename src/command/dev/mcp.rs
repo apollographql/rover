@@ -28,6 +28,9 @@ pub struct Opts {
     #[arg(long = "mcp-directory", required = false)]
     directory: Option<Utf8PathBuf>,
 
+    #[arg(long = "mcp-sse-address", default_value = "127.0.0.1")]
+    sse_address: String,
+
     /// Start the server using the SSE transport on the given port
     #[arg(long = "mcp-sse-port", default_value = "5000")]
     sse_port: u16,
