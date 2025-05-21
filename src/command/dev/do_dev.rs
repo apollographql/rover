@@ -299,10 +299,11 @@ impl Dev {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
+
+                        // Note that these calls aren't strictly necessary. The OS will send the
+                        // SIGINT signal to forked child processes, so they would exit anyway.
                         run_router.shutdown();
-
-                            run_mcp_server.shutdown();
-
+                        run_mcp_server.shutdown();
                         break
                     },
 
@@ -331,6 +332,7 @@ impl Dev {
                                     }
                                 }
                                 eprintln!("\nRouter binary exited, stopping `rover dev` processes...");
+                                run_mcp_server.shutdown();
                                 break;
                             }
                             Err(err) => {
@@ -351,19 +353,20 @@ impl Dev {
                                     Ok(status) => {
                                         match status.code() {
                                             None => {
-                                                eprintln!("Mcp Server process terminal by signal");
+                                                eprintln!("MCP Server process terminal by signal");
                                             }
                                             Some(code) => {
-                                                eprintln!("Mcp Server process exited with status code: {code}");
+                                                eprintln!("MCP Server process exited with status code: {code}");
                                             }
                                         }
 
                                     }
                                     Err(err) => {
-                                        tracing::error!("Mcp Server process exited without status code. Error: {err}")
+                                        tracing::error!("MCP Server process exited without status code. Error: {err}")
                                     }
                                 }
-                                eprintln!("\nMcp Server binary exited, stopping `rover dev` processes...");
+                                eprintln!("\nMCP Server binary exited, stopping `rover dev` processes...");
+                                run_router.shutdown();
                                 break;
                             }
                             Err(err) => {

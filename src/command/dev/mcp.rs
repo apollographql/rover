@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 use strum_macros::Display;
@@ -27,7 +26,10 @@ pub struct Opts {
 
     /// The working directory to use
     #[arg(long = "mcp-directory", required = false)]
-    directory: Option<PathBuf>,
+    directory: Option<Utf8PathBuf>,
+
+    #[arg(long = "mcp-sse-address", default_value = "127.0.0.1")]
+    sse_address: String,
 
     /// Start the server using the SSE transport on the given port
     #[arg(long = "mcp-sse-port", default_value = "5000")]
@@ -39,7 +41,7 @@ pub struct Opts {
 
     /// Operation files to expose as MCP tools
     #[arg(long = "mcp-operations", num_args=0..)]
-    operations: Vec<PathBuf>,
+    operations: Vec<Utf8PathBuf>,
 
     /// Headers to send to the endpoint
     #[arg(long = "mcp-header", action = clap::ArgAction::Append)]
@@ -47,7 +49,7 @@ pub struct Opts {
 
     /// The path to the persisted query manifest containing operations
     #[arg(long = "mcp-manifest")]
-    manifest: Option<PathBuf>,
+    manifest: Option<Utf8PathBuf>,
 
     /// Enable use of uplink to get the schema and persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
     #[arg(long = "mcp-uplink")]
@@ -55,7 +57,7 @@ pub struct Opts {
 
     /// The path to the GraphQL custom_scalars_config file
     #[arg(long = "mcp-custom-scalars-config", required = false)]
-    custom_scalars_config: Option<PathBuf>,
+    custom_scalars_config: Option<Utf8PathBuf>,
 
     // Configure when to allow mutations
     #[arg(long = "mcp-allow-mutations", default_value_t, value_enum)]
