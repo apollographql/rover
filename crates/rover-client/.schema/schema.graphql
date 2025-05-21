@@ -2044,9 +2044,8 @@ type GraphVariant {
   sourceVariant: GraphVariant
 
   """
-  Returns a list of the top operations reported for this variant within a given time range.
-  
-  Note: This field is in Private Preview and not enabled by default. Please contact Apollo support if you require access.
+  Returns a list of the top operations reported for this variant within a given time range. This API is rate limited,
+  and will return an error if too many requests are made for a graph.
   """
   topOperationsReport(
     """Optional filters to refine the results"""
@@ -3948,6 +3947,11 @@ type Proposal {
   descriptionUpdatedAt: Timestamp
   descriptionUpdatedBy: Identity
   displayName: String!
+
+  """
+  A flag indicating if changes have been detected on the source variant. Will be false if proposal was created prior to the pull upstream feature release on Nov 15, 2024.
+  """
+  hasUpstreamChanges: Boolean!
   id: ID!
   implementedChanges: [ProposalImplementedChange!]!
 
