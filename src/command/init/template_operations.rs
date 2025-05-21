@@ -1,4 +1,3 @@
-#[cfg(feature = "init")]
 use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::{RoverError, RoverResult};
@@ -7,12 +6,9 @@ use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
-#[cfg(not(feature = "init"))]
-use itertools::Itertools;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
 use rover_std::successln;
-#[cfg(feature = "init")]
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -21,31 +17,15 @@ use std::{fs, io};
 
 pub struct TemplateOperations;
 
-#[cfg(not(feature = "init"))]
-pub fn print_grouped_files(artifacts: Vec<Utf8PathBuf>) {
-    for (_, files) in &artifacts
-        .into_iter()
-        .chunk_by(|artifact| artifact.parent().map(|p| p.to_owned()))
-    {
-        for file in files {
-            if file.file_name().is_some() {
-                println!("- {}", file);
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
-#[cfg(feature = "init")]
 struct FileNode {
     children: BTreeMap<String, FileNode>,
     is_file: bool,
 }
-#[cfg(feature = "init")]
+
 const DEFAULT_PRINT_LEVEL: u8 = 5;
 
 /// Recursively prints the file tree structure up to a given depth.
-#[cfg(feature = "init")]
 fn print_node(
     node: &FileNode,
     depth: Option<u8>,
@@ -83,7 +63,6 @@ fn print_node(
     }
 }
 
-#[cfg(feature = "init")]
 fn build_prefix(
     parent_has_sibling: &[bool],
     _is_first: bool,
@@ -116,13 +95,11 @@ fn build_prefix(
 }
 
 #[derive(Clone, Copy)]
-#[cfg(feature = "init")]
 pub enum PrintMode {
     Normal,
     Confirmation,
 }
 
-#[cfg(feature = "init")]
 pub fn print_grouped_files(
     artifacts: Vec<Utf8PathBuf>,
     depth: Option<u8>,
@@ -161,7 +138,7 @@ pub fn print_grouped_files(
 impl TemplateOperations {
     pub fn prompt_creation(
         artifacts: Vec<Utf8PathBuf>,
-        #[cfg(feature = "init")] print_depth: Option<u8>,
+        print_depth: Option<u8>,
     ) -> io::Result<bool> {
         println!();
         infoln!("You’re about to add the following files to your local directory:");
@@ -169,11 +146,7 @@ impl TemplateOperations {
         let mut artifacts_sorted = artifacts;
         artifacts_sorted.sort();
 
-        #[cfg(feature = "init")]
         print_grouped_files(artifacts_sorted, print_depth, Normal);
-
-        #[cfg(not(feature = "init"))]
-        print_grouped_files(artifacts_sorted);
 
         println!();
         prompt_confirm_default_yes("? Proceed with creation?")
@@ -333,7 +306,6 @@ impl SupergraphBuilder {
 }
 
 #[cfg(test)]
-#[cfg(feature = "init")]
 mod tests {
     use super::*;
     use std::fs::{self, File};

@@ -7,8 +7,6 @@ use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-#[cfg(not(feature = "init"))]
-use rover_http::ReqwestService;
 use rover_std::{errln, hyperlink, Spinner, Style};
 
 use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
@@ -19,18 +17,14 @@ use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
 use crate::command::init::options::*;
 use crate::command::init::states::*;
-#[cfg(feature = "init")]
 use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
-#[cfg(feature = "init")]
 use crate::command::init::InitTemplateFetcher;
 
 use crate::options::{TemplateListFiles, TemplateWrite};
 
 use crate::options::ProfileOpt;
-#[cfg(not(feature = "init"))]
-use crate::options::TemplateFetcher;
 use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
@@ -242,7 +236,6 @@ impl OrganizationSelected {
 /// > Template A
 /// > Template B
 /// > Template C
-#[cfg(feature = "init")]
 impl UseCaseSelected {
     pub async fn select_template(
         self,
@@ -286,7 +279,6 @@ impl UseCaseSelected {
 /// =========
 ///
 /// ? Name your Graph:
-#[cfg(feature = "init")]
 impl TemplateSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
@@ -305,25 +297,6 @@ impl TemplateSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your Graph:
-#[cfg(not(feature = "init"))]
-impl UseCaseSelected {
-    pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
-        let project_name = options.get_or_prompt_project_name()?;
-
-        Ok(ProjectNamed {
-            output_path: self.output_path,
-            project_type: self.project_type,
-            organization: self.organization,
-            use_case: self.use_case,
-            project_name,
-        })
-    }
-}
-
-/// PROMPT UX:
-/// =========
-///
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
     pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
@@ -334,7 +307,6 @@ impl ProjectNamed {
             project_type: self.project_type,
             organization: self.organization,
             use_case: self.use_case,
-            #[cfg(feature = "init")]
             selected_template: self.selected_template,
             project_name: self.project_name,
             graph_id,
@@ -366,56 +338,6 @@ impl GraphIdConfirmed {
         }
     }
 
-    #[cfg(not(feature = "init"))]
-    pub async fn preview_and_confirm_creation(
-        self,
-        http_service: ReqwestService,
-    ) -> RoverResult<Option<CreationConfirmed>> {
-        // If this is a GraphQL Template, we've already shown the message and can exit
-        if self.use_case == ProjectUseCase::GraphQLTemplate {
-            println!();
-            println!("This feature is coming soon!");
-            println!();
-            return Ok(None);
-        }
-
-        // Create the configuration
-        let config = self.create_config();
-        #[cfg(feature = "init")]
-        tracing::debug!("Selected template: {}", self.selected_template.template_id);
-        // Determine the repository URL based on the use case
-        let repo_url = match self.use_case {
-            ProjectUseCase::Connectors => "https://github.com/apollographql/rover-init-starters/archive/04a2455e89adfd89a07b8ae7da98be4e01bf6897.tar.gz",
-            ProjectUseCase::GraphQLTemplate => unreachable!(), // This case is handled above
-        };
-
-        // Fetch the template to get the list of files
-        let template_fetcher = TemplateFetcher::new(http_service)
-            .call(repo_url.parse()?)
-            .await?;
-
-        // Get list of files that will be created
-        let artifacts = template_fetcher.list_files()?;
-
-        match TemplateOperations::prompt_creation(artifacts.clone()) {
-            Ok(true) => {
-                // User confirmed, proceed to create files
-                Ok(Some(CreationConfirmed {
-                    config,
-                    selected_template: template_fetcher,
-                    output_path: self.output_path,
-                }))
-            }
-            Ok(false) => {
-                // User canceled
-                println!("Graph creation canceled. You can run this command again anytime.");
-                Ok(None)
-            }
-            Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
-        }
-    }
-
-    #[cfg(feature = "init")]
     pub async fn preview_and_confirm_creation(self) -> RoverResult<Option<CreationConfirmed>> {
         // Create the configuration
         let config = self.create_config();
@@ -461,7 +383,6 @@ impl CreationConfirmed {
                         project_type: self.config.project_type,
                         organization: self.config.organization,
                         use_case: self.config.use_case,
-                        #[cfg(feature = "init")]
                         selected_template: self.selected_template,
                         project_name: self.config.project_name,
                     },
@@ -494,7 +415,6 @@ impl CreationConfirmed {
                         project_type: self.config.project_type,
                         organization: self.config.organization,
                         use_case: self.config.use_case,
-                        #[cfg(feature = "init")]
                         selected_template: self.selected_template,
                         project_name: self.config.project_name,
                     },
@@ -523,10 +443,7 @@ impl CreationConfirmed {
         // (confirmation was done in the previous state)
         self.selected_template.write_template(&self.output_path)?;
 
-        #[cfg(feature = "init")]
         let routing_url = self.selected_template.template.routing_url.clone();
-        #[cfg(not(feature = "init"))]
-        let routing_url = "http://ignore".to_string();
 
         let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5, routing_url);
         supergraph.build_and_write()?;
@@ -554,29 +471,17 @@ impl CreationConfirmed {
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
-        #[cfg(feature = "init")]
-        return Ok(CreateProjectResult::Created(ProjectCreated {
-            config: self.config,
-            artifacts,
-            api_key,
-            graph_ref,
-            template: self.selected_template.template,
-        }));
-
-        #[cfg(not(feature = "init"))]
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
             api_key,
             graph_ref,
-            #[cfg(feature = "init")]
-            template: Some(self.selected_template.template),
+            template: self.selected_template.template,
         }))
     }
 }
 
 impl ProjectCreated {
-    #[cfg(feature = "init")]
     pub fn complete(self) -> Completed {
         display_project_created_message(
             self.config.project_name.to_string(),
@@ -586,21 +491,6 @@ impl ProjectCreated {
             self.template.commands,
             self.template.start_point_file,
             self.template.print_depth,
-        );
-
-        Completed
-    }
-
-    #[cfg(not(feature = "init"))]
-    pub fn complete(self) -> Completed {
-        display_project_created_message(
-            self.config.project_name.to_string(),
-            &self.artifacts,
-            &self.graph_ref,
-            self.api_key.to_string(),
-            None,
-            "getting-started.md".to_string(),
-            None,
         );
 
         Completed
