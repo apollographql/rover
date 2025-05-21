@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [Unreleased]
+# [0.31.1] - 2025-05-21
 
 ## 🐛 Fixes
 - **MCP fixes - @pubmodmatt PR #2596**
@@ -26,6 +26,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Added `--mcp-sse-address` to set the bind address for the MCP server started by `rover dev`
   - All output from the MCP server was logged as `ERROR` or `UNKNOWN`
   - If the Router or MCP Server process died, `rover dev` would exit but leave the other process running
+
+## 🐛 Fixes
+- **`rover init` will now emit the correct commands for Windows PowerShell - @sanchezdale PR #2595**
+
+## 🛠 Maintenance
+- **chore: removing init feature flag - @tayrrible PR #2597**
 
 # [0.31.0] - 2025-05-14
 
