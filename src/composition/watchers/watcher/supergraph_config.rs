@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use apollo_federation_types::config::{
-    ConfigError, FederationVersion, SubgraphConfig, SupergraphConfig,
+    ConfigError, ConfigResult, FederationVersion, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
@@ -25,6 +25,7 @@ use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::Fet
 use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError;
 use crate::subtask::SubtaskHandleMultiStream;
+use crate::utils::expansion::expand;
 
 #[derive(Debug)]
 pub struct SupergraphConfigWatcher {
@@ -91,7 +92,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
             // Look at the current contents of the supergraph_config and emit an event if there's
             // a problem parsing it, otherwise move into the watching loop.
             if let Ok(contents) = self.file_watcher.fetch().await {
-                if let Err(e) = SupergraphConfig::new_from_yaml(&contents) {
+                if let Err(e) = Self::read_supergraph_config(&contents) {
                     broken = true;
                     tracing::error!("could not parse supergraph config file: {:?}", e);
                     errln!("Could not parse supergraph config file.\n{}", e);
@@ -116,7 +117,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                                 supergraph_config_path
                             );
                         debug!("Current supergraph config is: {:?}", latest_supergraph_config);
-                        match SupergraphConfig::new_from_yaml(&contents) {
+                        match Self::read_supergraph_config(&contents) {
                             Ok(supergraph_config) => {
                                 let subgraphs = BTreeMap::from_iter(supergraph_config.clone().into_iter());
                                 let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
@@ -176,6 +177,21 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                     }
                 }).await;
         });
+    }
+}
+
+impl SupergraphConfigWatcher {
+    /// Read the supergraph config from YAML contents and expand any variables
+    fn read_supergraph_config(contents: &str) -> ConfigResult<SupergraphConfig> {
+        fn to_config_err(e: impl ToString) -> ConfigError {
+            ConfigError::InvalidConfiguration {
+                message: e.to_string(),
+            }
+        }
+        let yaml_contents = expand(serde_yaml::from_str(contents).map_err(to_config_err)?)
+            .map_err(to_config_err)?;
+        let yaml_contents = serde_yaml::to_string(&yaml_contents).map_err(to_config_err)?;
+        SupergraphConfig::new_from_yaml(&yaml_contents)
     }
 }
 
@@ -306,8 +322,12 @@ pub enum SupergraphConfigSerialisationError {
 mod tests {
     use std::collections::BTreeMap;
 
-    use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+    use apollo_federation_types::config::{
+        ConfigError, SchemaSource, SubgraphConfig, SupergraphConfig,
+    };
     use rstest::rstest;
+
+    use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
 
     use super::SupergraphConfigDiff;
 
@@ -393,5 +413,52 @@ mod tests {
         assert!(diff
             .changed()
             .contains(&("subgraph_a".to_string(), new_subgraph_config.clone())));
+    }
+
+    #[tokio::test]
+    async fn test_environment_variable_expansion() {
+        let yaml_config = r#"
+            subgraphs:
+              test_subgraph:
+                routing_url: "http://localhost:${env.TEST_SUBGRAPH_PORT}/graphql"
+                schema:
+                  sdl: |
+                    type Query {
+                      hello: String
+                    }
+            "#;
+        std::env::set_var("TEST_SUBGRAPH_PORT", "4000");
+        let routing_url = SupergraphConfigWatcher::read_supergraph_config(yaml_config)
+            .unwrap()
+            .into_iter()
+            .find(|(name, _)| name == "test_subgraph")
+            .map(|(_, config)| config)
+            .unwrap()
+            .routing_url;
+        assert_eq!(
+            routing_url,
+            Some(String::from("http://localhost:4000/graphql"))
+        );
+        std::env::remove_var("TEST_SUBGRAPH_PORT");
+    }
+
+    #[tokio::test]
+    async fn test_environment_variable_expansion_not_defined() {
+        let yaml_config = r#"
+            subgraphs:
+              test_subgraph:
+                routing_url: "http://localhost:${env.NOT_DEFINED}/graphql"
+                schema:
+                  sdl: |
+                    type Query {
+                      hello: String
+                    }
+            "#;
+        match SupergraphConfigWatcher::read_supergraph_config(yaml_config) {
+            Err(ConfigError::InvalidConfiguration { message }) => {
+                assert!(message.contains("environment variable not found"))
+            }
+            _ => panic!("Expected error"),
+        }
     }
 }
