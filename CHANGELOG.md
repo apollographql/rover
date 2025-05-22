@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [Unreleased]
+# [0.31.2] - 2025-05-22
 
 ## 🐛 Fixes
 - **Composition failures on environment variables in supergraph config - @pubmodmatt PR #2601**

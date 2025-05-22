@@ -4943,12 +4943,6 @@ type Graph implements Identity {
   """
   hiddenFromUninvitedNonAdminAccountMembers: Boolean!
 
-  """
-  A list of the proposal variants for this graph sorted by created at date.
-  limit defaults to Int.MAX_VALUE, offset defaults to 0
-  """
-  proposalVariants(filterBy: ProposalVariantsFilter, limit: Int, offset: Int): ProposalVariantsResult! @deprecated(reason: "Use allProposalVariants instead. Filtering is broken for this field")
-
   """The graph's name."""
   title: String!
 
