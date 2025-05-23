@@ -18,6 +18,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [Unreleased]
+## 🐛 Fixes
+- **Eliminate unnecessary warnings on rover dev startup - @pubmodmatt PR #2604**
+
 # [0.31.2] - 2025-05-22
 
 ## 🐛 Fixes

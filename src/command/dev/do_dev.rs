@@ -6,12 +6,11 @@ use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_client::RoverClientError;
-use rover_std::{errln, infoln, warnln};
+use rover_std::{errln, infoln};
 use semver::Version;
 use timber::Level;
 use tower::ServiceExt;
 
-use super::version_upgrade_message::VersionUpgradeMessage;
 use crate::command::dev::mcp::binary::RunMcpServerBinaryError;
 use crate::command::dev::mcp::run::RunMcpServer;
 use crate::command::dev::router::binary::RunRouterBinaryError;
@@ -43,11 +42,6 @@ impl Dev {
         client_config: StudioClientConfig,
         log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
-        VersionUpgradeMessage::print();
-        warnln!(
-            "Do not run this command in production! It is intended for local development only.\n"
-        );
-
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
