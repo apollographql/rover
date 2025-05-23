@@ -7,7 +7,7 @@ use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-use rover_std::{errln, hyperlink, Spinner, Style};
+use rover_std::{errln, Spinner, Style};
 
 use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
 use crate::command::init::config::ProjectConfig;
@@ -421,20 +421,16 @@ impl CreationConfirmed {
                     reason: RestartReason::GraphIdExists,
                 });
             }
-            Err(_) => {
-                let suggestion = RoverErrorSuggestion::Adhoc(
-                    format!(
-                        "If the issue persists, please contact support at {}.",
-                        hyperlink("https://support.apollographql.com")
-                    )
-                    .to_string(),
-                );
-                let error = RoverError::from(RoverClientError::ClientError {
-                    msg:
-                        "Something went wrong on our end. This isn't your fault! Please try again."
-                            .to_string(),
-                })
-                .with_suggestion(suggestion);
+            Err(e) => {
+                tracing::error!("Failed to create graph: {:?}", e);
+                if e.to_string().contains("Cannot create") {
+                    let error =
+                        RoverError::from(RoverClientError::PermissionError { msg: e.to_string() })
+                            .with_suggestion(RoverErrorSuggestion::ContactApolloAccountManager);
+                    return Err(error);
+                }
+                let error = RoverError::from(RoverClientError::AdhocError { msg: e.to_string() })
+                    .with_suggestion(RoverErrorSuggestion::ContactApolloSupport);
                 return Err(error);
             }
         };
