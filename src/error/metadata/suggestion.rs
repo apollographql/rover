@@ -144,9 +144,8 @@ impl Display for RoverErrorSuggestion {
             }
             CheckGraphNameAndAuth => {
                 format!(
-                    "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
-                    Style::Command.paint("`rover config whoami`"),
-                    Style::Link.paint("https://studio.apollographql.com")
+                    "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check your authentication.",
+                    Style::Command.paint("`rover config whoami`")
                 )
             }
             ProvideValidSubgraph(valid_subgraphs) => {
