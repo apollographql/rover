@@ -429,8 +429,8 @@ impl CreationConfirmed {
                             .with_suggestion(RoverErrorSuggestion::ContactApolloAccountManager);
                     return Err(error);
                 }
-                let error = RoverError::from(RoverClientError::AdhocError { msg: e.to_string() })
-                    .with_suggestion(RoverErrorSuggestion::ContactApolloSupport);
+                let error =
+                    RoverError::from(e).with_suggestion(RoverErrorSuggestion::ContactApolloSupport);
                 return Err(error);
             }
         };
