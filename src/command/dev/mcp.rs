@@ -28,13 +28,13 @@ pub struct Opts {
     #[arg(long = "mcp-directory", required = false)]
     directory: Option<Utf8PathBuf>,
 
-    /// Start the server using the SSE transport on the given IP address
-    #[arg(long = "mcp-sse-address", default_value = "127.0.0.1")]
-    sse_address: String,
+    /// Start the MCP server using the Streamable HTTP transport on the given IP address
+    #[arg(long = "mcp-address", alias = "mcp-sse-address", default_value = "127.0.0.1")]
+    address: String,
 
-    /// Start the server using the SSE transport on the given port
-    #[arg(long = "mcp-sse-port", default_value = "5000")]
-    sse_port: u16,
+    /// Start the MCP server using the Streamable HTTP transport on the given port
+    #[arg(long = "mcp-port", alias = "mcp-sse-port", default_value = "5000")]
+    port: u16,
 
     /// Expose the schema to the MCP client through `schema` and `execute` tools - defaults to true
     #[arg(long = "mcp-introspection")]
@@ -71,12 +71,4 @@ pub struct Opts {
     /// Disable schema type definitions referenced by all fields returned by the operation in the tool description
     #[arg(long = "mcp-disable-schema-description")]
     disable_schema_description: bool,
-
-    /// Start the server using the Streamable HTTP transport on the given IP address
-    #[arg(long = "mcp-http-address", default_value = "127.0.0.1")]
-    http_address: String,
-
-    /// Start the server using the Streamable HTTP transport on the given port
-    #[arg(long = "mcp-http-port", default_value = "5000")]
-    http_port: u16,
 }
