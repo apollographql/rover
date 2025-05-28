@@ -102,6 +102,10 @@ where
                 self.mcp_options.sse_port.to_string(),
                 "--sse-address".to_string(),
                 self.mcp_options.sse_address,
+                "--http-port".to_string(),
+                self.mcp_options.http_port.to_string(),
+                "--http-address".to_string(),
+                self.mcp_options.http_address,
             ];
 
             if let Some(directory) = self.mcp_options.directory {

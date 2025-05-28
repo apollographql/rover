@@ -28,6 +28,7 @@ pub struct Opts {
     #[arg(long = "mcp-directory", required = false)]
     directory: Option<Utf8PathBuf>,
 
+    /// Start the server using the SSE transport on the given IP address
     #[arg(long = "mcp-sse-address", default_value = "127.0.0.1")]
     sse_address: String,
 
@@ -70,4 +71,12 @@ pub struct Opts {
     /// Disable schema type definitions referenced by all fields returned by the operation in the tool description
     #[arg(long = "mcp-disable-schema-description")]
     disable_schema_description: bool,
+
+    /// Start the server using the Streamable HTTP transport on the given IP address
+    #[arg(long = "mcp-http-address", default_value = "127.0.0.1")]
+    http_address: String,
+
+    /// Start the server using the Streamable HTTP transport on the given port
+    #[arg(long = "mcp-http-port", default_value = "5000")]
+    http_port: u16,
 }
