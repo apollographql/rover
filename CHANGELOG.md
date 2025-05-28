@@ -19,17 +19,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 📚 Documentation -->
 
 # [Unreleased]
+
+# [0.31.3] - 2025-05-28
+
 ## 🐛 Fixes
+
 - **Eliminate unnecessary warnings on rover dev startup - @pubmodmatt PR #2604**
+- **Improved error handling for graph creations through rover init - @tayrrible PR #2603**
 
 # [0.31.2] - 2025-05-22
 
 ## 🐛 Fixes
+
 - **Composition failures on environment variables in supergraph config - @pubmodmatt PR #2601**
 
 # [0.31.1] - 2025-05-21
 
 ## 🐛 Fixes
+
 - **MCP fixes - @pubmodmatt PR #2596**
   - `--mcp-directory` was optional, but `rover dev` failed if it was not specified
   - Added `--mcp-sse-address` to set the bind address for the MCP server started by `rover dev`
@@ -38,6 +45,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`rover init` will now emit the correct commands for Windows PowerShell - @sanchezdale PR #2595**
 
 ## 🛠 Maintenance
+
 - **chore: removing init feature flag - @tayrrible PR #2597**
 
 # [0.31.0] - 2025-05-14
@@ -45,14 +53,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🚀 Features
 
 - **Add mcp to rover dev - @Jephuff, @pubmodmatt PR #2591**
-  
+
   This release adds the ability to run the [Apollo MCP Server](https://github.com/apollographql/apollo-mcp-server) in addition to the Apollo Router when running `rover dev`. Specify the `--mcp` option to start the MCP server. Additional options are provided to configure the MCP server. Use `rover dev --help` for details.
 
 # [0.30.0] - 2025-05-13
 
 ## 🚀 Features
 
-- **Add support for templates in the ```rover init``` command**
+- **Add support for templates in the `rover init` command**
 
   This adds support for templates in the `rover init` command. You can now select a template to use when creating a new graph!
 
@@ -91,7 +99,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - [#2552](https://github.com/apollographql/rover/pull/2552) - chore(all): Adds clippy::panic lint across all crates - @gocamille
 - [#2550](https://github.com/apollographql/rover/pull/2550) - chore(deps): Updates dependency apollographql/router to v1.61.5 - @renovate
 - [#2536](https://github.com/apollographql/rover/pull/2536) - feature(init): Removes init feature flag usage - @tayrrible
-- [#2553](https://github.com/apollographql/rover/pull/2553) - chore(deps): update dependency apollographql/router to v2.2.0 - @renovate 
+- [#2553](https://github.com/apollographql/rover/pull/2553) - chore(deps): update dependency apollographql/router to v2.2.0 - @renovate
 - [#2565](https://github.com/apollographql/rover/pull/2565) - chore(deps): update dependency apollographql/router to v1.61.6 - @renovate
 - [#2581](https://github.com/apollographql/rover/pull/2581) - update language-server to 0.4.1 - @Jephuff
 
@@ -107,11 +115,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 # [0.29.1] - 2025-04-23
 
 ## 🐛 Fixes
+
 - **Fix crash and improve error handling for invalid API keys - @pubmodmatt PR #2533**
 - **Increase telemetry timeout @pubmodmatt PR #2534**
 - **bugfix(init): handle errors gracefully during graph creation - @gocamille PR #2523**
 
 ## 📚 Documentation
+
 - **docs: add graph ref environment variable info - @Meschreiber PR #2531**
 - **updating docs for new repos/marketplace listings - @Meschreiber #2529**
 - **docs: rover init update - @Meschreiber #2532**
@@ -120,11 +130,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-**Adding new command ```rover init```**
+**Adding new command `rover init`**
 
-New ```rover init``` command to help set up a new project. It walks you through creating a graph, setting up files, and getting GraphOS credentials. 
+New `rover init` command to help set up a new project. It walks you through creating a graph, setting up files, and getting GraphOS credentials.
 
-More information: <insert doc link here> 
+More information: <insert doc link here>
 
 ### PRs Included
 
@@ -159,12 +169,12 @@ More information: <insert doc link here>
 
 ## 🛠 Maintenance
 
-- [#2501](https://github.com/apollographql/rover/pull/2501) - Update CODEOWNERS - adding growth to rover-client crate  
-- [#2492](https://github.com/apollographql/rover/pull/2492) - Update CODEOWNERS  
-- [#2485](https://github.com/apollographql/rover/pull/2485) - Update CODEOWNERS: adding growth to options & tests  
-- [#2474](https://github.com/apollographql/rover/pull/2474) - Adding Growth as codeowners for init  
-- [#2464](https://github.com/apollographql/rover/pull/2464) - Fix features input on smoke tests  
-- [#2448](https://github.com/apollographql/rover/pull/2448) - Fix curl installer anonymized usage collection message 
+- [#2501](https://github.com/apollographql/rover/pull/2501) - Update CODEOWNERS - adding growth to rover-client crate
+- [#2492](https://github.com/apollographql/rover/pull/2492) - Update CODEOWNERS
+- [#2485](https://github.com/apollographql/rover/pull/2485) - Update CODEOWNERS: adding growth to options & tests
+- [#2474](https://github.com/apollographql/rover/pull/2474) - Adding Growth as codeowners for init
+- [#2464](https://github.com/apollographql/rover/pull/2464) - Fix features input on smoke tests
+- [#2448](https://github.com/apollographql/rover/pull/2448) - Fix curl installer anonymized usage collection message
 - [#2486](https://github.com/apollographql/rover/pull/2486) - Update crossbeam-channel dependency
 - [#2481](https://github.com/apollographql/rover/pull/2481) - chore(deps): update dependency apollographql/router to v2.1.1
 - [#2480](https://github.com/apollographql/rover/pull/2480) - Update openssl and tokio dependencies
@@ -183,7 +193,6 @@ More information: <insert doc link here>
 - [#2467](https://github.com/apollographql/rover/pull/2467) - Add upgrade language to Rover Doc
 - [#2458](https://github.com/apollographql/rover/pull/2458) - docs: update broken anchor to Gitlab CI/CD section
 - [#2451](https://github.com/apollographql/rover/pull/2451) - docs: `rover init`
-
 
 # [0.28.1] - 2025-03-13
 
@@ -207,7 +216,7 @@ More information: <insert doc link here>
   The default version of Apollo Router used by `rover dev` is now 2.x instead of 1.x. The default can be overridden by
   setting `APOLLO_ROVER_DEV_ROUTER_VERSION`, for example `APOLLO_ROVER_DEV_ROUTER_VERSION=1.61.0`.
 
-- **Implement supergraph config schema command -  @jonathanrainer PR #2418**
+- **Implement supergraph config schema command - @jonathanrainer PR #2418**
 
   Adds a new `rover supergraph config schema` command to output the JSONSchema for `supergraph.yaml`. This can be used
   to configure editor support for the file.
@@ -263,20 +272,20 @@ More information: <insert doc link here>
 - **Clean up how default subgraphs are defined in `rover dev` - @dotdat PR #2397 fixes #2394**
 
   An issue has been reported where `rover dev` would prompt repeatedly for the subgraph name and URL despite the
-  user having given those values already. This was due to multiple factors, including not accounting for CLI args in 
+  user having given those values already. This was due to multiple factors, including not accounting for CLI args in
   the default case and some faulty other faulty logic. This has now been restored.
 
 - **Refine how composition produces artifacts for targets - @dotdat PR #2398 fixes #2393**
 
   Due to changes in the `supergraph` binary from 2.9+, writing directly to a file is now supported. However,
-  this feature is not available in earlier versions of `supergraph`. As such Rover should be responsible for 
+  this feature is not available in earlier versions of `supergraph`. As such Rover should be responsible for
   orchestrating how the output from `supergraph` binary ends up in a file, rather than delegating that responsibility
   to the `supergraph` binary and thus being at the mercy of which version is used. This allowed a further refactor that
   eliminated complexity around composition outputs.
 
 - **Ensure credentials are checked when needed and not before - @jonathanrainer PR #2400 fixes #2399**
 
-  Due to the `rover dev` refactor there were situations where credentials were being required when they were ultimately 
+  Due to the `rover dev` refactor there were situations where credentials were being required when they were ultimately
   not being used. As such we stopped supporting the use case where no `profile` was defined and no `APOLLO_KEY` env var
   was provided, which is a very common pattern. This is now corrected.
 
@@ -303,7 +312,7 @@ More information: <insert doc link here>
 # [0.27.0] - 2025-02-10
 
 > Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
-> 
+>
 > **If using Rover with Connectors,** you will need to specify `APOLLO_ROVER_DEV_ROUTER_VERSION=2.0.0-preview.X` when using `rover dev`
 
 ## ❗ BREAKING ❗
@@ -325,9 +334,9 @@ More information: <insert doc link here>
 
 - **Remove ambiguity around which URL is used for query execution when using `subgraph_url` and `--graph-ref` flag**
 
-  In previous versions of Rover, when the `--graph-ref` flag was used and a subgraph was specified in the 
+  In previous versions of Rover, when the `--graph-ref` flag was used and a subgraph was specified in the
   `supergraph.yaml` to override the values from GraphOS, the `schema.subgraph_url` was used for both schema fetching via introspection **and** query execution.
-  
+
   ```yaml
   federation_version: 2.10.0
   subgraphs:
@@ -340,11 +349,11 @@ More information: <insert doc link here>
   the given `schema.subgraph_url` (`http://localhost:4000/graphql` in the example above) to fetch the schema **only**. Query
   execution will use the `routing_url` from GraphOS.
 
-  This is consistent with the documented behaviour since this feature launched and in addition is consistent with the 
-  principle that the use of the `supergraph.yaml` will only override `--graph-ref` where you explicitly state that 
-  should happen. To obtain the original behaviour again you simply need to override the `routing_url` in the 
+  This is consistent with the documented behaviour since this feature launched and in addition is consistent with the
+  principle that the use of the `supergraph.yaml` will only override `--graph-ref` where you explicitly state that
+  should happen. To obtain the original behaviour again you simply need to override the `routing_url` in the
   `supergraph.yaml` as well, so the example above would become:
-  
+
   ```yaml
   federation_version: 2.10.0
   subgraphs:
@@ -353,6 +362,7 @@ More information: <insert doc link here>
       schema:
         subgraph_url: "http://localhost:4000/graphql"
   ```
+
   and this will use `http://localhost:4000/graphql` for query execution **and** schema fetching via introspection.
 
 ## 🚀 Features
@@ -637,6 +647,7 @@ More information: <insert doc link here>
 - **Update node.js packages - @jonathanrainer PR #2380**
 
   Includes `compat` to v1.2.6, `npm` to v11.1.0
+
 - **Update to latest `openssl` to resolve security vulnerability - @jonathanrainer PR #2381**
 
 ## 📚 Documentation
@@ -669,7 +680,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 - **Improve `--graph-ref` option - @glasser #2101**
 
-  In the release of v0.26.0 the `--graph-ref` option was added to `supergraph compose` as well as `rover dev`. However, the behaviour when `--graph-ref` was used in conjunction with `--config` did not work as documented. This is now fixed. Furthermore, both `rover dev` and `supergraph compose`, when using only the `--graph-ref` option, respect the graph ref's Federation version. 
+  In the release of v0.26.0 the `--graph-ref` option was added to `supergraph compose` as well as `rover dev`. However, the behaviour when `--graph-ref` was used in conjunction with `--config` did not work as documented. This is now fixed. Furthermore, both `rover dev` and `supergraph compose`, when using only the `--graph-ref` option, respect the graph ref's Federation version.
 
 - **Further improve `--graph-ref` option - @glasser #2105**
 
@@ -701,11 +712,11 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
   Adds the ability to pass along an offline enterprise licence to the router when running `rover dev`
 
 - **Remove Rayon and reduce usage of Crossbeam - @jonathanrainer PR #2081**
-  
+
   Now that `rover` has transitioned to using an asynchronous runtime we don't need to use Rayon any more. This also resolves a bug whereby `rover dev` could lock up if passed a `supergraph.yaml` file with lots of subgraphs in.
 
 - **Introduce new print macros - @loshz PR #2090**
-  
+
   Adds three new macros to the codebase so that we can still visually distinguish between INFO, WARNING and ERROR log lines without the use of emoji
 
 - **Use new print macros in place of emoji - @loshz PR #2096**
@@ -751,17 +762,17 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 - **The --client-timeout flag now represents the period over which we allow retries - @aaronArinder PR #2019**
 
-   The documentation for this flag indicated that this was the period over which Rover would retry a command if there were retryable HTTP errors. However, this was not the case due to complexities in how the client was instantiated. This has now been corrected, so the documented behaviour matches the actual behaviour.
+  The documentation for this flag indicated that this was the period over which Rover would retry a command if there were retryable HTTP errors. However, this was not the case due to complexities in how the client was instantiated. This has now been corrected, so the documented behaviour matches the actual behaviour.
 
 ## 🚀 Features
 
 - **Make `rover` operate asynchronously - @aaronArinder @Geal PR #2035**
 
-   Removes the use of the `reqwest` blocking client allowing `rover` to operate using an asynchronous `tokio` runtime. This will bring performance improvements, particularly where working with large sets of subgraphs.
+  Removes the use of the `reqwest` blocking client allowing `rover` to operate using an asynchronous `tokio` runtime. This will bring performance improvements, particularly where working with large sets of subgraphs.
 
 - **Add `--graph-ref` to `supergraph compose` - @jonathanrainer PR #2001**
 
-   Adds the same capabilities to `supergraph compose` as were added to `rover dev` in 0.25.0. You can now specify an existing Studio graphref and the command will run composition over the subgraphs specified in the graphref, as well as any overrides specified in a given supergraph config.
+  Adds the same capabilities to `supergraph compose` as were added to `rover dev` in 0.25.0. You can now specify an existing Studio graphref and the command will run composition over the subgraphs specified in the graphref, as well as any overrides specified in a given supergraph config.
 
 - **Add new `rover cloud` command - @loshz PR #2008**
 
@@ -775,15 +786,15 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 - **Don't run IsFederatedGraph before running SubgraphFetchQuery - @glasser PR #2004**
 
-   Previously we were checking IsFederatedGraph before running SubgraphFetch, but the same check is actually performed in SubgraphFetch anyway so the first call to IsFederatedSubgraph is unnecessary.
+  Previously we were checking IsFederatedGraph before running SubgraphFetch, but the same check is actually performed in SubgraphFetch anyway so the first call to IsFederatedSubgraph is unnecessary.
 
 - **Allow `--graph-ref` to support contract variants - @jonathanrainer PR #2036**
 
-   There was a bug where using the graphref of a contract variant would cause an error about non-federated graphs. This has been resolved and now contract variant graphrefs can also be used.
+  There was a bug where using the graphref of a contract variant would cause an error about non-federated graphs. This has been resolved and now contract variant graphrefs can also be used.
 
 - **Remove last reference to blocking `reqwest` client - @loshz PR #2050**
 
-   One reference to the blocking `reqwest` client had been leftover from the move to `async` operation in #2035, this was removed.
+  One reference to the blocking `reqwest` client had been leftover from the move to `async` operation in #2035, this was removed.
 
 - **Ensure NPM installer on Windows works correctly - @jonathanrainer PR #2059**
 
@@ -799,7 +810,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Add test for subgraph introspect - @jonathanrainer PR #2003**
 - **Update node.js packages - @jonathanrainer PR #2006**
 
-   Includes `eslint` to v9.8.0 and `node` to v20.16.0
+  Includes `eslint` to v9.8.0 and `node` to v20.16.0
 
 - **Update Rust to v1.80.0 - @jonathanrainer PR #2007**
 - **Fix up CODEOWNERS to bring us inline with standard - @jonathanrainer PR #2016**
@@ -807,7 +818,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Add E2E test for `subgraph fetch` - @jonathanrainer PR #2015**
 - **Update Rust crates - @aaronArinder PR #2011**
 
-   Includes `apollo-parser` to v0.8 and `octocrab` to v0.39.0
+  Includes `apollo-parser` to v0.8 and `octocrab` to v0.39.0
 
 - **Update apollographql/router to v1.52.0 - @aaronArinder PR #2010**
 - **Add E2E test for `supergraph compose` - @aaronArinder PR #2005**
@@ -893,7 +904,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 ## ❗ BREAKING ❗
 
-- **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR [#1804](https://github.com/apollographql/rover/pull/1804)** 
+- **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR [#1804](https://github.com/apollographql/rover/pull/1804)**
 
   The `--output` option is now only for specifying a file to write to. The `--format` option should be used to specify the format of the output.
 
@@ -920,7 +931,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Don't panic if the telemetry client cannot be initialised - @dylan-apollo PR [#1897](https://github.com/apollographql/rover/pull/1897) - Issue [#1893](https://github.com/apollographql/rover/issues/1893)**
 - **Rename `.cargo/config` to `.cargo/config.toml` - @jonathanrainer PR [#1921](https://github.com/apollographql/rover/pull/1921)**
 - **Fix `pnpm` installs by moving the binary download location - @jonathanrainer PR [#1927](https://github.com/apollographql/rover/pull/1927) - Issue [#1881](https://github.com/apollographql/rover/issues/1881)**
-  
+
   After we inlined the `binary-install` dependency in v0.23.0 this changed where the downloaded binary was stored when using `pnpm`. This caused users running the binary to enter an infinite loop. This moves the binary to a new location which avoids this.
 
 - **Don't panic on file watcher errors - @nmoutschen PR [#1935](https://github.com/apollographql/rover/pull/1935)**
@@ -952,7 +963,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 - **Fix mocking of calls to Orbiter in Installer tests - @jonathanrainer PR [#1968](https://github.com/apollographql/rover/pull/1968)**
 - **Remove noisy errors from intermediate composition states - @aaronArinder PR [#1956](https://github.com/apollographql/rover/pull/1956)**
-  
+
   When `rover dev` composes multiple subgraphs it does so one at a time. As such if there are dependencies there can be noisy ephemeral errors, this fixes that by waiting until all subgraphs are added before trying composition.
 
 ## 🛠 Maintenance
@@ -985,7 +996,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Update eslint to v9.4.0 - @dotdat PR [#1913](https://github.com/apollographql/rover/pull/1913)**
 - **Update hyper to v1.0 - @dotdat PR [#1789](https://github.com/apollographql/rover/pull/1789)**
 - **Add tests for socket names - @jonathanrainer PR [#1918](https://github.com/apollographql/rover/pull/1918)**
-  
+
   In future dependency upgrades we want to ensure that behaviour around socket naming works as expected, so add a test to ensure that.
 
 - **Update rust packages - @jonathanrainer PR [#1755](https://github.com/apollographql/rover/pull/1755)**
@@ -1020,7 +1031,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Fix clippy warnings - @loshz PR [#1955](https://github.com/apollographql/rover/pull/1955)**
 - **Allow integration tests to accept a pre-compiled binary - @jonathanrainer PR [#1957](https://github.com/apollographql/rover/pull/1957)**
 - **Run macOS x86_64 integration tests in GitHub Actions - @nmoutschen PR [#1958](https://github.com/apollographql/rover/pull/1958)**
-  
+
   Due to CircleCI's deprecation of x86_64 macOS executors use GitHub Actions to still run our tests on this architecture
 
 - **Add smoke tests for `rover dev` - @jonathanrainer PR [#1961](https://github.com/apollographql/rover/pull/1961)**
@@ -1032,9 +1043,9 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 ## 📚 Documentation
 
-- **Minor update to README.md - @tratzlaff PR [#1880](https://github.com/apollographql/rover/pull/1880)** 
+- **Minor update to README.md - @tratzlaff PR [#1880](https://github.com/apollographql/rover/pull/1880)**
 
-  Fixes use of numbered lists in the README.md 
+  Fixes use of numbered lists in the README.md
 
 - **Remove failing/redundant links from docs - @dotdat PR [#1894](https://github.com/apollographql/rover/pull/1894)**
 - **Update docs style - @Meschreiber PR [#1883](https://github.com/apollographql/rover/pull/1883)**
@@ -1050,6 +1061,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Update Router terminology - @Meschreiber PR [#1925](https://github.com/apollographql/rover/pull/1925)**
 
   Update the uses of Apollo Router to GraphOS Router or Apollo Router Core where necessary
+
 - **Update documentation to make it clear we collect CPU Architecture, per command - @aaronArinder PR [#1964](https://github.com/apollographql/rover/pull/1964)**
 
 # [0.23.0] - 2024-03-26
@@ -1074,10 +1086,9 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
   When restarting a Router on schema updates, it could happen that an internal task of Rover would go in an infinite loop and consume CPU needlessly. This is now fixed and should make `rover dev` more reliable.
 
-- **Use `proposalCoverage`` in addition to `severityLevel`` to build correct proposal check messaging - @swcollard PR #1845**
+- **Use ` proposalCoverage`` in addition to  `severityLevel`` to build correct proposal check messaging - @swcollard PR #1845**
 
   This updates the message on proposal checks depending on the `proposalCoverage` field
-
 
 ## 🛠 Maintenance
 
@@ -1087,7 +1098,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
 - **Remove yanked online check - @dylan-apollo PR #1803**
 
-## 📚 Documentation 
+## 📚 Documentation
 
 - **Update dev docs about which Router version is used - @smyrick PR #1822**
 
@@ -1104,6 +1115,7 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
   Adds rover `license fetch <graph_ref>`
 
   Output:
+
   ```
   rover license fetch --graph-id starstuff --profile gh
 
@@ -1128,13 +1140,11 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 
   This is an initial exploratory PR. Later PRs will build this into the dev tooling and expand on the functionality (if we don't decide to remove it)
 
-  
-## 📚 Documentation 
+## 📚 Documentation
 
 - **Move Validating client ops to Apollo CLI section - @Meschreiber #1783**
 
   This PR moves [Validating client operations](https://www.apollographql.com/docs/rover/validating-client-operations) into the Rover > Apollo CLI section.
-    
 
 - **Use shared content component for GH action instructions - @Meschreiber #1780**
 
@@ -1294,9 +1304,10 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Support binary mirrors via the npm installer - @LongLiveCHIEF, #1675**
 
   When installing Rover via npm, you can override the base URL where Rover binaries are downloaded from in one of two ways:
-   - by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
-   - by adding the following to your global or local `.npmrc`:
-  
+
+  - by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
+  - by adding the following to your global or local `.npmrc`:
+
   ```ini
   apollo_rover_download_host=https://your.mirror.com/repository
   ```
@@ -1318,7 +1329,6 @@ When using `rover persisted-queries publish`, if the JSON manifest file includes
 - **Remove preview phase message from `rover persisted-queries publish` - @glasser, #1686**
 
   `rover persisted-queries publish` no longer unconditionally prints a message stating that this preview-phase feature must be enabled on your GraphOS account. (If the feature has not yet been enabled on your account, the command will still fail with an error explaining the situation.)
-
 
 # [0.17.1] - 2023-07-14
 
@@ -1393,7 +1403,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 - **`router.yaml` files and `supergraph.yaml` files now fully support environment variable expansion - @dbanty, #1629 fixes #1552 and #1578**
 
   Specifying environment variables in `router.yaml` or `supergraph.yaml` files (for `rover dev` and/or `rover supergraph compose`) is now supported for all strings defined in the YAML file. Rover will evaluate any existing values using the `${}` syntax, which may cause errors with existing config.
-
 
 ## 🚀 Features
 
@@ -1592,7 +1601,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 ## 🚀 Features
 
 - **Manage contract configuration - @sachindshinde, #1475 fixes #1421**
- 
+
   Rover now includes two commands for creating, modifying, and reading contracts: `rover contract publish` and `rover contract describe`. Further documentation can be found [here](https://www.apollographql.com/docs/rover/commands/contracts).
 
 - **Easier file output with new `--output` argument - @gocamille, #1413 fixes #1212**
@@ -1663,7 +1672,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds `--skip-update-check` to skip the once-per-day update check - @tsing, #1396 fixes #1394**
 
-  Once per day, Rover checks if there is a new version available for update and notifies the user if there is. There is now a flag you can pass to disable this check: `--skip-update-check`. 
+  Once per day, Rover checks if there is a new version available for update and notifies the user if there is. There is now a flag you can pass to disable this check: `--skip-update-check`.
 
 - **Respect the `NO_COLOR` environment variable - @chnn, #1360**
 
@@ -1724,7 +1733,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   If something went wrong while starting the first `rover dev` process, it would attempt to start an attached process, which would fail with an inscrutable `the main rover dev session is no longer active` error message. Now, Rover properly reports issues with starting up the first `rover dev` session.
 
 - **Properly report plugin installation errors on `rover dev` startup - @EverlastingBugstopper, #1357**
-  
+
   If a plugin failed to install when starting `rover dev`, the error wouldn't be reported properly. Now, if something goes wrong, the error message will be printed properly.
 
 - **Replace some misleading error suggestions regarding ports with `rover dev` - @EverlastingBugstopper, #1340**
@@ -1743,7 +1752,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Improve caching in CI - @EverlastingBugstopper, #1351 and #1352**
 
-  In CI builds, we now cache `/target` _and_ `~/.cargo`, instead of just `/target`. 
+  In CI builds, we now cache `/target` _and_ `~/.cargo`, instead of just `/target`.
 
 - **Specify all dependencies in root `Cargo.toml` - @EverlastingBugstopper, #1344**
 
@@ -1845,7 +1854,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Add new commands to use asynchronous checks API - @Y-Guo, #1139**
 
-  If you want to kick off a check without waiting for it to complete you can provide the `--background` flag to `rover graph check` or `rover subgraph check`. This will start the check in Apollo Studio. If your GitHub repo integrates with the Apollo Studio GitHub App, the check status will be updated on your GitHub branch. Using this flag can save you time and money with your CI provider. 
+  If you want to kick off a check without waiting for it to complete you can provide the `--background` flag to `rover graph check` or `rover subgraph check`. This will start the check in Apollo Studio. If your GitHub repo integrates with the Apollo Studio GitHub App, the check status will be updated on your GitHub branch. Using this flag can save you time and money with your CI provider.
 
 - **Improved error messages and logs for filesysten read/write - @EverlastingBugstopper, #1183**
 
@@ -1889,13 +1898,13 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds `readme fetch` and `readme publish` - @cy, #1128, #1141**
 
-  Adds support for fetching and publishing Apollo Studio graph variant READMEs with `rover readme publish` and `rover readme fetch` commands. Usage for these commands can be found by running `rover readme --help` and documentation can be found [on our docs site](https://www.apollographql.com/docs/rover/commands/readmes). 
+  Adds support for fetching and publishing Apollo Studio graph variant READMEs with `rover readme publish` and `rover readme fetch` commands. Usage for these commands can be found by running `rover readme --help` and documentation can be found [on our docs site](https://www.apollographql.com/docs/rover/commands/readmes).
 
 ## 🐛 Fixes
 
 - **Fix the endpoint `rover-client` uses to fetch Apollo Studio's GraphQL schema- @EverlastingBugstopper, 1126**
 
-  As of v0.6.0, Rover sends all Apollo Studio requests to the new public platform API. When this change was introduced, we changed where we issued our GraphQL requests, but did not update the build step that fetches the schema which could lead to mismatched types. This is now fixed, fields in the public platform API match codegen. 
+  As of v0.6.0, Rover sends all Apollo Studio requests to the new public platform API. When this change was introduced, we changed where we issued our GraphQL requests, but did not update the build step that fetches the schema which could lead to mismatched types. This is now fixed, fields in the public platform API match codegen.
 
 - **Fix typo in the environment variable `rover-client` uses to fetch Apollo Studio's GraphQL schema - @EverlastingBugstopper, #1125**
   `s/APOLLO_GPAPHQL_SCHEMA_URL/APOLLO_GRAPHQL_SCHEMA_URL`
@@ -1922,7 +1931,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 ## 🐛 Fixes
 
-- **Fixes Input Value Definition block string encoding for descriptions.  - @lrlna, #1116 fixes #1088**
+- **Fixes Input Value Definition block string encoding for descriptions. - @lrlna, #1116 fixes #1088**
 
   Input values are now multilined when a description is present to allow for a more readable generated SDL.
 
@@ -1934,7 +1943,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds `cargo xtask docs` - @EverlastingBugstopper, #1118**
 
-  Developers of the Rover project can now run `cargo xtask docs` to spin up a local netlify server with your local docset. After running the command, you can navigate to http://localhost:8000/rover in your browser and changes you make to ./docs/source/**.md files will be updated automatically on save.
+  Developers of the Rover project can now run `cargo xtask docs` to spin up a local netlify server with your local docset. After running the command, you can navigate to http://localhost:8000/rover in your browser and changes you make to ./docs/source/\*\*.md files will be updated automatically on save.
 
 - **Updates dependencies - @renovate-bot, #1117**
 
@@ -2543,7 +2552,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [trevorblades]: https://github.com/trevorblades
   [pull/744]: https://github.com/apollographql/rover/pull/744
 
-
 # [0.2.0-beta.1] - 2021-08-05
 
 ## 🐛 Fixes
@@ -2557,7 +2565,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/697]: https://github.com/apollographql/rover/pull/697
   [issue/696]: https://github.com/apollographql/rover/issues/696
-  
+
 ## 📚 Documentation
 
 - **Fix broken link to supergraph schemas - [abernix], [issue/687] [pull/706]**
@@ -2581,7 +2589,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/697]: https://github.com/apollographql/rover/pull/697
   [issue/696]: https://github.com/apollographql/rover/issues/696
-  
+
 ## 📚 Documentation
 
 - **Fix broken link to supergraph schemas - [abernix], [issue/687] [pull/706]**
@@ -2606,22 +2614,22 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [pull/676]: https://github.com/apollographql/rover/pull/676
   [issue/285]: https://github.com/apollographql/rover/issues/285
 
-
 # [0.1.9] - 2021-07-22
 
 ## 🚀 Features
 
 - **Updates `@tag`/`@inaccessible` composition algorithm in `rover supergraph compose` - [trevor-scheer]/[EverlastingBugstopper], [issue/682] [pull/684]**
+
   - Includes simple merging/union rollup of `@tag` directives from subgraphs into a supergraph
   - Allows usage of `@tag` directives on all subgraph fields
   - Merges subgraph `@tag` directives into a supergraph
-      - if _ANY_ instance is tagged, the `@tag` is union merged
-        into the supergraph
+    - if _ANY_ instance is tagged, the `@tag` is union merged
+      into the supergraph
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [trevor-scheer]: https://github.com/trevor-scheer
   [issue/682]: https://github.com/apollographql/rover/issues/682
-  [pull/684]: https://github.com/apollographql/rover/pull/684 
+  [pull/684]: https://github.com/apollographql/rover/pull/684
 
 - **`rover subgraph publish` and `rover subgraph delete` now acknowledges operations with no composition errors. - [EverlastingBugstopper], [issue/632] [pull/685]**
 
@@ -2656,7 +2664,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 ## 📚 Documentation
 
-# [0.1.8]  2021-07-07
+# [0.1.8] 2021-07-07
 
 ## 🚀 Features
 
@@ -2698,7 +2706,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/651]: https://github.com/apollographql/rover/pull/651
 
-# [0.1.7]  2021-06-29
+# [0.1.7] 2021-06-29
 
 ## 🚀 Features
 
@@ -2766,7 +2774,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [StephenBarlow]: https://github.com/StephenBarlow
   [pull/619]: https://github.com/apollographql/rover/pull/619
 
-# [0.1.6]  2021-06-08
+# [0.1.6] 2021-06-08
 
 ## 🐛 Fixes
 
@@ -2809,7 +2817,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [DNature]: https://github.com/DNature
   [pull/585]: https://github.com/apollographql/rover/pull/585
 
-# [0.1.5]  2021-05-25
+# [0.1.5] 2021-05-25
 
 ## 🐛 Fixes
 
@@ -2872,7 +2880,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
   Previously, Rover was only built for systems that had [`glibc`](https://www.gnu.org/software/libc/) >= 2.18 installed. This was due to the fact that we embed [v8](https://v8.dev/) into the binaries to execute the JS-powered `rover supergraph compose` command.
 
-  Our CI pipeline now produces a statically-linked binary compiled with [`musl-libc`](https://www.musl-libc.org/) that *does not include* `rover supergraph compose`. Our installers will check if you have a compatible version of `glibc`, and if you do not, it will download the new statically linked binary and warn you that it is missing some functionality.
+  Our CI pipeline now produces a statically-linked binary compiled with [`musl-libc`](https://www.musl-libc.org/) that _does not include_ `rover supergraph compose`. Our installers will check if you have a compatible version of `glibc`, and if you do not, it will download the new statically linked binary and warn you that it is missing some functionality.
 
   We hope to bring `rover supergraph compose` to Alpine in the future, though how soon that future will come is [not yet known](https://github.com/apollographql/rover/issues/546).
 
@@ -2891,10 +2899,12 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [issue/548]: https://github.com/apollographql/rover/issues/548
   [issue/550]: https://github.com/apollographql/rover/issues/550
 
-## 📚 Documentation 
+## 📚 Documentation
 
 # [0.1.0] - 2021-05-11
+
 > Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
+
 ## ❗ BREAKING ❗
 
 - **Removes -V/--version flag from subcommands - [EverlastingBugstopper], [pull/487]**
@@ -2930,23 +2940,24 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 - **`rover supergraph compose` allows for registry and introspection SDL sources - [lrlna], [issue/449] [pull/519]**
 
   Pulls subgraphs from various sources specified in the YAML config file. A valid config can now specify schema using Apollo Registry refs (`subgraph`, `graphref`), local file references (`file`) and subgraph introspection (`subgraph_url`):
-  
+
   ```yaml
   subgraphs:
     films:
       routing_url: https://films.example.com
-      schema: 
+      schema:
         file: ./films.graphql
     people:
       routing_url: https://example.com/people
-      schema: 
+      schema:
         subgraph_url: https://example.com/people
     actors:
       routing_url: https://localhost:4005
-      schema: 
-        graphref: mygraph@current 
-        subgraph: actors 
+      schema:
+        graphref: mygraph@current
+        subgraph: actors
   ```
+
   [lrlna]: https://github.com/lrlna
   [issue/449]: https://github.com/apollographql/rover/issues/449
   [pull/519]: https://github.com/apollographql/rover/pull/519
@@ -3158,7 +3169,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds a newline to all output to stdout - [EverlastingBugstopper], [issue/458] [pull/462]**
 
-  Rover no longer has the bug where it wouldn't conclude its output with a newline. Now we don't make your shells upset! 
+  Rover no longer has the bug where it wouldn't conclude its output with a newline. Now we don't make your shells upset!
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/462]: https://github.com/apollographql/rover/pull/462
@@ -3189,7 +3200,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
   [StephenBarlow]: https://github.com/StephenBarlow
   [pull/446]: https://github.com/apollographql/rover/pull/446
-
 
 # [0.0.9] - 2021-04-13
 
@@ -3234,7 +3244,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 - **Deserialize supergraph configuration to a deterministic data structure - [lrlna], [issue/422] [pull/423]**
 
   Previously, when Rover deserialized a supergraph configuration file, it did so using a HashMap.
-  This made the results of `rover supergraph compose` non-deterministic, which was undesirable. 
+  This made the results of `rover supergraph compose` non-deterministic, which was undesirable.
   By switching from a HashMap to a BTreeMap, `rover supergraph compose` is now deterministic.
 
   [lrlna]: https://github.com/lrlna
@@ -3250,7 +3260,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [JakeDawkins]: https://github.com/JakeDawkins
   [pull/427]: https://github.com/apollographql/rover/pull/427
 
-
 ## 📚 Documentation
 
 - **Add Apollo CLI to Rover migration guide - [JakeDawkins], [issue/284] [pull/425]**
@@ -3262,13 +3271,16 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [issue/284]: https://github.com/apollographql/rover/issues/284
 
 # [0.0.7] - 2021-04-01
+
 ## 🐛 Fixes
+
 - **Updates URL base in Core Schema output to specs.apollo.dev - [abernix], [pull/418]**
 
   [abernix]: https://github.com/abernix
   [pull/418]: https://github.com/apollographql/rover/pull/418
 
 ## 📚 Documentation
+
 - **Added specificity to Rover's public preview period docs - [ndintenfass], [pull/415]**
 
   [ndintenfass]: https://github.com/ndintenfass
@@ -3280,7 +3292,9 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [pull/414]: https://github.com/apollographql/rover/pull/414
 
 # [0.0.6] - 2021-03-31
+
 ## 🚀 Features
+
 - **Add postinstall instructions - [EverlastingBugstopper], [pull/406]**
 
   Adds a message after an install on how to add Rover to a user's PATH.
@@ -3289,6 +3303,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [pull/406]: https://github.com/apollographql/rover/pull/406
 
 ## 🐛 Fixes
+
 - **Change 'CSDL' to 'Core Schema' - [lrlna], [pull/403]**
 
   Output of `rover supergraph compose` is a Core Schema. Our output
@@ -3321,12 +3336,12 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [issue/399]: https://github.com/apollographql/rover/issues/399
   [pull/405]: https://github.com/apollographql/rover/pull/405
 
-
 # [0.0.5] - 2021-03-30
 
 > Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## 🚀 Features
+
 - **Adds introspection ability for subgraphs - [lrlna], [issue/349] [pull/377]**
 
   A new command, `rover subgraph introspect` has been added. This command
@@ -3354,6 +3369,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [issue/371]: https://github.com/apollographql/rover/issues/371
 
 ## ❗ BREAKING ❗
+
 - **Renames `core build` to `supergraph compose` - [lrlna], [pull/391]**
 
   To align with other Apollo teams on the usage of `supergraph` and
@@ -3367,12 +3383,13 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   Updates harmonizer to the latest version. This version now composes and
   returns a core schema instead of CSDL. CSDL was an internal implementation
   of composition and this new format is meant to bring some stability to `rover
-  supergraph compose`.
+supergraph compose`.
 
   [abernix]: https://github.com/abernix
   [pull/396]: https://github.com/apollographql/rover/pull/396
 
 ## 🐛 Fixes
+
 - **Handle 400-599 HTTP responses - [lrlna], [issue/394] [issue/187] [pull/395]**
 
   Previously, Rover did not provide errors for any HTTP requests that return a status code between 400 and 599. This fix makes sure Rover checks for those errors before moving on to parsing the response body.
@@ -3386,6 +3403,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [pull/395]: https://github.com/apollographql/rover/pull/395
 
 ## 🛠 Maintenance
+
 - **Sign and notarize MacOS binaries as part of CI - [EverlastingBugstopper], [pull/363]**
 
   This automates our signing and notarization process when releasing MacOS
@@ -3426,10 +3444,11 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [pull/364]: https://github.com/apollographql/rover/pull/364
 
 ## 📚 Documentation
+
 - **Update documentation for 0.0.5 release- [JakeDawkins] [StephenBarlow] [EverlastingBugstopper], [pull/389]**
 
   Documents recent additions to Rover in detail, including `rover supergraph
-  compose`, `rover subgraph introspect` and `rover graph introspect`.
+compose`, `rover subgraph introspect` and `rover graph introspect`.
 
   [JakeDawkins]: https://github.com/JakeDawkins
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
@@ -3444,7 +3463,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Core schema building capabilities - [EverlastingBugstopper], [pull/340]**
 
-  Adds a new command, `rover core build` to handle building 
+  Adds a new command, `rover core build` to handle building
   [core schema documents](https://specs.apollo.dev/#core-schemas)
   from multiple subgraph schemas. This also adds a new config format to support
   this command in YAML. Currently, this is only documented in [pull/340].
@@ -3478,7 +3497,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
 
-  Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
+  Note: This is only breaking change if you were previously using the `APOLLO_VCS_COMMITTER`
   env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.
 
   Changes the underlying git context implementation to report the `author` of a commit rather than a `committer`. This is primarily intended to properly link the real author with a commit in Apollo Studio.
@@ -3535,8 +3554,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/341]: https://github.com/apollographql/rover/pull/341
 
-
-
 # [0.0.3] - 2021-03-09
 
 ## 🚀 Features
@@ -3546,7 +3563,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   Since the only thing that `rover config show` did was show the saved api key,
   it made sense to squash that functionality into the `whoami` command. We decided
   that we'd prefer not to ever expose the full api key to stdout (you can still
-  find it in the saved config file), but we still show the first and last 4 
+  find it in the saved config file), but we still show the first and last 4
   characters of it to help with debugging.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
@@ -3564,7 +3581,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **`rover docs` commands to make viewing documentation easier - [EverlastingBugstopper], [issue/308] [pull/314]**
 
-  To make it easier to find and navigate Rover's docs, we added two commands: 
+  To make it easier to find and navigate Rover's docs, we added two commands:
   `rover docs list` to list helpful docs pages and `rover docs open` to open a
   docs page in the browser.
 
@@ -3574,7 +3591,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Better errors and suggestions for invalid variants - [EverlastingBugstopper], [issue/208] [pull/316]**
 
-  Previously, Rover would tell you if you tried accessing an invalid variant, 
+  Previously, Rover would tell you if you tried accessing an invalid variant,
   but couldn't provide any recommendations. This adds recommendations for simple
   typos, lists available variants for graphs with small numbers of variants, and
   provides a link to view variants in Apollo Studio for graphs with many variants.
@@ -3584,7 +3601,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [issue/208]: https://github.com/apollographql/rover/issues/208
 
 - **Remove the need to reload terminal after install - [EverlastingBugstopper], [issue/212] [pull/318]**
-  
+
   Rather than asking users to reload their terminal after install, we do the
   extra work of sourcing Rover's env file after install, preventing linux users
   from having to do that or reload the terminal themselves.
@@ -3670,7 +3687,6 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   [JakeDawkins]: https://github.com/JakeDawkins
   [pull/329]: https://github.com/apollographql/rover/pull/329
   [issue/245]: https://github.com/apollographql/rover/issues/245
-
 
 # [0.0.2] - 2021-02-23
 
@@ -3813,7 +3829,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Fix npx usage documentation - [abernix], [pull/270]**
 
-  We updated the docs to show that it is necessary to pass 
+  We updated the docs to show that it is necessary to pass
   `--package @apollo/rover` each time Rover is invoked through `npx`.
 
   [abernix]: https://github.com/abernix
@@ -3826,6 +3842,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
   [StephenBarlow]: https://github.com/StephenBarlow
   [pull/259]: https://github.com/apollographql/rover/pull/259
+
 # [0.0.1] - 2021-02-09
 
 **Initial beta release.** Please visit [our documentation page](https://apollographql.com/docs/rover/) for information on usage.
