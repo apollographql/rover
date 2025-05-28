@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 # [Unreleased]
 ## 🐛 Fixes
 - **Eliminate unnecessary warnings on rover dev startup - @pubmodmatt PR #2604**
+- **Improved error handling for graph creations through rover init - @tayrrible PR #2603**
 
 # [0.31.2] - 2025-05-22
 
