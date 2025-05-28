@@ -24,8 +24,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Specify the `--mcp-http-port` and/or `--mcp-http-address` options to `rover dev --mcp` to enable Streamable HTTP
 
+# [0.31.3] - 2025-05-28
 ## 🐛 Fixes
 - **Eliminate unnecessary warnings on rover dev startup - @pubmodmatt PR #2604**
+- **Improved error handling for graph creations through rover init - @tayrrible PR #2603**
 
 # [0.31.2] - 2025-05-22
 
