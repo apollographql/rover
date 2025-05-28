@@ -8,11 +8,11 @@ You can use Rover in any CI/CD environment that uses a Rover-supported operating
 
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
 
-- [CircleCI](#circleci)
-- [GitHub](#github)
-- [Bitbucket Pipelines](#bitbucket-pipelines)
-- [Jenkins](#jenkins)
-- [Gitlab CI/CD](#gitlab)
+* [CircleCI](#circleci)
+* [GitHub](#github)
+* [Bitbucket Pipelines](#bitbucket-pipelines)
+* [Jenkins](#jenkins)
+* [Gitlab CI/CD](#gitlab)
 
 If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare).
 
@@ -113,7 +113,7 @@ jobs:
           schema: ./path/to/schema.graphql
           # Only run this command with the `background` setting if you have the Apollo Studio GitHub integration enabled on your repository
           background: true
-
+      
       # To run the linter on your subgraph schema:
       - uses: apollographql-gh-actions/rover-subgraph-lint@v1
         with:
@@ -134,9 +134,9 @@ jobs:
           # If you use a code-first subgraph, you can generate the schema in another step for use with this action
           schema: ./path/to/schema.graphql
 
-          # If running the first time, you will need to pass the `routing-url` parameter to the publish action.
+          # If running the first time, you will need to pass the `routing-url` parameter to the publish action. 
           # This URL is used for the Apollo Router to route requests to your subgraph.
-          routing-url: http://localhost:4000/graphql
+          routing-url: http://localhost:4000/graphql 
           # If the routing-url is invalid for one reason or another, you can also pass the `allow-invalid-routing-url` parameter to the publish action.
           allow-invalid-routing-url: true
 
@@ -147,18 +147,18 @@ jobs:
       # Using graph-ref:
       - uses: apollographql-gh-actions/rover-persisted-queries-publish@v1
         with:
-          apollo-key: ${{ secrets.APOLLO_KEY }}
-          graph-ref: ${{ secrets.APOLLO_GRAPH_REF }}
-          for-client-name: example-publish
-          manifest: ./path/to/persisted-queries-manifest.json
+            apollo-key: ${{ secrets.APOLLO_KEY }}
+            graph-ref: ${{ secrets.APOLLO_GRAPH_REF }}
+            for-client-name: example-publish
+            manifest: ./path/to/persisted-queries-manifest.json
       # Using graph-id and list-id:
       - uses: apollographql-gh-actions/rover-persisted-queries-publish@v1
         with:
-          apollo-key: ${{ secrets.APOLLO_KEY }}
-          graph-id: ${{ vars.APOLLO_GRAPH_ID }}
-          list-id: 1234-5678
-          for-client-name: example-publish
-          manifest: ./path/to/persisted-queries-manifest.json
+            apollo-key: ${{ secrets.APOLLO_KEY }}
+            graph-id: ${{ vars.APOLLO_GRAPH_ID }}
+            list-id: 1234-5678
+            for-client-name: example-publish
+            manifest: ./path/to/persisted-queries-manifest.json
 ```
 
 ### Linux/MacOS jobs using the `curl` installer
@@ -222,13 +222,14 @@ jobs:
       - name: Run check against prod
         run: |
           rover graph check my-graph@prod --schema ./test.graphql --background
+
 ```
 
 ### Displaying schema check results on GitHub pull requests
 
 If you use GitHub Actions to automatically run schema checks on every pull request as shown below, you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
 
-<img class="screenshot" src="./assets/checks-result.jpg" width="550" />
+<img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 
 <SetApolloVCSCommit />
 
@@ -236,14 +237,14 @@ If you use GitHub Actions to automatically run schema checks on every pull reque
 
 The following is a full example configuration for Bitbucket Pipelines. It shows how to:
 
-- Run `rover subgraph check` for each commit on all branches
-- Run `rover subgraph publish` to keep the schema definition of your `main` branch in-sync with a base variant (`@local` in this case)
+* Run `rover subgraph check` for each commit on all branches
+* Run `rover subgraph publish` to keep the schema definition of your `main` branch in-sync with a base variant (`@local` in this case)
 
 The example uses the following Pipeline Repository Variables to make the pipeline configuration portable across different repositories:
 
-- `APOLLO_KEY`
-- `APOLLO_SUBGRAPH_NAME`, which represents the name of the subgraph you're running schema checks for
-- `APOLLO_LOCAL_PORT`, which represents the port number of the base variant
+*  `APOLLO_KEY`
+*  `APOLLO_SUBGRAPH_NAME`, which represents the name of the subgraph you're running schema checks for
+*  `APOLLO_LOCAL_PORT`, which represents the port number of the base variant
 
 #### Full example
 
@@ -284,17 +285,16 @@ pipelines:
     - step: *rover-subgraph-check
 
   branches:
-    "{main,master}":
+    '{main,master}':
       - step: *rover-subgraph-check
       - step: *local-publish
 ```
 
-## Jenkins
 
+## Jenkins
 To set up Rover for use with Jenkins, first consider which type of Jenkins `agent` you'll use in your pipelines. The samples below demonstrate a golang pipeline that uses Docker, but you can modify them to meet your specific needs.
 
 ### Distributed builds via the `node` agent
-
 If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable.
 
 ### Pipelines using Docker
@@ -306,13 +306,12 @@ If you're using Rover with a Docker-enabled pipeline, note the following additio
 Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh` `steps`, because each `sh` block runs as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to the [CircleCI note](#linux-jobs-using-the-curl-installer), but the resolution is different.
 
 To avoid this issue, do one of the following:
-
 - Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`)
 - Download the latest release via cURL and extract the binary like so (this downloads Rover `0.31.3` for Linux x86 architectures):
 
-  ```
-  curl -L https://github.com/apollographql/rover/releases/download/v0.31.3/rover-v0.31.3-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
-  ```
+    ```
+    curl -L https://github.com/apollographql/rover/releases/download/v0.31.3/rover-v0.31.3-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
+    ```
 
 #### Permission issues
 
@@ -380,16 +379,14 @@ pipeline {
   }
 }
 ```
-
 ## Gitlab
-
-Since there isn't any official Docker image for Rover, we can use the `debian:stable-slim` as a base image. All you need to do is fetch the source via cURL, add the executable to the PATH variable, then publish your subgraphs.
+Since there isn't any official Docker image for Rover, we can use the `debian:stable-slim` as a base image. All you need to do is fetch the source via cURL, add the executable to the PATH variable, then publish your subgraphs. 
 
 ```
 push_subgraphs:
 stages:
   - publish_subgraphs
-
+  
 publish_subgraphs:
   stage: publish_subgraphs
   image: debian:stable-slim
