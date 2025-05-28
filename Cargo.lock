@@ -741,7 +741,7 @@ dependencies = [
  "cc",
  "directories-next",
  "flate2",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "rover-std",
  "serial_test",
  "tar",
@@ -3204,7 +3204,7 @@ dependencies = [
  "referencing",
  "regex",
  "regex-syntax 0.8.5",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "serde",
  "serde_json",
  "uuid-simd",
@@ -3541,7 +3541,7 @@ dependencies = [
  "percent-encoding",
  "pulldown-cmark",
  "regex",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "reqwest_cookie_store",
  "ring",
  "secrecy",
@@ -4819,9 +4819,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.17"
+version = "0.12.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3f27698fc5799d2a281528a908bd874973953ca2e7bc2311637e10c263c723b"
+checksum = "e98ff6b0dbbe4d5a37318f433d4fc82babd21631f194d370409ceb2e40b2f0b5"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -4871,7 +4871,7 @@ checksum = "a0b36498c7452f11b1833900f31fbb01fc46be20992a50269c88cf59d79f54e9"
 dependencies = [
  "bytes",
  "cookie_store",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "serde",
  "serde_derive",
  "url",
@@ -4971,7 +4971,7 @@ dependencies = [
  "rand 0.9.1",
  "rand_regex",
  "regex",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "robot-panic",
  "rover-client",
  "rover-graphql",
@@ -5039,7 +5039,7 @@ dependencies = [
  "itertools 0.14.0",
  "pretty_assertions",
  "regex",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "rover-graphql",
  "rover-http",
  "rover-std",
@@ -5098,7 +5098,7 @@ dependencies = [
  "http-body 1.0.1",
  "http-body-util",
  "httpmock",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "rstest",
  "speculoos",
  "tap",
@@ -5869,7 +5869,7 @@ dependencies = [
  "camino",
  "ci_info",
  "httpmock",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "rover-client",
  "rover-std",
  "rstest",
@@ -7472,7 +7472,7 @@ dependencies = [
  "mockito",
  "octocrab 0.44.1",
  "regex",
- "reqwest 0.12.17",
+ "reqwest 0.12.18",
  "rover-client",
  "rover-std",
  "rstest",
