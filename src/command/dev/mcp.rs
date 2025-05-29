@@ -29,7 +29,11 @@ pub struct Opts {
     directory: Option<Utf8PathBuf>,
 
     /// Start the MCP server using the Streamable HTTP transport on the given IP address
-    #[arg(long = "mcp-address", alias = "mcp-sse-address", default_value = "127.0.0.1")]
+    #[arg(
+        long = "mcp-address",
+        alias = "mcp-sse-address",
+        default_value = "127.0.0.1"
+    )]
     address: String,
 
     /// Start the MCP server using the Streamable HTTP transport on the given port
