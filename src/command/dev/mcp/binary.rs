@@ -98,10 +98,10 @@ where
                 self.supergraph_schema_path.to_string(),
                 "--endpoint".to_string(),
                 self.router_address.pretty_string(),
-                "--sse-port".to_string(),
-                self.mcp_options.sse_port.to_string(),
-                "--sse-address".to_string(),
-                self.mcp_options.sse_address,
+                "--http-port".to_string(),
+                self.mcp_options.port.to_string(),
+                "--http-address".to_string(),
+                self.mcp_options.address,
             ];
 
             if let Some(directory) = self.mcp_options.directory {

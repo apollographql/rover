@@ -18,6 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [Unreleased]
+
+## 🚀 Features
+- **Use the Streamable HTTP transport for MCP - @pubmodmatt PR #2607**
+
+  `rover dev --mcp` will now use the Streamable HTTP transport instead of SSE. Specify the `--mcp-port` and/or `--mcp-address` options to `rover dev --mcp` to override the default values. The `--mcp-sse-port` and `--mcp-sse-address` options still work, but will configure the port and address for Streamable HTTP. Users should migrate to the new option names.
+
 # [0.31.3] - 2025-05-28
 ## 🐛 Fixes
 - **Eliminate unnecessary warnings on rover dev startup - @pubmodmatt PR #2604**
