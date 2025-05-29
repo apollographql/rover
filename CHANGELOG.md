@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [Unreleased]
+# [0.32.0] - 2025-05-29
 
 ## 🚀 Features
 - **Use the Streamable HTTP transport for MCP - @pubmodmatt PR #2607**
