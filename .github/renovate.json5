@@ -1,9 +1,9 @@
 {
-  "extends": [
+  extends: [
     "github>apollographql/renovate-config-apollo-open-source:default.json5",
-    "github>Turbo87/renovate-config//rust/updateToolchain"
+    "github>Turbo87/renovate-config//rust/updateToolchain",
   ],
-  "packageRules": [
+  packageRules: [
     // Bunch up all non-major npm dependencies into a single PR.  In the common case
     // where the upgrades apply cleanly, this causes less noise and is resolved faster
     // than starting a bunch of upgrades in parallel for what may turn out to be
@@ -11,73 +11,75 @@
     //
     // Since too much in the Rust ecosystem is pre-1.0, we make an exception here.
     {
-      "matchPackageNames": ["harmonizer"],
-      "matchManagers": ["cargo"],
-      "groupName": "harmonizer",
-      "groupSlug": "harmonizer"
+      matchPackageNames: ["harmonizer"],
+      matchManagers: ["cargo"],
+      groupName: "harmonizer",
+      groupSlug: "harmonizer",
     },
     {
-      "matchCurrentVersion": "< 1.0.0",
-      "separateMinorPatch": true,
-      "matchManagers": ["cargo"],
-      "minor": {
-        "groupName": "cargo pre-1.0 packages",
-        "groupSlug": "cargo-all-pre-1.0"
+      matchCurrentVersion: "< 1.0.0",
+      separateMinorPatch: true,
+      matchManagers: ["cargo"],
+      minor: {
+        groupName: "cargo pre-1.0 packages",
+        groupSlug: "cargo-all-pre-1.0",
       },
-      "patch": {
-        "groupName": "cargo pre-1.0 packages",
-        "groupSlug": "cargo-all-pre-1.0",
-        "automerge": false
-      }
+      patch: {
+        groupName: "cargo pre-1.0 packages",
+        groupSlug: "cargo-all-pre-1.0",
+        automerge: false,
+      },
     },
     {
-      "matchCurrentVersion": ">= 1.0.0",
-      "matchManagers": ["cargo", "npm"],
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "groupName": "all non-major packages >= 1.0",
-      "groupSlug": "all-non-major-gte-1.0"
+      matchCurrentVersion: ">= 1.0.0",
+      matchManagers: ["cargo", "npm"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "all non-major packages >= 1.0",
+      groupSlug: "all-non-major-gte-1.0",
     },
     {
-      "matchPackageNames": ["apollographql/federation-rs"],
-      "extractVersion": "^supergraph@(?<version>v\\d+\\.\\d+\\.\\d+)$",
-      "automerge": false
+      matchPackageNames: ["apollographql/federation-rs"],
+      extractVersion: "^supergraph@(?<version>v\\d+\\.\\d+\\.\\d+)$",
+      automerge: false,
     },
     {
-      "matchPackageNames": ["apollographql/router"],
-      "automerge": false
-    }
+      matchPackageNames: ["apollographql/router"],
+      automerge: false,
+    },
   ],
-  "customManagers": [
+  customManagers: [
     {
-      "customType": "regex",
-      "fileMatch": [
-        "^latest_plugin_versions\\.json$"
+      customType: "regex",
+      fileMatch: ["^latest_plugin_versions\\.json$"],
+      matchStrings: [
+        '"router"(.|\\s)*?"latest-1": "(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
       ],
-      "matchStrings": [
-        "\"router\"(.|\\s)*?\"latest-1\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "apollographql/router",
-      "datasourceTemplate": "github-releases",
+      depNameTemplate: "apollographql/router",
+      datasourceTemplate: "github-releases",
     },
     {
-      "customType": "regex",
-      "fileMatch": [
-        "^latest_plugin_versions\\.json$"
+      customType: "regex",
+      fileMatch: ["^latest_plugin_versions\\.json$"],
+      matchStrings: [
+        '"router"(.|\\s)*?"latest-2": "(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
       ],
-      "matchStrings": [
-        "\"router\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "apollographql/router",
-      "datasourceTemplate": "github-releases",
+      depNameTemplate: "apollographql/router",
+      datasourceTemplate: "github-releases",
     },
     {
-      "customType": "regex",
-      "fileMatch": ["^latest_plugin_versions\\.json$"],
-      "matchStrings": [
-        "\"supergraph\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
+      customType: "regex",
+      fileMatch: ["^latest_plugin_versions\\.json$"],
+      matchStrings: [
+        '"supergraph"(.|\\s)*?"latest-2": "(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
       ],
-      "depNameTemplate": "apollographql/federation-rs",
-      "datasourceTemplate": "github-releases",
-    }
-  ]
+      depNameTemplate: "apollographql/federation-rs",
+      datasourceTemplate: "github-releases",
+    },
+  ],
+  vulnerabilityAlerts: {
+    enabled: true,
+  },
+  lockFileMaintenance: {
+    enabled: false,
+  },
 }
