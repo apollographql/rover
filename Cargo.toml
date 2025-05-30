@@ -248,7 +248,7 @@ mime = "=0.3.17"
 mockall = "=0.13.1"
 portpicker = "=0.1.1"
 predicates = { workspace = true }
-rand_regex = "=0.18.0"
+rand_regex = "=0.18.1"
 reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
