@@ -25,9 +25,6 @@ struct Xtask {
 
 #[derive(Debug, Parser)]
 pub enum Command {
-    /// Spin up a local development server for editing documentation
-    Docs(commands::Docs),
-
     /// Build Rover's binaries for distribution
     Dist(commands::Dist),
 
@@ -50,7 +47,6 @@ pub enum Command {
 impl Xtask {
     pub async fn run(&self) -> Result<()> {
         match &self.command {
-            Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
             Command::Lint(command) => command.run().await,
             Command::Test(command) => command.run(),
