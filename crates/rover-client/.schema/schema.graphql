@@ -2055,7 +2055,8 @@ type GraphVariant {
     The starting timestamp for the report.
     
     - Must be in the format: 2025-01-01T00:00:00Z (ISO 8601).
-    - The duration between 'from' and 'to' must not exceed 8 days.
+      - Must be within the last 549 days.
+      - The duration between 'from' and 'to' must not exceed 31 days.
     """
     from: Timestamp!
 
@@ -2069,8 +2070,8 @@ type GraphVariant {
     The ending timestamp for the report.
     
     - Must be in the format: 2025-01-01T08:00:00Z (ISO 8601).
-    - 'to' must be at least 6 hours from the current time.
-    - The duration between 'from' and 'to' must not exceed 8 days.
+    - Must be at least 6 hours from the current time.
+      - The duration between 'from' and 'to' must not exceed 31 days.
     """
     to: Timestamp!
   ): [TopOperationRecord!]!

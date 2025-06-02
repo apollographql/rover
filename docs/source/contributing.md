@@ -80,11 +80,6 @@ To run the tests that are run in CI:
 cargo xtask test
 ```
 
-To spin up a local development server for Rover's docset:
-```bash
-cargo xtask docs
-```
-
 [Apollo GraphQL]: https://www.apollographql.com
 [Rust]: https://www.rust-lang.org/
 [`cargo`]: https://doc.rust-lang.org/cargo/index.html
@@ -115,10 +110,6 @@ Pull requests (PRs) should only be opened after discussion and consensus has bee
 * If your work is still in-progress and you're opening a PR to get early feedback, let us know by opening it as a draft PR and adding `wip:` prefix in the PR title.
 * Add tests for any logic changes in your code, especially if you are fixing a bug. Your PR should have no failing tests before merging. Please let us know if you need help writing tests, there are still some portions of the Rover codebase that do not have established testing patterns.
 * Add a changelog entry in [CHANGELOG.md](https://github.com/apollographql/rover/blob/main/CHANGELOG.md) under the `Unreleased` heading, following the pattern of previous entries.
-
-### Documentation
-
-To contribute to Rover's documentation, you can add or edit the markdown & MDX files in the `docs/source` directory.
 
 ### Architecture
 
