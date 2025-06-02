@@ -46,6 +46,18 @@
       matchPackageNames: ["apollographql/router"],
       automerge: false,
     },
+    {
+      matchPackageNames: ["apollographql/router"],
+      matchCurrentValue: "v1.*",
+      allowedVersions: ">=1.0.0 <2.0.0",
+      versioning: "semver",
+    },
+    {
+      matchPackageNames: ["apollographql/router"],
+      matchCurrentValue: "v2.*",
+      allowedVersions: ">=2.0.0 <3.0.0",
+      versioning: "semver",
+    },
   ],
   customManagers: [
     {
