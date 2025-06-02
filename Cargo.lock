@@ -741,7 +741,7 @@ dependencies = [
  "cc",
  "directories-next",
  "flate2",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "rover-std",
  "serial_test",
  "tar",
@@ -1003,9 +1003,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.24"
+version = "1.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16595d3be041c03b09d08d0858631facccee9221e579704070e6e9e4915d3bc7"
+checksum = "d0fc897dc1e865cc67c0e05a836d9d3f1df3cbe442aa4a9473b18e12624a4951"
 dependencies = [
  "jobserver",
  "libc",
@@ -2471,11 +2471,11 @@ checksum = "84b26c544d002229e640969970a2e74021aadf6e2f96372b9c58eff97de08eb3"
 
 [[package]]
 name = "headers"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322106e6bd0cba2d5ead589ddb8150a13d7c4217cf80d7c4f682ca994ccc6aa9"
+checksum = "b3314d5adb5d94bcdf56771f2e50dbbc80bb4bdf88967526706205ac9eff24eb"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "bytes",
  "headers-core",
  "http 1.3.1",
@@ -2504,12 +2504,6 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hermit-abi"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "hermit-abi"
@@ -3080,7 +3074,7 @@ version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
- "hermit-abi 0.5.1",
+ "hermit-abi",
  "libc",
  "windows-sys 0.59.0",
 ]
@@ -3184,7 +3178,7 @@ dependencies = [
  "referencing",
  "regex",
  "regex-syntax 0.8.5",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "serde",
  "serde_json",
  "uuid-simd",
@@ -3438,9 +3432,9 @@ checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07af8b9cdd281b7915f413fa73f29ebd5d55d0d3f0155584dade1ff18cea1b17"
+checksum = "96936507f153605bddfcda068dd804796c84324ed2510809e5b2a624c81da765"
 dependencies = [
  "autocfg",
  "scopeguard",
@@ -3550,7 +3544,7 @@ dependencies = [
  "percent-encoding",
  "pulldown-cmark",
  "regex",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "reqwest_cookie_store",
  "ring",
  "secrecy",
@@ -3932,11 +3926,11 @@ dependencies = [
 
 [[package]]
 name = "num_cpus"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
+checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
 dependencies = [
- "hermit-abi 0.3.9",
+ "hermit-abi",
  "libc",
 ]
 
@@ -4182,9 +4176,9 @@ checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
 
 [[package]]
 name = "parking_lot"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bf18183cf54e8d6059647fc3063646a1801cf30896933ec2311622cc4b9a27"
+checksum = "70d58bf43669b5795d1576d0641cfb6fbb2057bf629506267a92807158584a13"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -4192,9 +4186,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
+checksum = "bc838d2a56b5b1a6c25f55575dfc605fabb63bb2365f6c2353ef9159aa69e4a5"
 dependencies = [
  "cfg-if",
  "libc",
@@ -4391,7 +4385,7 @@ checksum = "b53a684391ad002dd6a596ceb6c74fd004fdce75f4be2e3f615068abbea5fd50"
 dependencies = [
  "cfg-if",
  "concurrent-queue",
- "hermit-abi 0.5.1",
+ "hermit-abi",
  "pin-project-lite",
  "rustix 1.0.7",
  "tracing",
@@ -4807,9 +4801,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.18"
+version = "0.12.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e98ff6b0dbbe4d5a37318f433d4fc82babd21631f194d370409ceb2e40b2f0b5"
+checksum = "a2f8e5513d63f2e5b386eb5106dc67eaf3f84e95258e210489136b8b92ad6119"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -4859,7 +4853,7 @@ checksum = "a0b36498c7452f11b1833900f31fbb01fc46be20992a50269c88cf59d79f54e9"
 dependencies = [
  "bytes",
  "cookie_store",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "serde",
  "serde_derive",
  "url",
@@ -4912,7 +4906,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "anyhow",
  "apollo-federation-types",
@@ -4959,7 +4953,7 @@ dependencies = [
  "rand 0.9.1",
  "rand_regex",
  "regex",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "robot-panic",
  "rover-client",
  "rover-graphql",
@@ -5027,7 +5021,7 @@ dependencies = [
  "itertools 0.14.0",
  "pretty_assertions",
  "regex",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "rover-graphql",
  "rover-http",
  "rover-std",
@@ -5086,7 +5080,7 @@ dependencies = [
  "http-body 1.0.1",
  "http-body-util",
  "httpmock",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "rstest",
  "speculoos",
  "tap",
@@ -5863,7 +5857,7 @@ dependencies = [
  "camino",
  "ci_info",
  "httpmock",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "rover-client",
  "rover-std",
  "rstest",
@@ -6476,9 +6470,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fdb0c213ca27a9f57ab69ddb290fd80d970922355b83ae380b395d3986b8a2e"
+checksum = "5cc2d9e086a412a451384326f521c8123a99a466b329941a9403696bff9b0da2"
 dependencies = [
  "bitflags 2.9.1",
  "bytes",
@@ -7466,7 +7460,7 @@ dependencies = [
  "mockito",
  "octocrab 0.44.1",
  "regex",
- "reqwest 0.12.18",
+ "reqwest 0.12.19",
  "rover-client",
  "rover-std",
  "rstest",

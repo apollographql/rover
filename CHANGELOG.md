@@ -18,6 +18,31 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.32.1] - 2025-06-02
+## 🐛 Fixes
+- **Log cause of introspection error - @pubmodmatt PR #2615**
+
+  Introspection failures in `rover dev` were not logging the underlying cause of the failure. This has been fixed to help with debugging introspection problems.
+
+## 🛠 Maintenance
+- **Update Apollo Router 1.x to 1.61.7 - PR #2614**
+- **Update Apollo Router 2.x to 2.2.1 - PR #2592**
+- **Remove obsolete and broken xtask docs command - @pubmodmatt PR #2619**
+- **Configure Renovate to perform only security updates - @DaleSeo PR #2613**
+- **Update `eslint` to v9.28.0 - PR #2616**
+- **Update `zip` to v4 - PR #2618**
+- **Update `rand_regex` to v0.18.1 - PR #2606**
+- **Update node docker tag to v20.19.2 - PR #2605**
+- **Update `slackapi/slack-github-action` action to v2.1.0 - PR #2584**
+- **Update `duct` to v1 - PR #2586**
+- **Update `npm` to v11 - PR #2547**
+- **Update `quay.io/pypa/manylinux2014_x86_64` docker tag to v2025 - PR #2548**
+- **Update all non-major packages >= 1.0 - PR #2546**
+
+## 📚 Documentation
+- **Update contributing to documentation - @Meschreiber PR #2600**
+- **Update links - @Meschreiber PR #2620**
+
 # [0.32.0] - 2025-05-29
 
 ## 🚀 Features
