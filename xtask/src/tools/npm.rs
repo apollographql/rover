@@ -1,4 +1,4 @@
-use std::{fs, str};
+use std::str;
 
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
@@ -61,16 +61,6 @@ impl NpmRunner {
         self.publish_dry_run()
             .with_context(|| "Publish dry-run failed.")?;
 
-        Ok(())
-    }
-
-    pub(crate) fn dev_docs(&self, dir: &Utf8PathBuf) -> Result<()> {
-        self.require_volta()?;
-        if fs::metadata(dir.join("node_modules")).is_err() {
-            self.npm_exec(&["i"], dir)?;
-        }
-        crate::info!("serving './docs' at http://localhost:8000/rover");
-        self.npm_exec(&["run", "start:local"], dir)?;
         Ok(())
     }
 

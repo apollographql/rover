@@ -14,6 +14,7 @@ pub(crate) struct GitRunner {
     repo: RepoLocation,
 }
 
+#[allow(unused)]
 enum RepoLocation {
     Local(LocalRepo),
     Tmp(TmpRepo),
@@ -29,6 +30,7 @@ struct TmpRepo {
 }
 
 impl GitRunner {
+    #[allow(unused)]
     pub(crate) fn new(path: &Utf8PathBuf) -> Result<Self> {
         let runner = Runner::new("git");
         Ok(GitRunner {
@@ -83,10 +85,6 @@ impl GitRunner {
         )?;
 
         Ok(path)
-    }
-
-    pub(crate) fn clone_docs(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
-        self.clone(org, "docs", branch)
     }
 
     pub(crate) fn checkout_rover_version(&self, rover_version: &str) -> Result<Utf8PathBuf> {
