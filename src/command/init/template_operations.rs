@@ -157,14 +157,21 @@ pub struct SupergraphBuilder {
     directory: Utf8PathBuf,
     routing_url: String,
     max_depth: usize,
+    federation_version: String,
 }
 
 impl SupergraphBuilder {
-    pub fn new(directory: Utf8PathBuf, max_depth: usize, routing_url: String) -> Self {
+    pub fn new(
+        directory: Utf8PathBuf,
+        max_depth: usize,
+        routing_url: String,
+        federation_version: &str,
+    ) -> Self {
         Self {
             directory,
             routing_url,
             max_depth,
+            federation_version: federation_version.to_string(),
         }
     }
 
@@ -291,7 +298,9 @@ impl SupergraphBuilder {
         let subgraphs = self.generate_subgraphs()?;
         Ok(SupergraphConfig::new(
             subgraphs,
-            Some(FederationVersion::from_str("=2.10.0")?),
+            Some(FederationVersion::from_str(
+                self.federation_version.as_str(),
+            )?),
         ))
     }
 
@@ -336,7 +345,8 @@ mod tests {
             "type Service { id: ID! }",
         )?;
 
-        let supergraph_builder = SupergraphBuilder::new(path, 5, "http://ignore".to_string());
+        let supergraph_builder =
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -359,7 +369,8 @@ mod tests {
             "type Product { id: ID! }",
         )?;
 
-        let supergraph_builder = SupergraphBuilder::new(path, 5, "http://ignore".to_string());
+        let supergraph_builder =
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -388,7 +399,8 @@ mod tests {
             "type Service { id: ID! }",
         )?;
 
-        let supergraph_builder = SupergraphBuilder::new(path, 5, "http://ignore".to_string());
+        let supergraph_builder =
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -423,7 +435,8 @@ mod tests {
             "type Billing { id: ID! }",
         )?;
 
-        let supergraph_builder = SupergraphBuilder::new(path, 5, "http://ignore".to_string());
+        let supergraph_builder =
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
