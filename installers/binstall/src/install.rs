@@ -97,11 +97,10 @@ impl Installer {
             if let Some(version) = response.headers().get("x-version") {
                 Ok(version
                     .to_str()
-                    .map_err(|e| InstallerError::IoError(io::Error::new(io::ErrorKind::Other, e)))?
+                    .map_err(|e| InstallerError::IoError(io::Error::other(e)))?
                     .to_string())
             } else {
-                Err(InstallerError::IoError(io::Error::new(
-                    io::ErrorKind::Other,
+                Err(InstallerError::IoError(io::Error::other(
                     format!(
                         "{} did not respond with an X-Version header, which is required to determine the latest version",
                         plugin_tarball_url

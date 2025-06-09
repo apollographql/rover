@@ -132,22 +132,19 @@ impl Welcome {
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
-        match read_dir(&output_path) {
-            Ok(mut dir) => {
-                if dir.next().is_some() {
-                    return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the graph because the current directory is not empty"
-                    ))
-                    .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        format!(
-                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
-                            Style::Command.paint("init")
-                        )
-                        .to_string(),
-                    )));
-                }
+        if let Ok(mut dir) = read_dir(&output_path) {
+            if dir.next().is_some() {
+                return Err(RoverError::new(anyhow!(
+                    "Cannot initialize the graph because the current directory is not empty"
+                ))
+                .with_suggestion(RoverErrorSuggestion::Adhoc(
+                    format!(
+                        "Please run `{}` in an empty directory and make sure to check for hidden files.",
+                        Style::Command.paint("init")
+                    )
+                    .to_string(),
+                )));
             }
-            _ => {} // Directory doesn't exist or can't be read
         }
 
         let project_type = match options.get_project_type() {
