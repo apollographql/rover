@@ -217,4 +217,4 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 
 ## Versioning
 
-By default, `rover dev` uses the latest version of the router and composition plugins. The latest version for each is currently configured in the Rover GitHub repo, however, you can override either of these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0` and `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`. If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
+By default, `rover dev` uses the version of the router and composition plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override either of these by setting the environment variables `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0` and `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`. If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
