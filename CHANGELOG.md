@@ -18,6 +18,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.33.0] - 2025-06-10
+## 🚀 Features
+- **Adding mapping of template version to BuildPipelineTrack - @sanchezdale PR #2630**
+
+## 🛠 Maintenance
+- **Update rust crate to v8 - PR #2627**
+- **Update dependency `apollographql/federation-rs` to v2.11.0 - PR #2627**
+- **Configure renovate to not upgrade router major version - @pubmodmatt PR #2622**
+- **Update Apollo Router 2.x to 2.3.0 - PR #2628**
+
+## 📚 Documentation
+- **Update versioning section for accuracy - @mabuyo PR #2631**
+- **Fix MinVersion - @Meschreiber PR #2626**
+- **Update min version usage - @Meschreiber PR #2625**
+
 # [0.32.1] - 2025-06-02
 ## 🐛 Fixes
 - **Log cause of introspection error - @pubmodmatt PR #2615**
