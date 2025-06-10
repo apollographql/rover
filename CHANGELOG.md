@@ -20,8 +20,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [0.33.0] - 2025-06-10
 ## 🚀 Features
-- **Adding mapping of template version to BuildPipelineTrack - @sanchezdale PR #2630**
-
+- **Use the starter template's federation version as the default federation version for newly created variants via `rover init` - @sanchezdale PR #2630**
+  - Before, all graph variants created through `init` were set to default to federation 2.10. Now, `init` sets the default to the federation version defined in the selected starter template.
+  
 ## 🛠 Maintenance
 - **Update rust crate to v8 - PR #2627**
 - **Update dependency `apollographql/federation-rs` to v2.11.0 - PR #2627**
