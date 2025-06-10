@@ -2078,6 +2078,7 @@ type GraphVariant {
 
   """
   A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant.
+  This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   operationCollections: [OperationCollection!]!
 
@@ -3122,7 +3123,7 @@ type Mutation {
   graph(id: ID!): GraphMutation
 
   """
-  Creates an [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for a given variant, or creates a [sandbox collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/#sandbox-collections) without an associated variant.
+  Creates an [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for a given variant, or creates a [sandbox collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/#sandbox-collections) without an associated variant. This field accepts up to 200 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   createOperationCollection(
     """The collection's description."""
@@ -3325,7 +3326,7 @@ input OperationCollectionEntryStateInput {
 }
 
 """
-Provides fields for modifying an [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/).
+Provides fields for modifying an [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/). This fields on this type accepts up to 200 requests per minute combined. This rate may be temporarily adjusted based on system conditions.
 """
 type OperationCollectionMutation {
   """Adds an operation to this collection."""
@@ -4261,6 +4262,9 @@ type ProposalsCheckTask implements CheckWorkflowTask {
   """
   hasExceededMaxDiffs: Boolean
 
+  """True if this Proposal check passed with warnings, otherwise false."""
+  hasWarnings: Boolean!
+
   """
   Indicates the level of coverage a check's changeset is in approved Proposals. PENDING while Check is still running.
   """
@@ -4407,7 +4411,7 @@ type Query {
   variant(ref: ID!): GraphVariantLookup
 
   """
-  Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID.
+  Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID. This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   operationCollection(id: ID!): OperationCollectionResult!
   proposal(id: ID!): Proposal
@@ -4973,7 +4977,7 @@ type Graph implements Identity {
   doc(hash: SHA256): GraphQLDoc
 
   """
-  Get GraphQL documents by hash, max up to 100 can be requested per query
+  Get GraphQL documents by hash, max up to 100 can be requested per query. This field accepts up to 120 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   docs(hashes: [SHA256!]!): [GraphQLDoc]
 
@@ -5120,6 +5124,7 @@ type GraphMutation {
 
   """
   Publishes multiple subgraphs. If composition is successful, this will update running routers.
+  This field accepts up to 120 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput, downstreamLaunchInitiation: DownstreamLaunchInitiation = ASYNC): SubgraphPublicationResult
 

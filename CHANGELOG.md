@@ -18,6 +18,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.33.0] - 2025-06-10
+## 🚀 Features
+- **Use the starter template's federation version as the default federation version for newly created variants via `rover init` - @sanchezdale PR #2630**
+  - Before, all graph variants created through `init` were set to default to federation 2.10. Now, `init` sets the default to the federation version defined in the selected starter template.
+  
+## 🛠 Maintenance
+- **Update rust crate to v8 - PR #2627**
+- **Update dependency `apollographql/federation-rs` to v2.11.0 - PR #2627**
+- **Configure renovate to not upgrade router major version - @pubmodmatt PR #2622**
+- **Update Apollo Router 2.x to 2.3.0 - PR #2628**
+
+## 📚 Documentation
+- **Update versioning section for accuracy - @mabuyo PR #2631**
+- **Fix MinVersion - @Meschreiber PR #2626**
+- **Update min version usage - @Meschreiber PR #2625**
+
 # [0.32.1] - 2025-06-02
 ## 🐛 Fixes
 - **Log cause of introspection error - @pubmodmatt PR #2615**
