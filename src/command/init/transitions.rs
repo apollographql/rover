@@ -132,22 +132,19 @@ impl Welcome {
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
-        match read_dir(&output_path) {
-            Ok(mut dir) => {
-                if dir.next().is_some() {
-                    return Err(RoverError::new(anyhow!(
-                        "Cannot initialize the graph because the current directory is not empty"
-                    ))
-                    .with_suggestion(RoverErrorSuggestion::Adhoc(
-                        format!(
-                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
-                            Style::Command.paint("init")
-                        )
-                        .to_string(),
-                    )));
-                }
+        if let Ok(mut dir) = read_dir(&output_path) {
+            if dir.next().is_some() {
+                return Err(RoverError::new(anyhow!(
+                    "Cannot initialize the graph because the current directory is not empty"
+                ))
+                .with_suggestion(RoverErrorSuggestion::Adhoc(
+                    format!(
+                        "Please run `{}` in an empty directory and make sure to check for hidden files.",
+                        Style::Command.paint("init")
+                    )
+                    .to_string(),
+                )));
             }
-            _ => {} // Directory doesn't exist or can't be read
         }
 
         let project_type = match options.get_project_type() {
@@ -242,8 +239,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        // TODO: setting this to main for now. but this should be a specific tag/branch once we introduce versioning
-        let repo_ref = "releases/v1";
+        let repo_ref = "release/v2";
         let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
@@ -440,8 +436,14 @@ impl CreationConfirmed {
         self.selected_template.write_template(&self.output_path)?;
 
         let routing_url = self.selected_template.template.routing_url.clone();
+        let federation_version = self.selected_template.template.federation_version.clone();
 
-        let supergraph = SupergraphBuilder::new(self.output_path.clone(), 5, routing_url);
+        let supergraph = SupergraphBuilder::new(
+            self.output_path.clone(),
+            5,
+            routing_url,
+            &federation_version,
+        );
         supergraph.build_and_write()?;
 
         let artifacts = self.selected_template.list_files()?;
@@ -454,7 +456,7 @@ impl CreationConfirmed {
 
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
-        update_variant_federation_version(&client, &graph_ref).await?;
+        update_variant_federation_version(&client, &graph_ref, Some(federation_version)).await?;
 
         // Create a new API key for the graph first
         let api_key = create_api_key(

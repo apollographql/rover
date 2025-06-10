@@ -36,6 +36,7 @@ pub type HttpService = BoxCloneService<HttpRequest, HttpResponse, HttpServiceErr
 /// else, such as some type of Client, in order to allow for [`tower`] layering upon production
 pub trait HttpServiceFactory {
     /// Produces an [`HttpService`]
+    #[allow(clippy::result_large_err)]
     fn create(&self) -> Result<HttpService, HttpServiceError>;
 }
 

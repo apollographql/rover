@@ -50,11 +50,7 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
         "id".to_string()
     } else {
         let unique_string_length = UNIQUE_STRING_LENGTH + 1; // +1 for hyphen
-        let max_name_length = if GRAPH_ID_MAX_CHAR > unique_string_length {
-            GRAPH_ID_MAX_CHAR - unique_string_length
-        } else {
-            0
-        };
+        let max_name_length = GRAPH_ID_MAX_CHAR.saturating_sub(unique_string_length);
         slugified_name[..slugified_name.len().min(max_name_length)].to_string()
     };
 
