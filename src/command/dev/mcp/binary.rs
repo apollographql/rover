@@ -109,6 +109,11 @@ where
                 args.push(directory.to_string());
             }
 
+            if let Some(collection_id) = self.mcp_options.collection {
+                args.push("--collection".to_string());
+                args.push(collection_id);
+            }
+
             if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
                 args.push("--allow-mutations".to_string());
                 args.push(value.get_name().to_string());
