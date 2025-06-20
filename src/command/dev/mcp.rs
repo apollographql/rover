@@ -56,6 +56,10 @@ pub struct Opts {
     #[arg(long = "mcp-manifest")]
     manifest: Option<Utf8PathBuf>,
 
+    /// collection id to expose as MCP tools (requires APOLLO_KEY)
+    #[arg(long = "mcp-collection")]
+    collection: Option<String>,
+
     /// Enable use of uplink to get the schema and persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
     #[arg(long = "mcp-uplink")]
     uplink: bool,
