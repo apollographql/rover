@@ -18,6 +18,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.34.0] - 2025-06-20
+## 🚀 Features
+- **Add `--mcp-collection` option for `rover dev` - @Jephuff PR #2636**
+
 # [0.33.0] - 2025-06-10
 ## 🚀 Features
 - **Use the starter template's federation version as the default federation version for newly created variants via `rover init` - @sanchezdale PR #2630**

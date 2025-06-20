@@ -20,7 +20,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v0.33.0 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.34.0 | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
@@ -43,7 +43,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v0.33.0' | iex
+iwr 'https://rover.apollo.dev/win/v0.34.0' | iex
 ```
 
 #### Installing from a binary mirror using the bash and PowerShell scripts
@@ -82,11 +82,11 @@ Internally, the `npm` installer downloads router binaries from `https://rover.ap
 
 1. Setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable.
 
-    <Note>
-    
-    This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
+   <Note>
 
-    </Note>
+   This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
+
+   </Note>
 
 1. Adding the following to your global or local `.npmrc`:
 

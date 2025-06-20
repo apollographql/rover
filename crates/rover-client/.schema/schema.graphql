@@ -123,6 +123,20 @@ input AddOperationInput {
   name: String!
 }
 
+"""Filter options available when searching affected queries for a check."""
+input AffectedQueriesFilterInput {
+  """Filter by a keyword to match against the query's operation name or ID."""
+  search: String
+
+  """
+  Filter affected queries by one or more statuses.
+  
+  For example, use `[BROKEN]` to return only queries that are broken,
+  or `[BROKEN, POTENTIALLY_AFFECTED]` to include queries that are broken OR possibly affected.
+  """
+  status: [AffectedQueryStatus!]
+}
+
 type AffectedQuery {
   id: ID!
 
@@ -162,6 +176,24 @@ type AffectedQuery {
 
   """If the operation would be ignored if the check ran again"""
   alreadyIgnored: Boolean
+}
+
+enum AffectedQueryStatus {
+  """This query will break as a result of the changes in this check."""
+  BROKEN
+
+  """This query is valid but may be affected by the changes in this check."""
+  POTENTIALLY_AFFECTED
+
+  """
+  This query is affected by the changes, but was marked as safe in a previous check.
+  """
+  SAFE
+
+  """
+  This query is affected by the changes, but was ignored in a previous check
+  """
+  IGNORED
 }
 
 """
@@ -2077,6 +2109,11 @@ type GraphVariant {
   ): [TopOperationRecord!]!
 
   """
+  The default collection MCP servers will use if no explicit collection is provided. null if no default collection is set.
+  """
+  mcpDefaultCollection: McpDefaultCollectionResult
+
+  """
   A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant.
   This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
@@ -2086,7 +2123,7 @@ type GraphVariant {
   persistedQueryList: PersistedQueryList
 
   """
-  Returns the proposal-related fields for this graph variant if the variant is a proposal; otherwise, returns null.
+  Returns the proposal-related fields for this graph variant if the variant is a proposal; otherwise, returns null. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   proposal: Proposal
 
@@ -2791,6 +2828,10 @@ type Launch {
   The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null.
   """
   upstreamLaunch: Launch
+
+  """
+  Returns the proposal revision associated with this launch, if it exists. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   proposalRevision: ProposalRevision
 }
 
@@ -3063,6 +3104,8 @@ type LogMessage {
 
 """Long type"""
 scalar Long
+
+union McpDefaultCollectionResult = OperationCollection | PermissionError
 
 """
 Input type to provide when running schema checks against multiple subgraph changes asynchronously for a federated supergraph.
@@ -3569,12 +3612,32 @@ type OperationsCheckResult {
   areChangesTruncated: Boolean!
 
   """Operations affected by all changes in diff"""
-  affectedQueries: [AffectedQuery!]
+  affectedQueries(
+    """The maximum number of affected queries to return. Must be 50 or fewer."""
+    limit: Int
+
+    """
+    How many items to skip before starting to return results.
+    For example, with `limit: 10` and `offset: 10`, you get items 11–20.
+    """
+    offset: Int
+
+    """Optional filters to narrow down which affected queries are returned."""
+    filter: AffectedQueriesFilterInput
+  ): [AffectedQuery!]
+
+  """Returns an affected operation and its changes for this check"""
+  affectedQuery(id: ID!): AffectedQuery
 
   """
-  Number of affected query operations that are neither marked as SAFE or IGNORED
+  Number of affected operations that are neither marked as SAFE or IGNORED.
   """
   numberOfAffectedOperations: Int!
+
+  """
+  Total number of affected operations including ones marked SAFE or IGNORED.
+  """
+  totalNumberOfAffectedOperations: Int!
   createdAt: Timestamp!
 }
 
@@ -4136,7 +4199,7 @@ type ProposalMutation {
   proposal: Proposal
 
   """
-  This mutation creates a new revision of a proposal by publishing multiple subgraphs, saving the summary and recording a diff. If composition is successful, this will update running routers. See the documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation/#save-revisions
+  This mutation creates a new revision of a proposal by publishing multiple subgraphs, saving the summary and recording a diff. If composition is successful, this will update running routers. See the documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation/#save-revisions This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   publishSubgraphs(input: PublishProposalSubgraphsInput!): PublishProposalSubgraphResult!
 
@@ -4145,11 +4208,19 @@ type ProposalMutation {
   """
   updateDescription(input: UpdateDescriptionInput!): UpdateProposalResult!
 
-  """Update the title of this proposal."""
+  """
+  Update the title of this proposal. This field accepts up to 200 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   updateDisplayName(displayName: String!): UpdateProposalResult!
 
-  """Update the list of requested reviewers for this proposal."""
+  """
+  Update the list of requested reviewers for this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   updateRequestedReviewers(input: UpdateRequestedReviewersInput!): UpdateRequestedReviewersResult!
+
+  """
+  Update the status of this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   updateStatus(status: ProposalStatus!): UpdateProposalResult!
 }
 
@@ -4414,6 +4485,10 @@ type Query {
   Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID. This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   operationCollection(id: ID!): OperationCollectionResult!
+
+  """
+  Returns a proposal by its ID. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   proposal(id: ID!): Proposal
 }
 
@@ -4964,12 +5039,21 @@ type Graph implements Identity {
 
   """Get check configuration for this graph."""
   checkConfiguration: CheckConfiguration
+
+  """
+  Returns the default reviewers for this graph. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   defaultProposalReviewers: [Identity]!
+
+  """
+  Diffs the sdls at the oldSdlHash and newSdlHash, returning a FlatDiffResult. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
   flatDiff(newSdlHash: SHA256, oldSdlHash: SHA256): FlatDiffResult!
 
   """
   A list of the proposals for this graph sorted by created at date.
-  limit defaults to 25 and has an allowed max of 50, offset defaults to 0
+  limit defaults to 25 and has an allowed max of 50, offset defaults to 0.
+  This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   proposals(filterBy: ProposalsFilterInput, limit: Int, offset: Int): ProposalsResult!
 
@@ -5076,7 +5160,7 @@ type GraphMutation {
   persistedQueryList(id: ID!): PersistedQueryListMutation!
 
   """
-  Creates a proposal variant from a source variant and a name, description. See the documentation for proposal creation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation
+  Creates a proposal variant from a source variant and a name, description. See the documentation for proposal creation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   createProposal(input: CreateProposalInput!): CreateProposalResult!
 
