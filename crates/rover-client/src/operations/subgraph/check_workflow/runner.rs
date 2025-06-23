@@ -142,11 +142,6 @@ fn get_check_response_from_data(
                     number_of_checked_operations =
                         result.number_of_checked_operations.try_into().unwrap();
                     operations_result = Some(result);
-                } else {
-                    return Err(RoverClientError::MalformedResponse {
-                        null_field: "graph.checkWorkflow....on OperationsCheckTask.result"
-                            .to_string(),
-                    });
                 }
             }
             LintCheckTask(typed_task) => {
@@ -154,10 +149,6 @@ fn get_check_response_from_data(
                 lint_target_url = task.target_url;
                 if let Some(result) = typed_task.result {
                     lint_result = Some(result)
-                } else {
-                    return Err(RoverClientError::MalformedResponse {
-                        null_field: "graph.checkWorkflow....on LintCheckTask.result".to_string(),
-                    });
                 }
             }
             ProposalsCheckTask(typed_task) => {
@@ -463,5 +454,172 @@ fn get_downstream_response_from_result(
             })
         }
         None => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn create_check_workflow_data(
+        status: CheckWorkflowStatus,
+        tasks: serde_json::Value,
+    ) -> QueryResponseData {
+        serde_json::from_value(json!({
+            "graph": {
+                "checkWorkflow": {
+                    "id": "test-workflow",
+                    "status": status,
+                    "tasks": tasks
+                }
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_passed_status() {
+        let data = create_check_workflow_data(CheckWorkflowStatus::PASSED, json!([]));
+        let graph_ref = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref, subgraph);
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(
+            response.default_target_url,
+            "https://studio.apollographql.com/graph/test-graph/variant/test-variant/checks/variant"
+        );
+        assert_eq!(response.maybe_core_schema_modified, Some(false));
+        assert!(response.maybe_operations_response.is_none());
+        assert!(response.maybe_lint_response.is_none());
+        assert!(response.maybe_proposals_response.is_none());
+        assert!(response.maybe_custom_response.is_none());
+        assert!(response.maybe_downstream_response.is_none());
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_failed_status() {
+        let data = create_check_workflow_data(CheckWorkflowStatus::FAILED, json!([]));
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RoverClientError::CheckWorkflowFailure {
+                graph_ref: returned_graph_ref,
+                check_response,
+            } => {
+                assert_eq!(returned_graph_ref, graph_ref);
+                assert_eq!(
+                    check_response.default_target_url,
+                    "https://studio.apollographql.com/graph/test-graph/variant/test-variant/checks/variant"
+                );
+            }
+            _ => panic!("Expected CheckWorkflowFailure error"),
+        }
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_composition_errors() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::FAILED,
+            json!([
+                {
+                    "__typename": "CompositionCheckTask",
+                    "id": "composition-task",
+                    "status": "FAILED",
+                    "targetUrl": null,
+                    "coreSchemaModified": false,
+                    "result": {
+                        "__typename": "CompositionCheckResult",
+                        "errors": [
+                            {
+                                "code": "INVALID_GRAPHQL",
+                                "message": "Type 'User' is missing field 'id'",
+                                "locations": []
+                            }
+                        ]
+                    }
+                }
+            ]),
+        );
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph.clone());
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RoverClientError::SubgraphBuildErrors {
+                subgraph: returned_subgraph,
+                graph_ref: returned_graph_ref,
+                source,
+            } => {
+                assert_eq!(returned_subgraph, subgraph);
+                assert_eq!(returned_graph_ref, graph_ref);
+                assert!(source.to_string().contains("INVALID_GRAPHQL"));
+            }
+            _ => panic!("Expected SubgraphBuildErrors error"),
+        }
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_null_operations_result() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "OperationsCheckTask",
+                    "id": "operations-task",
+                    "status": "PENDING",
+                    "targetUrl": "https://studio.apollographql.com/graph/test/checks/operations",
+                    "result": null // This will be null when the task is initializing or running, or when the composition check task fails (https://studio.apollographql.com/graph/apollo-platform/variant/main/schema/reference/objects/OperationsCheckTask#result)
+                }
+            ]),
+        );
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref, subgraph);
+
+        // Should succeed instead of returning MalformedResponse error
+        assert!(result.is_ok());
+        let response = result.unwrap();
+
+        // Operations response should be None since result was null
+        assert!(response.maybe_operations_response.is_none());
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_null_lint_result() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "LintCheckTask",
+                    "id": "lint-task",
+                    "status": "PENDING",
+                    "targetUrl": "https://studio.apollographql.com/graph/test/checks/lint",
+                    "result": null // This is also nullable (https://studio.apollographql.com/graph/apollo-platform/variant/main/schema/reference/objects/LintCheckTask#result)
+                }
+            ]),
+        );
+
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref, subgraph);
+
+        // Should succeed instead of returning MalformedResponse error
+        assert!(result.is_ok());
+        let response = result.unwrap();
+
+        // Lint response should be None since result was null
+        assert!(response.maybe_lint_response.is_none());
     }
 }
