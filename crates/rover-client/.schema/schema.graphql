@@ -2042,6 +2042,9 @@ type GraphVariant {
   """
   contractFilterConfigDescription: String
 
+  """Time the variant was created"""
+  createdAt: Timestamp!
+
   """Federation version this variant uses"""
   federationVersion: String
 
@@ -2109,9 +2112,9 @@ type GraphVariant {
   ): [TopOperationRecord!]!
 
   """
-  The default collection MCP servers will use if no explicit collection is provided. null if no default collection is set.
+  The default collection MCP servers will use if no explicit collection is provided. Auto-creates a collection if it does not exist.
   """
-  mcpDefaultCollection: McpDefaultCollectionResult
+  mcpDefaultCollection: McpDefaultCollectionResult!
 
   """
   A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant.
@@ -4485,6 +4488,11 @@ type Query {
   Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID. This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   operationCollection(id: ID!): OperationCollectionResult!
+
+  """
+  This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  operationCollectionEntries(collectionEntryIds: [ID!]!): [OperationCollectionEntry!]!
 
   """
   Returns a proposal by its ID. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
