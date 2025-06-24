@@ -18,6 +18,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.34.1] - 2025-06-23
+## 🐛 Fixes
+- **Handle null subgraph schema check results - @DaleSeo PR #2639**
+
 # [0.34.0] - 2025-06-20
 ## 🚀 Features
 - **Add `--mcp-collection` option for `rover dev` - @Jephuff PR #2636**
