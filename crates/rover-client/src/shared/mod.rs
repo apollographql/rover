@@ -1,5 +1,6 @@
 mod async_check_response;
 mod check_response;
+mod convert_utils;
 mod fetch_response;
 mod git_context;
 mod graph_ref;
@@ -12,6 +13,7 @@ pub use check_response::{
     ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange,
     ValidationPeriod, Violation,
 };
+pub use convert_utils::should_convert_to_federated_graph;
 pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use git_context::GitContext;
 pub use graph_ref::GraphRef;

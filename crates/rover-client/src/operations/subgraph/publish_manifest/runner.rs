@@ -2,35 +2,33 @@ use super::types::*;
 use crate::blocking::StudioClient;
 use crate::shared::{should_convert_to_federated_graph, GraphRef};
 use crate::RoverClientError;
-
-use graphql_client::*;
-
 use apollo_federation_types::rover::{BuildError, BuildErrors};
+use graphql_client::GraphQLQuery;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/subgraph/publish/publish_mutation.graphql",
+    query_path = "src/operations/subgraph/publish_manifest/publish_manifest_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
-pub(crate) struct SubgraphPublishMutation;
+/// Snake case of this name is the mod name. i.e. subgraphs_publish_mutation
+pub(crate) struct SubgraphsPublishMutation;
 
 pub async fn run(
-    input: SubgraphPublishInput,
+    input: SubgraphsPublishInput,
     client: &StudioClient,
-) -> Result<SubgraphPublishResponse, RoverClientError> {
+) -> Result<SubgraphsPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let variables: MutationVariables = input.clone().into();
 
     should_convert_to_federated_graph(&graph_ref, input.convert_to_federated_graph, client).await?;
 
-    let data = client.post::<SubgraphPublishMutation>(variables).await?;
+    let data = client.post::<SubgraphsPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))
 }
@@ -44,13 +42,13 @@ fn get_publish_response_from_data(
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     graph
-        .publish_subgraph
+        .publish_subgraphs
         .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upsertImplementingServiceAndTriggerComposition".to_string(),
         })
 }
 
-fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
+fn build_response(publish_response: UpdateResponse) -> SubgraphsPublishResponse {
     let build_errors: BuildErrors = publish_response
         .errors
         .iter()
@@ -61,7 +59,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         })
         .collect();
 
-    SubgraphPublishResponse {
+    SubgraphsPublishResponse {
         api_schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
@@ -69,6 +67,8 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
         subgraph_was_updated: publish_response.service_was_updated,
+        subgraphs_created: publish_response.subgraphs_created,
+        subgraphs_updated: publish_response.subgraphs_updated,
         build_errors,
         launch_cli_copy: publish_response.launch_cli_copy,
         launch_url: publish_response.launch_url,
@@ -77,8 +77,9 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use super::*;
+    use serde_json::json;
+
     #[test]
     fn build_response_works_with_composition_errors() {
         let json_response = json!({
@@ -96,14 +97,16 @@ mod tests {
             ],
             "didUpdateGateway": false,
             "serviceWasCreated": true,
-            "serviceWasUpdated": true
+            "serviceWasUpdated": true,
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert_eq!(
             output,
-            SubgraphPublishResponse {
+            SubgraphsPublishResponse {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: vec![
                     BuildError::composition_error(
@@ -125,6 +128,8 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
             }
         );
     }
@@ -136,14 +141,16 @@ mod tests {
             "errors": [],
             "didUpdateGateway": true,
             "serviceWasCreated": true,
-            "serviceWasUpdated": true
+            "serviceWasUpdated": true,
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert_eq!(
             output,
-            SubgraphPublishResponse {
+            SubgraphsPublishResponse {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
@@ -151,11 +158,13 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
             }
         );
     }
 
-    // I think this case can happen when there are failures on the initial publish
+    // This case can happen when there are failures on the initial publish
     // before composing? No service hash to return, and serviceWasCreated: false
     #[test]
     fn build_response_works_with_failure_and_no_hash() {
@@ -167,14 +176,16 @@ mod tests {
             }],
             "didUpdateGateway": false,
             "serviceWasCreated": false,
-            "serviceWasUpdated": true
+            "serviceWasUpdated": true,
+            "subgraphsCreated": [],
+            "subgraphsUpdated": ["SubgraphA"]
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert_eq!(
             output,
-            SubgraphPublishResponse {
+            SubgraphsPublishResponse {
                 api_schema_hash: None,
                 build_errors: vec![BuildError::composition_error(
                     None,
@@ -188,6 +199,8 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                subgraphs_updated: vec!["SubgraphA".to_string()],
+                subgraphs_created: vec![]
             }
         );
     }
@@ -202,13 +215,15 @@ mod tests {
             "serviceWasUpdated": true,
             "launchUrl": "test.com/launchurl",
             "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
+            "subgraphsCreated": ["SubgraphA", "SubgraphB"],
+            "subgraphsUpdated": ["SubgraphC"]
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert_eq!(
             output,
-            SubgraphPublishResponse {
+            SubgraphsPublishResponse {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
@@ -218,6 +233,8 @@ mod tests {
                 launch_cli_copy: Some(
                     "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
                 ),
+                subgraphs_created: vec!["SubgraphA".to_string(), "SubgraphB".to_string()],
+                subgraphs_updated: vec!["SubgraphC".to_string()],
             }
         );
     }
@@ -229,14 +246,16 @@ mod tests {
             "errors": [],
             "didUpdateGateway": false,
             "serviceWasCreated": false,
-            "serviceWasUpdated": false
+            "serviceWasUpdated": false,
+            "subgraphsCreated": [],
+            "subgraphsUpdated": []
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert_eq!(
             output,
-            SubgraphPublishResponse {
+            SubgraphsPublishResponse {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: false,
@@ -244,6 +263,8 @@ mod tests {
                 subgraph_was_updated: false,
                 launch_url: None,
                 launch_cli_copy: None,
+                subgraphs_created: vec![],
+                subgraphs_updated: vec![],
             }
         );
     }
