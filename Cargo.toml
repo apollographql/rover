@@ -32,6 +32,7 @@ members = [
     "crates/robot-panic",
     "crates/rover-http",
     "crates/rover-graphql",
+    "crates/rover-oauth",
     "crates/rover-studio",
     "crates/sputnik",
     "crates/timber",
@@ -60,6 +61,7 @@ robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
+rover-oauth = { path = "./crates/rover-oauth" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
 sputnik = { path = "./crates/sputnik" }
@@ -203,6 +205,7 @@ robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-oauth = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
 schemars = { workspace = true }
@@ -231,6 +234,7 @@ tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+urlencoding = "2.1"
 comfy-table = { workspace = true }
 
 [dev-dependencies]

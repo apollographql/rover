@@ -1,0 +1,26 @@
+[package]
+name = "rover-oauth"
+version = "0.1.0"
+edition = "2021"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+description = "OAuth 2.1 Device Code Flow implementation for Rover CLI"
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+console = { workspace = true }
+opener = { workspace = true }
+rand = { workspace = true, features = ["std"] }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "time"] }
+url = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+[dev-dependencies]
+httpmock = { workspace = true }
+tokio-test = { workspace = true }

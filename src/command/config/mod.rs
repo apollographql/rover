@@ -2,6 +2,8 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
+mod oauth;
+mod oauth_test;
 mod whoami;
 
 use clap::Parser;
@@ -21,6 +23,14 @@ pub enum Command {
     /// Authenticate a configuration profile with an API token
     Auth(auth::Auth),
 
+    /// Authenticate using OAuth 2.1 Device Code Flow
+    #[clap(name = "oauth")]
+    OAuth(oauth::OAuth),
+
+    /// Test OAuth 2.1 Device Code Flow implementation (POC)
+    #[clap(name = "oauth-test")]
+    OAuthTest(oauth_test::OAuthTest),
+
     /// Clear ALL configuration profiles
     Clear(clear::Clear),
 
@@ -38,6 +48,8 @@ impl Config {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Auth(command) => command.run(client_config.config),
+            Command::OAuth(command) => command.run(client_config.config).await,
+            Command::OAuthTest(command) => command.run().await,
             Command::List(command) => command.run(client_config.config),
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
