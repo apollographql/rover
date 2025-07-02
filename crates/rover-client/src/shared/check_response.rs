@@ -272,11 +272,11 @@ impl LintCheckResponse {
             },
             ("", _) => warning_msg,
             (_, "") => error_msg,
-            _ => format!("{} and {}", error_msg, warning_msg),
+            _ => format!("{error_msg} and {warning_msg}"),
         };
 
         if !self.diagnostics.is_empty() {
-            msg.push_str(&format!("Resulted in {}.", plural_errors));
+            msg.push_str(&format!("Resulted in {plural_errors}."));
             msg.push('\n');
             msg.push_str(&self.get_table());
         } else {
@@ -435,7 +435,7 @@ impl CustomCheckResponse {
         };
 
         if !self.violations.is_empty() {
-            msg.push_str(&format!("Resulted in {}.", violation_msg));
+            msg.push_str(&format!("Resulted in {violation_msg}."));
             msg.push('\n');
             msg.push_str(&self.get_table());
         } else {
@@ -551,7 +551,7 @@ impl fmt::Display for ChangeSeverity {
             ChangeSeverity::PASS => "PASS",
             ChangeSeverity::FAIL => "FAIL",
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
@@ -613,6 +613,6 @@ impl Display for Period {
             Period::Now => "-0".to_string(),
             Period::Past(seconds) => (-seconds).to_string(),
         };
-        write!(f, "{}", period)
+        write!(f, "{period}")
     }
 }

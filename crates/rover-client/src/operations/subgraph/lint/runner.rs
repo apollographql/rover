@@ -138,6 +138,6 @@ impl fmt::Display for lint_subgraph_mutation::LintDiagnosticLevel {
             lint_subgraph_mutation::LintDiagnosticLevel::IGNORED => "IGNORED",
             lint_subgraph_mutation::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }

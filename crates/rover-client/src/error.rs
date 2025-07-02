@@ -350,8 +350,7 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         [] => "The changes in the schema you proposed resulted in an unknown check task to fail."
             .to_string(),
         [single_task] => format!(
-            "The changes in the schema you proposed caused {} checks to fail.",
-            single_task
+            "The changes in the schema you proposed caused {single_task} checks to fail."
         ),
         tasks => {
             let (all_but_last, last) = tasks.split_at(tasks.len() - 1);
@@ -373,7 +372,7 @@ impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
             GraphQLServiceError::PartialError { errors, .. } => {
                 let errors = errors.iter().map(|err| err.to_string()).join("\n");
                 RoverClientError::GraphQl {
-                    msg: format!("Response returned with errors:\n{}", errors),
+                    msg: format!("Response returned with errors:\n{errors}"),
                 }
             }
             _ => RoverClientError::ClientError {
