@@ -57,7 +57,7 @@ impl DocsRunner {
                 .ok_or_else(|| anyhow!("Path {} doesn't have a file name", &path))?
                 .replace(".md", "");
 
-            let description = format!("### {}\n\n{}\n\n", code_name, contents);
+            let description = format!("### {code_name}\n\n{contents}\n\n");
 
             all_descriptions.push_str(&description);
         }

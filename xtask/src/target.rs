@@ -143,6 +143,6 @@ impl fmt::Display for Target {
             Some(possible_value) => possible_value.get_name().to_string(),
             None => "unknown-target".to_string(),
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
