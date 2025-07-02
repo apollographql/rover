@@ -141,7 +141,7 @@ impl Fs {
         let dir = dir.as_ref();
         let entries = dir
             .read_dir_utf8()
-            .with_context(|| format!("could not read entries of {}", dir))?;
+            .with_context(|| format!("could not read entries of {dir}"))?;
         Ok(entries)
     }
 
@@ -162,7 +162,7 @@ impl Fs {
     {
         let file = file.as_ref();
         Ok(fs::metadata(file)
-            .with_context(|| format!("could not find a file at the path '{}'", file))?)
+            .with_context(|| format!("could not find a file at the path '{file}'"))?)
     }
 
     /// copies one file to another
@@ -189,7 +189,7 @@ impl Fs {
     {
         let dir = dir.as_ref();
         if Self::path_is_dir(dir)? {
-            fs::remove_dir_all(dir).with_context(|| format!("could not remove {}", dir))?;
+            fs::remove_dir_all(dir).with_context(|| format!("could not remove {dir}"))?;
             Ok(())
         } else {
             Err(anyhow!("could not remove {} because it is not a directory", dir).into())
