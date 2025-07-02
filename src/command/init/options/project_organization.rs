@@ -163,7 +163,7 @@ mod tests {
             organization: Some(OrganizationId("test-org".to_string())),
         };
         // Check that Debug formatting doesn't panic
-        let debug_str = format!("{:?}", instance);
+        let debug_str = format!("{instance:?}");
         assert!(debug_str.contains("test-org"));
     }
 

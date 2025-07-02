@@ -54,7 +54,7 @@ impl Display for ProjectType {
             CreateNew => "Create a new graph",
             AddSubgraph => "Add a subgraph to an existing graph",
         };
-        write!(f, "{}", readable)
+        write!(f, "{readable}")
     }
 }
 
@@ -135,7 +135,7 @@ mod tests {
     fn test_debug_trait_for_project_type() {
         let project_type = ProjectType::CreateNew;
         // Check that Debug formatting doesn't panic
-        let debug_str = format!("{:?}", project_type);
+        let debug_str = format!("{project_type:?}");
         assert!(debug_str.contains("CreateNew"));
     }
 

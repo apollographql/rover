@@ -36,9 +36,7 @@ mod tests {
             assert_eq!(
                 slugify(input),
                 expected,
-                "Expected slugify('{}') to be '{}'",
-                input,
-                expected
+                "Expected slugify('{input}') to be '{expected}'"
             );
         }
     }

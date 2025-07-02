@@ -123,7 +123,7 @@ impl Display for RoverErrorSuggestion {
             RecreateConfig(profile_name) => {
                 format!("Recreate this configuration profile by running {}.", Style::Command.paint(format!("`rover config auth{}`", match profile_name.as_str() {
                     "default" => "".to_string(),
-                    profile_name => format!(" --profile {}", profile_name)
+                    profile_name => format!(" --profile {profile_name}")
                 })))
             }
             ListProfiles => {

@@ -52,8 +52,7 @@ pub(crate) fn get_command(api_key: &str, graph_ref: &str, supergraph_config: boo
     {
         let mut output = String::new();
         output.push_str(&format!(
-            "APOLLO_KEY={} APOLLO_GRAPH_REF={} rover dev",
-            api_key, graph_ref
+            "APOLLO_KEY={api_key} APOLLO_GRAPH_REF={graph_ref} rover dev"
         ));
         if supergraph_config {
             output.push_str(" --supergraph-config supergraph.yaml");
@@ -152,8 +151,7 @@ pub fn generate_project_created_message(
     }
 
     output.push_str(&format!(
-        "\nFor more information, check out '{}'.\n\n",
-        start_point_file
+        "\nFor more information, check out '{start_point_file}'.\n\n"
     ));
 
     output
@@ -177,7 +175,7 @@ pub fn display_project_created_message(
         start_point_file,
         print_depth,
     );
-    println!("{}", message);
+    println!("{message}");
 }
 
 pub fn display_use_template_message() {

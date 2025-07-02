@@ -195,7 +195,7 @@ impl Dev {
                 Some(CompositionEvent::Error(CompositionError::Build {source,..})) => {
                     let number_of_subgraphs = source.len();
                     let error_to_output = RoverError::from(RoverClientError::BuildErrors{ source, num_subgraphs: number_of_subgraphs });
-                    eprintln!("{}", error_to_output)
+                    eprintln!("{error_to_output}")
                 }
                 Some(CompositionEvent::Error(err)) => {
                     errln!("Error occurred when composing supergraph\n{}", err)
@@ -305,7 +305,7 @@ impl Dev {
                         match router_log {
                             Ok(router_log) => {
                                 if !router_log.to_string().is_empty() {
-                                    eprintln!("{}", router_log);
+                                    eprintln!("{router_log}");
                                 }
                             }
                             Err(RunRouterBinaryError::BinaryExited(res)) => {
@@ -339,7 +339,7 @@ impl Dev {
                         match mcp_server_logs {
                             Ok(mcp_server_logs) => {
                                 if !mcp_server_logs.to_string().is_empty() {
-                                    eprintln!("{}", mcp_server_logs);
+                                    eprintln!("{mcp_server_logs}");
                                 }
                             }
                             Err(RunMcpServerBinaryError::BinaryExited(res)) => {
@@ -384,7 +384,7 @@ impl Dev {
                         match router_log {
                             Ok(router_log) => {
                                 if !router_log.to_string().is_empty() {
-                                    eprintln!("{}", router_log);
+                                    eprintln!("{router_log}");
                                 }
                             }
                             Err(RunRouterBinaryError::BinaryExited(res)) => {

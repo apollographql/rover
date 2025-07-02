@@ -47,12 +47,12 @@ fn print_node(
         let is_last = i == entries.len() - 1;
         let prefix = build_prefix(parent_has_sibling, is_first, is_last, current_level);
         let display_name = if !child.is_file {
-            format!("{}/", name)
+            format!("{name}/")
         } else {
             name.to_string()
         };
         match print_mode {
-            Normal => println!("{}{}", prefix, display_name),
+            Normal => println!("{prefix}{display_name}"),
             Confirmation => successln!("{}{}", prefix, &display_name),
         }
         if !child.is_file {
@@ -291,7 +291,7 @@ impl SupergraphBuilder {
     fn disambiguate_name(&self, file_path: &Path, base_name: &str) -> RoverResult<String> {
         let parent_parent = file_path.parent().and_then(|p| p.parent()).unwrap();
         let parent_parent_name = parent_parent.file_name().unwrap().to_string_lossy();
-        Ok(format!("{}_{}", parent_parent_name, base_name))
+        Ok(format!("{parent_parent_name}_{base_name}"))
     }
 
     pub fn build_supergraph(&self) -> RoverResult<SupergraphConfig> {

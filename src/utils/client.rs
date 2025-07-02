@@ -72,7 +72,7 @@ impl ClientBuilder {
         }
 
         let client = builder
-            .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
+            .user_agent(format!("{PKG_NAME}/{PKG_VERSION}"))
             .build()?;
 
         Ok(client)
@@ -144,7 +144,7 @@ impl StudioClientConfig {
         client_timeout: ClientTimeout,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
-            format!("{} (dev)", PKG_VERSION)
+            format!("{PKG_VERSION} (dev)")
         } else {
             PKG_VERSION.to_string()
         };

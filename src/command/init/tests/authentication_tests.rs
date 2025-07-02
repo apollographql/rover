@@ -34,12 +34,12 @@ mod tests {
     #[test]
     fn test_validation_errors_guide_to_valid_input() {
         let empty_key_error = auth_error_to_rover_error(AuthenticationError::EmptyKey);
-        let suggestion = format!("{:?}", empty_key_error);
+        let suggestion = format!("{empty_key_error:?}");
 
         assert!(suggestion.contains("Please enter a valid API key"));
 
         let format_error = auth_error_to_rover_error(AuthenticationError::InvalidKeyFormat);
-        let suggestion = format!("{:?}", format_error);
+        let suggestion = format!("{format_error:?}");
 
         assert!(suggestion.contains("Please get a valid key"));
         assert!(suggestion.contains("https://go.apollo.dev/r/init"));
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn test_credential_errors_guide_to_resolution() {
         let not_user_key = auth_error_to_rover_error(AuthenticationError::NotUserKey);
-        let suggestion = format!("{:?}", not_user_key);
+        let suggestion = format!("{not_user_key:?}");
 
         assert!(suggestion.contains("unset APOLLO_KEY"));
         assert!(suggestion.contains("rover config clear"));
@@ -56,7 +56,7 @@ mod tests {
         let auth_failed = auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(
             "invalid".to_string(),
         ));
-        let suggestion = format!("{:?}", auth_failed);
+        let suggestion = format!("{auth_failed:?}");
 
         assert!(suggestion.contains("unset APOLLO_KEY"));
         assert!(suggestion.contains("rover config clear"));
@@ -66,7 +66,7 @@ mod tests {
     fn test_system_errors_guide_to_support() {
         let system_error =
             auth_error_to_rover_error(AuthenticationError::SystemError("unexpected".to_string()));
-        let suggestion = format!("{:?}", system_error);
+        let suggestion = format!("{system_error:?}");
 
         assert!(suggestion.contains("This isn't your fault"));
         assert!(suggestion.contains("contact the Apollo team"));

@@ -180,7 +180,7 @@ async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> Singl
         .run()
         .expect("Could not install subgraph dependencies");
     let port = pick_unused_port().expect("No free ports");
-    let subgraph_url = format!("http://localhost:{}", port);
+    let subgraph_url = format!("http://localhost:{port}");
     let task_handle = Command::new("npm")
         .args(["run", "start", "--", &port.to_string()])
         .current_dir(target.path())

@@ -142,7 +142,7 @@ impl RoverError {
 impl Display for RoverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let error_descriptor_message = if let Some(code) = &self.metadata.code {
-            format!("error[{}]:", code)
+            format!("error[{code}]:")
         } else {
             "error:".to_string()
         };
@@ -155,7 +155,7 @@ impl Display for RoverError {
         }
 
         for suggestion in &self.metadata.suggestions {
-            writeln!(formatter, "        {}", suggestion)?;
+            writeln!(formatter, "        {suggestion}")?;
         }
         Ok(())
     }

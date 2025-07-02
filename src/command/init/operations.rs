@@ -34,15 +34,14 @@ fn map_federation_version_to_build_pipeline_track(
     let clean_version = version_str.trim_start_matches(['=', 'v', 'V']);
 
     let complete_version = if clean_version.matches('.').count() == 1 {
-        format!("{}.0", clean_version)
+        format!("{clean_version}.0")
     } else {
         clean_version.to_string()
     };
 
     let version = Version::parse(&complete_version).map_err(|e| {
         GraphOperationError::FederationVersionParseError(format!(
-            "Failed to parse version '{}': {}",
-            complete_version, e
+            "Failed to parse version '{complete_version}': {e}"
         ))
     })?;
 
@@ -61,8 +60,7 @@ fn map_federation_version_to_build_pipeline_track(
         (2, 10) => Ok(BuildPipelineTrack::FED_2_10),
         (2, 11) => Ok(BuildPipelineTrack::FED_2_11),
         _ => Err(GraphOperationError::FederationVersionParseError(format!(
-            "Unsupported federation version: {}",
-            version
+            "Unsupported federation version: {version}"
         ))),
     }
 }

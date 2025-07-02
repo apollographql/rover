@@ -47,7 +47,7 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
         AuthenticationError::AuthenticationFailed(_) => create_invalid_api_key_error(),
         AuthenticationError::NotUserKey => create_invalid_api_key_error(),
         AuthenticationError::SystemError(err) => {
-            let message = format!("Unexpected system error: {}", err);
+            let message = format!("Unexpected system error: {err}");
             let suggestion = RoverErrorSuggestion::Adhoc(
                 format!(
                     "This isn't your fault! Please try again or contact the Apollo team at {} if the issue persists.",

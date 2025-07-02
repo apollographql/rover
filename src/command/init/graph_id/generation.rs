@@ -56,7 +56,7 @@ fn generate_default_graph_id<T: RandomStringGenerator>(
 
     // Generate and append random suffix
     let unique_string = random_generator.generate_string(UNIQUE_STRING_LENGTH);
-    let result = format!("{}-{}", name_part, unique_string);
+    let result = format!("{name_part}-{unique_string}");
 
     // Ensure final ID is no longer than maximum length
     let final_result = slugify(&result);

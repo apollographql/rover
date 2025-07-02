@@ -309,7 +309,7 @@ async fn start_composition(
 }
 
 fn create_subgraph_resolution_error(name: &str, error: ResolveSubgraphError) -> Diagnostic {
-    let message = format!("Subgraph '{}' could not be resolved: {}", name, error);
+    let message = format!("Subgraph '{name}' could not be resolved: {error}");
     Diagnostic::new_simple(Range::default(), message)
 }
 

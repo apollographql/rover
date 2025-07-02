@@ -65,7 +65,7 @@ async fn e2e_test_rover_graph_introspect(
 
     let changes = diff(actual_schema, &expected_schema).unwrap();
 
-    asserting(&format!("changes which was {:?}, has no elements", changes))
+    asserting(&format!("changes which was {changes:?}, has no elements"))
         .that(&changes)
         .is_empty();
 }
@@ -170,7 +170,7 @@ async fn e2e_test_rover_graph_introspect_watch(
     info!("Check new schema is as expected...");
     let changes = diff(new_schema, &expected_new_schema).unwrap();
 
-    asserting(&format!("changes which was {:?}, has no elements", changes))
+    asserting(&format!("changes which was {changes:?}, has no elements"))
         .that(&changes)
         .is_empty();
 }

@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_project_authentication_opt_default() {
         let auth_opt = ProjectAuthenticationOpt::default();
-        assert_eq!(format!("{:?}", auth_opt), "ProjectAuthenticationOpt");
+        assert_eq!(format!("{auth_opt:?}"), "ProjectAuthenticationOpt");
     }
 
     // AUTHENTICATION WORKFLOW SIMULATION

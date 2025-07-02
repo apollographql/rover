@@ -198,7 +198,7 @@ impl Publish {
                         }
                     } else if let Some(host) = parsed_url.host_str() {
                         if ["localhost", "127.0.0.1"].contains(&host) {
-                            let reason = format!("The host `{}` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local environments only.", host);
+                            let reason = format!("The host `{host}` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local environments only.");
                             if is_atty {
                                 Self::prompt_for_publish(
                                     format!("{reason} Would you still like to publish?").as_str(),
@@ -237,7 +237,7 @@ impl Publish {
         reader: &mut impl io::Read,
         writer: &mut impl io::Write,
     ) -> RoverResult<Option<bool>> {
-        write!(writer, "{} [y/N] ", message)?;
+        write!(writer, "{message} [y/N] ")?;
         let mut response = [0];
         reader.read_exact(&mut response)?;
         if std::str::from_utf8(&response).unwrap().to_lowercase() == *"y" {

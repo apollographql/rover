@@ -382,7 +382,7 @@ impl RunRouter<state::Watch> {
                         source,
                         num_subgraphs: number_of_subgraphs,
                     });
-                    eprintln!("{}", error_to_output);
+                    eprintln!("{error_to_output}");
                     None
                 }
                 CompositionEvent::Error(err) => {

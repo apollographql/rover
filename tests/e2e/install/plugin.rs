@@ -90,11 +90,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
-    let re = Regex::new(&format!(
-        "the '{}' plugin was successfully installed",
-        binary
-    ))
-    .unwrap();
+    let re = Regex::new(&format!("the '{binary}' plugin was successfully installed")).unwrap();
     assert_that(&re.is_match(stderr)).is_true();
 
     let installed = bin_path
@@ -135,11 +131,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     cmd.args(forced_args);
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
-    let re = Regex::new(&format!(
-        "the '{}' plugin was successfully installed",
-        binary
-    ))
-    .unwrap();
+    let re = Regex::new(&format!("the '{binary}' plugin was successfully installed")).unwrap();
     assert_that!(re.is_match(stderr)).is_true();
 }
 

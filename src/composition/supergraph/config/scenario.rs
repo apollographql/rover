@@ -65,7 +65,7 @@ pub fn sdl() -> String {
 #[fixture]
 pub fn sdl_fed2(sdl: String) -> String {
     let link_directive = "extend schema @link(url: \"https://specs.apollo.dev/federation/v2.3\", import: [\"@key\", \"@shareable\"])";
-    format!("{}\n{}", link_directive, sdl)
+    format!("{link_directive}\n{sdl}")
 }
 
 #[fixture]

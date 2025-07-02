@@ -289,7 +289,7 @@ pub enum ResolveSupergraphConfigError {
     /// of the subgraphs described in the supergraph config
     #[error(
         "Unable to resolve subgraphs.\n{}",
-        ::itertools::join(.0.iter().map(|(n, e)| format!("{}: {}", n, e)), "\n")
+        ::itertools::join(.0.iter().map(|(n, e)| format!("{n}: {e}")), "\n")
     )]
     ResolveSubgraphs(BTreeMap<String, ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the

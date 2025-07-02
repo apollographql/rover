@@ -105,12 +105,9 @@ fn expand_str(value: &str) -> RoverResult<String> {
 
 fn context(key: &str) -> Result<Option<String>, Error> {
     if let Some(env_var_key) = key.strip_prefix("env.") {
-        env::var(env_var_key).map(Some).with_context(|| {
-            format!(
-                "While reading env var {} for variable expansion",
-                env_var_key
-            )
-        })
+        env::var(env_var_key)
+            .map(Some)
+            .with_context(|| format!("While reading env var {env_var_key} for variable expansion"))
     } else if let Some(file_name) = key.strip_prefix("file.") {
         if !Path::new(file_name).exists() {
             Ok(None)
@@ -136,38 +133,35 @@ mod test_expand_str {
 
     #[test]
     fn valid_env_var() {
-        let value = format!("${{env.{}}}", ENV_VAR_KEY_1);
+        let value = format!("${{env.{ENV_VAR_KEY_1}}}");
         env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
         assert_eq!(expand_str(&value).unwrap(), ENV_VAR_VALUE_1);
     }
 
     #[test]
     fn partial_env_var_partial_static() {
-        let value = format!("static-part-${{env.{}}}", ENV_VAR_KEY_1);
+        let value = format!("static-part-${{env.{ENV_VAR_KEY_1}}}");
         env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
         assert_eq!(
             expand_str(&value).unwrap(),
-            format!("static-part-{}", ENV_VAR_VALUE_1)
+            format!("static-part-{ENV_VAR_VALUE_1}")
         );
     }
 
     #[test]
     fn multiple_env_vars() {
-        let value = format!(
-            "${{env.{}}}-static-part-${{env.{}}}",
-            ENV_VAR_KEY_1, ENV_VAR_KEY_2
-        );
+        let value = format!("${{env.{ENV_VAR_KEY_1}}}-static-part-${{env.{ENV_VAR_KEY_2}}}");
         env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
         env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
         assert_eq!(
             expand_str(&value).unwrap(),
-            format!("{}-static-part-{}", ENV_VAR_VALUE_1, ENV_VAR_VALUE_2)
+            format!("{ENV_VAR_VALUE_1}-static-part-{ENV_VAR_VALUE_2}")
         );
     }
 
     #[test]
     fn nested_env_vars() {
-        let value = format!("${{env.${{env.{}}}}}", ENV_VAR_KEY_1);
+        let value = format!("${{env.${{env.{ENV_VAR_KEY_1}}}}}");
         env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
         env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
         assert!(expand_str(&value).is_err());

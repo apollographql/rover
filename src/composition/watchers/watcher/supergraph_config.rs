@@ -111,7 +111,7 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
                 .await;
             cancellation_token.run_until_cancelled(async move {
                     while let Some(contents) = stream.next().await {
-                        eprintln!("{} changed. Applying changes to the session.", supergraph_config_path);
+                        eprintln!("{supergraph_config_path} changed. Applying changes to the session.");
                         tracing::info!(
                                 "{} changed. Parsing it as a `SupergraphConfig`",
                                 supergraph_config_path

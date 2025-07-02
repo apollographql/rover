@@ -77,9 +77,9 @@ impl GraphIdOpt {
     ) -> RoverResult<()> {
         let rover_error = validation_error_to_rover_error(error);
 
-        eprintln!("{}", rover_error);
+        eprintln!("{rover_error}");
 
-        eprintln!("Please try again (attempt {})", attempt);
+        eprintln!("Please try again (attempt {attempt})");
         Ok(())
     }
 }

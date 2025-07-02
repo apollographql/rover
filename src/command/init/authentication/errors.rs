@@ -26,11 +26,11 @@ impl fmt::Display for AuthenticationError {
             AuthenticationError::EmptyKey => write!(f, "API key cannot be empty"),
             AuthenticationError::InvalidKeyFormat => write!(f, "Invalid API key format"),
             AuthenticationError::AuthenticationFailed(reason) => {
-                write!(f, "Authentication failed: {}", reason)
+                write!(f, "Authentication failed: {reason}")
             }
             AuthenticationError::NotUserKey => write!(f, "Invalid API key type"),
             AuthenticationError::SystemError(reason) => {
-                write!(f, "System error during authentication: {}", reason)
+                write!(f, "System error during authentication: {reason}")
             }
             AuthenticationError::NoCredentialsFound => {
                 write!(f, "No authentication credentials found")

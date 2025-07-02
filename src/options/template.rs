@@ -164,7 +164,7 @@ impl Display for ProjectLanguage {
             Typescript => "TypeScript",
             Other(other) => other,
         };
-        write!(f, "{}", readable)
+        write!(f, "{readable}")
     }
 }
 
