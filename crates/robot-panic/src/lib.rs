@@ -152,7 +152,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
     let mut buffer = stderr.buffer();
     buffer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
 
-    writeln!(&mut buffer, "Houston, we have a problem. {} crashed!", name)?;
+    writeln!(&mut buffer, "Houston, we have a problem. {name} crashed!")?;
     writeln!(
         &mut buffer,
         "To help us diagnose the \
@@ -177,10 +177,9 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
             Ok(path) => {
                 writeln!(
                     &mut buffer,
-                    "We have generated a report file at \"{}\". Submit an \
-                         issue with the subject of \"{} Crash Report\" and include the \
-                         report as an attachment.",
-                    path, name
+                    "We have generated a report file at \"{path}\". Submit an \
+                         issue with the subject of \"{name} Crash Report\" and include the \
+                         report as an attachment."
                 )?;
             }
             Err(_) => {
