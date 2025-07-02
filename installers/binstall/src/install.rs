@@ -218,9 +218,7 @@ impl Installer {
 
         // It looks like we're at an interactive prompt, so ask the user if they'd
         // like to overwrite the previous installation.
-        eprintln!(
-            "existing {binary_name} installation found at `{destination}`"
-        );
+        eprintln!("existing {binary_name} installation found at `{destination}`");
         eprintln!("Would you like to overwrite this file? [y/N]: ");
         Ok(self.prompt_confirm()?)
     }
