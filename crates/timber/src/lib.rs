@@ -31,7 +31,7 @@ impl std::fmt::Display for RoverLogLevel {
             Some(possible_value) => possible_value.get_name().to_string(),
             None => "unknown".to_string(),
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
