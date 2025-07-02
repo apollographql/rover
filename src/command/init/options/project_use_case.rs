@@ -57,7 +57,7 @@ impl Display for ProjectUseCase {
             Connectors => "Start a graph with one or more REST APIs",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
         };
-        write!(f, "{}", readable)
+        write!(f, "{readable}")
     }
 }
 

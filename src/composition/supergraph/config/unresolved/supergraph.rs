@@ -820,7 +820,7 @@ mod tests {
                 .is_equal_to(&target_federation_version);
             assert_that!(subgraph_names).is_equal_to(&fed_two_subgraph_names);
         } else {
-            panic!("Result contains the wrong type of error: {:?}", err);
+            panic!("Result contains the wrong type of error: {err:?}");
         }
 
         Ok(())

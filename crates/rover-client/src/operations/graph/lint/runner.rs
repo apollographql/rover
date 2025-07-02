@@ -122,6 +122,6 @@ impl fmt::Display for lint_graph_mutation::LintDiagnosticLevel {
             lint_graph_mutation::LintDiagnosticLevel::IGNORED => "IGNORED",
             lint_graph_mutation::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }

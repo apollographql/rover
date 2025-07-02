@@ -70,7 +70,7 @@ impl RoverEnv {
             value.to_string()
         };
 
-        format!("${} = {}", key, value)
+        format!("${key} = {value}")
     }
 
     /// sets an environment variable to a value
@@ -110,7 +110,7 @@ pub enum RoverEnvKey {
 
 impl fmt::Display for RoverEnvKey {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let dbg = format!("{:?}", self);
+        let dbg = format!("{self:?}");
         fmt.write_str(&format!("APOLLO_{}", AsShoutySnekCase(&dbg)))
     }
 }

@@ -27,7 +27,7 @@ const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     let port = pick_unused_port().expect("No ports free");
-    let router_url = format!("http://localhost:{}", port);
+    let router_url = format!("http://localhost:{port}");
     let client = Client::new();
 
     cmd.args([
@@ -37,7 +37,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{}", port),
+        &format!("{port}"),
         "--elv2-license",
         "accept",
     ]);

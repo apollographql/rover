@@ -70,7 +70,7 @@ impl fmt::Display for graph_check_workflow_query::LintDiagnosticLevel {
             graph_check_workflow_query::LintDiagnosticLevel::IGNORED => "IGNORED",
             graph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }
 
@@ -88,6 +88,6 @@ impl fmt::Display for graph_check_workflow_query::ViolationLevel {
             graph_check_workflow_query::ViolationLevel::INFO => "INFO",
             graph_check_workflow_query::ViolationLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }

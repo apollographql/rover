@@ -26,8 +26,7 @@ impl FromStr for ProjectName {
         // Check if the length of the input is within the valid range
         if input.len() < MIN_LENGTH || input.len() > MAX_LENGTH {
             return Err(format!(
-                "Invalid project name length: must be between {} and {} characters.",
-                MIN_LENGTH, MAX_LENGTH
+                "Invalid project name length: must be between {MIN_LENGTH} and {MAX_LENGTH} characters."
             ));
         }
 
@@ -63,7 +62,7 @@ impl ProjectNameOpt {
             match project_name {
                 Ok(name) => return Ok(name),
                 Err(err) => {
-                    eprintln!("{}", err); // Print the error and continue the loop for another attempt
+                    eprintln!("{err}"); // Print the error and continue the loop for another attempt
                 }
             }
         }
@@ -138,7 +137,7 @@ mod tests {
             project_name: "test-project".parse::<ProjectName>().ok(),
         };
         // Check that Debug formatting doesn't panic and has the expected content
-        let debug_str = format!("{:?}", instance);
+        let debug_str = format!("{instance:?}");
         assert!(debug_str.contains("test-project"));
     }
 

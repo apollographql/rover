@@ -60,7 +60,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
             }
         }
         Err(err) => {
-            panic!("Could not execute `supergraph compose` command\n{}", err);
+            panic!("Could not execute `supergraph compose` command\n{err}");
         }
     }
 

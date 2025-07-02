@@ -56,7 +56,7 @@ async fn do_update_check(
     client: Client,
 ) -> Result<()> {
     let latest_version = get_latest_release(client).await?;
-    let pretty_latest = Style::Version.paint(format!("v{}", latest_version));
+    let pretty_latest = Style::Version.paint(format!("v{latest_version}"));
     if latest_version > Version::parse(PKG_VERSION)? {
         let message = format!(
             "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",

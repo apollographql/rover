@@ -120,7 +120,7 @@ impl Schema {
             // Location is of a __DirectiveLocation enum that doesn't implement
             // Display (meaning we can't just do .to_string). This next line
             // just forces it into a String with format! debug.
-            directive_.location(format!("{:?}", location));
+            directive_.location(format!("{location:?}"));
         }
 
         sdl.directive(directive_)

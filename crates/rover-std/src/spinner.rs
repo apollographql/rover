@@ -59,7 +59,7 @@ impl Spinner {
                     MoveTo(pos.0, pos.1),
                     Clear(ClearType::CurrentLine),
                     SetForegroundColor(Color::Cyan),
-                    Print(format!("{} {}", frame, current_message)),
+                    Print(format!("{frame} {current_message}")),
                     ResetColor
                 )
                 .unwrap();
@@ -108,7 +108,7 @@ impl Spinner {
             MoveTo(pos.0, pos.1),
             Clear(ClearType::CurrentLine),
             SetForegroundColor(Color::Green),
-            Print(format!("✓ {}", message)),
+            Print(format!("✓ {message}")),
             ResetColor,
             Print("\n")
         )
@@ -144,7 +144,7 @@ impl Spinner {
             MoveTo(pos.0, pos.1),
             Clear(ClearType::CurrentLine),
             SetForegroundColor(Color::Red),
-            Print(format!("✗ {}", message)),
+            Print(format!("✗ {message}")),
             ResetColor,
             Print("\n")
         )

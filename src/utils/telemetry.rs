@@ -60,7 +60,7 @@ fn get_next_command(
             }
             serde_json::Value::Null => command_name = None,
             _ => {
-                command_name = Some(format!("{:?}", command_info).to_lowercase());
+                command_name = Some(format!("{command_info:?}").to_lowercase());
                 *raw_arguments = serde_json::Value::Null;
             }
         }

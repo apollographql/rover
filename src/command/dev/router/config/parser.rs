@@ -34,7 +34,7 @@ impl<'a> RouterConfigParser<'a> {
                 let s = if s.contains(":") {
                     s.to_string()
                 } else {
-                    format!("{}:80", s)
+                    format!("{s}:80")
                 };
                 s.to_socket_addrs()
                     .map(|mut addrs| addrs.next())

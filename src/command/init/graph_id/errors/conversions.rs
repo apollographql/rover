@@ -31,10 +31,9 @@ pub fn validation_error_to_rover_error(error: GraphIdValidationError) -> RoverEr
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
         GraphIdValidationError::TooLong => {
-            let message = format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH);
+            let message = format!("Graph ID exceeds maximum length of {MAX_GRAPH_ID_LENGTH}");
             let suggestion = RoverErrorSuggestion::Adhoc(format!(
-                "Please ensure your graph ID is no longer than {} characters.",
-                MAX_GRAPH_ID_LENGTH
+                "Please ensure your graph ID is no longer than {MAX_GRAPH_ID_LENGTH} characters."
             ));
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
@@ -47,8 +46,7 @@ mod tests {
 
     #[test]
     fn test_validation_error_to_rover_error() {
-        let expected_message =
-            format!("Graph ID exceeds maximum length of {}", MAX_GRAPH_ID_LENGTH);
+        let expected_message = format!("Graph ID exceeds maximum length of {MAX_GRAPH_ID_LENGTH}");
         let test_cases = vec![
             (GraphIdValidationError::Empty, "Graph ID cannot be empty"),
             (
@@ -67,9 +65,7 @@ mod tests {
             // Check that the error message matches what we expect
             assert!(
                 rover_error.to_string().contains(expected_message),
-                "Expected error message to contain '{}', got '{}'",
-                expected_message,
-                rover_error
+                "Expected error message to contain '{expected_message}', got '{rover_error}'"
             );
 
             // Verify that a suggestion was provided

@@ -88,7 +88,7 @@ impl ProjectAuthenticationOpt {
                 }
             }
             Err(e) => Err(auth_error_to_rover_error(AuthenticationError::SystemError(
-                format!("Failed to validate the stored API key: {}", e),
+                format!("Failed to validate the stored API key: {e}"),
             ))),
         }
     }

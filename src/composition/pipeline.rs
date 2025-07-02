@@ -53,7 +53,7 @@ pub enum CompositionPipelineError {
     },
     #[error("Failed to install the supergraph binary.\n{}", .0)]
     InstallSupergraph(#[from] InstallSupergraphError),
-    #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{}: {}", name, err)), "\n"))]
+    #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{name}: {err}")), "\n"))]
     ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),
     #[error("Failed to resolve subgraph from prompt:\n{}", .0)]
     ResolveSubgraphFromPrompt(ResolveSubgraphError),

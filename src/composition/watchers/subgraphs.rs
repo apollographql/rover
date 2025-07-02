@@ -210,7 +210,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                             // If we detect removal diffs, stop the subtask for the removed subgraph.
                             for (subgraph_name, potential_error) in diff.removed() {
                                 match potential_error {
-                                    None => eprintln!("Removing subgraph from session: `{}`", subgraph_name),
+                                    None => eprintln!("Removing subgraph from session: `{subgraph_name}`"),
                                     Some(err) =>  {
                                         errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
                                     },
@@ -291,7 +291,7 @@ impl SubgraphHandles {
         subgraph_config: &SubgraphConfig,
         introspection_polling_interval: u64,
     ) -> Result<(), ResolveSubgraphError> {
-        eprintln!("Adding subgraph to session: `{}`", subgraph);
+        eprintln!("Adding subgraph to session: `{subgraph}`");
         let unresolved_subgraph =
             UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
         let lazily_resolved_subgraph =
@@ -333,7 +333,7 @@ impl SubgraphHandles {
         subgraph_config: &SubgraphConfig,
         introspection_polling_interval: u64,
     ) -> Result<(), ResolveSubgraphError> {
-        eprintln!("Change detected for subgraph: `{}`", subgraph);
+        eprintln!("Change detected for subgraph: `{subgraph}`");
         let unresolved_subgraph =
             UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
         let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(

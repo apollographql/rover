@@ -375,11 +375,7 @@ impl RoverOutput {
                     "Have a question or suggestion about templates? Let us know at \
                     https://community.apollographql.com/",
                 );
-                Some(format!("Successfully created a new project from the '{}' template in {}\n Read the generated '{}' file for next steps.\n{}",
-                template_id,
-                path,
-                readme,
-                forum_call_to_action))
+                Some(format!("Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"))
             }
             RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
@@ -433,26 +429,25 @@ impl RoverOutput {
                             response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
                         ) {
                             (Some(added), Some(updated), Some(removed)) => format!(
-                                "added {}, updated {}, and removed {}, creating",
-                                added, updated, removed
+                                "added {added}, updated {updated}, and removed {removed}, creating"
                             ),
                             (Some(added), Some(updated), None) => {
-                                format!("added {} and updated {}, creating", added, updated)
+                                format!("added {added} and updated {updated}, creating")
                             }
                             (Some(added), None, Some(removed)) => {
-                                format!("added {} and removed {}, creating", added, removed)
+                                format!("added {added} and removed {removed}, creating")
                             }
                             (None, Some(updated), Some(removed)) => {
-                                format!("updated {} and removed {}, creating", updated, removed)
+                                format!("updated {updated} and removed {removed}, creating")
                             }
                             (Some(added), None, None) => {
-                                format!("added {}, creating", added)
+                                format!("added {added}, creating")
                             }
                             (None, None, Some(removed)) => {
-                                format!("removed {}, creating", removed)
+                                format!("removed {removed}, creating")
                             }
                             (None, Some(updated), None) => {
-                                format!("updated {}, creating", updated)
+                                format!("updated {updated}, creating")
                             }
                             (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
                         });

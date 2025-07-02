@@ -131,7 +131,7 @@ mod tests {
     #[once]
     fn mock_server_endpoint(http_server: &MockServer) -> String {
         let address = http_server.address();
-        let endpoint = format!("http://{}", address);
+        let endpoint = format!("http://{address}");
         endpoint
     }
 
@@ -201,7 +201,7 @@ mod tests {
             });
             then.status(302).header(
                 "Location",
-                format!("{}/apollo-mcp-server/", mock_server_endpoint),
+                format!("{mock_server_endpoint}/apollo-mcp-server/"),
             );
         });
 

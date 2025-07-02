@@ -81,7 +81,7 @@ impl Report {
             .enumerate()
         {
             let ip = frame.ip();
-            let _ = write!(backtrace, "\n{:4}: {:2$?}", idx, ip, HEX_WIDTH);
+            let _ = write!(backtrace, "\n{idx:4}: {ip:HEX_WIDTH$?}");
 
             let symbols = frame.symbols();
             if symbols.is_empty() {
@@ -98,7 +98,7 @@ impl Report {
                 }
 
                 if let Some(name) = symbol.name() {
-                    let _ = write!(backtrace, " - {}", name);
+                    let _ = write!(backtrace, " - {name}");
                 } else {
                     let _ = write!(backtrace, " - <unknown>");
                 }
@@ -155,9 +155,9 @@ impl Report {
         }
 
         let new_issue = if repo_home.ends_with('/') {
-            format!("{}issues/new", repo_home)
+            format!("{repo_home}issues/new")
         } else {
-            format!("{}/issues/new", repo_home)
+            format!("{repo_home}/issues/new")
         };
 
         let crash_report = self.serialize();

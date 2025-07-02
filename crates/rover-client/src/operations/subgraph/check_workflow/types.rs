@@ -73,7 +73,7 @@ impl fmt::Display for subgraph_check_workflow_query::LintDiagnosticLevel {
             subgraph_check_workflow_query::LintDiagnosticLevel::IGNORED => "IGNORED",
             subgraph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }
 
@@ -91,6 +91,6 @@ impl fmt::Display for subgraph_check_workflow_query::ViolationLevel {
             subgraph_check_workflow_query::ViolationLevel::INFO => "INFO",
             subgraph_check_workflow_query::ViolationLevel::Other(_) => "UNKNOWN",
         };
-        write!(f, "{}", printable)
+        write!(f, "{printable}")
     }
 }

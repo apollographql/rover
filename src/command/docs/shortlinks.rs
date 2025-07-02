@@ -26,7 +26,7 @@ pub fn possible_shortlinks() -> clap::builder::PossibleValuesParser {
 }
 
 pub fn get_url_from_slug(slug: &str) -> String {
-    format!("{}/{}", URL_BASE, slug)
+    format!("{URL_BASE}/{slug}")
 }
 
 #[cfg(test)]

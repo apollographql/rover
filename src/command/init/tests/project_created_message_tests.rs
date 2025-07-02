@@ -83,7 +83,7 @@ fn test_display_project_created_message_with_single_command() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
+    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("1) Start the subgraph server by running the following command:"));
@@ -175,7 +175,7 @@ fn test_display_project_created_message_without_command() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
+    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("Start a local development session:"));
@@ -209,7 +209,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
+    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     // Should not contain the files section
     assert!(!plain_output.contains("Files created:"));
@@ -242,7 +242,7 @@ fn test_display_project_created_message_with_custom_start_point() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={}", graph_ref)));
+    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     // Should contain the custom start point file
     assert!(plain_output.contains(&format!(

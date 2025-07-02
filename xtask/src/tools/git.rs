@@ -66,7 +66,7 @@ impl GitRunner {
     }
 
     fn clone(&self, org: &str, name: &str, branch: &str) -> Result<Utf8PathBuf> {
-        let url = format!("https://github.com/{}/{}", org, name);
+        let url = format!("https://github.com/{org}/{name}");
         let path = self.get_path()?;
         if let RepoLocation::Local(local) = &self.repo {
             if fs::metadata(local.path.join(".git")).is_ok() {
@@ -91,7 +91,7 @@ impl GitRunner {
         let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
 
         self.runner.exec(
-            &["checkout", &format!("tags/{}", rover_version)],
+            &["checkout", &format!("tags/{rover_version}")],
             &repo_path,
             None,
         )?;
@@ -106,11 +106,7 @@ impl GitRunner {
         let current_dir = Utf8PathBuf::from_path_buf(current_dir).unwrap();
 
         let output = apollo_main.runner.exec(
-            &[
-                &format!("--work-tree={}", current_dir),
-                "diff",
-                "--name-only",
-            ],
+            &[&format!("--work-tree={current_dir}"), "diff", "--name-only"],
             &current_dir,
             None,
         )?;

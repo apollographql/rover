@@ -26,13 +26,13 @@ impl FileDescriptorType {
             Self::Stdin => {
                 let buffer = read_stdin_impl
                     .read_stdin(file_description)
-                    .with_context(|| format!("Failed to read {} from stdin", file_description))?;
+                    .with_context(|| format!("Failed to read {file_description} from stdin"))?;
                 Ok(buffer)
             }
             Self::File(file_path) => {
                 if Utf8Path::exists(file_path) {
                     let contents = Fs::read_file(file_path).with_context(|| {
-                        format!("Could not read {} from {}", file_description, file_path)
+                        format!("Could not read {file_description} from {file_path}")
                     })?;
                     Ok(contents)
                 } else {
@@ -50,10 +50,7 @@ impl FileDescriptorType {
                     "Make sure the command you are piping to Rover contains output.".to_string()
                 }
                 Self::File(config_path) => {
-                    format!(
-                        "'{}' exists, but contains nothing. Did you forget to save?",
-                        config_path
-                    )
+                    format!("'{config_path}' exists, but contains nothing. Did you forget to save?")
                 }
             };
             err.set_suggestion(RoverErrorSuggestion::Adhoc(suggestion));
@@ -110,7 +107,7 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
     // only split once, a header's value may have a ":" in it, but not a key. Right?
     let pair: Vec<&str> = header.splitn(2, ':').collect();
     if pair.len() < 2 {
-        let msg = format!("Could not parse \"key:value\" pair for provided header: \"{}\". Headers must be provided in key:value pairs, with quotes around the pair if there are any spaces in the key or value.", header);
+        let msg = format!("Could not parse \"key:value\" pair for provided header: \"{header}\". Headers must be provided in key:value pairs, with quotes around the pair if there are any spaces in the key or value.");
         Err(io::Error::new(io::ErrorKind::InvalidInput, msg))
     } else {
         Ok((pair[0].to_string(), pair[1].to_string()))

@@ -49,7 +49,7 @@ impl SupergraphBinary {
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
-                error: format!("{:?}", err),
+                error: format!("{err:?}"),
             })?;
 
         let exit_code = output.status.code();
@@ -64,7 +64,7 @@ impl SupergraphBinary {
         let output = std::str::from_utf8(&output.stdout)
             .map_err(|err| CompositionError::InvalidOutput {
                 binary: self.exe.clone(),
-                error: format!("{:?}", err),
+                error: format!("{err:?}"),
             })?
             .to_string();
 
@@ -82,7 +82,7 @@ impl SupergraphBinary {
         // we handle those below
         serde_json::from_str::<BuildResult>(output).map_err(|err| CompositionError::InvalidOutput {
             binary: self.exe.clone(),
-            error: format!("{:?}", err),
+            error: format!("{err:?}"),
         })
     }
 
@@ -117,7 +117,7 @@ impl SupergraphBinary {
             .try_into()
             .map_err(|err| CompositionError::InvalidInput {
                 binary: self.exe.clone(),
-                error: format!("{:?}", err),
+                error: format!("{err:?}"),
             })
     }
 }

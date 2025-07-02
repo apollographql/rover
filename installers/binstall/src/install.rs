@@ -102,8 +102,7 @@ impl Installer {
             } else {
                 Err(InstallerError::IoError(io::Error::other(
                     format!(
-                        "{} did not respond with an X-Version header, which is required to determine the latest version",
-                        plugin_tarball_url
+                        "{plugin_tarball_url} did not respond with an X-Version header, which is required to determine the latest version"
                     ),
                 )))
             }
@@ -168,7 +167,7 @@ impl Installer {
         let bin_dir_path = self.get_bin_dir_path()?;
         // we add the extra `.` at the end here so that `with_extension` does not replace
         // the patch version of the plugin with nothing on unix and .exe on windows.
-        let plugin_name = format!("{}-{}.", plugin_name, plugin_version);
+        let plugin_name = format!("{plugin_name}-{plugin_version}.");
         let plugin_path = bin_dir_path
             .join(plugin_name)
             .with_extension(env::consts::EXE_EXTENSION);
@@ -195,7 +194,7 @@ impl Installer {
                 // attempt to clean up the temp dir
                 // but do not error if it doesn't exist or something goes wrong
                 if let Err(e) = Fs::remove_dir_all(tempdir) {
-                    eprintln!("WARN: {:?}", e);
+                    eprintln!("WARN: {e:?}");
                 }
             }
         }
@@ -219,10 +218,7 @@ impl Installer {
 
         // It looks like we're at an interactive prompt, so ask the user if they'd
         // like to overwrite the previous installation.
-        eprintln!(
-            "existing {} installation found at `{}`",
-            binary_name, destination
-        );
+        eprintln!("existing {binary_name} installation found at `{destination}`");
         eprintln!("Would you like to overwrite this file? [y/N]: ");
         Ok(self.prompt_confirm()?)
     }
@@ -246,7 +242,7 @@ impl Installer {
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.keep())?;
-        let tarball_path = download_dir_path.join(format!("{}.tar.gz", plugin_name));
+        let tarball_path = download_dir_path.join(format!("{plugin_name}.tar.gz"));
         let mut f = std::fs::File::create(&tarball_path)?;
         let response_bytes = client
             .get(plugin_tarball_url)

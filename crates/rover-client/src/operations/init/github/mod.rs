@@ -101,7 +101,7 @@ impl Service<GetTarRequest> for GitHubService {
         Box::pin(async move {
             let response = client
                 .get(&url)
-                .header("User-Agent", format!("rover-client/{}", PKG_VERSION))
+                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
                 .send()
                 .await
                 .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
@@ -157,7 +157,7 @@ impl Service<GetAllReleasesRequest> for GitHubService {
         Box::pin(async move {
             let response = client
                 .get(&url)
-                .header("User-Agent", format!("rover-client/{}", PKG_VERSION))
+                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
                 .send()
                 .await
                 .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;

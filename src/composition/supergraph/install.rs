@@ -123,7 +123,7 @@ mod tests {
     #[once]
     fn mock_server_endpoint(http_server: &MockServer) -> String {
         let address = http_server.address();
-        let endpoint = format!("http://{}", address);
+        let endpoint = format!("http://{address}");
         endpoint
     }
 
@@ -192,7 +192,7 @@ mod tests {
                     && request.path.starts_with("/tar/supergraph/")
             });
             then.status(302)
-                .header("Location", format!("{}/supergraph/", mock_server_endpoint));
+                .header("Location", format!("{mock_server_endpoint}/supergraph/"));
         });
 
         let enc = GzEncoder::new(Vec::new(), Compression::default());
