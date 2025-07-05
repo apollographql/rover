@@ -39,7 +39,7 @@ zip = { workspace = true }
 octocrab = "0.44.0"
 
 [target.'cfg(not(windows))'.dependencies]
-lychee-lib = { version = "0.18", features = ["vendored-openssl"] }
+lychee-lib = { version = "0.19", features = ["vendored-openssl"] }
 
 [dev-dependencies]
 mockito = "=1.7.0"
