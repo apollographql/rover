@@ -33,8 +33,8 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "20.19.2",
-    "npm": "11.4.1"
+    "node": "20.19.3",
+    "npm": "11.4.2"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
@@ -45,8 +45,8 @@
     "tar": "^7.0.0"
   },
   "devDependencies": {
-    "prettier": "3.5.3",
-    "jest": "30.0.3",
+    "prettier": "3.6.2",
+    "jest": "30.0.4",
     "axios-mock-adapter": "2.1.0",
     "jest-junit": "16.0.0"
   }
