@@ -22,8 +22,8 @@ This crate provides a **Proof of Concept** OAuth 2.1 Device Authorization Grant 
 # Enable HTTP for localhost development
 ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test
 
-# Test with custom server
-ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --studio-url http://localhost:4000
+# Test with custom server and profile
+ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --studio-url http://localhost:4000 --profile my-profile
 ```
 
 ### Basic Usage
@@ -228,23 +228,44 @@ let tokens = mock_server.simulate_token_exchange(&token_request)?;
 
 ## Integration with Rover CLI
 
-### Current POC Command
+### Current POC Commands
 
 ```bash
-# Test OAuth flow with mock server
+# Test OAuth flow with default profile
 ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test
+
+# Test with specific profile (generates client ID: rover-cli-my-profile)
+ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --profile my-profile
+
+# Test with custom server and profile
+ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --studio-url http://localhost:4000 --profile production
+```
+
+### Profile Integration
+
+The POC uses Rover's existing `--profile` pattern for consistency:
+
+```bash
+# Traditional API key auth (existing)
+rover config auth --profile my-profile
+
+# OAuth auth (production, future)
+rover config oauth --profile my-profile
+
+# OAuth test (current POC)
+rover config oauth-test --profile my-profile
 ```
 
 ### Future Production Commands
 
 ```bash
-# Authenticate with OAuth (future)
-rover auth login --oauth
+# Authenticate with OAuth (stores tokens in profile)
+rover config oauth --profile production
 
 # Check authentication status
-rover auth status
+rover config whoami --profile production
 
-# Use OAuth with commands
+# Use OAuth tokens from profile
 rover graph check my-graph@current --profile production
 ```
 

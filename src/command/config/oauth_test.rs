@@ -1,7 +1,7 @@
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult};
+use crate::{options::ProfileOpt, RoverOutput, RoverResult};
 use anyhow::anyhow;
 
 #[derive(Debug, Serialize, Parser)]
@@ -10,12 +10,15 @@ use anyhow::anyhow;
 /// This is a test command to demonstrate the OAuth 2.1 Device Code Flow
 /// implementation for Rover. It showcases the PKCE flow and device authorization
 /// without actually storing credentials.
+///
+/// Running this command with a --profile <name> argument will use that profile
+/// name to generate a unique client ID for testing purposes.
 pub struct OAuthTest {
+    #[clap(flatten)]
+    profile: ProfileOpt,
+
     #[clap(long, help = "Apollo Studio URL")]
     studio_url: Option<String>,
-
-    #[clap(long, help = "OAuth client ID (optional, will auto-register if not provided)")]
-    client_id: Option<String>,
 
     #[clap(long, help = "OAuth scopes to request")]
     scopes: Option<Vec<String>>,
@@ -57,7 +60,8 @@ impl OAuthTest {
         /token
         */
 
-        let mock_client_id = self.client_id.clone();
+        // Generate client ID based on profile name for consistent testing
+        let profile_based_client_id = format!("rover-cli-{}", self.profile.profile_name);
         let mock_scopes = self.scopes.clone().unwrap_or_else(|| vec!["rover".to_string()]);
         let _mock_studio_url = self.studio_url.clone()
             .unwrap_or_else(|| "http://localhost:3000".to_string());
@@ -67,14 +71,9 @@ impl OAuthTest {
             .map_err(|e| anyhow::anyhow!("Mock server metadata failed: {}", e))?;
 
         // Step 1: Dynamic Client Registration (MOCKED)
-        let final_client_id = match mock_client_id {
-            Some(id) => id,
-            None => {
-                // TODO: Replace with real HTTP POST to /oauth/register
-                mock_oauth_server.simulate_client_registration("Rover CLI")
-                    .unwrap_or_else(|_| "rover-cli-default".to_string())
-            }
-        };
+        // Use profile name to generate consistent client ID for testing
+        let final_client_id = mock_oauth_server.simulate_client_registration(&format!("Rover CLI ({})", self.profile.profile_name))
+            .unwrap_or_else(|_| profile_based_client_id);
 
         // Step 2: Device Authorization Request with PKCE
         // Generate fresh PKCE for this session
@@ -194,14 +193,18 @@ mod tests {
 
     #[test]
     fn test_oauth_test_command_creation() {
+        use crate::options::ProfileOpt;
+        
         let oauth_test = OAuthTest {
+            profile: ProfileOpt {
+                profile_name: "test-profile".to_string(),
+            },
             studio_url: None,
-            client_id: None,
             scopes: None,
         };
 
+        assert_eq!(oauth_test.profile.profile_name, "test-profile");
         assert!(oauth_test.studio_url.is_none());
-        assert!(oauth_test.client_id.is_none());
         assert!(oauth_test.scopes.is_none());
     }
 }

@@ -43,14 +43,19 @@ ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test
 # - Success message after authorization
 ```
 
-#### 2. Test with Custom OAuth Server
+#### 2. Test with Custom OAuth Server and Profiles
 ```bash
 # Use a different localhost port
 ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --studio-url http://localhost:4000
 
-# Use a custom client ID
-ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --client-id my-test-client-id
+# Test with a specific profile (generates unique client ID)
+ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --profile my-test-profile
+
+# Test with both custom server and profile
+ROVER_OAUTH_ALLOW_HTTP=1 cargo run -- config oauth-test --studio-url http://localhost:4000 --profile production
 ```
+
+**Profile Behavior**: The `--profile` argument generates a unique client ID in the format `rover-cli-{profile-name}` for consistent testing. This matches Rover's existing authentication patterns where profiles store credentials.
 
 #### 3. Test with Mock Server (POC Only)
 ```bash
@@ -177,7 +182,7 @@ The POC command demos the complete flow:
 
 1. **Initialization**
    ```bash
-   cargo run -- config oauth-test [--client-id <id>] [--studio-url <url>]
+   cargo run -- config oauth-test [--profile <name>] [--studio-url <url>]
    ```
 
 2. **Flow Steps**
@@ -195,7 +200,7 @@ The POC command demos the complete flow:
    
    Browser didn't open? Use the url below to sign in:
    
-   http://localhost:3000/oauth/authorize?client_id=rover-cli...
+   http://localhost:3000/oauth/authorize?client_id=rover-cli-default...
    
    POC: This URL follows proper OAuth 2.1 standards.
    The OAuth server will handle the complete flow:
