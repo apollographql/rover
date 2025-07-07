@@ -195,6 +195,50 @@ impl TemplateListFiles for SelectedTemplateState {
 
 impl TemplateWrite for SelectedTemplateState {
     fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
+        #[cfg(feature = "react-template")]
+        {
+            // Handle React template with pure Rust implementation
+            if self.template.id.0 == "react-template" {
+                use crate::command::init::react_template::{PureRustViteGenerator, SetupInstructions};
+                use std::path::PathBuf;
+                
+                // Convert Utf8PathBuf to PathBuf for our generator
+                let output_path = PathBuf::from(template_path.as_str());
+                
+                // Extract project name from the path
+                let project_name = template_path
+                    .file_name()
+                    .unwrap_or("apollo-react-app")
+                    .to_string();
+                
+                // Use default values for graph_ref and endpoint - these will be configured later
+                let graph_ref = "my-graph@current".to_string();
+                let endpoint = "http://localhost:4000/graphql".to_string();
+                
+                // Generate the React template using pure Rust
+                let generator = PureRustViteGenerator::new(
+                    output_path.clone(),
+                    project_name.clone(),
+                    graph_ref,
+                    endpoint,
+                );
+                
+                // Use tokio::task::block_in_place to handle async in sync context
+                tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        generator.generate().await
+                    })
+                })?;
+                
+                // Display setup instructions
+                let instructions = SetupInstructions::new(output_path, project_name);
+                instructions.display();
+                
+                return Ok(());
+            }
+        }
+
+        // Standard template file writing for all other templates
         for (path, contents) in &self.files {
             let full_path = template_path.join(path);
             if let Some(parent) = full_path.parent() {

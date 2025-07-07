@@ -49,6 +49,10 @@ default = ["composition-js"]
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 
+# this feature enables the React template with pure Rust implementation
+# generates React + TypeScript + Apollo Client projects without process spawning
+react-template = []
+
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }

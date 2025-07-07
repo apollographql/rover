@@ -20,6 +20,11 @@ use crate::command::init::states::*;
 use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
+#[cfg(feature = "react-template")]
+use crate::command::init::react_template::{PureRustViteGenerator, SetupInstructions};
+#[cfg(feature = "react-template")]
+use crate::command::init::template_fetcher::Template;
+
 use crate::command::init::InitTemplateFetcher;
 
 use crate::options::{TemplateListFiles, TemplateWrite};
@@ -259,6 +264,11 @@ impl UseCaseSelected {
                 let template_id = options.get_or_prompt_template(&templates)?;
                 template_fetcher.select_template(&template_id)?
             }
+            // Use pure Rust implementation for React template
+            #[cfg(feature = "react-template")]
+            ProjectUseCase::ReactTemplate => {
+                self.create_react_template()?
+            }
         };
 
         Ok(TemplateSelected {
@@ -268,6 +278,31 @@ impl UseCaseSelected {
             use_case: self.use_case,
             selected_template,
         })
+    }
+
+    #[cfg(feature = "react-template")]
+    fn create_react_template(&self) -> RoverResult<SelectedTemplateState> {
+        use std::collections::HashMap;
+        
+        // Create a minimal template structure for React app
+        // The actual file generation will be handled by a custom write_template implementation
+        let template = Template {
+            id: TemplateId("react-template".to_string()),
+            display_name: "React + TypeScript + Apollo Client".to_string(),
+            path: "react-typescript-apollo".to_string(),
+            language: "TypeScript".to_string(),
+            federation_version: "=2.11.0".to_string(),
+            max_schema_depth: 5,
+            routing_url: "http://localhost:5173".to_string(),
+            commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
+            start_point_file: "README.md".to_string(),
+            print_depth: Some(2),
+        };
+
+        // Create empty files map - the actual generation will be handled differently
+        let files = HashMap::new();
+
+        Ok(SelectedTemplateState { template, files })
     }
 }
 

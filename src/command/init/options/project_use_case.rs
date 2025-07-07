@@ -46,6 +46,8 @@ impl ProjectUseCaseOpt {
 pub enum ProjectUseCase {
     Connectors,
     GraphQLTemplate,
+    #[cfg(feature = "react-template")]
+    ReactTemplate,
 }
 
 const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
@@ -56,6 +58,8 @@ impl Display for ProjectUseCase {
         let readable = match self {
             Connectors => "Start a graph with one or more REST APIs",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
+            #[cfg(feature = "react-template")]
+            ReactTemplate => "Build a React app with TypeScript for Apollo Client",
         };
         write!(f, "{readable}")
     }

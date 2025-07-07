@@ -19,6 +19,8 @@ pub mod template_operations;
 pub mod tests;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
+#[cfg(feature = "react-template")]
+pub mod react_template;
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::ProjectTemplateOpt;
 #[cfg(feature = "composition-js")]
