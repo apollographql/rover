@@ -13,13 +13,33 @@ use crate::{
 };
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
+use rand::Rng;
 
 /// TODO: Replace with real Apollo Studio OAuth endpoints
 pub const MOCK_AUTHORIZATION_SERVER_URL: &str = "http://localhost:3000";
-pub const MOCK_CLIENT_ID: &str = "rover-cli-mock-client";
-pub const MOCK_DEVICE_CODE: &str = "mock_device_code_12345";
-pub const MOCK_USER_CODE: &str = "ROVER-123";
-pub const MOCK_ACCESS_TOKEN: &str = "mock_access_token_abcdef123456";
+
+fn generate_mock_client_id() -> String {
+    format!("rover-cli-mock-{}", uuid::Uuid::new_v4())
+}
+
+fn generate_mock_device_code() -> String {
+    let mut rng = rand::rng();
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    (0..32)
+        .map(|_| {
+            let idx = rng.random_range(0..chars.len());
+            chars.chars().nth(idx).unwrap()
+        })
+        .collect()
+}
+
+fn generate_mock_user_code() -> String {
+    format!("ROVER-{}", rand::rng().random_range(1000..9999))
+}
+
+fn generate_mock_access_token() -> String {
+    format!("mock_token_{}", uuid::Uuid::new_v4())
+}
 
 /// Mock OAuth 2.1 Server that simulates all required endpoints
 /// TODO: Remove this entire struct when real OAuth server is available
@@ -92,7 +112,7 @@ impl MockOAuthServer {
         // MOCK: Real endpoint would be: POST /oauth/register
         
         // TODO: Replace with actual HTTP POST to /oauth/register
-        let mock_client_id = format!("{}_{}", MOCK_CLIENT_ID, uuid::Uuid::new_v4().to_string()[..8].to_string());
+        let mock_client_id = generate_mock_client_id();
         self.mock_registered_clients.insert(mock_client_id.clone(), client_name.to_string());
         
         // MOCK: Generated client_id
@@ -112,8 +132,8 @@ impl MockOAuthServer {
         // TODO: Replace with actual HTTP POST with form data:
         // client_id=<client_id>&scope=<scope>&code_challenge=<challenge>&code_challenge_method=S256
 
-        let mock_device_code = format!("{}_{}", MOCK_DEVICE_CODE, uuid::Uuid::new_v4().to_string()[..8].to_string());
-        let mock_user_code = format!("ROVER-{}", rand::random::<u16>() % 10000);
+        let mock_device_code = generate_mock_device_code();
+        let mock_user_code = generate_mock_user_code();
         let mock_verification_uri = format!("{}/oauth/authorize", MOCK_AUTHORIZATION_SERVER_URL);
         let mock_verification_uri_complete = format!("{}/login?from={}/oauth/authorize", MOCK_AUTHORIZATION_SERVER_URL, MOCK_AUTHORIZATION_SERVER_URL);
 
@@ -191,7 +211,7 @@ impl MockOAuthServer {
             // MOCK: Stored challenge and received verifier
 
             // TODO: Replace with real access token generation
-            let mock_access_token = format!("{}_{}", MOCK_ACCESS_TOKEN, uuid::Uuid::new_v4().to_string()[..8].to_string());
+            let mock_access_token = generate_mock_access_token();
             let mock_refresh_token = format!("refresh_{}", uuid::Uuid::new_v4().to_string());
 
             // MOCK: Generated access_token and refresh_token

@@ -2,6 +2,7 @@ use clap::Parser;
 use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
+use anyhow::anyhow;
 
 #[derive(Debug, Serialize, Parser)]
 /// Test OAuth 2.1 Device Code Flow implementation
@@ -75,16 +76,19 @@ impl OAuthTest {
             }
         };
 
-        // Step 2: Device Authorization Request with PKCE (MOCKED)
-        // TODO: Use real PKCE generation from pkce.rs module
-        let mock_pkce_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"; // Real code verifier
-        let mock_pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"; // Real SHA256 challenge
+        // Step 2: Device Authorization Request with PKCE
+        // Generate fresh PKCE for this session
+        let pkce = rover_oauth::pkce::generate_pkce_challenge()
+            .map_err(|e| anyhow!("Failed to generate PKCE: {}", e))?;
+        
+        // Log PKCE generation (but not the values!)
+        println!(" Generated PKCE challenge for this session");
         
         let mock_device_request = rover_oauth::DeviceAuthorizationRequest {
             client_id: final_client_id.clone(),
             scope: Some(mock_scopes.join(" ")),
-            code_challenge: mock_pkce_challenge.to_string(),
-            code_challenge_method: "S256".to_string(),
+            code_challenge: pkce.code_challenge.clone(),
+            code_challenge_method: pkce.code_challenge_method.clone(),
         };
 
         // TODO: Replace with real HTTP POST to device authorization endpoint
@@ -100,7 +104,7 @@ impl OAuthTest {
             urlencoding::encode(&final_client_id),
             urlencoding::encode("http://localhost:3000/oauth/callback"),
             urlencoding::encode(&mock_scopes.join(" ")),
-            urlencoding::encode(&mock_pkce_challenge),
+            urlencoding::encode(&pkce.code_challenge),
             urlencoding::encode(&uuid::Uuid::new_v4().to_string())
         );
 
@@ -144,7 +148,7 @@ impl OAuthTest {
             grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
             device_code: mock_device_response.device_code,
             client_id: final_client_id,
-            code_verifier: mock_pkce_verifier.to_string(),
+            code_verifier: pkce.code_verifier.clone(),
         };
 
         // TODO: Replace with real HTTP POST to token endpoint

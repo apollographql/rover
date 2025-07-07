@@ -1,6 +1,6 @@
 use crate::{error::OAuthError, types::PkceChallenge};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use rand::{rng, Rng};
+use rand::Rng;
 use sha2::{Digest, Sha256};
 
 /// Generate PKCE parameters according to RFC 7636
@@ -22,15 +22,12 @@ pub fn generate_pkce_challenge() -> Result<PkceChallenge, OAuthError> {
 /// Length: 43-128 characters (we use 128 for maximum entropy)
 /// Characters: [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
 fn generate_code_verifier() -> Result<String, OAuthError> {
-    let mut rng = rng();
-    let code_verifier: String = (0..128)
-        .map(|_| {
-            // Use alphanumeric characters: [A-Z][a-z][0-9]
-            let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            let idx = rng.random_range(0..chars.len());
-            chars[idx] as char
-        })
-        .collect();
+    // Generate 32 bytes (256 bits) of random data
+    let mut rng = rand::rng();
+    let random_bytes: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+    
+    // Base64url encode without padding (RFC 7636 compliant)
+    let code_verifier = URL_SAFE_NO_PAD.encode(&random_bytes);
     
     if code_verifier.len() < 43 || code_verifier.len() > 128 {
         return Err(OAuthError::PkceError(

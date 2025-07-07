@@ -54,7 +54,10 @@ impl ProjectAuthenticationOpt {
             redirect_uri: None,
         };
 
-        let mut client = DeviceFlowClient::new(oauth_config);
+        let mut client = DeviceFlowClient::new(oauth_config)
+            .map_err(|e| auth_error_to_rover_error(
+                AuthenticationError::SystemError(format!("Failed to create OAuth client: {}", e))
+            ))?;
 
         match client.authenticate().await {
             Ok(tokens) => {

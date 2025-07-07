@@ -17,12 +17,29 @@ pub struct DeviceFlowClient {
 
 impl DeviceFlowClient {
     /// Create a new Device Flow client
-    pub fn new(config: OAuthClientConfig) -> Self {
-        Self {
-            client: Client::new(),
+    pub fn new(config: OAuthClientConfig) -> Result<Self, OAuthError> {
+        // Validate HTTPS requirement
+        if !config.authorization_server_url.starts_with("https://") {
+            // Allow HTTP only for localhost in development
+            if !cfg!(debug_assertions) || !config.authorization_server_url.starts_with("http://localhost") {
+                return Err(OAuthError::InvalidConfiguration(
+                    "OAuth server URL must use HTTPS".to_string()
+                ));
+            }
+        }
+        
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            // Certificate validation is handled by default in reqwest
+            .build()
+            .map_err(|e| OAuthError::Network(format!("Failed to create HTTP client: {}", e)))?;
+            
+        Ok(Self {
+            client,
             config,
             server_metadata: None,
-        }
+        })
     }
 
     /// Discover OAuth server metadata (RFC 8414)

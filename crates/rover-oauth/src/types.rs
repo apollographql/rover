@@ -117,7 +117,7 @@ impl OAuthTokens {
 #[derive(Debug, Clone)]
 pub struct OAuthClientConfig {
     pub client_id: Option<String>,
-    pub client_secret: Option<String>,
+    pub client_secret: Option<String>, // SECURITY: Device flow MUST NOT use client secrets per RFC 8628
     pub authorization_server_url: String,
     pub scopes: Option<Vec<String>>,
     pub redirect_uri: Option<String>,
@@ -125,10 +125,19 @@ pub struct OAuthClientConfig {
 
 impl Default for OAuthClientConfig {
     fn default() -> Self {
+        // Default to secure HTTPS endpoint
+        let default_url = if cfg!(debug_assertions) && std::env::var("ROVER_OAUTH_ALLOW_HTTP").is_ok() {
+            // Only allow HTTP in debug builds with explicit env var
+            eprintln!("WARNING: Using insecure HTTP for OAuth. This should only be used for local development!");
+            "http://localhost:3000"
+        } else {
+            "https://studio.apollographql.com"
+        };
+        
         Self {
             client_id: None,
-            client_secret: None,
-            authorization_server_url: "http://localhost:3000".to_string(),
+            client_secret: None, // TODO: Remove - not needed for device flow
+            authorization_server_url: default_url.to_string(),
             scopes: Some(vec!["rover".to_string()]),
             redirect_uri: None,
         }

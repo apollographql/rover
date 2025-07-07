@@ -48,7 +48,8 @@ impl OAuth {
             redirect_uri: None, // Not used in device flow
         };
 
-        let mut client = DeviceFlowClient::new(oauth_config);
+        let mut client = DeviceFlowClient::new(oauth_config)
+            .map_err(|e| anyhow!("Failed to create OAuth client: {}", e))?;
 
         eprintln!(
             "🔐 Starting OAuth authentication for profile {}...",
