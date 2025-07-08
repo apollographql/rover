@@ -1,6 +1,8 @@
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
-use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
+use crate::command::init::options::{
+    OrganizationId, ProjectName, ProjectType, ProjectUseCase, SchemaName,
+};
 use crate::command::init::template_fetcher::Template;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
@@ -60,6 +62,18 @@ pub struct GraphIdConfirmed {
     pub project_name: ProjectName,
     pub graph_id: GraphId,
     pub selected_template: SelectedTemplateState,
+}
+
+#[derive(Debug)]
+pub struct SchemaNamed {
+    pub output_path: Utf8PathBuf,
+    pub project_type: ProjectType,
+    pub organization: OrganizationId,
+    pub use_case: ProjectUseCase,
+    pub project_name: ProjectName,
+    pub graph_id: GraphId,
+    pub selected_template: SelectedTemplateState,
+    pub schema_name: SchemaName,
 }
 
 #[derive(Debug)]

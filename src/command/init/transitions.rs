@@ -310,6 +310,23 @@ impl ProjectNamed {
     }
 }
 
+impl GraphIdConfirmed {
+    pub async fn confirm_schema_name(self, options: &SchemaNameOpt) -> RoverResult<SchemaNamed> {
+        let schema_name = options.get_or_prompt_schema_name(&self.use_case)?;
+
+        Ok(SchemaNamed {
+            output_path: self.output_path,
+            project_type: self.project_type,
+            organization: self.organization,
+            use_case: self.use_case,
+            selected_template: self.selected_template,
+            project_name: self.project_name,
+            graph_id: self.graph_id,
+            schema_name,
+        })
+    }
+}
+
 /// PROMPT UX:
 /// =========
 ///
@@ -323,7 +340,7 @@ impl ProjectNamed {
 /// schema.graphql
 ///
 /// ? Proceed with creation? (y/n):
-impl GraphIdConfirmed {
+impl SchemaNamed {
     fn create_config(&self) -> ProjectConfig {
         ProjectConfig {
             organization: self.organization.clone(),
