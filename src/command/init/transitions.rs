@@ -20,10 +20,6 @@ use crate::command::init::states::*;
 use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
-#[cfg(feature = "react-template")]
-use crate::command::init::react_template::{PureRustViteGenerator, SetupInstructions};
-#[cfg(feature = "react-template")]
-use crate::command::init::template_fetcher::Template;
 
 use crate::command::init::InitTemplateFetcher;
 
@@ -264,10 +260,15 @@ impl UseCaseSelected {
                 let template_id = options.get_or_prompt_template(&templates)?;
                 template_fetcher.select_template(&template_id)?
             }
-            // Use pure Rust implementation for React template
+            // Use template with version replacement for React template
             #[cfg(feature = "react-template")]
             ProjectUseCase::ReactTemplate => {
-                self.create_react_template()?
+                let template_id = TemplateId("react-typescript-apollo".to_string());
+                let mut selected = template_fetcher.select_template(&template_id)?;
+                
+                // Replace version placeholders with latest versions
+                self.update_template_versions(&mut selected).await?;
+                selected
             }
         };
 
@@ -281,28 +282,36 @@ impl UseCaseSelected {
     }
 
     #[cfg(feature = "react-template")]
-    fn create_react_template(&self) -> RoverResult<SelectedTemplateState> {
-        use std::collections::HashMap;
+    async fn update_template_versions(&self, selected_template: &mut SelectedTemplateState) -> RoverResult<()> {
+        use crate::command::init::react_template::SafeNpmClient;
         
-        // Create a minimal template structure for React app
-        // The actual file generation will be handled by a custom write_template implementation
-        let template = Template {
-            id: TemplateId("react-template".to_string()),
-            display_name: "React + TypeScript + Apollo Client".to_string(),
-            path: "react-typescript-apollo".to_string(),
-            language: "TypeScript".to_string(),
-            federation_version: "=2.11.0".to_string(),
-            max_schema_depth: 5,
-            routing_url: "http://localhost:5173".to_string(),
-            commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
-            start_point_file: "README.md".to_string(),
-            print_depth: Some(2),
-        };
-
-        // Create empty files map - the actual generation will be handled differently
-        let files = HashMap::new();
-
-        Ok(SelectedTemplateState { template, files })
+        // Fetch latest versions
+        let npm_client = SafeNpmClient::new();
+        let deps = npm_client.get_deps_with_fallback().await;
+        
+        // Update template files with latest versions
+        for (_path, content) in selected_template.files.iter_mut() {
+            let content_str = String::from_utf8_lossy(content);
+            let updated_content = content_str
+                .replace("{{REACT_VERSION}}", &deps.react)
+                .replace("{{REACT_DOM_VERSION}}", &deps.react_dom)
+                .replace("{{APOLLO_CLIENT_VERSION}}", &deps.apollo_client)
+                .replace("{{GRAPHQL_VERSION}}", &deps.graphql)
+                .replace("{{VITE_VERSION}}", &deps.vite)
+                .replace("{{VITE_PLUGIN_REACT_VERSION}}", &deps.vite_plugin_react)
+                .replace("{{TYPESCRIPT_VERSION}}", &deps.typescript)
+                .replace("{{TYPES_REACT_VERSION}}", &deps.types_react)
+                .replace("{{TYPES_REACT_DOM_VERSION}}", &deps.types_react_dom)
+                .replace("{{TYPESCRIPT_ESLINT_PLUGIN_VERSION}}", &deps.typescript_eslint_plugin)
+                .replace("{{TYPESCRIPT_ESLINT_PARSER_VERSION}}", &deps.typescript_eslint_parser)
+                .replace("{{ESLINT_VERSION}}", &deps.eslint)
+                .replace("{{ESLINT_PLUGIN_REACT_HOOKS_VERSION}}", &deps.eslint_plugin_react_hooks)
+                .replace("{{ESLINT_PLUGIN_REACT_REFRESH_VERSION}}", &deps.eslint_plugin_react_refresh);
+            
+            *content = updated_content.into_bytes();
+        }
+        
+        Ok(())
     }
 }
 
