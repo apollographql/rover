@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -24,13 +23,10 @@ impl LycheeRunner {
         max_retries: u8,
         exclude_all_private: bool,
     ) -> Result<Self> {
-        let accepted = HashSet::from_iter(vec![StatusCode::OK, StatusCode::TOO_MANY_REQUESTS]);
-
         let client = ClientBuilder::builder()
             .exclude_all_private(exclude_all_private)
             .retry_wait_time(retry_wait_time)
             .max_retries(max_retries)
-            .accepted(accepted)
             .build()
             .client()?;
 
