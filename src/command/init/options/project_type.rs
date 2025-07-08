@@ -1,7 +1,7 @@
 use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
-use console::Term;
+use dialoguer::console::Term;
 use dialoguer::Select;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
