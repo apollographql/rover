@@ -7,13 +7,15 @@ This document describes the OAuth 2.1 Device Authorization Grant (RFC 8628) impl
 ## Table of Contents
 - [Running the OAuth POC](#running-the-oauth-poc)
 - [Architecture Overview](#architecture-overview)
-- [Implementation Status](#implementation-status)
 - [OAuth Flow Diagram](#oauth-flow-diagram)
 - [What Rover Implements](#what-rover-implements)
-- [Frontend/UI Requirements](#frontendui-requirements)
-- [Authorization Server Requirements](#authorization-server-requirements)
+- [Required: Frontend/UI](#required-frontendui)
+- [Required: Authorization Server](#required-authorization-server)
 - [Security Considerations](#security-considerations)
-- [Running in Production (Hypothetical)](#running-in-production-hypothetical)
+- [Future Production Implementations](#future-production-implementations)
+- [Appendix](#appendix)
+  - [Implementation Status](#implementation-status)
+  - [Key RFCs Investigated and Implemented](#key-rfcs-investigated-and-implemented)
 
 ## Running the OAuth POC
 
@@ -87,47 +89,6 @@ The full implementation of the OAuth device authorization flow would consist of 
 1. **Rover (this POC)**: The device/CLI application requesting access
 2. **Studio/Browser**: Where the user authenticates and authorizes
 3. **Authorization Server (monorepo)**: Handles OAuth flows, authentication, and token issuance
-
-### Key RFCs Investigated and Implemented
-- **RFC 8628**: OAuth 2.1 Device Authorization Grant
-  - [Section 3.1: Device Authorization Request](https://datatracker.ietf.org/doc/html/rfc8628#section-3.1) - Implemented in `DeviceFlowClient::start_device_flow()`
-  - [Section 3.2: Device Authorization Response](https://datatracker.ietf.org/doc/html/rfc8628#section-3.2) - Handled in `DeviceAuthorizationResponse` struct
-  - [Section 3.4: Device Access Token Request](https://datatracker.ietf.org/doc/html/rfc8628#section-3.4) - Implemented in `DeviceFlowClient::poll_for_token()`
-  - [Section 3.5: Device Access Token Response](https://datatracker.ietf.org/doc/html/rfc8628#section-3.5) - Handled with polling and error responses
-
-- **RFC 7636**: Proof Key for Code Exchange (PKCE)
-  - [Section 4.1: Code Verifier](https://datatracker.ietf.org/doc/html/rfc7636#section-4.1) - Implemented in `pkce::generate_code_verifier()` with 256-bit entropy
-  - [Section 4.2: Code Challenge](https://datatracker.ietf.org/doc/html/rfc7636#section-4.2) - Implemented in `pkce::generate_code_challenge()` using S256 method
-  - [Section 4.3: Client Creates Authorization Request](https://datatracker.ietf.org/doc/html/rfc7636#section-4.3) - OAuth URL includes `code_challenge` parameter
-  - [Section 4.5: Client Sends Authorization Grant](https://datatracker.ietf.org/doc/html/rfc7636#section-4.5) - Token request includes `code_verifier` parameter
-
-- **RFC 8414**: OAuth 2.0 Authorization Server Metadata
-  - [Section 2: Authorization Server Metadata](https://datatracker.ietf.org/doc/html/rfc8414#section-2) - Implemented in `DeviceFlowClient::discover_metadata()`
-  - [Section 3: Authorization Server Metadata Request](https://datatracker.ietf.org/doc/html/rfc8414#section-3) - `.well-known/oauth-authorization-server` endpoint discovery
-
-- **RFC 7591**: OAuth 2.0 Dynamic Client Registration
-  - [Section 2: Client Registration Request](https://datatracker.ietf.org/doc/html/rfc7591#section-2) - Implemented in `DeviceFlowClient::register_client()`
-  - [Section 3: Client Registration Response](https://datatracker.ietf.org/doc/html/rfc7591#section-3) - Handled in `ClientRegistrationResponse` struct
-
-## Implementation Status
-
-### ✅ Completed in POC
-- Device Code Flow client implementation (`rover-oauth` crate)
-- PKCE code challenge generation (SHA256)
-- Authorization server metadata discovery
-- Dynamic client registration support
-- Mock OAuth server for testing
-- CLI UX for OAuth flow (`rover config oauth-test`)
-- Proper OAuth 2.1 URL generation
-
-### 🚧 Required for Production
-- Secure token storage
-- Token refresh implementation
-- Revocation support
-- Error recovery and retry logic
-- Production authorization server endpoints
-- Frontend OAuth consent UI
-- Security hardening
 
 ## OAuth Flow Diagram
 
@@ -222,7 +183,7 @@ For POC testing, includes a mock OAuth server that simulates:
 - Authorization simulation
 - Token exchange with PKCE verification
 
-## Frontend/UI Requirements
+## Required: Frontend/UI 
 
 ### Potential Component Structure
 
@@ -424,7 +385,7 @@ Extend existing `/packages/studio/src/app/onboarding/views/loginPage/LoginPage.t
    }
    ```
 
-## Authorization Server Requirements
+## Required: Authorization Server
 
 ### Required Endpoints
 
@@ -487,22 +448,15 @@ This implementation assumes some endpoints will exist in the monorepo:
 - **Redirect validation**: Prevent open redirects
 - **Session fixation**: Generate new sessions on login
 
-## Running in Production (Hypothetical)
-
 #### Prerequisites for Production
 - HTTPS-enabled OAuth server
 - Proper TLS certificates
 - Production client registration
 - Token storage backend (OS keychain)
 
-#### Production Security Checklist
+## Future Production Implementations
 
-✅ **Before Production Deployment:**
-- [ ] Remove `ROVER_OAUTH_ALLOW_HTTP` support
-- [ ] Enable certificate pinning for known hosts
-- [ ] Implement secure token storage
-
-#### Potential Production Commands (Future Implementation)
+### Potential Production Commands (Future Implementation)
 
 ```bash
 # Authenticate with OAuth
@@ -521,3 +475,53 @@ rover auth logout
 rover graph check my-graph@current \
   --profile production  # Uses OAuth tokens
 ```
+
+## Appendix
+
+### Implementation Status
+
+#### ✅ Completed in POC
+- [x] Device Code Flow client implementation (`rover-oauth` crate)
+- [x] PKCE code challenge generation (SHA256)
+- [x] Authorization server metadata discovery
+- [x] Dynamic client registration support
+- [x] Mock OAuth server for testing
+- [x] CLI UX for OAuth flow (`rover config oauth-test`)
+- [x] Proper OAuth 2.1 URL generation
+
+#### 🚧 Required for Production
+- [ ] Secure token storage
+- [ ] Token refresh implementation
+- [ ] Revocation support
+- [ ] Error recovery and retry logic
+- [ ] Production authorization server endpoints
+- [ ] Frontend OAuth consent UI
+- [ ] Security hardening
+
+#### Production Security Checklist
+
+✅ **Before Production Deployment:**
+- [ ] Remove `ROVER_OAUTH_ALLOW_HTTP` support
+- [ ] Enable certificate pinning for known hosts
+- [ ] Implement secure token storage
+
+### Key RFCs Investigated and Implemented
+- **RFC 8628**: OAuth 2.1 Device Authorization Grant
+  - [Section 3.1: Device Authorization Request](https://datatracker.ietf.org/doc/html/rfc8628#section-3.1) - Implemented in `DeviceFlowClient::start_device_flow()`
+  - [Section 3.2: Device Authorization Response](https://datatracker.ietf.org/doc/html/rfc8628#section-3.2) - Handled in `DeviceAuthorizationResponse` struct
+  - [Section 3.4: Device Access Token Request](https://datatracker.ietf.org/doc/html/rfc8628#section-3.4) - Implemented in `DeviceFlowClient::poll_for_token()`
+  - [Section 3.5: Device Access Token Response](https://datatracker.ietf.org/doc/html/rfc8628#section-3.5) - Handled with polling and error responses
+
+- **RFC 7636**: Proof Key for Code Exchange (PKCE)
+  - [Section 4.1: Code Verifier](https://datatracker.ietf.org/doc/html/rfc7636#section-4.1) - Implemented in `pkce::generate_code_verifier()` with 256-bit entropy
+  - [Section 4.2: Code Challenge](https://datatracker.ietf.org/doc/html/rfc7636#section-4.2) - Implemented in `pkce::generate_code_challenge()` using S256 method
+  - [Section 4.3: Client Creates Authorization Request](https://datatracker.ietf.org/doc/html/rfc7636#section-4.3) - OAuth URL includes `code_challenge` parameter
+  - [Section 4.5: Client Sends Authorization Grant](https://datatracker.ietf.org/doc/html/rfc7636#section-4.5) - Token request includes `code_verifier` parameter
+
+- **RFC 8414**: OAuth 2.0 Authorization Server Metadata
+  - [Section 2: Authorization Server Metadata](https://datatracker.ietf.org/doc/html/rfc8414#section-2) - Implemented in `DeviceFlowClient::discover_metadata()`
+  - [Section 3: Authorization Server Metadata Request](https://datatracker.ietf.org/doc/html/rfc8414#section-3) - `.well-known/oauth-authorization-server` endpoint discovery
+
+- **RFC 7591**: OAuth 2.0 Dynamic Client Registration
+  - [Section 2: Client Registration Request](https://datatracker.ietf.org/doc/html/rfc7591#section-2) - Implemented in `DeviceFlowClient::register_client()`
+  - [Section 3: Client Registration Response](https://datatracker.ietf.org/doc/html/rfc7591#section-3) - Handled in `ClientRegistrationResponse` struct
