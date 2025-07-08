@@ -3,6 +3,8 @@ use rover_client::shared::GraphRef;
 use std::string::String;
 
 use crate::command::init::helpers::{generate_project_created_message, get_command};
+#[cfg(feature = "react-template")]
+use crate::command::init::helpers::generate_react_project_no_graph_message;
 
 // Helper function to strip ANSI color codes
 fn strip_ansi_codes(s: &str) -> String {
@@ -251,4 +253,111 @@ fn test_display_project_created_message_with_custom_start_point() {
     )));
     // Should not contain the default start point file
     assert!(!plain_output.contains("For more information, check out 'getting-started.md'"));
+}
+
+#[cfg(feature = "react-template")]
+#[test]
+fn test_generate_react_project_no_graph_message() {
+    let project_name = "my-react-app".to_string();
+    let artifacts = vec![
+        Utf8PathBuf::from("src/App.tsx"),
+        Utf8PathBuf::from("package.json"),
+        Utf8PathBuf::from("tsconfig.json"),
+    ];
+    let commands = Some(vec!["npm install".to_string(), "npm run dev".to_string()]);
+    let start_point_file = "README.md".to_string();
+    let organization_id = "test-org";
+
+    let output = generate_react_project_no_graph_message(
+        project_name,
+        &artifacts,
+        commands,
+        start_point_file,
+        None,
+        organization_id,
+    );
+    let plain_output = strip_ansi_codes(&output);
+
+    // Test that the output contains expected content for React apps without graphs
+    assert!(plain_output.contains("React App Created Successfully"));
+    assert!(plain_output.contains("Your React TypeScript application with Apollo Client has been set up locally"));
+    assert!(plain_output.contains("No GraphOS graph was created"));
+    assert!(plain_output.contains("you can connect to any existing GraphQL endpoint"));
+    
+    // Test next steps
+    assert!(plain_output.contains("1) Install dependencies and start your React development server:"));
+    assert!(plain_output.contains("npm install"));
+    assert!(plain_output.contains("npm run dev"));
+    assert!(plain_output.contains("2) Configure your Apollo Client to connect to your GraphQL endpoint"));
+    assert!(plain_output.contains("3) Start building your React app with GraphQL queries!"));
+    
+    // Test optional GraphOS setup section
+    assert!(plain_output.contains("Optional: Connect to GraphOS"));
+    assert!(plain_output.contains("If you want to connect to Apollo GraphOS later, you can:"));
+    assert!(plain_output.contains("- Create a graph in Apollo Studio"));
+    assert!(plain_output.contains("- Get your graph credentials"));
+    assert!(plain_output.contains("- Update your Apollo Client configuration"));
+    assert!(plain_output.contains(&format!("https://studio.apollographql.com/org/{}/graphs", organization_id)));
+    
+    // Test that it doesn't contain GraphOS credentials section
+    assert!(!plain_output.contains("GraphOS credentials for your graph"));
+    assert!(!plain_output.contains("APOLLO_GRAPH_REF"));
+    assert!(!plain_output.contains("APOLLO_KEY"));
+    
+    // Test start point file reference
+    assert!(plain_output.contains(&format!("For more information, check out '{}'", "README.md")));
+}
+
+#[cfg(feature = "react-template")]
+#[test]
+fn test_generate_react_project_no_graph_message_with_no_commands() {
+    let project_name = "my-react-app".to_string();
+    let artifacts = vec![Utf8PathBuf::from("src/App.tsx")];
+    let commands = None;
+    let start_point_file = "README.md".to_string();
+    let organization_id = "test-org";
+
+    let output = generate_react_project_no_graph_message(
+        project_name,
+        &artifacts,
+        commands,
+        start_point_file,
+        None,
+        organization_id,
+    );
+    let plain_output = strip_ansi_codes(&output);
+
+    // Test that default commands are shown when no commands are provided
+    assert!(plain_output.contains("1) Install dependencies and start your React development server:"));
+    assert!(plain_output.contains("npm install"));
+    assert!(plain_output.contains("npm run dev"));
+    assert!(plain_output.contains("2) Configure your Apollo Client to connect to your GraphQL endpoint"));
+    assert!(plain_output.contains("3) Start building your React app with GraphQL queries!"));
+}
+
+#[cfg(feature = "react-template")]
+#[test]
+fn test_generate_react_project_no_graph_message_with_empty_commands() {
+    let project_name = "my-react-app".to_string();
+    let artifacts = vec![Utf8PathBuf::from("src/App.tsx")];
+    let commands = Some(vec![]);
+    let start_point_file = "README.md".to_string();
+    let organization_id = "test-org";
+
+    let output = generate_react_project_no_graph_message(
+        project_name,
+        &artifacts,
+        commands,
+        start_point_file,
+        None,
+        organization_id,
+    );
+    let plain_output = strip_ansi_codes(&output);
+
+    // Test that default commands are shown when empty commands are provided
+    assert!(plain_output.contains("1) Install dependencies and start your React development server:"));
+    assert!(plain_output.contains("npm install"));
+    assert!(plain_output.contains("npm run dev"));
+    assert!(plain_output.contains("2) Configure your Apollo Client to connect to your GraphQL endpoint"));
+    assert!(plain_output.contains("3) Start building your React app with GraphQL queries!"));
 }

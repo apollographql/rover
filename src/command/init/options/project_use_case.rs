@@ -59,7 +59,7 @@ impl Display for ProjectUseCase {
             Connectors => "Start a graph with one or more REST APIs",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
             #[cfg(feature = "react-template")]
-            ReactTemplate => "Build a React app with TypeScript for Apollo Client",
+            ReactTemplate => "Build a React app with recommended libraries",
         };
         write!(f, "{readable}")
     }

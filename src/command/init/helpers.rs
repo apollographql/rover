@@ -157,6 +157,217 @@ pub fn generate_project_created_message(
     output
 }
 
+#[cfg(feature = "react-template")]
+pub fn generate_react_project_created_message(
+    project_name: String,
+    artifacts: &[Utf8PathBuf],
+    graph_ref: &GraphRef,
+    api_key: String,
+    commands: Option<Vec<String>>,
+    start_point_file: String,
+    print_depth: Option<u8>,
+    organization_id: &str,
+) -> String {
+    // Add welcome message
+    println!(
+        "\nAll set! Your React app '{}' has been created. Please review details below to see what was generated.\n",
+        Style::File.paint(project_name)
+    );
+
+    print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
+
+    println!();
+
+    let mut output = String::new();
+    // Add credentials section
+    output.push_str(&format!(
+        "{}\n",
+        Style::Heading.paint("GraphOS credentials for your graph")
+    ));
+    output.push_str(&format!(
+        "{}\n",
+        Style::Success.paint(format!(
+            "{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)",
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            graph_ref
+        ))
+    ));
+    output.push_str(&format!(
+        "{}\n",
+        Style::Success.paint(format!(
+            "{}={} (This is your graph's API key)",
+            Style::Command.paint("APOLLO_KEY"),
+            api_key
+        ))
+    ));
+    output.push('\n');
+
+    // Add warning section
+    output.push_str(&format!(
+        "{}\n",
+        Style::WarningHeading.paint("️▲ Before you proceed:")
+    ));
+    output
+        .push_str("- Store your graph API key securely, you won't be able to access it again!\n");
+    output
+        .push_str("- Add your credentials to your React app's environment configuration\n\n");
+
+    // Add next steps section for React apps
+    output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
+    
+    if let Some(commands) = commands {
+        // Filter out empty commands
+        let valid_commands: Vec<&str> = commands
+            .iter()
+            .filter(|cmd| !cmd.trim().is_empty())
+            .map(|cmd| cmd.trim())
+            .collect();
+
+        if !valid_commands.is_empty() {
+            if valid_commands.len() == 1 {
+                output
+                    .push_str("1) Install dependencies and start your React development server:\n\n");
+                output.push_str(&format!("{}\n", Style::Command.paint(valid_commands[0])));
+            } else {
+                output.push_str(
+                    "1) Install dependencies and start your React development server:\n\n",
+                );
+                for cmd in valid_commands {
+                    output.push_str(&format!("{}\n", Style::Command.paint(cmd)));
+                }
+            }
+        } else {
+            // Default React development commands
+            output.push_str("1) Install dependencies and start your React development server:\n\n");
+            output.push_str(&format!("{}\n", Style::Command.paint("npm install")));
+            output.push_str(&format!("{}\n", Style::Command.paint("npm run dev")));
+        }
+    } else {
+        // Default React development commands
+        output.push_str("1) Install dependencies and start your React development server:\n\n");
+        output.push_str(&format!("{}\n", Style::Command.paint("npm install")));
+        output.push_str(&format!("{}\n", Style::Command.paint("npm run dev")));
+    }
+
+    output.push_str("\n2) Configure your Apollo Client with the GraphOS credentials above\n");
+    output.push_str("3) Start building your React app with GraphQL queries!\n");
+
+    // Add GraphOS Studio integration section
+    output.push_str(&format!("\n{}\n", Style::Heading.paint("GraphOS Studio Integration")));
+    output.push_str(&format!(
+        "Visit {} to finish setup and leverage all the benefits of GraphOS:\n\n",
+        Style::Link.paint(format!("https://studio.apollographql.com/org/{}/graphs", organization_id))
+    ));
+    output.push_str("Congratulations! You now have:\n");
+    output.push_str("- Schema registry and versioning\n");
+    output.push_str("- Performance monitoring\n");
+    output.push_str("- Breaking change detection\n");
+    output.push_str("- Field usage analytics\n");
+    output.push_str("- Operation safety checks\n");
+    output.push_str("- AI generated mocking\n");
+
+    output.push_str(&format!(
+        "\nFor more information, check out '{start_point_file}'.\n\n"
+    ));
+
+    output
+}
+
+#[cfg(feature = "react-template")]
+pub fn generate_react_project_no_graph_message(
+    project_name: String,
+    artifacts: &[Utf8PathBuf],
+    commands: Option<Vec<String>>,
+    start_point_file: String,
+    print_depth: Option<u8>,
+    organization_id: &str,
+) -> String {
+    // Add welcome message
+    println!(
+        "\nAll set! Your React app '{}' has been created. Please review details below to see what was generated.\n",
+        Style::File.paint(project_name)
+    );
+
+    print_grouped_files(artifacts.to_vec(), print_depth, Confirmation);
+
+    println!();
+
+    let mut output = String::new();
+    
+    // Add information section for React apps without graphs
+    output.push_str(&format!(
+        "{}\n",
+        Style::Heading.paint("React App Created Successfully")
+    ));
+    output.push_str("Your React TypeScript application with Apollo Client has been set up locally.\n");
+    output.push_str("No GraphOS graph was created - you can connect to any existing GraphQL endpoint.\n\n");
+
+    // Add warning section
+    output.push_str(&format!(
+        "{}\n",
+        Style::WarningHeading.paint("️▲ Before you proceed:")
+    ));
+    output.push_str("- Configure your Apollo Client to connect to your GraphQL endpoint\n");
+    output.push_str("- Update the VITE_GRAPHQL_ENDPOINT in your .env file\n\n");
+
+    // Add next steps section for React apps
+    output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
+    
+    if let Some(commands) = commands {
+        // Filter out empty commands
+        let valid_commands: Vec<&str> = commands
+            .iter()
+            .filter(|cmd| !cmd.trim().is_empty())
+            .map(|cmd| cmd.trim())
+            .collect();
+
+        if !valid_commands.is_empty() {
+            if valid_commands.len() == 1 {
+                output
+                    .push_str("1) Install dependencies and start your React development server:\n\n");
+                output.push_str(&format!("{}\n", Style::Command.paint(valid_commands[0])));
+            } else {
+                output.push_str(
+                    "1) Install dependencies and start your React development server:\n\n",
+                );
+                for cmd in valid_commands {
+                    output.push_str(&format!("{}\n", Style::Command.paint(cmd)));
+                }
+            }
+        } else {
+            // Default React development commands
+            output.push_str("1) Install dependencies and start your React development server:\n\n");
+            output.push_str(&format!("{}\n", Style::Command.paint("npm install")));
+            output.push_str(&format!("{}\n", Style::Command.paint("npm run dev")));
+        }
+    } else {
+        // Default React development commands
+        output.push_str("1) Install dependencies and start your React development server:\n\n");
+        output.push_str(&format!("{}\n", Style::Command.paint("npm install")));
+        output.push_str(&format!("{}\n", Style::Command.paint("npm run dev")));
+    }
+
+    output.push_str("\n2) Configure your Apollo Client to connect to your GraphQL endpoint\n");
+    output.push_str("3) Start building your React app with GraphQL queries!\n");
+
+    // Add optional GraphOS setup section
+    output.push_str(&format!("\n{}\n", Style::Heading.paint("Optional: Connect to GraphOS")));
+    output.push_str("If you want to connect to Apollo GraphOS later, you can:\n");
+    output.push_str("- Create a graph in Apollo Studio\n");
+    output.push_str("- Get your graph credentials\n");
+    output.push_str("- Update your Apollo Client configuration\n");
+    output.push_str(&format!(
+        "\nVisit {} to create a graph when you're ready.\n",
+        Style::Link.paint(format!("https://studio.apollographql.com/org/{}/graphs", organization_id))
+    ));
+
+    output.push_str(&format!(
+        "\nFor more information, check out '{start_point_file}'.\n\n"
+    ));
+
+    output
+}
+
 pub fn display_project_created_message(
     project_name: String,
     artifacts: &[Utf8PathBuf],
@@ -165,16 +376,59 @@ pub fn display_project_created_message(
     commands: Option<Vec<String>>,
     start_point_file: String,
     print_depth: Option<u8>,
+    is_react_template: bool,
+    organization_id: Option<&str>,
+    graph_created: bool,
 ) {
-    let message = generate_project_created_message(
-        project_name,
-        artifacts,
-        graph_ref,
-        api_key,
-        commands,
-        start_point_file,
-        print_depth,
-    );
+    let message = if is_react_template {
+        #[cfg(feature = "react-template")]
+        {
+            if graph_created {
+                generate_react_project_created_message(
+                    project_name,
+                    artifacts,
+                    graph_ref,
+                    api_key,
+                    commands,
+                    start_point_file,
+                    print_depth,
+                    organization_id.unwrap_or(""),
+                )
+            } else {
+                generate_react_project_no_graph_message(
+                    project_name,
+                    artifacts,
+                    commands,
+                    start_point_file,
+                    print_depth,
+                    organization_id.unwrap_or(""),
+                )
+            }
+        }
+        #[cfg(not(feature = "react-template"))]
+        {
+            // Fallback to standard message when react-template feature is disabled
+            generate_project_created_message(
+                project_name,
+                artifacts,
+                graph_ref,
+                api_key,
+                commands,
+                start_point_file,
+                print_depth,
+            )
+        }
+    } else {
+        generate_project_created_message(
+            project_name,
+            artifacts,
+            graph_ref,
+            api_key,
+            commands,
+            start_point_file,
+            print_depth,
+        )
+    };
     println!("{message}");
 }
 

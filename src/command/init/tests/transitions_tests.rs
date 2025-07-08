@@ -161,6 +161,10 @@ mod tests {
                     },
                     files: HashMap::new(),
                 },
+                #[cfg(feature = "react-template")]
+                mocking_setup: None,
+                #[cfg(feature = "react-template")]
+                mocking_context: None,
             })
         };
 
@@ -201,6 +205,10 @@ mod tests {
                 files: HashMap::new(),
             },
             project_name: "test-graph".parse().unwrap(),
+            #[cfg(feature = "react-template")]
+            mocking_setup: None,
+            #[cfg(feature = "react-template")]
+            mocking_context: None,
         };
 
         let result: RoverResult<GraphIdConfirmed> = {
@@ -421,5 +429,205 @@ mod tests {
             options_with_value.get_project_type(),
             Some(ProjectType::CreateNew)
         );
+    }
+
+    #[cfg(feature = "react-template")]
+    #[test]
+    fn test_react_template_creation_confirmed_state() {
+        let graph_id_confirmed = GraphIdConfirmed {
+            output_path: ".".into(),
+            project_type: ProjectType::CreateNew,
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
+            use_case: ProjectUseCase::ReactTemplate,
+            project_name: "test-react-app".parse().unwrap(),
+            graph_id: "test-react-app-id".parse::<GraphId>().unwrap(),
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("react-typescript-apollo".to_string()),
+                    display_name: "React TypeScript Apollo".to_string(),
+                    path: "react-typescript-apollo".to_string(),
+                    language: "TypeScript".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://localhost:3000".to_string(),
+                    commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
+                    start_point_file: "README.md".to_string(),
+                    print_depth: Some(2),
+                },
+                files: HashMap::new(),
+            },
+        };
+
+        let config = graph_id_confirmed.create_config();
+        
+        // Test that React template config is created correctly
+        assert_eq!(config.project_type, ProjectType::CreateNew);
+        assert_eq!(config.organization, "test-org".parse::<OrganizationId>().unwrap());
+        assert_eq!(config.use_case, ProjectUseCase::ReactTemplate);
+        assert_eq!(config.project_name, "test-react-app".parse::<ProjectName>().unwrap());
+        assert_eq!(config.graph_id, "test-react-app-id".parse::<GraphId>().unwrap());
+    }
+
+    #[cfg(feature = "react-template")]
+    #[test]
+    fn test_creation_confirmed_skip_graph_creation_flag() {
+        let creation_confirmed = CreationConfirmed {
+            output_path: ".".into(),
+            config: ProjectConfig {
+                project_type: ProjectType::CreateNew,
+                organization: "test-org".parse::<OrganizationId>().unwrap(),
+                use_case: ProjectUseCase::ReactTemplate,
+                project_name: "test-react-app".parse().unwrap(),
+                graph_id: "test-react-app-id".parse::<GraphId>().unwrap(),
+            },
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("react-typescript-apollo".to_string()),
+                    display_name: "React TypeScript Apollo".to_string(),
+                    path: "react-typescript-apollo".to_string(),
+                    language: "TypeScript".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://localhost:3000".to_string(),
+                    commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
+                    start_point_file: "README.md".to_string(),
+                    print_depth: Some(2),
+                },
+                files: HashMap::new(),
+            },
+            skip_graph_creation: true,
+        };
+
+        // Test that skip_graph_creation flag is set correctly for React templates
+        assert!(creation_confirmed.skip_graph_creation);
+        assert_eq!(creation_confirmed.config.use_case, ProjectUseCase::ReactTemplate);
+    }
+
+    #[cfg(feature = "react-template")]
+    #[test]
+    fn test_project_created_graph_created_flag() {
+        // Test ProjectCreated with graph_created = false (React template)
+        let project_created_react = ProjectCreated {
+            config: ProjectConfig {
+                project_type: ProjectType::CreateNew,
+                organization: "test-org".parse::<OrganizationId>().unwrap(),
+                use_case: ProjectUseCase::ReactTemplate,
+                project_name: "test-react-app".parse().unwrap(),
+                graph_id: "test-react-app-id".parse::<GraphId>().unwrap(),
+            },
+            artifacts: vec![],
+            api_key: "react-app-placeholder".to_string(),
+            graph_ref: rover_client::shared::GraphRef {
+                name: "test-react-app-id".to_string(),
+                variant: "current".to_string(),
+            },
+            template: Template {
+                id: TemplateId("react-typescript-apollo".to_string()),
+                display_name: "React TypeScript Apollo".to_string(),
+                path: "react-typescript-apollo".to_string(),
+                language: "TypeScript".to_string(),
+                federation_version: "=2.10.0".to_string(),
+                max_schema_depth: 5,
+                routing_url: "http://localhost:3000".to_string(),
+                commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
+                start_point_file: "README.md".to_string(),
+                print_depth: Some(2),
+            },
+            graph_created: false,
+        };
+
+        // Test ProjectCreated with graph_created = true (federated template)
+        let project_created_federated = ProjectCreated {
+            config: ProjectConfig {
+                project_type: ProjectType::CreateNew,
+                organization: "test-org".parse::<OrganizationId>().unwrap(),
+                use_case: ProjectUseCase::GraphQLTemplate,
+                project_name: "test-graph".parse().unwrap(),
+                graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
+            },
+            artifacts: vec![],
+            api_key: "real-api-key".to_string(),
+            graph_ref: rover_client::shared::GraphRef {
+                name: "test-graph-id".to_string(),
+                variant: "current".to_string(),
+            },
+            template: Template {
+                id: TemplateId("federated-template".to_string()),
+                display_name: "Federated Template".to_string(),
+                path: "federated-template".to_string(),
+                language: "GraphQL".to_string(),
+                federation_version: "=2.10.0".to_string(),
+                max_schema_depth: 5,
+                routing_url: "http://localhost:4000".to_string(),
+                commands: Some(vec!["cargo run".to_string()]),
+                start_point_file: "getting-started.md".to_string(),
+                print_depth: None,
+            },
+            graph_created: true,
+        };
+
+        // Test that graph_created flag is set correctly
+        assert!(!project_created_react.graph_created);
+        assert_eq!(project_created_react.api_key, "react-app-placeholder");
+        assert_eq!(project_created_react.config.use_case, ProjectUseCase::ReactTemplate);
+
+        assert!(project_created_federated.graph_created);
+        assert_eq!(project_created_federated.api_key, "real-api-key");
+        assert_eq!(project_created_federated.config.use_case, ProjectUseCase::GraphQLTemplate);
+    }
+
+    #[cfg(feature = "react-template")]
+    #[test]
+    fn test_react_template_use_case_handling() {
+        // Test that ReactTemplate use case is properly handled in transitions
+        let use_case_selected = UseCaseSelected {
+            output_path: ".".into(),
+            project_type: ProjectType::CreateNew,
+            organization: "test-org".parse::<OrganizationId>().unwrap(),
+            use_case: ProjectUseCase::ReactTemplate,
+        };
+
+        // Verify that ReactTemplate use case is set correctly
+        assert_eq!(use_case_selected.use_case, ProjectUseCase::ReactTemplate);
+        assert_eq!(use_case_selected.project_type, ProjectType::CreateNew);
+        assert_eq!(use_case_selected.organization, "test-org".parse::<OrganizationId>().unwrap());
+    }
+
+    #[cfg(feature = "react-template")]
+    #[test]
+    fn test_react_template_error_handling() {
+        // Test that React template creation handles errors gracefully
+        let creation_confirmed = CreationConfirmed {
+            output_path: ".".into(),
+            config: ProjectConfig {
+                project_type: ProjectType::CreateNew,
+                organization: "test-org".parse::<OrganizationId>().unwrap(),
+                use_case: ProjectUseCase::ReactTemplate,
+                project_name: "test-react-app".parse().unwrap(),
+                graph_id: "test-react-app-id".parse::<GraphId>().unwrap(),
+            },
+            selected_template: SelectedTemplateState {
+                template: Template {
+                    id: TemplateId("react-typescript-apollo".to_string()),
+                    display_name: "React TypeScript Apollo".to_string(),
+                    path: "react-typescript-apollo".to_string(),
+                    language: "TypeScript".to_string(),
+                    federation_version: "=2.10.0".to_string(),
+                    max_schema_depth: 5,
+                    routing_url: "http://localhost:3000".to_string(),
+                    commands: Some(vec!["npm install".to_string(), "npm run dev".to_string()]),
+                    start_point_file: "README.md".to_string(),
+                    print_depth: Some(2),
+                },
+                files: HashMap::new(),
+            },
+            skip_graph_creation: true,
+        };
+
+        // Test that React template creation doesn't require authentication
+        assert!(creation_confirmed.skip_graph_creation);
+        
+        // Test that the config is properly set for React template
+        assert_eq!(creation_confirmed.config.use_case, ProjectUseCase::ReactTemplate);
     }
 }

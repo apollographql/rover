@@ -1,6 +1,8 @@
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::graph_id::validation::GraphId;
 use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
+#[cfg(feature = "react-template")]
+use crate::command::init::options::{MockingSetup};
 use crate::command::init::template_fetcher::Template;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
@@ -41,6 +43,18 @@ pub struct TemplateSelected {
     pub selected_template: SelectedTemplateState,
 }
 
+#[cfg(feature = "react-template")]
+#[derive(Debug)]
+pub struct MockingConfigured {
+    pub output_path: Utf8PathBuf,
+    pub project_type: ProjectType,
+    pub organization: OrganizationId,
+    pub use_case: ProjectUseCase,
+    pub selected_template: SelectedTemplateState,
+    pub mocking_setup: MockingSetup,
+    pub mocking_context: Option<String>,
+}
+
 #[derive(Debug)]
 pub struct ProjectNamed {
     pub output_path: Utf8PathBuf,
@@ -49,6 +63,12 @@ pub struct ProjectNamed {
     pub use_case: ProjectUseCase,
     pub selected_template: SelectedTemplateState,
     pub project_name: ProjectName,
+    #[cfg(feature = "react-template")]
+    #[allow(dead_code)]
+    pub mocking_setup: Option<MockingSetup>,
+    #[cfg(feature = "react-template")]
+    #[allow(dead_code)]
+    pub mocking_context: Option<String>,
 }
 
 #[derive(Debug)]
@@ -67,6 +87,8 @@ pub struct CreationConfirmed {
     pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
     pub selected_template: SelectedTemplateState,
+    #[cfg(feature = "react-template")]
+    pub skip_graph_creation: bool,
 }
 
 #[derive(Debug)]
@@ -76,6 +98,8 @@ pub struct ProjectCreated {
     pub api_key: String,
     pub graph_ref: GraphRef,
     pub template: Template,
+    #[cfg(feature = "react-template")]
+    pub graph_created: bool,
 }
 
 #[derive(Debug)]

@@ -33,6 +33,8 @@ pub struct DependencyVersions {
     pub eslint: String,
     pub eslint_plugin_react_hooks: String,
     pub eslint_plugin_react_refresh: String,
+    pub graphql_codegen_cli: String,
+    pub graphql_codegen_client_preset: String,
 }
 
 impl DependencyVersions {
@@ -52,6 +54,8 @@ impl DependencyVersions {
             eslint: "^8.56.0".to_string(),
             eslint_plugin_react_hooks: "^4.6.0".to_string(),
             eslint_plugin_react_refresh: "^0.4.5".to_string(),
+            graphql_codegen_cli: "^5.0.0".to_string(),
+            graphql_codegen_client_preset: "^4.0.0".to_string(),
         }
     }
 }
@@ -104,6 +108,8 @@ impl SafeNpmClient {
             "eslint",
             "eslint-plugin-react-hooks",
             "eslint-plugin-react-refresh",
+            "@graphql-codegen/cli",
+            "@graphql-codegen/client-preset",
         ];
 
         // Fetch versions in parallel
@@ -132,6 +138,8 @@ impl SafeNpmClient {
                     "eslint" => deps.eslint = version_str,
                     "eslint-plugin-react-hooks" => deps.eslint_plugin_react_hooks = version_str,
                     "eslint-plugin-react-refresh" => deps.eslint_plugin_react_refresh = version_str,
+                    "@graphql-codegen/cli" => deps.graphql_codegen_cli = version_str,
+                    "@graphql-codegen/client-preset" => deps.graphql_codegen_client_preset = version_str,
                     _ => {}
                 }
             }

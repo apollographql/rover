@@ -28,6 +28,10 @@ use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCaseOpt,
 };
+#[cfg(feature = "react-template")]
+use crate::command::init::options::ProjectUseCase;
+#[cfg(all(feature = "composition-js", feature = "react-template"))]
+use crate::command::init::options::{ProjectMockingSetupOpt, ProjectMockingContextOpt};
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
@@ -81,6 +85,14 @@ pub struct Init {
     #[cfg(feature = "composition-js")]
     profile: ProfileOpt,
 
+    #[clap(flatten)]
+    #[cfg(all(feature = "composition-js", feature = "react-template"))]
+    mocking_setup: ProjectMockingSetupOpt,
+
+    #[clap(flatten)]
+    #[cfg(all(feature = "composition-js", feature = "react-template"))]
+    mocking_context: ProjectMockingContextOpt,
+
     #[clap(long, hide(true))]
     path: Option<PathBuf>,
 }
@@ -112,10 +124,24 @@ impl Init {
             None => return Ok(RoverOutput::EmptySuccess),
         };
 
-        let creation_confirmed = match use_case_selected
+        let template_selected = use_case_selected
             .select_template(&self.project_template)
-            .await?
-            .enter_project_name(&self.project_name)?
+            .await?;
+
+        // For React templates, add mocking configuration step
+        #[cfg(feature = "react-template")]
+        let project_named = if template_selected.use_case == ProjectUseCase::ReactTemplate {
+            template_selected
+                .configure_mocking(&self.mocking_setup, &self.mocking_context)?
+                .enter_project_name(&self.project_name)?
+        } else {
+            template_selected.enter_project_name(&self.project_name)?
+        };
+
+        #[cfg(not(feature = "react-template"))]
+        let project_named = template_selected.enter_project_name(&self.project_name)?;
+
+        let creation_confirmed = match project_named
             .confirm_graph_id(&self.graph_id)?
             .preview_and_confirm_creation()
             .await?
