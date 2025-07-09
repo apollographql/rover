@@ -239,7 +239,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        let repo_ref = "release/v2";
+        let repo_ref = "release/v3-beta";
         let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
@@ -310,6 +310,23 @@ impl ProjectNamed {
     }
 }
 
+impl GraphIdConfirmed {
+    pub async fn confirm_schema_name(self, options: &SchemaNameOpt) -> RoverResult<SchemaNamed> {
+        let schema_name = options.get_or_prompt_schema_name(&self.use_case)?;
+
+        Ok(SchemaNamed {
+            output_path: self.output_path,
+            project_type: self.project_type,
+            organization: self.organization,
+            use_case: self.use_case,
+            selected_template: self.selected_template,
+            project_name: self.project_name,
+            graph_id: self.graph_id,
+            schema_name,
+        })
+    }
+}
+
 /// PROMPT UX:
 /// =========
 ///
@@ -323,7 +340,7 @@ impl ProjectNamed {
 /// schema.graphql
 ///
 /// ? Proceed with creation? (y/n):
-impl GraphIdConfirmed {
+impl SchemaNamed {
     fn create_config(&self) -> ProjectConfig {
         ProjectConfig {
             organization: self.organization.clone(),
@@ -331,6 +348,7 @@ impl GraphIdConfirmed {
             project_name: self.project_name.clone(),
             graph_id: self.graph_id.clone(),
             project_type: self.project_type.clone(),
+            schema_name: self.schema_name.clone(),
         }
     }
 
@@ -443,6 +461,7 @@ impl CreationConfirmed {
             5,
             routing_url,
             &federation_version,
+            Some(self.config.schema_name.clone()),
         );
         supergraph.build_and_write()?;
 

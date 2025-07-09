@@ -12,6 +12,8 @@ mod project_template;
 mod project_type;
 #[cfg(feature = "composition-js")]
 mod project_use_case;
+#[cfg(feature = "composition-js")]
+mod schema_name;
 
 #[cfg(feature = "composition-js")]
 pub(crate) use project_authentication::*;
@@ -27,3 +29,5 @@ pub(crate) use project_template::*;
 pub(crate) use project_type::*;
 #[cfg(feature = "composition-js")]
 pub(crate) use project_use_case::*;
+#[cfg(feature = "composition-js")]
+pub(crate) use schema_name::*;

@@ -46,6 +46,8 @@ use std::path::PathBuf;
 pub use template_fetcher::InitTemplateFetcher;
 
 #[cfg(feature = "composition-js")]
+use crate::command::init::options::SchemaNameOpt;
+#[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -70,6 +72,10 @@ pub struct Init {
     #[clap(flatten)]
     #[cfg(feature = "composition-js")]
     project_name: ProjectNameOpt,
+
+    #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
+    schema_name: SchemaNameOpt,
 
     #[clap(flatten)]
     #[cfg(feature = "composition-js")]
@@ -115,6 +121,8 @@ impl Init {
             .await?
             .enter_project_name(&self.project_name)?
             .confirm_graph_id(&self.graph_id)?
+            .confirm_schema_name(&self.schema_name)
+            .await?
             .preview_and_confirm_creation()
             .await?
         {
@@ -155,12 +163,15 @@ impl Init {
                     return Err(error);
                 }
 
-                let graph_id_confirmed = current_project.confirm_graph_id(&self.graph_id)?;
-                let creation_confirmed =
-                    match graph_id_confirmed.preview_and_confirm_creation().await? {
-                        Some(confirmed) => confirmed,
-                        None => return Ok(RoverOutput::EmptySuccess),
-                    };
+                let schema_named = current_project
+                    .confirm_graph_id(&self.graph_id)?
+                    .confirm_schema_name(&self.schema_name)
+                    .await?;
+
+                let creation_confirmed = match schema_named.preview_and_confirm_creation().await? {
+                    Some(confirmed) => confirmed,
+                    None => return Ok(RoverOutput::EmptySuccess),
+                };
 
                 match creation_confirmed
                     .create_project(&client_config, &self.profile)
