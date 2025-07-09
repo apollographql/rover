@@ -13,9 +13,10 @@ use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::{Request, Response, Method};
+use hyper::{Request, Response, Method };
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
+use reqwest::Client;
 
 
 
@@ -71,11 +72,12 @@ impl Auth2{
 
     fn generate_verifier_and_encoded_hash() -> (String, String) {
         // Generate a random verifier (e.g., 128 characters long)
-        let verifier: String = rand::rng()
-            .sample_iter(&Alphanumeric)
-            .take(128) // Length of the verifier
-            .map(char::from)
-            .collect();
+        // let verifier: String = rand::rng()
+        //     .sample_iter(&Alphanumeric)
+        //     .take(128) // Length of the verifier
+        //     .map(char::from)
+        //     .collect();
+        let verifier = "hello".to_string();
     
         // Compute the SHA-256 hash of the verifier
         let digest = Sha256::digest(verifier.as_bytes());
@@ -89,10 +91,54 @@ impl Auth2{
     async fn hello(req: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
         if req.method() == Method::GET && req.uri().path() == "/callback" {
             // Handle the `/callback` route
-            Ok(Response::new(Full::new(Bytes::from("Callback route reached!"))))
+            if let Some(query) = req.uri().query() {
+                // Parse the `code` parameter from the query string
+                if let Some(code) = query.split("code=").nth(1).and_then(|s| s.split('&').next()) {
+                    println!("Received auth code: {}", code);
+    
+                    // Prepare the token request
+                    let redirect_uri = "http://localhost:3000/callback";
+                    let client_id = "your_client_id";
+                    let verifier = "hello"; // Replace with the actual verifier
+    
+                    let token_endpoint = "http://localhost:8080/token";
+                    let params = format!(
+                        "grant_type=authorization_code&code={}&redirect_uri={}&client_id={}&code_verifier={}",
+                        code, redirect_uri, client_id, verifier
+                    );
+    
+                    let client = Client::new();
+                    match client
+                        .post(token_endpoint)
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .header("Accept", "application/json")
+                        .body(params)
+                        .send()
+                        .await
+                    {
+                        Ok(response) => {
+                            if response.status().is_success() {
+                                println!("Token request successful!");
+                                let body = response.text().await.unwrap_or_else(|_| "No response body".to_string());
+                                println!("Response body: {}", body);
+                                return Ok(Response::new(Full::from(Bytes::from("Token request completed!"))));
+                            } else {
+                                println!("Token request failed with status: {}", response.status());
+                                return Ok(Response::new(Full::from(Bytes::from("Token request failed!"))));
+                            }
+                            
+                        }
+                        Err(err) => {
+                            eprintln!("Error sending token request: {:?}", err);
+                            return Ok(Response::new(Full::from(Bytes::from("Token request failed!"))));
+                        }
+                    }
+                }
+            }
+            Ok(Response::new(Full::from(Bytes::from("Invalid callback request"))))
         } else {
             // Default response for other routes
-            Ok(Response::new(Full::new(Bytes::from("Hello, World  jiini!"))))
+            Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
         }
     }
 
@@ -122,8 +168,6 @@ impl Auth2{
                 }
             });
         }
-        
-        
     }
 }
 
