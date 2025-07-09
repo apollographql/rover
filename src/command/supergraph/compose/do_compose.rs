@@ -77,10 +77,9 @@ impl Compose {
         let exec_command_impl = TokioCommand::default();
         let supergraph_yaml = self
             .opts
-            .clone()
             .supergraph_config_source()
-            .clone()
-            .supergraph_yaml;
+            .supergraph_yaml
+            .clone();
 
         let profile = self.opts.plugin_opts.profile.clone();
         let graph_ref = self.opts.supergraph_config_source.graph_ref.clone();

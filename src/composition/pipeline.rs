@@ -94,7 +94,7 @@ impl CompositionPipeline<state::Init> {
             FileDescriptorType::Stdin => Some(FileDescriptorType::Stdin),
         });
         let supergraph_root = supergraph_yaml
-            .clone()
+            .as_ref()
             .and_then(|file| match file {
                 FileDescriptorType::File(file) => {
                     let mut current_dir =
@@ -114,10 +114,12 @@ impl CompositionPipeline<state::Init> {
                 .unwrap()
             });
         eprintln!("merging supergraph schema files");
-        let resolver = SupergraphConfigResolver::default()
-            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
-            .await?
-            .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        let resolver = SupergraphConfigResolver::load_remote_subgraphs(
+            fetch_remote_subgraphs_factory,
+            graph_ref.as_ref(),
+        )
+        .await?
+        .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
         let resolver = match default_subgraph {
             Some(default_subgraph) => resolver
                 .define_default_subgraph_if_empty(default_subgraph)
@@ -254,7 +256,7 @@ impl CompositionPipeline<state::Run> {
 
     #[tracing::instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    pub async fn runner<ExecC, WriteF>(
+    pub(crate) async fn runner<ExecC, WriteF>(
         &self,
         exec_command: ExecC,
         write_file: WriteF,

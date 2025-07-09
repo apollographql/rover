@@ -13,7 +13,9 @@ use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
-use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
+use crate::composition::supergraph::config::unresolved::{
+    UnresolvedSubgraph, UnresolvedSupergraphConfig,
+};
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
 /// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
@@ -51,40 +53,40 @@ impl FullyResolvedSupergraphConfig {
         ),
         ResolveSupergraphConfigError,
     > {
-        let subgraphs = stream::iter(
-            unresolved_supergraph_config
-                .subgraphs()
-                .clone()
-                .into_iter()
-                .map(move |(name, unresolved_subgraph)| {
-                    let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
-                    let resolve_introspect_subgraph_factory =
-                        resolve_introspect_subgraph_factory.clone();
-                    async move {
-                        match FullyResolvedSubgraph::resolver(
-                            resolve_introspect_subgraph_factory,
-                            fetch_remote_subgraph_factory,
-                            supergraph_config_root,
-                            unresolved_subgraph.clone(),
-                        )
-                        .await
-                        {
-                            Ok(mut service) => {
-                                let service = service
-                                    .ready()
-                                    .await
-                                    .map_err(|err| (name.to_string(), err))?;
-                                let result = service
-                                    .call(())
-                                    .await
-                                    .map_err(|err| (name.to_string(), err))?;
-                                Ok((name.to_string(), result))
-                            }
-                            Err(err) => Err((name.to_string(), err)),
+        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs.into_iter().map(
+            move |(name, subgraph)| {
+                let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
+                let resolve_introspect_subgraph_factory =
+                    resolve_introspect_subgraph_factory.clone();
+                async move {
+                    match FullyResolvedSubgraph::resolver(
+                        resolve_introspect_subgraph_factory,
+                        fetch_remote_subgraph_factory,
+                        supergraph_config_root,
+                        UnresolvedSubgraph {
+                            schema: subgraph.schema,
+                            routing_url: subgraph.routing_url,
+                            name: name.clone(),
+                        },
+                    )
+                    .await
+                    {
+                        Ok(mut service) => {
+                            let service = service
+                                .ready()
+                                .await
+                                .map_err(|err| (name.to_string(), err))?;
+                            let result = service
+                                .call(())
+                                .await
+                                .map_err(|err| (name.to_string(), err))?;
+                            Ok((name.to_string(), result))
                         }
+                        Err(err) => Err((name.to_string(), err)),
                     }
-                }),
-        )
+                }
+            },
+        ))
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, FullyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
@@ -95,13 +97,12 @@ impl FullyResolvedSupergraphConfig {
         ) = subgraphs.into_iter().partition_result();
         let subgraphs = BTreeMap::from_iter(subgraphs);
         let federation_version = unresolved_supergraph_config
-            .federation_version_resolver()
-            .clone()
+            .federation_version_resolver
             .ok_or_else(|| ResolveSupergraphConfigError::MissingFederationVersionResolver)?
             .resolve(subgraphs.iter())?;
         Ok((
             FullyResolvedSupergraphConfig {
-                origin_path: unresolved_supergraph_config.origin_path().clone(),
+                origin_path: unresolved_supergraph_config.origin_path.clone(),
                 subgraphs,
                 federation_version,
             },
