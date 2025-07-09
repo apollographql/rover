@@ -21,6 +21,7 @@ use camino::Utf8PathBuf;
 use clap::error::ErrorKind as ClapErrorKind;
 use clap::CommandFactory;
 use dialoguer::Input;
+use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllResponse;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
 use tracing::warn;
@@ -79,11 +80,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
         graph_ref: Option<&GraphRef>,
     ) -> Result<Self, LoadError>
     where
-        S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+        S: MakeService<(), FetchRemoteSubgraphsRequest, Response = SubgraphFetchAllResponse>,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -97,7 +94,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
         } else {
             (None, None)
         };
-        let federation_version_resolver =
+        let mut federation_version_resolver =
             FederationVersionResolver::default().from_supergraph_config(supergraph_config.as_ref());
         // TODO: load fed version from GraphOS
         let graph_ref = graph_ref
@@ -109,7 +106,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
             .cloned();
         let mut subgraphs: BTreeMap<String, SubgraphConfig> = if let Some(ref graph_ref) = graph_ref
         {
-            fetch_remote_subgraphs_factory
+            let response: SubgraphFetchAllResponse = fetch_remote_subgraphs_factory
                 .make_service(())
                 .await
                 .map_err(|err| LoadError::FetchRemoteSubgraphsError(Box::new(err)))?
@@ -118,7 +115,14 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 .map_err(|err| LoadError::FetchRemoteSubgraphsError(Box::new(err)))?
                 .call(FetchRemoteSubgraphsRequest::new(graph_ref.clone()))
                 .await
-                .map_err(|err| LoadError::FetchRemoteSubgraphsError(Box::new(err)))?
+                .map_err(|err| LoadError::FetchRemoteSubgraphsError(Box::new(err)))?;
+            federation_version_resolver =
+                federation_version_resolver.with_graphos_version(response.federation_version);
+            response
+                .subgraphs
+                .into_iter()
+                .map(|subgraph| (subgraph.name.clone(), subgraph.into()))
+                .collect()
         } else {
             BTreeMap::new()
         };
@@ -428,21 +432,6 @@ mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
 
-    use anyhow::Result;
-    use apollo_federation_types::config::{
-        FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
-    };
-    use assert_fs::prelude::{FileTouch, FileWriteStr, PathChild};
-    use assert_fs::TempDir;
-    use camino::Utf8PathBuf;
-    use mockall::predicate;
-    use rover_client::RoverClientError;
-    use rstest::rstest;
-    use semver::Version;
-    use speculoos::prelude::*;
-    use tower::{ServiceBuilder, ServiceExt};
-    use tower_test::mock::Handle;
-
     use super::fetch_remote_subgraph::{
         FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
         MakeFetchRemoteSubgraphError, RemoteSubgraph,
@@ -460,6 +449,22 @@ mod tests {
     use crate::utils::effect::introspect::MockIntrospectSubgraph;
     use crate::utils::effect::read_stdin::MockReadStdin;
     use crate::utils::parsers::FileDescriptorType;
+    use anyhow::Result;
+    use apollo_federation_types::config::{
+        FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
+    };
+    use assert_fs::prelude::{FileTouch, FileWriteStr, PathChild};
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use mockall::predicate;
+    use rover_client::operations::subgraph::fetch_all::types::Subgraph;
+    use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllResponse;
+    use rover_client::RoverClientError;
+    use rstest::rstest;
+    use semver::Version;
+    use speculoos::prelude::*;
+    use tower::{ServiceBuilder, ServiceExt};
+    use tower_test::mock::Handle;
 
     /// Test showing that federation version is selected from the local supergraph config fed version
     /// over remote composition version, or version inferred from resolved SDLs
@@ -574,8 +579,7 @@ mod tests {
             tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
 
         let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
-            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
-            );
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, SubgraphFetchAllResponse>();
         let (fetch_remote_subgraph_service, fetch_remote_subgraph_handle) =
             tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
 
@@ -804,8 +808,7 @@ mod tests {
             tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
 
         let (fetch_remote_subgraphs_service, fetch_remote_subgraphs_handle) =
-            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, BTreeMap<String, SubgraphConfig>>(
-            );
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, SubgraphFetchAllResponse>();
         let (fetch_remote_subgraph_service, fetch_remote_subgraph_handle) =
             tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
 
@@ -952,7 +955,7 @@ mod tests {
         local_subgraphs: &mut BTreeMap<String, SubgraphConfig>,
         mut fetch_remote_subgraphs_handle: Handle<
             FetchRemoteSubgraphsRequest,
-            BTreeMap<String, SubgraphConfig>,
+            SubgraphFetchAllResponse,
         >,
         mut fetch_remote_subgraph_handle: Handle<FetchRemoteSubgraphRequest, RemoteSubgraph>,
     ) {
@@ -982,10 +985,14 @@ mod tests {
                             remote_subgraph_scenario.graph_ref.clone(),
                         ));
                         let subgraph_name = remote_subgraph_scenario.subgraph_name.to_string();
-                        send_response.send_response(BTreeMap::from_iter([(
-                            subgraph_name.to_string(),
-                            subgraph_config.clone(),
-                        )]));
+                        send_response.send_response(SubgraphFetchAllResponse {
+                            subgraphs: vec![Subgraph {
+                                name: subgraph_name,
+                                url: Some(remote_subgraph_scenario.routing_url.to_string()),
+                                sdl: remote_subgraph_scenario.sdl,
+                            }],
+                            federation_version: None,
+                        });
                     }
                 });
             }
@@ -1083,10 +1090,8 @@ subgraphs:
         )
         .expect("Couldn't setup file descriptor.");
 
-        let (fetch_remote_subgraphs_service, _) = tower_test::mock::spawn::<
-            FetchRemoteSubgraphsRequest,
-            BTreeMap<String, SubgraphConfig>,
-        >();
+        let (fetch_remote_subgraphs_service, _) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphsRequest, SubgraphFetchAllResponse>();
 
         let fetch_remote_subgraphs_factory =
             ServiceBuilder::new()

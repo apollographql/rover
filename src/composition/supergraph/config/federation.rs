@@ -108,6 +108,15 @@ impl FederationVersionResolver<state::FromSubgraphs> {
         }
     }
 
+    /// Add in the Federation version from GraphOS, if any
+    pub fn with_graphos_version(
+        mut self,
+        federation_version: Option<FederationVersion>,
+    ) -> FederationVersionResolver<state::FromSubgraphs> {
+        self.federation_version = self.federation_version.or(federation_version);
+        self
+    }
+
     /// Returns the target [`FederationVersion`] that was defined by the user
     pub fn target_federation_version(&self) -> Option<FederationVersion> {
         self.federation_version.clone()

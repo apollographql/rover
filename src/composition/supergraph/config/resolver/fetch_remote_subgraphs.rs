@@ -1,8 +1,7 @@
 //! Provides services and utilities to fetch subgraphs from Studio
 
-use std::{collections::BTreeMap, convert::Infallible, pin::Pin};
+use std::{convert::Infallible, pin::Pin};
 
-use apollo_federation_types::config::SubgraphConfig;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::{
@@ -103,7 +102,7 @@ where
         + 'static,
     Fut: Future<Output = Result<S::Response, S::Error>> + Send,
 {
-    type Response = BTreeMap<String, SubgraphConfig>;
+    type Response = SubgraphFetchAllResponse;
     type Error = RoverClientError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -115,17 +114,11 @@ where
     }
 
     fn call(&mut self, req: FetchRemoteSubgraphsRequest) -> Self::Future {
-        let cloned = self.inner.clone();
-        let mut inner = std::mem::replace(&mut self.inner, cloned);
+        let mut cloned = self.inner.clone();
         let fut = async move {
-            let SubgraphFetchAllResponse { subgraphs, .. } = inner
+            cloned
                 .call(SubgraphFetchAllRequest::new(req.graph_ref))
-                .await?;
-            let subgraphs = subgraphs
-                .into_iter()
-                .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
-                .collect();
-            Ok(subgraphs)
+                .await
         };
         Box::pin(fut)
     }

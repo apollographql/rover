@@ -17,7 +17,7 @@ pub struct SubgraphFetchAllResponse {
 
 #[derive(Clone, Builder, Debug, Eq, Getters, PartialEq)]
 pub struct Subgraph {
-    name: String,
-    url: Option<String>,
-    sdl: String,
+    pub name: String,
+    pub url: Option<String>,
+    pub sdl: String,
 }

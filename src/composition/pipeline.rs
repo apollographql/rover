@@ -4,8 +4,9 @@ use std::fmt::Debug;
 use std::fs::canonicalize;
 
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
+use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllResponse;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
 use rover_std::warnln;
@@ -76,11 +77,7 @@ impl CompositionPipeline<state::Init> {
         default_subgraph: Option<DefaultSubgraphDefinition>,
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
-        S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+        S: MakeService<(), FetchRemoteSubgraphsRequest, Response = SubgraphFetchAllResponse>,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
