@@ -172,14 +172,18 @@ mod tests {
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
+    #[case::license_accepted(Some(true))]
+    #[case::license_not_accepted(Some(false))]
+    #[case::license_none(None)]
     async fn test_install(
+        #[case] accepted_license: Option<bool>,
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,
         http_server: &MockServer,
         mock_server_endpoint: &str,
     ) -> Result<()> {
         let license_accepter = LicenseAccepter {
-            elv2_license_accepted: Some(true),
+            elv2_license_accepted: accepted_license,
         };
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_router = InstallRouter::new(router_version, studio_client_config);

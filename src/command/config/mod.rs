@@ -3,6 +3,7 @@ mod clear;
 mod delete;
 mod list;
 mod whoami;
+mod auth2;
 
 use clap::Parser;
 use serde::Serialize;
@@ -31,7 +32,9 @@ pub enum Command {
     List(list::List),
 
     /// View the identity of a user/api key
-    Whoami(whoami::WhoAmI),
+    Whoami(whoami::WhoAmI),  
+
+    Auth2(auth2::Auth2),
 }
 
 impl Config {
@@ -42,6 +45,7 @@ impl Config {
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
             Command::Whoami(command) => command.run(client_config).await,
+            Command::Auth2(command) => command.run().await,
         }
     }
 }
