@@ -348,6 +348,7 @@ impl SchemaNamed {
             project_name: self.project_name.clone(),
             graph_id: self.graph_id.clone(),
             project_type: self.project_type.clone(),
+            schema_name: self.schema_name.clone(),
         }
     }
 
@@ -460,6 +461,7 @@ impl CreationConfirmed {
             5,
             routing_url,
             &federation_version,
+            Some(self.config.schema_name.clone()),
         );
         supergraph.build_and_write()?;
 

@@ -1,3 +1,4 @@
+use crate::command::init::options::SchemaName;
 use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::{RoverError, RoverResult};
@@ -158,6 +159,7 @@ pub struct SupergraphBuilder {
     routing_url: String,
     max_depth: usize,
     federation_version: String,
+    schema_name: Option<SchemaName>,
 }
 
 impl SupergraphBuilder {
@@ -166,12 +168,14 @@ impl SupergraphBuilder {
         max_depth: usize,
         routing_url: String,
         federation_version: &str,
+        schema_name: Option<SchemaName>,
     ) -> Self {
         Self {
             directory,
             routing_url,
             max_depth,
             federation_version: federation_version.to_string(),
+            schema_name,
         }
     }
 
@@ -211,7 +215,7 @@ impl SupergraphBuilder {
         }
 
         for file_path in graphql_files {
-            let mut name = self.determine_subgraph_name(&file_path)?;
+            let mut name = self.determine_subgraph_name(&file_path, self.schema_name.clone())?;
 
             // Check if the name already exists amd disambiguate if so
             if subgraphs.contains_key(&name) {
@@ -276,12 +280,22 @@ impl SupergraphBuilder {
     }
 
     // If the file is named "schema", use parent directory name
-    fn determine_subgraph_name(&self, file_path: &Path) -> RoverResult<String> {
+    fn determine_subgraph_name(
+        &self,
+        file_path: &Path,
+        schema_name: Option<SchemaName>,
+    ) -> RoverResult<String> {
         let file_stem = file_path.file_stem().unwrap().to_string_lossy();
         if file_stem == "schema" {
             let parent = file_path.parent().unwrap();
-            let parent_name = parent.file_name().unwrap().to_string_lossy();
-            Ok(parent_name.to_string())
+            let parent_name = parent.file_name();
+            if parent_name.is_none() && schema_name.is_some() {
+                let schema_name = schema_name.unwrap();
+                if !schema_name.to_string().is_empty() {
+                    return Ok(schema_name.to_string());
+                }
+            }
+            Ok(parent_name.unwrap().to_string_lossy().to_string())
         } else {
             Ok(file_stem.to_string())
         }
@@ -346,7 +360,7 @@ mod tests {
         )?;
 
         let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -370,7 +384,7 @@ mod tests {
         )?;
 
         let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -400,7 +414,7 @@ mod tests {
         )?;
 
         let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
@@ -436,7 +450,7 @@ mod tests {
         )?;
 
         let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0");
+            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
