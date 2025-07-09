@@ -449,6 +449,11 @@ impl CreationConfirmed {
             }
         };
 
+        let graph_ref = GraphRef {
+            name: create_graph_response.id.clone(),
+            variant: DEFAULT_VARIANT.to_string(),
+        };
+
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.selected_template.write_template(&self.output_path)?;
@@ -460,18 +465,14 @@ impl CreationConfirmed {
             self.output_path.clone(),
             5,
             routing_url,
-            &federation_version,
             Some(self.config.schema_name.clone()),
+            graph_ref.clone(),
         );
         supergraph.build_and_write()?;
 
         let artifacts = self.selected_template.list_files()?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
-        let graph_ref = GraphRef {
-            name: create_graph_response.id.clone(),
-            variant: DEFAULT_VARIANT.to_string(),
-        };
 
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
