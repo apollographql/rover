@@ -96,7 +96,7 @@ clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
 comfy-table = {  version = "7.1.4", features = ["custom_styling"] }
-console = "0.15"
+console = "0.16"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
 directories-next = "2.0"

@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
-use console::Term;
+use dialoguer::console::Term;
 use dialoguer::Select;
 use http::Uri;
 use http_body_util::Full;

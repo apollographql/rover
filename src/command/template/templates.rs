@@ -1,7 +1,7 @@
 use std::env;
 
 use anyhow::anyhow;
-use console::Term;
+use dialoguer::console::Term;
 use dialoguer::Select;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
