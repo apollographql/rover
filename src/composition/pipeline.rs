@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::fs::canonicalize;
 
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
@@ -24,6 +24,7 @@ use super::supergraph::config::resolver::{
 };
 use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::options::LicenseAccepter;
@@ -94,7 +95,7 @@ impl CompositionPipeline<state::Init> {
             FileDescriptorType::Stdin => Some(FileDescriptorType::Stdin),
         });
         let supergraph_root = supergraph_yaml
-            .clone()
+            .as_ref()
             .and_then(|file| match file {
                 FileDescriptorType::File(file) => {
                     let mut current_dir =
@@ -113,10 +114,13 @@ impl CompositionPipeline<state::Init> {
                 )
                 .unwrap()
             });
-        let resolver = SupergraphConfigResolver::default()
-            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
-            .await?
-            .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        eprintln!("merging supergraph schema files");
+        let resolver = SupergraphConfigResolver::load_remote_subgraphs(
+            fetch_remote_subgraphs_factory,
+            graph_ref.as_ref(),
+        )
+        .await?
+        .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
         let resolver = match default_subgraph {
             Some(default_subgraph) => resolver
                 .define_default_subgraph_if_empty(default_subgraph)
@@ -236,8 +240,10 @@ impl CompositionPipeline<state::Run> {
         write_file_impl
             .write_file(
                 &supergraph_config_filepath,
-                serde_yaml::to_string(&SupergraphConfig::from(fully_resolved_supergraph_config))?
-                    .as_bytes(),
+                serde_yaml::to_string(&SupergraphConfigYaml::from(
+                    fully_resolved_supergraph_config,
+                ))?
+                .as_bytes(),
             )
             .await
             .map_err(|err| CompositionError::WriteFile {
@@ -254,7 +260,7 @@ impl CompositionPipeline<state::Run> {
 
     #[tracing::instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    pub async fn runner<ExecC, WriteF>(
+    pub(crate) async fn runner<ExecC, WriteF>(
         &self,
         exec_command: ExecC,
         write_file: WriteF,

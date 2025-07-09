@@ -17,7 +17,6 @@ use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::composition::watchers::composition::CompositionInputEvent;
 use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
@@ -291,10 +290,11 @@ impl SubgraphHandles {
         introspection_polling_interval: u64,
     ) -> Result<(), ResolveSubgraphError> {
         eprintln!("Adding subgraph to session: `{subgraph}`");
-        let unresolved_subgraph =
-            UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
-        let lazily_resolved_subgraph =
-            LazilyResolvedSubgraph::resolve(&self.supergraph_config_root, unresolved_subgraph)?;
+        let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
+            &self.supergraph_config_root,
+            subgraph.to_string(),
+            subgraph_config.clone(),
+        )?;
         let resolver = FullyResolvedSubgraph::resolver(
             self.resolve_introspect_subgraph_factory.clone(),
             self.fetch_remote_subgraph_factory.clone(),
@@ -333,11 +333,10 @@ impl SubgraphHandles {
         introspection_polling_interval: u64,
     ) -> Result<(), ResolveSubgraphError> {
         eprintln!("Change detected for subgraph: `{subgraph}`");
-        let unresolved_subgraph =
-            UnresolvedSubgraph::new(subgraph.to_string(), subgraph_config.clone());
         let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
             &self.supergraph_config_root.clone(),
-            unresolved_subgraph,
+            subgraph.to_string(),
+            subgraph_config.clone(),
         )?;
         let resolver = FullyResolvedSubgraph::resolver(
             self.resolve_introspect_subgraph_factory.clone(),
