@@ -145,29 +145,28 @@ impl Auth2{
     async fn start_server() -> Result<(), anyhow::Error> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
-        // We create a TcpListener and bind it to 127.0.0.1:3000
+        // Create a TcpListener and bind it to 127.0.0.1:3000
         let listener = TcpListener::bind(addr).await?;
+        eprintln!("Server running on http://{}", addr);
 
-        // We start a loop to continuously accept incoming connections
-        loop {
-            let (stream, _) = listener.accept().await?;
+        // Accept a single connection
+        let (stream, _) = listener.accept().await?;
+        eprintln!("Connection accepted!");
 
-            // Use an adapter to access something implementing `tokio::io` traits as if they implement
-            // `hyper::rt` IO traits.
-            let io = TokioIo::new(stream);
+        // Use an adapter to access something implementing `tokio::io` traits as if they implement
+        // `hyper::rt` IO traits.
+        let io = TokioIo::new(stream);
 
-            // Spawn a tokio task to serve multiple connections concurrently
-            tokio::task::spawn(async move {
-                // Finally, we bind the incoming connection to our `hello` service
-                if let Err(err) = http1::Builder::new()
-                    // `service_fn` converts our function in a `Service`
-                    .serve_connection(io, service_fn(Auth2::hello))
-                    .await
-                {
-                    eprintln!("Error serving connection: {:?}", err);
-                }
-            });
+        // Serve the connection using the `hello` service
+        if let Err(err) = http1::Builder::new()
+            .serve_connection(io, service_fn(Auth2::hello))
+            .await
+        {
+            eprintln!("Error serving connection: {:?}", err);
         }
+
+        eprintln!("Authentication complete. You can close this window now.");
+        Ok(())
     }
 }
 
