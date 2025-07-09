@@ -121,7 +121,7 @@ Run the following command to authenticate with GraphOS:
 
     $ rover config auth
 
-Once you're authenticated, create a new graph:
+Once you're authenticated, Start a new supergraph:
 
     $ rover init
 

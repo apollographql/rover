@@ -84,7 +84,7 @@ mod tests {
 
         // Name starting with non-alphabetic
         assert_eq!(
-            generate_graph_id("123My API", &mut generator, None),
+            generate_graph_id("123My Supergraph", &mut generator, None),
             "my-api-teststr".parse::<GraphId>().unwrap()
         );
 

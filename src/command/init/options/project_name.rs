@@ -51,7 +51,7 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new()
-                .with_prompt(Style::Prompt.paint("? Name your graph"))
+                .with_prompt(Style::Prompt.paint("? Name your supergraph"))
                 .with_initial_text(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
@@ -69,7 +69,7 @@ impl ProjectNameOpt {
     }
 
     fn suggest_default_name(&self) -> String {
-        "My API".to_string()
+        "My Supergraph".to_string()
     }
 
     pub fn get_or_prompt_project_name(&self) -> RoverResult<ProjectName> {
@@ -120,7 +120,7 @@ mod tests {
         let instance = ProjectNameOpt { project_name: None };
         let default_name = instance.suggest_default_name();
 
-        assert_eq!(default_name, "My API");
+        assert_eq!(default_name, "My Supergraph");
     }
 
     // Default trait implementation tests
