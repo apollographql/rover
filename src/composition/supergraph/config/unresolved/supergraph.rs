@@ -1,10 +1,10 @@
 //! Provides tooling to resolve subgraphs, fully or lazily
 use std::collections::BTreeMap;
 
+use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
 use camino::Utf8PathBuf;
-
-use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
+use rover_client::shared::GraphRef;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
 #[derive(Clone)]
@@ -12,6 +12,7 @@ pub struct UnresolvedSupergraphConfig {
     pub(crate) origin_path: Option<Utf8PathBuf>,
     pub(crate) subgraphs: BTreeMap<String, SubgraphConfig>,
     pub(crate) federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
+    pub(crate) graph_ref: Option<GraphRef>,
 }
 
 impl UnresolvedSupergraphConfig {
@@ -322,6 +323,7 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(
                 target_federation_version,
             )),
+            graph_ref: None,
         };
 
         let RemoteSubgraphScenario {
@@ -625,6 +627,7 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(Some(
                 target_federation_version.clone(),
             ))),
+            graph_ref: None,
         };
 
         let RemoteSubgraphScenario {
@@ -853,6 +856,7 @@ mod tests {
             origin_path: Some(supergraph_config_origin_path),
             subgraphs: unresolved_subgraphs,
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
+            graph_ref: None,
         };
 
         let (resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(

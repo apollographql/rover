@@ -87,7 +87,28 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
-        let mut subgraphs: BTreeMap<String, SubgraphConfig> = if let Some(graph_ref) = graph_ref {
+        let (origin_path, supergraph_config) = if let Some(fd) = file_descriptor_type {
+            let supergraph_config = Self::get_supergraph_config(read_stdin_impl, fd)?;
+            let origin_path = match fd {
+                FileDescriptorType::File(file) => Some(file.clone()),
+                FileDescriptorType::Stdin => None,
+            };
+            (origin_path, Some(supergraph_config))
+        } else {
+            (None, None)
+        };
+        let federation_version_resolver =
+            FederationVersionResolver::default().from_supergraph_config(supergraph_config.as_ref());
+        // TODO: load fed version from GraphOS
+        let graph_ref = graph_ref
+            .or_else(|| {
+                supergraph_config
+                    .as_ref()
+                    .and_then(|s| s.graph_ref.as_ref())
+            })
+            .cloned();
+        let mut subgraphs: BTreeMap<String, SubgraphConfig> = if let Some(ref graph_ref) = graph_ref
+        {
             fetch_remote_subgraphs_factory
                 .make_service(())
                 .await
@@ -102,16 +123,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
             BTreeMap::new()
         };
 
-        if let Some(file_descriptor_type) = file_descriptor_type {
-            let supergraph_config =
-                Self::get_supergraph_config(read_stdin_impl, file_descriptor_type)?;
-            let origin_path = match file_descriptor_type {
-                FileDescriptorType::File(file) => Some(file.clone()),
-                FileDescriptorType::Stdin => None,
-            };
-            // TODO: use ::new(federation_version_from_graph_ref) here
-            let federation_version_resolver = FederationVersionResolver::default()
-                .from_supergraph_config(Some(&supergraph_config));
+        if let Some(supergraph_config) = supergraph_config {
             for (name, subgraph_config) in supergraph_config.subgraphs {
                 let subgraph_config = SubgraphConfig {
                     routing_url: subgraph_config.routing_url.or_else(|| {
@@ -123,23 +135,15 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 };
                 subgraphs.insert(name, subgraph_config);
             }
-            Ok(SupergraphConfigResolver {
-                state: state::DefineDefaultSubgraph {
-                    origin_path,
-                    federation_version_resolver,
-                    subgraphs,
-                },
-            })
-        } else {
-            Ok(SupergraphConfigResolver {
-                state: state::DefineDefaultSubgraph {
-                    origin_path: None,
-                    federation_version_resolver: FederationVersionResolver::default()
-                        .from_supergraph_config(None),
-                    subgraphs,
-                },
-            })
         }
+        Ok(SupergraphConfigResolver {
+            state: state::DefineDefaultSubgraph {
+                origin_path,
+                federation_version_resolver,
+                subgraphs,
+                graph_ref,
+            },
+        })
     }
 
     fn get_supergraph_config(
@@ -198,6 +202,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 origin_path: self.state.origin_path,
                 federation_version_resolver: self.state.federation_version_resolver,
                 subgraphs: self.state.subgraphs,
+                graph_ref: self.state.graph_ref,
             },
         })
     }
@@ -209,6 +214,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 origin_path: self.state.origin_path,
                 federation_version_resolver: self.state.federation_version_resolver,
                 subgraphs: self.state.subgraphs,
+                graph_ref: self.state.graph_ref,
             },
         }
     }
@@ -262,6 +268,7 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
             subgraphs: self.state.subgraphs.clone(),
             federation_version_resolver: Some(self.state.federation_version_resolver.clone()),
             origin_path: None,
+            graph_ref: self.state.graph_ref.clone(),
         };
         let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
             resolve_introspect_subgraph_factory,
@@ -291,6 +298,7 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
             origin_path: self.state.origin_path.clone(),
             subgraphs: self.state.subgraphs.clone(),
             federation_version_resolver: Some(self.state.federation_version_resolver.clone()),
+            graph_ref: self.state.graph_ref.clone(),
         };
         let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
             supergraph_config_root,

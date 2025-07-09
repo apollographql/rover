@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
 
+use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{stream, StreamExt};
 use itertools::Itertools;
-
-use super::LazilyResolvedSubgraph;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
+use rover_client::shared::GraphRef;
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the
@@ -19,6 +19,7 @@ pub struct LazilyResolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, LazilyResolvedSubgraph>,
     federation_version: Option<FederationVersion>,
+    graph_ref: Option<GraphRef>,
 }
 
 impl LazilyResolvedSupergraphConfig {
@@ -54,9 +55,10 @@ impl LazilyResolvedSupergraphConfig {
         ) = subgraphs.into_iter().partition_result();
         (
             LazilyResolvedSupergraphConfig {
-                origin_path: unresolved_supergraph_config.origin_path.clone(),
+                origin_path: unresolved_supergraph_config.origin_path,
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version,
+                graph_ref: unresolved_supergraph_config.graph_ref,
             },
             BTreeMap::from_iter(errors.into_iter()),
         )
@@ -81,6 +83,7 @@ impl From<LazilyResolvedSupergraphConfig> for SupergraphConfigYaml {
         SupergraphConfigYaml {
             subgraphs,
             federation_version: value.federation_version,
+            graph_ref: None,
         }
     }
 }

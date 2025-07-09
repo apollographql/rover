@@ -124,6 +124,7 @@ impl SupergraphConfigWatcher {
                                 origin_path: Some(supergraph_config_path.clone()),
                                 federation_version_resolver: Some(FederationVersionResolver::default().from_supergraph_config(Some( &supergraph_config))),
                                 subgraphs: supergraph_config.subgraphs,
+                                graph_ref: supergraph_config.graph_ref,
                             };
                             // Here we can throw away what actually gets resolved because we care about the fact it
                             // happens not the resulting artifact.

@@ -181,6 +181,7 @@ mod tests {
         let supergraph_config = SupergraphConfigYaml {
             subgraphs: unresolved_subgraphs,
             federation_version: Some(FederationVersion::LatestFedOne),
+            graph_ref: None,
         };
 
         let resolved_subgraphs = [(
@@ -221,6 +222,7 @@ mod tests {
         let supergraph_config = SupergraphConfigYaml {
             subgraphs: unresolved_subgraphs,
             federation_version: Some(FederationVersion::LatestFedTwo),
+            graph_ref: None,
         };
 
         let resolved_subgraphs = [(
