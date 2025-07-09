@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
-use thiserror::Error;
-
 use super::FullyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+use thiserror::Error;
 
 /// Error that occurs when a subgraph schema source is invalid
 #[derive(Error, Debug)]
@@ -30,12 +30,12 @@ impl FullyResolvedSubgraphs {
     }
 }
 
-impl TryFrom<SupergraphConfig> for FullyResolvedSubgraphs {
+impl TryFrom<SupergraphConfigYaml> for FullyResolvedSubgraphs {
     type Error = Vec<InvalidSchemaSource>;
-    fn try_from(value: SupergraphConfig) -> Result<Self, Self::Error> {
+    fn try_from(value: SupergraphConfigYaml) -> Result<Self, Self::Error> {
         let mut errors = Vec::new();
         let mut subgraph_sdls = BTreeMap::new();
-        for (name, subgraph_config) in value.into_iter() {
+        for (name, subgraph_config) in value.subgraphs {
             if let SchemaSource::Sdl { sdl } = subgraph_config.schema {
                 subgraph_sdls.insert(name, sdl);
             } else {
@@ -54,7 +54,7 @@ impl TryFrom<SupergraphConfig> for FullyResolvedSubgraphs {
     }
 }
 
-impl From<FullyResolvedSubgraphs> for SupergraphConfig {
+impl From<FullyResolvedSubgraphs> for SupergraphConfigYaml {
     fn from(value: FullyResolvedSubgraphs) -> Self {
         let subgraphs = BTreeMap::from_iter(value.subgraphs.into_iter().map(|(name, sdl)| {
             (
@@ -65,7 +65,10 @@ impl From<FullyResolvedSubgraphs> for SupergraphConfig {
                 },
             )
         }));
-        SupergraphConfig::new(subgraphs, None)
+        SupergraphConfigYaml {
+            subgraphs,
+            federation_version: None,
+        }
     }
 }
 

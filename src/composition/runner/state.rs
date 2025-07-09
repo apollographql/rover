@@ -6,25 +6,25 @@ use crate::composition::watchers::{
     watcher::supergraph_config::SupergraphConfigWatcher,
 };
 
-pub struct SetupSubgraphWatchers;
+pub(crate) struct SetupSubgraphWatchers;
 
-pub struct SetupSupergraphConfigWatcher {
-    pub subgraph_watchers: SubgraphWatchers,
+pub(crate) struct SetupSupergraphConfigWatcher {
+    pub(crate) subgraph_watchers: SubgraphWatchers,
 }
 
-pub struct SetupCompositionWatcher {
-    pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
-    pub subgraph_watchers: SubgraphWatchers,
-    pub initial_supergraph_config: LazilyResolvedSupergraphConfig,
+pub(crate) struct SetupCompositionWatcher {
+    pub(crate) supergraph_config_watcher: Option<SupergraphConfigWatcher>,
+    pub(crate) subgraph_watchers: SubgraphWatchers,
+    pub(crate) initial_supergraph_config: LazilyResolvedSupergraphConfig,
 }
 
-pub struct Run<ExecC, WriteF>
+pub(crate) struct Run<ExecC, WriteF>
 where
     ExecC: Eq + PartialEq + Debug,
     WriteF: Eq + PartialEq + Debug,
 {
-    pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
-    pub subgraph_watchers: SubgraphWatchers,
-    pub composition_watcher: CompositionWatcher<ExecC, WriteF>,
-    pub initial_supergraph_config: LazilyResolvedSupergraphConfig,
+    pub(crate) supergraph_config_watcher: Option<SupergraphConfigWatcher>,
+    pub(crate) subgraph_watchers: SubgraphWatchers,
+    pub(crate) composition_watcher: CompositionWatcher<ExecC, WriteF>,
+    pub(crate) initial_supergraph_config: LazilyResolvedSupergraphConfig,
 }

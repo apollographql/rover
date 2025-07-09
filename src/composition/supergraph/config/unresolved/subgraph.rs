@@ -10,9 +10,9 @@ use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 /// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
 #[derive(Clone, Debug, Getters)]
 pub struct UnresolvedSubgraph {
-    name: String,
-    schema: SchemaSource,
-    routing_url: Option<String>,
+    pub(crate) name: String,
+    pub(crate) schema: SchemaSource,
+    pub(crate) routing_url: Option<String>,
 }
 
 impl UnresolvedSubgraph {
@@ -27,7 +27,7 @@ impl UnresolvedSubgraph {
 
     /// Produces a canonical filepath as the path relates to the supplied root path
     pub fn resolve_file_path(
-        &self,
+        name: &str,
         root: &Utf8PathBuf,
         path: &Utf8PathBuf,
     ) -> Result<Utf8PathBuf, ResolveSubgraphError> {
@@ -36,7 +36,7 @@ impl UnresolvedSubgraph {
         match canonical_filename {
             Ok(canonical_filename) => Ok(canonical_filename),
             Err(err) => Err(ResolveSubgraphError::FileNotFound {
-                subgraph_name: self.name.to_string(),
+                subgraph_name: name.to_string(),
                 supergraph_config_path: root.clone(),
                 path: path.clone(),
                 joined_path,
