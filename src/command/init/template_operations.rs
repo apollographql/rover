@@ -1,19 +1,18 @@
 use crate::command::init::options::SchemaName;
 use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use crate::{RoverError, RoverResult};
 use anyhow::format_err;
-use apollo_federation_types::config::{
-    FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
-};
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
 use rover_std::successln;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::{fs, io};
 
 pub struct TemplateOperations;
@@ -158,8 +157,8 @@ pub struct SupergraphBuilder {
     directory: Utf8PathBuf,
     routing_url: String,
     max_depth: usize,
-    federation_version: String,
     schema_name: Option<SchemaName>,
+    graph_ref: GraphRef,
 }
 
 impl SupergraphBuilder {
@@ -167,15 +166,15 @@ impl SupergraphBuilder {
         directory: Utf8PathBuf,
         max_depth: usize,
         routing_url: String,
-        federation_version: &str,
         schema_name: Option<SchemaName>,
+        graph_ref: GraphRef,
     ) -> Self {
         Self {
             directory,
             routing_url,
             max_depth,
-            federation_version: federation_version.to_string(),
             schema_name,
+            graph_ref,
         }
     }
 
@@ -308,14 +307,13 @@ impl SupergraphBuilder {
         Ok(format!("{parent_parent_name}_{base_name}"))
     }
 
-    pub fn build_supergraph(&self) -> RoverResult<SupergraphConfig> {
+    pub fn build_supergraph(&self) -> RoverResult<SupergraphConfigYaml> {
         let subgraphs = self.generate_subgraphs()?;
-        Ok(SupergraphConfig::new(
+        Ok(SupergraphConfigYaml {
+            graph_ref: Some(self.graph_ref.clone()),
             subgraphs,
-            Some(FederationVersion::from_str(
-                self.federation_version.as_str(),
-            )?),
-        ))
+            federation_version: None,
+        })
     }
 
     pub fn build_and_write(&self) -> RoverResult<()> {
@@ -359,14 +357,22 @@ mod tests {
             "type Service { id: ID! }",
         )?;
 
-        let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
+        let supergraph_builder = SupergraphBuilder::new(
+            path,
+            5,
+            "http://ignore".to_string(),
+            None,
+            GraphRef {
+                name: "name".to_string(),
+                variant: "variant".to_string(),
+            },
+        );
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -383,14 +389,22 @@ mod tests {
             "type Product { id: ID! }",
         )?;
 
-        let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
+        let supergraph_builder = SupergraphBuilder::new(
+            path,
+            5,
+            "http://ignore".to_string(),
+            None,
+            GraphRef {
+                name: "name".to_string(),
+                variant: "variant".to_string(),
+            },
+        );
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -413,14 +427,22 @@ mod tests {
             "type Service { id: ID! }",
         )?;
 
-        let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
+        let supergraph_builder = SupergraphBuilder::new(
+            path,
+            5,
+            "http://ignore".to_string(),
+            None,
+            GraphRef {
+                name: "name".to_string(),
+                variant: "variant".to_string(),
+            },
+        );
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -449,14 +471,22 @@ mod tests {
             "type Billing { id: ID! }",
         )?;
 
-        let supergraph_builder =
-            SupergraphBuilder::new(path, 5, "http://ignore".to_string(), "=2.10.0", None);
+        let supergraph_builder = SupergraphBuilder::new(
+            path,
+            5,
+            "http://ignore".to_string(),
+            None,
+            GraphRef {
+                name: "name".to_string(),
+                variant: "variant".to_string(),
+            },
+        );
 
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
