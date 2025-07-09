@@ -4,9 +4,9 @@ use std::str::FromStr;
 use crate::RoverClientError;
 
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GraphRef {
     pub name: String,
     pub variant: String,
@@ -58,6 +58,25 @@ impl FromStr for GraphRef {
         } else {
             Err(RoverClientError::InvalidGraphRef)
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for GraphRef {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let graph_id = String::deserialize(deserializer)?;
+        GraphRef::from_str(&graph_id).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Serialize for GraphRef {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 

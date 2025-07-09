@@ -4,8 +4,9 @@ use std::fmt::Debug;
 use std::fs::canonicalize;
 
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
+use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllResponse;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
 use rover_std::warnln;
@@ -19,8 +20,7 @@ use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactor
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use super::supergraph::config::resolver::{
-    DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
-    ResolveSupergraphConfigError, SupergraphConfigResolver,
+    DefaultSubgraphDefinition, LoadError, ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
@@ -36,10 +36,8 @@ use crate::utils::parsers::FileDescriptorType;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionPipelineError {
-    #[error("Failed to load remote subgraphs.\n{}", .0)]
-    LoadRemoteSubgraphs(#[from] LoadRemoteSubgraphsError),
-    #[error("Failed to load the supergraph config.\n{}", .0)]
-    LoadSupergraphConfig(#[from] LoadSupergraphConfigError),
+    #[error("Failed to load supergraph.\n{}", .0)]
+    Load(#[from] LoadError),
     #[error("Failed to resolve the supergraph config.\n{}", .0)]
     ResolveSupergraphConfig(#[from] ResolveSupergraphConfigError),
     #[error("IO error.\n{}", .0)]
@@ -79,11 +77,7 @@ impl CompositionPipeline<state::Init> {
         default_subgraph: Option<DefaultSubgraphDefinition>,
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
-        S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+        S: MakeService<(), FetchRemoteSubgraphsRequest, Response = SubgraphFetchAllResponse>,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -94,7 +88,7 @@ impl CompositionPipeline<state::Init> {
             FileDescriptorType::Stdin => Some(FileDescriptorType::Stdin),
         });
         let supergraph_root = supergraph_yaml
-            .clone()
+            .as_ref()
             .and_then(|file| match file {
                 FileDescriptorType::File(file) => {
                     let mut current_dir =
@@ -114,10 +108,13 @@ impl CompositionPipeline<state::Init> {
                 .unwrap()
             });
         eprintln!("merging supergraph schema files");
-        let resolver = SupergraphConfigResolver::default()
-            .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
-            .await?
-            .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        let resolver = SupergraphConfigResolver::load(
+            read_stdin_impl,
+            supergraph_yaml.as_ref(),
+            fetch_remote_subgraphs_factory,
+            graph_ref.as_ref(),
+        )
+        .await?;
         let resolver = match default_subgraph {
             Some(default_subgraph) => resolver
                 .define_default_subgraph_if_empty(default_subgraph)
@@ -254,7 +251,7 @@ impl CompositionPipeline<state::Run> {
 
     #[tracing::instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    pub async fn runner<ExecC, WriteF>(
+    pub(crate) async fn runner<ExecC, WriteF>(
         &self,
         exec_command: ExecC,
         write_file: WriteF,

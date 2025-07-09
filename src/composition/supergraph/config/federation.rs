@@ -3,11 +3,11 @@
 
 use std::marker::PhantomData;
 
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use apollo_federation_types::config::FederationVersion;
 use derive_getters::Getters;
 
 use super::full::FullyResolvedSubgraph;
-use crate::command::supergraph::compose::do_compose::SupergraphComposeOpts;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 
 mod state {
     #[derive(Clone, Debug)]
@@ -68,13 +68,13 @@ impl FederationVersionResolver<state::FromSupergraphConfig> {
     /// from a [`SupergraphConfig`] (if it has one)
     pub fn from_supergraph_config(
         self,
-        supergraph_config: Option<&SupergraphConfig>,
+        supergraph_config: Option<&SupergraphConfigYaml>,
     ) -> FederationVersionResolver<state::FromSubgraphs> {
         match supergraph_config {
             Some(supergraph_config) => {
                 let federation_version = self
                     .federation_version
-                    .or(supergraph_config.get_federation_version());
+                    .or_else(|| supergraph_config.federation_version.clone());
                 FederationVersionResolver {
                     state: PhantomData::<state::FromSubgraphs>,
                     federation_version,
@@ -94,15 +94,6 @@ impl FederationVersionResolver<state::FromSupergraphConfig> {
     }
 }
 
-impl From<&SupergraphComposeOpts> for FederationVersionResolver<state::FromSupergraphConfig> {
-    fn from(value: &SupergraphComposeOpts) -> Self {
-        FederationVersionResolver {
-            federation_version: value.federation_version.clone(),
-            state: PhantomData::<state::FromSupergraphConfig>,
-        }
-    }
-}
-
 /// Public alias for `FederationVersionResolver<state::FromSubgraphs>`
 pub type FederationVersionResolverFromSubgraphs = FederationVersionResolver<state::FromSubgraphs>;
 
@@ -115,6 +106,15 @@ impl FederationVersionResolver<state::FromSubgraphs> {
             state: PhantomData::<state::FromSubgraphs>,
             federation_version: target_federation_version,
         }
+    }
+
+    /// Add in the Federation version from GraphOS, if any
+    pub fn with_graphos_version(
+        mut self,
+        federation_version: Option<FederationVersion>,
+    ) -> FederationVersionResolver<state::FromSubgraphs> {
+        self.federation_version = self.federation_version.or(federation_version);
+        self
     }
 
     /// Returns the target [`FederationVersion`] that was defined by the user
@@ -162,14 +162,13 @@ impl FederationVersionResolver<state::FromSubgraphs> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use apollo_federation_types::config::{
-        FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
-    };
+    use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
     use speculoos::prelude::*;
 
     use super::FederationVersionResolverFromSupergraphConfig;
     use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
     use crate::composition::supergraph::config::scenario::*;
+    use crate::composition::supergraph::config::SupergraphConfigYaml;
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config or resolved subgraphs
@@ -188,8 +187,11 @@ mod tests {
         )]);
         let federation_version_resolver =
             FederationVersionResolverFromSupergraphConfig::new(FederationVersion::LatestFedTwo);
-        let supergraph_config =
-            SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedOne));
+        let supergraph_config = SupergraphConfigYaml {
+            subgraphs: unresolved_subgraphs,
+            federation_version: Some(FederationVersion::LatestFedOne),
+            graph_ref: None,
+        };
 
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
@@ -226,8 +228,11 @@ mod tests {
             SubgraphConfig::from(subgraph_scenario.unresolved_subgraph.clone()),
         )]);
         let federation_version_resolver = FederationVersionResolverFromSupergraphConfig::default();
-        let supergraph_config =
-            SupergraphConfig::new(unresolved_subgraphs, Some(FederationVersion::LatestFedTwo));
+        let supergraph_config = SupergraphConfigYaml {
+            subgraphs: unresolved_subgraphs,
+            federation_version: Some(FederationVersion::LatestFedTwo),
+            graph_ref: None,
+        };
 
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
@@ -264,7 +269,10 @@ mod tests {
             SubgraphConfig::from(subgraph_scenario.unresolved_subgraph.clone()),
         )]);
         let federation_version_resolver = FederationVersionResolverFromSupergraphConfig::default();
-        let supergraph_config = SupergraphConfig::new(unresolved_subgraphs, None);
+        let supergraph_config = SupergraphConfigYaml {
+            subgraphs: unresolved_subgraphs,
+            ..Default::default()
+        };
 
         let resolved_subgraphs = [(
             subgraph_name.to_string(),

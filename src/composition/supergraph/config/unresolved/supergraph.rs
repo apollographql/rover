@@ -1,47 +1,25 @@
 //! Provides tooling to resolve subgraphs, fully or lazily
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
-use buildstructor::buildstructor;
-use camino::Utf8PathBuf;
-use derive_getters::Getters;
-
-use super::UnresolvedSubgraph;
 use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
+use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
+use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 
 /// Object that represents a [`SupergraphConfig`] that requires resolution
-#[derive(Getters, Clone)]
+#[derive(Clone)]
 pub struct UnresolvedSupergraphConfig {
-    origin_path: Option<Utf8PathBuf>,
-    subgraphs: BTreeMap<String, UnresolvedSubgraph>,
-    federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
+    pub(crate) origin_path: Option<Utf8PathBuf>,
+    pub(crate) subgraphs: BTreeMap<String, SubgraphConfig>,
+    pub(crate) federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
+    pub(crate) graph_ref: Option<GraphRef>,
 }
 
-#[buildstructor]
 impl UnresolvedSupergraphConfig {
-    /// Hook for [`buildstructor::buildstructor`]'s builder pattern
-    #[builder]
-    pub fn new(
-        origin_path: Option<Utf8PathBuf>,
-        subgraphs: BTreeMap<String, SubgraphConfig>,
-        federation_version_resolver: Option<FederationVersionResolverFromSubgraphs>,
-    ) -> UnresolvedSupergraphConfig {
-        let subgraphs = BTreeMap::from_iter(
-            subgraphs
-                .into_iter()
-                .map(|(name, config)| (name.to_string(), UnresolvedSubgraph::new(name, config))),
-        );
-        UnresolvedSupergraphConfig {
-            origin_path,
-            subgraphs,
-            federation_version_resolver,
-        }
-    }
-
     /// Provides the target federation version provided by the user
     pub fn target_federation_version(&self) -> Option<FederationVersion> {
         self.federation_version_resolver
-            .clone()
+            .as_ref()
             .and_then(|resolver| resolver.target_federation_version())
     }
 
@@ -60,7 +38,7 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use apollo_federation_types::config::{FederationVersion, SchemaSource};
+    use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use rstest::{fixture, rstest};
@@ -308,11 +286,11 @@ mod tests {
         #[case] expected_federation_version: FederationVersion,
     ) -> Result<()> {
         file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
-        let mut unresolved_subgraphs = BTreeMap::new();
+        let mut unresolved_subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
         let sdl_subgraph_name = sdl_subgraph_scenario.unresolved_subgraph.name().to_string();
         unresolved_subgraphs.insert(
             sdl_subgraph_name.clone(),
-            sdl_subgraph_scenario.unresolved_subgraph,
+            sdl_subgraph_scenario.unresolved_subgraph.into(),
         );
         let remote_subgraph_name = remote_subgraph_scenario
             .unresolved_subgraph
@@ -320,7 +298,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             remote_subgraph_name.clone(),
-            remote_subgraph_scenario.unresolved_subgraph,
+            remote_subgraph_scenario.unresolved_subgraph.into(),
         );
         let introspect_subgraph_name = introspect_subgraph_scenario
             .unresolved_subgraph
@@ -328,7 +306,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             introspect_subgraph_name.clone(),
-            introspect_subgraph_scenario.unresolved_subgraph,
+            introspect_subgraph_scenario.unresolved_subgraph.into(),
         );
         let file_subgraph_name = file_subgraph_scenario
             .unresolved_subgraph
@@ -336,7 +314,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             file_subgraph_name.clone(),
-            file_subgraph_scenario.unresolved_subgraph,
+            file_subgraph_scenario.unresolved_subgraph.into(),
         );
 
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
@@ -345,6 +323,7 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(
                 target_federation_version,
             )),
+            graph_ref: None,
         };
 
         let RemoteSubgraphScenario {
@@ -611,11 +590,11 @@ mod tests {
     ) -> Result<()> {
         let target_federation_version = FederationVersion::LatestFedOne;
         file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
-        let mut unresolved_subgraphs = BTreeMap::new();
+        let mut unresolved_subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
         let sdl_subgraph_name = sdl_subgraph_scenario.unresolved_subgraph.name().to_string();
         unresolved_subgraphs.insert(
             sdl_subgraph_name.clone(),
-            sdl_subgraph_scenario.unresolved_subgraph,
+            sdl_subgraph_scenario.unresolved_subgraph.into(),
         );
         let remote_subgraph_name = remote_subgraph_scenario
             .unresolved_subgraph
@@ -623,7 +602,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             remote_subgraph_name.clone(),
-            remote_subgraph_scenario.unresolved_subgraph,
+            remote_subgraph_scenario.unresolved_subgraph.into(),
         );
         let introspect_subgraph_name = introspect_subgraph_scenario
             .unresolved_subgraph
@@ -631,7 +610,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             introspect_subgraph_name.clone(),
-            introspect_subgraph_scenario.unresolved_subgraph,
+            introspect_subgraph_scenario.unresolved_subgraph.into(),
         );
         let file_subgraph_name = file_subgraph_scenario
             .unresolved_subgraph
@@ -639,7 +618,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             file_subgraph_name.clone(),
-            file_subgraph_scenario.unresolved_subgraph,
+            file_subgraph_scenario.unresolved_subgraph.into(),
         );
 
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
@@ -648,6 +627,7 @@ mod tests {
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(Some(
                 target_federation_version.clone(),
             ))),
+            graph_ref: None,
         };
 
         let RemoteSubgraphScenario {
@@ -841,11 +821,11 @@ mod tests {
         let supergraph_config_origin_path = supergraph_config_root_dir_path.join("supergraph.yaml");
 
         file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
-        let mut unresolved_subgraphs = BTreeMap::new();
+        let mut unresolved_subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
         let sdl_subgraph_name = sdl_subgraph_scenario.unresolved_subgraph.name().to_string();
         unresolved_subgraphs.insert(
             sdl_subgraph_name.clone(),
-            sdl_subgraph_scenario.unresolved_subgraph,
+            sdl_subgraph_scenario.unresolved_subgraph.into(),
         );
         let remote_subgraph_name = remote_subgraph_scenario
             .unresolved_subgraph
@@ -853,7 +833,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             remote_subgraph_name.clone(),
-            remote_subgraph_scenario.unresolved_subgraph,
+            remote_subgraph_scenario.unresolved_subgraph.into(),
         );
         let introspect_subgraph_name = introspect_subgraph_scenario
             .unresolved_subgraph
@@ -861,7 +841,7 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             introspect_subgraph_name.clone(),
-            introspect_subgraph_scenario.unresolved_subgraph,
+            introspect_subgraph_scenario.unresolved_subgraph.into(),
         );
         let file_subgraph_name = file_subgraph_scenario
             .unresolved_subgraph
@@ -869,13 +849,14 @@ mod tests {
             .to_string();
         unresolved_subgraphs.insert(
             file_subgraph_name.clone(),
-            file_subgraph_scenario.unresolved_subgraph,
+            file_subgraph_scenario.unresolved_subgraph.into(),
         );
 
         let unresolved_supergraph_config = UnresolvedSupergraphConfig {
             origin_path: Some(supergraph_config_origin_path),
             subgraphs: unresolved_subgraphs,
             federation_version_resolver: Some(FederationVersionResolverFromSubgraphs::new(None)),
+            graph_ref: None,
         };
 
         let (resolved_supergraph_config, _) = LazilyResolvedSupergraphConfig::resolve(

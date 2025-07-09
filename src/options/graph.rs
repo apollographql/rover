@@ -1,8 +1,8 @@
 use clap::Parser;
 use rover_client::shared::GraphRef;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Serialize, Parser)]
 pub struct GraphRefOpt {
     /// <NAME>@<VARIANT> of graph in Apollo Studio.
     /// @<VARIANT> may be left off, defaulting to @current
@@ -11,7 +11,7 @@ pub struct GraphRefOpt {
     pub graph_ref: GraphRef,
 }
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Serialize, Parser)]
 pub struct OptionalGraphRefOpt {
     /// <NAME>@<VARIANT> of graph in Apollo Studio.
     /// @<VARIANT> may be left off, defaulting to @current

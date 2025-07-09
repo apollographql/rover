@@ -1,6 +1,6 @@
 mod runner;
 mod service;
-mod types;
+pub mod types;
 
 pub use runner::run;
 pub use service::{SubgraphFetchAll, SubgraphFetchAllRequest};
