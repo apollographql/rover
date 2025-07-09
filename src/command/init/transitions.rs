@@ -336,7 +336,7 @@ impl GraphIdConfirmed {
 /// .idea/externalDependencies.xml
 /// getting-started.md
 /// router.yaml
-/// supergraph.yaml
+/// rover.yaml
 /// schema.graphql
 ///
 /// ? Proceed with creation? (y/n):

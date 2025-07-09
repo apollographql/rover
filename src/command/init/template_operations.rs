@@ -318,7 +318,7 @@ impl SupergraphBuilder {
 
     pub fn build_and_write(&self) -> RoverResult<()> {
         let supergraph = self.build_supergraph()?;
-        let output_path = self.directory.join("supergraph.yaml");
+        let output_path = self.directory.join("rover.yaml");
         let mut file = File::create(output_path)?;
         serde_yaml::to_writer(&mut file, &supergraph)?;
 
@@ -406,10 +406,6 @@ mod tests {
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
-
-        Ok(())
-    }
-
     #[test]
     fn test_multiple_deep_nested_file() -> io::Result<()> {
         let temp_dir = tempdir()?;
