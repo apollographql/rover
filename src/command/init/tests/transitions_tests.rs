@@ -232,8 +232,8 @@ mod tests {
     }
 
     #[test]
-    fn test_graph_id_confirmed_config() {
-        let graph_id_confirmed = GraphIdConfirmed {
+    fn test_schema_named_confirmed_config() {
+        let schema_named = SchemaNamed {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
@@ -255,14 +255,16 @@ mod tests {
                 },
                 files: HashMap::new(),
             },
+            schema_name: "schema-name".parse().unwrap(),
         };
 
         let config = ProjectConfig {
-            project_type: graph_id_confirmed.project_type.clone(),
-            organization: graph_id_confirmed.organization.clone(),
-            use_case: graph_id_confirmed.use_case.clone(),
-            project_name: graph_id_confirmed.project_name,
-            graph_id: graph_id_confirmed.graph_id.clone(),
+            project_type: schema_named.project_type.clone(),
+            organization: schema_named.organization.clone(),
+            use_case: schema_named.use_case.clone(),
+            project_name: schema_named.project_name,
+            graph_id: schema_named.graph_id.clone(),
+            schema_name: schema_named.schema_name.clone(),
         };
 
         assert_eq!(config.project_type, ProjectType::CreateNew);
@@ -279,8 +281,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_graph_id_confirmed_preview_for_connectors() {
-        let graph_id_confirmed = GraphIdConfirmed {
+    async fn test_schema_named_preview_for_connectors() {
+        let schema_named = SchemaNamed {
             output_path: ".".into(),
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
@@ -302,17 +304,19 @@ mod tests {
                 },
                 files: HashMap::new(),
             },
+            schema_name: "schema-name".parse().unwrap(),
         };
 
         let http_service = mock::MockHttpService::default();
 
         let result: RoverResult<Option<mock::MockCreationConfirmed>> = async {
             let config = ProjectConfig {
-                project_type: graph_id_confirmed.project_type.clone(),
-                organization: graph_id_confirmed.organization.clone(),
-                use_case: graph_id_confirmed.use_case.clone(),
-                project_name: graph_id_confirmed.project_name,
-                graph_id: graph_id_confirmed.graph_id.clone(),
+                project_type: schema_named.project_type.clone(),
+                organization: schema_named.organization.clone(),
+                use_case: schema_named.use_case.clone(),
+                project_name: schema_named.project_name,
+                graph_id: schema_named.graph_id.clone(),
+                schema_name: schema_named.schema_name.clone(),
             };
 
             let template_fetcher = mock::MockTemplateFetcher::new(http_service);
@@ -353,8 +357,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_graph_id_confirmed_preview_for_graphql_template() {
-        let graph_id_confirmed = GraphIdConfirmed {
+    async fn test_schema_named_preview_for_graphql_template() {
+        let schema_named = SchemaNamed {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             use_case: ProjectUseCase::GraphQLTemplate,
@@ -376,21 +380,23 @@ mod tests {
                 },
                 files: HashMap::new(),
             },
+            schema_name: "schema-name".parse().unwrap(),
         };
 
         let http_service = mock::MockHttpService::default();
 
         let result: RoverResult<Option<mock::MockCreationConfirmed>> = async {
-            if graph_id_confirmed.use_case == ProjectUseCase::GraphQLTemplate {
+            if schema_named.use_case == ProjectUseCase::GraphQLTemplate {
                 return Ok(None);
             }
 
             let config = ProjectConfig {
-                project_type: graph_id_confirmed.project_type.clone(),
-                organization: graph_id_confirmed.organization.clone(),
-                use_case: graph_id_confirmed.use_case.clone(),
-                project_name: graph_id_confirmed.project_name.clone(),
-                graph_id: graph_id_confirmed.graph_id.clone(),
+                project_type: schema_named.project_type.clone(),
+                organization: schema_named.organization.clone(),
+                use_case: schema_named.use_case.clone(),
+                project_name: schema_named.project_name.clone(),
+                graph_id: schema_named.graph_id.clone(),
+                schema_name: schema_named.schema_name.clone(),
             };
 
             let template_fetcher = mock::MockTemplateFetcher::new(http_service);
