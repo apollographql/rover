@@ -3,16 +3,7 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::SubgraphConfig;
 use camino::Utf8PathBuf;
 
-use crate::composition::supergraph::config::federation::{
-    FederationVersionResolverFromSubgraphs, FederationVersionResolverFromSupergraphConfig,
-};
-
-/// In this stage, we await the caller to optionally load subgraphs and a specified federation
-/// version from a local supergraph config file
-pub struct LoadSupergraphConfig {
-    pub federation_version_resolver: FederationVersionResolverFromSupergraphConfig,
-    pub subgraphs: BTreeMap<String, SubgraphConfig>,
-}
+use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
 
 /// In this stage, we prompt the user to provide a subgraph if they have not provided any already
 pub struct DefineDefaultSubgraph {

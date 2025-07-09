@@ -19,8 +19,7 @@ use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactor
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
 use super::supergraph::config::resolver::{
-    DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
-    ResolveSupergraphConfigError, SupergraphConfigResolver,
+    DefaultSubgraphDefinition, LoadError, ResolveSupergraphConfigError, SupergraphConfigResolver,
 };
 use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
 use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
@@ -36,10 +35,8 @@ use crate::utils::parsers::FileDescriptorType;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionPipelineError {
-    #[error("Failed to load remote subgraphs.\n{}", .0)]
-    LoadRemoteSubgraphs(#[from] LoadRemoteSubgraphsError),
-    #[error("Failed to load the supergraph config.\n{}", .0)]
-    LoadSupergraphConfig(#[from] LoadSupergraphConfigError),
+    #[error("Failed to load supergraph.\n{}", .0)]
+    Load(#[from] LoadError),
     #[error("Failed to resolve the supergraph config.\n{}", .0)]
     ResolveSupergraphConfig(#[from] ResolveSupergraphConfigError),
     #[error("IO error.\n{}", .0)]
@@ -114,12 +111,13 @@ impl CompositionPipeline<state::Init> {
                 .unwrap()
             });
         eprintln!("merging supergraph schema files");
-        let resolver = SupergraphConfigResolver::load_remote_subgraphs(
+        let resolver = SupergraphConfigResolver::load(
+            read_stdin_impl,
+            supergraph_yaml.as_ref(),
             fetch_remote_subgraphs_factory,
             graph_ref.as_ref(),
         )
-        .await?
-        .load_from_file_descriptor(read_stdin_impl, supergraph_yaml.as_ref())?;
+        .await?;
         let resolver = match default_subgraph {
             Some(default_subgraph) => resolver
                 .define_default_subgraph_if_empty(default_subgraph)

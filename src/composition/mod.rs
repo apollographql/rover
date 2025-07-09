@@ -7,9 +7,7 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::resolver::{
-    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-};
+use crate::composition::supergraph::config::resolver::{LoadError, ResolveSupergraphConfigError};
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
@@ -101,10 +99,8 @@ pub struct CompositionSubgraphRemoved {
 pub enum SupergraphConfigResolutionError {
     #[error("Could not instantiate Studio Client")]
     StudioClientInitialisationFailed(#[from] Error),
-    #[error("Could not load remote subgraphs")]
-    LoadRemoteSubgraphsFailed(#[from] LoadRemoteSubgraphsError),
-    #[error("Could not load supergraph config from local file.\n{}", .0)]
-    LoadLocalSupergraphConfigFailed(#[from] LoadSupergraphConfigError),
+    #[error("Could not load supergraph.\n{}", .0)]
+    LoadRemoteSubgraphsFailed(#[from] LoadError),
     #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
     ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
 }
