@@ -1,7 +1,9 @@
 use clap::Parser;
 use rand::{distr::Alphanumeric, Rng};
+use rover_std::Style;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use tokio::sync::oneshot;
 use std::{ process::Command };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
@@ -38,18 +40,30 @@ pub struct Auth2 {
     profile: ProfileOpt,
 }
 
+#[derive(Clone)]
+struct AuthConfig {
+    redirect_uri: String,
+    client_id: String,
+    authorize_url: String,
+    verifier: String,
+    challenge: String,
+    token_url: String,
+}
+
 impl Auth2{
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        eprintln!("Running new auth command");
+        let (verifier, challenge) = Self::generate_verifier_and_encoded_hash();
 
-        let (_, challenge) = Self::generate_verifier_and_encoded_hash();
+        let auth_config = AuthConfig {
+            redirect_uri: "http://localhost:3000/callback".to_string(),
+            client_id: "your_client_id".to_string(),
+            authorize_url: "http://localhost:8080/authorize".to_string(),
+            verifier: verifier.clone(),
+            challenge: challenge.clone(),
+            token_url: "http://localhost:8080/token".to_string(),
+        };
         
-        // Define the URL to open
-        let redirect_uri = "http://localhost:3000/callback";
-        let client_id = "your_client_id";
-        let authorize_url = "http://localhost:8080/authorize"; // Replace with your actual auth server URL
-
-        let url = format!("{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256", authorize_url, client_id, redirect_uri, challenge);
+        let url = format!("{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256", auth_config.authorize_url, auth_config.client_id, auth_config.redirect_uri, auth_config.challenge);
 
         // Attempt to open the URL in the default web browser
         let result = Command::new("open")
@@ -58,26 +72,25 @@ impl Auth2{
 
         match result {
             Ok(status) if status.success() => {
-                eprintln!("Opened browser to URL: {}", url);
+                println!("Opened browser to URL: {}", url);
             }
             _ => {
                 eprintln!("Failed to open browser to URL: {}", url);
             }
         }
 
-        Self::start_server().await?;
+        Self::start_server(auth_config).await?;
         
         Ok(RoverOutput::EmptySuccess)
     }
 
     fn generate_verifier_and_encoded_hash() -> (String, String) {
-        // Generate a random verifier (e.g., 128 characters long)
-        // let verifier: String = rand::rng()
-        //     .sample_iter(&Alphanumeric)
-        //     .take(128) // Length of the verifier
-        //     .map(char::from)
-        //     .collect();
-        let verifier = "hello".to_string();
+        //Generate a random verifier (e.g., 128 characters long)
+        let verifier: String = rand::rng()
+            .sample_iter(&Alphanumeric)
+            .take(128) // Length of the verifier
+            .map(char::from)
+            .collect();
     
         // Compute the SHA-256 hash of the verifier
         let digest = Sha256::digest(verifier.as_bytes());
@@ -88,28 +101,22 @@ impl Auth2{
         (verifier, challenge)
     }  
 
-    async fn hello(req: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+    async fn hello(req: Request<hyper::body::Incoming>, auth_config: AuthConfig) -> Result<Response<Full<Bytes>>, Infallible> {
         if req.method() == Method::GET && req.uri().path() == "/callback" {
             // Handle the `/callback` route
             if let Some(query) = req.uri().query() {
                 // Parse the `code` parameter from the query string
                 if let Some(code) = query.split("code=").nth(1).and_then(|s| s.split('&').next()) {
                     println!("Received auth code: {}", code);
-    
-                    // Prepare the token request
-                    let redirect_uri = "http://localhost:3000/callback";
-                    let client_id = "your_client_id";
-                    let verifier = "hello"; // Replace with the actual verifier
-    
-                    let token_endpoint = "http://localhost:8080/token";
+                    // Prepare the token request parameters
                     let params = format!(
                         "grant_type=authorization_code&code={}&redirect_uri={}&client_id={}&code_verifier={}",
-                        code, redirect_uri, client_id, verifier
+                        code, auth_config.redirect_uri.clone(), auth_config.client_id.clone(), auth_config.verifier.clone()
                     );
     
                     let client = Client::new();
                     match client
-                        .post(token_endpoint)
+                        .post(auth_config.token_url.clone())
                         .header("Content-Type", "application/x-www-form-urlencoded")
                         .header("Accept", "application/json")
                         .body(params)
@@ -118,13 +125,12 @@ impl Auth2{
                     {
                         Ok(response) => {
                             if response.status().is_success() {
-                                println!("Token request successful!");
-                                let body = response.text().await.unwrap_or_else(|_| "No response body".to_string());
-                                println!("Response body: {}", body);
-                                return Ok(Response::new(Full::from(Bytes::from("Token request completed!"))));
+                                println!("{}", Style::Success.paint("Authentication successful!"));
+                                //let body = response.text().await.unwrap_or_else(|_| "No response body".to_string());
+                                return Ok(Response::new(Full::from(Bytes::from("Authentication successful!"))));
                             } else {
-                                println!("Token request failed with status: {}", response.status());
-                                return Ok(Response::new(Full::from(Bytes::from("Token request failed!"))));
+                                println!("Authentication request failed with status: {}", response.status());
+                                return Ok(Response::new(Full::from(Bytes::from("Authentication request failed!"))));
                             }
                             
                         }
@@ -142,30 +148,40 @@ impl Auth2{
         }
     }
 
-    async fn start_server() -> Result<(), anyhow::Error> {
+    async fn start_server(auth_config: AuthConfig) -> Result<(), anyhow::Error> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-
-        // Create a TcpListener and bind it to 127.0.0.1:3000
         let listener = TcpListener::bind(addr).await?;
-        eprintln!("Server running on http://{}", addr);
+        println!("Server running on http://{}", addr);
 
-        // Accept a single connection
+        // Create a shutdown signal
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+
+        // create and start connection
         let (stream, _) = listener.accept().await?;
-        eprintln!("Connection accepted!");
-
-        // Use an adapter to access something implementing `tokio::io` traits as if they implement
-        // `hyper::rt` IO traits.
         let io = TokioIo::new(stream);
+        let server = http1::Builder::new()
+            .serve_connection(io, service_fn(|req| Auth2::hello(req, auth_config.clone())));
 
-        // Serve the connection using the `hello` service
-        if let Err(err) = http1::Builder::new()
-            .serve_connection(io, service_fn(Auth2::hello))
-            .await
-        {
+        let server_result = tokio::select! {
+            result = server => {
+                result
+            }
+            _ = async {
+                shutdown_rx.await.ok(); // Wait for the shutdown signal
+            } => {
+                Ok(())
+            }
+        };
+
+        if let Err(err) = server_result {
             eprintln!("Error serving connection: {:?}", err);
         }
 
-        eprintln!("Authentication complete. You can close this window now.");
+        println!("Authentication complete. You can close this window now.");
+
+        // Send the shutdown signal
+        let _ = shutdown_tx.send(());
+
         Ok(())
     }
 }
