@@ -4,6 +4,7 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
+use dotenvy::dotenv;
 use futures::StreamExt;
 use rover_client::RoverClientError;
 use rover_std::{errln, infoln};
@@ -42,6 +43,7 @@ impl Dev {
         client_config: StudioClientConfig,
         log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
+        dotenv().ok();
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
