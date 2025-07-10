@@ -394,6 +394,12 @@ impl SchemaNamed {
 }
 
 impl CreationConfirmed {
+    fn create_apollo_config_yaml(&self) -> io::Result<()> {
+        let apollo_config_path = Utf8PathBuf::from("apollo.config.yaml");
+        let mut file = OpenOptions::new().write(true).create(true).open(&apollo_config_path)?;
+        Ok(())
+    }
+
     fn populate_env_file(&self, api_key: &str) -> io::Result<()> {
         let env_path = self.output_path.join(".env");
         let mut file = OpenOptions::new().append(true).open(&env_path)?;
