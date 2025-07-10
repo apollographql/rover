@@ -2,7 +2,43 @@ use crate::command::init::template_operations::print_grouped_files;
 use crate::command::init::template_operations::PrintMode::Confirmation;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use rover_std::{hyperlink, Style};
+use rover_std::{hyperlink, hyperlink_with_text, Style};
+
+/// Creates a clickable file:// link to the README.md file in the project directory
+/// Derives the project directory from the provided artifacts
+fn create_readme_link(artifacts: &[Utf8PathBuf], readme_filename: &str) -> String {
+    // Find the project directory from the artifacts
+    let project_path = if let Some(first_artifact) = artifacts.first() {
+        // Get the parent directory of the first artifact
+        first_artifact.parent().unwrap_or(first_artifact)
+    } else {
+        // Fallback to current directory if no artifacts
+        &Utf8PathBuf::from(".")
+    };
+    
+    let readme_path = project_path.join(readme_filename);
+    
+    // Convert to absolute path and create file:// URL
+    match readme_path.canonicalize() {
+        Ok(absolute_path) => {
+            // Convert path to file:// URL format
+            let file_url = if cfg!(target_os = "windows") {
+                // Windows: file:///C:/path/to/file
+                format!("file:///{}", absolute_path.display().to_string().replace('\\', "/"))
+            } else {
+                // Unix: file:///path/to/file
+                format!("file://{}", absolute_path.display())
+            };
+            
+            // Create a clickable link that falls back to showing the filename
+            hyperlink_with_text(&file_url, readme_filename)
+        }
+        Err(_) => {
+            // Fallback to just the filename if we can't create absolute path
+            Style::File.paint(readme_filename).to_string()
+        }
+    }
+}
 
 pub fn display_welcome_message() {
     println!();
@@ -266,8 +302,11 @@ pub fn generate_react_project_created_message(
     output.push_str("- Operation safety checks\n");
     output.push_str("- AI generated mocking\n");
 
+    // Create clickable link to README
+    let readme_link = create_readme_link(artifacts, &start_point_file);
     output.push_str(&format!(
-        "\nFor more information, check out '{start_point_file}'.\n\n"
+        "\nFor more information, check out {}.\n\n",
+        readme_link
     ));
 
     output
@@ -352,7 +391,7 @@ pub fn generate_react_project_no_graph_message(
     // Add optional GraphOS setup section
     output.push_str(&format!("\n{}\n", Style::Heading.paint("Optional: Connect to GraphOS")));
     output.push_str("Note that no GraphOS graph has been created for this app. When ready, you can:\n");
-    output.push_str("- Connect an existing graph to Apollo Client by following the the README and comment guides\n");
+    output.push_str(&format!("- Connect an existing graph to Apollo Client by following the the {} and comment guides\n", Style::File.paint("README")));
     output.push_str("- Create a new graph in Apollo Studio\n");
     output.push_str("- Get GraphOS credentials to observe your graph performance\n");
     output.push_str(&format!(
@@ -360,8 +399,11 @@ pub fn generate_react_project_no_graph_message(
         Style::Link.paint(format!("https://studio.apollographql.com/org/{}/graphs", organization_id))
     ));
 
+    // Create clickable link to README
+    let readme_link = create_readme_link(artifacts, &start_point_file);
     output.push_str(&format!(
-        "\nFor more information, check out '{start_point_file}'.\n\n"
+        "\nFor more information, check out {}.\n\n",
+        readme_link
     ));
 
     output
