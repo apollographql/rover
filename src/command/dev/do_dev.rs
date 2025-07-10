@@ -33,6 +33,7 @@ use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
 use crate::utils::effect::read_file::FsReadFile;
 use crate::utils::effect::write_file::FsWriteFile;
 use crate::utils::env::RoverEnvKey;
+use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverError, RoverOutput, RoverResult};
 
 impl Dev {
@@ -60,7 +61,17 @@ impl Dev {
         if let Some(graph_ref) = graph_ref {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
         }
-        let supergraph_config_path = &self.opts.supergraph_opts.clone().supergraph_config_path;
+        let supergraph_config_path = &self
+            .opts
+            .supergraph_opts
+            .clone()
+            .supergraph_config_path
+            .or_else(|| {
+                let default_path = Utf8PathBuf::from("rover.yaml");
+                default_path
+                    .exists()
+                    .then_some(FileDescriptorType::File(default_path))
+            });
 
         let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
             .studio_client_config(client_config.clone())
