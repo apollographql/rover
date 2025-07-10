@@ -45,6 +45,7 @@ fn test_display_project_created_message_with_single_command() {
     // Test that the output contains expected content
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
+    assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("1) Start the subgraph server by running the following command:"));
     assert!(plain_output.contains("npm ci"));
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
@@ -136,6 +137,7 @@ fn test_display_project_created_message_without_command() {
     // Test that the output contains expected content
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
+    assert!(plain_output.contains("Store your graph API key securely"));
     assert!(plain_output.contains("Start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     // Should not contain any command-specific text
