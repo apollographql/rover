@@ -41,7 +41,7 @@ impl Dev {
     pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
-        client_config: StudioClientConfig,
+        mut client_config: StudioClientConfig,
         log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
         dotenv().ok();
@@ -162,6 +162,8 @@ impl Dev {
         };
 
         let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
+        // Update the Studio client credentials with keys from `.env`
+        client_config.config.override_api_key = api_key_override.clone();
         let home_override = std::env::var(RoverEnvKey::Home.to_string()).ok();
 
         // Set up an updater config, but only if we're not overriding the version ourselves. If
