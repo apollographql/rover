@@ -154,6 +154,8 @@ impl Dev {
             )
             .await?;
 
+        // Composition pipeline resolves GraphRef from multiple locations, so that's more accurate
+        let graph_ref = composition_pipeline.graph_ref().cloned();
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
             Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::LatestTwo,
