@@ -379,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deep_nested_file() -> io::Result<(), io::Error> {
+    fn test_deep_nested_file() -> io::Result<()> {
         let temp_dir = tempdir()?;
         let path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
 
@@ -406,6 +406,8 @@ mod tests {
         let actual_file = File::open(temp_dir.path().join("rover.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
+
+        Ok(())
     }
 
     #[test]

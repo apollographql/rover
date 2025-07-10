@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use std::string::String;
 
-use crate::command::init::helpers::{generate_project_created_message};
+use crate::command::init::helpers::generate_project_created_message;
 
 // Helper function to strip ANSI color codes
 fn strip_ansi_codes(s: &str) -> String {
