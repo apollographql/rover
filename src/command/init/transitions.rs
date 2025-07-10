@@ -523,7 +523,6 @@ impl CreationConfirmed {
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
             graph_ref,
             template: self.selected_template.template,
         }))

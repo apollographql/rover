@@ -87,7 +87,7 @@ pub fn generate_project_created_message(
     }
 
     output.push_str(&format!(
-        "\nFor more information, read '{start_point_file}'.\n\n"
+        "\nFor more information, open '{start_point_file}'.\n\n"
     ));
 
     output

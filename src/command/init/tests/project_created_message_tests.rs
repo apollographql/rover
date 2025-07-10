@@ -46,7 +46,7 @@ fn test_display_project_created_message_with_single_command() {
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     assert!(plain_output.contains(&format!(
-        "For more information, check out '{}'",
+        "For more information, open '{}'",
         "getting-started.md"
     )));
 }
@@ -129,7 +129,7 @@ fn test_display_project_created_message_without_command() {
     // Should not contain any command-specific text
     assert!(!plain_output.contains("Start the subgraph server"));
     assert!(plain_output.contains(&format!(
-        "For more information, check out '{}'",
+        "For more information, open '{}'",
         "getting-started.md"
     )));
 }
@@ -157,7 +157,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
     // Should not contain rover.yaml in the files section
     assert!(!plain_output.contains("rover.yaml\n"));
     assert!(plain_output.contains(&format!(
-        "For more information, check out '{}'",
+        "For more information, open '{}'",
         "getting-started.md"
     )));
 }
@@ -182,9 +182,9 @@ fn test_display_project_created_message_with_custom_start_point() {
 
     // Should contain the custom start point file
     assert!(plain_output.contains(&format!(
-        "For more information, check out '{}'",
+        "For more information, open '{}'",
         "readme.md"
     )));
     // Should not contain the default start point file
-    assert!(!plain_output.contains("For more information, check out 'getting-started.md'"));
+    assert!(!plain_output.contains("For more information, open 'getting-started.md'"));
 }

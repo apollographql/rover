@@ -87,7 +87,6 @@ pub struct CreationConfirmed {
 pub struct ProjectCreated {
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
-    pub api_key: String,
     pub graph_ref: GraphRef,
     pub template: Template,
 }
