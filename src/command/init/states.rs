@@ -15,13 +15,18 @@ pub struct UserAuthenticated;
 pub struct Welcome {}
 
 #[derive(Debug)]
-pub struct ProjectTypeSelected {
+pub struct ValidDirectorySelected {
     pub output_path: Utf8PathBuf,
-    pub project_type: ProjectType,
 }
 
 #[derive(Debug)]
 pub struct OrganizationSelected {
+    pub output_path: Utf8PathBuf,
+    pub organization: OrganizationId,
+}
+
+#[derive(Debug)]
+pub struct ProjectTypeSelected {
     pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: OrganizationId,

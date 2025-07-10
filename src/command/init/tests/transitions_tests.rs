@@ -60,11 +60,6 @@ mod tests {
 
     #[test]
     fn test_project_type_selected_transition() {
-        let project_type_selected = ProjectTypeSelected {
-            project_type: ProjectType::CreateNew,
-            output_path: ".".into(),
-        };
-
         let options = ProjectOrganizationOpt {
             organization: "test-org".parse::<OrganizationId>().ok(),
         };
@@ -75,7 +70,6 @@ mod tests {
             let organization = options.get_organization().unwrap();
             if organizations.contains(&organization.to_string()) {
                 Ok(OrganizationSelected {
-                    project_type: project_type_selected.project_type.clone(),
                     organization,
                     output_path: ".".into(),
                 })
@@ -86,7 +80,6 @@ mod tests {
 
         assert!(result.is_ok());
         let next_state = result.unwrap();
-        assert_eq!(next_state.project_type, ProjectType::CreateNew);
         assert_eq!(
             next_state.organization,
             "test-org".parse::<OrganizationId>().unwrap()
@@ -95,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_organization_selected_transition() {
-        let org_selected = OrganizationSelected {
+        let project_type_selected = ProjectTypeSelected {
             project_type: ProjectType::CreateNew,
             organization: "test-org".parse::<OrganizationId>().unwrap(),
             output_path: ".".into(),
@@ -109,8 +102,8 @@ mod tests {
             let use_case = options.project_use_case.clone().unwrap();
             Ok(UseCaseSelected {
                 output_path: ".".into(),
-                project_type: org_selected.project_type.clone(),
-                organization: org_selected.organization.clone(),
+                project_type: project_type_selected.project_type.clone(),
+                organization: project_type_selected.organization.clone(),
                 use_case,
             })
         };

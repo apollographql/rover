@@ -55,10 +55,6 @@ impl ProjectOrganizationOpt {
         if organizations.is_empty() {
             return Err(RoverError::new(anyhow!("No organizations available")));
         }
-        // if only 1 organization, return that organization
-        if organizations.len() == 1 {
-            return Ok(OrganizationId(organizations[0].id.to_string()));
-        }
         // otherwise, let user select from list of organizations
         let organization_names = organizations
             .iter()
