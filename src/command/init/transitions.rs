@@ -385,12 +385,11 @@ impl SchemaNamed {
 }
 
 impl CreationConfirmed {
-    fn populate_env_file(&self, api_key: String, graph_ref: GraphRef) -> io::Result<()> {
+    fn populate_env_file(&self, api_key: &str) -> io::Result<()> {
         let env_path = Utf8PathBuf::from(".env");
         let mut file = OpenOptions::new().write(true).open(&env_path)?;
 
         writeln!(file, "APOLLO_KEY={api_key}")?;
-        writeln!(file, "APOLLO_GRAPH_REF={graph_ref}")?;
         Ok(())
     }
 
@@ -503,7 +502,7 @@ impl CreationConfirmed {
         .await?;
 
         // Write api key and graph ref to .env
-        self.populate_env_file(api_key.clone(), graph_ref.clone())?;
+        self.populate_env_file(&api_key)?;
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
