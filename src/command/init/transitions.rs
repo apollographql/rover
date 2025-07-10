@@ -113,7 +113,7 @@ impl UserAuthenticated {
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
 /// ? Choose an action:
-/// > Create a new supergaph
+/// > Create a new supergraph
 /// > Add a subgraph to an existing supergraph
 impl Welcome {
     pub fn new() -> Self {
