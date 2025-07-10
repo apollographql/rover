@@ -312,7 +312,7 @@ impl ProjectNamed {
 
 impl GraphIdConfirmed {
     pub async fn confirm_schema_name(self, options: &SchemaNameOpt) -> RoverResult<SchemaNamed> {
-        let schema_name = options.get_or_prompt_schema_name(&self.use_case)?;
+        let schema_name = options.get_or_prompt_schema_name()?;
 
         Ok(SchemaNamed {
             output_path: self.output_path,

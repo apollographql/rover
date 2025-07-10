@@ -1,4 +1,3 @@
-use crate::command::init::options::ProjectUseCase;
 use crate::RoverResult;
 use clap::arg;
 use clap::Parser;
@@ -46,11 +45,7 @@ impl SchemaNameOpt {
         self.schema_name.clone()
     }
 
-    pub fn prompt_schema_name(&self, use_case: &ProjectUseCase) -> RoverResult<SchemaName> {
-        if *use_case != ProjectUseCase::Connectors {
-            return Ok(SchemaName("unused".to_string()));
-        }
-
+    pub fn prompt_schema_name(&self) -> RoverResult<SchemaName> {
         let default = self.suggest_default_name();
 
         loop {
@@ -77,13 +72,13 @@ impl SchemaNameOpt {
         "main".to_string()
     }
 
-    pub fn get_or_prompt_schema_name(&self, use_case: &ProjectUseCase) -> RoverResult<SchemaName> {
+    pub fn get_or_prompt_schema_name(&self) -> RoverResult<SchemaName> {
         // If a schema name was provided via command line, validate and use it
         if let Some(name) = self.get_schema_name() {
             return Ok(name);
         }
 
-        self.prompt_schema_name(use_case)
+        self.prompt_schema_name()
     }
 }
 
