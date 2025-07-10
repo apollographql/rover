@@ -21,7 +21,7 @@ impl ProjectUseCaseOpt {
             let use_cases = <ProjectUseCase as ValueEnum>::value_variants();
 
             let selection = Select::new()
-                .with_prompt(Style::Prompt.paint("? Select use case"))
+                .with_prompt(Style::Prompt.paint("? How would you like to get started"))
                 .items(use_cases)
                 .default(0)
                 .interact_on_opt(&Term::stderr())?;
@@ -48,13 +48,13 @@ pub enum ProjectUseCase {
     GraphQLTemplate,
 }
 
-const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
+const USE_CASE_DESCRIPTION: &str = "Build a GraphQL service with Apollo Server";
 
 impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectUseCase::*;
         let readable = match self {
-            Connectors => "Start a graph with one or more REST APIs",
+            Connectors => "Connect to REST services with Apollo Connectors",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
         };
         write!(f, "{readable}")

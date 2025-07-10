@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use std::string::String;
 
-use crate::command::init::helpers::{generate_project_created_message, get_command};
+use crate::command::init::helpers::generate_project_created_message;
 
 // Helper function to strip ANSI color codes
 fn strip_ansi_codes(s: &str) -> String {
@@ -19,50 +19,10 @@ fn strip_ansi_codes(s: &str) -> String {
 }
 
 #[test]
-fn test_get_command() {
-    let api_key = "test-api-key";
-    let graph_ref = "my-graph@main";
-
-    #[cfg(target_os = "windows")]
-    {
-        // Test Windows command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Windows command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Test Unix command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Unix command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
-}
-
-#[test]
 fn test_display_project_created_message_with_single_command() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![
-        Utf8PathBuf::from("supergraph.yaml"),
+        Utf8PathBuf::from("rover.yaml"),
         Utf8PathBuf::from("getting-started.md"),
     ];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
@@ -99,7 +59,7 @@ fn test_display_project_created_message_with_single_command() {
 #[test]
 fn test_display_project_created_message_with_multiple_commands() {
     let project_name = "my-graph".to_string();
-    let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
+    let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = &["npm install", "npm run build", "npm start"];
@@ -130,7 +90,7 @@ fn test_display_project_created_message_with_multiple_commands() {
 #[test]
 fn test_display_project_created_message_with_empty_command_array() {
     let project_name = "my-graph".to_string();
-    let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
+    let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = Some(Vec::new());
@@ -157,7 +117,7 @@ fn test_display_project_created_message_with_empty_command_array() {
 #[test]
 fn test_display_project_created_message_without_command() {
     let project_name = "my-graph".to_string();
-    let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
+    let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
@@ -213,8 +173,8 @@ fn test_display_project_created_message_with_empty_artifacts() {
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     // Should not contain the files section
     assert!(!plain_output.contains("Files created:"));
-    // Should not contain supergraph.yaml in the files section
-    assert!(!plain_output.contains("supergraph.yaml\n"));
+    // Should not contain rover.yaml in the files section
+    assert!(!plain_output.contains("rover.yaml\n"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
         "getting-started.md"
@@ -224,7 +184,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
 #[test]
 fn test_display_project_created_message_with_custom_start_point() {
     let project_name = "my-graph".to_string();
-    let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
+    let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;

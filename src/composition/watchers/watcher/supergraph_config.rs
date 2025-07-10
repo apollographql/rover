@@ -335,7 +335,7 @@ mod tests {
             ..Default::default()
         };
 
-        // Create a new supergraph config with 1 new and 1 old subgraph definitions.
+        // Start a new supergraph config with 1 new and 1 old subgraph definitions.
         let new_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
             ("subgraph_a".to_string(), subgraph_def.clone()),
             ("subgraph_c".to_string(), subgraph_def.clone()),
@@ -394,7 +394,7 @@ mod tests {
             ..Default::default()
         };
 
-        // Create a new supergraph config with 1 new and 1 old subgraph definitions.
+        // Start a new supergraph config with 1 new and 1 old subgraph definitions.
         let new_subgraph_defs: BTreeMap<String, SubgraphConfig> =
             BTreeMap::from([("subgraph_a".to_string(), new_subgraph_config.clone())]);
         let new = SupergraphConfigYaml {

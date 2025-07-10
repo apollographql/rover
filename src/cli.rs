@@ -43,7 +43,7 @@ Run the following command to authenticate with GraphOS:
 
     {}
 
-Once you're authenticated, create a new graph:
+Once you're authenticated, you can create a new supergraph or add a subgraph to an existing supergraph:
 
     {}
 

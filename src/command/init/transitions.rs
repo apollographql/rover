@@ -112,9 +112,9 @@ impl UserAuthenticated {
 /// Welcome! This command helps you initialize a federated graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
 ///
-/// ? Select option:
-/// > Create a new graph
-/// > Add a subgraph to an existing graph
+/// ? Choose an action:
+/// > Create a new supergraph
+/// > Add a subgraph to an existing supergraph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}
@@ -207,9 +207,9 @@ impl ProjectTypeSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Select use case:
-/// > Start a graph with one or more REST APIs
-/// > Start a graph with recommended libraries
+/// ? How would you like to get started:
+/// > Connect to REST services with Apollo Connectors
+/// > Build a GraphQL service with Apollo Server
 impl OrganizationSelected {
     pub fn select_use_case(
         self,
@@ -274,7 +274,7 @@ impl UseCaseSelected {
 /// PROMPT UX:
 /// =========
 ///
-/// ? Name your Graph:
+/// ? Name your supergraph:
 impl TemplateSelected {
     pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<ProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
@@ -336,7 +336,7 @@ impl GraphIdConfirmed {
 /// .idea/externalDependencies.xml
 /// getting-started.md
 /// router.yaml
-/// supergraph.yaml
+/// rover.yaml
 /// schema.graphql
 ///
 /// ? Proceed with creation? (y/n):
