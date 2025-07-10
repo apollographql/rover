@@ -128,6 +128,8 @@ impl InitTemplateOptions {
                 template.path
             )));
         }
+        // Add .env
+        files.insert(Utf8PathBuf::from(".env"), vec![]);
 
         Ok(SelectedTemplateState {
             template: template.clone(),
