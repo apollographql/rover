@@ -45,7 +45,7 @@ impl Config {
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
             Command::Whoami(command) => command.run(client_config).await,
-            Command::Auth2(command) => command.run().await,
+            Command::Auth2(command) => command.run(client_config.config).await,
         }
     }
 }

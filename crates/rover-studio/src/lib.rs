@@ -62,6 +62,13 @@ impl HttpStudioServiceLayer {
         if is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_static("true"));
         }
+
+        // assuming it's bearer token
+        let access_token = &credential.access_token.as_ref().unwrap().token;
+        let mut auth_header = HeaderValue::from_str(&format!("Bearer {}", access_token))?;
+        auth_header.set_sensitive(true);
+        headers.insert("Authorization", auth_header);
+
         let uri = Uri::from_str(url.as_ref())?;
         Ok(HttpStudioServiceLayer { headers, uri })
     }
@@ -135,6 +142,7 @@ mod tests {
         Credential {
             api_key: "api_key".to_string(),
             origin: CredentialOrigin::EnvVar,
+            access_token: None,
         }
     }
 

@@ -5,7 +5,7 @@ use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
 use camino::Utf8PathBuf as PathBuf;
-use rover_std::Fs;
+use rover_std::{print, Fs};
 use std::fmt;
 
 /// Collects configuration related to a profile.
@@ -24,6 +24,17 @@ pub struct LoadOpts {
 pub struct ProfileData {
     /// Apollo API Key
     pub api_key: Option<String>,
+    pub access_token: Option<AccessToken>
+}
+
+/// Represents an access token for Apollo services.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessToken {
+    /// The access token string
+    pub token: String,
+
+    /// The expiration time of the access token as a Unix timestamp
+    pub expires_at: u64,
 }
 
 /// Struct containing info about an API Key
@@ -34,6 +45,9 @@ pub struct Credential {
 
     /// The origin of the credential
     pub origin: CredentialOrigin,
+
+    /// Access token for Apollo services, if available
+    pub access_token: Option<AccessToken>,
 }
 
 /// Info about where the API key was retrieved
@@ -59,9 +73,56 @@ impl Profile {
     pub fn set_api_key(name: &str, config: &Config, api_key: &str) -> Result<(), HoustonProblem> {
         let data = ProfileData {
             api_key: Some(api_key.to_string()),
+            //access_token: Self::get_credential(name, config).ok().and_then(|cred| cred.access_token),
+            access_token: Self::get_access_token(name, config).ok().and_then(|token| token),
         };
         Profile::save(name, config, data)?;
         Ok(())
+    }
+
+    /// Writes an access token to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
+    pub fn set_access_token(
+        name: &str,
+        config: &Config,
+        token: String,
+        expires_at: u64,
+    ) -> Result<(), HoustonProblem> {
+        let access_token = AccessToken {
+            token,
+            expires_at,
+        };
+        let data = ProfileData {       
+            api_key: Self::get_api_key(name, config).unwrap_or(None),
+            access_token: Some(access_token),
+        };
+        Profile::save(name, config, data)?;
+        Ok(())
+    }
+
+    /// Returns an access token for interacting with Apollo services.
+    pub fn get_access_token(
+        name: &str,
+        config: &Config,
+    ) -> Result<Option<AccessToken>, HoustonProblem> {
+        let opts = LoadOpts { sensitive: true };
+        let profile = Profile::load(name, config, opts)?;
+        Ok(profile.sensitive.access_token)
+    }
+
+    /// Returns an access token for interacting with Apollo services.
+    pub fn get_api_key(
+        name: &str,
+        config: &Config,
+    ) -> Result<Option<String>, HoustonProblem> {
+        // If the API key is overridden in the config, return it directly otherwise load the profile
+        match &config.override_api_key {
+            Some(api_key) => Ok(Some(api_key.to_string())),
+            None => {
+                let opts = LoadOpts { sensitive: true };
+                let profile = Profile::load(name, config, opts)?;
+                Ok(Some(profile.sensitive.api_key)) 
+            }
+        }
     }
 
     /// Returns an API key for interacting with Apollo services.
@@ -75,6 +136,7 @@ impl Profile {
             Some(api_key) => Credential {
                 api_key: api_key.to_string(),
                 origin: CredentialOrigin::EnvVar,
+                access_token: Self::get_access_token(name, config)?,
             },
             None => {
                 let opts = LoadOpts { sensitive: true };
@@ -82,9 +144,20 @@ impl Profile {
                 Credential {
                     api_key: profile.sensitive.api_key,
                     origin: CredentialOrigin::ConfigFile(name.to_string()),
+                    access_token: profile.sensitive.access_token,
                 }
             }
         };
+
+        println!(
+            "Using profile {} with API key {} with Access Token {}",
+            name,
+            mask_key(&credential.api_key),
+            mask_key(&credential
+                .access_token
+                .as_ref()
+                .map_or("None".to_string(), |token| token.token.clone()))
+        );
 
         tracing::debug!("using API key {}", mask_key(&credential.api_key));
 
@@ -94,9 +167,12 @@ impl Profile {
     /// Saves configuration options for a specific profile to the file system,
     /// splitting sensitive information into a separate file.
     pub fn save(name: &str, config: &Config, data: ProfileData) -> Result<(), HoustonProblem> {
-        if let Some(api_key) = data.api_key {
-            Sensitive { api_key }.save(name, config)?;
+        Sensitive {
+            api_key: data.api_key.unwrap_or_default(),
+            access_token: data.access_token,
         }
+        .save(name, config)?;
+    
         Ok(())
     }
 

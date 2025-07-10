@@ -7,6 +7,11 @@ use tokio::sync::oneshot;
 use std::{ process::Command };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
+use config::Profile;
+use houston as config;
+
+
+
 // server stuff
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -20,7 +25,9 @@ use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use reqwest::Client;
 
-
+// response handling
+use serde::Deserialize;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{options::ProfileOpt, RoverOutput, RoverResult};
 
@@ -50,8 +57,15 @@ struct AuthConfig {
     token_url: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ResponseData {
+    // Define fields based on the expected JSON structure
+    access_token: Option<String>,
+    expires_in: Option<u64>,
+}
+
 impl Auth2{
-    pub async fn run(&self) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         let (verifier, challenge) = Self::generate_verifier_and_encoded_hash();
 
         let auth_config = AuthConfig {
@@ -79,7 +93,7 @@ impl Auth2{
             }
         }
 
-        Self::start_server(auth_config).await?;
+        Self::start_server(&self, auth_config, config).await?;
         
         Ok(RoverOutput::EmptySuccess)
     }
@@ -101,7 +115,7 @@ impl Auth2{
         (verifier, challenge)
     }  
 
-    async fn hello(req: Request<hyper::body::Incoming>, auth_config: AuthConfig) -> Result<Response<Full<Bytes>>, Infallible> {
+    async fn handle_callback(&self, req: Request<hyper::body::Incoming>, auth_config: AuthConfig, config: config::Config) -> Result<Response<Full<Bytes>>, Infallible> {
         if req.method() == Method::GET && req.uri().path() == "/callback" {
             // Handle the `/callback` route
             if let Some(query) = req.uri().query() {
@@ -125,8 +139,8 @@ impl Auth2{
                     {
                         Ok(response) => {
                             if response.status().is_success() {
+                                let _ = Self::handle_response_body(&self, response, config).await;
                                 println!("{}", Style::Success.paint("Authentication successful!"));
-                                //let body = response.text().await.unwrap_or_else(|_| "No response body".to_string());
                                 return Ok(Response::new(Full::from(Bytes::from("Authentication successful!"))));
                             } else {
                                 println!("Authentication request failed with status: {}", response.status());
@@ -148,7 +162,24 @@ impl Auth2{
         }
     }
 
-    async fn start_server(auth_config: AuthConfig) -> Result<(), anyhow::Error> {
+    async fn handle_response_body(&self, response: reqwest::Response, config: config::Config) {
+        match response.json::<ResponseData>().await {
+            Ok(json) => {                
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_else(|_| std::time::Duration::new(0, 0))
+                    .as_secs();
+                println!("Access Token: {}", json.access_token.as_deref().unwrap_or("No access token received"));
+                let _ = Profile::set_access_token(&self.profile.profile_name, &config, json.access_token.unwrap_or_default(), now + json.expires_in.unwrap_or(0)); 
+                let _ = Profile::get_credential(&self.profile.profile_name, &config);
+            }
+            Err(err) => {
+                eprintln!("Failed to parse response as JSON: {:?}", err);
+            }
+        }
+    }
+
+    async fn start_server(&self, auth_config: AuthConfig, config: config::Config) -> Result<(), anyhow::Error> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
         let listener = TcpListener::bind(addr).await?;
         println!("Server running on http://{}", addr);
@@ -160,7 +191,7 @@ impl Auth2{
         let (stream, _) = listener.accept().await?;
         let io = TokioIo::new(stream);
         let server = http1::Builder::new()
-            .serve_connection(io, service_fn(|req| Auth2::hello(req, auth_config.clone())));
+            .serve_connection(io, service_fn(|req| Auth2::handle_callback(&self, req, auth_config.clone(), config.clone())));
 
         let server_result = tokio::select! {
             result = server => {

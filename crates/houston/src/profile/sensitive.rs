@@ -1,4 +1,4 @@
-use crate::{profile::Profile, Config, HoustonProblem};
+use crate::{profile::{AccessToken, Profile}, Config, HoustonProblem};
 use rover_std::Fs;
 
 use std::fmt;
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Sensitive {
     pub api_key: String,
+    pub access_token: Option<AccessToken>,
 }
 
 impl Sensitive {

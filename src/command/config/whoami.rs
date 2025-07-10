@@ -34,7 +34,7 @@ impl WhoAmI {
         eprintln!("Checking identity of your API key against the registry.");
 
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
-            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
+            RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {  
                 RoverError::new(anyhow!(
                     "The API key at `{origin}` is invalid - {msg}.",
                     origin = self.get_origin(&client)
@@ -129,6 +129,7 @@ mod tests {
         config::Credential {
             origin: CredentialOrigin::EnvVar,
             api_key: "profile_credential_api_key".to_string(),
+            access_token: None
         }
     }
 

@@ -116,12 +116,19 @@ impl StudioClient {
         headers.insert("apollographql-client-version", client_version);
 
         let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
+        
         api_key.set_sensitive(true);
         headers.insert("x-api-key", api_key);
 
         if self.is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_str("true")?);
         }
+
+        // assuming it's bearer token
+        let access_token = &self.credential.access_token.as_ref().unwrap().token;
+        let mut auth_header = HeaderValue::from_str(&format!("Bearer {}", access_token))?;
+        auth_header.set_sensitive(true);
+        headers.insert("Authorization", auth_header);
 
         Ok(headers)
     }
