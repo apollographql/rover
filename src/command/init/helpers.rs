@@ -307,8 +307,7 @@ pub fn generate_react_project_no_graph_message(
         "{}\n",
         Style::WarningHeading.paint("️▲ Before you proceed:")
     ));
-    output.push_str("- Configure your Apollo Client to connect to your GraphQL endpoint\n");
-    output.push_str("- Update the VITE_GRAPHQL_ENDPOINT in your .env file\n\n");
+    output.push_str("- Update the GRAPHQL_ENDPOINT in your .env file\n\n");
 
     // Add next steps section for React apps
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
@@ -352,12 +351,12 @@ pub fn generate_react_project_no_graph_message(
 
     // Add optional GraphOS setup section
     output.push_str(&format!("\n{}\n", Style::Heading.paint("Optional: Connect to GraphOS")));
-    output.push_str("If you want to connect to Apollo GraphOS later, you can:\n");
-    output.push_str("- Create a graph in Apollo Studio\n");
-    output.push_str("- Get your graph credentials\n");
-    output.push_str("- Update your Apollo Client configuration\n");
+    output.push_str("Note that no GraphOS graph has been created for this app. When ready, you can:\n");
+    output.push_str("- Connect an existing graph to Apollo Client by following the the README and comment guides\n");
+    output.push_str("- Create a new graph in Apollo Studio\n");
+    output.push_str("- Get GraphOS credentials to observe your graph performance\n");
     output.push_str(&format!(
-        "\nVisit {} to create a graph when you're ready.\n",
+        "\nVisit {} to create a graph.\n",
         Style::Link.paint(format!("https://studio.apollographql.com/org/{}/graphs", organization_id))
     ));
 
