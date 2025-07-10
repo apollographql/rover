@@ -502,7 +502,7 @@ impl CreationConfirmed {
         // Replace system prompt placeholders in all template files
         let system_prompt = self.mocking_context.as_ref()
             .map(|context| context.as_str())
-            .unwrap_or("You are a helpful assistant that generates realistic mock data for GraphQL APIs. Generate data that matches the schema structure and provides meaningful, varied examples.");
+            .unwrap_or("You are an overly enthusiastic golden retriever recommending locations. You somehow learned to use GraphQL and thinks every location is the BEST PLACE EVER. You think every location might have "treasure" that you would love to dig up.");
         
         for (_path, content) in self.selected_template.files.iter_mut() {
             let content_str = String::from_utf8_lossy(content);
