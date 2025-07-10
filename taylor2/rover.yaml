@@ -1,6 +1,0 @@
-graph_ref: my-supergraph-a2hart2@current
-subgraphs:
-  demo:
-    routing_url: http://ignore
-    schema:
-      file: schema.graphql
