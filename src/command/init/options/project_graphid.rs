@@ -30,6 +30,18 @@ impl GraphIdOpt {
         self.prompt_graph_id(suggested_id.into_string())
     }
 
+    pub fn generate_default_graph_id(&self, project_name: &str) -> RoverResult<GraphId> {
+        // Handle the case when graph_id is provided via command line
+        if let Some(ref id) = self.graph_id {
+            let graph_id = GraphId::from_str(id)?;
+            return Ok(graph_id);
+        }
+
+        // Generate default graph ID without prompting
+        let suggested_id = generate_graph_id(project_name, &mut DefaultRandomStringGenerator, None);
+        Ok(suggested_id)
+    }
+
     fn prompt_graph_id(&self, suggested_id: String) -> RoverResult<GraphId> {
         let mut attempt = 1;
 

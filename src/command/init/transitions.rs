@@ -366,6 +366,23 @@ impl MockingConfigured {
 /// ? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes): [ana-test-3-wuqfnu]
 impl ProjectNamed {
     pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<GraphIdConfirmed> {
+        #[cfg(feature = "react-template")]
+        if self.use_case == ProjectUseCase::ReactTemplate {
+            // Skip graph ID prompt for React templates - generate default graph ID
+            let graph_id = options.generate_default_graph_id(&self.project_name.to_string())?;
+            return Ok(GraphIdConfirmed {
+                output_path: self.output_path,
+                project_type: self.project_type,
+                organization: self.organization,
+                use_case: self.use_case,
+                selected_template: self.selected_template,
+                project_name: self.project_name,
+                graph_id,
+                mocking_setup: self.mocking_setup,
+                mocking_context: self.mocking_context,
+            });
+        }
+
         let graph_id = options.get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(GraphIdConfirmed {
@@ -549,7 +566,7 @@ impl CreationConfirmed {
     }
 
     async fn create_federated_project_with_graph(
-        self,
+        mut self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<CreateProjectResult> {
