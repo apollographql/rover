@@ -394,6 +394,20 @@ impl SchemaNamed {
 }
 
 impl CreationConfirmed {
+    fn create_apollo_config_yaml(&self) -> io::Result<()> {
+        let apollo_config_path = self.output_path.join("apollo.config.yaml");
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&apollo_config_path)?;
+        writeln!(
+            file,
+            "rover:
+  supergraphConfig: rover.yaml"
+        )?;
+        Ok(())
+    }
+
     fn populate_env_file(&self, api_key: &str) -> io::Result<()> {
         let env_path = self.output_path.join(".env");
         let mut file = OpenOptions::new().append(true).open(&env_path)?;
@@ -484,6 +498,10 @@ impl CreationConfirmed {
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.selected_template.write_template(&self.output_path)?;
+
+        if self.config.use_case == ProjectUseCase::Connectors {
+            self.create_apollo_config_yaml()?;
+        }
 
         let routing_url = self.selected_template.template.routing_url.clone();
         let federation_version = self.selected_template.template.federation_version.clone();
