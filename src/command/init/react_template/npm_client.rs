@@ -21,6 +21,7 @@ struct DistTags {
 pub struct DependencyVersions {
     pub react: String,
     pub react_dom: String,
+    pub react_router_dom: String,
     pub apollo_client: String,
     pub graphql: String,
     pub vite: String,
@@ -42,6 +43,7 @@ impl DependencyVersions {
         Self {
             react: "^18.2.0".to_string(),
             react_dom: "^18.2.0".to_string(),
+            react_router_dom: "^6.8.0".to_string(),
             apollo_client: "^3.8.0".to_string(),
             graphql: "^16.8.0".to_string(),
             vite: "^5.0.0".to_string(),
@@ -96,6 +98,7 @@ impl SafeNpmClient {
         let packages = vec![
             "react",
             "react-dom",
+            "react-router-dom",
             "@apollo/client",
             "graphql",
             "vite",
@@ -126,6 +129,7 @@ impl SafeNpmClient {
                 match packages[i] {
                     "react" => deps.react = version_str,
                     "react-dom" => deps.react_dom = version_str,
+                    "react-router-dom" => deps.react_router_dom = version_str,
                     "@apollo/client" => deps.apollo_client = version_str,
                     "graphql" => deps.graphql = version_str,
                     "vite" => deps.vite = version_str,

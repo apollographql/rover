@@ -376,6 +376,10 @@ impl ProjectNamed {
             selected_template: self.selected_template,
             project_name: self.project_name,
             graph_id,
+            #[cfg(feature = "react-template")]
+            mocking_setup: self.mocking_setup,
+            #[cfg(feature = "react-template")]
+            mocking_context: self.mocking_context,
         })
     }
 }
@@ -422,6 +426,10 @@ impl GraphIdConfirmed {
                         selected_template: self.selected_template,
                         output_path: self.output_path,
                         skip_graph_creation: true,
+                        #[cfg(feature = "react-template")]
+                        mocking_setup: self.mocking_setup,
+                        #[cfg(feature = "react-template")]
+                        mocking_context: self.mocking_context,
                     }));
                 }
                 
@@ -432,6 +440,10 @@ impl GraphIdConfirmed {
                     output_path: self.output_path,
                     #[cfg(feature = "react-template")]
                     skip_graph_creation: false,
+                    #[cfg(feature = "react-template")]
+                    mocking_setup: self.mocking_setup,
+                    #[cfg(feature = "react-template")]
+                    mocking_context: self.mocking_context,
                 }))
             }
             Ok(false) => {
@@ -469,6 +481,24 @@ impl CreationConfirmed {
     }
 
     #[cfg(feature = "react-template")]
+    fn replace_system_prompt_in_template(&mut self) -> RoverResult<()> {
+        // Replace system prompt placeholders in all template files
+        let system_prompt = self.mocking_context.as_ref()
+            .map(|context| context.as_str())
+            .unwrap_or("You are a helpful assistant that generates realistic mock data for GraphQL APIs. Generate data that matches the schema structure and provides meaningful, varied examples.");
+        
+        for (_path, content) in self.selected_template.files.iter_mut() {
+            let content_str = String::from_utf8_lossy(content);
+            let updated_content = content_str
+                .replace("{{SYSTEM_PROMPT}}", system_prompt);
+            
+            *content = updated_content.into_bytes();
+        }
+        
+        Ok(())
+    }
+
+    #[cfg(feature = "react-template")]
     async fn update_template_versions(&mut self) -> RoverResult<()> {
         use crate::command::init::react_template::SafeNpmClient;
         
@@ -482,6 +512,7 @@ impl CreationConfirmed {
             let updated_content = content_str
                 .replace("{{REACT_VERSION}}", &deps.react)
                 .replace("{{REACT_DOM_VERSION}}", &deps.react_dom)
+                .replace("{{REACT_ROUTER_DOM_VERSION}}", &deps.react_router_dom)
                 .replace("{{APOLLO_CLIENT_VERSION}}", &deps.apollo_client)
                 .replace("{{GRAPHQL_VERSION}}", &deps.graphql)
                 .replace("{{VITE_VERSION}}", &deps.vite)
@@ -680,6 +711,7 @@ impl CreationConfirmed {
         // Fetch latest npm versions and update template files
         self.update_template_versions().await?;
         self.replace_project_name_in_template()?;
+        self.replace_system_prompt_in_template()?;
         self.selected_template.write_template(&self.output_path)?;
         
         let artifacts = self.selected_template.list_files()?;
