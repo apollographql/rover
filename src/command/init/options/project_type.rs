@@ -51,7 +51,7 @@ impl Display for ProjectType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectType::*;
         let readable = match self {
-            CreateNew => "Start a new supergraph",
+            CreateNew => "Create a new supergaph",
             AddSubgraph => "Add a subgraph to an existing supergraph",
         };
         write!(f, "{readable}")
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_display_trait_for_create_new() {
         let project_type = ProjectType::CreateNew;
-        assert_eq!(project_type.to_string(), "Start a new supergraph");
+        assert_eq!(project_type.to_string(), "Create a new supergaph");
     }
 
     #[test]

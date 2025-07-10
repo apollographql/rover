@@ -407,7 +407,7 @@ mod tests {
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
     }
-    
+
     #[test]
     fn test_multiple_deep_nested_file() -> io::Result<()> {
         let temp_dir = tempdir()?;
