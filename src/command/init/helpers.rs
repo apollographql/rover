@@ -59,15 +59,15 @@ pub fn generate_project_created_message(
             api_key
         ))
     ));
-    output.push('\n');
 
-    // Add warning section
+    output.push('\n');
+    output.push('\n');
     output.push_str(&format!(
-        "{}\n",
-        Style::WarningHeading.paint("️▲ Before you proceed:")
+        "Writing {} and {} to .env\n",
+        Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+        Style::GraphRef.paint("APOLLO_API_KEY"),
     ));
-    output
-        .push_str("- Store your graph API key securely, you won't be able to access it again!\n\n");
+    output.push('\n');
 
     // Add next steps section
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));

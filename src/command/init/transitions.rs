@@ -1,4 +1,9 @@
-use std::{env, fs::read_dir, path::PathBuf};
+use std::{
+    env,
+    fs::{read_dir, OpenOptions},
+    io::{self, Write},
+    path::PathBuf,
+};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
@@ -132,6 +137,7 @@ impl Welcome {
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
+
         if let Ok(mut dir) = read_dir(&output_path) {
             if dir.next().is_some() {
                 return Err(RoverError::new(anyhow!(
@@ -379,6 +385,15 @@ impl SchemaNamed {
 }
 
 impl CreationConfirmed {
+    fn populate_env_file(&self, api_key: String, graph_ref: GraphRef) -> io::Result<()> {
+        let env_path = Utf8PathBuf::from(".env");
+        let mut file = OpenOptions::new().write(true).open(&env_path)?;
+
+        writeln!(file, "APOLLO_KEY={api_key}")?;
+        writeln!(file, "APOLLO_GRAPH_REF={graph_ref}")?;
+        Ok(())
+    }
+
     pub async fn create_project(
         self,
         client_config: &StudioClientConfig,
@@ -486,6 +501,9 @@ impl CreationConfirmed {
             self.config.project_name.to_string(),
         )
         .await?;
+
+        // Write api key and graph ref to .env
+        self.populate_env_file(api_key.clone(), graph_ref.clone())?;
 
         spinner.success("Successfully created files and generated GraphOS credentials.");
 
