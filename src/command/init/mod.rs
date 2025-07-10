@@ -98,7 +98,11 @@ impl Init {
             .check_authentication(&client_config, &self.profile)
             .await?;
 
-        let project_type_selected = welcome.select_project_type(&self.project_type, &self.path)?;
+        let project_type_selected = welcome
+            .get_directory(&self.path)?
+            .select_organization(&self.organization, &self.profile, &client_config)
+            .await?
+            .select_project_type(&self.project_type)?;
 
         // Early return for AddSubgraph case
         if project_type_selected.project_type == ProjectType::AddSubgraph {
@@ -107,14 +111,11 @@ impl Init {
         }
 
         // Handle new project creation flow
-        let use_case_selected = match project_type_selected
-            .select_organization(&self.organization, &self.profile, &client_config)
-            .await?
-            .select_use_case(&self.project_use_case)?
-        {
-            Some(use_case) => use_case,
-            None => return Ok(RoverOutput::EmptySuccess),
-        };
+        let use_case_selected =
+            match project_type_selected.select_use_case(&self.project_use_case)? {
+                Some(use_case) => use_case,
+                None => return Ok(RoverOutput::EmptySuccess),
+            };
 
         let creation_confirmed = match use_case_selected
             .select_template(&self.project_template)
@@ -188,7 +189,15 @@ impl Init {
                             let welcome = UserAuthenticated::new()
                                 .check_authentication(&client_config, &self.profile)
                                 .await?;
-                            welcome.select_project_type(&self.project_type, &self.path)?;
+                            welcome
+                                .get_directory(&self.path)?
+                                .select_organization(
+                                    &self.organization,
+                                    &self.profile,
+                                    &client_config,
+                                )
+                                .await?
+                                .select_project_type(&self.project_type)?;
                             return Ok(RoverOutput::EmptySuccess);
                         }
                         _ => {

@@ -111,23 +111,17 @@ impl UserAuthenticated {
 ///
 /// Welcome! This command helps you initialize a federated graph in your current directory.
 /// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
-///
-/// ? Choose an action:
-/// > Create a new supergraph
-/// > Add a subgraph to an existing supergraph
 impl Welcome {
     pub fn new() -> Self {
         Welcome {}
     }
 
-    pub fn select_project_type(
+    pub fn get_directory(
         self,
-        options: &ProjectTypeOpt,
         override_install_path: &Option<PathBuf>,
-    ) -> RoverResult<ProjectTypeSelected> {
+    ) -> RoverResult<ValidDirectorySelected> {
         display_welcome_message();
-
-        // Check if directory is empty before proceeding
+        
         let current_dir = env::current_dir()?;
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
@@ -146,16 +140,7 @@ impl Welcome {
                 )));
             }
         }
-
-        let project_type = match options.get_project_type() {
-            Some(ptype) => ptype,
-            None => options.prompt_project_type()?,
-        };
-
-        Ok(ProjectTypeSelected {
-            project_type,
-            output_path,
-        })
+        Ok(ValidDirectorySelected { output_path })
     }
 }
 
@@ -166,7 +151,7 @@ impl Welcome {
 /// > Org1
 /// > Org2
 /// > Org3
-impl ProjectTypeSelected {
+impl ValidDirectorySelected {
     pub async fn select_organization(
         self,
         options: &ProjectOrganizationOpt,
@@ -198,8 +183,31 @@ impl ProjectTypeSelected {
         let organization = options.get_or_prompt_organization(&organizations)?;
         Ok(OrganizationSelected {
             output_path: self.output_path,
-            project_type: self.project_type,
             organization,
+        })
+    }
+}
+
+/// PROMPT UX:
+/// ==========
+///
+/// Welcome! This command helps you initialize a federated graph in your current directory.
+/// To learn more about init, run `rover init -h` or visit https://www.apollographql.com/docs/rover/commands/init
+///
+/// ? Choose an action:
+/// > Create a new supergraph
+/// > Add a subgraph to an existing supergraph
+impl OrganizationSelected {
+    pub fn select_project_type(self, options: &ProjectTypeOpt) -> RoverResult<ProjectTypeSelected> {
+        let project_type = match options.get_project_type() {
+            Some(ptype) => ptype,
+            None => options.prompt_project_type()?,
+        };
+
+        Ok(ProjectTypeSelected {
+            project_type,
+            output_path: self.output_path,
+            organization: self.organization,
         })
     }
 }
@@ -210,7 +218,8 @@ impl ProjectTypeSelected {
 /// ? How would you like to get started:
 /// > Connect to REST services with Apollo Connectors
 /// > Build a GraphQL service with Apollo Server
-impl OrganizationSelected {
+// impl ProjectTypeSelected {
+impl ProjectTypeSelected {
     pub fn select_use_case(
         self,
         options: &ProjectUseCaseOpt,
