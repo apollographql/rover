@@ -371,7 +371,7 @@ mod tests {
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
-        let actual_file = File::open(temp_dir.path().join("rover.yam."))?;
+        let actual_file = File::open(temp_dir.path().join("rover.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
@@ -403,7 +403,7 @@ mod tests {
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
-        let actual_file = File::open(temp_dir.path().join("rover.yam."))?;
+        let actual_file = File::open(temp_dir.path().join("rover.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
     }
@@ -439,7 +439,7 @@ mod tests {
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
-        let actual_file = File::open(temp_dir.path().join("rover.yam."))?;
+        let actual_file = File::open(temp_dir.path().join("rover.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
@@ -483,7 +483,7 @@ mod tests {
         supergraph_builder.build_and_write().unwrap();
         let expected = supergraph_builder.build_supergraph().unwrap();
 
-        let actual_file = File::open(temp_dir.path().join("rover.yam."))?;
+        let actual_file = File::open(temp_dir.path().join("rover.yaml"))?;
         let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
