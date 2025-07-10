@@ -81,7 +81,7 @@ pub struct GraphIdConfirmed {
     pub graph_id: GraphId,
     pub selected_template: SelectedTemplateState,
     #[cfg(feature = "react-template")]
-    pub mocking_setup: Option<crate::command::init::options::project_mocking_setup::MockingSetup>,
+    pub mocking_setup: Option<crate::command::init::options::MockingSetup>,
     #[cfg(feature = "react-template")]
     pub mocking_context: Option<String>,
 }
@@ -94,7 +94,7 @@ pub struct CreationConfirmed {
     #[cfg(feature = "react-template")]
     pub skip_graph_creation: bool,
     #[cfg(feature = "react-template")]
-    pub mocking_setup: Option<crate::command::init::options::project_mocking_setup::MockingSetup>,
+    pub mocking_setup: Option<crate::command::init::options::MockingSetup>,
     #[cfg(feature = "react-template")]
     pub mocking_context: Option<String>,
 }
