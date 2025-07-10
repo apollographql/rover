@@ -48,13 +48,13 @@ pub enum ProjectUseCase {
     GraphQLTemplate,
 }
 
-const USE_CASE_DESCRIPTION: &str = "Create a new GraphQL API with resolvers and Apollo libraries";
+const USE_CASE_DESCRIPTION: &str = "Build a GraphQL service with Apollo Server";
 
 impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectUseCase::*;
         let readable = match self {
-            Connectors => "Connect existing REST services using Apollo Connectors",
+            Connectors => "Connect to REST services with Apollo Connectors",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
         };
         write!(f, "{readable}")

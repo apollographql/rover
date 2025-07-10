@@ -208,8 +208,8 @@ impl ProjectTypeSelected {
 /// =========
 ///
 /// ? How would you like to get started:
-/// > Connect existing REST services using Apollo Connectors
-/// > Create a new GraphQL API with resolvers and Apollo libraries
+/// > Connect to REST services with Apollo Connectors
+/// > Build a GraphQL service with Apollo Server
 impl OrganizationSelected {
     pub fn select_use_case(
         self,
