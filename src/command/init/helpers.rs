@@ -37,9 +37,9 @@ pub fn generate_project_created_message(
     println!();
 
     let mut output = String::new();
-    output.push_str(&format!(
-        "\nYou can view your graph in GraphOS Studio by visiting the following link:\n\n"
-    ));
+    output.push_str(
+        "\nYou can view your graph in GraphOS Studio by visiting the following link:\n\n",
+    );
     output.push_str(&hyperlink(&format!(
         "https://studio.apollographql.com/graph/{}/variant/{}/home",
         graph_ref.name, graph_ref.variant

@@ -388,9 +388,7 @@ impl CreationConfirmed {
     fn populate_env_file(&self, api_key: &str) -> io::Result<()> {
         let env_path = self.output_path.join(".env");
         let mut file = OpenOptions::new()
-            .write(true)
             .append(true)
-            .create(true)
             .open(&env_path)?;
 
         writeln!(file, "APOLLO_KEY={api_key}")?;
