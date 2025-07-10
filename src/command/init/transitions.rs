@@ -239,7 +239,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        let repo_ref = "release/v3-beta";
+        let repo_ref = "taylor/update-schema-name";
         let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
