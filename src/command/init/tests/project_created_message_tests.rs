@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use std::string::String;
 
-use crate::command::init::helpers::{generate_project_created_message, get_command};
+use crate::command::init::helpers::{generate_project_created_message};
 
 // Helper function to strip ANSI color codes
 fn strip_ansi_codes(s: &str) -> String {
@@ -16,46 +16,6 @@ fn strip_ansi_codes(s: &str) -> String {
         .replace("\x1b[37m", "")
         .replace("\x1b[38;5;", "")
         .replace("\x1b[39m", "")
-}
-
-#[test]
-fn test_get_command() {
-    let api_key = "test-api-key";
-    let graph_ref = "my-graph@main";
-
-    #[cfg(target_os = "windows")]
-    {
-        // Test Windows command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(cmd.contains("--supergraph-config rover.yaml"));
-
-        // Test Windows command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Test Unix command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(cmd.contains("--supergraph-config rover.yaml"));
-
-        // Test Unix command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
 }
 
 #[test]

@@ -379,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deep_nested_file() -> io::Result<()> {
+    fn test_deep_nested_file() -> io::Result<(), io::Error> {
         let temp_dir = tempdir()?;
         let path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
 
