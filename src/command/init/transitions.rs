@@ -121,7 +121,7 @@ impl Welcome {
         override_install_path: &Option<PathBuf>,
     ) -> RoverResult<ValidDirectorySelected> {
         display_welcome_message();
-        
+
         let current_dir = env::current_dir()?;
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
