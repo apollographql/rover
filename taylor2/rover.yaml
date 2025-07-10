@@ -1,0 +1,6 @@
+graph_ref: my-supergraph-9tu41bd@current
+subgraphs:
+  main:
+    routing_url: http://ignore
+    schema:
+      file: schema.graphql
