@@ -377,7 +377,9 @@ pub fn display_project_created_message(
     start_point_file: String,
     print_depth: Option<u8>,
     is_react_template: bool,
+    #[cfg_attr(not(feature = "react-template"), allow(unused_variables))]
     organization_id: Option<&str>,
+    #[cfg_attr(not(feature = "react-template"), allow(unused_variables))]
     graph_created: bool,
 ) {
     let message = if is_react_template {

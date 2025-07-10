@@ -549,7 +549,7 @@ impl CreationConfirmed {
     }
 
     async fn create_federated_project_with_graph(
-        mut self,
+        self,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<CreateProjectResult> {
