@@ -181,10 +181,7 @@ fn test_display_project_created_message_with_custom_start_point() {
     let plain_output = strip_ansi_codes(&output);
 
     // Should contain the custom start point file
-    assert!(plain_output.contains(&format!(
-        "For more information, open '{}'",
-        "readme.md"
-    )));
+    assert!(plain_output.contains(&format!("For more information, open '{}'", "readme.md")));
     // Should not contain the default start point file
     assert!(!plain_output.contains("For more information, open 'getting-started.md'"));
 }
