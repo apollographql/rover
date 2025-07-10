@@ -94,6 +94,7 @@ pub struct CreationConfirmed {
     #[cfg(feature = "react-template")]
     pub skip_graph_creation: bool,
     #[cfg(feature = "react-template")]
+    #[allow(dead_code)]
     pub mocking_setup: Option<crate::command::init::options::MockingSetup>,
     #[cfg(feature = "react-template")]
     pub mocking_context: Option<String>,
