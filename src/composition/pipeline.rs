@@ -311,6 +311,10 @@ impl CompositionPipeline<state::Run> {
         Ok(runner)
     }
 
+    pub(crate) fn graph_ref(&self) -> Option<&GraphRef> {
+        self.state.resolver.graph_ref()
+    }
+
     #[tracing::instrument(skip_all)]
     async fn generate_lazy_and_fully_resolved_supergraph_configs(
         &self,

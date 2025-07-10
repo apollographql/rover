@@ -311,6 +311,10 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
         .await;
         Ok(resolved_supergraph_config)
     }
+
+    pub(crate) fn graph_ref(&self) -> Option<&GraphRef> {
+        self.state.graph_ref.as_ref()
+    }
 }
 
 /// Object that describes how a default subgraph for composition should be retrieved
