@@ -5,7 +5,7 @@ use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
 use camino::Utf8PathBuf as PathBuf;
-use rover_std::{print, Fs};
+use rover_std::{Fs};
 use std::fmt;
 
 /// Collects configuration related to a profile.

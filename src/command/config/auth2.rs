@@ -76,8 +76,11 @@ impl Auth2{
             challenge: challenge.clone(),
             token_url: "http://localhost:8080/token".to_string(),
         };
+
+        //let login_url = "https://apollo-auth.netlify.app/login?redirect=".to_string();
+        let login_url = "";
         
-        let url = format!("{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256", auth_config.authorize_url, auth_config.client_id, auth_config.redirect_uri, auth_config.challenge);
+        let url = format!("{}{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256", login_url, auth_config.authorize_url, auth_config.client_id, auth_config.redirect_uri, auth_config.challenge);
 
         // Attempt to open the URL in the default web browser
         let result = Command::new("open")
@@ -141,7 +144,15 @@ impl Auth2{
                             if response.status().is_success() {
                                 let _ = Self::handle_response_body(&self, response, config).await;
                                 println!("{}", Style::Success.paint("Authentication successful!"));
-                                return Ok(Response::new(Full::from(Bytes::from("Authentication successful!"))));
+                                
+                                // Redirect to a success page
+                                let success_url = "https://apollo-auth.netlify.app/status?code=success"; // Replace with your desired URL
+                                let response = Response::builder()
+                                    .status(302)
+                                    .header("Location", success_url) 
+                                    .body(Full::from(Bytes::new())) 
+                                    .unwrap();
+                                return Ok(response);
                             } else {
                                 println!("Authentication request failed with status: {}", response.status());
                                 return Ok(Response::new(Full::from(Bytes::from("Authentication request failed!"))));
