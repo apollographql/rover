@@ -22,7 +22,6 @@ pub fn generate_project_created_message(
     project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: String,
     commands: Option<Vec<String>>,
     start_point_file: String,
     print_depth: Option<u8>,
@@ -38,33 +37,19 @@ pub fn generate_project_created_message(
     println!();
 
     let mut output = String::new();
-    // Add credentials section
-    output.push_str(&format!(
-        "{}\n",
-        Style::Heading.paint("GraphOS credentials for your graph")
-    ));
-    output.push_str(&format!(
-        "{}\n",
-        Style::Success.paint(format!(
-            "{}={} (Formatted graph-id@variant, references a graph in the Apollo GraphOS platform)",
-            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
-            graph_ref
-        ))
-    ));
-    output.push_str(&format!(
-        "{}\n",
-        Style::Success.paint(format!(
-            "{}={} (This is your graph's API key)",
-            Style::Command.paint("APOLLO_KEY"),
-            api_key
-        ))
-    ));
-    output.push('\n');
+    output.push_str(
+        "\nYou can view your graph in GraphOS Studio by visiting the following link:\n\n",
+    );
+    output.push_str(&hyperlink(&format!(
+        "https://studio.apollographql.com/graph/{}/variant/{}/home",
+        graph_ref.name, graph_ref.variant
+    )));
+    output.push_str("\n\n");
 
     output.push_str("Your GraphOS credentials can be find in your `.env` file.\n\n");
 
     // Add next steps section
-    output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
+    output.push_str(&format!("{}\n", Style::Heading.paint("Next steps\n")));
     let dev_command = "rover dev".to_string();
 
     if let Some(commands) = commands {
@@ -102,7 +87,7 @@ pub fn generate_project_created_message(
     }
 
     output.push_str(&format!(
-        "\nFor more information, check out '{start_point_file}'.\n\n"
+        "\nFor more information, open '{start_point_file}'.\n\n"
     ));
 
     output
@@ -112,7 +97,6 @@ pub fn display_project_created_message(
     project_name: String,
     artifacts: &[Utf8PathBuf],
     graph_ref: &GraphRef,
-    api_key: String,
     commands: Option<Vec<String>>,
     start_point_file: String,
     print_depth: Option<u8>,
@@ -121,7 +105,6 @@ pub fn display_project_created_message(
         project_name,
         artifacts,
         graph_ref,
-        api_key,
         commands,
         start_point_file,
         print_depth,

@@ -395,8 +395,8 @@ impl SchemaNamed {
 
 impl CreationConfirmed {
     fn populate_env_file(&self, api_key: &str) -> io::Result<()> {
-        let env_path = Utf8PathBuf::from(".env");
-        let mut file = OpenOptions::new().write(true).open(&env_path)?;
+        let env_path = self.output_path.join(".env");
+        let mut file = OpenOptions::new().append(true).open(&env_path)?;
 
         writeln!(file, "APOLLO_KEY={api_key}")?;
         Ok(())
@@ -408,7 +408,7 @@ impl CreationConfirmed {
         profile: &ProfileOpt,
     ) -> RoverResult<CreateProjectResult> {
         println!();
-        let spinner = Spinner::new("Creating files and generating GraphOS credentials...");
+        let mut spinner = Spinner::new("Registering graph in GraphOS...");
         let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
             Err(_) => {
@@ -472,10 +472,14 @@ impl CreationConfirmed {
             }
         };
 
+        spinner.success("Graph registered in GraphOS.");
+
         let graph_ref = GraphRef {
             name: create_graph_response.id.clone(),
             variant: DEFAULT_VARIANT.to_string(),
         };
+
+        spinner = Spinner::new("Writing files to directory...");
 
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
@@ -495,11 +499,17 @@ impl CreationConfirmed {
 
         let artifacts = self.selected_template.list_files()?;
 
+        spinner.success("Files written to directory.");
+        spinner = Spinner::new("Publishing schema to GraphOS...");
+
         let subgraphs = supergraph.generate_subgraphs()?;
 
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
         update_variant_federation_version(&client, &graph_ref, Some(federation_version)).await?;
+
+        spinner.success("Schema published to GraphOS.");
+        spinner = Spinner::new("Creating GraphOS credentials...");
 
         // Create a new API key for the graph first
         let api_key = create_api_key(
@@ -513,12 +523,11 @@ impl CreationConfirmed {
         // Write api key and graph ref to .env
         self.populate_env_file(&api_key)?;
 
-        spinner.success("Successfully created files and generated GraphOS credentials.");
+        spinner.success("GraphOS credentials created.");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
             artifacts,
-            api_key,
             graph_ref,
             template: self.selected_template.template,
         }))
@@ -531,7 +540,6 @@ impl ProjectCreated {
             self.config.project_name.to_string(),
             &self.artifacts,
             &self.graph_ref,
-            self.api_key.to_string(),
             self.template.commands,
             self.template.start_point_file,
             self.template.print_depth,
