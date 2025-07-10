@@ -85,7 +85,7 @@ mod tests {
         // Name starting with non-alphabetic
         assert_eq!(
             generate_graph_id("123My Supergraph", &mut generator, None),
-            "my-api-teststr".parse::<GraphId>().unwrap()
+            "my-supergraph-teststr".parse::<GraphId>().unwrap()
         );
 
         // Empty string
