@@ -475,7 +475,7 @@ impl CreationConfirmed {
         };
 
         spinner = Spinner::new("Writing files to directory...");
-        
+
         // Write the template files without asking for confirmation again
         // (confirmation was done in the previous state)
         self.selected_template.write_template(&self.output_path)?;
@@ -493,7 +493,7 @@ impl CreationConfirmed {
         supergraph.build_and_write()?;
 
         let artifacts = self.selected_template.list_files()?;
-        
+
         spinner.success("Files written to directory.");
         spinner = Spinner::new("Publishing schema to GraphOS...");
 
@@ -513,7 +513,7 @@ impl CreationConfirmed {
             self.config.graph_id.to_string(),
             self.config.project_name.to_string(),
         )
-        .await?;    
+        .await?;
 
         // Write api key and graph ref to .env
         self.populate_env_file(&api_key)?;
@@ -536,7 +536,6 @@ impl ProjectCreated {
             self.config.project_name.to_string(),
             &self.artifacts,
             &self.graph_ref,
-            self.api_key.to_string(),
             self.template.commands,
             self.template.start_point_file,
             self.template.print_depth,

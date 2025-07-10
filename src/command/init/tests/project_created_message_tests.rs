@@ -26,7 +26,6 @@ fn test_display_project_created_message_with_single_command() {
         Utf8PathBuf::from("getting-started.md"),
     ];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = &["npm ci"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
     let start_point_file = "getting-started.md".to_string();
@@ -35,7 +34,6 @@ fn test_display_project_created_message_with_single_command() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
@@ -43,8 +41,6 @@ fn test_display_project_created_message_with_single_command() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
-    assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("1) Start the subgraph server by running the following command:"));
     assert!(plain_output.contains("npm ci"));
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
@@ -60,7 +56,6 @@ fn test_display_project_created_message_with_multiple_commands() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = &["npm install", "npm run build", "npm start"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
     let start_point_file = "getting-started.md".to_string();
@@ -69,7 +64,6 @@ fn test_display_project_created_message_with_multiple_commands() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
@@ -91,7 +85,6 @@ fn test_display_project_created_message_with_empty_command_array() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = Some(Vec::new());
     let start_point_file = "getting-started.md".to_string();
 
@@ -99,7 +92,6 @@ fn test_display_project_created_message_with_empty_command_array() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
@@ -118,7 +110,6 @@ fn test_display_project_created_message_without_command() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "getting-started.md".to_string();
 
@@ -126,7 +117,6 @@ fn test_display_project_created_message_without_command() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
@@ -134,8 +124,6 @@ fn test_display_project_created_message_without_command() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
-    assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     // Should not contain any command-specific text
@@ -151,7 +139,6 @@ fn test_display_project_created_message_with_empty_artifacts() {
     let project_name = "my-graph".to_string();
     let artifacts: Vec<Utf8PathBuf> = vec![];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "getting-started.md".to_string();
 
@@ -159,16 +146,12 @@ fn test_display_project_created_message_with_empty_artifacts() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
     );
     let plain_output = strip_ansi_codes(&output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
-    assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     // Should not contain the files section
     assert!(!plain_output.contains("Files created:"));
     // Should not contain rover.yaml in the files section
@@ -184,7 +167,6 @@ fn test_display_project_created_message_with_custom_start_point() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("rover.yaml")];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
-    let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "readme.md".to_string();
 
@@ -192,16 +174,12 @@ fn test_display_project_created_message_with_custom_start_point() {
         project_name,
         &artifacts,
         &graph_ref,
-        api_key,
         commands,
         start_point_file,
         None,
     );
     let plain_output = strip_ansi_codes(&output);
 
-    // Test that the output contains expected content
-    assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
-    assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     // Should contain the custom start point file
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
