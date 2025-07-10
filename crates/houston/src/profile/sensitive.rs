@@ -1,4 +1,7 @@
-use crate::{profile::{AccessToken, Profile}, Config, HoustonProblem};
+use crate::{
+    profile::{AccessToken, Profile},
+    Config, HoustonProblem,
+};
 use rover_std::Fs;
 
 use std::fmt;

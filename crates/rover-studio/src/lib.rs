@@ -65,7 +65,7 @@ impl HttpStudioServiceLayer {
 
         // assuming it's bearer token
         let access_token = &credential.access_token.as_ref().unwrap().token;
-        let mut auth_header = HeaderValue::from_str(&format!("Bearer {}", access_token))?;
+        let mut auth_header = HeaderValue::from_str(&format!("Bearer {access_token}"))?;
         auth_header.set_sensitive(true);
         headers.insert("Authorization", auth_header);
 

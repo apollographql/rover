@@ -5,7 +5,7 @@ use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
 use camino::Utf8PathBuf as PathBuf;
-use rover_std::{Fs};
+use rover_std::Fs;
 use std::fmt;
 
 /// Collects configuration related to a profile.
@@ -24,7 +24,7 @@ pub struct LoadOpts {
 pub struct ProfileData {
     /// Apollo API Key
     pub api_key: Option<String>,
-    pub access_token: Option<AccessToken>
+    pub access_token: Option<AccessToken>,
 }
 
 /// Represents an access token for Apollo services.
@@ -74,7 +74,9 @@ impl Profile {
         let data = ProfileData {
             api_key: Some(api_key.to_string()),
             //access_token: Self::get_credential(name, config).ok().and_then(|cred| cred.access_token),
-            access_token: Self::get_access_token(name, config).ok().and_then(|token| token),
+            access_token: Self::get_access_token(name, config)
+                .ok()
+                .and_then(|token| token),
         };
         Profile::save(name, config, data)?;
         Ok(())
@@ -87,11 +89,8 @@ impl Profile {
         token: String,
         expires_at: u64,
     ) -> Result<(), HoustonProblem> {
-        let access_token = AccessToken {
-            token,
-            expires_at,
-        };
-        let data = ProfileData {       
+        let access_token = AccessToken { token, expires_at };
+        let data = ProfileData {
             api_key: Self::get_api_key(name, config).unwrap_or(None),
             access_token: Some(access_token),
         };
@@ -110,17 +109,14 @@ impl Profile {
     }
 
     /// Returns an access token for interacting with Apollo services.
-    pub fn get_api_key(
-        name: &str,
-        config: &Config,
-    ) -> Result<Option<String>, HoustonProblem> {
+    pub fn get_api_key(name: &str, config: &Config) -> Result<Option<String>, HoustonProblem> {
         // If the API key is overridden in the config, return it directly otherwise load the profile
         match &config.override_api_key {
             Some(api_key) => Ok(Some(api_key.to_string())),
             None => {
                 let opts = LoadOpts { sensitive: true };
                 let profile = Profile::load(name, config, opts)?;
-                Ok(Some(profile.sensitive.api_key)) 
+                Ok(Some(profile.sensitive.api_key))
             }
         }
     }
@@ -153,10 +149,12 @@ impl Profile {
             "Using profile {} with API key {} with Access Token {}",
             name,
             mask_key(&credential.api_key),
-            mask_key(&credential
-                .access_token
-                .as_ref()
-                .map_or("None".to_string(), |token| token.token.clone()))
+            mask_key(
+                &credential
+                    .access_token
+                    .as_ref()
+                    .map_or("None".to_string(), |token| token.token.clone())
+            )
         );
 
         tracing::debug!("using API key {}", mask_key(&credential.api_key));
@@ -172,7 +170,7 @@ impl Profile {
             access_token: data.access_token,
         }
         .save(name, config)?;
-    
+
         Ok(())
     }
 

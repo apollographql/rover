@@ -1,16 +1,14 @@
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use clap::Parser;
 use rand::{distr::Alphanumeric, Rng};
 use rover_std::Style;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::process::Command;
 use tokio::sync::oneshot;
-use std::{ process::Command };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
 use config::Profile;
 use houston as config;
-
-
 
 // server stuff
 use std::convert::Infallible;
@@ -20,10 +18,10 @@ use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::{Request, Response, Method };
+use hyper::{Method, Request, Response};
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
 use reqwest::Client;
+use tokio::net::TcpListener;
 
 // response handling
 use serde::Deserialize;
@@ -42,7 +40,7 @@ use crate::{options::ProfileOpt, RoverOutput, RoverResult};
 /// a profile named "default".
 ///
 /// Run `rover docs open api-keys` for more details on Apollo's API keys.
-pub struct Auth2 {
+pub struct Login {
     #[clap(flatten)]
     profile: ProfileOpt,
 }
@@ -64,7 +62,7 @@ struct ResponseData {
     expires_in: Option<u64>,
 }
 
-impl Auth2{
+impl Login {
     pub async fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         let (verifier, challenge) = Self::generate_verifier_and_encoded_hash();
 
@@ -79,25 +77,23 @@ impl Auth2{
 
         //let login_url = "https://apollo-auth.netlify.app/login?redirect=".to_string();
         let login_url = "";
-        
+
         let url = format!("{}{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256", login_url, auth_config.authorize_url, auth_config.client_id, auth_config.redirect_uri, auth_config.challenge);
 
         // Attempt to open the URL in the default web browser
-        let result = Command::new("open")
-            .arg(url.clone())
-            .status();
+        let result = Command::new("open").arg(url.clone()).status();
 
         match result {
             Ok(status) if status.success() => {
-                println!("Opened browser to URL: {}", url);
+                println!("Opened browser to URL: {url}");
             }
             _ => {
-                eprintln!("Failed to open browser to URL: {}", url);
+                eprintln!("Failed to open browser to URL: {url}");
             }
         }
 
-        Self::start_server(&self, auth_config, config).await?;
-        
+        Self::start_server(self, auth_config, config).await?;
+
         Ok(RoverOutput::EmptySuccess)
     }
 
@@ -108,29 +104,38 @@ impl Auth2{
             .take(128) // Length of the verifier
             .map(char::from)
             .collect();
-    
+
         // Compute the SHA-256 hash of the verifier
         let digest = Sha256::digest(verifier.as_bytes());
-    
+
         // Encode the hash in Base64 (URL-safe, without padding)
         let challenge = URL_SAFE_NO_PAD.encode(digest);
-    
-        (verifier, challenge)
-    }  
 
-    async fn handle_callback(&self, req: Request<hyper::body::Incoming>, auth_config: AuthConfig, config: config::Config) -> Result<Response<Full<Bytes>>, Infallible> {
+        (verifier, challenge)
+    }
+
+    async fn handle_callback(
+        &self,
+        req: Request<hyper::body::Incoming>,
+        auth_config: AuthConfig,
+        config: config::Config,
+    ) -> Result<Response<Full<Bytes>>, Infallible> {
         if req.method() == Method::GET && req.uri().path() == "/callback" {
             // Handle the `/callback` route
             if let Some(query) = req.uri().query() {
                 // Parse the `code` parameter from the query string
-                if let Some(code) = query.split("code=").nth(1).and_then(|s| s.split('&').next()) {
-                    println!("Received auth code: {}", code);
+                if let Some(code) = query
+                    .split("code=")
+                    .nth(1)
+                    .and_then(|s| s.split('&').next())
+                {
+                    println!("Received auth code: {code}");
                     // Prepare the token request parameters
                     let params = format!(
                         "grant_type=authorization_code&code={}&redirect_uri={}&client_id={}&code_verifier={}",
                         code, auth_config.redirect_uri.clone(), auth_config.client_id.clone(), auth_config.verifier.clone()
                     );
-    
+
                     let client = Client::new();
                     match client
                         .post(auth_config.token_url.clone())
@@ -142,31 +147,40 @@ impl Auth2{
                     {
                         Ok(response) => {
                             if response.status().is_success() {
-                                let _ = Self::handle_response_body(&self, response, config).await;
+                                let _ = Self::handle_response_body(self, response, config).await;
                                 println!("{}", Style::Success.paint("Authentication successful!"));
-                                
+
                                 // Redirect to a success page
-                                let success_url = "https://apollo-auth.netlify.app/status?code=success"; // Replace with your desired URL
+                                let success_url =
+                                    "https://apollo-auth.netlify.app/status?code=success"; // Replace with your desired URL
                                 let response = Response::builder()
                                     .status(302)
-                                    .header("Location", success_url) 
-                                    .body(Full::from(Bytes::new())) 
+                                    .header("Location", success_url)
+                                    .body(Full::from(Bytes::new()))
                                     .unwrap();
                                 return Ok(response);
                             } else {
-                                println!("Authentication request failed with status: {}", response.status());
-                                return Ok(Response::new(Full::from(Bytes::from("Authentication request failed!"))));
+                                println!(
+                                    "Authentication request failed with status: {}",
+                                    response.status()
+                                );
+                                return Ok(Response::new(Full::from(Bytes::from(
+                                    "Authentication request failed!",
+                                ))));
                             }
-                            
                         }
                         Err(err) => {
-                            eprintln!("Error sending token request: {:?}", err);
-                            return Ok(Response::new(Full::from(Bytes::from("Token request failed!"))));
+                            eprintln!("Error sending token request: {err:?}");
+                            return Ok(Response::new(Full::from(Bytes::from(
+                                "Token request failed!",
+                            ))));
                         }
                     }
                 }
             }
-            Ok(Response::new(Full::from(Bytes::from("Invalid callback request"))))
+            Ok(Response::new(Full::from(Bytes::from(
+                "Invalid callback request",
+            ))))
         } else {
             // Default response for other routes
             Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
@@ -175,25 +189,39 @@ impl Auth2{
 
     async fn handle_response_body(&self, response: reqwest::Response, config: config::Config) {
         match response.json::<ResponseData>().await {
-            Ok(json) => {                
+            Ok(json) => {
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_else(|_| std::time::Duration::new(0, 0))
                     .as_secs();
-                println!("Access Token: {}", json.access_token.as_deref().unwrap_or("No access token received"));
-                let _ = Profile::set_access_token(&self.profile.profile_name, &config, json.access_token.unwrap_or_default(), now + json.expires_in.unwrap_or(0)); 
+                println!(
+                    "Access Token: {}",
+                    json.access_token
+                        .as_deref()
+                        .unwrap_or("No access token received")
+                );
+                let _ = Profile::set_access_token(
+                    &self.profile.profile_name,
+                    &config,
+                    json.access_token.unwrap_or_default(),
+                    now + json.expires_in.unwrap_or(0),
+                );
                 let _ = Profile::get_credential(&self.profile.profile_name, &config);
             }
             Err(err) => {
-                eprintln!("Failed to parse response as JSON: {:?}", err);
+                eprintln!("Failed to parse response as JSON: {err:?}");
             }
         }
     }
 
-    async fn start_server(&self, auth_config: AuthConfig, config: config::Config) -> Result<(), anyhow::Error> {
+    async fn start_server(
+        &self,
+        auth_config: AuthConfig,
+        config: config::Config,
+    ) -> Result<(), anyhow::Error> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
         let listener = TcpListener::bind(addr).await?;
-        println!("Server running on http://{}", addr);
+        println!("Server running on http://{addr}");
 
         // Create a shutdown signal
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
@@ -201,8 +229,12 @@ impl Auth2{
         // create and start connection
         let (stream, _) = listener.accept().await?;
         let io = TokioIo::new(stream);
-        let server = http1::Builder::new()
-            .serve_connection(io, service_fn(|req| Auth2::handle_callback(&self, req, auth_config.clone(), config.clone())));
+        let server = http1::Builder::new().serve_connection(
+            io,
+            service_fn(|req| {
+                Login::handle_callback(self, req, auth_config.clone(), config.clone())
+            }),
+        );
 
         let server_result = tokio::select! {
             result = server => {
@@ -216,7 +248,7 @@ impl Auth2{
         };
 
         if let Err(err) = server_result {
-            eprintln!("Error serving connection: {:?}", err);
+            eprintln!("Error serving connection: {err:?}");
         }
 
         println!("Authentication complete. You can close this window now.");
@@ -227,4 +259,3 @@ impl Auth2{
         Ok(())
     }
 }
-
