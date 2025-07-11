@@ -144,8 +144,8 @@ where
                 args.push(manifest.to_string());
             }
 
-            if self.mcp_options.uplink {
-                args.push("--uplink".to_string());
+            if self.mcp_options.uplink_manifest || self.mcp_options.uplink {
+                args.push("--uplink-manifest".to_string());
             }
 
             if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
@@ -159,6 +159,10 @@ where
 
             if self.mcp_options.disable_schema_description {
                 args.push("--disable-schema-description".to_string());
+            }
+
+            if self.mcp_options.explorer {
+                args.push("--explorer".to_string());
             }
 
             let child = spawn
