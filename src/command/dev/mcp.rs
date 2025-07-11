@@ -2,7 +2,6 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 use strum_macros::Display;
-use tracing::Level;
 
 pub mod binary;
 pub mod install;
@@ -65,6 +64,10 @@ pub struct Opts {
     #[arg(long = "mcp-uplink-manifest")]
     uplink_manifest: bool,
 
+    /// Deprecated alias for mcp-uplink-manifest to make it backwards compatible
+    #[arg(hide = true, long = "mcp-uplink")]
+    uplink: bool,
+
     /// The path to the GraphQL custom_scalars_config file
     #[arg(long = "mcp-custom-scalars-config", required = false)]
     custom_scalars_config: Option<Utf8PathBuf>,
@@ -84,9 +87,4 @@ pub struct Opts {
     /// Expose a tool that returns the URL to open a GraphQL operation in Apollo Explorer (requires APOLLO_GRAPH_REF)
     #[arg(long = "mcp-explorer")]
     explorer: bool,
-
-    /// Change the level at which the MCP Server logs
-    #[arg(long = "mcp-log", default_value_t = Level::INFO)]
-    #[serde(skip)]
-    log_level: Level,
 }
