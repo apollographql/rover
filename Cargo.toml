@@ -111,7 +111,7 @@ http = "1.1.0"
 http-body = "1.0.1"
 http-body-util = "0.1.2"
 httpmock = "0.7"
-hyper = "1.0"
+hyper = { version = "1", features = ["full"] }
 indoc = "2"
 itertools = "0.14.0"
 lazycell = "1"
@@ -148,7 +148,7 @@ tap = "1.0.1"
 tar = "0.4"
 termimad = "0.33"
 tempfile = "3.8"
-tokio = { version = "1.38", features = ["signal"] }
+tokio = { version = "1.38", features = ["full"] }
 tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
@@ -232,6 +232,10 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true }
+sha2 = "0.10"
+base64.workspace = true
+hyper.workspace = true
+hyper-util = { version = "0.1", features = ["full"] }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

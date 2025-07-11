@@ -2,6 +2,7 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
+mod login;
 mod whoami;
 
 use clap::Parser;
@@ -32,6 +33,8 @@ pub enum Command {
 
     /// View the identity of a user/api key
     Whoami(whoami::WhoAmI),
+
+    Login(login::Login),
 }
 
 impl Config {
@@ -42,6 +45,7 @@ impl Config {
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
             Command::Whoami(command) => command.run(client_config).await,
+            Command::Login(command) => command.run(client_config.config).await,
         }
     }
 }
