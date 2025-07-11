@@ -1,0 +1,29 @@
+mutation SupergraphPublishMutation(
+  $graph_id: ID!
+  $variant: String!
+  $revision: String!
+  $git_context: GitContextInput!
+  $subgraph_inputs: [PublishSubgraphsSubgraphInput!]!
+) {
+  graph(id: $graph_id) {
+    publishSubgraphs(
+      revision: $revision
+      graphVariant: $variant
+      gitContext: $git_context
+      subgraphInputs: $subgraph_inputs
+    ) {
+      compositionConfig {
+        schemaHash
+      }
+      errors {
+        message
+        code
+      }
+      didUpdateGateway: updatedGateway
+      launchCliCopy
+      launchUrl
+      subgraphsCreated
+      subgraphsUpdated
+    }
+  }
+}

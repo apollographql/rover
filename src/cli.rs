@@ -202,8 +202,10 @@ impl Rover {
                 command
                     .run(
                         self.get_install_override_path()?,
+                        self.get_checks_timeout_seconds()?,
                         self.get_client_config()?,
                         self.output_opts.output_file.clone(),
+                        self.get_git_context()?,
                     )
                     .await
             }

@@ -15,6 +15,7 @@ use rover_client::operations::persisted_queries::publish::PersistedQueriesPublis
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
+use rover_client::operations::supergraph::publish::SupergraphPublishResponse;
 use rover_client::shared::{
     CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
     SdlType,
@@ -69,6 +70,11 @@ pub enum RoverOutput {
         graph_ref: GraphRef,
         subgraph: String,
         publish_response: SubgraphPublishResponse,
+    },
+    SupergraphPublishResponse {
+        graph_ref: GraphRef,
+        publishing_subgraphs: Vec<String>,
+        publish_response: SupergraphPublishResponse,
     },
     SubgraphDeleteResponse {
         graph_ref: GraphRef,
@@ -242,6 +248,114 @@ impl RoverOutput {
                     stderrln!("{} The following build errors occurred:", warn_prefix)?;
                     stderrln!("{}", &publish_response.build_errors)?;
                 }
+                None
+            }
+            RoverOutput::SupergraphPublishResponse {
+                graph_ref,
+                publishing_subgraphs,
+                publish_response,
+            } => {
+                // The response we get back from the publish operation contains a list of subgraphs that were created and updated.
+                // Unfortunately, the subgraphs that were created are also included in the subgraphs_updated array, so we need to
+                // filter them out to avoid printing the same subgraph twice.
+                let mut created_subgraphs: Vec<String> = vec![];
+
+                // If the subgraph was created, we want to print a different message since created subgraphs are likely more important to know in this context
+                if !publish_response.subgraphs_created.is_empty() {
+                    stderrln!(
+                        "The following subgraph(s) were created in '{}': {}",
+                        graph_ref,
+                        publish_response.subgraphs_created.join(", ")
+                    )?;
+                    created_subgraphs.push(
+                        publish_response
+                            .subgraphs_created
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect(),
+                    );
+                }
+
+                // Check for updated subgraphs
+                if !publish_response.subgraphs_updated.is_empty() {
+                    let updated_subgraphs = publish_response
+                        .subgraphs_updated
+                        .iter()
+                        .map(|subgraph| {
+                            // Check if the subgraph was created; normally we'd return the subgraph name, but for those that aren't found we will just return
+                            // an empty string
+                            if !created_subgraphs.contains(subgraph) {
+                                subgraph.to_string()
+                            } else {
+                                "".to_string()
+                            }
+                        })
+                        // Collect the updated subgraphs
+                        .collect::<Vec<String>>()
+                        .iter()
+                        // Filter out empty strings due to the above logic
+                        .filter(|s| !s.is_empty())
+                        .cloned()
+                        .collect::<Vec<String>>()
+                        // Join the updated subgraphs with a comma for presentation
+                        .join(", ");
+
+                    // If there are any updated subgraphs, we print them out
+                    if !updated_subgraphs.is_empty() {
+                        stderrln!(
+                            "The following subgraph(s) were updated in '{}': {}",
+                            Style::Link.paint(graph_ref.to_string()),
+                            Style::Command.paint(updated_subgraphs)
+                        )
+                        .unwrap();
+                    }
+                }
+
+                // Next, we want to find the subgraphs that were not created or updated, which means they were unchanged.
+                // Much like the above logic, we filter out the unchanged subgraphs from the publishing_subgraphs list.
+                let unchanged_subgraphs: Vec<String> = publishing_subgraphs
+                    .iter()
+                    .filter(|subgraph| {
+                        !publish_response.subgraphs_created.contains(subgraph)
+                            && !publish_response.subgraphs_updated.contains(subgraph)
+                    })
+                    .cloned()
+                    .collect();
+
+                // // If there are any unchanged subgraphs, we print them out
+                if !unchanged_subgraphs.is_empty() {
+                    stderrln!(
+                        "The following subgraph(s) were unchanged in '{}': {}",
+                        Style::Link.paint(graph_ref.to_string()),
+                        Style::Command.paint(unchanged_subgraphs.join(", "))
+                    )?;
+                }
+
+                // Check if the supergraph was updated, and if so, print a message indicating that the supergraph schema was updated. Otherwise indicate that the supergraph was not updated.
+                if publish_response.supergraph_was_updated {
+                    stderrln!(
+                        "The supergraph schema for '{}' was updated",
+                        Style::Link.paint(graph_ref.to_string())
+                    )?;
+                } else {
+                    stderrln!(
+                        "The supergraph schema for '{}' was NOT updated with a new schema",
+                        Style::Link.paint(graph_ref.to_string())
+                    )?;
+                }
+
+                // Print the launch CLI message if it exists
+                if let Some(launch_cli_copy) = &publish_response.launch_cli_copy {
+                    stderrln!("{}", launch_cli_copy)?;
+                }
+
+                // If there are any build errors, print them out as well
+                if !publish_response.build_errors.is_empty() {
+                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                    stderrln!("{} The following build errors occurred:", warn_prefix)?;
+                    stderrln!("{}", &publish_response.build_errors)?;
+                }
+                // Indicate that the operation was successful
                 None
             }
             RoverOutput::SubgraphDeleteResponse {
@@ -529,6 +643,11 @@ impl RoverOutput {
             RoverOutput::SubgraphPublishResponse {
                 graph_ref: _,
                 subgraph: _,
+                publish_response,
+            } => json!(publish_response),
+            RoverOutput::SupergraphPublishResponse {
+                graph_ref: _,
+                publishing_subgraphs: _,
                 publish_response,
             } => json!(publish_response),
             RoverOutput::SubgraphDeleteResponse {
