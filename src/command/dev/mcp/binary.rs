@@ -161,6 +161,13 @@ where
                 args.push("--disable-schema-description".to_string());
             }
 
+            if self.mcp_options.explorer {
+                args.push("--explorer".to_string());
+            }
+
+            args.push("--log".to_string());
+            args.push(self.mcp_options.log_level.to_string());
+
             let child = spawn
                 .ready()
                 .and_then(|spawn| {

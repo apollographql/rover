@@ -2,6 +2,7 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 use strum_macros::Display;
+use tracing::Level;
 
 pub mod binary;
 pub mod install;
@@ -79,4 +80,13 @@ pub struct Opts {
     /// Disable schema type definitions referenced by all fields returned by the operation in the tool description
     #[arg(long = "mcp-disable-schema-description")]
     disable_schema_description: bool,
+
+    /// Expose a tool that returns the URL to open a GraphQL operation in Apollo Explorer (requires APOLLO_GRAPH_REF)
+    #[arg(long = "mcp-explorer")]
+    explorer: bool,
+
+    /// Change the level at which the MCP Server logs
+    #[arg(long = "mcp-log", default_value_t = Level::INFO)]
+    #[serde(skip)]
+    log_level: Level,
 }
