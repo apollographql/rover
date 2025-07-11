@@ -69,10 +69,10 @@ impl Login {
         let auth_config = AuthConfig {
             redirect_uri: "http://localhost:3000/callback".to_string(),
             client_id: "ouQM8NFUFZEXLsF3Wyw7WVqSd3pFyiVRUpaXLo9DjSc".to_string(),
-            authorize_url: "http://localhost:8080/authorize".to_string(),
+            authorize_url: "https://graphql-staging.api.apollographql.com/auth/oauth2/authorize".to_string(),
             verifier: verifier.clone(),
             challenge: challenge.clone(),
-            token_url: "http://localhost:8080/token".to_string(),
+            token_url: "https://graphql-staging.api.apollographql.com/auth/oauth2/token".to_string(),
         };
 
         //let login_url = "https://apollo-auth.netlify.app/login?redirect=".to_string();
