@@ -64,6 +64,7 @@ struct ResponseData {
 
 impl Login {
     pub async fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
+        // generate the verifier and challenge
         let (verifier, challenge) = Self::generate_verifier_and_encoded_hash();
 
         let auth_config = AuthConfig {
@@ -92,6 +93,7 @@ impl Login {
             }
         }
 
+        // start local server
         Self::start_server(self, auth_config, config).await?;
 
         Ok(RoverOutput::EmptySuccess)
@@ -130,6 +132,7 @@ impl Login {
                     .and_then(|s| s.split('&').next())
                 {
                     println!("Received auth code: {code}");
+                    
                     // Prepare the token request parameters
                     let params = format!(
                         "grant_type=authorization_code&code={}&redirect_uri={}&client_id={}&code_verifier={}",
@@ -194,12 +197,12 @@ impl Login {
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_else(|_| std::time::Duration::new(0, 0))
                     .as_secs();
-                println!(
-                    "Access Token: {}",
-                    json.access_token
-                        .as_deref()
-                        .unwrap_or("No access token received")
-                );
+                // println!(
+                //     "Access Token: {}",
+                //     json.access_token
+                //         .as_deref()
+                //         .unwrap_or("No access token received")
+                // );
                 let _ = Profile::set_access_token(
                     &self.profile.profile_name,
                     &config,
