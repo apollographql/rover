@@ -144,8 +144,8 @@ where
                 args.push(manifest.to_string());
             }
 
-            if self.mcp_options.uplink {
-                args.push("--uplink".to_string());
+            if self.mcp_options.uplink_manifest {
+                args.push("--uplink-manifest".to_string());
             }
 
             if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {

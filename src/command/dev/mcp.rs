@@ -60,9 +60,9 @@ pub struct Opts {
     #[arg(long = "mcp-collection")]
     collection: Option<String>,
 
-    /// Enable use of uplink to get the schema and persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
-    #[arg(long = "mcp-uplink")]
-    uplink: bool,
+    /// Enable use of uplink to get persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
+    #[arg(long = "mcp-uplink-manifest")]
+    uplink_manifest: bool,
 
     /// The path to the GraphQL custom_scalars_config file
     #[arg(long = "mcp-custom-scalars-config", required = false)]
