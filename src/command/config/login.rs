@@ -68,7 +68,7 @@ impl Login {
 
         let auth_config = AuthConfig {
             redirect_uri: "http://localhost:3000/callback".to_string(),
-            client_id: "your_client_id".to_string(),
+            client_id: "ouQM8NFUFZEXLsF3Wyw7WVqSd3pFyiVRUpaXLo9DjSc".to_string(),
             authorize_url: "http://localhost:8080/authorize".to_string(),
             verifier: verifier.clone(),
             challenge: challenge.clone(),

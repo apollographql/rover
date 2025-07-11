@@ -105,7 +105,12 @@ impl Profile {
     ) -> Result<Option<AccessToken>, HoustonProblem> {
         let opts = LoadOpts { sensitive: true };
         let profile = Profile::load(name, config, opts)?;
-        Ok(profile.sensitive.access_token)
+        // if profile exists, return the access token
+        if profile.sensitive.access_token.is_some() {
+            Ok(profile.sensitive.access_token)
+        } else {
+            Ok(None)
+        }
     }
 
     /// Returns an access token for interacting with Apollo services.
