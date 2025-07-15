@@ -5028,7 +5028,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.34.2-fake-it-til-you-make-it.0"
+version = "0.34.2-fake-it-til-you-make-it.1"
 dependencies = [
  "anyhow",
  "apollo-federation-types",
