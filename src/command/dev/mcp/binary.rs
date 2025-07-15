@@ -123,7 +123,13 @@ where
                     spawn.call(
                         ExecCommandConfig::builder()
                             .exe(self.mcp_server_binary.exe.clone())
-                            .args(vec![self.mcp_options.config.to_string()])
+                            .args(
+                                self.mcp_options
+                                    .config
+                                    .iter()
+                                    .map(Utf8PathBuf::to_string)
+                                    .collect(),
+                            )
                             .env(self.opts_into_env())
                             .output(
                                 ExecCommandOutput::builder()

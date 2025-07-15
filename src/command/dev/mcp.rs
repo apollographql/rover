@@ -14,5 +14,5 @@ pub struct Opts {
 
     /// The path to the MCP config file
     #[arg(long = "mcp-config")]
-    config: Utf8PathBuf,
+    config: Option<Utf8PathBuf>,
 }
