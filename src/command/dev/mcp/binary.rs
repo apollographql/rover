@@ -84,7 +84,7 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
     fn opts_into_env(self) -> HashMap<String, String> {
         let overlayed = HashMap::from([
             // Configure the schema to be a local file
-            ("APOLLO_MCP_SCHEMA__TYPE".to_string(), "local".to_string()),
+            ("APOLLO_MCP_SCHEMA__SOURCE".to_string(), "local".to_string()),
             (
                 "APOLLO_MCP_SCHEMA__PATH".to_string(),
                 self.supergraph_schema_path.to_string(),
@@ -93,6 +93,10 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
             (
                 "APOLLO_MCP_ENDPOINT".to_string(),
                 self.router_address.pretty_string(),
+            ),
+            (
+                "APOLLO_MCP_TRANSPORT__TYPE".to_string(),
+                "streamable_http".to_string(),
             ),
         ]);
 
