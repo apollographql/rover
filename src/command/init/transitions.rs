@@ -240,7 +240,12 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        let repo_ref = env::var("ROVER_INIT_TEMPLATE_REF").unwrap_or_else(|_| "release/v2".to_string());
+        let repo_ref = if self.use_case == ProjectUseCase::ReactTemplate {
+            // Use development branch for React templates
+            env::var("ROVER_INIT_TEMPLATE_REF").unwrap_or_else(|_| "camille/fake-it-til-you-make-it".to_string())
+        } else {
+            env::var("ROVER_INIT_TEMPLATE_REF").unwrap_or_else(|_| "release/v2".to_string())
+        };
         let template_fetcher = InitTemplateFetcher::new().call(&repo_ref).await?;
 
         // Determine the list of templates based on the use case
@@ -502,7 +507,7 @@ impl CreationConfirmed {
         // Replace system prompt placeholders in all template files
         let system_prompt = self.mocking_context.as_ref()
             .map(|context| context.as_str())
-            .unwrap_or("You are an overly enthusiastic golden retriever recommending locations. You somehow learned to use GraphQL and thinks every location is the BEST PLACE EVER. You think every location might have "treasure" that you would love to dig up.");
+            .unwrap_or("You are an overly enthusiastic golden retriever recommending locations. You somehow learned to use GraphQL and thinks every location is the BEST PLACE EVER. You think every location might have \"treasure\" that you would love to dig up.");
         
         for (_path, content) in self.selected_template.files.iter_mut() {
             let content_str = String::from_utf8_lossy(content);

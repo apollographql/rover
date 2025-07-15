@@ -1,7 +1,7 @@
 use crate::RoverResult;
 use clap::Parser;
 use console::Term;
-use dialoguer::Input;
+use dialoguer::{Input, Editor};
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +29,10 @@ impl ProjectMockingContextOpt {
             println!("The AI will use this context to generate relevant data across all your queries.");
             println!();
 
+            // Use a shorter prompt to avoid wrapping issues
+            println!("{}", Style::Prompt.paint("? Describe your app's domain or focus (optional):"));
             let context: String = Input::new()
-                .with_prompt(Style::Prompt.paint("? Describe your app's domain or focus (optional)"))
+                .with_prompt("")
                 .allow_empty(true)
                 .interact_on(&Term::stderr())?;
 
