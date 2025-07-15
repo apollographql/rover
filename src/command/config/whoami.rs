@@ -129,6 +129,7 @@ mod tests {
         config::Credential {
             origin: CredentialOrigin::EnvVar,
             api_key: "profile_credential_api_key".to_string(),
+            access_token: None,
         }
     }
 
