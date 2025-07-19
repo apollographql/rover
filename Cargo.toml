@@ -126,7 +126,7 @@ rand = "=0.9.1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
-schemars = "0.8.22"
+schemars = "1.0.0"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
