@@ -72,7 +72,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "0.15.3", features = ["json_schema"] }
+apollo-federation-types = { version = "0.15.8", features = ["json_schema"] }
 
 apollo-language-server = { version = "0.4.1", default-features = false, features = ["tokio"] }
 
@@ -89,14 +89,14 @@ base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.6.0"
 bytes = "1.8.0"
-cargo_metadata = "0.20"
+cargo_metadata = "0.21"
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
 clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
 comfy-table = {  version = "7.1.4", features = ["custom_styling"] }
-console = "0.15"
+console = "0.16"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
 directories-next = "2.0"
@@ -122,11 +122,11 @@ os_info = "3.7"
 os_type = "2.6"
 predicates = "3"
 pretty_assertions = "1"
-rand = "=0.9.1"
+rand = "=0.9.2"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
-schemars = "0.8.22"
+schemars = "1.0.4"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -152,7 +152,7 @@ tokio = { version = "1.38", features = ["signal"] }
 tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
-toml = "0.8"
+toml = "0.9"
 tower = { version = "0.5.2", features = ["make", "retry", "timeout"] }
 tower-http = "0.6.1"
 tower-test = "0.4.0"

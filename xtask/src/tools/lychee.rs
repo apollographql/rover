@@ -1,11 +1,10 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use http::StatusCode;
+use http::{HeaderMap, StatusCode};
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
     Result as LycheeResult, Uri,
@@ -24,16 +23,10 @@ impl LycheeRunner {
         max_retries: u8,
         exclude_all_private: bool,
     ) -> Result<Self> {
-        let accepted = Some(HashSet::from_iter(vec![
-            StatusCode::OK,
-            StatusCode::TOO_MANY_REQUESTS,
-        ]));
-
         let client = ClientBuilder::builder()
             .exclude_all_private(exclude_all_private)
             .retry_wait_time(retry_wait_time)
             .max_retries(max_retries)
-            .accepted(accepted)
             .build()
             .client()?;
 
@@ -52,6 +45,7 @@ impl LycheeRunner {
                 source: InputSource::FsPath(PathBuf::from(file)),
                 file_type_hint: Some(FileType::Markdown),
                 excluded_paths: None,
+                headers: HeaderMap::new(),
             })
             .collect();
 

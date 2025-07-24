@@ -2,7 +2,7 @@ version: 2.1
 
 # Our CircleCI dependencies
 orbs:
-  rust: circleci/rust@1.7.0
+  rust: circleci/rust@1.8.0
   gh: circleci/github-cli@2.7.0
   node: circleci/node@7.1.0
   slack: circleci/slack@5.1.1
@@ -34,7 +34,7 @@ executors:
     docker:
       # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
       # glibc 2.17.
-      - image:  quay.io/pypa/manylinux2014_x86_64:2025.04.26-0
+      - image:  quay.io/pypa/manylinux2014_x86_64:2025.07.19-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -99,7 +99,7 @@ executors:
 
   node_js_nix:
     docker:
-      - image: node:20.19.2
+      - image: node:20.19.4
     resource_class: medium
 
   node_js_windows:

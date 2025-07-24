@@ -60,8 +60,12 @@ pub struct Opts {
     #[arg(long = "mcp-collection")]
     collection: Option<String>,
 
-    /// Enable use of uplink to get the schema and persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
-    #[arg(long = "mcp-uplink")]
+    /// Enable use of uplink to get persisted queries (requires APOLLO_KEY and APOLLO_GRAPH_REF)
+    #[arg(long = "mcp-uplink-manifest")]
+    uplink_manifest: bool,
+
+    /// Deprecated alias for mcp-uplink-manifest to make it backwards compatible
+    #[arg(hide = true, long = "mcp-uplink")]
     uplink: bool,
 
     /// The path to the GraphQL custom_scalars_config file
@@ -79,4 +83,8 @@ pub struct Opts {
     /// Disable schema type definitions referenced by all fields returned by the operation in the tool description
     #[arg(long = "mcp-disable-schema-description")]
     disable_schema_description: bool,
+
+    /// Expose a tool that returns the URL to open a GraphQL operation in Apollo Explorer (requires APOLLO_GRAPH_REF)
+    #[arg(long = "mcp-explorer")]
+    explorer: bool,
 }
