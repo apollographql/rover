@@ -1,5 +1,6 @@
 use std::io::stdin;
 
+use anyhow::anyhow;
 use clap::{Args, Parser};
 use derive_getters::Getters;
 use rover_client::operations::supergraph::check::{
@@ -15,7 +16,7 @@ use tower::ServiceExt;
 use crate::options::{CheckConfigOpts, GraphRefOpt, PluginOpts};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverError, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Check {
@@ -123,6 +124,12 @@ impl Check {
                 sdl: subgraph.1.schema().to_string(),
             })
             .collect();
+
+        if checked_subgraphs.is_empty() {
+            return Err(RoverError::new(anyhow!(
+                "No subgraphs found to check. Please check your supergraph configuration"
+            )));
+        }
 
         let pluralized_text = if checked_subgraphs.len() == 1 {
             ("schema".to_string(), "subgraph".to_string())

@@ -1,5 +1,6 @@
 use std::io::stdin;
 
+use anyhow::anyhow;
 use clap::{Args, Parser};
 use derive_getters::Getters;
 use rover_client::operations::supergraph::publish::{self, SupergraphPublishInput};
@@ -11,7 +12,7 @@ use tower::ServiceExt;
 use crate::options::{GraphRefOpt, PluginOpts};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverError, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -112,6 +113,12 @@ impl Publish {
             .iter()
             .map(|s| s.1.name().to_string())
             .collect::<Vec<String>>();
+
+        if publish_subgraph_names.is_empty() {
+            return Err(RoverError::new(anyhow!(
+                "No subgraphs found to publish. Please check your supergraph configuration"
+            )));
+        }
 
         let input = SupergraphPublishInput {
             graph_ref: GraphRef {

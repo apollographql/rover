@@ -1018,7 +1018,7 @@ mod tests {
                 "success": true,
             },
             "error": {
-                "message": "Encountered 2 build errors while trying to build subgraph 'subgraph' into supergraph 'name@current'.",
+                "message": "Encountered 2 build errors while trying to build subgraph(s) 'subgraph' into supergraph 'name@current'.",
                 "code": "E029",
                 "details": {
                     "build_errors": [
@@ -1591,7 +1591,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "launch_cli_copy": null,
             },
             "error": {
-                "message": "Encountered 2 build errors while trying to build subgraph 'subgraph' into supergraph 'name@current'.",
+                "message": "Encountered 2 build errors while trying to build subgraph(s) 'subgraph' into supergraph 'name@current'.",
                 "code": "E029",
                 "details": {
                     "build_errors": [
