@@ -82,7 +82,7 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
     // understood by the MCP server.
     // TODO: Magic strings are not fun to debug later.
     fn opts_into_env(self) -> HashMap<String, String> {
-        let overlayed = HashMap::from([
+        let overlaid = HashMap::from([
             // Configure the schema to be a local file
             ("APOLLO_MCP_SCHEMA__SOURCE".to_string(), "local".to_string()),
             (
@@ -102,7 +102,7 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
 
         // We don't want the user's env possibly conflicting with what rover dev has configured,
         // so we overlay rover's configuration over the user's env.
-        self.env.into_iter().chain(overlayed).collect()
+        self.env.into_iter().chain(overlaid).collect()
     }
 }
 
