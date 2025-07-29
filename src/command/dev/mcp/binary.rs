@@ -18,8 +18,6 @@ use crate::command::dev::router::config::RouterAddress;
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
 
-use super::Opts;
-
 pub enum McpServerLog {
     Stdout(String),
     Stderr(String),
@@ -73,7 +71,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
     router_address: RouterAddress,
-    mcp_options: Opts,
+    mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
 }
 
@@ -128,8 +126,7 @@ where
                         ExecCommandConfig::builder()
                             .exe(self.mcp_server_binary.exe.clone())
                             .args(
-                                self.mcp_options
-                                    .config
+                                self.mcp_config_path
                                     .iter()
                                     .map(Utf8PathBuf::to_string)
                                     .collect(),

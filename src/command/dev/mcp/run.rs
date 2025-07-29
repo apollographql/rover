@@ -8,7 +8,6 @@ use tower::Service;
 
 use super::binary::{McpServerLog, RunMcpServerBinary, RunMcpServerBinaryError};
 use super::install::{InstallMcpServer, InstallMcpServerError};
-use super::Opts;
 use crate::command::dev::router::config::RouterAddress;
 use crate::command::install::McpServerVersion;
 use crate::options::LicenseAccepter;
@@ -54,7 +53,7 @@ impl RunMcpServer<state::Run> {
         spawn: Spawn,
         supergraph_schema_path: Utf8PathBuf,
         router_address: RouterAddress,
-        mcp_options: Opts,
+        mcp_config_path: Option<Utf8PathBuf>,
         env: HashMap<String, String>,
     ) -> Result<RunMcpServer<state::Abort>, RunMcpServerBinaryError>
     where
@@ -67,7 +66,7 @@ impl RunMcpServer<state::Run> {
             .supergraph_schema_path(supergraph_schema_path.clone())
             .spawn(spawn)
             .router_address(router_address)
-            .mcp_options(mcp_options)
+            .and_mcp_config_path(mcp_config_path)
             .env(env)
             .build();
 

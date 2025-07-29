@@ -8,11 +8,9 @@ pub mod run;
 
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct Opts {
-    /// Enable the MCP server
-    #[arg(long = "mcp")]
-    pub enabled: bool,
-
-    /// The path to the MCP config file
-    #[arg(long = "mcp-config")]
-    config: Option<Utf8PathBuf>,
+    /// Enable the MCP server and (optionally) specify the path to the config file
+    ///
+    /// Note: This uses default options if omitted
+    #[arg(long = "mcp", default_missing_value = None)]
+    pub config: Option<Option<Utf8PathBuf>>,
 }
