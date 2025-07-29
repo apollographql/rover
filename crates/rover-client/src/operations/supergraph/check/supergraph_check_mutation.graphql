@@ -1,0 +1,29 @@
+mutation SupergraphCheckMutation(
+  $name: String!,
+  $graph_id: ID!,
+  $input: MultiSubgraphCheckAsyncInput!
+) {
+  graph(id: $graph_id) {
+    variant(name: $name) {
+      submitMultiSubgraphCheckAsync(input: $input) {
+        __typename
+        ... on CheckRequestSuccess {
+          workflowID
+          targetURL
+        }
+        ... on InvalidInputError {
+          message
+        }
+        ... on PermissionError {
+          message
+        }
+        ... on PlanError {
+          message
+        }
+        ... on RateLimitExceededError {
+          message
+        }
+      }
+    }
+  }
+}

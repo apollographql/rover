@@ -204,7 +204,7 @@ impl OperationCheckResponse {
         msg.push('\n');
 
         msg.push_str(&self.get_table());
-
+        msg.push('\n');
         if let Some(url) = &self.target_url {
             msg.push_str("View operation check details at: ");
             msg.push_str(&Style::Link.paint(url));
@@ -279,6 +279,7 @@ impl LintCheckResponse {
             msg.push_str(&format!("Resulted in {plural_errors}."));
             msg.push('\n');
             msg.push_str(&self.get_table());
+            msg.push('\n');
         } else {
             msg.push_str("No linting errors or warnings found.");
             msg.push('\n');
@@ -365,6 +366,7 @@ impl ProposalsCheckResponse {
             msg.push_str(&self.get_msg());
             msg.push('\n');
             msg.push_str(&self.get_table());
+            msg.push('\n');
         } else {
             msg.push_str("Your proposals task did not return any approved proposals associated with these changes.");
             msg.push('\n');
@@ -438,6 +440,7 @@ impl CustomCheckResponse {
             msg.push_str(&format!("Resulted in {violation_msg}."));
             msg.push('\n');
             msg.push_str(&self.get_table());
+            msg.push('\n');
         } else {
             msg.push_str("No custom check violations found.");
             msg.push('\n');
