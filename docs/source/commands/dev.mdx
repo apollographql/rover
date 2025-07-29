@@ -47,7 +47,7 @@ rover dev --name products --schema ./products.graphql --url http://localhost:400
 
 <Note>
 
-If you plan to use these [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the @connect directive in your schema you need to provide the APOLLO_KEY and APOLLO_GRAPH_REF environment variables.
+To use [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema, provide the `APOLLO_KEY` and `APOLLO_GRAPH_REF` environment variables.
 
 </Note>
 
@@ -56,11 +56,6 @@ If you plan to use these [GraphOS Router features](/graphos/routing/graphos-feat
 You don't have to provide a locally running subgraph. You can point to any GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
 
 </Note>
-
-
-
-
-
 
 When you start your first `rover dev` process:
 
@@ -202,8 +197,8 @@ To configure advanced router functionality like CORS settings or header passthro
 
 If you want to use [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features), you must provide both:
 
-1. A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment variable or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
-1. A graph ref either via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option. Learn about the difference between these in the section below.
+1. A [graph API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment variable or by [configuring credentials](./config#creating-configuration-profiles) in Rover
+1. A graph ref either via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option. Learn about the difference between these in the section below
 
 #### Understanding `APOLLO_GRAPH_REF` vs `--graph-ref` 
 
