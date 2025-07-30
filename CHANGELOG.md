@@ -18,6 +18,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.35.0] - 2025-07-30
+
+## ❗ BREAKING ❗
+
+- **use config file for MCP server - @nicholascioli PR #2665**
+
+## 🚀 Features
+
+- **Update MCP options for rover dev - @DaleSeo PR #2661**
+- **Add schema name step to Connectors init workflow - @alyssahursh PR #2647**
+- **Allow running rover dev without --supergraph-config if you have a rover.yaml in the current directory - @dylan-apollo PR #2650**
+- **Updating output for init & renaming generated "supergraph.yaml" -> "rover.yaml" - @tayrrible PR #2651**
+- **Adds support for .env file for use with rover dev - @DMallare PR #2646**
+- **Add graph_ref to and remove federation_version from subgraph.yaml - @alyssahursh PR #2649**
+- **Hackathon improvements to supergraph.yaml - @dylan-apollo PR #2648**
+- **Adding link to studio for graph & showing each step in creation process via spinners - @tayrrible PR #2657**
+- **Generates .env file with rover init - @DMallare PR #2652**
+- **Remove use case guard clause in schema name prompt - @alyssahursh PR #2655**
+- **Set APOLLO_GRAPH_REF from rover.yaml's graph_ref - @dylan-apollo PR #2653**
+- **Adding apollo.config.yaml file for connectors projects - @tayrrible PR #2658**
+- **add a note about the need for APOLLO_KEY and APOLLO_GRAPH_REF when using router features or connect - @the-gigi-apollo PR #2677**
+- **Update Studio Client after loading .env in rover dev - @dylan-apollo PR #2654**
+- **Exposing org selector for all runs of init and changing prompt order - @tayrrible PR #2656**
+
+
+## 🛠 Maintenance
+
+- **upgrade schemars and apollo-federation-types - @DaleSeo PR #2676**
+
 # [0.34.1] - 2025-06-23
 ## 🐛 Fixes
 - **Handle null subgraph schema check results - @DaleSeo PR #2639**
