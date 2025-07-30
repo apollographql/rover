@@ -13,7 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "@apollo/subgraph": "^2",
-    "@apollo/server": "^4",
+    "@apollo/server": "^5",
     "graphql-tag": "^2"
   },
   "devDependencies": {
