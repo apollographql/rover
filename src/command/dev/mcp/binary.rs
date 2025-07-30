@@ -5,7 +5,6 @@ use std::{fmt, io};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
-use clap::ValueEnum;
 use futures::TryFutureExt;
 use rover_std::Style;
 use semver::Version;
@@ -18,8 +17,6 @@ use tower::{Service, ServiceExt};
 use crate::command::dev::router::config::RouterAddress;
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
-
-use super::Opts;
 
 pub enum McpServerLog {
     Stdout(String),
@@ -74,8 +71,37 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
     router_address: RouterAddress,
-    mcp_options: Opts,
+    mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
+}
+
+impl<Spawn: Send> RunMcpServerBinary<Spawn> {
+    // Gather the rover-specific configuration options into environment variables
+    // understood by the MCP server.
+    // TODO: Magic strings are not fun to debug later.
+    fn opts_into_env(self) -> HashMap<String, String> {
+        let overlaid = HashMap::from([
+            // Configure the schema to be a local file
+            ("APOLLO_MCP_SCHEMA__SOURCE".to_string(), "local".to_string()),
+            (
+                "APOLLO_MCP_SCHEMA__PATH".to_string(),
+                self.supergraph_schema_path.to_string(),
+            ),
+            // Configure the endpoint from the running router instance
+            (
+                "APOLLO_MCP_ENDPOINT".to_string(),
+                self.router_address.pretty_string(),
+            ),
+            (
+                "APOLLO_MCP_TRANSPORT__TYPE".to_string(),
+                "streamable_http".to_string(),
+            ),
+        ]);
+
+        // We don't want the user's env possibly conflicting with what rover dev has configured,
+        // so we overlay rover's configuration over the user's env.
+        self.env.into_iter().chain(overlaid).collect()
+    }
 }
 
 impl<Spawn> SubtaskHandleUnit for RunMcpServerBinary<Spawn>
@@ -93,86 +119,19 @@ where
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::task::spawn(async move {
-            let mut args = vec![
-                "--schema".to_string(),
-                self.supergraph_schema_path.to_string(),
-                "--endpoint".to_string(),
-                self.router_address.pretty_string(),
-                "--http-port".to_string(),
-                self.mcp_options.port.to_string(),
-                "--http-address".to_string(),
-                self.mcp_options.address,
-            ];
-
-            if let Some(directory) = self.mcp_options.directory {
-                args.push("--directory".to_string());
-                args.push(directory.to_string());
-            }
-
-            if let Some(collection_id) = self.mcp_options.collection {
-                args.push("--collection".to_string());
-                args.push(collection_id);
-            }
-
-            if let Some(value) = ValueEnum::to_possible_value(&self.mcp_options.allow_mutations) {
-                args.push("--allow-mutations".to_string());
-                args.push(value.get_name().to_string());
-            }
-
-            if self.mcp_options.introspection {
-                args.push("--introspection".to_string());
-            }
-
-            if !self.mcp_options.operations.is_empty() {
-                args.push("--operations".to_string());
-                let mut operation_strings = self
-                    .mcp_options
-                    .operations
-                    .into_iter()
-                    .map(|p| p.to_string())
-                    .collect::<Vec<String>>();
-                args.append(&mut operation_strings);
-            }
-
-            self.mcp_options.headers.into_iter().for_each(|h| {
-                args.push("--header".to_string());
-                args.push(h);
-            });
-
-            if let Some(manifest) = self.mcp_options.manifest {
-                args.push("--manifest".to_string());
-                args.push(manifest.to_string());
-            }
-
-            if self.mcp_options.uplink_manifest || self.mcp_options.uplink {
-                args.push("--uplink-manifest".to_string());
-            }
-
-            if let Some(custom_scalars_config) = self.mcp_options.custom_scalars_config {
-                args.push("--custom-scalars-config".to_string());
-                args.push(custom_scalars_config.to_string());
-            }
-
-            if self.mcp_options.disable_type_description {
-                args.push("--disable-type-description".to_string());
-            }
-
-            if self.mcp_options.disable_schema_description {
-                args.push("--disable-schema-description".to_string());
-            }
-
-            if self.mcp_options.explorer {
-                args.push("--explorer".to_string());
-            }
-
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
                     spawn.call(
                         ExecCommandConfig::builder()
                             .exe(self.mcp_server_binary.exe.clone())
-                            .args(args)
-                            .env(self.env)
+                            .args(
+                                self.mcp_config_path
+                                    .iter()
+                                    .map(Utf8PathBuf::to_string)
+                                    .collect(),
+                            )
+                            .env(self.opts_into_env())
                             .output(
                                 ExecCommandOutput::builder()
                                     .stdin(Stdio::null())

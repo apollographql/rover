@@ -268,7 +268,7 @@ impl Dev {
             .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
             .await;
 
-        if self.opts.mcp.enabled {
+        if let Some(ref config) = self.opts.mcp.config {
             let run_mcp_server = RunMcpServer::default()
                 .install(
                     McpServerVersion::Latest,
@@ -284,7 +284,7 @@ impl Dev {
                     TokioSpawn::default(),
                     run_router.state.hot_reload_schema_path.clone(),
                     router_address,
-                    self.opts.mcp.clone(),
+                    config.clone(),
                     run_router.state.env.clone(),
                 )
                 .await?;
