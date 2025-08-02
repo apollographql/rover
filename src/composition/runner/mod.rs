@@ -9,6 +9,8 @@ use std::fmt::Debug;
 use camino::Utf8PathBuf;
 use futures::stream::{select, BoxStream, StreamExt};
 use rover_http::HttpService;
+use tokio::sync::broadcast;
+use tokio_stream::wrappers::BroadcastStream;
 use tower::ServiceExt;
 
 use self::state::SetupSubgraphWatchers;
@@ -27,7 +29,7 @@ use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::watchers::federation::FederationWatcher;
 use crate::composition::watchers::watcher::file::FileWatcher;
 use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
-use crate::subtask::{BroadcastSubtask, Subtask, SubtaskRunStream, SubtaskRunUnit};
+use crate::subtask::{Subtask, SubtaskRunStream};
 use crate::utils::effect::exec::ExecCommand;
 use crate::utils::effect::write_file::WriteFile;
 
@@ -174,7 +176,7 @@ impl Runner<state::SetupCompositionWatcher> {
 }
 
 /// Alias for a [`Runner`] that is ready to be run
-pub type CompositionRunner<ExecC, WriteF> = Runner<state::Run<ExecC, WriteF>>;
+pub(crate) type CompositionRunner<ExecC, WriteF> = Runner<state::Run<ExecC, WriteF>>;
 
 impl<ExecC, WriteF> Runner<state::Run<ExecC, WriteF>>
 where
@@ -183,29 +185,14 @@ where
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {
-        let (
-            supergraph_config_stream_for_subtask_watcher,
-            supergraph_config_stream_for_federation_watcher,
-            supergraph_config_subtask,
-        ) = if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
-            tracing::info!("Watching subgraphs for changes...");
-            let (supergraph_config_stream, supergraph_config_subtask) =
-                BroadcastSubtask::new(supergraph_config_watcher);
-            (
-                supergraph_config_stream.boxed(),
-                supergraph_config_subtask.subscribe().boxed(),
-                Some(supergraph_config_subtask),
-            )
-        } else {
+        let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher else {
             tracing::warn!(
                     "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
                 );
-            (
-                tokio_stream::empty().boxed(),
-                tokio_stream::empty().boxed(),
-                None,
-            )
+            return tokio_stream::empty().boxed();
         };
+        tracing::info!("Watching subgraphs for changes...");
+        let (tx, rx) = broadcast::channel(100);
 
         let (subgraph_change_stream, subgraph_watcher_subtask) =
             Subtask::new(self.state.subgraph_watchers);
@@ -224,7 +211,7 @@ where
 
         // Start subgraph watchers, listening for events from the supergraph change stream.
         subgraph_watcher_subtask.run(
-            supergraph_config_stream_for_subtask_watcher
+            BroadcastStream::new(rx)
                 .filter_map(|recv_res| async move {
                     match recv_res {
                         Ok(res) => Some(res),
@@ -239,7 +226,7 @@ where
         );
 
         federation_watcher_subtask.run(
-            supergraph_config_stream_for_federation_watcher
+            BroadcastStream::new(tx.subscribe())
                 .filter_map(|recv_res| async move {
                     match recv_res {
                         Ok(res) => Some(res),
@@ -253,10 +240,7 @@ where
             None,
         );
 
-        // Start the supergraph watcher subtask.
-        if let Some(supergraph_config_subtask) = supergraph_config_subtask {
-            supergraph_config_subtask.run(None);
-        }
+        supergraph_config_watcher.run(tx);
 
         composition_messages.boxed()
     }

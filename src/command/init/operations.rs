@@ -103,8 +103,11 @@ pub(crate) async fn publish_subgraphs(
                 );
             }
         };
-        let unresolved = UnresolvedSubgraph::new(subgraph_name.clone(), subgraph_config.clone());
-        let schema_path = unresolved.resolve_file_path(output_path, &schema_path.unwrap())?;
+        let schema_path = UnresolvedSubgraph::resolve_file_path(
+            subgraph_name,
+            output_path,
+            &schema_path.unwrap(),
+        )?;
         let sdl = read_to_string(schema_path)?;
         rover_client::operations::subgraph::publish::run(
             SubgraphPublishInput {

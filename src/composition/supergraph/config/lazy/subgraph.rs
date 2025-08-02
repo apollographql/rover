@@ -20,26 +20,28 @@ impl LazilyResolvedSubgraph {
     /// any filepaths and confirming that they are relative to a supergraph config schema
     pub fn resolve(
         supergraph_config_root: &Utf8PathBuf,
-        unresolved_subgraph: UnresolvedSubgraph,
+        name: String,
+        unresolved_subgraph: SubgraphConfig,
     ) -> Result<LazilyResolvedSubgraph, ResolveSubgraphError> {
-        match unresolved_subgraph.schema() {
+        match unresolved_subgraph.schema {
             SchemaSource::File { file } => {
-                let file = unresolved_subgraph.resolve_file_path(
-                    &supergraph_config_root.clone(),
-                    &Utf8PathBuf::try_from(file.clone())?,
+                let file = UnresolvedSubgraph::resolve_file_path(
+                    &name,
+                    supergraph_config_root,
+                    &Utf8PathBuf::try_from(file)?,
                 )?;
                 Ok(LazilyResolvedSubgraph {
-                    name: unresolved_subgraph.name().to_string(),
-                    routing_url: unresolved_subgraph.routing_url().clone(),
+                    name,
+                    routing_url: unresolved_subgraph.routing_url,
                     schema: SchemaSource::File {
                         file: file.into_std_path_buf(),
                     },
                 })
             }
-            _ => Ok(LazilyResolvedSubgraph {
-                name: unresolved_subgraph.name().to_string(),
-                routing_url: unresolved_subgraph.routing_url().clone(),
-                schema: unresolved_subgraph.schema().clone(),
+            schema => Ok(LazilyResolvedSubgraph {
+                name,
+                routing_url: unresolved_subgraph.routing_url,
+                schema,
             }),
         }
     }

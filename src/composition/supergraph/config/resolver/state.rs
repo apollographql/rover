@@ -7,12 +7,6 @@ use crate::composition::supergraph::config::federation::{
     FederationVersionResolverFromSubgraphs, FederationVersionResolverFromSupergraphConfig,
 };
 
-/// In this stage, we await the caller to optionally load subgraphs from the Studio API using
-/// the contents of the `--graph-ref` flag
-pub struct LoadRemoteSubgraphs {
-    pub federation_version_resolver: FederationVersionResolverFromSupergraphConfig,
-}
-
 /// In this stage, we await the caller to optionally load subgraphs and a specified federation
 /// version from a local supergraph config file
 pub struct LoadSupergraphConfig {
