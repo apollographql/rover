@@ -1,10 +1,9 @@
 use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use crate::{RoverError, RoverResult};
 use anyhow::format_err;
-use apollo_federation_types::config::{
-    FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
-};
+use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
@@ -294,14 +293,14 @@ impl SupergraphBuilder {
         Ok(format!("{parent_parent_name}_{base_name}"))
     }
 
-    pub fn build_supergraph(&self) -> RoverResult<SupergraphConfig> {
+    pub fn build_supergraph(&self) -> RoverResult<SupergraphConfigYaml> {
         let subgraphs = self.generate_subgraphs()?;
-        Ok(SupergraphConfig::new(
+        Ok(SupergraphConfigYaml {
             subgraphs,
-            Some(FederationVersion::from_str(
+            federation_version: Some(FederationVersion::from_str(
                 self.federation_version.as_str(),
             )?),
-        ))
+        })
     }
 
     pub fn build_and_write(&self) -> RoverResult<()> {
@@ -352,7 +351,7 @@ mod tests {
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -376,7 +375,7 @@ mod tests {
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -406,7 +405,7 @@ mod tests {
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
@@ -442,7 +441,7 @@ mod tests {
         let expected = supergraph_builder.build_supergraph().unwrap();
 
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
-        let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
+        let actual: SupergraphConfigYaml = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
 
         Ok(())
