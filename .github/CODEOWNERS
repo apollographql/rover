@@ -5,3 +5,5 @@ docs @apollographql/docs @apollographql/graph-tooling
 src/command/init @apollographql/team-growth @apollographql/graph-tooling
 src/command/tests @apollographql/team-growth @apollographql/graph-tooling
 src/options @apollographql/team-growth @apollographql/graph-tooling
+src/command/connector @apollographql/graph-dev
+src/command/lsp @apollographql/graph-dev

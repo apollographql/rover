@@ -1,5 +1,7 @@
 mod cloud;
 mod config;
+#[cfg(feature = "composition-js")]
+mod connector;
 mod contract;
 mod dev;
 mod docs;
@@ -21,6 +23,8 @@ mod update;
 
 pub use cloud::Cloud;
 pub use config::Config;
+#[cfg(feature = "composition-js")]
+pub use connector::Connector;
 pub use contract::Contract;
 pub use dev::Dev;
 pub use docs::Docs;
