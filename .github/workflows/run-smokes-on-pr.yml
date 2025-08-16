@@ -18,7 +18,7 @@ jobs:
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
     steps:
       - name: "Checkout rover repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: "Install `semver` cli"
         run: |
           npm install -g semver

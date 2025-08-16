@@ -34,7 +34,7 @@ jobs:
     # Arm64 runner for cross-compilation
     runs-on: ${{ matrix.compile_target.compiles_on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: "Checkout rover repo"
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
@@ -112,7 +112,7 @@ jobs:
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: "Checkout rover repo"
       - uses: actions/download-artifact@v4
         name: "Download artifacts built in previous stages"

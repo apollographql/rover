@@ -11,7 +11,7 @@ jobs:
       router_versions: ${{ steps.router-versions.outputs.router_versions }}
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: "Checkout rover repo"
       - run: |
           npm install -g semver
