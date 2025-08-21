@@ -7,6 +7,7 @@ use camino::Utf8PathBuf;
 use comfy_table::Attribute::Bold;
 use comfy_table::Cell;
 use comfy_table::CellAlignment::Center;
+use rover_client::RoverClientError;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -19,17 +20,17 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
     SdlType,
 };
-use rover_client::RoverClientError;
 use rover_std::Style;
-use serde_json::{json, Value};
-use termimad::crossterm::style::Attribute::Underlined;
+use serde_json::{Value, json};
 use termimad::MadSkin;
+use termimad::crossterm::style::Attribute::Underlined;
 
+use crate::RoverError;
+use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::{JsonVersion, ProjectLanguage};
 use crate::utils::table;
-use crate::RoverError;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -105,6 +106,9 @@ pub enum RoverOutput {
     },
     MessageResponse {
         msg: String,
+    },
+    ConnectorRunResponse {
+        output: RunConnectorOutput,
     },
 }
 
@@ -225,7 +229,11 @@ impl RoverOutput {
                 }
 
                 if publish_response.supergraph_was_updated {
-                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
+                    stderrln!(
+                        "The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph",
+                        graph_ref,
+                        subgraph
+                    )?;
                 } else {
                     stderrln!(
                         "The supergraph schema for '{}' was NOT updated with a new schema",
@@ -261,10 +269,19 @@ impl RoverOutput {
                         )?;
 
                         stderrln!("{}", &delete_response.build_errors)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
+                        stderrln!(
+                            "{} This is only a prediction. If the graph changes before confirming, these errors could change.",
+                            warn_prefix
+                        )?;
                     } else {
-                        stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?;
+                        stderrln!(
+                            "{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.",
+                            warn_prefix
+                        )?;
+                        stderrln!(
+                            "{} This is only a prediction. If the graph changes before confirming, there could be build errors.",
+                            warn_prefix
+                        )?;
                     }
                     None
                 } else {
@@ -375,7 +392,9 @@ impl RoverOutput {
                     "Have a question or suggestion about templates? Let us know at \
                     https://community.apollographql.com/",
                 );
-                Some(format!("Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"))
+                Some(format!(
+                    "Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"
+                ))
             }
             RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
@@ -416,41 +435,43 @@ impl RoverOutput {
                 let result = if response.unchanged {
                     format!(
                         "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
-                        Style::NewOperationCount.paint(response.total_published_operations.to_string()),
+                        Style::NewOperationCount
+                            .paint(response.total_published_operations.to_string()),
                         Style::PersistedQueryList.paint(&response.list_name),
-                        Style::TotalOperationCount.paint(response.operation_counts.total().to_string())
+                        Style::TotalOperationCount
+                            .paint(response.operation_counts.total().to_string())
                     )
                 } else {
                     let mut result = "Successfully ".to_string();
 
                     result.push_str(&match (
-                            response.operation_counts.added_str().map(|s| Style::Command.paint(s)),
-                            response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
-                            response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
-                        ) {
-                            (Some(added), Some(updated), Some(removed)) => format!(
-                                "added {added}, updated {updated}, and removed {removed}, creating"
-                            ),
-                            (Some(added), Some(updated), None) => {
-                                format!("added {added} and updated {updated}, creating")
-                            }
-                            (Some(added), None, Some(removed)) => {
-                                format!("added {added} and removed {removed}, creating")
-                            }
-                            (None, Some(updated), Some(removed)) => {
-                                format!("updated {updated} and removed {removed}, creating")
-                            }
-                            (Some(added), None, None) => {
-                                format!("added {added}, creating")
-                            }
-                            (None, None, Some(removed)) => {
-                                format!("removed {removed}, creating")
-                            }
-                            (None, Some(updated), None) => {
-                                format!("updated {updated}, creating")
-                            }
-                            (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
-                        });
+                                    response.operation_counts.added_str().map(|s| Style::Command.paint(s)),
+                                    response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
+                                    response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
+                                ) {
+                                    (Some(added), Some(updated), Some(removed)) => format!(
+                                        "added {added}, updated {updated}, and removed {removed}, creating"
+                                    ),
+                                    (Some(added), Some(updated), None) => {
+                                        format!("added {added} and updated {updated}, creating")
+                                    }
+                                    (Some(added), None, Some(removed)) => {
+                                        format!("added {added} and removed {removed}, creating")
+                                    }
+                                    (None, Some(updated), Some(removed)) => {
+                                        format!("updated {updated} and removed {removed}, creating")
+                                    }
+                                    (Some(added), None, None) => {
+                                        format!("added {added}, creating")
+                                    }
+                                    (None, None, Some(removed)) => {
+                                        format!("removed {removed}, creating")
+                                    }
+                                    (None, Some(updated), None) => {
+                                        format!("updated {updated}, creating")
+                                    }
+                                    (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
+                                });
 
                     result.push_str(&format!(
                         " revision {} of {}, which contains {} operations.",
@@ -471,6 +492,9 @@ impl RoverOutput {
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
+            RoverOutput::ConnectorRunResponse { output } => {
+                Some(RunConnector::format_output(output))
+            }
         })
     }
 
@@ -596,6 +620,9 @@ impl RoverOutput {
             }
             RoverOutput::MessageResponse { msg } => {
                 json!({ "message": msg })
+            }
+            RoverOutput::ConnectorRunResponse { output } => {
+                json!({ "output": output })
             }
         }
     }

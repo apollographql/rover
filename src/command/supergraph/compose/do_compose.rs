@@ -28,7 +28,7 @@ pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[serde(skip_serializing)]
     #[arg(long = "config")]
-    supergraph_yaml: Option<FileDescriptorType>,
+    pub supergraph_yaml: Option<FileDescriptorType>,
 
     /// A [`GraphRef`] that is accessible in Apollo Studio.
     /// This is used to initialize your supergraph with the values contained in this variant.
@@ -37,7 +37,7 @@ pub struct SupergraphConfigSource {
     ///
     /// If used in conjunction with `--config`, the values presented in the supergraph.yaml will take precedence over these values.
     #[arg(long = "graph-ref")]
-    graph_ref: Option<GraphRef>,
+    pub graph_ref: Option<GraphRef>,
 }
 
 #[cfg_attr(test, derive(Default))]

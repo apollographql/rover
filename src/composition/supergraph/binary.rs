@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use std::process::Stdio;
+use std::{fmt::Debug, path::PathBuf};
 
 use apollo_federation_types::{
     config::FederationVersion,
@@ -10,7 +10,9 @@ use camino::Utf8PathBuf;
 use tap::TapFallible;
 
 use super::version::SupergraphVersion;
+use crate::command::connector::run::{RunConnectorError, RunConnectorOutput};
 use crate::utils::effect::exec::ExecCommandOutput;
+use crate::RoverOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
     utils::effect::exec::{ExecCommand, ExecCommandConfig},
@@ -119,6 +121,62 @@ impl SupergraphBinary {
                 binary: self.exe.clone(),
                 error: format!("{err:?}"),
             })
+    }
+
+    pub async fn run_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        schema_path: PathBuf,
+        connector_id: String,
+        variables: String,
+    ) -> Result<RoverOutput, RunConnectorError> {
+        let args = vec![
+            "run-connector".to_string(),
+            "--path".to_string(),
+            schema_path.to_str().unwrap_or_default().into(),
+            "--connector-id".to_string(),
+            connector_id,
+            "--variables".to_string(),
+            variables,
+        ];
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
+            .build();
+
+        let output = exec_impl
+            .exec_command(config)
+            .await
+            .tap_err(|err| tracing::error!("{:?}", err))
+            .map_err(|err| RunConnectorError::Binary {
+                error: format!("{err:?}"),
+            })?;
+
+        let exit_code = output.status.code();
+        if exit_code != Some(0) && exit_code != Some(1) {
+            return Err(RunConnectorError::BinaryExit {
+                exit_code,
+                stdout: String::from_utf8(output.stdout).unwrap(),
+                stderr: String::from_utf8(output.stderr).unwrap(),
+            });
+        }
+
+        let output = std::str::from_utf8(&output.stdout)
+            .map_err(|err| RunConnectorError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?
+            .to_string();
+
+        let output: RunConnectorOutput =
+            serde_json::from_str(&output).map_err(|err| RunConnectorError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?;
+
+        Ok(RoverOutput::ConnectorRunResponse { output })
     }
 }
 
