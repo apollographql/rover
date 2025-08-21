@@ -128,7 +128,7 @@ impl RunConnector {
 
         let mut request_problems_content = "".to_string();
         if let Some(request) = &output.request
-            && request.problems.len() > 0
+            && !request.problems.is_empty()
         {
             let request_problems_header = Style::WarningHeading.paint("Request Mapping Problems");
 
@@ -199,7 +199,7 @@ impl RunConnector {
 
         let mut response_problems_content = "".to_string();
         if let Some(response) = &output.response
-            && response.problems.len() > 0
+            && !response.problems.is_empty()
         {
             let response_problems_header = Style::WarningHeading.paint("Response Mapping Problems");
 

@@ -52,6 +52,7 @@ fn cargo_metadata() -> Result<Metadata> {
     Ok(metadata)
 }
 
+#[allow(dead_code)]
 fn cargo_metadata_without_deps() -> Result<Metadata> {
     let metadata = MetadataCommand::new()
         .manifest_path(PKG_PROJECT_ROOT.join("Cargo.toml"))

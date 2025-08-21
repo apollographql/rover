@@ -2,7 +2,7 @@
 //! by the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/).
 //! Before calling this code from other functions, make sure that the license is accepted (like
 //! `supergraph compose`)
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use serde_yaml::{Mapping, Sequence, Value};
 use std::env;
 use std::path::Path;

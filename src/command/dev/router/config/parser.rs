@@ -140,7 +140,7 @@ mod tests {
 
     use super::RouterConfigParser;
     use crate::command::dev::router::config::{
-        RouterAddress, RouterHost, RouterPort, DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT,
+        DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT, RouterAddress, RouterHost, RouterPort,
     };
 
     #[rstest]

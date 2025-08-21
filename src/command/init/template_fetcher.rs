@@ -116,7 +116,7 @@ impl InitTemplateOptions {
                             path,
                             template.display_name,
                             e
-                        )))
+                        )));
                     }
                 }
             }

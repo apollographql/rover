@@ -20,6 +20,8 @@ pub mod tests;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
 #[cfg(feature = "composition-js")]
+use crate::RoverError;
+#[cfg(feature = "composition-js")]
 use crate::command::init::options::ProjectTemplateOpt;
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
@@ -31,8 +33,6 @@ use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-#[cfg(feature = "composition-js")]
-use crate::RoverError;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 #[cfg(feature = "composition-js")]
@@ -167,7 +167,7 @@ impl Init {
                     .await?
                 {
                     CreateProjectResult::Created(project) => {
-                        return Ok(project.complete().success())
+                        return Ok(project.complete().success());
                     }
                     CreateProjectResult::Restart {
                         state: project_named,

@@ -10,9 +10,9 @@ use camino::Utf8PathBuf;
 use tap::TapFallible;
 
 use super::version::SupergraphVersion;
+use crate::RoverOutput;
 use crate::command::connector::run::{RunConnectorError, RunConnectorOutput};
 use crate::utils::effect::exec::ExecCommandOutput;
-use crate::RoverOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
     utils::effect::exec::{ExecCommand, ExecCommandConfig},

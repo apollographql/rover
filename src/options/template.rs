@@ -3,8 +3,8 @@ use std::fmt::{self, Display};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
-use dialoguer::console::Term;
 use dialoguer::Select;
+use dialoguer::console::Term;
 use http::Uri;
 use http_body_util::Full;
 use rover_http::ReqwestService;
@@ -95,12 +95,12 @@ impl TemplateListFiles for TemplateProject {
             components.next();
             let path = components.as_path();
 
-            if !(path.starts_with("pax_global_header") || path.starts_with("..")) {
-                if let Ok(path_buf) = Utf8PathBuf::from_path_buf(path.to_path_buf()) {
-                    //ignore top level directories
-                    if !entry.header().entry_type().is_dir() {
-                        files.push(path_buf);
-                    }
+            if !(path.starts_with("pax_global_header") || path.starts_with(".."))
+                && let Ok(path_buf) = Utf8PathBuf::from_path_buf(path.to_path_buf())
+            {
+                //ignore top level directories
+                if !entry.header().entry_type().is_dir() {
+                    files.push(path_buf);
                 }
             }
         }

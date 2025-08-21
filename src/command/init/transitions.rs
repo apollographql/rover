@@ -3,13 +3,13 @@ use std::{env, fs::read_dir, path::PathBuf};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use houston::Profile;
+use rover_client::RoverClientError;
 use rover_client::operations::init::create_graph::*;
 use rover_client::operations::init::memberships;
 use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
-use rover_std::{errln, Spinner, Style};
+use rover_std::{Spinner, Style, errln};
 
-use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
+use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
@@ -24,12 +24,12 @@ use crate::command::init::InitTemplateFetcher;
 
 use crate::options::{TemplateListFiles, TemplateWrite};
 
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
 use crate::RoverError;
 use crate::RoverErrorSuggestion;
 use crate::RoverOutput;
 use crate::RoverResult;
+use crate::options::ProfileOpt;
+use crate::utils::client::StudioClientConfig;
 
 #[derive(Debug)]
 pub enum RestartReason {
@@ -132,9 +132,10 @@ impl Welcome {
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
-        if let Ok(mut dir) = read_dir(&output_path) {
-            if dir.next().is_some() {
-                return Err(RoverError::new(anyhow!(
+        if let Ok(mut dir) = read_dir(&output_path)
+            && dir.next().is_some()
+        {
+            return Err(RoverError::new(anyhow!(
                     "Cannot initialize the graph because the current directory is not empty"
                 ))
                 .with_suggestion(RoverErrorSuggestion::Adhoc(
@@ -144,7 +145,6 @@ impl Welcome {
                     )
                     .to_string(),
                 )));
-            }
         }
 
         let project_type = match options.get_project_type() {

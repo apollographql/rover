@@ -673,18 +673,18 @@ impl RoverOutput {
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
-        if std::io::stdout().is_terminal() {
-            if let Some(descriptor) = self.descriptor() {
-                stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
-            }
+        if std::io::stdout().is_terminal()
+            && let Some(descriptor) = self.descriptor()
+        {
+            stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
         }
         Ok(())
     }
     pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
-        if std::io::stdout().is_terminal() {
-            if let Some(descriptor) = self.descriptor() {
-                stderr!("{}: ", Style::Heading.paint(descriptor))?;
-            }
+        if std::io::stdout().is_terminal()
+            && let Some(descriptor) = self.descriptor()
+        {
+            stderr!("{}: ", Style::Heading.paint(descriptor))?;
         }
         Ok(())
     }
