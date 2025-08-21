@@ -431,7 +431,9 @@ mod tests {
                       hello: String
                     }
             "#;
-        std::env::set_var("TEST_SUBGRAPH_PORT", "4000");
+        unsafe {
+            std::env::set_var("TEST_SUBGRAPH_PORT", "4000");
+        }
         let routing_url = SupergraphConfigWatcher::read_supergraph_config(yaml_config)
             .unwrap()
             .into_iter()
@@ -443,7 +445,9 @@ mod tests {
             routing_url,
             Some(String::from("http://localhost:4000/graphql"))
         );
-        std::env::remove_var("TEST_SUBGRAPH_PORT");
+        unsafe {
+            std::env::remove_var("TEST_SUBGRAPH_PORT");
+        }
     }
 
     #[tokio::test]

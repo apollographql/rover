@@ -134,14 +134,18 @@ mod test_expand_str {
     #[test]
     fn valid_env_var() {
         let value = format!("${{env.{ENV_VAR_KEY_1}}}");
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        unsafe {
+            env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        }
         assert_eq!(expand_str(&value).unwrap(), ENV_VAR_VALUE_1);
     }
 
     #[test]
     fn partial_env_var_partial_static() {
         let value = format!("static-part-${{env.{ENV_VAR_KEY_1}}}");
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        unsafe {
+            env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        }
         assert_eq!(
             expand_str(&value).unwrap(),
             format!("static-part-{ENV_VAR_VALUE_1}")
@@ -151,8 +155,10 @@ mod test_expand_str {
     #[test]
     fn multiple_env_vars() {
         let value = format!("${{env.{ENV_VAR_KEY_1}}}-static-part-${{env.{ENV_VAR_KEY_2}}}");
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
+        unsafe {
+            env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+            env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
+        }
         assert_eq!(
             expand_str(&value).unwrap(),
             format!("{ENV_VAR_VALUE_1}-static-part-{ENV_VAR_VALUE_2}")
@@ -162,8 +168,10 @@ mod test_expand_str {
     #[test]
     fn nested_env_vars() {
         let value = format!("${{env.${{env.{ENV_VAR_KEY_1}}}}}");
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
+        unsafe {
+            env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+            env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
+        }
         assert!(expand_str(&value).is_err());
     }
 
