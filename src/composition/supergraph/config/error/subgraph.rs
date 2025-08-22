@@ -8,7 +8,9 @@ use http::header::{InvalidHeaderName, InvalidHeaderValue};
 pub enum ResolveSubgraphError {
     /// Occurs when the subgraph schema file cannot found relative to the supplied
     /// supergraph config file
-    #[error("Could not find schema file ({path}) relative to ({supergraph_config_path}) for subgraph `{subgraph_name}`")]
+    #[error(
+        "Could not find schema file ({path}) relative to ({supergraph_config_path}) for subgraph `{subgraph_name}`"
+    )]
     FileNotFound {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
@@ -60,7 +62,9 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when a supergraph config filepath waqs expected but not found
-    #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
+    #[error(
+        "Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config"
+    )]
     SupergraphConfigMissing,
     /// Invalid input from the user in response to prompting
     #[error("Invalid input: {input}")]

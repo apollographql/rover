@@ -8,7 +8,7 @@ use rstest::*;
 use tracing::error;
 use tracing_test::traced_test;
 
-use crate::e2e::{retail_supergraph, RetailSupergraph};
+use crate::e2e::{RetailSupergraph, retail_supergraph};
 
 #[rstest]
 #[ignore]

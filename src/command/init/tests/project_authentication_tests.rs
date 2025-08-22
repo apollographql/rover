@@ -109,9 +109,11 @@ mod tests {
 
         assert!(!workflow.authenticated);
         assert_eq!(workflow.error, Some(AuthenticationError::EmptyKey));
-        assert!(workflow
-            .get_user_message()
-            .contains("API key cannot be empty"));
+        assert!(
+            workflow
+                .get_user_message()
+                .contains("API key cannot be empty")
+        );
     }
 
     #[test]
@@ -122,9 +124,11 @@ mod tests {
 
         assert!(!workflow.authenticated);
         assert_eq!(workflow.error, Some(AuthenticationError::InvalidKeyFormat));
-        assert!(workflow
-            .get_user_message()
-            .contains("Invalid API key format"));
+        assert!(
+            workflow
+                .get_user_message()
+                .contains("Invalid API key format")
+        );
     }
 
     #[test]
@@ -135,9 +139,11 @@ mod tests {
 
         assert!(!workflow.authenticated);
         assert_eq!(workflow.error, Some(AuthenticationError::NotUserKey));
-        assert!(workflow
-            .get_user_message()
-            .contains("Invalid API key found"));
+        assert!(
+            workflow
+                .get_user_message()
+                .contains("Invalid API key found")
+        );
     }
 
     #[test]
@@ -151,9 +157,11 @@ mod tests {
             workflow.error,
             Some(AuthenticationError::AuthenticationFailed(_))
         ));
-        assert!(workflow
-            .get_user_message()
-            .contains("Invalid API key found"));
+        assert!(
+            workflow
+                .get_user_message()
+                .contains("Invalid API key found")
+        );
     }
 
     #[test]
@@ -167,8 +175,10 @@ mod tests {
             workflow.error,
             Some(AuthenticationError::SystemError(_))
         ));
-        assert!(workflow
-            .get_user_message()
-            .contains("Unexpected system error"));
+        assert!(
+            workflow
+                .get_user_message()
+                .contains("Unexpected system error")
+        );
     }
 }

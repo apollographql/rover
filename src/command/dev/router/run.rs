@@ -7,26 +7,26 @@ use super::config::{ReadRouterConfigError, RouterAddress, RunRouterConfig};
 use super::hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent};
 use super::install::{InstallRouter, InstallRouterError};
 use super::watchers::router_config::RouterConfigWatcher;
+use crate::RoverError;
 use crate::command::dev::router::hot_reload::{HotReloadConfig, HotReloadConfigOverrides};
 use crate::command::dev::router::watchers::file::FileWatcher;
-use crate::composition::events::CompositionEvent;
 use crate::composition::CompositionError;
-use crate::options::{LicenseAccepter, ProfileOpt, DEFAULT_PROFILE};
+use crate::composition::events::CompositionEvent;
+use crate::options::{DEFAULT_PROFILE, LicenseAccepter, ProfileOpt};
 use crate::subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::exec::ExecCommandConfig;
 use crate::utils::effect::install::InstallBinary;
 use crate::utils::effect::read_file::ReadFile;
 use crate::utils::effect::write_file::{WriteFile, WriteFileRequest};
-use crate::RoverError;
 use apollo_federation_types::config::RouterVersion;
 use camino::{Utf8Path, Utf8PathBuf};
-use futures::stream::{self, BoxStream};
 use futures::StreamExt;
+use futures::stream::{self, BoxStream};
 use houston::{Config, Profile};
-use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-use rover_std::{debugln, errln, infoln, warnln, RoverStdError};
+use rover_client::shared::GraphRef;
+use rover_std::{RoverStdError, debugln, errln, infoln, warnln};
 use timber::Level;
 use tokio::process::Child;
 use tokio::time::sleep;
@@ -272,7 +272,11 @@ impl RunRouter<state::Run> {
                     }
                     Err(err) => {
                         if profile.profile_name != DEFAULT_PROFILE {
-                            warnln!("Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY", profile.profile_name, err)
+                            warnln!(
+                                "Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY",
+                                profile.profile_name,
+                                err
+                            )
                         }
                     }
                 };
@@ -286,7 +290,9 @@ impl RunRouter<state::Run> {
         studio_client_config: &StudioClientConfig,
     ) -> Result<(), RunRouterBinaryError> {
         if !self.state.config.health_check_enabled() {
-            tracing::info!("Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start.");
+            tracing::info!(
+                "Router healthcheck disabled in the router's configuration. The router might emit errors when starting up, potentially failing to start."
+            );
             return Ok(());
         }
 
@@ -294,10 +300,12 @@ impl RunRouter<state::Run> {
         let mut healthcheck_endpoint = match self.state.config.health_check_endpoint() {
             Some(endpoint) => endpoint.to_string(),
             None => {
-            return Err(RunRouterBinaryError::Internal {
-                dependency: "Router Config Validation".to_string(),
-                err: String::from("Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint")
-            })
+                return Err(RunRouterBinaryError::Internal {
+                    dependency: "Router Config Validation".to_string(),
+                    err: String::from(
+                        "Router Config passed validation incorrectly, healthchecks are enabled but missing an endpoint",
+                    ),
+                });
             }
         };
 
@@ -454,8 +462,8 @@ mod state {
     use tokio_util::sync::CancellationToken;
 
     use crate::command::dev::router::binary::{RouterBinary, RouterLog, RunRouterBinaryError};
-    use crate::command::dev::router::config::remote::RemoteRouterConfig;
     use crate::command::dev::router::config::RouterConfigFinal;
+    use crate::command::dev::router::config::remote::RemoteRouterConfig;
     use crate::command::dev::router::hot_reload::HotReloadEvent;
 
     #[derive(Default)]

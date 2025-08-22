@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::delete::{self, GraphDeleteInput};
-use rover_std::{prompt, Style};
+use rover_std::{Style, prompt};
 
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;

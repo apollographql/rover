@@ -6,11 +6,11 @@ use apollo_federation_types::config::SubgraphConfig;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::{
+    RoverClientError,
     operations::subgraph::fetch_all::{
         SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse,
     },
     shared::GraphRef,
-    RoverClientError,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;

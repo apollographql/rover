@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use itertools::Itertools;
 
 use super::LazilyResolvedSubgraph;

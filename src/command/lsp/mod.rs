@@ -12,8 +12,8 @@ use clap::Parser;
 use futures::StreamExt;
 use serde::Serialize;
 use tower::ServiceExt;
-use tower_lsp::lsp_types::{Diagnostic, Range};
 use tower_lsp::Server;
+use tower_lsp::lsp_types::{Diagnostic, Range};
 use tracing::{debug, info};
 use url::Url;
 
@@ -24,9 +24,9 @@ use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::runner::CompositionRunner;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
+use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,

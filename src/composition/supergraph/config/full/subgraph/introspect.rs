@@ -10,8 +10,8 @@ use rover_client::operations::subgraph::introspect::{
     SubgraphIntrospect, SubgraphIntrospectError, SubgraphIntrospectResponse,
 };
 use rover_graphql::GraphQLLayer;
-use rover_http::{extend_headers::ExtendHeadersLayer, HttpService};
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use rover_http::{HttpService, extend_headers::ExtendHeadersLayer};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 use url::Url;
 
 use super::FullyResolvedSubgraph;

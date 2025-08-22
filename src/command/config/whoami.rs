@@ -4,7 +4,7 @@ use rover_client::blocking::StudioClient;
 use rover_client::operations::config::who_am_i::{self, Actor, RegistryIdentity};
 use serde::Serialize;
 
-use houston::{mask_key, CredentialOrigin};
+use houston::{CredentialOrigin, mask_key};
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;

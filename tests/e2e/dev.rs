@@ -5,18 +5,18 @@ use std::time::Duration;
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
 use portpicker::pick_unused_port;
-use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
+use reqwest::header::CONTENT_TYPE;
 use rstest::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use speculoos::assert_that;
 use tokio::time::timeout;
 use tracing::error;
 use tracing_test::traced_test;
 
 use super::{
-    run_subgraphs_retail_supergraph, test_graphql_connection, RetailSupergraph,
-    GRAPHQL_TIMEOUT_DURATION,
+    GRAPHQL_TIMEOUT_DURATION, RetailSupergraph, run_subgraphs_retail_supergraph,
+    test_graphql_connection,
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);

@@ -10,10 +10,10 @@ use tokio_util::sync::CancellationToken;
 
 use super::config::parser::RouterConfigParser;
 use super::config::{RouterAddress, RouterConfig};
+use crate::RoverError;
 use crate::subtask::SubtaskHandleStream;
 use crate::utils::effect::write_file::WriteFile;
 use crate::utils::expansion::expand;
-use crate::RoverError;
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },

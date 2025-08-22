@@ -8,7 +8,7 @@ use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use regex::Regex;
-use rover_std::{infoln, Style};
+use rover_std::{Style, infoln};
 use semver::Version;
 use tap::TapFallible;
 use timber::Level;
@@ -18,10 +18,10 @@ use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use super::hot_reload::HotReloadError;
+use crate::RoverError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
-use crate::RoverError;
 
 pub enum RouterLog {
     Stdout(String),
@@ -57,7 +57,9 @@ fn produce_special_message(raw_message: &str) {
                         Some(RouterPort::CliOption(socket_addr.port())),
                     )
                     .pretty_string();
-                    format!("Your supergraph is running! head to {router_address} to query your supergraph")
+                    format!(
+                        "Your supergraph is running! head to {router_address} to query your supergraph"
+                    )
                 }
                 _ => raw_message.to_string(),
             }

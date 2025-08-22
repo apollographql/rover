@@ -1,6 +1,6 @@
 use std::{fmt, io, str::FromStr};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
 
@@ -107,7 +107,9 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
     // only split once, a header's value may have a ":" in it, but not a key. Right?
     let pair: Vec<&str> = header.splitn(2, ':').collect();
     if pair.len() < 2 {
-        let msg = format!("Could not parse \"key:value\" pair for provided header: \"{header}\". Headers must be provided in key:value pairs, with quotes around the pair if there are any spaces in the key or value.");
+        let msg = format!(
+            "Could not parse \"key:value\" pair for provided header: \"{header}\". Headers must be provided in key:value pairs, with quotes around the pair if there are any spaces in the key or value."
+        );
         Err(io::Error::new(io::ErrorKind::InvalidInput, msg))
     } else {
         Ok((pair[0].to_string(), pair[1].to_string()))

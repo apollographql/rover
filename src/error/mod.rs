@@ -14,7 +14,7 @@ use rover_client::RoverClientError;
 use rover_std::Style;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::options::JsonVersion;
 
@@ -38,15 +38,14 @@ where
     let message_field_name = "message";
     let details_struct = "details";
 
-    if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
-        if let Some(rover_client_error_source) = rover_client_error.source() {
-            if let Some(build_errors) = rover_client_error_source.downcast_ref::<BuildErrors>() {
-                let mut top_level_data = serializer.serialize_struct(top_level_struct, 2)?;
-                top_level_data.serialize_field(message_field_name, &error.to_string())?;
-                top_level_data.serialize_field(details_struct, &build_errors)?;
-                return top_level_data.end();
-            }
-        }
+    if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>()
+        && let Some(rover_client_error_source) = rover_client_error.source()
+        && let Some(build_errors) = rover_client_error_source.downcast_ref::<BuildErrors>()
+    {
+        let mut top_level_data = serializer.serialize_struct(top_level_struct, 2)?;
+        top_level_data.serialize_field(message_field_name, &error.to_string())?;
+        top_level_data.serialize_field(details_struct, &build_errors)?;
+        return top_level_data.end();
     }
 
     let mut data = serializer.serialize_struct(top_level_struct, 1)?;

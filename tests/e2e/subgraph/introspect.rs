@@ -1,4 +1,4 @@
-use std::fs::{read_to_string, OpenOptions};
+use std::fs::{OpenOptions, read_to_string};
 use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -17,9 +17,8 @@ use tracing::info;
 use tracing_test::traced_test;
 
 use crate::e2e::{
-    find_matching_log_line, introspection_log_line_prefix, run_single_mutable_subgraph,
-    run_subgraphs_retail_supergraph, test_artifacts_directory, RetailSupergraph,
-    SingleMutableSubgraph,
+    RetailSupergraph, SingleMutableSubgraph, find_matching_log_line, introspection_log_line_prefix,
+    run_single_mutable_subgraph, run_subgraphs_retail_supergraph, test_artifacts_directory,
 };
 
 #[rstest]

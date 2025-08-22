@@ -45,9 +45,9 @@ impl RoverEnv {
                         env::VarError::NotUnicode(_) => Err(io::Error::new(
                             io::ErrorKind::InvalidInput,
                             format!(
-                            "The value of the environment variable \"{}\" is not valid Unicode.",
-                            &key
-                        ),
+                                "The value of the environment variable \"{}\" is not valid Unicode.",
+                                &key
+                            ),
                         )),
                     },
                 }?;

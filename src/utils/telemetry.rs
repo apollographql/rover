@@ -3,7 +3,7 @@ use reqwest::Client;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;
-use crate::{cli::Rover, PKG_NAME, PKG_VERSION};
+use crate::{PKG_NAME, PKG_VERSION, cli::Rover};
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
@@ -123,10 +123,10 @@ impl Report for Rover {
 
 #[cfg(test)]
 mod tests {
+    use crate::PKG_NAME;
     use crate::cli::Rover;
     use crate::utils::env::RoverEnvKey;
     use crate::utils::telemetry::Report;
-    use crate::PKG_NAME;
 
     use sputnik::Command;
 

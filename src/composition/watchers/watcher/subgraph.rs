@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use apollo_federation_types::config::SchemaSource;
 use camino::Utf8PathBuf;
-use futures::stream::BoxStream;
 use futures::StreamExt;
+use futures::stream::BoxStream;
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectError;
-use rover_std::{infoln, RoverStdError};
+use rover_std::{RoverStdError, infoln};
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
@@ -21,6 +21,7 @@ use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::subtask::SubtaskHandleUnit;
 
 #[derive(thiserror::Error, Debug)]
+#[allow(dead_code)]
 pub enum SubgraphFetchError {
     #[error(transparent)]
     File(#[from] RoverStdError),
@@ -30,6 +31,7 @@ pub enum SubgraphFetchError {
 
 #[derive(thiserror::Error, Debug)]
 #[error("Unsupported subgraph introspection source: {:?}", .0)]
+#[allow(dead_code)]
 pub struct UnsupportedSchemaSource(SchemaSource);
 
 /// A subgraph watcher watches subgraphs for changes. It's important to know when a subgraph

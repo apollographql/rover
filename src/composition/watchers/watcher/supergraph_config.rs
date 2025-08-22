@@ -18,8 +18,8 @@ use tracing::debug;
 use super::file::FileWatcher;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::federation::FederationVersionResolver;
-use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
@@ -91,17 +91,17 @@ impl SubtaskHandleMultiStream for SupergraphConfigWatcher {
             let mut broken = false;
             // Look at the current contents of the supergraph_config and emit an event if there's
             // a problem parsing it, otherwise move into the watching loop.
-            if let Ok(contents) = self.file_watcher.fetch().await {
-                if let Err(e) = Self::read_supergraph_config(&contents) {
-                    broken = true;
-                    tracing::error!("could not parse supergraph config file: {:?}", e);
-                    errln!("Could not parse supergraph config file.\n{}", e);
-                    let _ = sender
-                        .send(Err(DeserializingConfigError {
-                            source: Arc::new(e),
-                        }))
-                        .tap_err(|err| tracing::error!("{:?}", err));
-                }
+            if let Ok(contents) = self.file_watcher.fetch().await
+                && let Err(e) = Self::read_supergraph_config(&contents)
+            {
+                broken = true;
+                tracing::error!("could not parse supergraph config file: {:?}", e);
+                errln!("Could not parse supergraph config file.\n{}", e);
+                let _ = sender
+                    .send(Err(DeserializingConfigError {
+                        source: Arc::new(e),
+                    }))
+                    .tap_err(|err| tracing::error!("{:?}", err));
             }
 
             let mut stream = self
@@ -314,7 +314,9 @@ impl SupergraphConfigDiff {
 
 #[derive(Error, Clone, Debug)]
 pub enum SupergraphConfigSerialisationError {
-    #[error("Variant which denotes errors came from trying to deserialise the Supergraph Config via apollo-federation-types")]
+    #[error(
+        "Variant which denotes errors came from trying to deserialise the Supergraph Config via apollo-federation-types"
+    )]
     DeserializingConfigError { source: Arc<ConfigError> },
 }
 
@@ -359,9 +361,10 @@ mod tests {
         let diff = SupergraphConfigDiff::new(&old, new, BTreeMap::default(), false).unwrap();
         assert_eq!(1, diff.added().len());
         assert_eq!(1, diff.removed().len());
-        assert!(diff
-            .added()
-            .contains(&("subgraph_c".to_string(), subgraph_def.clone())));
+        assert!(
+            diff.added()
+                .contains(&("subgraph_c".to_string(), subgraph_def.clone()))
+        );
         assert!(diff.removed().iter().any(|(name, _)| name == "subgraph_b"));
     }
 
@@ -410,9 +413,10 @@ mod tests {
         let diff = SupergraphConfigDiff::new(&old, new, BTreeMap::default(), false).unwrap();
 
         assert_eq!(diff.changed().len(), 1);
-        assert!(diff
-            .changed()
-            .contains(&("subgraph_a".to_string(), new_subgraph_config.clone())));
+        assert!(
+            diff.changed()
+                .contains(&("subgraph_a".to_string(), new_subgraph_config.clone()))
+        );
     }
 
     #[tokio::test]
@@ -427,7 +431,9 @@ mod tests {
                       hello: String
                     }
             "#;
-        std::env::set_var("TEST_SUBGRAPH_PORT", "4000");
+        unsafe {
+            std::env::set_var("TEST_SUBGRAPH_PORT", "4000");
+        }
         let routing_url = SupergraphConfigWatcher::read_supergraph_config(yaml_config)
             .unwrap()
             .into_iter()
@@ -439,7 +445,9 @@ mod tests {
             routing_url,
             Some(String::from("http://localhost:4000/graphql"))
         );
-        std::env::remove_var("TEST_SUBGRAPH_PORT");
+        unsafe {
+            std::env::remove_var("TEST_SUBGRAPH_PORT");
+        }
     }
 
     #[tokio::test]

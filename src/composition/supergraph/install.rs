@@ -4,8 +4,8 @@ use camino::Utf8PathBuf;
 
 use super::binary::SupergraphBinary;
 use super::version::{SupergraphVersion, SupergraphVersionError};
-use crate::command::install::Plugin;
 use crate::command::Install;
+use crate::command::install::Plugin;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::install::InstallBinary;
@@ -98,8 +98,8 @@ mod tests {
     use apollo_federation_types::config::FederationVersion;
     use assert_fs::{NamedTempFile, TempDir};
     use camino::Utf8PathBuf;
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use houston::Config;
     use httpmock::{Method, MockServer};
     use rstest::{fixture, rstest};

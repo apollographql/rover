@@ -96,5 +96,6 @@ fn build_command(command: &mut Command, config: ExecCommandConfig) -> &mut Comma
     } else {
         command
     };
+    #[allow(clippy::let_and_return)]
     command
 }

@@ -13,8 +13,8 @@ use tracing::{error, warn};
 use super::watcher::subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind};
 use super::watcher::supergraph_config::SupergraphConfigDiff;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
+use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
@@ -382,7 +382,9 @@ impl SubgraphHandles {
                     match subgraph_watcher.watcher().clone().fetch().await {
                         Ok(frs) => frs.routing_url,
                         Err(err) => {
-                            warn!("Could not resolve routing url from Studio, using None instead. Error: {err}");
+                            warn!(
+                                "Could not resolve routing url from Studio, using None instead. Error: {err}"
+                            );
                             None
                         }
                     }
@@ -487,11 +489,11 @@ mod tests {
 
     use super::SubgraphWatchers;
     use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
     use crate::composition::supergraph::config::full::introspect::{
         MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
         ResolveIntrospectSubgraphService,
     };
-    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
     use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
     use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
         FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,

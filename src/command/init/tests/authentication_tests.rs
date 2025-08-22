@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
+    use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 
     // ARCHITECTURE TESTS: Error Conversion System
 
@@ -8,15 +8,19 @@ mod tests {
     fn test_auth_error_types_convert_to_appropriate_messages() {
         // Validation errors (EmptyKey, InvalidKeyFormat)
         let validation_error = auth_error_to_rover_error(AuthenticationError::InvalidKeyFormat);
-        assert!(validation_error
-            .to_string()
-            .contains("Invalid API key format"));
+        assert!(
+            validation_error
+                .to_string()
+                .contains("Invalid API key format")
+        );
 
         // Credential errors (NotUserKey, AuthenticationFailed)
         let credential_error = auth_error_to_rover_error(AuthenticationError::NotUserKey);
-        assert!(credential_error
-            .to_string()
-            .contains("Invalid API key found"));
+        assert!(
+            credential_error
+                .to_string()
+                .contains("Invalid API key found")
+        );
 
         // System/infrastructure errors
         let system_error = auth_error_to_rover_error(AuthenticationError::SystemError(

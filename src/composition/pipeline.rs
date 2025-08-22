@@ -80,10 +80,10 @@ impl CompositionPipeline<state::Init> {
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
         S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+                (),
+                FetchRemoteSubgraphsRequest,
+                Response = BTreeMap<String, SubgraphConfig>,
+            >,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -156,7 +156,9 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 fully_resolved_supergraph_config.federation_version
             }
             Err(err) => {
-                warn!("Could not fully resolve SupergraphConfig to discover Federation Version: {err}");
+                warn!(
+                    "Could not fully resolve SupergraphConfig to discover Federation Version: {err}"
+                );
                 warn!("Defaulting to Federation Version: {LatestFedTwo}");
                 warnln!("Federation Version could not be detected, defaulting to: {LatestFedTwo}");
                 LatestFedTwo
@@ -369,8 +371,8 @@ mod state {
 
     use crate::composition::supergraph::binary::SupergraphBinary;
     use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
     use crate::composition::supergraph::config::resolver::InitializedSupergraphConfigResolver;
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
     use crate::composition::supergraph::install::InstallSupergraphError;
     use crate::utils::parsers::FileDescriptorType;
 

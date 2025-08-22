@@ -1,14 +1,14 @@
 use clap::Parser;
 use config::Profile;
-use dialoguer::{theme::ColorfulTheme, Password};
+use dialoguer::{Password, theme::ColorfulTheme};
 use houston as config;
 use rover_std::{hyperlink, successln};
 use serde::{Deserialize, Serialize};
 
-use crate::command::init::authentication::{auth_error_to_rover_error, AuthenticationError};
+use crate::RoverResult;
+use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::RoverResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectAuthenticationOpt {}
@@ -50,7 +50,7 @@ impl ProjectAuthenticationOpt {
             Err(e) => {
                 return Err(auth_error_to_rover_error(AuthenticationError::SystemError(
                     e.to_string(),
-                )))
+                )));
             }
         };
 

@@ -6,12 +6,12 @@ use buildstructor::Builder;
 use derive_getters::Getters;
 use futures::Future;
 use rover_client::{
+    RoverClientError,
     operations::subgraph::fetch::{SubgraphFetch, SubgraphFetchRequest},
     shared::{FetchResponse, GraphRef, SdlType},
-    RoverClientError,
 };
 use rover_graphql::GraphQLLayer;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 

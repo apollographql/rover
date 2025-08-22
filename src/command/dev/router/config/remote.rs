@@ -30,7 +30,9 @@ impl RemoteRouterConfig {
                 Ok(client) => match client.studio_graphql_service() {
                     Ok(service) => WhoAmI::new(service),
                     Err(err) => {
-                        warnln!("APOLLO_GRAPH_REF is set, but could not communicate with Studio. Router may fail to start if Enterprise features are enabled: {err}");
+                        warnln!(
+                            "APOLLO_GRAPH_REF is set, but could not communicate with Studio. Router may fail to start if Enterprise features are enabled: {err}"
+                        );
                         return RemoteRouterConfig {
                             graph_ref,
                             api_key: None,
@@ -38,7 +40,9 @@ impl RemoteRouterConfig {
                     }
                 },
                 Err(e) => {
-                    warnln!("APOLLO_GRAPH_REF is set, but could not authenticate with Studio. Router may fail to start if Enterprise features are enabled: {e}");
+                    warnln!(
+                        "APOLLO_GRAPH_REF is set, but could not authenticate with Studio. Router may fail to start if Enterprise features are enabled: {e}"
+                    );
                     return RemoteRouterConfig {
                         graph_ref,
                         api_key: None,
@@ -70,11 +74,15 @@ impl RemoteRouterConfig {
                     }
                 },
                 Err(err) => {
-                    warnln!("Could not determine the type of configured credentials, Router may fail to start if Enterprise features are enabled: {err}")
+                    warnln!(
+                        "Could not determine the type of configured credentials, Router may fail to start if Enterprise features are enabled: {err}"
+                    )
                 }
             }
         } else {
-            warnln!("APOLLO_GRAPH_REF is set, but credentials could not be loaded. Enterprise features within the router will not function.");
+            warnln!(
+                "APOLLO_GRAPH_REF is set, but credentials could not be loaded. Enterprise features within the router will not function."
+            );
         }
         RemoteRouterConfig {
             api_key: None,

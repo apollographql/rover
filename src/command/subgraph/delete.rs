@@ -6,7 +6,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
-use rover_std::{prompt, Style};
+use rover_std::{Style, prompt};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Delete {

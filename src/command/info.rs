@@ -1,4 +1,4 @@
-use crate::{RoverOutput, RoverResult, PKG_VERSION};
+use crate::{PKG_VERSION, RoverOutput, RoverResult};
 
 use calm_io::stderrln;
 use clap::Parser;

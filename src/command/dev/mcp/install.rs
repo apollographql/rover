@@ -5,7 +5,7 @@ use semver::Version;
 use super::binary::McpServerBinary;
 use crate::command::install::McpServerVersion;
 use crate::{
-    command::{install::Plugin, Install},
+    command::{Install, install::Plugin},
     options::LicenseAccepter,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
@@ -102,7 +102,7 @@ mod tests {
     use anyhow::Result;
     use assert_fs::{NamedTempFile, TempDir};
     use camino::Utf8PathBuf;
-    use flate2::{write::GzEncoder, Compression};
+    use flate2::{Compression, write::GzEncoder};
     use houston::Config;
     use http::Method;
     use httpmock::MockServer;

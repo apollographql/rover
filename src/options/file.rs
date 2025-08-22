@@ -1,8 +1,8 @@
 use clap::Parser;
 
 use crate::{
-    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
     RoverResult,
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
 };
 
 #[derive(Debug, Parser)]

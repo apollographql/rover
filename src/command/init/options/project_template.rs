@@ -1,10 +1,10 @@
 use crate::command::init::template_fetcher::{Template, TemplateId};
 use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
-use clap::arg;
 use clap::Parser;
-use dialoguer::console::Term;
+use clap::arg;
 use dialoguer::Select;
+use dialoguer::console::Term;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
 

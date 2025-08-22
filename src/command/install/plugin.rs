@@ -1,15 +1,15 @@
 use std::{env::consts, str::FromStr};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use camino::Utf8PathBuf;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use binstall::Installer;
-use rover_std::{sanitize_url, Fs};
+use rover_std::{Fs, sanitize_url};
 
-use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
 
 mod error;
 mod mcp;
@@ -368,11 +368,11 @@ impl PluginInstaller {
             .get_plugin_version(&plugin.get_tarball_url()?, true)
             .await?;
 
-        if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version) {
-            if !self.force {
-                tracing::debug!("{} exists, skipping install", &exe);
-                return Ok(Some(exe));
-            }
+        if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version)
+            && !self.force
+        {
+            tracing::debug!("{} exists, skipping install", &exe);
+            return Ok(Some(exe));
         }
         // do the install.
         self.do_install(plugin, true).await?;
@@ -394,11 +394,11 @@ impl PluginInstaller {
         plugin: &Plugin,
         version: &str,
     ) -> RoverResult<Option<Utf8PathBuf>> {
-        if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
-            if !self.force {
-                tracing::debug!("{} exists, skipping install", &exe);
-                return Ok(Some(exe));
-            }
+        if let Ok(Some(exe)) = self.find_existing_exact(plugin, version)
+            && !self.force
+        {
+            tracing::debug!("{} exists, skipping install", &exe);
+            return Ok(Some(exe));
         }
         self.do_install(plugin, false).await
     }
@@ -437,22 +437,21 @@ fn find_installed_plugins(
     // and select the latest valid version from this list to use for composition.
     let mut installed_versions = Vec::new();
     Fs::get_dir_entries(plugin_dir)?.for_each(|installed_plugin| {
-        if let Ok(installed_plugin) = installed_plugin {
-            if let Ok(file_type) = installed_plugin.file_type() {
-                if file_type.is_file() {
-                    let splits: Vec<String> = installed_plugin
-                        .file_name()
-                        .split("-v")
-                        .map(|x| x.to_string())
-                        .collect();
-                    if splits.len() == 2 && splits[0] == plugin_name {
-                        let maybe_semver = splits[1].clone();
-                        if let Ok(semver) = semver::Version::parse(&maybe_semver) {
-                            if semver.major == major_version {
-                                installed_versions.push(semver);
-                            }
-                        }
-                    }
+        if let Ok(installed_plugin) = installed_plugin
+            && let Ok(file_type) = installed_plugin.file_type()
+            && file_type.is_file()
+        {
+            let splits: Vec<String> = installed_plugin
+                .file_name()
+                .split("-v")
+                .map(|x| x.to_string())
+                .collect();
+            if splits.len() == 2 && splits[0] == plugin_name {
+                let maybe_semver = splits[1].clone();
+                if let Ok(semver) = semver::Version::parse(&maybe_semver)
+                    && semver.major == major_version
+                {
+                    installed_versions.push(semver);
                 }
             }
         }

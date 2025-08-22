@@ -47,9 +47,17 @@ impl fmt::Display for GraphIdValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GraphIdValidationError::Empty => write!(f, "Graph ID cannot be empty"),
-            GraphIdValidationError::DoesNotStartWithLetter => write!(f, "Graph ID must start with a letter"),
-            GraphIdValidationError::ContainsInvalidCharacters => write!(f, "Graph ID contains invalid characters (only letters, numbers, underscores, and hyphens are allowed)"),
-            GraphIdValidationError::TooLong => write!(f, "Graph ID exceeds maximum length of {MAX_GRAPH_ID_LENGTH} characters"),
+            GraphIdValidationError::DoesNotStartWithLetter => {
+                write!(f, "Graph ID must start with a letter")
+            }
+            GraphIdValidationError::ContainsInvalidCharacters => write!(
+                f,
+                "Graph ID contains invalid characters (only letters, numbers, underscores, and hyphens are allowed)"
+            ),
+            GraphIdValidationError::TooLong => write!(
+                f,
+                "Graph ID exceeds maximum length of {MAX_GRAPH_ID_LENGTH} characters"
+            ),
         }
     }
 }
