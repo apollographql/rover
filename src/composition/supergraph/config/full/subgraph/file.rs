@@ -37,20 +37,22 @@ impl Service<()> for ResolveFileSubgraph {
         let unresolved_subgraph = self.unresolved_subgraph.clone();
         let supergraph_config_root = self.supergraph_config_root.clone();
         let path = self.path.clone();
-        let subgraph_name = unresolved_subgraph.name().to_string();
-        let schema_source = self.unresolved_subgraph.schema().clone();
         let fut = async move {
-            let file = unresolved_subgraph.resolve_file_path(&supergraph_config_root, &path)?;
-            let schema = Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs {
+            let file = UnresolvedSubgraph::resolve_file_path(
+                &unresolved_subgraph.name,
+                &supergraph_config_root,
+                &path,
+            );
+            let schema = Fs::read_file(&file?).map_err(|err| ResolveSubgraphError::Fs {
                 source: Arc::new(Box::new(err)),
             })?;
 
             let builder = FullyResolvedSubgraph::builder()
-                .name(subgraph_name)
+                .name(unresolved_subgraph.name)
                 .schema(schema)
-                .schema_source(schema_source);
+                .schema_source(unresolved_subgraph.schema);
 
-            Ok(match unresolved_subgraph.routing_url() {
+            Ok(match unresolved_subgraph.routing_url {
                 None => builder.build(),
                 Some(routing_url) => builder.routing_url(routing_url).build(),
             })
