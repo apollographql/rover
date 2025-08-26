@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
 
 use rover_std::prompt;
 
@@ -58,8 +58,12 @@ impl LicenseAccepter {
             err.set_suggestion(RoverErrorSuggestion::Adhoc(suggestion));
             Err(err)
         } else {
-            eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
-            eprintln!("More information on the ELv2 license can be found here: https://go.apollo.dev/elv2.");
+            eprintln!(
+                "By installing this plugin, you accept the terms and conditions outlined by this license."
+            );
+            eprintln!(
+                "More information on the ELv2 license can be found here: https://go.apollo.dev/elv2."
+            );
 
             let did_accept = prompt::prompt_confirm_default_no(
                 "Do you accept the terms and conditions of the ELv2 license?",

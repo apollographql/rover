@@ -126,10 +126,10 @@ impl Compose {
 
         if let Some(output_file) = output_file {
             let parent = output_file.parent();
-            if let Some(parent) = parent {
-                if !parent.exists() {
-                    fs::create_dir_all(parent)?;
-                }
+            if let Some(parent) = parent
+                && !parent.exists()
+            {
+                fs::create_dir_all(parent)?;
             }
             write_file_impl
                 .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())

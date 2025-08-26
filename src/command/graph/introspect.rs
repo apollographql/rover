@@ -9,8 +9,8 @@ use rover_client::{
 };
 
 use crate::{
-    options::{IntrospectOpts, OutputOpts},
     RoverOutput, RoverResult,
+    options::{IntrospectOpts, OutputOpts},
 };
 
 #[derive(Debug, Serialize, Parser)]

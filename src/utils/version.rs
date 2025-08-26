@@ -8,7 +8,7 @@ use rover_std::{Fs, Style};
 
 use crate::PKG_VERSION;
 use houston as config;
-use rover_client::releases::{get_latest_release, Version};
+use rover_client::releases::{Version, get_latest_release};
 
 const ONE_HOUR: u64 = 60 * 60;
 const ONE_DAY: u64 = ONE_HOUR * 24;

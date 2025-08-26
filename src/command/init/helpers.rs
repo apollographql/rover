@@ -1,8 +1,8 @@
-use crate::command::init::template_operations::print_grouped_files;
 use crate::command::init::template_operations::PrintMode::Confirmation;
+use crate::command::init::template_operations::print_grouped_files;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use rover_std::{hyperlink, Style};
+use rover_std::{Style, hyperlink};
 
 pub fn display_welcome_message() {
     println!();

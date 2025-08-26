@@ -6,9 +6,9 @@ use std::{
 use crate::cli::Rover;
 use crate::options::{TemplateFetcher, TemplateOpt, TemplateWrite};
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
-use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser};
+use clap::{CommandFactory, Parser, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
 use rover_http::ReqwestService;
 use serde::Serialize;

@@ -12,7 +12,7 @@ use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
 use url::Url;
 
-use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
+use crate::{PKG_NAME, PKG_VERSION, options::ProfileOpt};
 
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";

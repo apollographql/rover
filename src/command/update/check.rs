@@ -2,7 +2,7 @@ use clap::Parser;
 use reqwest::Client;
 use serde::Serialize;
 
-use crate::{utils::version, RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, utils::version};
 
 use houston as config;
 

@@ -55,10 +55,12 @@ mod tests {
     fn each_url_is_valid() {
         for link in super::possible_shortlinks().possible_values().unwrap() {
             let url = super::get_url_from_slug(link.get_name());
-            assert!(reqwest::blocking::get(&url)
-                .unwrap()
-                .error_for_status()
-                .is_ok());
+            assert!(
+                reqwest::blocking::get(&url)
+                    .unwrap()
+                    .error_for_status()
+                    .is_ok()
+            );
         }
     }
 }

@@ -1,10 +1,10 @@
 use anyhow::Error;
 use camino::{FromPathBufError, Utf8PathBuf};
 
+use crate::composition::CompositionError;
 use crate::composition::pipeline::CompositionPipelineError;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
 use crate::composition::supergraph::install::InstallSupergraphError;
-use crate::composition::CompositionError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum StartCompositionError {

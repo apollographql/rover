@@ -20,8 +20,8 @@ use apollo_federation_types::config::{
     ConfigError, FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use camino::Utf8PathBuf;
-use clap::error::ErrorKind as ClapErrorKind;
 use clap::CommandFactory;
+use clap::error::ErrorKind as ClapErrorKind;
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
@@ -35,15 +35,15 @@ use super::federation::{
     FederationVersionMismatch, FederationVersionResolver,
     FederationVersionResolverFromSupergraphConfig,
 };
-use super::full::introspect::ResolveIntrospectSubgraphFactory;
 use super::full::FullyResolvedSupergraphConfig;
+use super::full::introspect::ResolveIntrospectSubgraphFactory;
 use super::lazy::LazilyResolvedSupergraphConfig;
 use super::unresolved::UnresolvedSupergraphConfig;
+use crate::RoverError;
 use crate::cli::Rover;
 use crate::utils::effect::read_stdin::ReadStdin;
 use crate::utils::expansion::expand;
 use crate::utils::parsers::FileDescriptorType;
-use crate::RoverError;
 
 pub mod fetch_remote_subgraph;
 pub mod fetch_remote_subgraphs;
@@ -97,10 +97,10 @@ impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     ) -> Result<SupergraphConfigResolver<state::LoadSupergraphConfig>, LoadRemoteSubgraphsError>
     where
         S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+                (),
+                FetchRemoteSubgraphsRequest,
+                Response = BTreeMap<String, SubgraphConfig>,
+            >,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -253,7 +253,9 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 },
             );
         } else {
-            tracing::warn!("Attempting to define a default subgraph when the existing subgraph set is not empty");
+            tracing::warn!(
+                "Attempting to define a default subgraph when the existing subgraph set is not empty"
+            );
         }
         Ok(SupergraphConfigResolver {
             state: state::ResolveSubgraphs {
@@ -485,8 +487,8 @@ mod tests {
     use apollo_federation_types::config::{
         FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
     };
-    use assert_fs::prelude::{FileTouch, FileWriteStr, PathChild};
     use assert_fs::TempDir;
+    use assert_fs::prelude::{FileTouch, FileWriteStr, PathChild};
     use camino::Utf8PathBuf;
     use mockall::predicate;
     use rover_client::RoverClientError;
@@ -505,10 +507,10 @@ mod tests {
     };
     use super::{DefaultSubgraphDefinition, MockPrompt, SupergraphConfigResolver};
     use crate::composition::supergraph::config::error::ResolveSubgraphError;
+    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
     use crate::composition::supergraph::config::full::introspect::{
         MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
     };
-    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
     use crate::composition::supergraph::config::scenario::*;
     use crate::utils::effect::introspect::MockIntrospectSubgraph;
     use crate::utils::effect::read_stdin::MockReadStdin;

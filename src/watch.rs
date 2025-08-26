@@ -43,10 +43,10 @@ where
                         match service.call(()).await {
                             Ok(output) => {
                                 let mut was_updated = true;
-                                if let Some(Ok(last)) = last_result {
-                                    if last == output {
-                                        was_updated = false
-                                    }
+                                if let Some(Ok(last)) = last_result
+                                    && last == output
+                                {
+                                    was_updated = false
                                 }
                                 if was_updated {
                                     let _ = sender
@@ -58,10 +58,10 @@ where
                             Err(error) => {
                                 let mut was_updated = true;
                                 let e = error.to_string();
-                                if let Some(Err(last)) = last_result {
-                                    if last == e {
-                                        was_updated = false;
-                                    }
+                                if let Some(Err(last)) = last_result
+                                    && last == e
+                                {
+                                    was_updated = false;
                                 }
                                 if was_updated {
                                     let _ = sender

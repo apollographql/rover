@@ -56,7 +56,7 @@ fn get_binstall_scripts_root() -> Utf8PathBuf {
 // binary versions that can be downloaded from
 #[test]
 fn latest_plugins_are_valid_versions() {
-    use reqwest::{blocking::Client, Url};
+    use reqwest::{Url, blocking::Client};
     use semver::Version;
     use serde_json::Value;
     // first, parse ./latest_plugin_versions.json to JSON

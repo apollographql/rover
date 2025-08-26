@@ -58,7 +58,7 @@
 use futures::stream::BoxStream;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use tokio_util::sync::CancellationToken;
 

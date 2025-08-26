@@ -1,5 +1,5 @@
-use crate::command::install::plugin::error::PluginError;
 use crate::command::install::plugin::PluginVersion;
+use crate::command::install::plugin::error::PluginError;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -48,7 +48,9 @@ impl FromStr for Version {
         }
 
         if !s.starts_with('=') && !s.starts_with('v') {
-            return Err(PluginError::InvalidVersionFormat(format!("Specified version `{s}` is not supported. You can specify 'latest' or a fully qualified version prefixed with an '=', like: =1.0.0")));
+            return Err(PluginError::InvalidVersionFormat(format!(
+                "Specified version `{s}` is not supported. You can specify 'latest' or a fully qualified version prefixed with an '=', like: =1.0.0"
+            )));
         }
 
         semver::Version::parse(&s[1..])

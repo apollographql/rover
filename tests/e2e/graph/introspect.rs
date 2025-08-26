@@ -1,4 +1,4 @@
-use std::fs::{read_to_string, OpenOptions};
+use std::fs::{OpenOptions, read_to_string};
 use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -10,16 +10,15 @@ use regex::Regex;
 use rstest::rstest;
 use serde_json::Value;
 use speculoos::assert_that;
-use speculoos::prelude::{asserting, VecAssertions};
+use speculoos::prelude::{VecAssertions, asserting};
 use tempfile::Builder;
 use tokio::time::timeout;
 use tracing::info;
 use tracing_test::traced_test;
 
 use crate::e2e::{
-    find_matching_log_line, introspection_log_line_prefix, run_single_mutable_subgraph,
-    run_subgraphs_retail_supergraph, test_artifacts_directory, RetailSupergraph,
-    SingleMutableSubgraph,
+    RetailSupergraph, SingleMutableSubgraph, find_matching_log_line, introspection_log_line_prefix,
+    run_single_mutable_subgraph, run_subgraphs_retail_supergraph, test_artifacts_directory,
 };
 
 #[rstest]

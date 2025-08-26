@@ -2,7 +2,7 @@ use anyhow::anyhow;
 
 use super::errors::AuthenticationError;
 use crate::error::{RoverError, RoverErrorSuggestion};
-use rover_std::{hyperlink, hyperlink_with_text, Style};
+use rover_std::{Style, hyperlink, hyperlink_with_text};
 
 fn create_invalid_api_key_error() -> RoverError {
     let message = "Invalid API key found";

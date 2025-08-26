@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use itertools::Itertools;
 use tower::{Service, ServiceExt};
 use tracing::debug;
@@ -11,8 +11,8 @@ use tracing::debug;
 use super::FullyResolvedSubgraph;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
 /// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
