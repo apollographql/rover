@@ -2,13 +2,13 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
-use apollo_parser::{cst, Parser};
+use apollo_parser::{Parser, cst};
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use tower::util::BoxCloneService;
-use tower::{service_fn, Service, ServiceExt};
+use tower::{Service, ServiceExt, service_fn};
 
 pub mod file;
 pub mod introspect;

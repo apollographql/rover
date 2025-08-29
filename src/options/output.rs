@@ -8,12 +8,12 @@ use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use rover_std::{Fs, Style};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{cli::RoverOutputFormatKind, RoverError, RoverOutput, RoverResult};
+use crate::{RoverError, RoverOutput, RoverResult, cli::RoverOutputFormatKind};
 
 pub trait RoverPrinter {
     fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()>;
@@ -103,7 +103,11 @@ impl OutputOpts {
     /// Sets the `NO_COLOR` env var if the output is not a terminal or if the output is a file.
     pub fn set_no_color(&self) {
         if !io::stdout().is_terminal() || self.output_file.is_some() {
-            std::env::set_var("NO_COLOR", "true");
+            unsafe {
+                // SAFETY: This code runs in a single-threaded context, so no other threads
+                // can read or modify environment variables concurrently.
+                std::env::set_var("NO_COLOR", "true");
+            }
         }
     }
 

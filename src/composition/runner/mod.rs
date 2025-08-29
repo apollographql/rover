@@ -7,21 +7,21 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 
 use camino::Utf8PathBuf;
-use futures::stream::{select, BoxStream, StreamExt};
+use futures::stream::{BoxStream, StreamExt, select};
 use rover_http::HttpService;
 use tower::ServiceExt;
 
 use self::state::SetupSubgraphWatchers;
+use super::FederationUpdaterConfig;
 use super::events::CompositionEvent;
 use super::supergraph::binary::SupergraphBinary;
 use super::supergraph::config::error::ResolveSubgraphError;
-use super::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use super::supergraph::config::full::FullyResolvedSupergraphConfig;
+use super::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
 use super::supergraph::config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig};
 use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
 use super::watchers::composition::CompositionWatcher;
 use super::watchers::subgraphs::SubgraphWatchers;
-use super::FederationUpdaterConfig;
 use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::watchers::federation::FederationWatcher;
@@ -198,8 +198,8 @@ where
             )
         } else {
             tracing::warn!(
-                    "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
-                );
+                "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
+            );
             (
                 tokio_stream::empty().boxed(),
                 tokio_stream::empty().boxed(),

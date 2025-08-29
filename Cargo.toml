@@ -5,7 +5,7 @@ description = """
 Rover is a tool for working with the Apollo GraphQL Registry.
 """
 documentation = "https://go.apollo.dev/r/docs"
-edition = "2021"
+edition = "2024"
 keywords = ["graphql", "cli", "apollo", "graph", "registry"]
 license-file = "./LICENSE"
 name = "rover"

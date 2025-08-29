@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use rover_client::{operations::subgraph::introspect, RoverClientError};
+use rover_client::{RoverClientError, operations::subgraph::introspect};
 use url::Url;
 
-use crate::{utils::client::StudioClientConfig, RoverError};
+use crate::{RoverError, utils::client::StudioClientConfig};
 
 #[cfg_attr(test, derive(thiserror::Error, Debug))]
 #[cfg_attr(test, error("{}", .0))]

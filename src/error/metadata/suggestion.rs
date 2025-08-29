@@ -310,8 +310,10 @@ mod test {
     #[test]
     fn possible_values_nomatch() {
         let p_vals = ["test", "possible", "values"];
-        assert!(super::did_you_mean("hahaahahah", p_vals.iter())
-            .pop()
-            .is_none());
+        assert!(
+            super::did_you_mean("hahaahahah", p_vals.iter())
+                .pop()
+                .is_none()
+        );
     }
 }

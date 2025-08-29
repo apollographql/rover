@@ -1,7 +1,7 @@
 use crate::utils::client::StudioClientConfig;
 use crate::{
-    options::{GraphRefOpt, ProfileOpt},
     RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt},
 };
 
 use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};

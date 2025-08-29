@@ -79,11 +79,11 @@ mod tests {
     use crate::composition::supergraph::config::lazy::{
         LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig,
     };
+    use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
     use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
         FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
         MakeFetchRemoteSubgraphError, RemoteSubgraph,
     };
-    use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
     use crate::composition::supergraph::config::scenario::*;
     use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
