@@ -104,6 +104,8 @@ impl OutputOpts {
     pub fn set_no_color(&self) {
         if !io::stdout().is_terminal() || self.output_file.is_some() {
             unsafe {
+                // SAFETY: This code runs in a single-threaded context, so no other threads
+                // can read or modify environment variables concurrently.
                 std::env::set_var("NO_COLOR", "true");
             }
         }

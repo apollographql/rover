@@ -91,11 +91,9 @@ fn build_command(command: &mut Command, config: ExecCommandConfig) -> &mut Comma
     } else {
         command
     };
-    let command = if let Some(stdin) = output.stdin {
+    if let Some(stdin) = output.stdin {
         command.stdin(stdin)
     } else {
         command
-    };
-    #[allow(clippy::let_and_return)]
-    command
+    }
 }

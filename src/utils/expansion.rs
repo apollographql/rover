@@ -157,6 +157,8 @@ mod test_expand_str {
         let value = format!("${{env.{ENV_VAR_KEY_1}}}-static-part-${{env.{ENV_VAR_KEY_2}}}");
         unsafe {
             env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        }
+        unsafe {
             env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
         }
         assert_eq!(
@@ -170,6 +172,8 @@ mod test_expand_str {
         let value = format!("${{env.${{env.{ENV_VAR_KEY_1}}}}}");
         unsafe {
             env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
+        }
+        unsafe {
             env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
         }
         assert!(expand_str(&value).is_err());
