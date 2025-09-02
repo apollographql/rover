@@ -108,6 +108,20 @@ enum ActorType {
   USER
 }
 
+"""
+parentCommentId is only present for replies. schemaCoordinate & subgraph are only present for initial change comments. If all are absent, this is a general parent comment on the proposal.
+"""
+input AddCommentInput {
+  message: String!
+  parentCommentId: String
+  revisionId: String!
+  schemaCoordinate: String
+  schemaScope: String
+  usersToNotify: [String!]
+}
+
+union AddCommentResult = NotFoundError | ParentChangeProposalComment | ParentGeneralProposalComment | ReplyChangeProposalComment | ReplyGeneralProposalComment | ValidationError
+
 union AddOperationCollectionEntriesResult = AddOperationCollectionEntriesSuccess | PermissionError | ValidationError
 
 type AddOperationCollectionEntriesSuccess {
@@ -215,6 +229,17 @@ interface ApiKey {
 type ApiKeyProvision {
   apiKey: ApiKey!
   created: Boolean!
+}
+
+"""
+Represents a resource that an API key has access to, including its type and identifier.
+"""
+type ApiKeyResource {
+  """The identifier of the resource that the key has access to."""
+  resourceId: String!
+
+  """The type of resource that the key has access to."""
+  resourceType: String!
 }
 
 type AuditLogExport {
@@ -1367,6 +1392,12 @@ The input/output is a string in RFC3339 format.
 scalar DateTime
   @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339")
 
+input DeleteCommentInput {
+  id: String!
+}
+
+union DeleteCommentResult = NotFoundError | PermissionError | ValidationError
+
 union DeleteOperationCollectionResult = DeleteOperationCollectionSuccess | PermissionError
 
 type DeleteOperationCollectionSuccess {
@@ -1452,6 +1483,14 @@ enum DownstreamLaunchInitiation {
   """
   SYNC
 }
+
+input EditCommentInput {
+  id: String!
+  message: String!
+  usersToNotify: [String!]
+}
+
+union EditCommentResult = NotFoundError | ParentChangeProposalComment | ParentGeneralProposalComment | PermissionError | ReplyChangeProposalComment | ReplyGeneralProposalComment | ValidationError
 
 """GraphQL Error"""
 interface Error {
@@ -1995,11 +2034,25 @@ union GraphImplementors = GraphVariantSubgraphs
 
 """Represents an API key that's used to authenticate an Apollo principal."""
 type GraphOsKey implements ApiKey {
+  """The time when this API key was created."""
+  createdAt: Timestamp!
+
+  """The actor that created this API key."""
+  createdBy: Actor!
+
+  """The time when this API key expires, if applicable."""
+  expiresAt: Timestamp
+
   """The API key's ID."""
   id: ID!
 
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
+
+  """
+  Permissions associated with this API key, defining what actions it can perform.
+  """
+  resources: [ApiKeyResource!]!
 
   """The value of the API key. **This is a secret credential!**"""
   token: String!
@@ -3135,6 +3188,18 @@ type LogMessage {
 
 """Long type"""
 scalar Long
+
+type MarkChangesForOperationAsSafeResult {
+  success: Boolean!
+  message: String!
+
+  """
+  Nice to have for the frontend since the Apollo cache is already watching for AffectedQuery to update.
+  This might return null if no behavior changes were found for the affected operation ID.
+  This is a weird situation that should never happen.
+  """
+  affectedOperation: AffectedQuery
+}
 
 union McpDefaultCollectionResult = OperationCollection | PermissionError
 
@@ -4369,6 +4434,21 @@ Mutations for editing GraphOS Schema Proposals. See documentation at https://www
 """
 type ProposalMutation {
   """
+  Add a comment to this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  addComment(input: AddCommentInput!): AddCommentResult!
+
+  """
+  Delete a comment on this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  deleteComment(input: DeleteCommentInput!): DeleteCommentResult!
+
+  """
+  Edit a comment on this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  editComment(input: EditCommentInput!): EditCommentResult!
+
+  """
   The GraphOS Schema Proposal being modified by this mutation. See documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
   """
   proposal: Proposal
@@ -4397,6 +4477,11 @@ type ProposalMutation {
   Update the status of this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   updateStatus(status: ProposalStatus!): UpdateProposalResult!
+
+  """
+  Create or update a review for this proposal. Only users who are requested reviewers can call this mutation.  This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  upsertReview(input: UpsertReviewInput!): UpsertReviewResult!
 }
 
 union ProposalMutationResult = NotFoundError | PermissionError | ProposalMutation | ValidationError
@@ -5726,6 +5811,27 @@ type GraphMutation {
     downgradeDefaultValueChange: Boolean
     enableCustomChecks: Boolean
   ): CheckConfiguration!
+
+  """
+  Mark the changeset that affects all operations in a given check instance as safe.
+  Note that only operations marked as behavior changes are allowed to be marked as safe.
+  """
+  markChangesForAllOperationsAsSafe(
+    """ID of the operations check."""
+    operationsCheckId: ID!
+  ): MarkChangesForOperationAsSafeResult!
+
+  """
+  Mark the changeset that affects multiple operations in a given check instance as safe.
+  Note that only operations marked as behavior changes are allowed to be marked as safe.
+  """
+  markChangesForMultipleOperationsAsSafe(
+    """ID of the schema check."""
+    checkID: ID!
+
+    """ID of the operation to accept changes for."""
+    operationIDs: [ID!]!
+  ): MarkChangesForOperationAsSafeResult!
 }
 
 """
@@ -6131,6 +6237,14 @@ type SchemaPublicationResult {
   """
   publication: SchemaPublication
 }
+
+input UpsertReviewInput {
+  comment: String
+  decision: ReviewDecision!
+  revisionId: ID!
+}
+
+union UpsertReviewResult = PermissionError | Proposal | ValidationError
 
 union UpsertRouterResult = GraphVariant | RouterUpsertFailure
 
