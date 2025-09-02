@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
@@ -91,7 +92,8 @@ impl RunConnector {
             return format!("{} {error}", error_prefix);
         }
 
-        let mut request_content = "".to_string();
+        let mut result = String::new();
+
         if let Some(request) = &output.request {
             let request_header = Style::SuccessHeading.paint("Request");
 
@@ -99,10 +101,9 @@ impl RunConnector {
             request_table.add_row(vec![Style::Heading.paint("Method"), request.method.clone()]);
             request_table.add_row(vec![Style::Heading.paint("Uri"), request.uri.clone()]);
 
-            request_content = format!("{request_header}\n{request_table}");
+            write!(&mut result, "{request_header}\n{request_table}").unwrap();
         }
 
-        let mut request_headers_content = "".to_string();
         if let Some(request) = &output.request
             && let Some(header_object) = request.headers.as_object()
             && !header_object.is_empty()
@@ -122,11 +123,13 @@ impl RunConnector {
                 ]);
             }
 
-            request_headers_content =
-                format!("\n\n{request_headers_header}\n{request_headers_table}");
+            write!(
+                &mut result,
+                "\n\n{request_headers_header}\n{request_headers_table}"
+            )
+            .unwrap();
         }
 
-        let mut request_problems_content = "".to_string();
         if let Some(request) = &output.request
             && !request.problems.is_empty()
         {
@@ -149,11 +152,13 @@ impl RunConnector {
                 ]);
             }
 
-            request_problems_content =
-                format!("\n\n{request_problems_header}\n{request_problems_table}");
+            write!(
+                &mut result,
+                "\n\n{request_problems_header}\n{request_problems_table}"
+            )
+            .unwrap();
         }
 
-        let mut response_content = "".to_string();
         if let Some(response) = &output.response {
             let response_header = Style::SuccessHeading.paint("Response");
 
@@ -170,10 +175,9 @@ impl RunConnector {
                 serde_json::to_string_pretty(&response.mapped_data).unwrap_or_default(),
             ]);
 
-            response_content = format!("\n\n{response_header}\n{response_table}");
+            write!(&mut result, "\n\n{response_header}\n{response_table}").unwrap();
         }
 
-        let mut response_headers_content = "".to_string();
         if let Some(response) = &output.response
             && let Some(header_object) = response.headers.as_object()
             && !header_object.is_empty()
@@ -193,11 +197,13 @@ impl RunConnector {
                 ]);
             }
 
-            response_headers_content =
-                format!("\n\n{response_headers_header}\n{response_headers_table}");
+            write!(
+                &mut result,
+                "\n\n{response_headers_header}\n{response_headers_table}"
+            )
+            .unwrap();
         }
 
-        let mut response_problems_content = "".to_string();
         if let Some(response) = &output.response
             && !response.problems.is_empty()
         {
@@ -220,12 +226,13 @@ impl RunConnector {
                 ]);
             }
 
-            response_problems_content =
-                format!("\n\n{response_problems_header}\n{response_problems_table}");
+            write!(
+                &mut result,
+                "\n\n{response_problems_header}\n{response_problems_table}"
+            )
+            .unwrap();
         }
 
-        format!(
-            "{request_content}{request_headers_content}{request_problems_content}{response_content}{response_headers_content}{response_problems_content}"
-        )
+        result
     }
 }
