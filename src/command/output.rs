@@ -451,29 +451,29 @@ impl RoverOutput {
                                     response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
                                     response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
                                 ) {
-                                    (Some(added), Some(updated), Some(removed)) => format!(
-                                        "added {added}, updated {updated}, and removed {removed}, creating"
-                                    ),
-                                    (Some(added), Some(updated), None) => {
-                                        format!("added {added} and updated {updated}, creating")
-                                    }
-                                    (Some(added), None, Some(removed)) => {
-                                        format!("added {added} and removed {removed}, creating")
-                                    }
-                                    (None, Some(updated), Some(removed)) => {
-                                        format!("updated {updated} and removed {removed}, creating")
-                                    }
-                                    (Some(added), None, None) => {
-                                        format!("added {added}, creating")
-                                    }
-                                    (None, None, Some(removed)) => {
-                                        format!("removed {removed}, creating")
-                                    }
-                                    (None, Some(updated), None) => {
-                                        format!("updated {updated}, creating")
-                                    }
-                                    (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
-                                });
+                        (Some(added), Some(updated), Some(removed)) => format!(
+                            "added {added}, updated {updated}, and removed {removed}, creating"
+                        ),
+                        (Some(added), Some(updated), None) => {
+                            format!("added {added} and updated {updated}, creating")
+                        }
+                        (Some(added), None, Some(removed)) => {
+                            format!("added {added} and removed {removed}, creating")
+                        }
+                        (None, Some(updated), Some(removed)) => {
+                            format!("updated {updated} and removed {removed}, creating")
+                        }
+                        (Some(added), None, None) => {
+                            format!("added {added}, creating")
+                        }
+                        (None, None, Some(removed)) => {
+                            format!("removed {removed}, creating")
+                        }
+                        (None, Some(updated), None) => {
+                            format!("updated {updated}, creating")
+                        }
+                        (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
+                    });
 
                     result.push_str(&format!(
                         " revision {} of {}, which contains {} operations.",
