@@ -1,7 +1,7 @@
 mod cloud;
 mod config;
 #[cfg(feature = "composition-js")]
-mod connector;
+pub mod connector;
 mod contract;
 mod dev;
 mod docs;

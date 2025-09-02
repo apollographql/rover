@@ -26,6 +26,8 @@ use termimad::MadSkin;
 use termimad::crossterm::style::Attribute::Underlined;
 
 use crate::RoverError;
+#[cfg(feature = "composition-js")]
+use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::{JsonVersion, ProjectLanguage};
@@ -105,6 +107,10 @@ pub enum RoverOutput {
     },
     MessageResponse {
         msg: String,
+    },
+    #[cfg(feature = "composition-js")]
+    ConnectorRunResponse {
+        output: RunConnectorOutput,
     },
 }
 
@@ -488,6 +494,10 @@ impl RoverOutput {
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorRunResponse { output } => {
+                Some(RunConnector::format_output(output))
+            }
         })
     }
 
@@ -613,6 +623,10 @@ impl RoverOutput {
             }
             RoverOutput::MessageResponse { msg } => {
                 json!({ "message": msg })
+            }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorRunResponse { output } => {
+                json!({ "output": output })
             }
         }
     }
