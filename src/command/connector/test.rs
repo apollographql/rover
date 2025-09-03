@@ -53,7 +53,7 @@ impl TestConnector {
                 &exec_command_impl,
                 self.file.clone(),
                 self.directory.clone(),
-                self.no_fail.clone(),
+                self.no_fail,
                 output_file,
             )
             .await?;
