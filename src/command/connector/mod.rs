@@ -5,6 +5,7 @@ use derive_getters::Getters;
 use serde::Serialize;
 
 use crate::command::connector::run::RunConnector;
+use crate::command::connector::test::TestConnector;
 use crate::composition::pipeline::CompositionPipelineError;
 use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::composition::supergraph::install::InstallSupergraph;
@@ -14,6 +15,7 @@ use crate::utils::effect::install::InstallBinary;
 use crate::{RoverOutput, RoverResult};
 
 pub mod run;
+pub mod test;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Connector {
@@ -42,8 +44,8 @@ pub enum Command {
     //Generate,
     /// Run a single connector
     Run(RunConnector),
-    // /// Run tests for one or more connectors
-    //Test,
+    // Run tests for one or more connectors
+    Test(TestConnector),
     // /// List all available connectors
     //List,
 }
@@ -53,6 +55,7 @@ impl Connector {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         use Command::*;
 
@@ -74,16 +77,13 @@ impl Connector {
         .await?;
 
         match &self.command {
-            // TODO: Only shipping "run" with this code change, the other commands will come later
+            // TODO: Only shipping "run" and "test" with this code change, the other commands will come later
             // Generate => {
             //     // TODO: Logic for generating a new connector
             //     Ok(EmptySuccess)
             // }
+            Test(command) => command.run(supergraph_binary, output_file).await,
             Run(command) => command.run(supergraph_binary).await,
-            // Test => {
-            //     // TODO: Logic for running tests for connectors
-            //     Ok(EmptySuccess)
-            // }
             // List => {
             //     // TODO: Logic for listing all available connectors
             //     Ok(EmptySuccess)

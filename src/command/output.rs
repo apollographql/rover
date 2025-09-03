@@ -112,6 +112,10 @@ pub enum RoverOutput {
     ConnectorRunResponse {
         output: RunConnectorOutput,
     },
+    #[cfg(feature = "composition-js")]
+    ConnectorTestResponse {
+        output: String,
+    },
 }
 
 impl RoverOutput {
@@ -498,6 +502,8 @@ impl RoverOutput {
             RoverOutput::ConnectorRunResponse { output } => {
                 Some(RunConnector::format_output(output))
             }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorTestResponse { output } => Some(output.into()),
         })
     }
 
@@ -628,6 +634,8 @@ impl RoverOutput {
             RoverOutput::ConnectorRunResponse { output } => {
                 json!({ "output": output })
             }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
         }
     }
 
