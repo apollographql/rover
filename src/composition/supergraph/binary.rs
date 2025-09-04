@@ -12,6 +12,7 @@ use tap::TapFallible;
 use super::version::SupergraphVersion;
 use crate::RoverOutput;
 use crate::command::connector::run::{RunConnectorError, RunConnectorOutput};
+use crate::command::connector::test::TestConnectorError;
 use crate::utils::effect::exec::ExecCommandOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
@@ -177,6 +178,68 @@ impl SupergraphBinary {
             })?;
 
         Ok(RoverOutput::ConnectorRunResponse { output })
+    }
+
+    pub async fn test_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        file: Option<PathBuf>,
+        directory: Option<PathBuf>,
+        no_fail: bool,
+        output_file: Option<Utf8PathBuf>,
+    ) -> Result<RoverOutput, TestConnectorError> {
+        let mut args = vec!["test-connectors".to_string()];
+
+        if no_fail {
+            args.push("--no-fail-fast".to_string());
+        }
+
+        if let Some(file) = file {
+            args.push("--file".to_string());
+            args.push(file.to_str().unwrap_or_default().to_string());
+        }
+
+        if let Some(directory) = directory {
+            args.push("--directory".to_string());
+            args.push(directory.to_str().unwrap_or_default().to_string());
+        }
+
+        if let Some(output_file) = output_file {
+            args.push("--output".to_string());
+            args.push(output_file.into_string());
+        }
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
+            .build();
+
+        let output = exec_impl
+            .exec_command(config)
+            .await
+            .tap_err(|err| tracing::error!("{:?}", err))
+            .map_err(|err| TestConnectorError::Binary {
+                error: format!("{err:?}"),
+            })?;
+
+        let exit_code = output.status.code();
+        if exit_code != Some(0) && exit_code != Some(1) {
+            return Err(TestConnectorError::BinaryExit {
+                exit_code,
+                stdout: String::from_utf8(output.stdout).unwrap(),
+                stderr: String::from_utf8(output.stderr).unwrap(),
+            });
+        }
+
+        let output = std::str::from_utf8(&output.stdout)
+            .map_err(|err| TestConnectorError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?
+            .to_string();
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
     }
 }
 

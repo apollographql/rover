@@ -191,7 +191,11 @@ impl Rover {
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config()?,
+                        self.output_opts.output_file.clone(),
+                    )
                     .await
             }
             Command::Contract(command) => command.run(self.get_client_config()?).await,
