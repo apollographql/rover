@@ -187,32 +187,40 @@ impl ProjectTypeSelected {
             Ok(response) => response,
             Err(e) => match e {
                 // Authentication/authorization errors - prompt for new key
-                RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") 
-                    || msg.contains("Invalid credentials") 
-                    || msg.contains("Forbidden") => {
+                RoverClientError::GraphQl { msg }
+                    if msg.contains("Unauthorized")
+                        || msg.contains("Invalid credentials")
+                        || msg.contains("Forbidden") =>
+                {
                     // Prompt for new API key using same logic as check_authentication
-                    match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile) {
+                    match ProjectAuthenticationOpt::default()
+                        .prompt_for_api_key(client_config, profile)
+                    {
                         Ok(_) => {
                             // Try to get authenticated client again with new credentials
                             let new_client = match client_config.get_authenticated_client(profile) {
                                 Ok(client) => client,
-                                Err(_) => return Err(auth_error_to_rover_error(
-                                    AuthenticationError::SecondChanceAuthFailure,
-                                )),
+                                Err(_) => {
+                                    return Err(auth_error_to_rover_error(
+                                        AuthenticationError::SecondChanceAuthFailure,
+                                    ))
+                                }
                             };
-                            
+
                             // Retry memberships query with new client
                             match memberships::run(&new_client).await {
                                 Ok(response) => response,
-                                Err(_) => return Err(auth_error_to_rover_error(
-                                    AuthenticationError::SecondChanceAuthFailure,
-                                )),
+                                Err(_) => {
+                                    return Err(auth_error_to_rover_error(
+                                        AuthenticationError::SecondChanceAuthFailure,
+                                    ))
+                                }
                             }
                         }
                         Err(e) => return Err(e),
                     }
                 }
-                
+
                 // "No data field provided" - likely permissions issue
                 _ if e.to_string().contains("No data field provided") => {
                     return Err(auth_error_to_rover_error(
@@ -221,21 +229,24 @@ impl ProjectTypeSelected {
                         )
                     ));
                 }
-                
+
                 // API/Schema changes - suggest updating
-                RoverClientError::GraphQl { msg } if msg.contains("Cannot query field") 
-                    || msg.contains("doesn't exist") 
-                    || msg.contains("Unknown field") => {
+                RoverClientError::GraphQl { msg }
+                    if msg.contains("Cannot query field")
+                        || msg.contains("doesn't exist")
+                        || msg.contains("Unknown field") =>
+                {
                     let error = RoverError::new(anyhow!("GraphQL schema mismatch: {}", msg))
                         .with_suggestion(RoverErrorSuggestion::Adhoc(
-                            "This may indicate an API change. Try updating Rover with `rover update`.".to_string()
-                        ));
+                        "This may indicate an API change. Try updating Rover with `rover update`."
+                            .to_string(),
+                    ));
                     return Err(error);
                 }
-                
+
                 // All other errors
                 e => return Err(e.into()),
-            }
+            },
         };
 
         let organizations = memberships_response
