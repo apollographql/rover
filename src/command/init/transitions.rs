@@ -12,6 +12,7 @@ use rover_std::{Spinner, Style, errln};
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
+use crate::command::init::mcp_operations::MCPOperations;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
@@ -239,7 +240,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        let repo_ref = "release/v2";
+        let repo_ref = "camille/start-with-mcp-template";
         let template_fetcher = InitTemplateFetcher::new().call(repo_ref).await?;
 
         // Determine the list of templates based on the use case
@@ -247,6 +248,10 @@ impl UseCaseSelected {
             // Select the `connectors` template if using use_case is Connectors
             ProjectUseCase::Connectors => {
                 template_fetcher.select_template(&TemplateId("connectors".to_string()))?
+            }
+            // Select the `mcp` template if using use_case is MCPServer
+            ProjectUseCase::MCPServer => {
+                template_fetcher.select_template(&TemplateId("mcp".to_string()))?
             }
             // Otherwise, filter out the `connectors` template & show list of all others
             ProjectUseCase::GraphQLTemplate => {
@@ -454,6 +459,7 @@ impl CreationConfirmed {
             variant: DEFAULT_VARIANT.to_string(),
         };
 
+        // Publish subgraphs to Studio (including connector schemas for MCP projects)
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
 
         update_variant_federation_version(&client, &graph_ref, Some(federation_version)).await?;
@@ -481,15 +487,45 @@ impl CreationConfirmed {
 
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
-        display_project_created_message(
-            self.config.project_name.to_string(),
-            &self.artifacts,
-            &self.graph_ref,
-            self.api_key.to_string(),
-            self.template.commands,
-            self.template.start_point_file,
-            self.template.print_depth,
-        );
+        // Check if this is an MCP Server project and handle accordingly
+        if self.config.use_case == ProjectUseCase::MCPServer {
+            // Get project root path - rover init always runs in the target directory
+            let project_path: Utf8PathBuf = ".".into();
+
+            match MCPOperations::setup_mcp_project(&project_path, &self.api_key, &self.graph_ref.to_string()) {
+                Ok(setup_result) => {
+                    MCPOperations::display_mcp_success_message(
+                        self.config.project_name.to_string(),
+                        &setup_result,
+                        &self.graph_ref.to_string(),
+                    );
+                }
+                Err(error) => {
+                    eprintln!("MCP setup failed: {}", error);
+                    // Fall back to standard success message
+                    display_project_created_message(
+                        self.config.project_name.to_string(),
+                        &self.artifacts,
+                        &self.graph_ref,
+                        self.api_key.to_string(),
+                        self.template.commands,
+                        self.template.start_point_file,
+                        self.template.print_depth,
+                    );
+                }
+            }
+        } else {
+            // Standard project setup
+            display_project_created_message(
+                self.config.project_name.to_string(),
+                &self.artifacts,
+                &self.graph_ref,
+                self.api_key.to_string(),
+                self.template.commands,
+                self.template.start_point_file,
+                self.template.print_depth,
+            );
+        }
 
         Completed
     }

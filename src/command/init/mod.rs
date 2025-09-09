@@ -7,6 +7,8 @@ mod graph_id;
 #[cfg(feature = "composition-js")]
 mod helpers;
 #[cfg(feature = "composition-js")]
+mod mcp_operations;
+#[cfg(feature = "composition-js")]
 mod operations;
 pub mod options;
 #[cfg(feature = "composition-js")]
