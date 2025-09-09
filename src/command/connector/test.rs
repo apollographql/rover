@@ -39,13 +39,31 @@ pub struct TestConnector {
     /// Avoids failure on asserting error, only logging test error
     #[arg(long = "no-fail-fast", default_value = "false")]
     no_fail: bool,
+
+    /// Schema file to override `config.schema` (or missing schema fields) for all test suites
+    #[arg(long = "schema-file")]
+    schema_file: Option<String>,
+
+    /// JUnit XML Report output location
+    #[arg(long = "report")]
+    output: Option<PathBuf>,
+
+    // TODO: Remove after logging config has been integrated
+    /// Hides test progression. Defaults to 'false'
+    #[arg(long = "quiet", short = 'q', default_value = "false")]
+    pub quiet: bool,
+
+    // TODO: Remove after logging config has been integrated
+    /// Enable verbose logging. Defaults to 'false'.
+    #[arg(long = "verbose", short = 'v')]
+    pub verbose: bool,
 }
 
 impl TestConnector {
     pub async fn run(
         &self,
         supergraph_binary: SupergraphBinary,
-        output_file: Option<Utf8PathBuf>,
+        // output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
         let result = supergraph_binary
@@ -54,7 +72,12 @@ impl TestConnector {
                 self.file.clone(),
                 self.directory.clone(),
                 self.no_fail,
-                output_file,
+                self.schema_file.clone(),
+                self.output
+                    .as_ref()
+                    .and_then(|path| camino::Utf8PathBuf::from_path_buf(path.to_path_buf()).ok()),
+                self.verbose,
+                self.quiet,
             )
             .await?;
         Ok(result)

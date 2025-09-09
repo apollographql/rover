@@ -180,18 +180,30 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorRunResponse { output })
     }
 
+    #[expect(clippy::too_many_arguments)]
     pub async fn test_connector(
         &self,
         exec_impl: &impl ExecCommand,
         file: Option<PathBuf>,
         directory: Option<PathBuf>,
         no_fail: bool,
+        schema_file: Option<String>,
         output_file: Option<Utf8PathBuf>,
+        verbose: bool,
+        quiet: bool,
     ) -> Result<RoverOutput, TestConnectorError> {
         let mut args = vec!["test-connectors".to_string()];
 
         if no_fail {
             args.push("--no-fail-fast".to_string());
+        }
+
+        if verbose {
+            args.push("--verbose".to_string());
+        }
+
+        if quiet {
+            args.push("--quiet".to_string());
         }
 
         if let Some(file) = file {
@@ -205,8 +217,13 @@ impl SupergraphBinary {
         }
 
         if let Some(output_file) = output_file {
-            args.push("--output".to_string());
+            args.push("--report".to_string());
             args.push(output_file.into_string());
+        }
+
+        if let Some(schema_file) = schema_file {
+            args.push("--schema-file".to_string());
+            args.push(schema_file);
         }
 
         let config = ExecCommandConfig::builder()
