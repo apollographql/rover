@@ -60,11 +60,7 @@ pub struct TestConnector {
 }
 
 impl TestConnector {
-    pub async fn run(
-        &self,
-        supergraph_binary: SupergraphBinary,
-        // output_file: Option<Utf8PathBuf>,
-    ) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
         let result = supergraph_binary
             .test_connector(
