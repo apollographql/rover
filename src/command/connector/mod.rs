@@ -55,7 +55,6 @@ impl Connector {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         use Command::*;
 
@@ -82,7 +81,7 @@ impl Connector {
             //     // TODO: Logic for generating a new connector
             //     Ok(EmptySuccess)
             // }
-            Test(command) => command.run(supergraph_binary, output_file).await,
+            Test(command) => command.run(supergraph_binary).await,
             Run(command) => command.run(supergraph_binary).await,
             // List => {
             //     // TODO: Logic for listing all available connectors
