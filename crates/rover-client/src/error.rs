@@ -54,6 +54,10 @@ pub enum RoverClientError {
     #[error("Could not find organization associated with graph '{graph_id}'")]
     OrganizationNotFound { graph_id: String },
 
+    /// when attempting to create a key the associated Organization cannot be found
+    #[error("Could not find organization for ID '{organization_id}'")]
+    OrganizationIDNotFound { organization_id: String },
+
     /// The user provided an invalid subgraph name.
     #[error("Could not find subgraph '{invalid_subgraph}'.")]
     NoSubgraphInGraph {
