@@ -1,9 +1,11 @@
 use std::fs;
-use std::io::{self, Cursor};
+use std::io::Cursor;
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use rover_std::{Fs, Style};
 use crate::RoverResult;
+use rover_client::shared::GraphRef;
+use std::str::FromStr;
 
 const APOLLO_MCP_SERVER_BINARY_NAME: &str = "apollo-mcp-server";
 
@@ -12,6 +14,7 @@ pub struct MCPSetupResult {
     pub binary_path: Utf8PathBuf,
     pub env_file: Utf8PathBuf,
     pub claude_config: Option<Utf8PathBuf>,
+    pub connector_name: Option<String>,
 }
 
 pub struct MCPOperations;
@@ -22,6 +25,15 @@ impl MCPOperations {
         api_key: &str,
         graph_ref: &str,
     ) -> RoverResult<MCPSetupResult> {
+        Self::setup_mcp_project_with_name(project_path, api_key, graph_ref, None)
+    }
+
+    pub fn setup_mcp_project_with_name(
+        project_path: &Utf8PathBuf,
+        api_key: &str,
+        graph_ref: &str,
+        project_name: Option<&str>,
+    ) -> RoverResult<MCPSetupResult> {
         println!("{}", Style::Heading.paint("Setting up MCP server..."));
 
         // Download apollo-mcp-server binary
@@ -31,12 +43,13 @@ impl MCPOperations {
         let env_file = Self::generate_env_file(project_path, api_key, graph_ref)?;
         
         // Check Node version and optionally generate Claude Desktop config
-        let claude_config = Self::setup_claude_desktop_config(project_path, api_key, graph_ref)?;
+        let (claude_config, connector_name) = Self::setup_claude_desktop_config_with_name(project_path, api_key, graph_ref, project_name)?;
 
         Ok(MCPSetupResult {
             binary_path,
             env_file,
             claude_config,
+            connector_name,
         })
     }
 
@@ -247,39 +260,97 @@ type _Service {
         Ok(())
     }
 
-    fn setup_claude_desktop_config(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str) -> RoverResult<Option<Utf8PathBuf>> {
+
+    fn setup_claude_desktop_config(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {
+        Self::setup_claude_desktop_config_with_name(project_path, api_key, graph_ref, None)
+    }
+
+    fn setup_claude_desktop_config_with_name(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str, project_name: Option<&str>) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {
         // Check Node version
         if !Self::check_node_version()? {
             println!(
                 "{} Node.js 18+ required for Claude Desktop integration. Skipping claude_desktop_config.json generation.", 
                 Style::WarningHeading.paint("⚠")
             );
-            return Ok(None);
+            return Ok((None, None));
         }
 
+        // Use project name if provided, otherwise fall back to graph name
+        let connector_base_name = if let Some(name) = project_name {
+            name.to_lowercase().replace(' ', "-")
+        } else {
+            let graph = GraphRef::from_str(graph_ref)
+                .map_err(|e| anyhow!("Failed to parse graph reference: {}", e))?;
+            graph.name.to_lowercase()
+        };
+        let base_connector_name = format!("mcp-{}", connector_base_name);
+        
+        // Generate config file in project directory
         let claude_config_path = project_path.join("claude_desktop_config.json");
+        
+        // Read existing local config if it exists (in case they manually edited it)
+        let mut config: serde_json::Value = if claude_config_path.exists() {
+            let existing_content = Fs::read_file(&claude_config_path)?;
+            serde_json::from_str(&existing_content)
+                .map_err(|e| anyhow!("Failed to parse existing local Claude config: {}", e))?
+        } else {
+            serde_json::json!({})
+        };
+        
+        // Ensure mcpServers object exists
+        if !config.is_object() {
+            config = serde_json::json!({});
+        }
+        if config.get("mcpServers").is_none() {
+            config["mcpServers"] = serde_json::json!({});
+        }
+        
+        // Generate unique connector name if needed
+        let mut connector_name = base_connector_name.clone();
+        let mut counter = 2;
+        let mcp_servers = config["mcpServers"].as_object_mut().unwrap();
+        
+        while mcp_servers.contains_key(&connector_name) {
+            connector_name = format!("{}-{}", base_connector_name, counter);
+            counter += 1;
+        }
+        
+        // Notify user if name was changed
+        if connector_name != base_connector_name {
+            println!(
+                "{} MCP server connector named '{}' (renamed due to existing configuration)",
+                Style::WarningHeading.paint("⚠"),
+                Style::Link.paint(&connector_name)
+            );
+        }
+        
+        // Add new MCP server configuration
         let binary_path = project_path.join(APOLLO_MCP_SERVER_BINARY_NAME);
         let mcp_config_path = project_path.join(".apollo").join("mcp.local.yaml");
         
-        let claude_config = serde_json::json!({
-            "mcpServers": {
-                "apollo-mcp-server": {
-                    "command": binary_path.as_str(),
-                    "args": [mcp_config_path.as_str()],
-                    "env": {
-                        "APOLLO_KEY": api_key,
-                        "APOLLO_GRAPH_REF": graph_ref
-                    }
+        mcp_servers.insert(
+            connector_name.clone(),
+            serde_json::json!({
+                "command": binary_path.as_str(),
+                "args": [mcp_config_path.as_str()],
+                "env": {
+                    "APOLLO_KEY": api_key,
+                    "APOLLO_GRAPH_REF": graph_ref
                 }
-            }
-        });
+            })
+        );
         
-        let claude_config_str = serde_json::to_string_pretty(&claude_config)?;
+        // Write config to project directory
+        let claude_config_str = serde_json::to_string_pretty(&config)?;
         Fs::write_file(&claude_config_path, claude_config_str)?;
         
-        println!("{} claude_desktop_config.json created", Style::Success.paint("✓"));
+        println!(
+            "{} Claude Desktop config generated with MCP server '{}'",
+            Style::Success.paint("✓"),
+            Style::Link.paint(&connector_name)
+        );
         
-        Ok(Some(claude_config_path))
+        Ok((Some(claude_config_path), Some(connector_name)))
     }
 
     fn check_node_version() -> RoverResult<bool> {
@@ -314,8 +385,9 @@ type _Service {
         project_name: String,
         setup_result: &MCPSetupResult,
         graph_ref: &str,
+        _project_path: &Utf8PathBuf,
     ) {
-        println!("\n{}", Style::Success.paint("🎉 MCP server project created successfully!"));
+        println!("\n{}", Style::Success.paint("✓ MCP server project ready"));
         println!("\n{}: {}", Style::Heading.paint("Project"), project_name);
         println!("{}: {}", Style::Heading.paint("Graph"), graph_ref);
         println!("{}: {}", Style::Heading.paint("Binary"), setup_result.binary_path);
@@ -350,15 +422,25 @@ type _Service {
         println!("     docker run -it --env-file .env -p4000:4000 mcp-router");
         
         if setup_result.claude_config.is_some() {
+            let default_name = "mcp-server".to_string();
+            let connector_name = setup_result.connector_name
+                .as_ref()
+                .unwrap_or(&default_name);
+            
             println!("  {} Claude Desktop setup:", Style::Command.paint("7."));
             println!("     • Install Claude Desktop from https://claude.ai/download");
             println!("     • Ensure Node.js 18+ is installed and in your PATH");
-            println!("     • Copy claude_desktop_config.json to Claude's config directory");
+            println!("     • Copy claude_desktop_config.json to the appropriate location:");
+            println!("       - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json");
+            println!("       - Windows: %APPDATA%\\Claude\\claude_desktop_config.json");
+            println!("       - Linux: ~/.config/Claude/claude_desktop_config.json");
+            println!("     • Your MCP server will be named '{}'", Style::Link.paint(connector_name));
             println!("     • Restart Claude Desktop to load the MCP server");
             println!("     • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop");
         }
         
-        println!("\n{} Graph created for local development!", Style::Success.paint("ℹ"));
+        println!("\n💡 Your REST APIs are now AI-accessible through natural language!");
+        println!("\n{} MCP project configured for local development!", Style::Success.paint("ℹ"));
         println!("   Connectors run locally only - for production, deploy as Docker containers.");
     }
 }
