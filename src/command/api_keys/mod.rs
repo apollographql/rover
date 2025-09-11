@@ -1,6 +1,7 @@
 mod create;
 mod delete;
 mod list;
+mod rename;
 
 use std::fmt::{Display, Formatter};
 
@@ -8,9 +9,10 @@ use clap::{Parser, ValueEnum};
 use rover_client::operations::api_keys::GraphOsKeyType;
 use serde::Serialize;
 
-use crate::command::api_keys::create::CreateKey;
-use crate::command::api_keys::delete::DeleteKey;
-use crate::command::api_keys::list::ListKeys;
+use crate::command::api_keys::create::Create;
+use crate::command::api_keys::delete::Delete;
+use crate::command::api_keys::list::List;
+use crate::command::api_keys::rename::Rename;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -23,19 +25,22 @@ pub struct ApiKeys {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     #[clap(name = "create", about = "Create a new API key")]
-    CreateKey(CreateKey),
+    Create(Create),
     #[clap(name = "delete", about = "Delete an existing API key")]
-    DeleteKey(DeleteKey),
+    Delete(Delete),
     #[clap(name = "list", about = "List all API keys for an organization")]
-    ListKeys(ListKeys),
+    List(List),
+    #[clap(name = "rename", about = "Rename an existing API key")]
+    Rename(Rename),
 }
 
 impl ApiKeys {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::CreateKey(command) => command.run(client_config).await,
-            Command::DeleteKey(command) => command.run(client_config).await,
-            Command::ListKeys(command) => command.run(client_config).await,
+            Command::Create(command) => command.run(client_config).await,
+            Command::Delete(command) => command.run(client_config).await,
+            Command::List(command) => command.run(client_config).await,
+            Command::Rename(command) => command.run(client_config).await,
         }
     }
 }

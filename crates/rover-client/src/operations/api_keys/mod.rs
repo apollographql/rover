@@ -1,6 +1,7 @@
-pub mod create_key;
-pub mod delete_key;
-pub mod list_keys;
-pub mod rename_key;
+pub mod create;
+pub mod delete;
+pub mod get;
+pub mod list;
+pub mod rename;
 
-pub use crate::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType;
+pub use crate::operations::api_keys::create::create_key_mutation::GraphOsKeyType;
