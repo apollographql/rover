@@ -1,0 +1,13 @@
+query ListGraphsForOrganization($organizationId: ID!) {
+  organization(id: $organizationId) {
+    id
+    name
+    graphs {
+      id
+      name
+      variants {
+        name
+      }
+    }
+  }
+}

@@ -6,5 +6,7 @@ pub mod create_graph;
 pub mod github;
 /// runner for rover init key creation
 pub mod key;
+/// runner for listing graphs for organization
+pub mod list_graphs;
 /// runner for rover init memberships
 pub mod memberships;

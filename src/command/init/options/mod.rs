@@ -7,7 +7,7 @@ mod project_name;
 #[cfg(feature = "composition-js")]
 mod project_organization;
 #[cfg(feature = "composition-js")]
-mod project_template;
+pub mod project_template;
 #[cfg(feature = "composition-js")]
 mod project_type;
 #[cfg(feature = "composition-js")]
