@@ -17,9 +17,9 @@ struct Void {}
 )]
 pub struct DeleteKeyMutation;
 
-pub(crate) struct DeleteKeyInput {
-    pub(crate) organization_id: String,
-    pub(crate) key_id: String,
+pub struct DeleteKeyInput {
+    pub organization_id: String,
+    pub key_id: String,
 }
 
 impl From<DeleteKeyInput> for delete_key_mutation::Variables {
@@ -31,8 +31,8 @@ impl From<DeleteKeyInput> for delete_key_mutation::Variables {
     }
 }
 
-pub(crate) struct DeleteKeyResponse {
-    pub(crate) key_id: String,
+pub struct DeleteKeyResponse {
+    pub key_id: String,
 }
 
 pub async fn run(
