@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use graphql_client::GraphQLQuery;
+use serde::Serialize;
 
 use crate::blocking::StudioClient;
 use crate::operations::api_keys::list_keys::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
@@ -16,11 +17,11 @@ type RemoteApiKey = ListKeysQueryOrganizationApiKeysEdges;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct ListKeysQuery;
+struct ListKeysQuery;
 
 #[derive(Clone)]
-pub(crate) struct ListKeysInput {
-    pub(crate) organization_id: String,
+pub struct ListKeysInput {
+    pub organization_id: String,
 }
 
 impl From<ListKeysInput> for list_keys_query::Variables {
@@ -32,15 +33,16 @@ impl From<ListKeysInput> for list_keys_query::Variables {
     }
 }
 
-pub(crate) struct ListKeysResponse {
-    pub(crate) keys: Vec<ApiKey>,
+pub struct ListKeysResponse {
+    pub keys: Vec<ApiKey>,
 }
 
-struct ApiKey {
-    created_at: DateTime<FixedOffset>,
-    expires_at: Option<DateTime<FixedOffset>>,
-    id: String,
-    name: Option<String>,
+#[derive(Clone, Eq, PartialEq, Debug, Serialize)]
+pub struct ApiKey {
+    pub created_at: DateTime<FixedOffset>,
+    pub expires_at: Option<DateTime<FixedOffset>>,
+    pub id: String,
+    pub name: Option<String>,
 }
 
 pub async fn run(

@@ -8,6 +8,7 @@ use comfy_table::Attribute::Bold;
 use comfy_table::Cell;
 use comfy_table::CellAlignment::Center;
 use rover_client::RoverClientError;
+use rover_client::operations::api_keys::list_keys::ApiKey;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -124,6 +125,9 @@ pub enum RoverOutput {
     },
     DeleteKeyResponse {
         id: String,
+    },
+    ListKeysResponse {
+        keys: Vec<ApiKey>,
     },
 }
 
@@ -532,6 +536,22 @@ impl RoverOutput {
                 stderrln!("Deleted API Key {id}")?;
                 None
             }
+            RoverOutput::ListKeysResponse { keys } => {
+                let mut table = table::get_table();
+
+                table.set_header(vec!["ID", "Name", "Created At", "Expires At"]);
+                for key in keys {
+                    table.add_row(vec![
+                        key.id,
+                        key.name.unwrap_or(String::new()),
+                        key.created_at.to_string(),
+                        key.expires_at
+                            .map(|timestamp| timestamp.to_string())
+                            .unwrap_or(String::from("Never")),
+                    ]);
+                }
+                None
+            }
         })
     }
 
@@ -674,6 +694,9 @@ impl RoverOutput {
             }
             RoverOutput::DeleteKeyResponse { id } => {
                 json!({ "id": id })
+            }
+            RoverOutput::ListKeysResponse { keys } => {
+                json!({ "keys": keys })
             }
         }
     }

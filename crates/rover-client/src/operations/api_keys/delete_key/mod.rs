@@ -15,7 +15,7 @@ struct Void {}
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct DeleteKeyMutation;
+struct DeleteKeyMutation;
 
 pub struct DeleteKeyInput {
     pub organization_id: String,

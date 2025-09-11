@@ -1,14 +1,16 @@
 mod create;
 mod delete;
+mod list;
 
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use rover_client::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType as QueryGraphOsKeyType;
+use rover_client::operations::api_keys::GraphOsKeyType;
 use serde::Serialize;
 
 use crate::command::api_keys::create::CreateKey;
 use crate::command::api_keys::delete::DeleteKey;
+use crate::command::api_keys::list::ListKeys;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -24,6 +26,8 @@ pub enum Command {
     CreateKey(CreateKey),
     #[clap(name = "delete", about = "Delete an existing API key")]
     DeleteKey(DeleteKey),
+    #[clap(name = "list", about = "List all API keys for an organization")]
+    ListKeys(ListKeys),
 }
 
 impl ApiKeys {
@@ -31,6 +35,7 @@ impl ApiKeys {
         match &self.command {
             Command::CreateKey(command) => command.run(client_config).await,
             Command::DeleteKey(command) => command.run(client_config).await,
+            Command::ListKeys(command) => command.run(client_config).await,
         }
     }
 }
@@ -40,22 +45,22 @@ impl ApiKeys {
 // add support for more key types as they are required, rather than them changing as the schema
 // does.
 #[derive(Debug, Clone, Serialize, ValueEnum, Copy)]
-pub enum GraphOsKeyType {
+pub enum ApiKeyType {
     OPERATOR,
 }
 
-impl GraphOsKeyType {
-    fn into_query_enum(self) -> QueryGraphOsKeyType {
+impl ApiKeyType {
+    fn into_query_enum(self) -> GraphOsKeyType {
         match self {
-            Self::OPERATOR => QueryGraphOsKeyType::OPERATOR,
+            Self::OPERATOR => GraphOsKeyType::OPERATOR,
         }
     }
 }
 
-impl Display for GraphOsKeyType {
+impl Display for ApiKeyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GraphOsKeyType::OPERATOR => write!(f, "Operator"),
+            ApiKeyType::OPERATOR => write!(f, "Operator"),
         }
     }
 }
