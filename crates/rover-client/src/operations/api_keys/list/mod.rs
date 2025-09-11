@@ -64,7 +64,7 @@ pub async fn run(
 
     // Set up pagination variables
     let mut has_next = api_keys.page_info.has_next_page;
-    let mut end_cursor = api_keys.page_info.end_cursor;
+    let mut end_cursor = final_list.last().map(|node| node.node.id.clone());
     while has_next {
         let organization_id = input.organization_id.clone();
         let mut vars: list_keys_query::Variables = input.clone().into();
@@ -76,7 +76,7 @@ pub async fn run(
             .api_keys;
         final_list.extend(api_keys.edges);
         has_next = api_keys.page_info.has_next_page;
-        end_cursor = api_keys.page_info.end_cursor;
+        end_cursor = final_list.last().map(|node| node.node.id.clone());
     }
 
     let mut keys = Vec::new();
