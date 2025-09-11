@@ -113,7 +113,6 @@ impl CompositionPipeline<state::Init> {
                 )
                 .unwrap()
             });
-        eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
@@ -124,7 +123,6 @@ impl CompositionPipeline<state::Init> {
                 .map_err(CompositionPipelineError::ResolveSubgraphFromPrompt)?,
             None => resolver.skip_default_subgraph(),
         };
-        eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {
             state: state::ResolveFederationVersion {
                 resolver,
@@ -365,7 +363,7 @@ impl CompositionPipeline<state::Run> {
     }
 }
 
-mod state {
+pub(crate) mod state {
     use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
 
