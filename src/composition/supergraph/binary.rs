@@ -48,8 +48,7 @@ impl SupergraphBinary {
             .args(args)
             .output(
                 ExecCommandOutput::builder()
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
+                    .stdout(Stdio::piped())
                     .build(),
             )
             .build();
@@ -152,10 +151,7 @@ impl SupergraphBinary {
             .exe(self.exe.clone())
             .args(args)
             .output(
-                ExecCommandOutput::builder()
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
-                    .build(),
+                ExecCommandOutput::builder().stdout(Stdio::piped()).build()
             )
             .build();
 
@@ -247,6 +243,7 @@ impl SupergraphBinary {
                     .stdout(Stdio::inherit())
                     .build(),
             )
+            .should_spawn(true)
             .build();
 
         let output = exec_impl
@@ -363,8 +360,8 @@ impl SupergraphBinary {
             .args(args)
             .output(
                 ExecCommandOutput::builder()
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .build(),
             )
             .build();
@@ -409,8 +406,8 @@ impl SupergraphBinary {
             .args(args)
             .output(
                 ExecCommandOutput::builder()
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .build(),
             )
             .build();
@@ -466,6 +463,7 @@ impl SupergraphBinary {
                     .stdout(Stdio::inherit())
                     .build(),
             )
+            .should_spawn(true)
             .build();
 
         let output = exec_impl
@@ -552,8 +550,8 @@ impl SupergraphBinary {
             .args(args)
             .output(
                 ExecCommandOutput::builder()
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .build(),
             )
             .build();
