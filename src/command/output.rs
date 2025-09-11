@@ -8,6 +8,7 @@ use comfy_table::Attribute::Bold;
 use comfy_table::Cell;
 use comfy_table::CellAlignment::Center;
 use rover_client::RoverClientError;
+use rover_client::operations::api_keys::list::ApiKey;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -115,6 +116,23 @@ pub enum RoverOutput {
     #[cfg(feature = "composition-js")]
     ConnectorTestResponse {
         output: String,
+    },
+    CreateKeyResponse {
+        api_key: String,
+        key_type: String,
+        id: String,
+        name: String,
+    },
+    DeleteKeyResponse {
+        id: String,
+    },
+    ListKeysResponse {
+        keys: Vec<ApiKey>,
+    },
+    RenameKeyResponse {
+        id: String,
+        old_name: Option<String>,
+        new_name: String,
     },
 }
 
@@ -504,6 +522,50 @@ impl RoverOutput {
             }
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorTestResponse { output } => Some(output.into()),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                let mut table = table::get_table();
+
+                table.add_row(vec![&Style::WhoAmIKey.paint("ID"), id]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Name"), name]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Key Type"), key_type]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{table}"))
+            }
+            RoverOutput::DeleteKeyResponse { id } => {
+                stderrln!("Deleted API Key {id}")?;
+                None
+            }
+            RoverOutput::ListKeysResponse { keys } => {
+                let mut table = table::get_table();
+
+                table.set_header(vec!["ID", "Name", "Created At", "Expires At"]);
+                for key in keys {
+                    table.add_row(vec![
+                        key.id.clone(),
+                        key.name.clone().unwrap_or(String::new()),
+                        key.created_at.to_string(),
+                        key.expires_at
+                            .map(|timestamp| timestamp.to_string())
+                            .unwrap_or(String::from("Never")),
+                    ]);
+                }
+                Some(format!("{table}"))
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                let display_old_name = old_name.clone().unwrap_or(String::new());
+                stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
+                None
+            }
         })
     }
 
@@ -636,6 +698,27 @@ impl RoverOutput {
             }
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
+            }
+            RoverOutput::DeleteKeyResponse { id } => {
+                json!({ "id": id })
+            }
+            RoverOutput::ListKeysResponse { keys } => {
+                json!({ "keys": keys })
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                json!({ "old_name": old_name, "new_name": new_name, "id": id })
+            }
         }
     }
 

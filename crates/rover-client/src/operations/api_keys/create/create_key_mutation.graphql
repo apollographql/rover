@@ -1,0 +1,9 @@
+mutation CreateKeyMutation($organizationId: ID!, $name: String!, $type: GraphOsKeyType!) {
+  organization(id: $organizationId) {
+    createKey(name: $name, type: $type) {
+      id
+      keyName
+      token
+    }
+  }
+}
