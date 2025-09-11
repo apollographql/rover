@@ -8,6 +8,14 @@ type Organization {
   """
   offlineLicense: RouterLicense
 
+  """Fetches a specific API key by its ID"""
+  apiKey(keyId: ID!): GraphOsKey
+
+  """
+  Returns a list of all active Operator, Subgraph, and SCIM API keys for the account
+  """
+  apiKeys(after: String, before: String, first: Int, last: Int): GraphOsKeyConnection!
+
   """
   Globally unique identifier, which isn't guaranteed stable (can be changed by administrators).
   """
@@ -66,8 +74,17 @@ type AccountMembership {
 }
 
 type OrganizationMutation {
+  """Create an ApiKey"""
+  createKey(name: String!, resources: ApiKeyResourceInput, type: GraphOsKeyType!): GraphOsKey!
+
+  """Delete an ApiKey"""
+  deleteKey(keyId: ID!): ID!
+
   """Send an invitation to join the organization by E-mail"""
   invite(email: String!, role: UserPermission): AccountInvitation
+
+  """Updates the name of an ApiKey"""
+  renameKey(keyId: ID!, name: String!): GraphOsKey!
 
   """Create or update a custom session length for an org"""
   setCustomSessionLength(sessionDurationInSeconds: Int!): Int!
@@ -107,6 +124,20 @@ enum ActorType {
   SYSTEM
   USER
 }
+
+"""
+parentCommentId is only present for replies. schemaCoordinate & subgraph are only present for initial change comments. If all are absent, this is a general parent comment on the proposal.
+"""
+input AddCommentInput {
+  message: String!
+  parentCommentId: String
+  revisionId: String!
+  schemaCoordinate: String
+  schemaScope: String
+  usersToNotify: [String!]
+}
+
+union AddCommentResult = NotFoundError | ParentChangeProposalComment | ParentGeneralProposalComment | ReplyChangeProposalComment | ReplyGeneralProposalComment | ValidationError
 
 union AddOperationCollectionEntriesResult = AddOperationCollectionEntriesSuccess | PermissionError | ValidationError
 
@@ -215,6 +246,26 @@ interface ApiKey {
 type ApiKeyProvision {
   apiKey: ApiKey!
   created: Boolean!
+}
+
+"""
+Represents a resource that an API key has access to, including its type and identifier.
+"""
+type ApiKeyResource {
+  """The identifier of the resource that the key has access to."""
+  resourceId: String!
+
+  """The type of resource that the key has access to."""
+  resourceType: String!
+}
+
+"""The target resource(s) that a key has access to"""
+input ApiKeyResourceInput {
+  """One or more subgraphs that a key has access to"""
+  subgraphs: [SubgraphIdentifierInput!]
+
+  """One or more variants that a key has access to"""
+  variants: [VariantIdentifierInput!]
 }
 
 type AuditLogExport {
@@ -1191,6 +1242,15 @@ type CompositionCheckResult implements CompositionResult {
   supergraphSdl: GraphQLDocument
 }
 
+"""A subgraph in a federated Studio supergraph."""
+type ConnectorTools {
+  """A prompt for generating supergraphs using Apollo Connectors"""
+  architect: String!
+
+  """A specification for Apollo Connectors"""
+  spec: String!
+}
+
 input ContractConfigInput {
   baseGraphRef: String!
   filterConfigInput: FilterConfigInput!
@@ -1367,6 +1427,12 @@ The input/output is a string in RFC3339 format.
 scalar DateTime
   @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339")
 
+input DeleteCommentInput {
+  id: String!
+}
+
+union DeleteCommentResult = NotFoundError | PermissionError | ValidationError
+
 union DeleteOperationCollectionResult = DeleteOperationCollectionSuccess | PermissionError
 
 type DeleteOperationCollectionSuccess {
@@ -1452,6 +1518,14 @@ enum DownstreamLaunchInitiation {
   """
   SYNC
 }
+
+input EditCommentInput {
+  id: String!
+  message: String!
+  usersToNotify: [String!]
+}
+
+union EditCommentResult = NotFoundError | ParentChangeProposalComment | ParentGeneralProposalComment | PermissionError | ReplyChangeProposalComment | ReplyGeneralProposalComment | ValidationError
 
 """GraphQL Error"""
 interface Error {
@@ -1995,14 +2069,84 @@ union GraphImplementors = GraphVariantSubgraphs
 
 """Represents an API key that's used to authenticate an Apollo principal."""
 type GraphOsKey implements ApiKey {
+  """The time when this API key was created."""
+  createdAt: Timestamp!
+
+  """The actor that created this API key."""
+  createdBy: Actor!
+
+  """The time when this API key expires, if applicable."""
+  expiresAt: Timestamp
+
   """The API key's ID."""
   id: ID!
 
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
 
+  """
+  Permissions associated with this API key, defining what actions it can perform.
+  """
+  resources: [ApiKeyResource!]!
+
   """The value of the API key. **This is a secret credential!**"""
   token: String!
+}
+
+"""
+Represent a connection of GraphOS API keys, used for pagination in GraphQL queries.
+"""
+type GraphOsKeyConnection {
+  """List of edges in the connection, each containing a node and a cursor."""
+  edges: [GraphOsKeyEdge!]!
+
+  """List of of API keys in the connection."""
+  nodes: [GraphOsKey!]!
+
+  """Information about the pagination state of the connection."""
+  pageInfo: GraphOsKeyPageInfo!
+
+  """Total number of API keys in the connection, regardless of pagination."""
+  totalCount: Int!
+}
+
+"""
+An edge in a connection of GraphOS API keys, containing a node and a cursor.
+"""
+type GraphOsKeyEdge {
+  """
+  A cursor for use in pagination, representing the position of this edge in the connection.
+  """
+  cursor: String!
+
+  """The API key node in the edge."""
+  node: GraphOsKey!
+}
+
+"""
+Information about the pagination state of a connection of GraphOS API keys.
+"""
+type GraphOsKeyPageInfo {
+  """The cursor to use for fetching the previous page of items."""
+  endCursor: String
+
+  """Indicates if there are more items after the current page."""
+  hasNextPage: Boolean!
+
+  """Indicates if there are more items before the current page."""
+  hasPreviousPage: Boolean!
+
+  """The cursor to use for fetching the next page of items."""
+  startCursor: String
+}
+
+enum GraphOsKeyType {
+  OPERATOR
+  ROUTER
+  SCIM
+
+  """A key with one or more subgraphs as its target resource(s)"""
+  SUBGRAPH
 }
 
 type GraphQLDoc {
@@ -2551,6 +2695,17 @@ interface Identity {
 
   """The identity's human-readable name."""
   name: String!
+}
+
+type IgnoreOperationsInChecksResult {
+  """The graph that was updated."""
+  graph: Graph!
+
+  """Whether or not the request succeeded."""
+  success: Boolean!
+
+  """An error or success message."""
+  message: String!
 }
 
 type InternalIdentity implements Identity {
@@ -3135,6 +3290,19 @@ type LogMessage {
 
 """Long type"""
 scalar Long
+
+"""
+The result of the markCheckOperationsAsSafe and unmarkCheckOperationsAsSafe operations.
+"""
+type MarkCheckOperationsAsSafeResult {
+  """True if the operations were updated successfully, false otherwise"""
+  success: Boolean!
+
+  """
+  A message indicating what was changed or what could not be changed successfully
+  """
+  message: String!
+}
 
 union McpDefaultCollectionResult = OperationCollection | PermissionError
 
@@ -4369,6 +4537,21 @@ Mutations for editing GraphOS Schema Proposals. See documentation at https://www
 """
 type ProposalMutation {
   """
+  Add a comment to this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  addComment(input: AddCommentInput!): AddCommentResult!
+
+  """
+  Delete a comment on this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  deleteComment(input: DeleteCommentInput!): DeleteCommentResult!
+
+  """
+  Edit a comment on this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  editComment(input: EditCommentInput!): EditCommentResult!
+
+  """
   The GraphOS Schema Proposal being modified by this mutation. See documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
   """
   proposal: Proposal
@@ -4397,6 +4580,11 @@ type ProposalMutation {
   Update the status of this proposal. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   updateStatus(status: ProposalStatus!): UpdateProposalResult!
+
+  """
+  Create or update a review for this proposal. Only users who are requested reviewers can call this mutation.  This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  upsertReview(input: UpsertReviewInput!): UpsertReviewResult!
 }
 
 union ProposalMutationResult = NotFoundError | PermissionError | ProposalMutation | ValidationError
@@ -4661,6 +4849,9 @@ type Query {
 
   """Returns details of the Apollo user with the provided ID."""
   user(id: ID!): User
+
+  """Fields that back Connector-related MCP tools"""
+  connectorTools: ConnectorTools!
 
   """Returns the root URL of the Apollo Studio frontend."""
   frontendUrlRoot: String!
@@ -5501,6 +5692,25 @@ type Graph implements Identity {
 }
 
 """
+Represents a machine identity associated with an organization. Used as a principal for API keys.
+"""
+type ServiceAccount implements Identity {
+  """
+  Returns a representation of this service account as an `Actor` type. Useful when determining which actor performed a particular action in Studio.
+  """
+  asActor: Actor!
+
+  """The service account's unique id."""
+  id: ID!
+
+  """The name assigned to this service account."""
+  name: String!
+
+  """The organization this service account belongs to."""
+  organization: Organization
+}
+
+"""
 Provides access to mutation fields for managing Studio graphs and subgraphs.
 """
 type GraphMutation {
@@ -5726,6 +5936,44 @@ type GraphMutation {
     downgradeDefaultValueChange: Boolean
     enableCustomChecks: Boolean
   ): CheckConfiguration!
+
+  """
+  Mark any changes within the specified check for the specified operations as safe. Future checks will not fail for those operation and change combinations.
+  """
+  markCheckOperationsAsSafe(
+    """The check workflow ID containing the changes to mark."""
+    checkWorkflowID: ID!
+
+    """The IDs of the operations to mark as safe."""
+    operationIDs: [ID!]!
+  ): MarkCheckOperationsAsSafeResult!
+
+  """
+  Unmark any changes within the specified check for the specified operations as safe. Future checks will fail for those operation and change combinations.
+  """
+  unmarkCheckOperationsAsSafe(
+    """The check workflow ID containing the changes to mark."""
+    checkWorkflowID: ID!
+
+    """The IDs of the operations to unmark as safe."""
+    operationIDs: [ID!]!
+  ): MarkCheckOperationsAsSafeResult!
+
+  """
+  Ignore an operation in future checks;
+  changes affecting it will be tracked,
+  but won't affect the outcome of the check.
+  Returns true if the operation is newly ignored,
+  false if it already was.
+  """
+  ignoreOperationsInChecks(ids: [ID!]!): IgnoreOperationsInChecksResult
+
+  """
+  Revert the effects of ignoreOperation.
+  Returns true if the operation is no longer ignored,
+  false if it wasn't.
+  """
+  unignoreOperationsInChecks(ids: [ID!]!): UnignoreOperationsInChecksResult
 }
 
 """
@@ -5941,6 +6189,18 @@ input SubgraphCheckAsyncInput {
   subgraphName: String!
 }
 
+"""Details to identify a subgraph"""
+input SubgraphIdentifierInput {
+  """The graph id"""
+  graphId: String!
+
+  """The subgraph name"""
+  subgraphName: String!
+
+  """The variant name"""
+  variantName: String!
+}
+
 input SubgraphInput {
   """We are either going to pass in a document or a schema reference"""
   document: String
@@ -6075,6 +6335,17 @@ type TypeChangeSummaryCounts {
   edits: Int!
 }
 
+type UnignoreOperationsInChecksResult {
+  """The graph that was updated."""
+  graph: Graph!
+
+  """Whether or not the request succeeded."""
+  success: Boolean!
+
+  """An error or success message."""
+  message: String!
+}
+
 """
 The result/error union returned by GraphVariantMutation.unlinkPersistedQueryList.
 """
@@ -6131,6 +6402,14 @@ type SchemaPublicationResult {
   """
   publication: SchemaPublication
 }
+
+input UpsertReviewInput {
+  comment: String
+  decision: ReviewDecision!
+  revisionId: ID!
+}
+
+union UpsertReviewResult = PermissionError | Proposal | ValidationError
 
 union UpsertRouterResult = GraphVariant | RouterUpsertFailure
 
@@ -6437,6 +6716,15 @@ type VariantCheckConfigurationTimeRange {
 input VariantCreationConfig {
   buildConfigInput: BuildConfigInput!
   endpointSlug: String
+  variantName: String!
+}
+
+"""Details to identify a subgraph"""
+input VariantIdentifierInput {
+  """The graph id"""
+  graphId: String!
+
+  """The variant name"""
   variantName: String!
 }
 
