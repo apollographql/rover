@@ -46,11 +46,7 @@ impl SupergraphBinary {
         let config = ExecCommandConfig::builder()
             .exe(self.exe.clone())
             .args(args)
-            .output(
-                ExecCommandOutput::builder()
-                    .stdout(Stdio::piped())
-                    .build(),
-            )
+            .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
             .build();
 
         let output = exec_impl
@@ -150,9 +146,7 @@ impl SupergraphBinary {
         let config = ExecCommandConfig::builder()
             .exe(self.exe.clone())
             .args(args)
-            .output(
-                ExecCommandOutput::builder().stdout(Stdio::piped()).build()
-            )
+            .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
             .build();
 
         let output = exec_impl
