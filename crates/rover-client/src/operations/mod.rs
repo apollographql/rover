@@ -25,6 +25,8 @@ pub mod config;
 /// all rover-client functionality for the "license" commands in rover
 pub mod license;
 
-mod auth;
+// all rover-client functionality for "api-keys" commands in rover
+pub mod api_keys;
+
 /// all rover-client functionality for the "init" commands in rover
 pub mod init;
