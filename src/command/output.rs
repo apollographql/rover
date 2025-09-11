@@ -8,7 +8,7 @@ use comfy_table::Attribute::Bold;
 use comfy_table::Cell;
 use comfy_table::CellAlignment::Center;
 use rover_client::RoverClientError;
-use rover_client::operations::api_keys::list_keys::ApiKey;
+use rover_client::operations::api_keys::list::ApiKey;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -128,6 +128,11 @@ pub enum RoverOutput {
     },
     ListKeysResponse {
         keys: Vec<ApiKey>,
+    },
+    RenameKeyResponse {
+        id: String,
+        old_name: Option<String>,
+        new_name: String,
     },
 }
 
@@ -542,14 +547,23 @@ impl RoverOutput {
                 table.set_header(vec!["ID", "Name", "Created At", "Expires At"]);
                 for key in keys {
                     table.add_row(vec![
-                        key.id,
-                        key.name.unwrap_or(String::new()),
+                        key.id.clone(),
+                        key.name.clone().unwrap_or(String::new()),
                         key.created_at.to_string(),
                         key.expires_at
                             .map(|timestamp| timestamp.to_string())
                             .unwrap_or(String::from("Never")),
                     ]);
                 }
+                None
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                let display_old_name = old_name.clone().unwrap_or(String::new());
+                stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
         })
@@ -697,6 +711,13 @@ impl RoverOutput {
             }
             RoverOutput::ListKeysResponse { keys } => {
                 json!({ "keys": keys })
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
         }
     }

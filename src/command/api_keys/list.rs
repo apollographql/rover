@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_client::operations::api_keys::list_keys::{ListKeysInput, run};
+use rover_client::operations::api_keys::list::{ListKeysInput, run};
 use serde::Serialize;
 
 use crate::options::ProfileOpt;
@@ -7,14 +7,14 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub(crate) struct ListKeys {
+pub(crate) struct List {
     #[clap(flatten)]
     profile: ProfileOpt,
     organization_id: String,
     id: String,
 }
 
-impl ListKeys {
+impl List {
     pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let resp = run(

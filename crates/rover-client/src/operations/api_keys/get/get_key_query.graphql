@@ -1,0 +1,10 @@
+query GetKeyQuery($keyId: ID!, $organizationId: ID!) {
+    organization(id: $organizationId) {
+        apiKey(keyId: $keyId) {
+            createdAt
+            expiresAt
+            id
+            keyName
+        }
+    }
+}

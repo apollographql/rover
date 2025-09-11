@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_client::operations::api_keys::delete_key::{DeleteKeyInput, run};
+use rover_client::operations::api_keys::delete::{DeleteKeyInput, run};
 use serde::Serialize;
 
 use crate::options::ProfileOpt;
@@ -7,14 +7,14 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub(crate) struct DeleteKey {
+pub(crate) struct Delete {
     #[clap(flatten)]
     profile: ProfileOpt,
     organization_id: String,
     id: String,
 }
 
-impl DeleteKey {
+impl Delete {
     pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let resp = run(
