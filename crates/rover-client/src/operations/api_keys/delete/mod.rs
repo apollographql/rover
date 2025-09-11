@@ -47,7 +47,7 @@ pub async fn run(
         .ok_or_else(|| OrganizationIDNotFound { organization_id })?
         .delete_key
     {
-        None => Err(RoverClientError::InvalidKey),
+        None => Err(RoverClientError::ApiKeyNotFound { api_key_id: key_id }),
         Some(_) => Ok(DeleteKeyResponse { key_id }),
     }
 }

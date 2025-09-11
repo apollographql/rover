@@ -555,7 +555,7 @@ impl RoverOutput {
                             .unwrap_or(String::from("Never")),
                     ]);
                 }
-                None
+                Some(format!("{table}"))
             }
             RoverOutput::RenameKeyResponse {
                 id,

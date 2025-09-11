@@ -374,6 +374,9 @@ pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),
 
+    /// API Key Related Commands
+    ApiKeys(command::ApiKeys),
+
     /// Cloud configuration commands
     Cloud(command::Cloud),
 
@@ -438,8 +441,6 @@ pub enum Command {
     #[cfg(feature = "composition-js")]
     #[clap(hide = true)]
     Lsp(command::Lsp),
-
-    ApiKeys(command::ApiKeys),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
