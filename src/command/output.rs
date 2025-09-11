@@ -116,6 +116,12 @@ pub enum RoverOutput {
     ConnectorTestResponse {
         output: String,
     },
+    CreateKeyResponse {
+        api_key: String,
+        key_type: String,
+        id: String,
+        name: String,
+    },
 }
 
 impl RoverOutput {
@@ -504,6 +510,21 @@ impl RoverOutput {
             }
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorTestResponse { output } => Some(output.into()),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                let mut table = table::get_table();
+
+                table.add_row(vec![&Style::WhoAmIKey.paint("ID"), id]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Name"), name]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Key Type"), key_type]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{table}"))
+            }
         })
     }
 
@@ -636,6 +657,14 @@ impl RoverOutput {
             }
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
+            }
         }
     }
 

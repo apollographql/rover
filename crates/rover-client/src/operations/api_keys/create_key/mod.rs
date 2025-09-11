@@ -1,25 +1,8 @@
 use graphql_client::GraphQLQuery;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType as QueryGraphOsKeyType;
+use crate::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType;
 use crate::RoverClientError;
-
-// We define a new enum here so that we can keep the implementation details of the actual graph
-// enum contained within this crate rather than leaking it out. Further it allows us to selectively
-// add support for more key types as they are required, rather than them changing as the schema
-// does.
-#[derive(Debug)]
-pub enum GraphOsKeyType {
-    OPERATOR,
-}
-
-impl GraphOsKeyType {
-    fn as_query_enum(&mut self) -> QueryGraphOsKeyType {
-        match self {
-            Self::OPERATOR => QueryGraphOsKeyType::OPERATOR,
-        }
-    }
-}
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
@@ -30,26 +13,26 @@ impl GraphOsKeyType {
 )]
 pub struct CreateKeyMutation;
 
-pub(crate) struct CreateKeyInput {
-    pub(crate) organization_id: String,
-    name: String,
-    key_type: GraphOsKeyType,
+pub struct CreateKeyInput {
+    pub organization_id: String,
+    pub name: String,
+    pub key_type: GraphOsKeyType,
 }
 
 impl From<CreateKeyInput> for create_key_mutation::Variables {
-    fn from(mut value: CreateKeyInput) -> Self {
+    fn from(value: CreateKeyInput) -> Self {
         create_key_mutation::Variables {
             organization_id: value.organization_id,
             name: value.name,
-            type_: value.key_type.as_query_enum(),
+            type_: value.key_type,
         }
     }
 }
 
-pub(crate) struct CreateKeyResponse {
-    pub(crate) key_id: String,
-    pub(crate) key_name: String,
-    pub(crate) token: String,
+pub struct CreateKeyResponse {
+    pub key_id: String,
+    pub key_name: String,
+    pub token: String,
 }
 
 pub async fn run(

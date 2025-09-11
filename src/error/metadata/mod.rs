@@ -326,6 +326,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::NonCloudGraphRef { .. } => (None, None),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
+                RoverClientError::InvalidTimestamp(_) => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
                 RoverClientError::MaxRetriesExceeded { .. } => (
                     Some(RoverErrorSuggestion::ContactApolloSupport),

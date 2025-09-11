@@ -252,6 +252,7 @@ impl Rover {
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
+            Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
         }
     }
 
@@ -437,6 +438,8 @@ pub enum Command {
     #[cfg(feature = "composition-js")]
     #[clap(hide = true)]
     Lsp(command::Lsp),
+
+    ApiKeys(command::ApiKeys),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
