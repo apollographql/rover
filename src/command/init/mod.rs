@@ -86,7 +86,6 @@ enum MCPDataSourceType {
     ExternalAPIs,    // REST, webhooks, SaaS
     AWSServices,     // Lambda, DynamoDB
     GraphQLAPI,      // Existing GraphQL endpoints
-    AllSources,      // Mix of everything
 }
 
 #[cfg(feature = "composition-js")]
@@ -96,7 +95,6 @@ impl std::fmt::Display for MCPDataSourceType {
             MCPDataSourceType::ExternalAPIs => write!(f, "External APIs (REST, webhooks, SaaS tools)"),
             MCPDataSourceType::AWSServices => write!(f, "AWS services (Lambda, DynamoDB, etc.)"),
             MCPDataSourceType::GraphQLAPI => write!(f, "Existing GraphQL API"),
-            MCPDataSourceType::AllSources => write!(f, "All of the above"),
         }
     }
 }
@@ -517,7 +515,6 @@ impl Init {
             MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
             MCPDataSourceType::AWSServices => vec!["examples/aws"],
             MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
-            MCPDataSourceType::AllSources => vec!["examples/all"],
         };
         
         // Copy only selected examples to tools/
@@ -533,8 +530,7 @@ impl Init {
                     let new_path = file_path.as_str()
                         .replace("examples/api/", "tools/")
                         .replace("examples/aws/", "tools/")
-                        .replace("examples/graphql/", "tools/")
-                        .replace("examples/all/", "tools/");
+                        .replace("examples/graphql/", "tools/");
                     files_to_add.push((new_path, content.clone()));
                 }
                 // Mark original examples/ file for removal
@@ -679,7 +675,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 MCPDataSourceType::ExternalAPIs => "External APIs",
                 MCPDataSourceType::AWSServices => "AWS services",
                 MCPDataSourceType::GraphQLAPI => "GraphQL API",
-                MCPDataSourceType::AllSources => "All sources",
             }
         )));
         
@@ -773,7 +768,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             MCPDataSourceType::ExternalAPIs,
             MCPDataSourceType::AWSServices,
             MCPDataSourceType::GraphQLAPI,
-            MCPDataSourceType::AllSources,
         ];
         
         let names = options.iter().map(|o| o.to_string()).collect::<Vec<_>>();
@@ -808,7 +802,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 MCPDataSourceType::ExternalAPIs => "External APIs",
                 MCPDataSourceType::AWSServices => "AWS services",
                 MCPDataSourceType::GraphQLAPI => "GraphQL API",
-                MCPDataSourceType::AllSources => "All sources",
             }
         )));
         
@@ -866,10 +859,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     #[cfg(feature = "composition-js")]
     async fn handle_new_project_mcp(&self, _client: &rover_client::blocking::StudioClient, client_config: &StudioClientConfig) -> RoverResult<RoverOutput> {
         use rover_std::Style;
-        use crate::command::init::states::{UserAuthenticated, ProjectTypeSelected, UseCaseSelected, TemplateSelected, SelectedTemplateState};
+        use crate::command::init::states::{UserAuthenticated, ProjectTypeSelected, UseCaseSelected, TemplateSelected};
         use crate::command::init::transitions::CreateProjectResult;
         use crate::command::init::options::{ProjectType, ProjectUseCase};
-        use crate::command::init::template_fetcher::{TemplateId, Template};
         use anyhow::anyhow;
         
         println!("{}", Style::Heading.paint("🚀 Creating new project with MCP server..."));
@@ -898,22 +890,18 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             .await?;
 
         // Create use case selected state based on data source type
-        let (use_case, template_id, base_template_id, mcp_project_type) = match data_source_type {
+        let (use_case, base_template_id, mcp_project_type) = match data_source_type {
             MCPDataSourceType::ExternalAPIs => {
-                // For External APIs, use Connectors (REST-focused)
-                (ProjectUseCase::Connectors, "mcp-connectors", "connectors", MCPProjectType::REST)
+                // For External APIs, use start-with-rest + add-mcp
+                (ProjectUseCase::Connectors, "connectors", MCPProjectType::REST)
             }
             MCPDataSourceType::AWSServices => {
-                // For AWS services, use Connectors (AWS APIs are REST-based)
-                (ProjectUseCase::Connectors, "mcp-connectors", "connectors", MCPProjectType::REST)
+                // For AWS services, use start-with-rest + add-mcp
+                (ProjectUseCase::Connectors, "connectors", MCPProjectType::REST)
             }
             MCPDataSourceType::GraphQLAPI => {
-                // For GraphQL APIs, use GraphQLTemplate
-                (ProjectUseCase::GraphQLTemplate, "mcp-typescript", "typescript", MCPProjectType::GraphQL)
-            }
-            MCPDataSourceType::AllSources => {
-                // For mixed sources, use Connectors (most flexible base)
-                (ProjectUseCase::Connectors, "mcp-connectors", "connectors", MCPProjectType::REST)
+                // For GraphQL APIs, use start-with-typescript + add-mcp
+                (ProjectUseCase::GraphQLTemplate, "typescript", MCPProjectType::GraphQL)
             }
         };
         
@@ -924,36 +912,23 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             use_case,
         };
 
-        // For MCP, use the add-mcp template directly (simpler approach for 2-day implementation)
+        // Fetch base template + add-mcp using the existing fetch_mcp_template method
         let branch_ref = "camille/start-with-mcp-template";
         let mut template_fetcher = InitTemplateFetcher::new();
-        let template_options = template_fetcher.call(branch_ref).await?;
-        
-        // Create a simple MCP template that just uses add-mcp
-        let mut string_files = template_options.extract_directory_files("add-mcp")?;
+        let mut selected_template = template_fetcher.fetch_mcp_template(base_template_id, branch_ref).await?;
         
         // Filter files based on data source selection BEFORE preview
+        let mut string_files: std::collections::HashMap<camino::Utf8PathBuf, String> = selected_template.files
+            .iter()
+            .map(|(path, bytes)| (path.clone(), String::from_utf8_lossy(bytes).to_string()))
+            .collect();
+        
         Self::filter_template_files_by_data_source(&mut string_files, &data_source_type);
         
-        let byte_files = string_files.into_iter()
+        // Convert back to bytes
+        selected_template.files = string_files.into_iter()
             .map(|(path, content)| (path, content.into_bytes()))
             .collect();
-            
-        let selected_template = SelectedTemplateState {
-            files: byte_files,
-            template: Template {
-                id: TemplateId("mcp-server".to_string()),
-                display_name: "MCP Server".to_string(),
-                path: "add-mcp".to_string(),
-                language: "typescript".to_string(),
-                federation_version: "v2.11.0".to_string(),
-                max_schema_depth: 5,
-                routing_url: "http://localhost:4000".to_string(),
-                commands: None,
-                start_point_file: "server.ts".to_string(),
-                print_depth: None,
-            },
-        };
         
         let template_selected = TemplateSelected {
             output_path: use_case_selected.output_path,
@@ -1014,7 +989,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
             MCPDataSourceType::AWSServices => vec!["examples/aws"],
             MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
-            MCPDataSourceType::AllSources => vec!["examples/all"],
         };
         
         // Copy only selected examples to tools/
@@ -1030,8 +1004,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     let new_path = file_path.as_str()
                         .replace("examples/api/", "tools/")
                         .replace("examples/aws/", "tools/")
-                        .replace("examples/graphql/", "tools/")
-                        .replace("examples/all/", "tools/");
+                        .replace("examples/graphql/", "tools/");
                     files_to_add.push((camino::Utf8PathBuf::from(new_path), content.clone()));
                 }
                 // Mark original examples/ file for removal
@@ -1072,7 +1045,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             MCPDataSourceType::ExternalAPIs => vec!["api"],
             MCPDataSourceType::AWSServices => vec!["aws"],
             MCPDataSourceType::GraphQLAPI => vec!["graphql"],
-            MCPDataSourceType::AllSources => vec!["all"],
         };
         
         // Copy relevant example files to tools directory
