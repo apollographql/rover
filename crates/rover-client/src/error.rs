@@ -36,6 +36,10 @@ pub enum RoverClientError {
     #[error("Could not parse JSON")]
     InvalidJson(#[from] serde_json::Error),
 
+    /// Invalid Timestamp in response body
+    #[error("Could not parse Timestamp")]
+    InvalidTimestamp(#[from] chrono::ParseError),
+
     /// Encountered an error handling the received response.
     #[error("{msg}")]
     AdhocError {

@@ -1,14 +1,29 @@
 use graphql_client::GraphQLQuery;
 
 use crate::blocking::StudioClient;
-use crate::operations::auth::create_key::create_key_mutation::GraphOsKeyType;
+use crate::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType as QueryGraphOsKeyType;
 use crate::RoverClientError;
 
+// We define a new enum here so that we can keep the implementation details of the actual graph
+// enum contained within this crate rather than leaking it out. Further it allows us to selectively
+// add support for more key types as they are required, rather than them changing as the schema
+// does.
+#[derive(Debug)]
+pub enum GraphOsKeyType {
+    OPERATOR,
+}
+
+impl GraphOsKeyType {
+    fn as_query_enum(&mut self) -> QueryGraphOsKeyType {
+        match self {
+            Self::OPERATOR => QueryGraphOsKeyType::OPERATOR,
+        }
+    }
+}
+
 #[derive(GraphQLQuery, Debug)]
-// The paths are relative to the directory where your `Cargo.toml` is located.
-// Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/auth/create_key/create_key_mutation.graphql",
+    query_path = "src/operations/api_keys/create_key/create_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -22,11 +37,11 @@ pub(crate) struct CreateKeyInput {
 }
 
 impl From<CreateKeyInput> for create_key_mutation::Variables {
-    fn from(value: CreateKeyInput) -> Self {
+    fn from(mut value: CreateKeyInput) -> Self {
         create_key_mutation::Variables {
             organization_id: value.organization_id,
             name: value.name,
-            type_: value.key_type.into(),
+            type_: value.key_type.as_query_enum(),
         }
     }
 }

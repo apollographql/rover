@@ -6,7 +6,7 @@ use crate::RoverClientError::OrganizationIDNotFound;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/auth/rename_key/rename_key_mutation.graphql",
+    query_path = "src/operations/api_keys/rename_key/rename_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
