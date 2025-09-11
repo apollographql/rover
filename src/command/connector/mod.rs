@@ -4,8 +4,10 @@ use clap::Parser;
 use derive_getters::Getters;
 use serde::Serialize;
 
-use crate::command::connector::run::RunConnector;
-use crate::command::connector::test::TestConnector;
+use crate::command::connector::{
+    analyze::AnalyzeCurl, generate::GenerateConnector, list::ListConnector, run::RunConnector,
+    test::TestConnector,
+};
 use crate::composition::pipeline::CompositionPipelineError;
 use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::composition::supergraph::install::InstallSupergraph;
@@ -14,6 +16,9 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::install::InstallBinary;
 use crate::{RoverOutput, RoverResult};
 
+pub mod analyze;
+pub mod generate;
+pub mod list;
 pub mod run;
 pub mod test;
 
@@ -37,17 +42,20 @@ pub struct ConnectorOpts {
     pub federation_version: Option<FederationVersion>,
 }
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Serialize)]
 #[clap(about = "Work with Apollo Connectors")]
 pub enum Command {
-    // /// Generate a new connector
-    //Generate,
+    /// Generate a schema with connectors from a collection of analyzed data
+    Generate(GenerateConnector),
+    /// Analyze one or more requests for use in generating
+    /// a Connector
+    Analyze(AnalyzeCurl),
     /// Run a single connector
     Run(RunConnector),
     // Run tests for one or more connectors
     Test(TestConnector),
-    // /// List all available connectors
-    //List,
+    /// List all available connectors
+    List(ListConnector),
 }
 
 impl Connector {
@@ -76,17 +84,11 @@ impl Connector {
         .await?;
 
         match &self.command {
-            // TODO: Only shipping "run" and "test" with this code change, the other commands will come later
-            // Generate => {
-            //     // TODO: Logic for generating a new connector
-            //     Ok(EmptySuccess)
-            // }
+            Generate(command) => command.run(supergraph_binary).await,
             Test(command) => command.run(supergraph_binary).await,
             Run(command) => command.run(supergraph_binary).await,
-            // List => {
-            //     // TODO: Logic for listing all available connectors
-            //     Ok(EmptySuccess)
-            // }
+            List(command) => command.run(supergraph_binary).await,
+            Analyze(command) => command.run(supergraph_binary).await,
         }
     }
 }
