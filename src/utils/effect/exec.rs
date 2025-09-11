@@ -50,7 +50,6 @@ impl ExecCommand for TokioCommand {
         let should_spawn = config.should_spawn.is_some_and(|can_spawn| can_spawn);
         let mut command = Command::new(config.exe.clone());
         let command = build_command(&mut command, config);
-
         if should_spawn {
             command.spawn().unwrap().wait_with_output().await
         } else {
