@@ -1,20 +1,20 @@
-use apollo_federation_types::config::FederationVersion;
-use camino::Utf8PathBuf;
-use clap::Parser;
-use derive_getters::Getters;
-use serde::Serialize;
-
 use crate::command::connector::{
     analyze::AnalyzeCurl, generate::GenerateConnector, list::ListConnector, run::RunConnector,
     test::TestConnector,
 };
-use crate::composition::pipeline::CompositionPipelineError;
-use crate::composition::supergraph::binary::SupergraphBinary;
-use crate::composition::supergraph::install::InstallSupergraph;
-use crate::options::{LicenseAccepter, PluginOpts};
+use crate::composition::get_supergraph_binary;
+use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::install::InstallBinary;
+use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
+use anyhow::anyhow;
+use apollo_federation_types::config::FederationVersion;
+use camino::Utf8PathBuf;
+use clap::Parser;
+use rover_client::shared::GraphRef;
+use semver::Version;
+use serde::Serialize;
+use std::path::Path;
 
 pub mod analyze;
 pub mod generate;
@@ -28,18 +28,26 @@ pub struct Connector {
     command: Command,
 
     #[clap(flatten)]
-    opts: ConnectorOpts,
-}
-
-#[derive(Clone, Debug, Serialize, Parser, Getters)]
-pub struct ConnectorOpts {
-    #[clap(flatten)]
     pub plugin_opts: PluginOpts,
 
     /// The version of Apollo Federation to use for composition. If no version is supplied, Rover
     /// will use the latest 2.x version
     #[arg(long = "federation-version")]
     pub federation_version: Option<FederationVersion>,
+
+    /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
+    #[serde(skip_serializing)]
+    #[arg(long = "supergraph-config")]
+    pub supergraph_yaml: Option<FileDescriptorType>,
+
+    /// A [`GraphRef`] that is accessible in Apollo Studio.
+    /// This is used to initialize your supergraph with the values contained in this variant.
+    ///
+    /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
+    ///
+    /// If used in conjunction with `--config`, the values presented in the supergraph.yaml will take precedence over these values.
+    #[arg(long = "graph-ref")]
+    pub graph_ref: Option<GraphRef>,
 }
 
 #[derive(Debug, Parser, Serialize)]
@@ -66,22 +74,33 @@ impl Connector {
     ) -> RoverResult<RoverOutput> {
         use Command::*;
 
-        // TODO: This will probably need to change st some point but it's the best we can do for now
-        // In the future we may want to consider the environment variables, the supergraph.yaml, or the version in the schema itself
-        let federation_version = self
-            .opts
-            .clone()
-            .federation_version
-            .unwrap_or(FederationVersion::LatestFedTwo);
+        let supergraph_yaml = if let Some(supergraph_yaml) = &self.supergraph_yaml {
+            Some(supergraph_yaml.clone())
+        } else if Path::new("supergraph.yaml").exists() {
+            Some(FileDescriptorType::File("supergraph.yaml".into()))
+        } else {
+            None
+        };
 
-        let supergraph_binary = install_supergraph_binary(
-            federation_version,
+        let composition_pipeline = get_supergraph_binary(
+            self.federation_version.clone(),
             client_config,
             override_install_path,
-            self.opts.plugin_opts.elv2_license_accepter,
-            self.opts.plugin_opts.skip_update,
+            self.plugin_opts.clone(),
+            supergraph_yaml,
+            self.graph_ref.clone(),
         )
         .await?;
+        let supergraph_binary = composition_pipeline.state.supergraph_binary?;
+        let minimum_version = Version::parse("2.12.0-preview.7")?;
+        let current_version = supergraph_binary.version();
+        if current_version < &minimum_version {
+            return Err(anyhow!(
+                "You must use federation {minimum_version} or greater with `rover connectors` commands. \
+                Your current version is {current_version}. \
+                Update your `supergraph.yaml` or use --federation-version to specify a compatible version.",
+            ).into());
+        }
 
         match &self.command {
             Generate(command) => command.run(supergraph_binary).await,
@@ -91,18 +110,4 @@ impl Connector {
             Analyze(command) => command.run(supergraph_binary).await,
         }
     }
-}
-
-async fn install_supergraph_binary(
-    federation_version: FederationVersion,
-    studio_client_config: StudioClientConfig,
-    override_install_path: Option<Utf8PathBuf>,
-    elv2_license_accepter: LicenseAccepter,
-    skip_update: bool,
-) -> Result<SupergraphBinary, CompositionPipelineError> {
-    let binary = InstallSupergraph::new(federation_version, studio_client_config)
-        .install(override_install_path, elv2_license_accepter, skip_update)
-        .await?;
-
-    Ok(binary)
 }

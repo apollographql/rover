@@ -1,18 +1,26 @@
-use std::fmt::Debug;
-
+use crate::RoverError;
+use crate::composition::pipeline::CompositionPipeline;
+use crate::composition::pipeline::state::Run;
+use crate::composition::supergraph::config::error::ResolveSubgraphError;
+use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
+use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
+use crate::composition::supergraph::config::resolver::{
+    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
+};
+use crate::composition::supergraph::install::InstallSupergraphError;
+use crate::options::{LicenseAccepter, PluginOpts};
+use crate::utils::client::StudioClientConfig;
+use crate::utils::parsers::FileDescriptorType;
 use anyhow::Error;
 use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use apollo_federation_types::rover::{BuildErrors, BuildHint};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::resolver::{
-    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-};
-use crate::composition::supergraph::install::InstallSupergraphError;
-use crate::options::LicenseAccepter;
-use crate::utils::client::StudioClientConfig;
+use rover_client::shared::GraphRef;
+use std::fmt::Debug;
+use std::io::stdin;
+use tower::ServiceExt;
 
 pub mod events;
 pub mod pipeline;
@@ -24,6 +32,56 @@ pub mod types;
 
 #[cfg(feature = "composition-js")]
 mod watchers;
+
+/// A reusable, shareable, canonical way to get a supergraph binary from the common options
+/// used around Rover.
+pub(crate) async fn get_supergraph_binary(
+    federation_version: Option<FederationVersion>,
+    client_config: StudioClientConfig,
+    override_install_path: Option<Utf8PathBuf>,
+    plugin_opts: PluginOpts,
+    supergraph_yaml: Option<FileDescriptorType>,
+    graph_ref: Option<GraphRef>,
+) -> Result<CompositionPipeline<Run>, RoverError> {
+    let profile = plugin_opts.profile;
+
+    let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
+        .studio_client_config(client_config.clone())
+        .profile(profile.clone())
+        .build();
+
+    let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
+        .studio_client_config(client_config.clone())
+        .profile(profile.clone())
+        .build()
+        .boxed_clone();
+    let resolve_introspect_subgraph_factory =
+        MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
+
+    CompositionPipeline::default()
+        .init(
+            &mut stdin(),
+            fetch_remote_subgraphs_factory,
+            supergraph_yaml,
+            graph_ref.clone(),
+            None,
+        )
+        .await?
+        .resolve_federation_version(
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            federation_version,
+        )
+        .await
+        .install_supergraph_binary(
+            client_config,
+            override_install_path,
+            plugin_opts.elv2_license_accepter,
+            plugin_opts.skip_update,
+        )
+        .await
+        .map_err(RoverError::from)
+}
 
 #[derive(Debug, Clone)]
 pub struct FederationUpdaterConfig {
