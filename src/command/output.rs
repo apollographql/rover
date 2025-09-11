@@ -122,6 +122,9 @@ pub enum RoverOutput {
         id: String,
         name: String,
     },
+    DeleteKeyResponse {
+        id: String,
+    },
 }
 
 impl RoverOutput {
@@ -525,6 +528,10 @@ impl RoverOutput {
 
                 Some(format!("{table}"))
             }
+            RoverOutput::DeleteKeyResponse { id } => {
+                stderrln!("Deleted API Key {id}")?;
+                None
+            }
         })
     }
 
@@ -664,6 +671,9 @@ impl RoverOutput {
                 name,
             } => {
                 json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
+            }
+            RoverOutput::DeleteKeyResponse { id } => {
+                json!({ "id": id })
             }
         }
     }
