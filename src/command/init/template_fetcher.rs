@@ -134,6 +134,48 @@ impl InitTemplateOptions {
             files,
         })
     }
+    
+    /// Extract files directly from a directory in the repository (not a template)
+    pub fn extract_directory_files(&self, directory_path: &str) -> RoverResult<HashMap<Utf8PathBuf, String>> {
+        let cursor = Cursor::new(&self.contents);
+        let tar = flate2::read::GzDecoder::new(cursor);
+        let mut archive = tar::Archive::new(tar);
+
+        let mut files = HashMap::new();
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?.to_path_buf();
+            let path_str = path.to_string_lossy();
+
+            // Strip the repo name prefix (e.g., "rover-init-starters-camille-start-with-mcp-template/")
+            let path_str = if let Some(stripped) = path_str.split_once('/') {
+                stripped.1
+            } else {
+                &path_str
+            };
+
+            // Only include files from the specified directory
+            if let Some(relative_path) = path_str.strip_prefix(&format!("{}/", directory_path)) {
+                // Skip directories themselves
+                if entry.header().entry_type().is_file() {
+                    let mut content = String::new();
+                    entry.read_to_string(&mut content)?;
+                    
+                    // Convert to Utf8PathBuf
+                    let utf8_path = Utf8PathBuf::from(relative_path);
+                    files.insert(utf8_path, content);
+                }
+            }
+        }
+
+        if files.is_empty() {
+            return Err(RoverError::new(anyhow!(
+                "No files found in directory '{}'", directory_path
+            )));
+        }
+
+        Ok(files)
+    }
 }
 
 #[derive(Debug)]
@@ -146,6 +188,66 @@ impl InitTemplateFetcher {
         Self {
             service: GitHubService::new(),
         }
+    }
+    
+    /// Fetch and compose MCP template (base template + add-mcp)
+    pub async fn fetch_mcp_template(&mut self, base_template_id: &str, reference: &str) -> RoverResult<SelectedTemplateState> {
+        use crate::command::init::options::project_template::ProjectTemplateOpt;
+        
+        // First, get the template manifest
+        let template_options = self.call(reference).await?;
+        
+        // Find the base template
+        let base_template = template_options.manifest.templates
+            .iter()
+            .find(|t| t.id.0 == base_template_id)
+            .ok_or_else(|| RoverError::new(anyhow!("Base template '{}' not found", base_template_id)))?;
+        
+        // Extract base template files
+        let mut base_state = Self::extract_template_files(&template_options, base_template)?;
+        
+        // Fetch add-mcp template and merge it
+        let add_mcp_template = Template {
+            id: TemplateId("add-mcp".to_string()),
+            display_name: "MCP Augmentation".to_string(),
+            path: "add-mcp".to_string(),
+            language: "".to_string(),
+            federation_version: "".to_string(),
+            max_schema_depth: 0,
+            routing_url: "".to_string(),
+            commands: None,
+            start_point_file: "".to_string(),
+            print_depth: None,
+        };
+        
+        let mcp_state = Self::extract_template_files(&template_options, &add_mcp_template)?;
+        
+        // Merge MCP files into base template
+        for (mcp_path, mcp_contents) in mcp_state.files {
+            base_state.files.insert(mcp_path, mcp_contents);
+        }
+        
+        // Create MCP template metadata
+        let mcp_template = Template {
+            id: TemplateId(format!("mcp-{}", base_template_id)),
+            display_name: format!("{} + AI tools", base_template.display_name),
+            path: base_template.path.clone(),
+            language: base_template.language.clone(),
+            federation_version: base_template.federation_version.clone(),
+            max_schema_depth: base_template.max_schema_depth,
+            routing_url: base_template.routing_url.clone(),
+            commands: base_template.commands.clone(),
+            start_point_file: base_template.start_point_file.clone(),
+            print_depth: base_template.print_depth,
+        };
+        
+        base_state.template = mcp_template;
+        Ok(base_state)
+    }
+    
+    /// Helper method to extract files from template
+    fn extract_template_files(template_options: &InitTemplateOptions, template: &Template) -> RoverResult<SelectedTemplateState> {
+        template_options.select_template(&template.id)
     }
 
     pub async fn call(&mut self, reference: &str) -> RoverResult<InitTemplateOptions> {
