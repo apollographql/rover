@@ -26,6 +26,16 @@ pub struct GenerateConnector {
     /// Defaults to `build/connectors/`.
     #[clap(long, value_name = "OUTPUT_DIR")]
     output_dir: Option<PathBuf>,
+
+    // TODO: Remove after logging config has been integrated
+    /// Hides test progression. Defaults to 'false'
+    #[arg(long = "quiet", short = 'q', default_value = "false")]
+    pub quiet: bool,
+
+    // TODO: Remove after logging config has been integrated
+    /// Enable verbose logging. Defaults to 'false'.
+    #[arg(long = "verbose", short = 'v')]
+    pub verbose: bool,
 }
 
 impl GenerateConnector {
@@ -41,6 +51,8 @@ impl GenerateConnector {
                 self.output_dir
                     .as_ref()
                     .and_then(|path| camino::Utf8PathBuf::from_path_buf(path.to_path_buf()).ok()),
+                self.verbose,
+                self.quiet,
             )
             .await?;
         Ok(result)

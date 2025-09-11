@@ -1,10 +1,10 @@
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use camino::Utf8PathBuf;
 use clap::Parser;
 use http::{HeaderMap, HeaderName, HeaderValue};
-use serde::ser::SerializeStruct;
+use serde::ser::{Error, SerializeStruct};
 use serde::{Serialize, Serializer};
 
 use crate::composition::supergraph::binary::SupergraphBinary;
@@ -91,10 +91,20 @@ pub struct Curl {
     /// Set analysis directory to save data to
     #[clap(short, long, value_name = "ANALYSIS_DIR")]
     analysis_dir: Option<PathBuf>,
+
+    // TODO: Remove after logging config has been integrated
+    /// Hides test progression. Defaults to 'false'
+    #[arg(long = "quiet", short = 'q', default_value = "false")]
+    quiet: bool,
+
+    // TODO: Remove after logging config has been integrated
+    /// Enable verbose logging. Defaults to 'false'.
+    #[arg(long = "verbose", short = 'v')]
+    verbose: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub(crate) struct HeaderData {
+pub struct HeaderData {
     pub(crate) name: HeaderName,
     pub(crate) value: HeaderValue,
 }
@@ -139,6 +149,16 @@ impl FromStr for HeaderData {
     }
 }
 
+impl Display for HeaderData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self
+            .value
+            .to_str()
+            .map_err(|_| std::fmt::Error::custom("Could not serialize header value".to_string()))?;
+        write!(f, "{}: {}", self.name, value)
+    }
+}
+
 fn parse_json(arg: &str) -> Result<Value, serde_json::Error> {
     let data: String = arg.parse().unwrap_or_default();
 
@@ -148,23 +168,23 @@ fn parse_json(arg: &str) -> Result<Value, serde_json::Error> {
 impl AnalyzeCurl {
     pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
-        // self.output_dir.as_ref()
-        // .and_then(|path| camino::Utf8PathBuf::from_path_buf(path.to_path_buf()).ok())
         let result = match &self.command {
-            Command::Curl(curl) =>
-            // supergraph_binary
-            //     .analyze_curl(
-            //         &exec_command_impl,
-            //         curl.analysis_dir,
-            //         curl.data,
-            //         curl.headers,
-            //         curl.method,
-            //         curl.timeout,
-            //         curl.url
-            //     )
-            //     .await?,
-            {
-                todo!()
+            Command::Curl(curl) => {
+                supergraph_binary
+                    .analyze_curl(
+                        &exec_command_impl,
+                        &curl.url,
+                        &curl.headers,
+                        curl.method.as_ref(),
+                        curl.timeout.as_ref(),
+                        curl.data.as_ref(),
+                        curl.analysis_dir.as_ref().and_then(|path| {
+                            camino::Utf8PathBuf::from_path_buf(path.to_path_buf()).ok()
+                        }),
+                        curl.quiet,
+                        curl.verbose,
+                    )
+                    .await?
             }
             Command::Clean(_) => supergraph_binary.analyze_clean(&exec_command_impl).await?,
             Command::Interactive(interactive) => {
