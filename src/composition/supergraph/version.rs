@@ -139,6 +139,18 @@ impl TryFrom<FederationVersion> for SupergraphVersion {
     }
 }
 
+impl PartialEq<Version> for SupergraphVersion {
+    fn eq(&self, other: &Version) -> bool {
+        self.version == *other
+    }
+}
+
+impl PartialOrd<Version> for SupergraphVersion {
+    fn partial_cmp(&self, other: &Version) -> Option<std::cmp::Ordering> {
+        self.version.partial_cmp(other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
