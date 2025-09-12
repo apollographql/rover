@@ -601,7 +601,7 @@ r#"# {}
             .unwrap_or_else(|| graph_name.to_string());
         
         vars.insert("{{PROJECT_NAME}}".to_string(), project_name);
-        vars.insert("{{GRAPHQL_ENDPOINT}}".to_string(), "http://localhost:4000".to_string());
+        vars.insert("{{GRAPHQL_ENDPOINT}}".to_string(), "http://host.docker.internal:4000".to_string());
         vars.insert("{{APOLLO_API_KEY}}".to_string(), api_key.to_string());
         vars.insert("{{APOLLO_KEY}}".to_string(), api_key.to_string());
         vars.insert("{{APOLLO_GRAPH_REF}}".to_string(), graph_ref.to_string());
@@ -690,7 +690,6 @@ r#"# {}
         let template_paths = vec![
             ".apollo/mcp.local.yaml",
             "mcp.Dockerfile", 
-            "claude-desktop-config.json",
             ".vscode/settings.json",
             "QUICKSTART_MCP.md",
         ];
@@ -1191,7 +1190,6 @@ curl -X POST http://localhost:4000 -H "Content-Type: application/json" -d '{{"qu
         }
         println!("├── .apollo/");
         println!("│   └── mcp.local.yaml                   # MCP server configuration");
-        println!("├── claude-desktop-config.json           # Claude Desktop integration");
         println!("├── mcp.Dockerfile                       # MCP server container");
         println!("├── .vscode/");
         println!("│   └── settings.json                    # VS Code GraphQL configuration");

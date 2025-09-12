@@ -97,6 +97,7 @@ impl std::fmt::Display for MCPDataSourceType {
     }
 }
 
+
 #[cfg(feature = "composition-js")]
 #[derive(Clone, Debug)]
 struct GraphVariantOption {
@@ -433,7 +434,7 @@ impl Init {
         for file_path in template_files.keys() {
             if file_path.starts_with(".apollo/") || file_path.as_str() == "supergraph.yaml" {
                 has_apollo_config = true;
-            } else if file_path.as_str() == "mcp.Dockerfile" || file_path.as_str() == "claude-desktop-config.json" {
+            } else if file_path.as_str() == "mcp.Dockerfile" {
                 has_mcp_files = true;
             } else if file_path.starts_with("tools/") {
                 has_tools = true;
@@ -464,9 +465,6 @@ impl Init {
             println!("   Docker container and tools for AI interaction");
             if template_files.keys().any(|k| k.as_str() == "mcp.Dockerfile") {
                 println!("   📄 mcp.Dockerfile");
-            }
-            if template_files.keys().any(|k| k.as_str() == "claude-desktop-config.json") {
-                println!("   📄 claude-desktop-config.json");
             }
             let tool_count = template_files.keys().filter(|k| k.starts_with("tools/")).count();
             if tool_count > 0 {
@@ -809,6 +807,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 2. Run the MCP server:
    ```bash
    docker run --env-file .env -p5000:5000 {}-mcp
+   # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
 
 3. Test with MCP Inspector:
@@ -826,6 +825,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             selected_graph.organization_name,
             graph_ref_str,
             if !subgraph_info.is_empty() { format!("\n- **{}**", subgraph_info) } else { String::new() },
+            project_name,
             project_name,
             project_name,
             graph_endpoint
@@ -890,7 +890,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{ORGANIZATION_NAME}}", &selected_graph.organization_name)
                 .replace("{{APOLLO_API_KEY}}", &apollo_key)
                 .replace("{{APOLLO_KEY}}", &apollo_key)
-                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000/graphql")
+                .replace("{{GRAPHQL_ENDPOINT}}", "http://host.docker.internal:4000/graphql")
                 .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
                 .replace("{{PROJECT_VERSION}}", "1.0.0")
                 .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name));
@@ -930,6 +930,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. {}", Style::Command.paint(format!("docker build -f mcp.Dockerfile -t {}-mcp .", project_name)));
         println!("   2. {}", Style::Command.paint(format!("docker run --env-file .env -p5000:5000 {}-mcp", project_name)));
+        println!("      Linux: {}", Style::Command.paint(format!("docker run --network=host --env-file .env {}-mcp", project_name)));
         println!("   3. {}", Style::Command.paint("npx @modelcontextprotocol/inspector"));
         
         Ok(RoverOutput::EmptySuccess)
@@ -1080,6 +1081,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
         println!("   • {}", Style::Command.paint(format!("docker build -f mcp.Dockerfile -t {}-mcp .", completed_project.config.graph_id)));
         println!("   • {}", Style::Command.paint(format!("docker run --env-file .env -p5000:5000 {}-mcp", completed_project.config.graph_id)));
+        println!("   • Linux: {}", Style::Command.paint(format!("docker run --network=host --env-file .env {}-mcp", completed_project.config.graph_id)));
         println!("   • {}", Style::Command.paint("npx @modelcontextprotocol/inspector"));
     }
     
@@ -1147,7 +1149,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         
         Self::filter_template_files_by_data_source(&mut string_files, &data_source_type);
         
-        // Convert back to bytes
+        // Convert back to bytes (template replacement will happen later after project creation)
         selected_template.files = string_files.into_iter()
             .map(|(path, content)| (path, content.into_bytes()))
             .collect();
@@ -1164,6 +1166,58 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let graph_id_entered = template_selected
             .enter_project_name(&self.project_name)?
             .auto_generate_graph_id()?;
+        
+        // NOW apply template placeholder replacement after we have the project name
+        // Convert files back to string format for processing
+        let mut string_files: std::collections::HashMap<camino::Utf8PathBuf, String> = graph_id_entered.selected_template.files
+            .iter()
+            .map(|(path, bytes)| (path.clone(), String::from_utf8_lossy(bytes).to_string()))
+            .collect();
+            
+        // Get the actual project name that will be used
+        let project_name = &graph_id_entered.project_name.to_string();
+        
+        // Apply template placeholder replacement (was missing in new project flow!)
+        // Use placeholder values for new projects since we don't have a real graph yet
+        let graph_ref_str = format!("{}@current", project_name);
+        
+        for (_, content) in string_files.iter_mut() {
+            *content = content
+                .replace("{{PROJECT_NAME}}", project_name)
+                .replace("{{GRAPH_REF}}", &graph_ref_str)
+                .replace("{{GRAPH_ID}}", project_name)
+                .replace("{{GRAPH_NAME}}", project_name)
+                .replace("{{VARIANT_NAME}}", "current")
+                .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION") // Placeholder since org structure is complex
+                .replace("{{APOLLO_API_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
+                .replace("{{APOLLO_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
+                .replace("{{GRAPHQL_ENDPOINT}}", "http://host.docker.internal:4000/graphql")
+                .replace("{{GRAPH_STUDIO_URL}}", &format!("https://studio.apollographql.com/graph/{}/explorer", project_name))
+                .replace("{{PROJECT_VERSION}}", "1.0.0")
+                .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name));
+            
+            // Handle REST_CONNECTORS placeholder based on data source type (simple approach)
+            let rest_connectors_value = if matches!(data_source_type, MCPDataSourceType::ExternalAPIs) {
+                "true"
+            } else {
+                "false"
+            };
+            *content = content.replace("{{REST_CONNECTORS}}", rest_connectors_value);
+            
+            // Simple handling of conditional blocks - just remove the template syntax
+            *content = content
+                .replace("{{#if REST_CONNECTORS}}", "")
+                .replace("{{else}}", "")
+                .replace("{{/if}}", "");
+        }
+        
+        // Convert back to bytes and update the template
+        let mut updated_graph_id_entered = graph_id_entered;
+        updated_graph_id_entered.selected_template.files = string_files.into_iter()
+            .map(|(path, content)| (path, content.into_bytes()))
+            .collect();
+        
+        let graph_id_entered = updated_graph_id_entered;
             
         let creation_confirmed = graph_id_entered.skip_preview_to_creation_confirmed()?;
 
