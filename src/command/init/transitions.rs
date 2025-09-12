@@ -406,6 +406,16 @@ impl GraphIdConfirmed {
             Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
         }
     }
+
+    /// Skip the preview and directly create the confirmation state (for MCP flow which has its own preview)
+    pub fn skip_preview_to_creation_confirmed(self) -> RoverResult<CreationConfirmed> {
+        let config = self.create_config();
+        Ok(CreationConfirmed {
+            config,
+            selected_template: self.selected_template,
+            output_path: self.output_path,
+        })
+    }
 }
 
 impl CreationConfirmed {
