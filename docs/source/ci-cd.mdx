@@ -4,6 +4,10 @@ subtitle: Integrate Rover into continuous integration and deployment workflows
 description: Run Rover commands on popular CI/CD providers like CircleCI, GitHub Actions, Bitbucket Pipelines, Jenkins, and Gitlab CI/CD.
 ---
 
+<Note>
+See also the guide for [Using Subgraph Keys in a Deployment Pipeline](/graphos/resources/guides/getting-started-with-pipelines-and-keys).
+</Note>
+
 You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](/graphos/delivery/schema-checks/) with [`rover graph check`](./commands/graphs/#checking-schema-changes) or [`rover subgraph check`](./commands/subgraphs/#checking-subgraph-schema-changes).
 
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
@@ -72,6 +76,7 @@ Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant com
 - [Running `rover subgraph check`](https://github.com/marketplace/actions/apollo-rover-subgraph-check)
 - [Running `rover subgraph lint`](https://github.com/marketplace/actions/apollo-rover-subgraph-lint)
 - [Running `rover subgraph publish`](https://github.com/marketplace/actions/apollo-rover-subgraph-publish)
+  - Note that for `rover subgraph publish`, you may use a Subgraph API Key instead of a Graph or User API Key. 
 
 #### Full example using the Apollo-provided GitHub Actions
 
@@ -173,7 +178,7 @@ echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
 <Note>
 
-Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings. 
 
 GitHub Actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
