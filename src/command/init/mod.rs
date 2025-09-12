@@ -84,7 +84,6 @@ impl std::fmt::Display for MCPProjectType {
 #[derive(Clone, Debug)]
 enum MCPDataSourceType {
     ExternalAPIs,    // REST, webhooks, SaaS
-    AWSServices,     // Lambda, DynamoDB
     GraphQLAPI,      // Existing GraphQL endpoints
 }
 
@@ -92,9 +91,8 @@ enum MCPDataSourceType {
 impl std::fmt::Display for MCPDataSourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPDataSourceType::ExternalAPIs => write!(f, "External APIs (REST, webhooks, SaaS tools)"),
-            MCPDataSourceType::AWSServices => write!(f, "AWS services (Lambda, DynamoDB, etc.)"),
-            MCPDataSourceType::GraphQLAPI => write!(f, "Existing GraphQL API"),
+            MCPDataSourceType::ExternalAPIs => write!(f, "Apollo GraphOS graph with REST API connectors (connect to REST services, databases, SaaS tools)"),
+            MCPDataSourceType::GraphQLAPI => write!(f, "Apollo GraphOS graph with GraphQL connectors (connect to existing GraphQL endpoints)"),
         }
     }
 }
@@ -324,35 +322,299 @@ impl Init {
         }
     }
     
-    /// Prompt user to choose MCP setup type
+    /// Prompt user to choose MCP setup type with context-first introduction
     #[cfg(feature = "composition-js")]
     fn prompt_mcp_setup_type() -> RoverResult<MCPSetupType> {
         use dialoguer::Select;
         use dialoguer::console::Term;
         use anyhow::anyhow;
+        use rover_std::Style;
         
-        let options = vec![
-            MCPSetupType::ExistingGraph,
-            MCPSetupType::NewProject,
+        // Context-first introduction
+        println!("{}", Style::Heading.paint("🚀 MCP Server Template Setup\n"));
+        println!("Build an Apollo GraphOS graph with MCP server capabilities.");
+        println!("Start with a working template or existing graph, then connect your own APIs and data sources.\n");
+        
+        println!("{}", Style::InfoPrefix.paint("⏱️  Setup time:"));
+        println!("  • Add to existing graph: ~5 minutes");  
+        println!("  • Create new Apollo GraphOS graph: ~10 minutes\n");
+        
+        println!("{}", Style::InfoPrefix.paint("📋 What you need:"));
+        println!("  ✓ Docker installed");
+        println!("  ✓ 5-10 minutes of time");
+        println!("  ✓ Your data source (API, database, or service)\n");
+        
+        // Outcome-focused choices
+        let choice_items = vec![
+            "I have a graph in Apollo GraphOS → Add MCP server (5 min setup)",
+            "I don't have a graph yet → Create Apollo GraphOS graph + MCP server (10 min setup)"
         ];
-        
-        let names = options
-            .iter()
-            .map(|o| o.to_string())
-            .collect::<Vec<_>>();
             
         let selection = Select::new()
-            .with_prompt("How would you like to set up your MCP server?")
-            .items(&names)
+            .with_prompt("What's your starting point?")
+            .items(&choice_items)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
-            Some(index) => Ok(options[index].clone()),
-            None => Err(RoverError::new(anyhow!("Selection cancelled"))),
+            Some(0) => Ok(MCPSetupType::ExistingGraph),
+            Some(1) => Ok(MCPSetupType::NewProject),
+            _ => Err(RoverError::new(anyhow!("Selection cancelled"))),
         }
     }
     
+    /// Auto-detect GraphQL servers running on common ports
+    #[cfg(feature = "composition-js")]
+    async fn detect_local_graphql_server() -> Option<String> {
+        let common_endpoints = [
+            "http://localhost:4000/graphql",
+            "http://localhost:3000/graphql", 
+            "http://localhost:8080/graphql",
+            "http://localhost:4000/api/graphql",
+            "http://localhost:3000/api/graphql",
+        ];
+        
+        for endpoint in common_endpoints {
+            if Self::test_graphql_endpoint(endpoint).await {
+                return Some(endpoint.to_string());
+            }
+        }
+        None
+    }
+
+    /// Test if a GraphQL endpoint is responding to introspection queries
+    #[cfg(feature = "composition-js")]
+    async fn test_graphql_endpoint(endpoint: &str) -> bool {
+        use serde_json::json;
+        
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(3))
+            .build() 
+        {
+            Ok(client) => client,
+            Err(_) => return false,
+        };
+            
+        let introspection_query = json!({
+            "query": "{ __schema { types { name } } }"
+        });
+        
+        match client.post(endpoint)
+            .json(&introspection_query)
+            .send()
+            .await 
+        {
+            Ok(response) => response.status().is_success(),
+            Err(_) => false,
+        }
+    }
+
+    /// Preview files for new project creation
+    #[cfg(feature = "composition-js")]
+    async fn preview_mcp_new_project_files(
+        &self,
+        project_name: &str,
+        data_source_type: &MCPDataSourceType,
+        template_files: &std::collections::HashMap<camino::Utf8PathBuf, Vec<u8>>
+    ) -> RoverResult<bool> {
+        use rover_std::Style;
+        use dialoguer::Confirm;
+        use dialoguer::console::Term;
+        
+        println!("\n{}", Style::Heading.paint("📋 Template structure:"));
+        
+        // Group files by category
+        let mut has_apollo_config = false;
+        let mut has_mcp_files = false;
+        let mut has_docs = false;
+        let mut has_ide_files = false;
+        let mut has_graphql_schemas = false;
+        let mut has_tools = false;
+        
+        // Check what categories we have
+        for file_path in template_files.keys() {
+            if file_path.starts_with(".apollo/") || file_path.as_str() == "supergraph.yaml" {
+                has_apollo_config = true;
+            } else if file_path.as_str() == "mcp.Dockerfile" || file_path.as_str() == "claude-desktop-config.json" {
+                has_mcp_files = true;
+            } else if file_path.starts_with("tools/") {
+                has_tools = true;
+            } else if file_path.starts_with("docs/") || file_path.as_str() == "README.md" || file_path.as_str() == "QUICKSTART_MCP.md" {
+                has_docs = true;
+            } else if file_path.starts_with(".idea/") || file_path.starts_with(".vscode/") || file_path.as_str() == ".gitignore" {
+                has_ide_files = true;
+            } else if file_path.ends_with(".graphql") && !file_path.starts_with("tools/") {
+                has_graphql_schemas = true;
+            }
+        }
+        
+        // Apollo Configuration
+        if has_apollo_config {
+            println!("\n{}", Style::InfoPrefix.paint("⚙️  Apollo Configuration"));
+            println!("   Connect to Apollo GraphOS for schema management");
+            if template_files.keys().any(|k| k.starts_with(".apollo/")) {
+                println!("   📁 .apollo/");
+            }
+            if template_files.keys().any(|k| k.as_str() == "supergraph.yaml") {
+                println!("   📄 supergraph.yaml");
+            }
+        }
+        
+        // MCP Server Files
+        if has_mcp_files || has_tools {
+            println!("\n{}", Style::InfoPrefix.paint("🤖 MCP Server"));
+            println!("   Docker container and tools for AI interaction");
+            if template_files.keys().any(|k| k.as_str() == "mcp.Dockerfile") {
+                println!("   📄 mcp.Dockerfile");
+            }
+            if template_files.keys().any(|k| k.as_str() == "claude-desktop-config.json") {
+                println!("   📄 claude-desktop-config.json");
+            }
+            let tool_count = template_files.keys().filter(|k| k.starts_with("tools/")).count();
+            if tool_count > 0 {
+                println!("   📁 tools/ ({} AI-callable operations)", tool_count);
+            }
+        }
+        
+        // GraphQL Schemas
+        if has_graphql_schemas {
+            println!("\n{}", Style::InfoPrefix.paint("📊 GraphQL Schemas"));
+            println!("   Your data models and API definitions");
+            for file_path in template_files.keys().filter(|k| k.ends_with(".graphql") && !k.starts_with("tools/")) {
+                println!("   📄 {}", file_path);
+            }
+        }
+        
+        // Documentation
+        if has_docs {
+            println!("\n{}", Style::InfoPrefix.paint("📚 Documentation"));
+            println!("   Getting started guides and references");
+            if template_files.keys().any(|k| k.as_str() == "README.md") {
+                println!("   📄 README.md");
+            }
+            if template_files.keys().any(|k| k.as_str() == "QUICKSTART_MCP.md") {
+                println!("   📄 QUICKSTART_MCP.md");
+            }
+            if template_files.keys().any(|k| k.starts_with("docs/")) {
+                println!("   📁 docs/");
+            }
+        }
+        
+        // Development Environment
+        if has_ide_files {
+            println!("\n{}", Style::InfoPrefix.paint("🔧 Development Environment"));
+            println!("   IDE configuration and project settings");
+            if template_files.keys().any(|k| k.starts_with(".vscode/")) {
+                println!("   📁 .vscode/");
+            }
+            if template_files.keys().any(|k| k.starts_with(".idea/")) {
+                println!("   📁 .idea/");
+            }
+            if template_files.keys().any(|k| k.as_str() == ".gitignore") {
+                println!("   📄 .gitignore");
+            }
+        }
+        
+        println!("\n{}", Style::Heading.paint("🎯 What this template gives you:"));
+        println!("  ✓ Example GraphQL schema and REST connectors");
+        println!("  ✓ Pre-configured MCP server with Docker setup");
+        println!("  ✓ Sample tools showing how to make APIs AI-callable");
+        
+        let confirmed = Confirm::new()
+            .with_prompt("\nCreate this template?")
+            .default(true)
+            .interact_on_opt(&Term::stderr())?;
+            
+        Ok(confirmed.unwrap_or(false))
+    }
+
+    /// Preview files to be created before generation with confirm dialog
+    #[cfg(feature = "composition-js")]
+    async fn preview_mcp_files(
+        &self, 
+        selected_graph: &GraphVariantOption,
+        data_source_type: &MCPDataSourceType,
+        files: &std::collections::HashMap<camino::Utf8PathBuf, String>
+    ) -> RoverResult<bool> {
+        use rover_std::Style;
+        use dialoguer::Confirm;
+        use dialoguer::console::Term;
+        
+        println!("\n{}", Style::Heading.paint("📋 Template structure:"));
+        
+        // Group files by category
+        let mut has_apollo_config = false;
+        let mut has_mcp_files = false;
+        let mut has_docs = false;
+        let mut has_tools = false;
+        
+        // Check what categories we have
+        for file_path in files.keys() {
+            if file_path.starts_with(".apollo/") || file_path.as_str() == "supergraph.yaml" {
+                has_apollo_config = true;
+            } else if file_path.as_str() == "mcp.Dockerfile" || file_path.as_str() == "claude-desktop-config.json" {
+                has_mcp_files = true;
+            } else if file_path.starts_with("tools/") {
+                has_tools = true;
+            } else if file_path.as_str() == "README.md" || file_path.as_str() == "QUICKSTART_MCP.md" {
+                has_docs = true;
+            }
+        }
+        
+        // Apollo Configuration
+        if has_apollo_config {
+            println!("\n{}", Style::InfoPrefix.paint("⚙️  Apollo Configuration"));
+            println!("   Connect to Apollo GraphOS for schema management");
+            if files.keys().any(|k| k.starts_with(".apollo/")) {
+                println!("   📁 .apollo/");
+            }
+            if files.keys().any(|k| k.as_str() == "supergraph.yaml") {
+                println!("   📄 supergraph.yaml");
+            }
+        }
+        
+        // MCP Server Files
+        if has_mcp_files || has_tools {
+            println!("\n{}", Style::InfoPrefix.paint("🤖 MCP Server"));
+            println!("   Docker container and tools for AI interaction");
+            if files.keys().any(|k| k.as_str() == "mcp.Dockerfile") {
+                println!("   📄 mcp.Dockerfile");
+            }
+            if files.keys().any(|k| k.as_str() == "claude-desktop-config.json") {
+                println!("   📄 claude-desktop-config.json");
+            }
+            let tool_count = files.keys().filter(|k| k.starts_with("tools/")).count();
+            if tool_count > 0 {
+                println!("   📁 tools/ ({} AI-callable operations)", tool_count);
+            }
+        }
+        
+        // Documentation
+        if has_docs {
+            println!("\n{}", Style::InfoPrefix.paint("📚 Documentation"));
+            println!("   Getting started guides and references");
+            if files.keys().any(|k| k.as_str() == "README.md") {
+                println!("   📄 README.md");
+            }
+            if files.keys().any(|k| k.as_str() == "QUICKSTART_MCP.md") {
+                println!("   📄 QUICKSTART_MCP.md");
+            }
+        }
+        
+        println!("\n{}", Style::Heading.paint("🎯 What this template gives you:"));
+        println!("  ✓ MCP server connected to your existing Apollo graph");
+        println!("  ✓ Pre-configured Docker setup for deployment");
+        println!("  ✓ Sample tools showing how to expose graph operations to AI");
+        println!("  ✓ You'll customize these tools for your specific use cases");
+        
+        let confirmed = Confirm::new()
+            .with_prompt("\nCreate this template?")
+            .default(true)
+            .interact_on_opt(&Term::stderr())?;
+            
+        Ok(confirmed.unwrap_or(false))
+    }
+
     /// Prompt user to select a graph variant
     #[cfg(feature = "composition-js")]
     fn prompt_graph_selection(graph_options: Vec<GraphVariantOption>) -> RoverResult<GraphVariantOption> {
@@ -388,6 +650,38 @@ impl Init {
         use rover_client::shared::GraphRef;
         use rover_client::RoverClientError;
         use anyhow::anyhow;
+        use std::collections::HashMap;
+        
+        // Auto-detect local data API before proceeding
+        println!("{}", Style::Heading.paint("🔍 Detecting your data API..."));
+        match Self::detect_local_graphql_server().await {
+            Some(detected_endpoint) => {
+                println!("{}", Style::Success.paint(&format!("✓ Found your data API: {}", detected_endpoint)));
+                println!("  Claude will be able to connect to this data.\n");
+            }
+            None => {
+                println!("{}", Style::WarningHeading.paint("⚠️  No local data API detected"));
+                println!("  Make sure your data API is running first:");
+                println!("  • Start your data API (usually: npm run dev or similar)");
+                println!("  • Verify it's accessible at http://localhost:4000/graphql");
+                println!("  • Then run this command again\n");
+                
+                println!("  Or continue anyway to set up MCP server for future use.");
+                
+                use dialoguer::Confirm;
+                use dialoguer::console::Term;
+                let continue_anyway = Confirm::new()
+                    .with_prompt("Continue without detected data API?")
+                    .default(false)
+                    .interact_on_opt(&Term::stderr())?
+                    .unwrap_or(false);
+                    
+                if !continue_anyway {
+                    println!("{}", Style::InfoPrefix.paint("Setup cancelled. Start your data API and try again."));
+                    return Ok(RoverOutput::EmptySuccess);
+                }
+            }
+        }
         
         println!("{}", Style::Heading.paint("🔍 Querying your Apollo graphs..."));
         
@@ -513,7 +807,6 @@ impl Init {
         // Filter tools based on data source selection
         let tools_to_include = match data_source_type {
             MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
-            MCPDataSourceType::AWSServices => vec!["examples/aws"],
             MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
         };
         
@@ -631,6 +924,13 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             ).await?
         };
         
+        // Preview files and get user confirmation before creating them
+        let confirmed = self.preview_mcp_files(&selected_graph, &data_source_type, &files).await?;
+        if !confirmed {
+            println!("{}", Style::InfoPrefix.paint("Setup cancelled."));
+            return Ok(RoverOutput::EmptySuccess);
+        }
+        
         // Write files to current directory with template replacement
         for (file_path, content) in &files {
             let final_file_path = camino::Utf8PathBuf::from(file_path);
@@ -669,15 +969,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         
         println!("\n{}", Style::Success.paint("✅ MCP server added to your project!"));
         
-        println!("\n{}", Style::Heading.paint(format!(
-            "📁 Generated tools based on \"{}\" selection:",
-            match data_source_type {
-                MCPDataSourceType::ExternalAPIs => "External APIs",
-                MCPDataSourceType::AWSServices => "AWS services",
-                MCPDataSourceType::GraphQLAPI => "GraphQL API",
-            }
-        )));
-        
         // List the actual tools generated
         let tool_files: Vec<String> = files.keys()
             .filter(|k| k.starts_with("tools/") && k.ends_with(".graphql"))
@@ -702,11 +993,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("   3. npx @modelcontextprotocol/inspector");
         
         println!("\n{}", Style::Heading.paint("📚 Resources:"));
-        println!("   - More API connectors: apollographql.com/docs/connectors");
-        println!("   - Add database access: apollographql.com/docs/mcp-databases");
-        println!("   - Full documentation: apollographql.com/docs/mcp");
+        println!("   - More API connectors: https://www.apollographql.com/docs/graphos/connectors/library#getting-started");
+        println!("   - Full documentation: https://www.apollographql.com/docs/apollo-mcp-server");
         
-        println!("\n💡 Each .graphql file in /tools becomes an MCP tool!");
+        println!("\n{}", Style::Heading.paint("👉 Remember:"));
+        println!("   This is a TEMPLATE - customize it with your own:");
+        println!("   • API endpoints and credentials");
+        println!("   • GraphQL operations that match your needs");
+        println!("   • Tool definitions for your specific use cases");
         
         Ok(RoverOutput::EmptySuccess)
     }
@@ -766,14 +1060,13 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         
         let options = vec![
             MCPDataSourceType::ExternalAPIs,
-            MCPDataSourceType::AWSServices,
             MCPDataSourceType::GraphQLAPI,
         ];
         
         let names = options.iter().map(|o| o.to_string()).collect::<Vec<_>>();
         
         let selection = Select::new()
-            .with_prompt("What will your MCP server primarily connect to?")
+            .with_prompt("\nWhich Apollo GraphOS template would you like to start with?")
             .items(&names)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
@@ -793,14 +1086,13 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     ) {
         use rover_std::Style;
 
-        println!("\n{}", Style::Success.paint("✅ MCP server project ready!"));
+        println!("\n{}", Style::Success.paint("✅ MCP template generated! Now customize it for your data:"));
         
         // Display selected data source type
         println!("\n{}", Style::Heading.paint(format!(
             "📁 Generated tools based on \"{}\" selection:",
             match data_source_type {
                 MCPDataSourceType::ExternalAPIs => "External APIs",
-                MCPDataSourceType::AWSServices => "AWS services",
                 MCPDataSourceType::GraphQLAPI => "GraphQL API",
             }
         )));
@@ -826,33 +1118,49 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("  • Service API key: ✓ Generated and configured");
         
         // Next Steps section
-        println!("\n{}", Style::Heading.paint("🚀 Next steps:"));
+        println!("\n{}", Style::Heading.paint("🎯 Customize this template for your data:"));
+        
+        // Common customization steps
+        println!("\n{}", Style::InfoPrefix.paint("1️⃣  Replace the example API with yours:"));
         match mcp_project_type {
-            MCPProjectType::GraphQL => {
-                println!("   1. Start the subgraph server:");
-                println!("      npm ci && npm run dev");
-                println!("   2. Start local development:");
-                println!("      export $(cat .env | xargs) && rover dev --supergraph-config supergraph.yaml");
-                println!("   3. docker build -f mcp.Dockerfile -t {}-mcp .", completed_project.config.graph_id);
-                println!("   4. docker run --env-file .env -p5000:5000 {}-mcp", completed_project.config.graph_id);
-                println!("   5. npx @modelcontextprotocol/inspector");
-            }
             MCPProjectType::REST => {
-                println!("   1. Configure your REST API credentials in .apollo/router.local.yaml");
-                println!("   2. Start local development:");
-                println!("      export $(cat .env | xargs) && rover dev --supergraph-config connectors/supergraph.yaml");
-                println!("   3. docker build -f mcp.Dockerfile -t {}-mcp .", completed_project.config.graph_id);
-                println!("   4. docker run --env-file .env -p5000:5000 {}-mcp", completed_project.config.graph_id);
-                println!("   5. npx @modelcontextprotocol/inspector");
+                println!("   • Edit .apollo/router.local.yaml - Add your REST API credentials");
+                println!("   • Update connectors/*.graphql - Define your API operations");
+            }
+            MCPProjectType::GraphQL => {
+                println!("   • Replace the example schema with your GraphQL API");
+                println!("   • Update subgraph configuration for your endpoint");
             }
         }
         
-        println!("\n{}", Style::Heading.paint("📚 Resources:"));
-        println!("   - More API connectors: apollographql.com/docs/connectors");
-        println!("   - Add database access: apollographql.com/docs/mcp-databases");
-        println!("   - Full documentation: apollographql.com/docs/mcp");
+        println!("\n{}", Style::InfoPrefix.paint("2️⃣  Create AI tools from your API:"));
+        println!("   • Review the example tools in tools/");
+        println!("   • Copy any GraphQL query to tools/ to make it AI-callable");
+        println!("   • Each .graphql file becomes a tool Claude can use");
         
-        println!("\n💡 Each .graphql file in /tools becomes an MCP tool!");
+        println!("\n{}", Style::InfoPrefix.paint("3️⃣  Test your customized MCP server:"));
+        match mcp_project_type {
+            MCPProjectType::GraphQL => {
+                println!("   • npm ci && npm run dev (start example subgraph)");
+                println!("   • export $(cat .env | xargs) && rover dev --supergraph-config supergraph.yaml");
+            }
+            MCPProjectType::REST => {
+                println!("   • export $(cat .env | xargs) && rover dev --supergraph-config connectors/supergraph.yaml");
+            }
+        }
+        println!("   • docker build -f mcp.Dockerfile -t {}-mcp .", completed_project.config.graph_id);
+        println!("   • docker run --env-file .env -p5000:5000 {}-mcp", completed_project.config.graph_id);
+        println!("   • Run it in something like MCP Inspector: npx @modelcontextprotocol/inspector");
+        
+        println!("\n{}", Style::Heading.paint("📚 Resources:"));
+        println!("   - More API connectors: https://www.apollographql.com/docs/graphos/connectors/library#getting-started");
+        println!("   - Full documentation: https://www.apollographql.com/docs/apollo-mcp-server");
+        
+        println!("\n{}", Style::Heading.paint("👉 Remember:"));
+        println!("   This is a TEMPLATE - customize it with your own:");
+        println!("   • API endpoints and credentials");
+        println!("   • GraphQL operations that match your needs");
+        println!("   • Tool definitions for your specific use cases");
     }
     
     /// Handle MCP setup for new project creation
@@ -864,7 +1172,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         use crate::command::init::options::{ProjectType, ProjectUseCase};
         use anyhow::anyhow;
         
-        println!("{}", Style::Heading.paint("🚀 Creating new project with MCP server..."));
+        println!("{}", Style::Heading.paint("\n🚀 Creating new project with MCP server..."));
         
         // Prompt for data source type
         let data_source_type = Self::prompt_mcp_data_source()?;
@@ -893,10 +1201,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let (use_case, base_template_id, mcp_project_type) = match data_source_type {
             MCPDataSourceType::ExternalAPIs => {
                 // For External APIs, use start-with-rest + add-mcp
-                (ProjectUseCase::Connectors, "connectors", MCPProjectType::REST)
-            }
-            MCPDataSourceType::AWSServices => {
-                // For AWS services, use start-with-rest + add-mcp
                 (ProjectUseCase::Connectors, "connectors", MCPProjectType::REST)
             }
             MCPDataSourceType::GraphQLAPI => {
@@ -938,16 +1242,24 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             selected_template,
         };
 
-        // Continue with the normal naming flow, but skip graph ID confirmation for MCP
-        let creation_confirmed = match template_selected
+        // Continue with the normal naming flow, but skip the generic preview for MCP (we have our own)
+        let graph_id_entered = template_selected
             .enter_project_name(&self.project_name)?
-            .auto_generate_graph_id()?
-            .preview_and_confirm_creation()
-            .await?
-        {
-            Some(confirmed) => confirmed,
-            None => return Ok(RoverOutput::EmptySuccess),
-        };
+            .auto_generate_graph_id()?;
+            
+        let creation_confirmed = graph_id_entered.skip_preview_to_creation_confirmed()?;
+
+        // Add MCP-specific preview before project creation
+        let mcp_confirmed = self.preview_mcp_new_project_files(
+            &creation_confirmed.config.project_name.to_string(),
+            &data_source_type,
+            &creation_confirmed.selected_template.files
+        ).await?;
+        
+        if !mcp_confirmed {
+            println!("{}", Style::InfoPrefix.paint("Setup cancelled."));
+            return Ok(RoverOutput::EmptySuccess);
+        }
 
         let project_created = creation_confirmed
             .create_project(&client_config, &self.profile)
@@ -987,7 +1299,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Determine which examples to include
         let tools_to_include = match data_source_type {
             MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
-            MCPDataSourceType::AWSServices => vec!["examples/aws"],
             MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
         };
         
@@ -1043,7 +1354,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Determine which examples to include
         let source_dirs = match data_source_type {
             MCPDataSourceType::ExternalAPIs => vec!["api"],
-            MCPDataSourceType::AWSServices => vec!["aws"],
             MCPDataSourceType::GraphQLAPI => vec!["graphql"],
         };
         

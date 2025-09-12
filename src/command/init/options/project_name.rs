@@ -51,7 +51,7 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new()
-                .with_prompt(Style::Prompt.paint("? Name your MCP server project"))
+                .with_prompt(Style::Prompt.paint("\n? Name your MCP server project"))
                 .with_initial_text(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 
