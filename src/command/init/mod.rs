@@ -368,8 +368,11 @@ impl Init {
         
         println!("Welcome! This command helps you initialize a federated graph with MCP server capabilities.");
         println!();
-        println!("To learn more about init, run {} or visit https://www.apollographql.com/docs/rover/commands/init", 
-                 Style::Command.paint("rover init --mcp -h"));
+        println!(
+            "To learn more about init, run `{}` or visit {}",
+            Style::Command.paint("rover init --mcp -h"),
+            hyperlink("https://www.apollographql.com/docs/rover/commands/init")
+        );
 
         let setup_types = vec![
             MCPSetupType::NewProject,
@@ -383,7 +386,12 @@ impl Init {
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
-            Some(index) => Ok(setup_types[index].clone()),
+            Some(index) => {
+                let selected = setup_types[index].clone();
+                // Display the selection with bullet point to match other selections
+                println!("• Select option: {}", selected);
+                Ok(selected)
+            },
             _ => Err(RoverError::new(anyhow!("Selection cancelled"))),
         }
     }
@@ -498,16 +506,13 @@ impl Init {
             }
         }
         
-        println!(
-            "\n{}",
-            Style::Heading.paint("What this template gives you")
-        );
+        println!("{}", Style::File.paint("\nWhat this template gives you"));
         println!("- Example GraphQL schema and REST connectors");
         println!("- Pre-configured MCP server with Docker setup");
         println!("- Sample tools showing how to make APIs AI-callable");
         
         let confirmed = Confirm::new()
-            .with_prompt("Create this template? (Y/n)")
+            .with_prompt("\nCreate this template? (Y/n)")
             .default(true)
             .interact_on_opt(&Term::stderr())?;
 
@@ -611,7 +616,7 @@ impl Init {
         // }
         
         let confirmed = Confirm::new()
-            .with_prompt("Create this template? (Y/n)")
+            .with_prompt("\nCreate this template? (Y/n)")
             .default(true)
             .interact_on_opt(&Term::stderr())?;
 
@@ -1099,8 +1104,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Display project type and description
         println!("• Select project type: {}", Style::InfoPrefix.paint("AI-powered Apollo graph with MCP Server"));
         println!();
-        println!("️{} AI-powered Apollo graph with MCP server (~10 minute setup time)", Style::Heading.paint("▲"));
-        println!("Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources.");
+        println!("️{}", Style::File.paint("▲ AI-powered Apollo graph with MCP server ~10 minute setup time"));
+        println!("\nBuild an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources.");
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
         println!("- Docker");
@@ -1112,7 +1117,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         ];
         
         let selection = Select::new()
-            .with_prompt("Select a starting template")
+            .with_prompt("\nSelect a starting template")
             .items(&options)
             .default(0)
             .interact_on_opt(&Term::stderr())?;
@@ -1136,7 +1141,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("{}", Style::Success.paint("✓ MCP server generated"));
         
         // Project Details section
-        println!("\nProject details");
+        println!("{}", Style::File.paint("\nProject details"));
         println!("Name: {}", completed_project.config.project_name);
         println!("Organization: {}", completed_project.config.organization);
         println!("Graph ID: {}", completed_project.graph_ref);
@@ -1147,7 +1152,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("Service API key: Generated and configured");
         
         // Next Steps section
-        println!("\nNext steps ↴");
+        println!("{}", Style::File.paint("\nNext steps ↴"));
         
         println!("\nReplace the example API with your own:");
         match mcp_project_type {
