@@ -152,6 +152,7 @@ mod tests {
     fn test_get_template_with_preset_value() {
         let instance = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
 
         let result = instance.get_template();
@@ -160,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_get_template_with_no_value() {
-        let instance = ProjectTemplateOpt { template: None };
+        let instance = ProjectTemplateOpt { template: None , mcp: false};
         let result = instance.get_template();
         assert_eq!(result, None);
     }
@@ -206,6 +207,7 @@ mod tests {
     fn test_debug_trait() {
         let instance = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
         // Check that Debug formatting doesn't panic
         let debug_str = format!("{instance:?}");
@@ -216,6 +218,7 @@ mod tests {
     fn test_clone_trait() {
         let original = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
         let cloned = original.clone();
 
