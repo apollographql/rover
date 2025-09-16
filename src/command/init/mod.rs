@@ -388,7 +388,6 @@ impl Init {
         match selection {
             Some(index) => {
                 let selected = setup_types[index].clone();
-                // Display the selection with bullet point to match other selections
                 println!("• Select option: {}", selected);
                 Ok(selected)
             },
@@ -644,7 +643,11 @@ impl Init {
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
-            Some(index) => Ok(graph_options[index].clone()),
+            Some(index) => {
+                let selected = &graph_options[index];
+                println!("• Select existing graph variant to work with: {}", selected.display_name);
+                Ok(selected.clone())
+            },
             None => Err(RoverError::new(anyhow!("Graph selection cancelled"))),
         }
     }
