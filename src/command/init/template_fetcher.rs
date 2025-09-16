@@ -134,9 +134,12 @@ impl InitTemplateOptions {
             files,
         })
     }
-    
+
     /// Extract files directly from a directory in the repository (not a template)
-    pub fn extract_directory_files(&self, directory_path: &str) -> RoverResult<HashMap<Utf8PathBuf, String>> {
+    pub fn extract_directory_files(
+        &self,
+        directory_path: &str,
+    ) -> RoverResult<HashMap<Utf8PathBuf, String>> {
         let cursor = Cursor::new(&self.contents);
         let tar = flate2::read::GzDecoder::new(cursor);
         let mut archive = tar::Archive::new(tar);
@@ -160,7 +163,7 @@ impl InitTemplateOptions {
                 if entry.header().entry_type().is_file() {
                     let mut content = String::new();
                     entry.read_to_string(&mut content)?;
-                    
+
                     // Convert to Utf8PathBuf
                     let utf8_path = Utf8PathBuf::from(relative_path);
                     files.insert(utf8_path, content);
@@ -170,7 +173,8 @@ impl InitTemplateOptions {
 
         if files.is_empty() {
             return Err(RoverError::new(anyhow!(
-                "No files found in directory '{}'", directory_path
+                "No files found in directory '{}'",
+                directory_path
             )));
         }
 
@@ -189,23 +193,31 @@ impl InitTemplateFetcher {
             service: GitHubService::new(),
         }
     }
-    
+
     /// Fetch and compose MCP template (base template + add-mcp)
-    pub async fn fetch_mcp_template(&mut self, base_template_id: &str, reference: &str) -> RoverResult<SelectedTemplateState> {
-        use crate::command::init::options::project_template::ProjectTemplateOpt;
+    pub async fn fetch_mcp_template(
+        &mut self,
+        base_template_id: &str,
+        reference: &str,
+    ) -> RoverResult<SelectedTemplateState> {
         
+
         // First, get the template manifest
         let template_options = self.call(reference).await?;
-        
+
         // Find the base template
-        let base_template = template_options.manifest.templates
+        let base_template = template_options
+            .manifest
+            .templates
             .iter()
             .find(|t| t.id.0 == base_template_id)
-            .ok_or_else(|| RoverError::new(anyhow!("Base template '{}' not found", base_template_id)))?;
-        
+            .ok_or_else(|| {
+                RoverError::new(anyhow!("Base template '{}' not found", base_template_id))
+            })?;
+
         // Extract base template files
         let mut base_state = Self::extract_template_files(&template_options, base_template)?;
-        
+
         // Fetch add-mcp template and merge it
         let add_mcp_template = Template {
             id: TemplateId("add-mcp".to_string()),
@@ -219,14 +231,14 @@ impl InitTemplateFetcher {
             start_point_file: "".to_string(),
             print_depth: None,
         };
-        
+
         let mcp_state = Self::extract_template_files(&template_options, &add_mcp_template)?;
-        
+
         // Merge MCP files into base template
         for (mcp_path, mcp_contents) in mcp_state.files {
             base_state.files.insert(mcp_path, mcp_contents);
         }
-        
+
         // Create MCP template metadata
         let mcp_template = Template {
             id: TemplateId(format!("mcp-{}", base_template_id)),
@@ -240,13 +252,16 @@ impl InitTemplateFetcher {
             start_point_file: base_template.start_point_file.clone(),
             print_depth: base_template.print_depth,
         };
-        
+
         base_state.template = mcp_template;
         Ok(base_state)
     }
-    
+
     /// Helper method to extract files from template
-    fn extract_template_files(template_options: &InitTemplateOptions, template: &Template) -> RoverResult<SelectedTemplateState> {
+    fn extract_template_files(
+        template_options: &InitTemplateOptions,
+        template: &Template,
+    ) -> RoverResult<SelectedTemplateState> {
         template_options.select_template(&template.id)
     }
 

@@ -110,6 +110,9 @@ mod tests {
     #[test]
     fn test_display_trait_for_mcp_server() {
         let use_case = ProjectUseCase::MCPServer;
-        assert_eq!(use_case.to_string(), "Create an MCP server with Apollo Connectors");
+        assert_eq!(
+            use_case.to_string(),
+            "Create an MCP server with Apollo Connectors"
+        );
     }
 }
