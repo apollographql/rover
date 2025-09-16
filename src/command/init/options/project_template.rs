@@ -161,7 +161,10 @@ mod tests {
 
     #[test]
     fn test_get_template_with_no_value() {
-        let instance = ProjectTemplateOpt { template: None , mcp: false};
+        let instance = ProjectTemplateOpt {
+            template: None,
+            mcp: false,
+        };
         let result = instance.get_template();
         assert_eq!(result, None);
     }

@@ -290,9 +290,10 @@ impl MCPOperations {
 
                     // Parse major version
                     if let Some(major_str) = version.split('.').next()
-                        && let Ok(major) = major_str.parse::<u32>() {
-                            return Ok(major >= 18);
-                        }
+                        && let Ok(major) = major_str.parse::<u32>()
+                    {
+                        return Ok(major >= 18);
+                    }
                 }
             }
             Err(_) => {

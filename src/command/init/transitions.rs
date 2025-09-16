@@ -138,9 +138,9 @@ impl Welcome {
         // Skip empty directory check when using --mcp flag (for augmenting existing projects)
         if !template_options.mcp
             && let Ok(mut dir) = read_dir(&output_path)
-                && dir.next().is_some()
-            {
-                return Err(RoverError::new(anyhow!(
+            && dir.next().is_some()
+        {
+            return Err(RoverError::new(anyhow!(
                         "Cannot initialize the graph because the current directory is not empty"
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
@@ -150,7 +150,7 @@ impl Welcome {
                         )
                         .to_string(),
                     )));
-            }
+        }
 
         let project_type = match options.get_project_type() {
             Some(ptype) => ptype,

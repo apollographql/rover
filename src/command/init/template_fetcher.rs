@@ -200,8 +200,6 @@ impl InitTemplateFetcher {
         base_template_id: &str,
         reference: &str,
     ) -> RoverResult<SelectedTemplateState> {
-        
-
         // First, get the template manifest
         let template_options = self.call(reference).await?;
 
