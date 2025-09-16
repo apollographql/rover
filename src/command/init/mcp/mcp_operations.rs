@@ -20,13 +20,6 @@ pub struct MCPSetupResult {
 pub struct MCPOperations;
 
 impl MCPOperations {
-    pub fn setup_mcp_project(
-        project_path: &Utf8PathBuf,
-        api_key: &str,
-        graph_ref: &str,
-    ) -> RoverResult<MCPSetupResult> {
-        Self::setup_mcp_project_with_name(project_path, api_key, graph_ref, None)
-    }
 
     pub fn setup_mcp_project_with_name(
         project_path: &Utf8PathBuf,
@@ -178,91 +171,6 @@ impl MCPOperations {
         println!("{} .env file created", Style::Success.paint("✓"));
         
         Ok(env_path)
-    }
-
-    pub async fn publish_minimal_schema(
-        client: &rover_client::blocking::StudioClient,
-        graph_ref: &rover_client::shared::GraphRef,
-    ) -> RoverResult<()> {
-        println!("{}", Style::Heading.paint("Publishing minimal schema to Apollo Studio..."));
-        
-        // Create a minimal federated schema that MCP server can use
-        let minimal_schema = r#"
-extend schema @link(url: "https://specs.apollo.dev/federation/v2.11", import: ["@key", "@shareable"])
-
-type Query {
-  _service: _Service
-}
-
-type _Service {
-  sdl: String!
-}
-"#;
-
-        use rover_client::operations::subgraph::publish::*;
-        use rover_client::shared::GitContext;
-        
-        rover_client::operations::subgraph::publish::run(
-            SubgraphPublishInput {
-                graph_ref: graph_ref.clone(),
-                subgraph: "mcp-placeholder".to_string(),
-                url: Some("http://localhost:4000".to_string()),
-                schema: minimal_schema.to_string(),
-                git_context: GitContext {
-                    branch: None,
-                    commit: None,
-                    author: None,
-                    remote_url: None,
-                },
-                convert_to_federated_graph: false,
-            },
-            client,
-        )
-        .await?;
-        
-        println!("{} Minimal schema published for MCP server", Style::Success.paint("✓"));
-        Ok(())
-    }
-
-    pub fn compose_supergraph_schema(project_path: &Utf8PathBuf) -> RoverResult<()> {
-        println!("{}", Style::Heading.paint("Composing supergraph from connectors..."));
-        
-        let connectors_dir = project_path.join("connectors");
-        let supergraph_config = connectors_dir.join("supergraph.yaml");
-        let output_schema = project_path.join("supergraph-schema.graphql");
-        
-        if !supergraph_config.exists() {
-            return Err(anyhow!("supergraph.yaml not found in connectors directory").into());
-        }
-        
-        // Run rover supergraph compose command
-        let output = std::process::Command::new("rover")
-            .args(&[
-                "supergraph", 
-                "compose",
-                "--config", supergraph_config.as_str()
-            ])
-            .current_dir(project_path)
-            .output()
-            .map_err(|e| anyhow!("Failed to run rover supergraph compose: {}", e))?;
-        
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow!("Supergraph composition failed: {}", stderr).into());
-        }
-        
-        // Write the composed schema to file
-        let composed_schema = String::from_utf8_lossy(&output.stdout);
-        Fs::write_file(&output_schema, composed_schema.to_string())?;
-        
-        println!("{} Supergraph schema composed and saved to supergraph-schema.graphql", Style::Success.paint("✓"));
-        
-        Ok(())
-    }
-
-
-    fn setup_claude_desktop_config(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {
-        Self::setup_claude_desktop_config_with_name(project_path, api_key, graph_ref, None)
     }
 
     fn setup_claude_desktop_config_with_name(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str, project_name: Option<&str>) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {

@@ -12,7 +12,7 @@ use rover_std::{Spinner, Style, errln};
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
-use crate::command::init::mcp_operations::MCPOperations;
+use crate::command::init::mcp::mcp_operations::MCPOperations;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
