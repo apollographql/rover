@@ -257,10 +257,10 @@ impl SupergraphBuilder {
 
                 if path.is_dir() {
                     // Skip the 'tools' directory - it contains MCP tool definitions, not GraphQL schemas
-                    if let Some(dir_name) = path.file_name() {
-                        if dir_name == "tools" {
-                            continue;
-                        }
+                    if let Some(dir_name) = path.file_name()
+                        && dir_name == "tools"
+                    {
+                        continue;
                     }
                     self.visit_dirs(&path, current_depth + 1, max_depth, result)?;
                 } else if self.is_graphql_file(&path) {

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub struct ProjectTemplateOpt {
     #[arg(long = "template")]
     pub template: Option<TemplateId>,
-    
+
     /// Add MCP server capabilities to existing project  
     #[arg(long = "mcp")]
     pub mcp: bool,
@@ -51,15 +51,15 @@ impl ProjectTemplateOpt {
                     return Err(RoverError::new(anyhow!("Invalid template selection")));
                 }
                 Ok(TemplateId(selected_template.id.to_string()))
-            },
+            }
             None => Err(RoverError::new(anyhow!("No template selected"))),
         }
     }
-    
+
     /// Generate MCP variants of existing templates
     fn generate_template_variants(base_templates: &[Template]) -> Vec<Template> {
         let mut all_templates = base_templates.to_vec();
-        
+
         // Add separator template for visual grouping
         all_templates.push(Template {
             id: TemplateId("separator".to_string()),
@@ -73,14 +73,14 @@ impl ProjectTemplateOpt {
             start_point_file: "".to_string(),
             print_depth: None,
         });
-        
+
         // Generate MCP variants
         for base_template in base_templates {
             // Skip certain templates that don't make sense for MCP
             if base_template.id.0.contains("minimal") || base_template.id.0.contains("test") {
                 continue;
             }
-            
+
             let mcp_template = Template {
                 id: TemplateId(format!("mcp-{}", base_template.id.0)),
                 display_name: format!("{} + AI tools", base_template.display_name),
@@ -95,7 +95,7 @@ impl ProjectTemplateOpt {
             };
             all_templates.push(mcp_template);
         }
-        
+
         all_templates
     }
 
@@ -106,7 +106,7 @@ impl ProjectTemplateOpt {
             .iter()
             .map(|t| t.id.to_string())
             .collect::<Vec<_>>();
-            
+
         if let Some(template) = self.get_template() {
             // Check if the specified template exists (could be base or MCP variant)
             if template_ids.contains(&template.to_string()) {
@@ -121,16 +121,22 @@ impl ProjectTemplateOpt {
 
         Self::prompt_template(templates)
     }
-    
+
     /// Check if a template is an MCP variant
     pub fn is_mcp_template(template_id: &TemplateId) -> bool {
         template_id.0.starts_with("mcp-")
     }
-    
+
     /// Get base template ID from MCP template ID
     pub fn get_base_template_id(template_id: &TemplateId) -> TemplateId {
         if Self::is_mcp_template(template_id) {
-            TemplateId(template_id.0.strip_prefix("mcp-").unwrap_or(&template_id.0).to_string())
+            TemplateId(
+                template_id
+                    .0
+                    .strip_prefix("mcp-")
+                    .unwrap_or(&template_id.0)
+                    .to_string(),
+            )
         } else {
             template_id.clone()
         }
@@ -146,6 +152,7 @@ mod tests {
     fn test_get_template_with_preset_value() {
         let instance = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
 
         let result = instance.get_template();
@@ -154,7 +161,10 @@ mod tests {
 
     #[test]
     fn test_get_template_with_no_value() {
-        let instance = ProjectTemplateOpt { template: None };
+        let instance = ProjectTemplateOpt {
+            template: None,
+            mcp: false,
+        };
         let result = instance.get_template();
         assert_eq!(result, None);
     }
@@ -200,6 +210,7 @@ mod tests {
     fn test_debug_trait() {
         let instance = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
         // Check that Debug formatting doesn't panic
         let debug_str = format!("{instance:?}");
@@ -210,6 +221,7 @@ mod tests {
     fn test_clone_trait() {
         let original = ProjectTemplateOpt {
             template: Some(TemplateId("test-template".to_string())),
+            mcp: false,
         };
         let cloned = original.clone();
 

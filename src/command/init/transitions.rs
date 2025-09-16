@@ -12,7 +12,7 @@ use rover_std::{Spinner, Style, errln};
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
-use crate::command::init::mcp_operations::MCPOperations;
+use crate::command::init::mcp::mcp_operations::MCPOperations;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
@@ -134,13 +134,13 @@ impl Welcome {
         let output_path =
             Utf8PathBuf::from_path_buf(override_install_path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
-        
+
         // Skip empty directory check when using --mcp flag (for augmenting existing projects)
-        if !template_options.mcp {
-            if let Ok(mut dir) = read_dir(&output_path)
-                && dir.next().is_some()
-            {
-                return Err(RoverError::new(anyhow!(
+        if !template_options.mcp
+            && let Ok(mut dir) = read_dir(&output_path)
+            && dir.next().is_some()
+        {
+            return Err(RoverError::new(anyhow!(
                         "Cannot initialize the graph because the current directory is not empty"
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
@@ -150,7 +150,6 @@ impl Welcome {
                         )
                         .to_string(),
                     )));
-            }
         }
 
         let project_type = match options.get_project_type() {
@@ -245,7 +244,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         use crate::command::init::options::project_template::ProjectTemplateOpt;
-        
+
         // Fetch the template to get the list of files
         let repo_ref = "camille/start-with-mcp-template";
         let mut template_fetcher = InitTemplateFetcher::new();
@@ -276,13 +275,15 @@ impl UseCaseSelected {
                     .filter(|&t| t.id != TemplateId("connectors".to_string()))
                     .cloned()
                     .collect::<Vec<_>>();
-                
+
                 let template_id = options.get_or_prompt_template(&templates)?;
-                
+
                 // Check if this is an MCP template and handle composition
                 if ProjectTemplateOpt::is_mcp_template(&template_id) {
                     let base_template_id = ProjectTemplateOpt::get_base_template_id(&template_id);
-                    template_fetcher.fetch_mcp_template(&base_template_id.0, repo_ref).await?
+                    template_fetcher
+                        .fetch_mcp_template(&base_template_id.0, repo_ref)
+                        .await?
                 } else {
                     template_options.select_template(&template_id)?
                 }
@@ -297,7 +298,6 @@ impl UseCaseSelected {
             selected_template,
         })
     }
-    
 }
 
 /// PROMPT UX:
@@ -340,10 +340,16 @@ impl ProjectNamed {
 
     /// Skip graph ID confirmation for MCP flows - auto-generate graph ID
     pub fn auto_generate_graph_id(self) -> RoverResult<GraphIdConfirmed> {
-        use crate::command::init::graph_id::{generation::generate_graph_id, utils::random::DefaultRandomStringGenerator};
+        use crate::command::init::graph_id::{
+            generation::generate_graph_id, utils::random::DefaultRandomStringGenerator,
+        };
         use std::str::FromStr;
-        
-        let graph_id = generate_graph_id(&self.project_name.to_string(), &mut DefaultRandomStringGenerator, None);
+
+        let graph_id = generate_graph_id(
+            &self.project_name.to_string(),
+            &mut DefaultRandomStringGenerator,
+            None,
+        );
         let graph_id = crate::command::init::graph_id::GraphId::from_str(&graph_id.into_string())?;
 
         Ok(GraphIdConfirmed {
@@ -545,7 +551,12 @@ impl ProjectCreated {
             // Get project root path - rover init always runs in the target directory
             let project_path: Utf8PathBuf = ".".into();
 
-            match MCPOperations::setup_mcp_project_with_name(&project_path, &self.api_key, &self.graph_ref.to_string(), Some(&self.config.project_name.to_string())) {
+            match MCPOperations::setup_mcp_project_with_name(
+                &project_path,
+                &self.api_key,
+                &self.graph_ref.to_string(),
+                Some(&self.config.project_name.to_string()),
+            ) {
                 Ok(setup_result) => {
                     MCPOperations::display_mcp_success_message(
                         self.config.project_name.to_string(),
