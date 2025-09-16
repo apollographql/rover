@@ -50,14 +50,15 @@ impl ApiKeys {
 // add support for more key types as they are required, rather than them changing as the schema
 // does.
 #[derive(Debug, Clone, Serialize, ValueEnum, Copy)]
+#[serde(rename_all="SCREAMING_SNAKE_CASE")]
 pub enum ApiKeyType {
-    OPERATOR,
+    Operator,
 }
 
 impl ApiKeyType {
     fn into_query_enum(self) -> GraphOsKeyType {
         match self {
-            Self::OPERATOR => GraphOsKeyType::OPERATOR,
+            Self::Operator => GraphOsKeyType::OPERATOR,
         }
     }
 }
