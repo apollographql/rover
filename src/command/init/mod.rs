@@ -7,11 +7,10 @@ mod graph_id;
 #[cfg(feature = "composition-js")]
 mod helpers;
 #[cfg(feature = "composition-js")]
-mod mcp_operations;
-#[cfg(feature = "composition-js")]
-mod mcp_augmentation;
+mod mcp;
 #[cfg(feature = "composition-js")]
 mod operations;
+#[cfg(feature = "composition-js")]
 pub mod options;
 #[cfg(feature = "composition-js")]
 pub mod states;
@@ -951,37 +950,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Fs::write_file(&env_path, env_content)?;
         Ok(())
     }
-    
-    /// Prompt user to select MCP project type (REST or GraphQL)
-    #[cfg(feature = "composition-js")]
-    fn prompt_mcp_project_type() -> RoverResult<MCPProjectType> {
-        use dialoguer::Select;
-        use dialoguer::console::Term;
-        use anyhow::anyhow;
-        use rover_std::Style;
-        
-        let options = vec![
-            MCPProjectType::REST,
-            MCPProjectType::GraphQL,
-        ];
-        
-        let names = options
-            .iter()
-            .map(|o| o.to_string())
-            .collect::<Vec<_>>();
-            
-        let selection = Select::new()
-            .with_prompt(Style::Prompt.paint("? What type of MCP server are you building?").to_string())
-            .items(&names)
-            .default(0)
-            .interact_on_opt(&Term::stderr())?;
 
-        match selection {
-            Some(index) => Ok(options[index].clone()),
-            None => Err(RoverError::new(anyhow!("Use case selection cancelled"))),
-        }
-    }
-    
     /// Prompt user to select MCP data source type
     #[cfg(feature = "composition-js")]
     fn prompt_mcp_data_source() -> RoverResult<MCPDataSourceType> {
@@ -1306,82 +1275,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
     }
     
-    /// Apply file filtering for new project based on data source selection (kept for compatibility)
-    #[cfg(feature = "composition-js")]
-    fn filter_mcp_examples_for_new_project(
-        project_path: &camino::Utf8PathBuf,
-        data_source_type: &MCPDataSourceType,
-    ) -> RoverResult<()> {
-        let examples_path = project_path.join("examples");
-        let tools_path = project_path.join("tools");
-        
-        // Check if examples directory exists
-        if !examples_path.exists() {
-            return Ok(()); // Nothing to filter
-        }
-        
-        // Ensure tools directory exists
-        std::fs::create_dir_all(&tools_path)?;
-        
-        // Determine which examples to include
-        let source_dirs = match data_source_type {
-            MCPDataSourceType::ExternalAPIs => vec!["api"],
-            MCPDataSourceType::GraphQLAPI => vec!["graphql"],
-        };
-        
-        // Copy relevant example files to tools directory
-        for source_dir in source_dirs {
-            let source_path = examples_path.join(source_dir);
-            if source_path.exists() {
-                for entry in std::fs::read_dir(&source_path)? {
-                    let entry = entry?;
-                    let file_path = entry.path();
-                    if file_path.extension().and_then(|s| s.to_str()) == Some("graphql") {
-                        let file_name = file_path.file_name().unwrap().to_str().unwrap();
-                        let target_path = tools_path.join(file_name);
-                        std::fs::copy(&file_path, &target_path)?;
-                    }
-                }
-            }
-        }
-        
-        // Remove the examples directory
-        if examples_path.exists() {
-            std::fs::remove_dir_all(&examples_path)?;
-        }
-        
-        Ok(())
-    }
-    
-    /// Extract project name from existing project configuration
-    #[cfg(feature = "composition-js")]
-    fn get_project_name_from_config(project_dir: &camino::Utf8PathBuf) -> RoverResult<String> {
-        // Try to read from .env file first
-        let env_path = project_dir.join(".env");
-        if env_path.exists() {
-            let env_content = std::fs::read_to_string(&env_path)?;
-            for line in env_content.lines() {
-                if let Some(graph_ref) = line.strip_prefix("APOLLO_GRAPH_REF=") {
-                    let graph_ref = graph_ref.trim_matches('"');
-                    // APOLLO_GRAPH_REF format is typically "graph-id@variant"
-                    if let Some(graph_id) = graph_ref.split('@').next() {
-                        if !graph_id.is_empty() {
-                            return Ok(graph_id.to_string());
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Fall back to directory name
-        let dir_name = project_dir
-            .file_name()
-            .unwrap_or("my-project")
-            .to_string();
-        
-        Ok(dir_name)
-    }
-
     #[cfg(not(feature = "composition-js"))]
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         use crate::RoverError;
