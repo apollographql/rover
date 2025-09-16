@@ -1123,8 +1123,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         use dialoguer::console::Term;
         use rover_std::Style;
 
-        let options = [MCPDataSourceType::ExternalAPIs,
-            MCPDataSourceType::GraphQLAPI];
+        let options = [
+            MCPDataSourceType::ExternalAPIs,
+            MCPDataSourceType::GraphQLAPI,
+        ];
 
         let names = options.iter().map(|o| o.to_string()).collect::<Vec<_>>();
 
@@ -1261,7 +1263,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
         use crate::command::init::transitions::CreateProjectResult;
         use anyhow::anyhow;
-        
 
         // Prompt for data source type
         let data_source_type = Self::prompt_mcp_data_source()?;
