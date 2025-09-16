@@ -1,10 +1,10 @@
+use crate::RoverResult;
+use anyhow::{Result, anyhow};
+use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
+use rover_std::{Fs, Style};
 use std::fs;
 use std::io::Cursor;
-use anyhow::{anyhow, Result};
-use camino::Utf8PathBuf;
-use rover_std::{Fs, Style};
-use crate::RoverResult;
-use rover_client::shared::GraphRef;
 use std::str::FromStr;
 
 const APOLLO_MCP_SERVER_BINARY_NAME: &str = "apollo-mcp-server";
@@ -20,7 +20,6 @@ pub struct MCPSetupResult {
 pub struct MCPOperations;
 
 impl MCPOperations {
-
     pub fn setup_mcp_project_with_name(
         project_path: &Utf8PathBuf,
         api_key: &str,
@@ -31,12 +30,17 @@ impl MCPOperations {
 
         // Download apollo-mcp-server binary
         let binary_path = Self::download_apollo_mcp_server(project_path)?;
-        
+
         // Generate .env file
         let env_file = Self::generate_env_file(project_path, api_key, graph_ref)?;
-        
+
         // Check Node version and optionally generate Claude Desktop config
-        let (claude_config, connector_name) = Self::setup_claude_desktop_config_with_name(project_path, api_key, graph_ref, project_name)?;
+        let (claude_config, connector_name) = Self::setup_claude_desktop_config_with_name(
+            project_path,
+            api_key,
+            graph_ref,
+            project_name,
+        )?;
 
         Ok(MCPSetupResult {
             binary_path,
@@ -48,46 +52,52 @@ impl MCPOperations {
 
     fn download_apollo_mcp_server(project_path: &Utf8PathBuf) -> RoverResult<Utf8PathBuf> {
         let binary_path = project_path.join(APOLLO_MCP_SERVER_BINARY_NAME);
-        
+
         // Detect OS and architecture
         let download_url = Self::get_download_url()?;
-        
-        println!("{}", Style::Heading.paint("Downloading apollo-mcp-server..."));
-        
+
+        println!(
+            "{}",
+            Style::Heading.paint("Downloading apollo-mcp-server...")
+        );
+
         // Use tokio::task::spawn_blocking to run blocking code from async context
         let download_url_clone = download_url.clone();
         let binary_path_clone = binary_path.clone();
-        
+
         let result = std::thread::spawn(move || {
             let client = reqwest::blocking::Client::new();
-            let response = client.get(&download_url_clone)
+            let response = client
+                .get(&download_url_clone)
                 .send()
                 .map_err(|e| anyhow!("Failed to download apollo-mcp-server: {}", e))?;
-            
-            let bytes = response.bytes()
+
+            let bytes = response
+                .bytes()
                 .map_err(|e| anyhow!("Failed to read response: {}", e))?;
-            
+
             // Extract tar.gz file
             let cursor = Cursor::new(bytes);
             let tar = flate2::read::GzDecoder::new(cursor);
             let mut archive = tar::Archive::new(tar);
-            
+
             // Extract files to a temporary directory first
             let project_dir = binary_path_clone.parent().unwrap();
             let temp_extract_dir = project_dir.join("temp_apollo_mcp");
-            
+
             if temp_extract_dir.exists() {
                 fs::remove_dir_all(&temp_extract_dir).ok();
             }
             fs::create_dir_all(&temp_extract_dir)
                 .map_err(|e| anyhow!("Failed to create temp directory: {}", e))?;
-            
-            archive.unpack(&temp_extract_dir)
+
+            archive
+                .unpack(&temp_extract_dir)
                 .map_err(|e| anyhow!("Failed to extract archive: {}", e))?;
-            
+
             // Find the apollo-mcp-server binary in the extracted files
             let mut binary_found = false;
-            
+
             // Check in dist/ subdirectory first
             let dist_dir = temp_extract_dir.join("dist");
             let binary_locations = vec![
@@ -96,7 +106,7 @@ impl MCPOperations {
                 temp_extract_dir.join("apollo-mcp-server"),
                 temp_extract_dir.join("apollo-mcp-server.exe"),
             ];
-            
+
             for potential_binary in binary_locations {
                 if potential_binary.exists() && potential_binary.is_file() {
                     fs::copy(&potential_binary, &binary_path_clone)
@@ -105,17 +115,19 @@ impl MCPOperations {
                     break;
                 }
             }
-            
+
             // Clean up temp directory
             fs::remove_dir_all(&temp_extract_dir).ok();
-            
+
             if !binary_found {
                 return Err(anyhow!("apollo-mcp-server binary not found in archive"));
             }
-                
+
             Ok::<(), anyhow::Error>(())
-        }).join().map_err(|_| anyhow!("Download thread panicked"))?;
-        
+        })
+        .join()
+        .map_err(|_| anyhow!("Download thread panicked"))?;
+
         result?;
 
         // Make executable on Unix systems
@@ -127,17 +139,21 @@ impl MCPOperations {
             fs::set_permissions(&binary_path, perms)?;
         }
 
-        println!("{} apollo-mcp-server downloaded to {}", Style::Success.paint("✓"), binary_path);
-        
+        println!(
+            "{} apollo-mcp-server downloaded to {}",
+            Style::Success.paint("✓"),
+            binary_path
+        );
+
         Ok(binary_path)
     }
 
     fn get_download_url() -> Result<String> {
         let os = std::env::consts::OS;
         let arch = std::env::consts::ARCH;
-        
+
         let version = "v0.7.5"; // Pin to stable version
-        
+
         let target = match (os, arch) {
             ("macos", "aarch64") => "aarch64-apple-darwin",
             ("macos", "x86_64") => "x86_64-apple-darwin",
@@ -147,7 +163,7 @@ impl MCPOperations {
             ("windows", "x86_64") => "x86_64-pc-windows-msvc",
             _ => return Err(anyhow!("Unsupported platform: {} {}", os, arch)),
         };
-        
+
         Ok(format!(
             "https://github.com/apollographql/apollo-mcp-server/releases/download/{}/apollo-mcp-server-{}-{}.tar.gz",
             version, version, target
@@ -160,24 +176,26 @@ impl MCPOperations {
         graph_ref: &str,
     ) -> RoverResult<Utf8PathBuf> {
         let env_path = project_path.join(".env");
-        
-        let env_content = format!(
-            "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
-            api_key, graph_ref
-        );
-        
+
+        let env_content = format!("APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n", api_key, graph_ref);
+
         Fs::write_file(&env_path, env_content)?;
-        
+
         println!("{} .env file created", Style::Success.paint("✓"));
-        
+
         Ok(env_path)
     }
 
-    fn setup_claude_desktop_config_with_name(project_path: &Utf8PathBuf, api_key: &str, graph_ref: &str, project_name: Option<&str>) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {
+    fn setup_claude_desktop_config_with_name(
+        project_path: &Utf8PathBuf,
+        api_key: &str,
+        graph_ref: &str,
+        project_name: Option<&str>,
+    ) -> RoverResult<(Option<Utf8PathBuf>, Option<String>)> {
         // Check Node version
         if !Self::check_node_version()? {
             println!(
-                "{} Node.js 18+ required for Claude Desktop integration. Skipping claude_desktop_config.json generation.", 
+                "{} Node.js 18+ required for Claude Desktop integration. Skipping claude_desktop_config.json generation.",
                 Style::WarningHeading.paint("⚠")
             );
             return Ok((None, None));
@@ -192,10 +210,10 @@ impl MCPOperations {
             graph.name.to_lowercase()
         };
         let base_connector_name = format!("mcp-{}", connector_base_name);
-        
+
         // Generate config file in project directory
         let claude_config_path = project_path.join("claude_desktop_config.json");
-        
+
         // Read existing local config if it exists (in case they manually edited it)
         let mut config: serde_json::Value = if claude_config_path.exists() {
             let existing_content = Fs::read_file(&claude_config_path)?;
@@ -204,7 +222,7 @@ impl MCPOperations {
         } else {
             serde_json::json!({})
         };
-        
+
         // Ensure mcpServers object exists
         if !config.is_object() {
             config = serde_json::json!({});
@@ -212,17 +230,17 @@ impl MCPOperations {
         if config.get("mcpServers").is_none() {
             config["mcpServers"] = serde_json::json!({});
         }
-        
+
         // Generate unique connector name if needed
         let mut connector_name = base_connector_name.clone();
         let mut counter = 2;
         let mcp_servers = config["mcpServers"].as_object_mut().unwrap();
-        
+
         while mcp_servers.contains_key(&connector_name) {
             connector_name = format!("{}-{}", base_connector_name, counter);
             counter += 1;
         }
-        
+
         // Notify user if name was changed
         if connector_name != base_connector_name {
             println!(
@@ -231,11 +249,11 @@ impl MCPOperations {
                 Style::Link.paint(&connector_name)
             );
         }
-        
+
         // Add new MCP server configuration
         let binary_path = project_path.join(APOLLO_MCP_SERVER_BINARY_NAME);
         let mcp_config_path = project_path.join(".apollo").join("mcp.local.yaml");
-        
+
         mcp_servers.insert(
             connector_name.clone(),
             serde_json::json!({
@@ -245,39 +263,36 @@ impl MCPOperations {
                     "APOLLO_KEY": api_key,
                     "APOLLO_GRAPH_REF": graph_ref
                 }
-            })
+            }),
         );
-        
+
         // Write config to project directory
         let claude_config_str = serde_json::to_string_pretty(&config)?;
         Fs::write_file(&claude_config_path, claude_config_str)?;
-        
+
         println!(
             "{} Claude Desktop config generated with MCP server '{}'",
             Style::Success.paint("✓"),
             Style::Link.paint(&connector_name)
         );
-        
+
         Ok((Some(claude_config_path), Some(connector_name)))
     }
 
     fn check_node_version() -> RoverResult<bool> {
-        let output = std::process::Command::new("node")
-            .arg("--version")
-            .output();
-            
+        let output = std::process::Command::new("node").arg("--version").output();
+
         match output {
             Ok(output) => {
                 if output.status.success() {
                     let version_str = String::from_utf8_lossy(&output.stdout);
                     let version = version_str.trim().strip_prefix('v').unwrap_or(&version_str);
-                    
+
                     // Parse major version
-                    if let Some(major_str) = version.split('.').next() {
-                        if let Ok(major) = major_str.parse::<u32>() {
+                    if let Some(major_str) = version.split('.').next()
+                        && let Ok(major) = major_str.parse::<u32>() {
                             return Ok(major >= 18);
                         }
-                    }
                 }
             }
             Err(_) => {
@@ -285,7 +300,7 @@ impl MCPOperations {
                 return Ok(false);
             }
         }
-        
+
         Ok(false)
     }
 
@@ -298,57 +313,89 @@ impl MCPOperations {
         println!("\n{}", Style::Success.paint("✓ MCP server project ready"));
         println!("\n{}: {}", Style::Heading.paint("Project"), project_name);
         println!("{}: {}", Style::Heading.paint("Graph"), graph_ref);
-        println!("{}: {}", Style::Heading.paint("Binary"), setup_result.binary_path);
-        
+        println!(
+            "{}: {}",
+            Style::Heading.paint("Binary"),
+            setup_result.binary_path
+        );
+
         println!("\n{}", Style::Heading.paint("Next steps:"));
-        println!("  {} Configure API keys for your connectors:", Style::Command.paint("1."));
+        println!(
+            "  {} Configure API keys for your connectors:",
+            Style::Command.paint("1.")
+        );
         println!("     • AWS: Set up AWS credentials for Lambda/DynamoDB access");
         println!("     • Luma: Add your Luma API key to router configuration");
         println!("     • Update .apollo/router.local.yaml with your API keys");
-        
+
         println!("  {} Start the MCP Server:", Style::Command.paint("2."));
         println!("     export $(cat .env | xargs)");
         println!("     ./apollo-mcp-server .apollo/mcp.local.yaml");
         println!("     (Server will start on http://127.0.0.1:5000)");
-        
-        println!("  {} Start local development (in another terminal):", Style::Command.paint("3."));
+
+        println!(
+            "  {} Start local development (in another terminal):",
+            Style::Command.paint("3.")
+        );
         println!("     export $(cat .env | xargs)");
-        println!("     APOLLO_ROVER_DEV_ROUTER_VERSION=2.6.0 rover dev --supergraph-config connectors/supergraph.yaml");
-        
-        println!("  {} Test GraphQL with Apollo Sandbox:", Style::Command.paint("4."));
+        println!(
+            "     APOLLO_ROVER_DEV_ROUTER_VERSION=2.6.0 rover dev --supergraph-config connectors/supergraph.yaml"
+        );
+
+        println!(
+            "  {} Test GraphQL with Apollo Sandbox:",
+            Style::Command.paint("4.")
+        );
         println!("     Open http://localhost:4000 to query your connectors");
-        
-        println!("  {} Test MCP Server with Inspector:", Style::Command.paint("5."));
+
+        println!(
+            "  {} Test MCP Server with Inspector:",
+            Style::Command.paint("5.")
+        );
         println!("     npx @modelcontextprotocol/inspector");
         println!("     - Transport: Streamable HTTP");
         println!("     - URL: http://127.0.0.1:5000/mcp");
-        
-        println!("  {} Docker deployment (recommended for production):", Style::Command.paint("6."));
+
+        println!(
+            "  {} Docker deployment (recommended for production):",
+            Style::Command.paint("6.")
+        );
         println!("     docker build --tag mcp-server -f mcp.Dockerfile .");
         println!("     docker build --tag mcp-router -f router.Dockerfile .");
         println!("     docker run -it --env-file .env -p5000:5000 mcp-server");
         println!("     docker run -it --env-file .env -p4000:4000 mcp-router");
-        
+
         if setup_result.claude_config.is_some() {
             let default_name = "mcp-server".to_string();
-            let connector_name = setup_result.connector_name
+            let connector_name = setup_result
+                .connector_name
                 .as_ref()
                 .unwrap_or(&default_name);
-            
+
             println!("  {} Claude Desktop setup:", Style::Command.paint("7."));
             println!("     • Install Claude Desktop from https://claude.ai/download");
             println!("     • Ensure Node.js 18+ is installed and in your PATH");
             println!("     • Copy claude_desktop_config.json to the appropriate location:");
-            println!("       - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json");
+            println!(
+                "       - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json"
+            );
             println!("       - Windows: %APPDATA%\\Claude\\claude_desktop_config.json");
             println!("       - Linux: ~/.config/Claude/claude_desktop_config.json");
-            println!("     • Your MCP server will be named '{}'", Style::Link.paint(connector_name));
+            println!(
+                "     • Your MCP server will be named '{}'",
+                Style::Link.paint(connector_name)
+            );
             println!("     • Restart Claude Desktop to load the MCP server");
-            println!("     • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop");
+            println!(
+                "     • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop"
+            );
         }
-        
+
         println!("\n💡 Your REST APIs are now AI-accessible through natural language!");
-        println!("\n{} MCP project configured for local development!", Style::Success.paint("ℹ"));
+        println!(
+            "\n{} MCP project configured for local development!",
+            Style::Success.paint("ℹ")
+        );
         println!("   Connectors run locally only - for production, deploy as Docker containers.");
     }
 }
