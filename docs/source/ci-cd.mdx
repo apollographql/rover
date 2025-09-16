@@ -76,7 +76,6 @@ Apollo provides a GitHub Action to run Rover commands for all CI/CD-relevant com
 - [Running `rover subgraph check`](https://github.com/marketplace/actions/apollo-rover-subgraph-check)
 - [Running `rover subgraph lint`](https://github.com/marketplace/actions/apollo-rover-subgraph-lint)
 - [Running `rover subgraph publish`](https://github.com/marketplace/actions/apollo-rover-subgraph-publish)
-  - Note that for `rover subgraph publish`, you may use a Subgraph API Key instead of a Graph or User API Key. 
 
 #### Full example using the Apollo-provided GitHub Actions
 
@@ -178,7 +177,7 @@ echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
 <Note>
 
-Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings. 
+The `rover config auth` command is interactive. In your project settings, [authenticate using an environment variable](./configuring#with-an-environment-variable).
 
 GitHub Actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
