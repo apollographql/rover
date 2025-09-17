@@ -698,6 +698,85 @@ impl Init {
         for (path, content) in files_to_add {
             files.insert(path.into(), content);
         }
+        
+        // Remove problematic product-specific queries and replace with simple template
+        let tools_files_to_remove: Vec<_> = files
+            .keys()
+            .filter(|path| {
+                let path_str = path.as_str();
+                path_str.starts_with("tools/") && path_str.ends_with(".graphql") && (
+                    path_str.contains("Product") || 
+                    path_str.contains("CreateProduct") || 
+                    path_str.contains("GetProduct") ||
+                    path_str.contains("GetProducts") ||
+                    path_str.contains("ListProducts")
+                )
+            })
+            .cloned()
+            .collect();
+        
+        for path in tools_files_to_remove {
+            files.remove(&path);
+        }
+        
+        // Add simple query template with instructions
+        let simple_query_content = r#"# Simple Query Template for MCP Tools
+# 
+# IMPORTANT: This is a template query that you MUST customize for your GraphQL schema.
+# The current query will work but only returns basic type information.
+# Replace it with actual fields from your schema to make your MCP tools useful.
+# 
+# HOW TO CUSTOMIZE:
+# 1. Look at your supergraph.graphql file (generated in this directory)
+# 2. Find fields in the Query type that don't require arguments
+# 3. Replace the query below with those fields
+#
+# EXAMPLE: If your schema has these fields:
+#   type Query {
+#     users: [User!]!
+#     currentUser: User
+#     settings: Settings!
+#   }
+#
+# Replace the query below with:
+#   query GetUsers {
+#     users {
+#       id
+#       name
+#       email
+#     }
+#   }
+#
+# CURRENT BASIC QUERY (replace this):
+
+query SimpleQuery {
+  __typename
+}
+
+# INTROSPECTION HELPER (uncomment to explore your schema):
+# query IntrospectionQuery {
+#   __schema {
+#     queryType {
+#       fields {
+#         name
+#         description
+#         args {
+#           name
+#           type {
+#             name
+#           }
+#         }
+#         type {
+#           name
+#           kind
+#         }
+#       }
+#     }
+#   }
+# }
+"#;
+        
+        files.insert("tools/SimpleQuery.graphql".into(), simple_query_content.to_string());
 
         // If we have a supergraph schema, save it
         if !supergraph_sdl.is_empty() {
