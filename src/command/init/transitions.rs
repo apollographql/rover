@@ -532,7 +532,7 @@ impl CreationConfirmed {
         )
         .await?;
 
-        spinner.success("Successfully created project files");
+        spinner.success("");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
