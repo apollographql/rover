@@ -13,8 +13,7 @@ use tap::TapFallible;
 
 use super::version::SupergraphVersion;
 use crate::RoverOutput;
-use crate::command::connector::run::{RunConnectorError, RunConnectorOutput};
-use crate::command::connector::test::TestConnectorError;
+use crate::command::connector::run::RunConnectorOutput;
 use crate::utils::effect::exec::ExecCommandOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
@@ -132,7 +131,7 @@ impl SupergraphBinary {
         schema_path: PathBuf,
         connector_id: String,
         variables: String,
-    ) -> Result<RoverOutput, RunConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let args = vec![
             "run-connector".to_string(),
             "--path".to_string(),
@@ -149,32 +148,10 @@ impl SupergraphBinary {
             .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| RunConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(RunConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| RunConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         let output: RunConnectorOutput =
-            serde_json::from_str(&output).map_err(|err| RunConnectorError::InvalidOutput {
+            serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
                 binary: self.exe.clone(),
                 error: format!("{err:?}"),
             })?;
@@ -193,7 +170,7 @@ impl SupergraphBinary {
         output_file: Option<Utf8PathBuf>,
         verbose: bool,
         quiet: bool,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["test-connectors".to_string()];
 
         if no_fail {
@@ -240,29 +217,7 @@ impl SupergraphBinary {
             .should_spawn(true)
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -275,7 +230,7 @@ impl SupergraphBinary {
         output_dir: Option<Utf8PathBuf>,
         verbose: bool,
         quiet: bool,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["generate-connector-schema".to_string()];
 
         if let Some(name) = name {
@@ -312,29 +267,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -343,7 +276,7 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         schema_path: Utf8PathBuf,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["list-connectors".to_string()];
 
         args.push("--path".to_string());
@@ -360,29 +293,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -390,7 +301,7 @@ impl SupergraphBinary {
     pub async fn analyze_clean(
         &self,
         exec_impl: &impl ExecCommand,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("clean".to_string());
@@ -406,29 +317,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -437,7 +326,7 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         port: Option<u16>,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("interactive".to_string());
@@ -460,29 +349,7 @@ impl SupergraphBinary {
             .should_spawn(true)
             .build();
 
-        let output = exec_impl
-            .exec_command(config)
-            .await
-            .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
-                error: format!("{err:?}"),
-            })?;
-
-        let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
-                exit_code,
-                stdout: String::from_utf8(output.stdout).unwrap(),
-                stderr: String::from_utf8(output.stderr).unwrap(),
-            });
-        }
-
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
-                binary: self.exe.clone(),
-                error: format!("{err:?}"),
-            })?
-            .to_string();
+        let output = self.execute(exec_impl, config).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -499,7 +366,7 @@ impl SupergraphBinary {
         analysis_dir: Option<Utf8PathBuf>,
         quiet: bool,
         verbose: bool,
-    ) -> Result<RoverOutput, TestConnectorError> {
+    ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("curl".to_string());
@@ -550,17 +417,29 @@ impl SupergraphBinary {
             )
             .build();
 
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    async fn execute(
+        &self,
+        exec_impl: &impl ExecCommand,
+        config: ExecCommandConfig,
+    ) -> Result<String, BinaryError> {
         let output = exec_impl
             .exec_command(config)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| TestConnectorError::Binary {
+            .map_err(|err| BinaryError::Run {
+                binary: self.exe.clone(),
                 error: format!("{err:?}"),
             })?;
 
         let exit_code = output.status.code();
         if exit_code != Some(0) && exit_code != Some(1) {
-            return Err(TestConnectorError::BinaryExit {
+            return Err(BinaryError::Exit {
+                binary: self.exe.clone(),
                 exit_code,
                 stdout: String::from_utf8(output.stdout).unwrap(),
                 stderr: String::from_utf8(output.stderr).unwrap(),
@@ -568,14 +447,30 @@ impl SupergraphBinary {
         }
 
         let output = std::str::from_utf8(&output.stdout)
-            .map_err(|err| TestConnectorError::InvalidOutput {
+            .map_err(|err| BinaryError::InvalidOutput {
                 binary: self.exe.clone(),
                 error: format!("{err:?}"),
             })?
             .to_string();
-
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum BinaryError {
+    #[error("Failed to run `{binary}`")]
+    Run { binary: Utf8PathBuf, error: String },
+
+    #[error("`{binary}` exited with errors.\nStdout: {}\nStderr: {}", .stdout, .stderr)]
+    Exit {
+        binary: Utf8PathBuf,
+        exit_code: Option<i32>,
+        stdout: String,
+        stderr: String,
+    },
+
+    #[error("Failed to parse output of `{binary}`\n{error}")]
+    InvalidOutput { binary: Utf8PathBuf, error: String },
 }
 
 #[cfg(test)]

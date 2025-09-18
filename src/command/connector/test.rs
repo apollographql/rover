@@ -1,28 +1,11 @@
 use std::path::PathBuf;
 
-use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
 use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::utils::effect::exec::TokioCommand;
 use crate::{RoverOutput, RoverResult};
-
-#[derive(thiserror::Error, Debug)]
-pub enum TestConnectorError {
-    #[error("Failed to run the connectors binary")]
-    Binary { error: String },
-
-    #[error("The connectors binary exited with errors.\nStdout: {}\nStderr: {}", .stdout, .stderr)]
-    BinaryExit {
-        exit_code: Option<i32>,
-        stdout: String,
-        stderr: String,
-    },
-
-    #[error("Failed to parse output of `{binary} connectors test`\n{error}")]
-    InvalidOutput { binary: Utf8PathBuf, error: String },
-}
 
 #[derive(Debug, Parser, Clone, Serialize)]
 pub struct TestConnector {
