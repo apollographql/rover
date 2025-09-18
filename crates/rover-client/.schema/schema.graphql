@@ -78,7 +78,7 @@ type OrganizationMutation {
   createKey(name: String!, resources: ApiKeyResourceInput, type: GraphOsKeyType!): GraphOsKey!
 
   """Delete an ApiKey"""
-  deleteKey(keyId: ID!): Void
+  deleteKey(keyId: ID!): ID!
 
   """Send an invitation to join the organization by E-mail"""
   invite(email: String!, role: UserPermission): AccountInvitation
@@ -2055,6 +2055,72 @@ type GraphApiKey implements ApiKey {
   token: String!
 }
 
+"""Apollo Graph Artifact; contains references to OCI artifacts"""
+type GraphArtifact {
+  """The time the Graph Artifact was completed"""
+  completedAt: DateTime
+
+  """The artifacts deployed to the Graph Artifact"""
+  content: GraphArtifactContent!
+
+  """The time the Graph Artifact was created"""
+  createdAt: DateTime!
+
+  """The unique, content-addressable identifier (SHA) of the artifact"""
+  digest: String
+
+  """Errors related to this graph artifact"""
+  errors: [GraphArtifactError!]!
+
+  """The Graph Variant this Graph Artifact is associated with"""
+  graphVariant: GraphVariant!
+
+  """The ID of the Graph Artifact"""
+  id: ID!
+
+  """
+  The location where the graph artifact can be retrieved from the registry itself
+  """
+  location: GraphArtifactLocation
+
+  """The status of the Graph Artifact"""
+  status: GraphArtifactStatus!
+
+  """The last time the Graph Artifact was updated"""
+  updatedAt: DateTime!
+}
+
+"""Artifacts associated to a Graph Artifact"""
+type GraphArtifactContent {
+  """The Build associated with the Graph Artifact"""
+  build: Build
+}
+
+"""Error related to a graph artifact"""
+type GraphArtifactError {
+  message: String!
+}
+
+"""The location of the graph artifact within the registry itself"""
+type GraphArtifactLocation {
+  """
+  The full URI that can be used to interact with the graph artifact within the registry itself
+  """
+  uri: String!
+}
+
+"""The status of a Graph Artifact"""
+enum GraphArtifactStatus {
+  """The Graph Artifact was successfully created"""
+  GRAPH_ARTIFACT_COMPLETED
+
+  """The Graph Artifact failed to be successfully created"""
+  GRAPH_ARTIFACT_FAILED
+
+  """The Graph Artifact is in the process of being created"""
+  GRAPH_ARTIFACT_PENDING
+}
+
 """The timing details for the build step of a launch."""
 type GraphCreationError {
   message: String!
@@ -2920,6 +2986,9 @@ type Launch {
   """Cloud Router order for this launch ID"""
   order: OrderOrError!
   orders: [Order!]!
+
+  """The Graph Artifact created from this launch."""
+  graphArtifact: GraphArtifact
 
   """The timestamp when the launch was approved."""
   approvedAt: Timestamp
@@ -4839,6 +4908,12 @@ input PublishSubgraphsSubgraphInput {
 
 """Queries defined by this subgraph"""
 type Query {
+  """Get Graph Artifact by Graph Artifact ID"""
+  graphArtifactById(
+    """The ID of the Graph Artifact"""
+    id: ID!
+  ): GraphArtifact
+
   """
   Returns details of the authenticated `User` or `Graph` executing this query. If this is an unauthenticated query (i.e., no API key is provided), this field returns null.
   """
@@ -5705,6 +5780,9 @@ type ServiceAccount implements Identity {
 
   """The name assigned to this service account."""
   name: String!
+
+  """The organization this service account belongs to."""
+  organization: Organization
 }
 
 """
