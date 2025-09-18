@@ -66,7 +66,7 @@ impl ApiKeyType {
 impl Display for ApiKeyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiKeyType::OPERATOR => write!(f, "Operator"),
+            ApiKeyType::Operator => write!(f, "Operator"),
         }
     }
 }
