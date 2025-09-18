@@ -40,14 +40,12 @@ pub async fn run(
     client: &StudioClient,
 ) -> Result<DeleteKeyResponse, RoverClientError> {
     let organization_id = input.organization_id.clone();
-    let key_id = input.key_id.clone();
     let data = client.post::<DeleteKeyMutation>(input.into()).await?;
     match data
         .organization
         .ok_or_else(|| OrganizationIDNotFound { organization_id })?
         .delete_key
     {
-        None => Err(RoverClientError::ApiKeyNotFound { api_key_id: key_id }),
-        Some(_) => Ok(DeleteKeyResponse { key_id }),
+        key_id => Ok(DeleteKeyResponse { key_id }),
     }
 }
