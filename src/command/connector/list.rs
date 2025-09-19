@@ -12,7 +12,7 @@ pub struct ListConnector {
     /// The path to the schema file containing the connector.
     ///
     /// Optional if there is a `supergraph.yaml` containing only a single subgraph
-    #[arg(long = "schema")]
+    #[arg(long = "schema", value_name = "SCHEMA_FILE_PATH")]
     schema_path: Option<PathBuf>,
 }
 

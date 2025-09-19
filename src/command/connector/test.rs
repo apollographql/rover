@@ -27,7 +27,7 @@ pub struct TestConnector {
     ///
     /// If there is a `supergraph.yaml` containing a single subgraph, that subgraph's schema will
     /// be used by default.
-    #[arg(long = "schema")]
+    #[arg(long = "schema", value_name = "SCHEMA_FILE_PATH")]
     schema: Option<PathBuf>,
 
     /// JUnit XML Report output location

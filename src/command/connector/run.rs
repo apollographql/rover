@@ -17,7 +17,7 @@ pub struct RunConnector {
     /// The path to the schema file containing the connector.
     ///
     /// Optional if there is a `supergraph.yaml` containing only a single subgraph
-    #[arg(long = "schema")]
+    #[arg(long = "schema", value_name = "SCHEMA_FILE_PATH")]
     schema_path: Option<PathBuf>,
     /// The ID of the connector to run, which can be:
     ///
