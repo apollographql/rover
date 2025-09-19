@@ -166,7 +166,7 @@ impl SupergraphBinary {
         file: Option<PathBuf>,
         directory: Option<PathBuf>,
         no_fail: bool,
-        schema_file: Option<String>,
+        schema_file: Option<PathBuf>,
         output_file: Option<Utf8PathBuf>,
         verbose: bool,
         quiet: bool,
@@ -202,7 +202,7 @@ impl SupergraphBinary {
 
         if let Some(schema_file) = schema_file {
             args.push("--schema-file".to_string());
-            args.push(schema_file);
+            args.push(schema_file.to_str().unwrap_or_default().to_string());
         }
 
         let config = ExecCommandConfig::builder()

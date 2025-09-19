@@ -23,9 +23,12 @@ pub struct TestConnector {
     #[arg(long = "no-fail-fast", default_value = "false")]
     no_fail: bool,
 
-    /// Schema file to override `config.schema` (or missing schema fields) for all test suites
-    #[arg(long = "schema-file")]
-    schema_file: Option<String>,
+    /// Schema file to override `config.schema` (or missing schema fields) for all test suites.
+    ///
+    /// If there is a `supergraph.yaml` containing a single subgraph, that subgraph's schema will
+    /// be used by default.
+    #[arg(long = "schema")]
+    schema: Option<PathBuf>,
 
     /// JUnit XML Report output location
     #[arg(long = "report")]
@@ -43,7 +46,11 @@ pub struct TestConnector {
 }
 
 impl TestConnector {
-    pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        supergraph_binary: SupergraphBinary,
+        default_subgraph: Option<PathBuf>,
+    ) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
         let result = supergraph_binary
             .test_connector(
@@ -51,7 +58,7 @@ impl TestConnector {
                 self.file.clone(),
                 self.directory.clone(),
                 self.no_fail,
-                self.schema_file.clone(),
+                self.schema.clone().or(default_subgraph),
                 self.output
                     .as_ref()
                     .and_then(|path| camino::Utf8PathBuf::from_path_buf(path.to_path_buf()).ok()),
