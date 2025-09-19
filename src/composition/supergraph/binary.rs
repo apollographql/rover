@@ -1,6 +1,3 @@
-use std::process::Stdio;
-use std::{fmt::Debug, path::PathBuf};
-
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildOutput, BuildResult},
@@ -8,7 +5,10 @@ use apollo_federation_types::{
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use http::Method;
+use semver::Version;
 use serde_json::Value;
+use std::process::Stdio;
+use std::{fmt::Debug, path::PathBuf};
 use tap::TapFallible;
 
 use super::version::SupergraphVersion;
@@ -422,6 +422,52 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    pub(crate) async fn load_spec_for_file(
+        &self,
+        schema_path: PathBuf,
+        exec_impl: &impl ExecCommand,
+    ) -> Result<String, BinaryError> {
+        let minimum_version =
+            Version::parse("2.12.0-preview.7").expect("hardcoded version is valid");
+        let current_version = self.version();
+        if current_version < &minimum_version {
+            return Err(BinaryError::UnsupportedVersion {
+                minimum: minimum_version,
+                current: current_version.clone(),
+            });
+        }
+
+        let args = vec![
+            "fill-schema-gaps".to_string(),
+            schema_path.to_string_lossy().to_string(),
+        ];
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+        let parsed: serde_json::Value =
+            serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?;
+        let diff = parsed.get("diff").and_then(|d| d.as_str()).ok_or_else(|| {
+            BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: "Missing 'diff' field in output".to_string(),
+            }
+        })?;
+        Ok(diff.to_string())
+    }
+
     async fn execute(
         &self,
         exec_impl: &impl ExecCommand,
@@ -471,6 +517,15 @@ pub enum BinaryError {
 
     #[error("Failed to parse output of `{binary}`\n{error}")]
     InvalidOutput { binary: Utf8PathBuf, error: String },
+
+    #[error(
+        "This command requires at least version {minimum} of the supergraph binary, but the current version is {current}.\
+             Please update your `supergraph.yaml` or use --federation-version to specify a compatible version."
+    )]
+    UnsupportedVersion {
+        minimum: Version,
+        current: SupergraphVersion,
+    },
 }
 
 #[cfg(test)]

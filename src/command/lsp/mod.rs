@@ -4,12 +4,14 @@ use std::collections::HashMap;
 use std::env::temp_dir;
 use std::fmt::Debug;
 use std::io::stdin;
+use std::path::PathBuf;
 
 use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use futures::StreamExt;
+use futures::channel::oneshot;
 use serde::Serialize;
 use tower::ServiceExt;
 use tower_lsp::Server;
@@ -30,7 +32,7 @@ use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::Ma
 use crate::composition::supergraph::install::InstallSupergraphError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
-    FederationUpdaterConfig,
+    FederationUpdaterConfig, get_supergraph_binary,
 };
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
@@ -103,6 +105,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                     },
                 },
                 HashMap::new(),
+                None,
             );
             (service, socket)
         }
@@ -110,6 +113,23 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             let supergraph_yaml_url = Url::from_file_path(supergraph_yaml_path.clone())
                 .map_err(|_| SupergraphYamlUrlConversionFailed(supergraph_yaml_path.clone()))?;
 
+            let (spec_lookup_sender, mut spec_lookup_receiver) =
+                futures::channel::mpsc::channel::<(PathBuf, oneshot::Sender<Option<String>>)>(100);
+            let lookup_client_config = client_config.clone();
+            let lookup_supergraph_yaml_path = supergraph_yaml_path.clone();
+            let lookup_plugin_opts = lsp_opts.plugin_opts.clone();
+            tokio::spawn(async move {
+                while let Some((path, response)) = spec_lookup_receiver.next().await {
+                    let spec = load_spec_for_path(
+                        path,
+                        lookup_client_config.clone(),
+                        lookup_supergraph_yaml_path.clone(),
+                        lookup_plugin_opts.clone(),
+                    )
+                    .await;
+                    response.send(spec).ok();
+                }
+            });
             // Create a composition runner first, so that we can use that to drive the initial
             // set of subgraphs that get reported to the LSP
             let composition_runner =
@@ -139,6 +159,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                     },
                 },
                 initial_subgraphs,
+                Some(spec_lookup_sender),
             );
             // Start running composition
             start_composition(
@@ -156,6 +177,31 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
     let server = Server::new(stdin, stdout, socket);
     server.serve(service).await;
     Ok(())
+}
+
+async fn load_spec_for_path(
+    path: PathBuf,
+    client_config: StudioClientConfig,
+    supergraph_yaml_path: Utf8PathBuf,
+    plugin_opts: PluginOpts,
+) -> Option<String> {
+    let supergraph_binary = get_supergraph_binary(
+        None,
+        client_config,
+        None,
+        plugin_opts,
+        Some(FileDescriptorType::File(supergraph_yaml_path)),
+        None,
+    )
+    .await
+    .ok()?
+    .state
+    .supergraph_binary
+    .ok()?;
+    let res = supergraph_binary
+        .load_spec_for_file(path, &TokioCommand::default())
+        .await;
+    res.ok()
 }
 
 async fn start_composition(
