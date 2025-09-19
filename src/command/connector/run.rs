@@ -1,11 +1,11 @@
-use std::fmt::Write;
-use std::path::PathBuf;
-
+use anyhow::anyhow;
 use clap::Parser;
 use rover_std::Style;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use std::fmt::Write;
+use std::path::PathBuf;
 
 use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::utils::effect::exec::TokioCommand;
@@ -14,10 +14,22 @@ use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 pub struct RunConnector {
-    #[arg(short = 'p', long = "path")]
-    schema_path: PathBuf,
+    /// The path to the schema file containing the connector.
+    ///
+    /// Optional if there is a `supergraph.yaml` containing only a single subgraph
+    #[arg(long = "schema", value_name = "SCHEMA_FILE_PATH")]
+    schema_path: Option<PathBuf>,
+    /// The ID of the connector to run, which can be:
+    ///
+    /// 1. The name of a type, like `MyType`, if the connector is on the type
+    /// 2. A type & field, like `Query.myField`, if the connector is on a field
+    /// 3. One of the above with an [index], like `Query.myField[1]`, if there are multiple connectors on the same element
+    ///
+    /// Use `rover connector list` to see available connectors and their IDs.
     #[arg(short = 'c', long = "connector-id")]
     connector_id: String,
+    /// JSON data containing the variables required by the connector.
+    /// For example: `'{"$args": {"id": "123"}}'`
     #[arg(short = 'v', long = "variables")]
     variables: String,
 }
@@ -56,12 +68,19 @@ struct Problem {
 }
 
 impl RunConnector {
-    pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        supergraph_binary: SupergraphBinary,
+        default_subgraph: Option<PathBuf>,
+    ) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
+        let schema_path = self.schema_path.clone().or(default_subgraph).ok_or_else(|| anyhow!(
+            "A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph"
+        ))?;
         let result = supergraph_binary
             .run_connector(
                 &exec_command_impl,
-                self.schema_path.clone(),
+                schema_path,
                 self.connector_id.clone(),
                 self.variables.clone(),
             )

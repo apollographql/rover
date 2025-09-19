@@ -3,18 +3,21 @@ use crate::command::connector::{
     test::TestConnector,
 };
 use crate::composition::get_supergraph_binary;
+use crate::composition::pipeline::CompositionPipeline;
+use crate::composition::pipeline::state::Run;
+use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 use anyhow::anyhow;
-use apollo_federation_types::config::FederationVersion;
+use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_client::shared::GraphRef;
 use semver::Version;
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod analyze;
 pub mod generate;
@@ -87,10 +90,11 @@ impl Connector {
             client_config,
             override_install_path,
             self.plugin_opts.clone(),
-            supergraph_yaml,
+            supergraph_yaml.clone(),
             self.graph_ref.clone(),
         )
         .await?;
+        let default_subgraph = default_subgraph(&supergraph_yaml, &composition_pipeline).await;
         let supergraph_binary = composition_pipeline.state.supergraph_binary?;
         let minimum_version = Version::parse("2.12.0-preview.7")?;
         let current_version = supergraph_binary.version();
@@ -104,10 +108,36 @@ impl Connector {
 
         match &self.command {
             Generate(command) => command.run(supergraph_binary).await,
-            Test(command) => command.run(supergraph_binary).await,
-            Run(command) => command.run(supergraph_binary).await,
-            List(command) => command.run(supergraph_binary).await,
+            Test(command) => command.run(supergraph_binary, default_subgraph).await,
+            Run(command) => command.run(supergraph_binary, default_subgraph).await,
+            List(command) => command.run(supergraph_binary, default_subgraph).await,
             Analyze(command) => command.run(supergraph_binary).await,
         }
+    }
+}
+
+async fn default_subgraph(
+    supergraph_yaml: &Option<FileDescriptorType>,
+    composition_pipeline: &CompositionPipeline<Run>,
+) -> Option<PathBuf> {
+    let Some(FileDescriptorType::File(supergraph_yaml_path)) = supergraph_yaml else {
+        return None;
+    };
+    let (supergraph, _) = composition_pipeline
+        .state
+        .resolver
+        .lazily_resolve_subgraphs(&supergraph_yaml_path.parent()?.to_path_buf())
+        .await
+        .ok()?;
+    if supergraph.subgraphs().len() == 1
+        && let Some(SchemaSource::File { file }) = supergraph
+            .subgraphs()
+            .values()
+            .next()
+            .map(LazilyResolvedSubgraph::schema)
+    {
+        Some(supergraph_yaml_path.as_std_path().join(file))
+    } else {
+        None
     }
 }
