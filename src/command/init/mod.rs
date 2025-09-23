@@ -96,7 +96,7 @@ enum MCPDataSourceType {
 impl std::fmt::Display for MCPDataSourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPDataSourceType::ExternalAPIs => write!(f, "Apollo graph with Apollo connectors (connect to REST services, dbs, SaaS tools)"),
+            MCPDataSourceType::ExternalAPIs => write!(f, "Apollo graph with Apollo connectors (connect to REST services)"),
             MCPDataSourceType::GraphQLAPI => write!(f, "Apollo graph with GraphQL connectors (connect to existing GraphQL endpoints)"),
         }
     }
@@ -580,7 +580,7 @@ impl Init {
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
         println!("- Docker");
-        println!("- Your data source (API, database, or service)");
+        println!("- Your data source (API endpoint, database, or service)");
         println!();
         
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
@@ -980,7 +980,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         if !supergraph_sdl.is_empty() {
             println!("  • Supergraph schema: Downloaded");
         }
-        println!("  • Service API key: Generated and configured");
+        println!("  • Service API key: {}", apollo_key);
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!(
@@ -1098,11 +1098,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("{}", Style::File.paint("Project details"));
         println!("   • Name: {}", completed_project.config.project_name);
         println!("   • Organization: {}", completed_project.config.organization);
-        println!("   • Graph ID: {}", completed_project.graph_ref);
-        match mcp_project_type {
-            MCPProjectType::REST => println!("   • Type: REST APIs → MCP server"),
-            MCPProjectType::GraphQL => println!("   • Type: GraphQL API → MCP server"),
-        }
+        println!("   • Graph: {}", completed_project.graph_ref);
         println!("   • Service API key: Generated and configured");
         
         // Next Steps section
@@ -1124,7 +1120,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("   • Restart Claude Desktop");
         match mcp_project_type {
             MCPProjectType::REST => {
-                println!("   • Ask Claude: \"Can you get me some product information?\"");
+                println!("   • Ask Claude: \"Can you get me some product information from my new tool?\"");
             }
             MCPProjectType::GraphQL => {
                 println!("   • Ask Claude: \"What data can you query for me?\"");
@@ -1132,13 +1128,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
 
         println!();
-        println!("3. Test your tools in Apollo Studio:");
-        println!("   • Open http://localhost:4000 in your browser");
-        println!("   • Try the example queries from your tools/ directory");
-        println!("   • See exactly what data Claude can access");
-
-        println!();
-        println!("4. Replace examples with your real API:");
+        println!("3. Replace examples with your real API:");
         match mcp_project_type {
             MCPProjectType::REST => {
                 println!("   • Update products.graphql with your REST API details");
@@ -1151,12 +1141,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
 
         println!();
-        println!("5. Re-run to see YOUR data in Claude:");
+        println!("4. Re-run to see YOUR data in Claude:");
         println!("   • {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
         println!("   • Ask Claude to query YOUR actual data!");
 
         println!();
-        println!("6. When ready to deploy:");
+        println!("5. When ready to deploy:");
         println!("   • {}", Style::Command.paint("cp .env.template .env"));
         println!("   • Use the provided Dockerfiles for production");
         println!("   • See: https://www.apollographql.com/docs/apollo-mcp-server/deploy");
