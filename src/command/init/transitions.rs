@@ -563,6 +563,7 @@ impl ProjectCreated {
                         &setup_result,
                         &self.graph_ref.to_string(),
                         &project_path,
+                        &self.api_key,
                     );
                 }
                 Err(error) => {

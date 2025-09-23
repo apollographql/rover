@@ -106,7 +106,6 @@ impl std::fmt::Display for MCPDataSourceType {
 #[derive(Clone, Debug)]
 struct GraphVariantOption {
     organization_name: String,
-    organization_id: String,
     graph_id: String,
     graph_name: String,
     variant_name: String,
@@ -334,29 +333,6 @@ impl Init {
         }
     }
     
-    /// Prompt user to select template for existing graph enhancement
-    #[cfg(feature = "composition-js")]
-    fn prompt_template_selection() -> RoverResult<MCPDataSourceType> {
-        use dialoguer::Select;
-        use dialoguer::console::Term;
-        use anyhow::anyhow;
-        
-        let options = vec![
-            MCPDataSourceType::ExternalAPIs,
-            MCPDataSourceType::GraphQLAPI,
-        ];
-        
-        let selection = Select::new()
-            .with_prompt("Select a starting template")
-            .items(&options)
-            .default(0)
-            .interact_on_opt(&Term::stderr())?;
-
-        match selection {
-            Some(index) => Ok(options[index].clone()),
-            None => Err(RoverError::new(anyhow!("Selection cancelled"))),
-        }
-    }
     
     /// Prompt user to choose MCP setup type
     #[cfg(feature = "composition-js")]
@@ -548,7 +524,6 @@ impl Init {
                 for variant in graph.variants {
                     all_graph_options.push(GraphVariantOption {
                         organization_name: org.name.clone(),
-                        organization_id: org.id.clone(),
                         graph_id: graph.id.clone(),
                         graph_name: graph.name.clone(),
                         variant_name: variant.name.clone(),
@@ -1102,7 +1077,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Project Details section
         println!();
         println!("{}", Style::File.paint("Project details"));
-        println!("   • MCP Server Name: {}", completed_project.config.project_name);
+        println!("   • MCP Server Name: mcp-{}", completed_project.config.project_name);
         println!("   • GraphOS Organization: {}", completed_project.config.organization);
         println!("   • {}: {}",
             Style::GraphRef.paint("APOLLO_GRAPH_REF"),
