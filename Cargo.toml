@@ -74,7 +74,7 @@ apollo-encoder = "0.8"
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.15.8", features = ["json_schema"] }
 
-apollo-language-server = { version = "0.4.2", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.5.0", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -95,7 +95,7 @@ camino = { version = "1", features = ["serde1"] }
 clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
-comfy-table = {  version = "7.1.4", features = ["custom_styling"] }
+comfy-table = { version = "7.1.4", features = ["custom_styling"] }
 console = "0.16"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
@@ -132,7 +132,7 @@ serial_test = "3"
 serde = "1.0"
 serde_json = "1.0"
 serde_json_traversal = "0.2"
-serde_with = { version = "3", default-features = false, features = ["macros"]}
+serde_with = { version = "3", default-features = false, features = ["macros"] }
 serde_yaml = "0.9"
 shell-candy = "0.4"
 speculoos = "0.13.0"
@@ -171,7 +171,7 @@ zip = "4.0"
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
 async-trait = { workspace = true }
-apollo-language-server = { workspace = true}
+apollo-language-server = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
@@ -223,7 +223,7 @@ timber = { workspace = true }
 termimad = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "sync"] }
-tokio-stream = { workspace = true, features = ["sync"]}
+tokio-stream = { workspace = true, features = ["sync"] }
 tokio-util = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
