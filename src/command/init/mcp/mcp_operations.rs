@@ -1,14 +1,10 @@
 use crate::RoverResult;
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
 use rover_std::Style;
-use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct MCPSetupResult {
-    pub binary_path: Utf8PathBuf,
     pub claude_config: Option<Utf8PathBuf>,
-    pub connector_name: Option<String>,
 }
 
 pub struct MCPOperations;
@@ -23,7 +19,7 @@ impl MCPOperations {
         println!("{}", Style::Heading.paint("Setting up MCP server..."));
 
         // Check Node version and optionally generate Claude Desktop config
-        let (claude_config, connector_name) = Self::setup_claude_desktop_config_with_name(
+        let (claude_config, _connector_name) = Self::setup_claude_desktop_config_with_name(
             project_path,
             api_key,
             graph_ref,
@@ -31,9 +27,7 @@ impl MCPOperations {
         )?;
 
         Ok(MCPSetupResult {
-            binary_path: Utf8PathBuf::from(""), // No longer downloading binary
             claude_config,
-            connector_name,
         })
     }
 
@@ -109,113 +103,52 @@ impl MCPOperations {
         setup_result: &MCPSetupResult,
         graph_ref: &str,
         _project_path: &Utf8PathBuf,
+        api_key: &str,
     ) {
-        println!("\n{}", Style::Success.paint("✓ MCP server project ready"));
-        println!("\n{}: {}", Style::Heading.paint("Project"), project_name);
-        println!("{}: {}", Style::Heading.paint("Graph"), graph_ref);
+        println!("{}", Style::Success.paint("✓ MCP server enhanced"));
+        println!("{}", Style::Success.paint("✓ Credentials saved to .env file"));
 
-        println!("\n{}", Style::Heading.paint("Next steps:"));
-
-        // Parse graph_ref to extract graph ID and variant for Studio URL
-        if let Ok(parsed_graph_ref) = GraphRef::from_str(graph_ref) {
-            let studio_url = format!(
-                "https://studio.apollographql.com/graph/{}/variant/{}/home",
-                parsed_graph_ref.name,
-                parsed_graph_ref.variant
-            );
-            println!(
-                "  {} View your graph in Studio:",
-                Style::Command.paint("1.")
-            );
-            println!("     {}", Style::Link.paint(&studio_url));
-            println!("");
-        }
-
-        println!(
-            "  {} Configure API keys for your connectors:",
-            Style::Command.paint("2.")
+        // Project Details section
+        println!();
+        println!("{}", Style::File.paint("Project details"));
+        println!("   • MCP Server Name: mcp-{}", project_name);
+        println!("   • {}: {}",
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            graph_ref
         );
-        println!("     • AWS: Set up AWS credentials for Lambda/DynamoDB access");
-        println!("     • Luma: Add your Luma API key to router configuration");
-        println!("     • Update .apollo/router.local.yaml with your API keys");
-
-        println!("  {} Start the MCP Server:", Style::Command.paint("3."));
-        println!("     npm start");
-        println!("     (Server will start on http://127.0.0.1:5000)");
-
-        println!(
-            "  {} Start local development (in another terminal):",
-            Style::Command.paint("4.")
-        );
-        println!("     export $(cat .env | xargs)");
-        println!(
-            "     APOLLO_ROVER_DEV_ROUTER_VERSION=2.6.0 rover dev --supergraph-config connectors/supergraph.yaml"
+        println!("   • {}: {}",
+            Style::Command.paint("APOLLO_KEY"),
+            api_key
         );
 
-        println!(
-            "  {} Test GraphQL with Apollo Sandbox:",
-            Style::Command.paint("5.")
-        );
-        println!("     Open http://localhost:4000 to query your connectors");
 
-        println!(
-            "  {} Test MCP Server with Inspector:",
-            Style::Command.paint("6.")
-        );
-        println!("     npx @modelcontextprotocol/inspector");
-        println!("     - Transport: Streamable HTTP");
-        println!("     - URL: http://127.0.0.1:5000/mcp");
+        // Next Steps section
+        println!();
+        println!("{}", Style::File.paint("Next steps ↴"));
 
-        println!(
-            "  {} (Optional) Use GraphOS Operation Collections:",
-            Style::Command.paint("7.")
-        );
-        println!("     Instead of local .graphql files, manage operations in Studio:");
-        println!("     • Create operations in Studio's Operation Collections");
-        println!("     • Update .apollo/mcp.local.yaml to use 'source: collection'");
-        println!("     • Learn more: https://www.apollographql.com/docs/apollo-mcp-server/define-tools#from-operation-collection");
-        println!("");
+        println!();
+        println!("1. See the magic - get your MCP server running:");
+        println!("   • {}", Style::Command.paint("npm start"));
+        println!("   • MCP server will start on http://localhost:5000");
+        println!("   • In a new terminal: {}", Style::Command.paint("export $(cat .env | xargs) && APOLLO_ROVER_DEV_ROUTER_VERSION=2.6.0 rover dev --supergraph-config connectors/supergraph.yaml"));
+        println!("   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000");
 
-        println!(
-            "  {} Docker deployment (recommended for production):",
-            Style::Command.paint("8.")
-        );
-        println!("     docker build --tag mcp-server -f mcp.Dockerfile .");
-        println!("     docker build --tag mcp-router -f router.Dockerfile .");
-        println!("     docker run -it --env-file .env -p5000:5000 mcp-server");
-        println!("     docker run -it --env-file .env -p4000:4000 mcp-router");
-
+        println!();
+        println!("2. Connect Claude Desktop to see your API as AI tools:");
+        println!("   • Ensure Node.js 18+ is installed");
         if setup_result.claude_config.is_some() {
-            let default_name = "mcp-server".to_string();
-            let connector_name = setup_result
-                .connector_name
-                .as_ref()
-                .unwrap_or(&default_name);
-
-            println!("  {} Claude Desktop setup:", Style::Command.paint("9."));
-            println!("     • Install Claude Desktop from https://claude.ai/download");
-            println!("     • Ensure Node.js 18+ is installed and in your PATH");
-            println!("     • Copy claude_desktop_config.json to the appropriate location:");
-            println!(
-                "       - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json"
-            );
-            println!("       - Windows: %APPDATA%\\Claude\\claude_desktop_config.json");
-            println!("       - Linux: ~/.config/Claude/claude_desktop_config.json");
-            println!(
-                "     • Your MCP server will be named '{}'",
-                Style::Link.paint(connector_name)
-            );
-            println!("     • Restart Claude Desktop to load the MCP server");
-            println!(
-                "     • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop"
-            );
+            println!("   • Copy the generated claude_desktop_config.json to:");
+            println!("     macOS:   {}", Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json"));
+            println!("     Windows: {}", Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json"));
+            println!("     Linux:   {}", Style::Path.paint("~/.config/Claude/claude_desktop_config.json"));
+            println!("   • Start Claude Desktop");
+            println!("   • Ask Claude: \"What data can you query for me?\"");
+        } else {
+            println!("   • Set up Claude Desktop configuration manually");
+            println!("   • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop");
         }
 
-        println!("\n💡 Your REST APIs are now AI-accessible through natural language!");
-        println!(
-            "\n{} MCP project configured for local development!",
-            Style::Success.paint("ℹ")
-        );
-        println!("   Connectors run locally only - for production, deploy as Docker containers.");
+        println!();
+        println!("💡 Your GraphQL APIs are now AI-accessible through natural language!");
     }
 }
