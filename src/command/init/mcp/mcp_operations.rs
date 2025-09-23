@@ -71,9 +71,8 @@ impl MCPOperations {
         let claude_config_path = project_path.join("claude_desktop_config.json");
 
         println!(
-            "{} Claude Desktop config will be generated with MCP server '{}'",
-            Style::Success.paint("✓"),
-            Style::Link.paint(&connector_name)
+            "{}",
+            Style::Success.paint(format!("✓ Claude Desktop config will be generated with MCP server '{}'", &connector_name))
         );
 
         Ok((Some(claude_config_path), Some(connector_name)))
