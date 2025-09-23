@@ -106,7 +106,6 @@ impl std::fmt::Display for MCPDataSourceType {
 #[derive(Clone, Debug)]
 struct GraphVariantOption {
     organization_name: String,
-    organization_id: String,
     graph_id: String,
     graph_name: String,
     variant_name: String,
@@ -334,29 +333,6 @@ impl Init {
         }
     }
     
-    /// Prompt user to select template for existing graph enhancement
-    #[cfg(feature = "composition-js")]
-    fn prompt_template_selection() -> RoverResult<MCPDataSourceType> {
-        use dialoguer::Select;
-        use dialoguer::console::Term;
-        use anyhow::anyhow;
-        
-        let options = vec![
-            MCPDataSourceType::ExternalAPIs,
-            MCPDataSourceType::GraphQLAPI,
-        ];
-        
-        let selection = Select::new()
-            .with_prompt("Select a starting template")
-            .items(&options)
-            .default(0)
-            .interact_on_opt(&Term::stderr())?;
-
-        match selection {
-            Some(index) => Ok(options[index].clone()),
-            None => Err(RoverError::new(anyhow!("Selection cancelled"))),
-        }
-    }
     
     /// Prompt user to choose MCP setup type
     #[cfg(feature = "composition-js")]
@@ -548,7 +524,6 @@ impl Init {
                 for variant in graph.variants {
                     all_graph_options.push(GraphVariantOption {
                         organization_name: org.name.clone(),
-                        organization_id: org.id.clone(),
                         graph_id: graph.id.clone(),
                         graph_name: graph.name.clone(),
                         variant_name: variant.name.clone(),
@@ -579,7 +554,7 @@ impl Init {
         println!("Enhance an Apollo GraphOS graph with MCP server capabilities.");
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
-        println!("- Docker");
+        println!("- Docker (To deploy your MCP server)");
         println!("- Your data source (API endpoint, database, or service)");
         println!();
         
@@ -954,6 +929,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             std::fs::write(&target_path, processed_content)?;
         }
 
+        // Create .env file with actual credentials
+        let env_content = format!(
+            "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
+            apollo_key,
+            graph_ref_str
+        );
+        let env_path = current_dir.join(".env");
+        std::fs::write(&env_path, env_content)?;
+
         println!();
         println!(
             "{}",
@@ -981,6 +965,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("  • Supergraph schema: Downloaded");
         }
         println!("  • Service API key: {}", apollo_key);
+        println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!(
@@ -992,10 +977,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "   2. {}",
-            Style::Command.paint("cp .env.template .env")
-        );
-        println!(
-            "   3. {}",
             Style::Command.paint(format!(
                 "docker run --env-file .env -p5000:5000 {}-mcp",
                 project_name
@@ -1009,7 +990,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             ))
         );
         println!(
-            "   4. {}",
+            "   3. {}",
             Style::Command.paint("npx @modelcontextprotocol/inspector")
         );
 
@@ -1060,7 +1041,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources.");
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
-        println!("- Docker");
+        println!("- Docker (To deploy your MCP server)");
         println!("- Your data source (API, database, or service)");
         println!();
         
@@ -1090,16 +1071,23 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     ) {
         use rover_std::Style;
 
-        println!("{}", Style::Success.paint("✓ Successfully created project files and credentials"));
         println!("{}", Style::Success.paint("✓ MCP server generated"));
-        
+        println!("{}", Style::Success.paint("✓ Credentials saved to .env file"));
+
         // Project Details section
         println!();
         println!("{}", Style::File.paint("Project details"));
-        println!("   • Name: {}", completed_project.config.project_name);
-        println!("   • Organization: {}", completed_project.config.organization);
-        println!("   • Graph: {}", completed_project.graph_ref);
-        println!("   • Service API key: Generated and configured");
+        println!("   • MCP Server Name: mcp-{}", completed_project.config.project_name);
+        println!("   • GraphOS Organization: {}", completed_project.config.organization);
+        println!("   • {}: {}",
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            completed_project.graph_ref
+        );
+        println!("   • {}: {}",
+            Style::Command.paint("APOLLO_KEY"),
+            completed_project.api_key
+        );
+        println!();
         
         // Next Steps section
         println!();
@@ -1107,17 +1095,18 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         println!();
         println!("1. See the magic - get your MCP server running:");
-        println!("   • {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("   • {}", Style::Command.paint("source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("   • Windows users: Set the env vars manually or use WSL/Git Bash");
         println!("   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000");
 
         println!();
         println!("2. Connect Claude Desktop to see your API as AI tools:");
         println!("   • Ensure Node.js 18+ is installed");
         println!("   • Copy the generated claude_desktop_config.json to:");
-        println!("     - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json");
-        println!("     - Windows: %APPDATA%\\Claude\\claude_desktop_config.json");
-        println!("     - Linux: ~/.config/Claude/claude_desktop_config.json");
-        println!("   • Restart Claude Desktop");
+        println!("     macOS:   {}", Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json"));
+        println!("     Windows: {}", Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json"));
+        println!("     Linux:   {}", Style::Path.paint("~/.config/Claude/claude_desktop_config.json"));
+        println!("   • Start Claude Desktop");
         match mcp_project_type {
             MCPProjectType::REST => {
                 println!("   • Ask Claude: \"Can you get me some product information from my new tool?\"");
@@ -1128,28 +1117,42 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
 
         println!();
-        println!("3. Replace examples with your real API:");
+        println!("3. Connect your real API (new projects only):");
         match mcp_project_type {
             MCPProjectType::REST => {
                 println!("   • Update products.graphql with your REST API details");
-                println!("   • Modify tools/*.graphql with queries for your data");
+                println!("   • Replace example endpoints with your actual API URLs");
+                println!("   • Modify schema to match your data structure");
             }
             MCPProjectType::GraphQL => {
                 println!("   • Replace example schema with your GraphQL endpoint");
-                println!("   • Update tools/*.graphql with queries for your data");
+                println!("   • Update supergraph.yaml with your real service URL");
+                println!("   • Ensure your GraphQL service is accessible");
             }
         }
+        println!("   • Existing graph users: Skip this step - your schema is already connected");
 
         println!();
-        println!("4. Re-run to see YOUR data in Claude:");
-        println!("   • {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("4. Create MCP tools in Apollo Studio:");
+        println!("   • Visit http://localhost:4000 (after running step 1)");
+        println!("   • Your MCP tools list will be empty until you create an operation collection");
+        println!("   • In Studio Explorer, select your graph variant from the dropdown");
+        println!("   • Create a collection: {}",
+            Style::Link.paint("https://www.apollographql.com/docs/graphos/platform/explorer/operation-collections#creating-a-collection"));
+        println!("   • Learn how collections become MCP tools: {}",
+            Style::Link.paint("https://www.apollographql.com/docs/apollo-mcp-server/define-tools#from-operation-collection"));
+        println!("   • Each saved operation in your collection becomes an AI-callable tool");
+
+        println!();
+        println!("5. Test with YOUR data in Claude:");
+        println!("   • {}", Style::Command.paint("source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
         println!("   • Ask Claude to query YOUR actual data!");
 
         println!();
-        println!("5. When ready to deploy:");
-        println!("   • {}", Style::Command.paint("cp .env.template .env"));
+        println!("6. When ready to deploy:");
         println!("   • Use the provided Dockerfiles for production");
-        println!("   • See: https://www.apollographql.com/docs/apollo-mcp-server/deploy");
+        println!("   • See deployment docs: {}",
+            Style::Link.paint("https://www.apollographql.com/docs/apollo-mcp-server/deploy"));
     }
 
     /// Handle MCP setup for new project creation
@@ -1404,6 +1407,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Update .env.template file with real values if it exists
         Self::update_env_template_with_real_values(&completed_project, &output_path)?;
+
+        // Create .env file with actual credentials
+        let env_content = format!(
+            "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
+            completed_project.api_key,
+            completed_project.graph_ref.to_string()
+        );
+        let env_path = output_path.join(".env");
+        std::fs::write(&env_path, env_content)?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;

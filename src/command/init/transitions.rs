@@ -532,7 +532,7 @@ impl CreationConfirmed {
         )
         .await?;
 
-        spinner.success("");
+        spinner.success("Successfully created project files and credentials");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
             config: self.config,
@@ -563,6 +563,7 @@ impl ProjectCreated {
                         &setup_result,
                         &self.graph_ref.to_string(),
                         &project_path,
+                        &self.api_key,
                     );
                 }
                 Err(error) => {
