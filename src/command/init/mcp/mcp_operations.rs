@@ -1,12 +1,12 @@
 use crate::RoverResult;
-use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use rover_std::{Fs, Style};
+use rover_client::shared::GraphRef;
+use rover_std::Style;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct MCPSetupResult {
     pub binary_path: Utf8PathBuf,
-    pub env_file: Utf8PathBuf,
     pub claude_config: Option<Utf8PathBuf>,
     pub connector_name: Option<String>,
 }
@@ -22,9 +22,6 @@ impl MCPOperations {
     ) -> RoverResult<MCPSetupResult> {
         println!("{}", Style::Heading.paint("Setting up MCP server..."));
 
-        // Generate .env file
-        let env_file = Self::generate_env_file(project_path, api_key, graph_ref)?;
-
         // Check Node version and optionally generate Claude Desktop config
         let (claude_config, connector_name) = Self::setup_claude_desktop_config_with_name(
             project_path,
@@ -35,28 +32,12 @@ impl MCPOperations {
 
         Ok(MCPSetupResult {
             binary_path: Utf8PathBuf::from(""), // No longer downloading binary
-            env_file,
             claude_config,
             connector_name,
         })
     }
 
 
-    fn generate_env_file(
-        project_path: &Utf8PathBuf,
-        api_key: &str,
-        graph_ref: &str,
-    ) -> RoverResult<Utf8PathBuf> {
-        let env_path = project_path.join(".env");
-
-        let env_content = format!("APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n", api_key, graph_ref);
-
-        Fs::write_file(&env_path, env_content)?;
-
-        println!("{} .env file created", Style::Success.paint("✓"));
-
-        Ok(env_path)
-    }
 
     fn setup_claude_desktop_config_with_name(
         project_path: &Utf8PathBuf,
@@ -135,21 +116,37 @@ impl MCPOperations {
         println!("{}: {}", Style::Heading.paint("Graph"), graph_ref);
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
+
+        // Parse graph_ref to extract graph ID and variant for Studio URL
+        if let Ok(parsed_graph_ref) = GraphRef::from_str(graph_ref) {
+            let studio_url = format!(
+                "https://studio.apollographql.com/graph/{}/variant/{}/home",
+                parsed_graph_ref.name,
+                parsed_graph_ref.variant
+            );
+            println!(
+                "  {} View your graph in Studio:",
+                Style::Command.paint("1.")
+            );
+            println!("     {}", Style::Link.paint(&studio_url));
+            println!("");
+        }
+
         println!(
             "  {} Configure API keys for your connectors:",
-            Style::Command.paint("1.")
+            Style::Command.paint("2.")
         );
         println!("     • AWS: Set up AWS credentials for Lambda/DynamoDB access");
         println!("     • Luma: Add your Luma API key to router configuration");
         println!("     • Update .apollo/router.local.yaml with your API keys");
 
-        println!("  {} Start the MCP Server:", Style::Command.paint("2."));
+        println!("  {} Start the MCP Server:", Style::Command.paint("3."));
         println!("     npm start");
         println!("     (Server will start on http://127.0.0.1:5000)");
 
         println!(
             "  {} Start local development (in another terminal):",
-            Style::Command.paint("3.")
+            Style::Command.paint("4.")
         );
         println!("     export $(cat .env | xargs)");
         println!(
@@ -158,21 +155,31 @@ impl MCPOperations {
 
         println!(
             "  {} Test GraphQL with Apollo Sandbox:",
-            Style::Command.paint("4.")
+            Style::Command.paint("5.")
         );
         println!("     Open http://localhost:4000 to query your connectors");
 
         println!(
             "  {} Test MCP Server with Inspector:",
-            Style::Command.paint("5.")
+            Style::Command.paint("6.")
         );
         println!("     npx @modelcontextprotocol/inspector");
         println!("     - Transport: Streamable HTTP");
         println!("     - URL: http://127.0.0.1:5000/mcp");
 
         println!(
+            "  {} (Optional) Use GraphOS Operation Collections:",
+            Style::Command.paint("7.")
+        );
+        println!("     Instead of local .graphql files, manage operations in Studio:");
+        println!("     • Create operations in Studio's Operation Collections");
+        println!("     • Update .apollo/mcp.local.yaml to use 'source: collection'");
+        println!("     • Learn more: https://www.apollographql.com/docs/apollo-mcp-server/define-tools#from-operation-collection");
+        println!("");
+
+        println!(
             "  {} Docker deployment (recommended for production):",
-            Style::Command.paint("6.")
+            Style::Command.paint("8.")
         );
         println!("     docker build --tag mcp-server -f mcp.Dockerfile .");
         println!("     docker build --tag mcp-router -f router.Dockerfile .");
@@ -186,7 +193,7 @@ impl MCPOperations {
                 .as_ref()
                 .unwrap_or(&default_name);
 
-            println!("  {} Claude Desktop setup:", Style::Command.paint("7."));
+            println!("  {} Claude Desktop setup:", Style::Command.paint("9."));
             println!("     • Install Claude Desktop from https://claude.ai/download");
             println!("     • Ensure Node.js 18+ is installed and in your PATH");
             println!("     • Copy claude_desktop_config.json to the appropriate location:");
