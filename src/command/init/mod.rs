@@ -803,8 +803,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
    docker build -f mcp.Dockerfile -t {}-mcp .
    ```
 
-2. Run the MCP server:
+2. Create your .env file and run the MCP server:
    ```bash
+   cp .env.template .env
    docker run --env-file .env -p5000:5000 {}-mcp
    # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
@@ -871,11 +872,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             )
             .await?
         };
-        
-        // Generate .env file with Apollo credentials
-        let env_content = format!("APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n", apollo_key, graph_ref_str);
-        files.insert(".env".into(), env_content);
-        
+
         // Preview files and get user confirmation before creating them
         let confirmed = self
             .preview_mcp_files(&selected_graph, &data_source_type, &files)
@@ -884,6 +881,29 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
         }
+
+        // Get the user's home directory for MCP server binary path
+        let home_dir = if cfg!(windows) {
+            std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOMEDRIVE").and_then(|drive| {
+                    std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                }))
+                .map_err(|_| anyhow!("Could not determine home directory on Windows"))
+        } else {
+            std::env::var("HOME")
+                .map_err(|_| anyhow!("Could not determine home directory from HOME environment variable"))
+        }?;
+        let home_dir = camino::Utf8PathBuf::from(home_dir);
+
+        // Generate the MCP server binary path
+        let mcp_server_binary = home_dir.join(".rover/bin/apollo-mcp-server-v0.8.0");
+
+        // Generate the MCP config path (relative to project)
+        let mcp_config_path = current_dir.join(".apollo/mcp.claude.yaml");
+
+        // Generate the absolute tools path for MCP server
+        let tools_absolute_path = current_dir.join("tools");
+        let tools_path_str = tools_absolute_path.as_str().replace("/./", "/");
 
         // Write files to current directory with template replacement
         for (file_path, content) in &files {
@@ -904,9 +924,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{ORGANIZATION_NAME}}", &selected_graph.organization_name)
                 .replace("{{APOLLO_API_KEY}}", &apollo_key)
                 .replace("{{APOLLO_KEY}}", &apollo_key)
+                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
+                .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
+                .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
+                .replace("- /tools", &format!("- {}", tools_path_str))
+                .replace("endpoint: http://host.docker.internal:4000", "endpoint: http://localhost:4000")
                 .replace(
                     "{{GRAPHQL_ENDPOINT}}",
-                    "http://host.docker.internal:4000/graphql",
+                    "http://localhost:4000",
                 )
                 .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
                 .replace("{{PROJECT_VERSION}}", "1.0.0")
@@ -915,19 +940,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     &format!("https://github.com/user/{}", project_name),
                 );
 
-            // Handle the specific case where .env has placeholder API keys
-            // Replace "service:{{PROJECT_NAME}}:YOUR_API_KEY_HERE" with actual service key
-            if file_path == ".env" {
+
+            // Handle the specific case where .env.template needs dynamic values populated
+            if file_path == ".env.template" {
+                // Only replace the specific placeholders mentioned by user, leave others untouched
                 processed_content = processed_content
-                    .replace(
-                        &format!("service:{}:YOUR_API_KEY_HERE", project_name),
-                        &apollo_key,
-                    )
-                    .replace("service:{{PROJECT_NAME}}:YOUR_API_KEY_HERE", &apollo_key)
-                    .replace(
-                        "YOUR_API_KEY_HERE",
-                        apollo_key.split(':').next_back().unwrap_or(&apollo_key),
-                    );
+                    .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", project_name))
+                    .replace("\"{{GRAPHQL_ENDPOINT}}\"", "\"http://host.docker.internal:4000/graphql\"")
+                    .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", apollo_key))
+                    .replace("\"{{APOLLO_GRAPH_REF}}\"", &format!("\"{}\"", graph_ref_str));
             }
 
             std::fs::write(&target_path, processed_content)?;
@@ -971,6 +992,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "   2. {}",
+            Style::Command.paint("cp .env.template .env")
+        );
+        println!(
+            "   3. {}",
             Style::Command.paint(format!(
                 "docker run --env-file .env -p5000:5000 {}-mcp",
                 project_name
@@ -984,28 +1009,40 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             ))
         );
         println!(
-            "   3. {}",
+            "   4. {}",
             Style::Command.paint("npx @modelcontextprotocol/inspector")
         );
 
         Ok(RoverOutput::EmptySuccess)
     }
 
-    /// Generate .env file with Apollo credentials for MCP project
+
+    /// Update .env.template file with real values from completed project
     #[cfg(feature = "composition-js")]
-    fn generate_mcp_env_file(
+    fn update_env_template_with_real_values(
         completed_project: &states::ProjectCreated,
         output_path: &camino::Utf8PathBuf,
     ) -> RoverResult<()> {
         use rover_std::Fs;
 
-        let env_path = output_path.join(".env");
-        let env_content = format!(
-            "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
-            completed_project.api_key, completed_project.graph_ref
-        );
+        let env_template_path = output_path.join(".env.template");
 
-        Fs::write_file(&env_path, env_content)?;
+        // Check if .env.template file exists
+        if env_template_path.exists() {
+            // Read the current content
+            let current_content = Fs::read_file(&env_template_path)?;
+
+            // Apply template replacement with real values
+            let updated_content = current_content
+                .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", completed_project.config.project_name.to_string()))
+                .replace("\"{{GRAPHQL_ENDPOINT}}\"", "\"http://host.docker.internal:4000/graphql\"")
+                .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", completed_project.api_key))
+                .replace("\"{{APOLLO_GRAPH_REF}}\"", &format!("\"{}\"", completed_project.graph_ref));
+
+            // Write the updated content back
+            Fs::write_file(&env_template_path, updated_content)?;
+        }
+
         Ok(())
     }
 
@@ -1071,40 +1108,58 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Next Steps section
         println!();
         println!("{}", Style::File.paint("Next steps ↴"));
-        
+
         println!();
-        println!("1. Replace the example API with your own:");
+        println!("1. See the magic - get your MCP server running:");
+        println!("   • {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000");
+
+        println!();
+        println!("2. Connect Claude Desktop to see your API as AI tools:");
+        println!("   • Ensure Node.js 18+ is installed");
+        println!("   • Copy the generated claude_desktop_config.json to:");
+        println!("     - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json");
+        println!("     - Windows: %APPDATA%\\Claude\\claude_desktop_config.json");
+        println!("     - Linux: ~/.config/Claude/claude_desktop_config.json");
+        println!("   • Restart Claude Desktop");
         match mcp_project_type {
             MCPProjectType::REST => {
-                println!("   • Update products.graphql in the root directory (follow the instructions in this file)");
-                println!("   • Add router.yaml in the root directory if your API requires authentication");
-                println!("     • Copy example config: https://www.apollographql.com/docs/graphos/connectors/deployment#router-configuration");
-                println!("   • Test your REST-to-GraphQL connector with the queries in the tools/ directory");
+                println!("   • Ask Claude: \"Can you get me some product information?\"");
             }
             MCPProjectType::GraphQL => {
-                println!("   • Replace the example schema with your GraphQL API");
-                println!("   • Update subgraph configuration for your endpoint");
+                println!("   • Ask Claude: \"What data can you query for me?\"");
             }
         }
-        
+
         println!();
-        println!("2. Test your GraphQL schema locally:");
-        println!("   • {}", Style::Command.paint("export $(cat .env | xargs) && rover dev --supergraph-config supergraph.yaml"));
-        println!("   • Open http://localhost:4000 to query your REST API through GraphQL");
-        println!("   • Build GraphQL queries that will become your AI tools");
-        
+        println!("3. Test your tools in Apollo Studio:");
+        println!("   • Open http://localhost:4000 in your browser");
+        println!("   • Try the example queries from your tools/ directory");
+        println!("   • See exactly what data Claude can access");
+
         println!();
-        println!("3. Create AI tools from your API:");
-        println!("   • Review the example GraphQL queries in the tools/ directory");
-        println!("   • Add more .graphql query files to the tools/ directory to create AI-callable tools");
-        println!("   • Each GraphQL query file becomes a tool your AI agent can use to interact with your API");
-        
+        println!("4. Replace examples with your real API:");
+        match mcp_project_type {
+            MCPProjectType::REST => {
+                println!("   • Update products.graphql with your REST API details");
+                println!("   • Modify tools/*.graphql with queries for your data");
+            }
+            MCPProjectType::GraphQL => {
+                println!("   • Replace example schema with your GraphQL endpoint");
+                println!("   • Update tools/*.graphql with queries for your data");
+            }
+        }
+
         println!();
-        println!("4. Test your customized MCP server:");
-        println!("   • {}", Style::Command.paint(format!("docker build -f mcp.Dockerfile -t {}-mcp .", completed_project.config.graph_id)));
-        println!("   • {}", Style::Command.paint(format!("docker run --env-file .env -p5000:5000 {}-mcp", completed_project.config.graph_id)));
-        println!("   • Linux: {}", Style::Command.paint(format!("docker run --network=host --env-file .env {}-mcp", completed_project.config.graph_id)));
-        println!("   • {}", Style::Command.paint("npx @modelcontextprotocol/inspector"));
+        println!("5. Re-run to see YOUR data in Claude:");
+        println!("   • {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("   • Ask Claude to query YOUR actual data!");
+
+        println!();
+        println!("6. When ready to deploy:");
+        println!("   • {}", Style::Command.paint("cp .env.template .env"));
+        println!("   • Use the provided Dockerfiles for production");
+        println!("   • See: https://www.apollographql.com/docs/apollo-mcp-server/deploy");
     }
 
     /// Handle MCP setup for new project creation
@@ -1220,11 +1275,46 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Get the actual project name that will be used
         let project_name = &graph_id_entered.project_name.to_string();
 
+        // Get the user's home directory for MCP server binary path
+        let home_dir = if cfg!(windows) {
+            std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOMEDRIVE").and_then(|drive| {
+                    std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                }))
+                .map_err(|_| anyhow!("Could not determine home directory on Windows"))
+        } else {
+            std::env::var("HOME")
+                .map_err(|_| anyhow!("Could not determine home directory from HOME environment variable"))
+        }?;
+        let home_dir = camino::Utf8PathBuf::from(home_dir);
+
+        // Generate the MCP server binary path
+        let mcp_server_binary = home_dir.join(".rover/bin/apollo-mcp-server-v0.8.0");
+
+        // Get the output path for the project
+        let output_path = graph_id_entered.output_path.clone();
+        let absolute_output_path = if output_path.is_relative() {
+            std::env::current_dir()
+                .ok()
+                .and_then(|cwd| camino::Utf8PathBuf::try_from(cwd).ok())
+                .map(|cwd| cwd.join(&output_path))
+                .unwrap_or(output_path.clone())
+        } else {
+            output_path.clone()
+        };
+
+        // Generate the MCP config path (relative to project)
+        let mcp_config_path = absolute_output_path.join(".apollo/mcp.claude.yaml");
+
+        // Generate the absolute tools path for MCP server
+        let tools_absolute_path = absolute_output_path.join("tools");
+        let tools_path_str = tools_absolute_path.as_str().replace("/./", "/");
+
         // Apply template placeholder replacement (was missing in new project flow!)
         // Use placeholder values for new projects since we don't have a real graph yet
         let graph_ref_str = format!("{}@current", project_name);
 
-        for (_, content) in string_files.iter_mut() {
+        for (_file_path, content) in string_files.iter_mut() {
             *content = content
                 .replace("{{PROJECT_NAME}}", project_name)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
@@ -1234,9 +1324,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION") // Placeholder since org structure is complex
                 .replace("{{APOLLO_API_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
                 .replace("{{APOLLO_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
+                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
+                .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
+                .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
+                .replace("- /tools", &format!("- {}", tools_path_str))
+                .replace("endpoint: http://host.docker.internal:4000", "endpoint: http://localhost:4000")
                 .replace(
                     "{{GRAPHQL_ENDPOINT}}",
-                    "http://host.docker.internal:4000/graphql",
+                    "http://localhost:4000",
                 )
                 .replace(
                     "{{GRAPH_STUDIO_URL}}",
@@ -1265,6 +1360,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{#if REST_CONNECTORS}}", "")
                 .replace("{{else}}", "")
                 .replace("{{/if}}", "");
+
         }
 
         // Convert back to bytes and update the template
@@ -1310,13 +1406,23 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             }
         };
 
-        // Generate .env file with Apollo credentials
         let output_path = match &self.path {
             Some(path) => camino::Utf8PathBuf::try_from(path.clone())
                 .map_err(|_| RoverError::new(anyhow!("Invalid path")))?,
             None => camino::Utf8PathBuf::from("."),
         };
-        Self::generate_mcp_env_file(&completed_project, &output_path)?;
+
+        // Update .env.template file with real values if it exists
+        Self::update_env_template_with_real_values(&completed_project, &output_path)?;
+
+        // Generate Claude Desktop config with real API key and graph ref
+        use crate::command::init::mcp::mcp_operations::MCPOperations;
+        let _mcp_result = MCPOperations::setup_mcp_project_with_name(
+            &output_path,
+            &completed_project.api_key,
+            &completed_project.graph_ref.to_string(),
+            Some(&completed_project.config.project_name.to_string()),
+        )?;
 
         // Display MCP-specific success message instead of standard completion
         Self::display_mcp_project_success(&completed_project, &mcp_project_type, &data_source_type);
