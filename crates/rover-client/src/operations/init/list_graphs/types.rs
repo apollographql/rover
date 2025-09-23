@@ -2,7 +2,6 @@ use super::runner::list_graphs_for_organization;
 use serde::Serialize;
 
 pub(crate) type QueryVariables = list_graphs_for_organization::Variables;
-pub(crate) type QueryResponseData = list_graphs_for_organization::ResponseData;
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct ListGraphsInput {
