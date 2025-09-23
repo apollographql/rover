@@ -4,10 +4,6 @@ subtitle: Integrate Rover into continuous integration and deployment workflows
 description: Run Rover commands on popular CI/CD providers like CircleCI, GitHub Actions, Bitbucket Pipelines, Jenkins, and Gitlab CI/CD.
 ---
 
-<Note>
-See also the guide for [Using Subgraph Keys in a Deployment Pipeline](/graphos/resources/guides/getting-started-with-pipelines-and-keys).
-</Note>
-
 You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](/graphos/delivery/schema-checks/) with [`rover graph check`](./commands/graphs/#checking-schema-changes) or [`rover subgraph check`](./commands/subgraphs/#checking-subgraph-schema-changes).
 
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
@@ -19,6 +15,15 @@ Rover's installation is similar to many other CLI tools, but the recommended met
 - [Gitlab CI/CD](#gitlab)
 
 If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare).
+
+## Using API keys
+
+Rover commands that communicate with [GraphOS](/graphos/) require an [API key](/graphos/api-keys). GraphOS supports graph API keys, subgraph API keys, and personal API keys.
+
+On your local development machine, you can use a personal API key, and provide the key to Rover using the [`rover config auth` command](./configuring#via-the-auth-command).
+
+In shared environments like CI, use a graph or subgraph API key. Because the <code>rover config auth</code> command is interactive, it isn't suitable for CI/CD. Instead, [authenticate using an environment variable](./configuring#with-an-environment-variable).
+
 
 ## CircleCI
 
@@ -33,12 +38,6 @@ echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
 ```
 
 After you install Rover and modify the `$BASH_ENV` as shown, Rover should work like normal.
-
-<Note>
-
-Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
-
-</Note>
 
 #### Full example
 
@@ -66,6 +65,14 @@ jobs:
 ```
 
 ## GitHub
+
+<Note>
+
+Remember to [authenticate using an environment variable](./configuring#with-an-environment-variable). GitHub Actions uses 
+[project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. 
+In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+
+</Note>
 
 ### Apollo-provided GitHub Actions
 
@@ -175,13 +182,6 @@ To fix this, you can append Rover's location to the [`$GITHUB_PATH`](https://doc
 echo "$HOME/.rover/bin" >> $GITHUB_PATH
 ```
 
-<Note>
-
-The `rover config auth` command is interactive. In your project settings, [authenticate using an environment variable](./configuring#with-an-environment-variable).
-
-GitHub Actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
-
-</Note>
 
 #### Full example
 
@@ -422,5 +422,3 @@ Only run this command with the `--background` flag if you have the Apollo Studio
 ```bash
 npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql --background
 ```
-
-Since most commands require you be authenticated, see the above sections for instructions on how to add environment variables for your CI/CD provider.
