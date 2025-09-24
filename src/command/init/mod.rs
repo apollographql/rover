@@ -56,7 +56,9 @@ enum MCPSetupType {
 impl std::fmt::Display for MCPSetupType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPSetupType::ExistingGraph => write!(f, "Enhance an existing Apollo GraphOS project with MCP"),
+            MCPSetupType::ExistingGraph => {
+                write!(f, "Enhance an existing Apollo GraphOS project with MCP")
+            }
             MCPSetupType::NewProject => write!(f, "Start a new Apollo GraphOS project with MCP"),
         }
     }
@@ -96,8 +98,14 @@ enum MCPDataSourceType {
 impl std::fmt::Display for MCPDataSourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPDataSourceType::ExternalAPIs => write!(f, "Apollo graph with Apollo connectors (connect to REST services)"),
-            MCPDataSourceType::GraphQLAPI => write!(f, "Apollo graph with GraphQL connectors (connect to existing GraphQL endpoints)"),
+            MCPDataSourceType::ExternalAPIs => write!(
+                f,
+                "Apollo graph with Apollo connectors (connect to REST services)"
+            ),
+            MCPDataSourceType::GraphQLAPI => write!(
+                f,
+                "Apollo graph with GraphQL connectors (connect to existing GraphQL endpoints)"
+            ),
         }
     }
 }
@@ -332,8 +340,7 @@ impl Init {
             MCPSetupType::NewProject => self.handle_new_project_mcp(&client, client_config).await,
         }
     }
-    
-    
+
     /// Prompt user to choose MCP setup type
     #[cfg(feature = "composition-js")]
     fn prompt_mcp_setup_type() -> RoverResult<MCPSetupType> {
@@ -341,9 +348,11 @@ impl Init {
         use dialoguer::Select;
         use dialoguer::console::Term;
         use rover_std::Style;
-        
+
         println!();
-        println!("Welcome! This command helps you initialize a federated graph with MCP server capabilities.");
+        println!(
+            "Welcome! This command helps you initialize a federated graph with MCP server capabilities."
+        );
         println!();
         println!(
             "To learn more about init, run `{}` or visit {}",
@@ -352,11 +361,8 @@ impl Init {
         );
         println!();
 
-        let setup_types = vec![
-            MCPSetupType::NewProject,
-            MCPSetupType::ExistingGraph,
-        ];
-            
+        let setup_types = vec![MCPSetupType::NewProject, MCPSetupType::ExistingGraph];
+
         let selection = Select::new()
             .with_prompt(Style::Prompt.paint("? Select option"))
             .items(&setup_types)
@@ -367,12 +373,10 @@ impl Init {
             Some(index) => {
                 let selected = setup_types[index].clone();
                 Ok(selected)
-            },
+            }
             _ => Err(RoverError::new(anyhow!("Selection cancelled"))),
         }
     }
-    
-
 
     /// Preview files for new project creation
     #[cfg(feature = "composition-js")]
@@ -389,17 +393,17 @@ impl Init {
 
         println!();
         println!("=> You're about to add the following files to your local directory:");
-        
+
         let file_paths: Vec<camino::Utf8PathBuf> = template_files.keys().cloned().collect();
         print_mcp_file_categories(file_paths);
-        
+
         println!();
         println!("{}", Style::File.paint("What this template gives you"));
         println!("- Example GraphQL schema and REST connectors");
         println!("- Pre-configured MCP server with Docker setup");
         println!("- Sample tools showing how to make APIs AI-callable");
         println!();
-        
+
         let confirmed = Confirm::new()
             .with_prompt("Create this template?")
             .default(true)
@@ -419,13 +423,13 @@ impl Init {
         use crate::command::init::helpers::print_mcp_file_categories;
         use dialoguer::Confirm;
         use dialoguer::console::Term;
-        
+
         println!();
         println!("=> You're about to add the following files to your local directory:");
         let file_paths: Vec<camino::Utf8PathBuf> = files.keys().cloned().collect();
         print_mcp_file_categories(file_paths);
         println!();
-        
+
         let confirmed = Confirm::new()
             .with_prompt("Create this template?")
             .default(true)
@@ -459,7 +463,7 @@ impl Init {
             Some(index) => {
                 let selected = &graph_options[index];
                 Ok(selected.clone())
-            },
+            }
             None => Err(RoverError::new(anyhow!("Graph selection cancelled"))),
         }
     }
@@ -476,13 +480,15 @@ impl Init {
         };
         use anyhow::anyhow;
         use rover_std::Style;
-        
+
         // Query GraphOS for user's organizations and their graphs
         use rover_client::operations::init::{list_graphs, memberships};
-        use rover_client::operations::supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput};
         use rover_client::operations::subgraph::list::{self as list_subgraphs, SubgraphListInput};
+        use rover_client::operations::supergraph::fetch::{
+            self as fetch_supergraph, SupergraphFetchInput,
+        };
         use rover_client::shared::GraphRef;
-        
+
         let memberships_response = memberships::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
                 auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(msg))
@@ -547,25 +553,34 @@ impl Init {
 
         // Present graph selection dropdown
         let selected_graph = Self::prompt_graph_selection(all_graph_options)?;
-        
+
         // Display project context and requirements
         println!();
-        println!("️{}", Style::File.paint("▲ Add AI capabilities to existing graph (~5 minute setup time)"));
+        println!(
+            "️{}",
+            Style::File.paint("▲ Add AI capabilities to existing graph (~5 minute setup time)")
+        );
         println!("Enhance an Apollo GraphOS graph with MCP server capabilities.");
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
         println!("- Docker (To deploy your MCP server)");
         println!("- Your data source (API endpoint, database, or service)");
         println!();
-        
+
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
         let data_source_type = MCPDataSourceType::GraphQLAPI;
-        
+
         // Fetch graph schemas from GraphOS
-        println!("{}", Style::Heading.paint("Pulling graph schemas from GraphOS"));
-        
-        let graph_ref = GraphRef::new(selected_graph.graph_id.clone(), Some(selected_graph.variant_name.clone()))?;
-        
+        println!(
+            "{}",
+            Style::Heading.paint("Pulling graph schemas from GraphOS")
+        );
+
+        let graph_ref = GraphRef::new(
+            selected_graph.graph_id.clone(),
+            Some(selected_graph.variant_name.clone()),
+        )?;
+
         // Fetch supergraph schema
         let supergraph_sdl = match fetch_supergraph::run(
             SupergraphFetchInput {
@@ -673,27 +688,27 @@ impl Init {
         for (path, content) in files_to_add {
             files.insert(path.into(), content);
         }
-        
+
         // Remove problematic product-specific queries and replace with simple template
         let tools_files_to_remove: Vec<_> = files
             .keys()
             .filter(|path| {
                 let path_str = path.as_str();
-                path_str.starts_with("tools/") && path_str.ends_with(".graphql") && (
-                    path_str.contains("Product") || 
-                    path_str.contains("CreateProduct") || 
-                    path_str.contains("GetProduct") ||
-                    path_str.contains("GetProducts") ||
-                    path_str.contains("ListProducts")
-                )
+                path_str.starts_with("tools/")
+                    && path_str.ends_with(".graphql")
+                    && (path_str.contains("Product")
+                        || path_str.contains("CreateProduct")
+                        || path_str.contains("GetProduct")
+                        || path_str.contains("GetProducts")
+                        || path_str.contains("ListProducts"))
             })
             .cloned()
             .collect();
-        
+
         for path in tools_files_to_remove {
             files.remove(&path);
         }
-        
+
         // Add simple query template with instructions
         let simple_query_content = r#"# Simple Query Template for MCP Tools
 # 
@@ -750,8 +765,11 @@ query SimpleQuery {
 #   }
 # }
 "#;
-        
-        files.insert("tools/SimpleQuery.graphql".into(), simple_query_content.to_string());
+
+        files.insert(
+            "tools/SimpleQuery.graphql".into(),
+            simple_query_content.to_string(),
+        );
 
         // If we have a supergraph schema, save it
         if !supergraph_sdl.is_empty() {
@@ -860,13 +878,16 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Get the user's home directory for MCP server binary path
         let home_dir = if cfg!(windows) {
             std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOMEDRIVE").and_then(|drive| {
-                    std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                }))
+                .or_else(|_| {
+                    std::env::var("HOMEDRIVE").and_then(|drive| {
+                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                    })
+                })
                 .map_err(|_| anyhow!("Could not determine home directory on Windows"))
         } else {
-            std::env::var("HOME")
-                .map_err(|_| anyhow!("Could not determine home directory from HOME environment variable"))
+            std::env::var("HOME").map_err(|_| {
+                anyhow!("Could not determine home directory from HOME environment variable")
+            })
         }?;
         let home_dir = camino::Utf8PathBuf::from(home_dir);
 
@@ -903,11 +924,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
                 .replace("- /tools", &format!("- {}", tools_path_str))
-                .replace("endpoint: http://host.docker.internal:4000", "endpoint: http://localhost:4000")
                 .replace(
-                    "{{GRAPHQL_ENDPOINT}}",
-                    "http://localhost:4000",
+                    "endpoint: http://host.docker.internal:4000",
+                    "endpoint: http://localhost:4000",
                 )
+                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
                 .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
                 .replace("{{PROJECT_VERSION}}", "1.0.0")
                 .replace(
@@ -915,15 +936,20 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     &format!("https://github.com/user/{}", project_name),
                 );
 
-
             // Handle the specific case where .env.template needs dynamic values populated
             if file_path == ".env.template" {
                 // Only replace the specific placeholders mentioned by user, leave others untouched
                 processed_content = processed_content
                     .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", project_name))
-                    .replace("\"{{GRAPHQL_ENDPOINT}}\"", "\"http://host.docker.internal:4000/graphql\"")
+                    .replace(
+                        "\"{{GRAPHQL_ENDPOINT}}\"",
+                        "\"http://host.docker.internal:4000/graphql\"",
+                    )
                     .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", apollo_key))
-                    .replace("\"{{APOLLO_GRAPH_REF}}\"", &format!("\"{}\"", graph_ref_str));
+                    .replace(
+                        "\"{{APOLLO_GRAPH_REF}}\"",
+                        &format!("\"{}\"", graph_ref_str),
+                    );
             }
 
             std::fs::write(&target_path, processed_content)?;
@@ -932,8 +958,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Create .env file with actual credentials
         let env_content = format!(
             "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
-            apollo_key,
-            graph_ref_str
+            apollo_key, graph_ref_str
         );
         let env_path = current_dir.join(".env");
         std::fs::write(&env_path, env_content)?;
@@ -997,7 +1022,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Ok(RoverOutput::EmptySuccess)
     }
 
-
     /// Update .env.template file with real values from completed project
     #[cfg(feature = "composition-js")]
     fn update_env_template_with_real_values(
@@ -1015,10 +1039,22 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
             // Apply template replacement with real values
             let updated_content = current_content
-                .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", completed_project.config.project_name.to_string()))
-                .replace("\"{{GRAPHQL_ENDPOINT}}\"", "\"http://host.docker.internal:4000/graphql\"")
-                .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", completed_project.api_key))
-                .replace("\"{{APOLLO_GRAPH_REF}}\"", &format!("\"{}\"", completed_project.graph_ref));
+                .replace(
+                    "\"{{PROJECT_NAME}}\"",
+                    &format!("\"{}\"", completed_project.config.project_name.to_string()),
+                )
+                .replace(
+                    "\"{{GRAPHQL_ENDPOINT}}\"",
+                    "\"http://host.docker.internal:4000/graphql\"",
+                )
+                .replace(
+                    "\"{{APOLLO_KEY}}\"",
+                    &format!("\"{}\"", completed_project.api_key),
+                )
+                .replace(
+                    "\"{{APOLLO_GRAPH_REF}}\"",
+                    &format!("\"{}\"", completed_project.graph_ref),
+                );
 
             // Write the updated content back
             Fs::write_file(&env_template_path, updated_content)?;
@@ -1034,22 +1070,27 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         use dialoguer::Select;
         use dialoguer::console::Term;
         use rover_std::Style;
-        
+
         // Display project type and description
         println!();
-        println!("️{}", Style::File.paint("▲ AI-powered Apollo graph with MCP server ~10 minute setup time"));
-        println!("Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources.");
+        println!(
+            "️{}",
+            Style::File.paint("▲ AI-powered Apollo graph with MCP server ~10 minute setup time")
+        );
+        println!(
+            "Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources."
+        );
         println!();
         println!("{}", Style::Heading.paint("Requirements"));
         println!("- Docker (To deploy your MCP server)");
         println!("- Your data source (API, database, or service)");
         println!();
-        
+
         let options = vec![
             MCPDataSourceType::ExternalAPIs,
             MCPDataSourceType::GraphQLAPI,
         ];
-        
+
         let selection = Select::new()
             .with_prompt(Style::Prompt.paint("? Select a starting template"))
             .items(&options)
@@ -1072,23 +1113,34 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         use rover_std::Style;
 
         println!("{}", Style::Success.paint("✓ MCP server generated"));
-        println!("{}", Style::Success.paint("✓ Credentials saved to .env file"));
+        println!(
+            "{}",
+            Style::Success.paint("✓ Credentials saved to .env file")
+        );
 
         // Project Details section
         println!();
         println!("{}", Style::File.paint("Project details"));
-        println!("   • MCP Server Name: mcp-{}", completed_project.config.project_name);
-        println!("   • GraphOS Organization: {}", completed_project.config.organization);
-        println!("   • {}: {}",
+        println!(
+            "   • MCP Server Name: mcp-{}",
+            completed_project.config.project_name
+        );
+        println!(
+            "   • GraphOS Organization: {}",
+            completed_project.config.organization
+        );
+        println!(
+            "   • {}: {}",
             Style::GraphRef.paint("APOLLO_GRAPH_REF"),
             completed_project.graph_ref
         );
-        println!("   • {}: {}",
+        println!(
+            "   • {}: {}",
             Style::Command.paint("APOLLO_KEY"),
             completed_project.api_key
         );
         println!();
-        
+
         // Next Steps section
         println!();
         println!("{}", Style::File.paint("Next steps ↴"));
@@ -1097,19 +1149,32 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("1. See the magic - get your MCP server running:");
         println!("   • {}", Style::Command.paint("source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
         println!("   • Windows users: Set the env vars manually or use WSL/Git Bash");
-        println!("   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000");
+        println!(
+            "   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000"
+        );
 
         println!();
         println!("2. Connect Claude Desktop to see your API as AI tools:");
         println!("   • Ensure Node.js 18+ is installed");
         println!("   • Copy the generated claude_desktop_config.json to:");
-        println!("     macOS:   {}", Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json"));
-        println!("     Windows: {}", Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json"));
-        println!("     Linux:   {}", Style::Path.paint("~/.config/Claude/claude_desktop_config.json"));
+        println!(
+            "     macOS:   {}",
+            Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json")
+        );
+        println!(
+            "     Windows: {}",
+            Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json")
+        );
+        println!(
+            "     Linux:   {}",
+            Style::Path.paint("~/.config/Claude/claude_desktop_config.json")
+        );
         println!("   • Start Claude Desktop");
         match mcp_project_type {
             MCPProjectType::REST => {
-                println!("   • Ask Claude: \"Can you get me some product information from my new tool?\"");
+                println!(
+                    "   • Ask Claude: \"Can you get me some product information from my new tool?\""
+                );
             }
             MCPProjectType::GraphQL => {
                 println!("   • Ask Claude: \"What data can you query for me?\"");
@@ -1151,8 +1216,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!();
         println!("6. When ready to deploy:");
         println!("   • Use the provided Dockerfiles for production");
-        println!("   • See deployment docs: {}",
-            Style::Link.paint("https://www.apollographql.com/docs/apollo-mcp-server/deploy"));
+        println!(
+            "   • See deployment docs: {}",
+            Style::Link.paint("https://www.apollographql.com/docs/apollo-mcp-server/deploy")
+        );
     }
 
     /// Handle MCP setup for new project creation
@@ -1271,13 +1338,16 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Get the user's home directory for MCP server binary path
         let home_dir = if cfg!(windows) {
             std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOMEDRIVE").and_then(|drive| {
-                    std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                }))
+                .or_else(|_| {
+                    std::env::var("HOMEDRIVE").and_then(|drive| {
+                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                    })
+                })
                 .map_err(|_| anyhow!("Could not determine home directory on Windows"))
         } else {
-            std::env::var("HOME")
-                .map_err(|_| anyhow!("Could not determine home directory from HOME environment variable"))
+            std::env::var("HOME").map_err(|_| {
+                anyhow!("Could not determine home directory from HOME environment variable")
+            })
         }?;
         let home_dir = camino::Utf8PathBuf::from(home_dir);
 
@@ -1321,11 +1391,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
                 .replace("- /tools", &format!("- {}", tools_path_str))
-                .replace("endpoint: http://host.docker.internal:4000", "endpoint: http://localhost:4000")
                 .replace(
-                    "{{GRAPHQL_ENDPOINT}}",
-                    "http://localhost:4000",
+                    "endpoint: http://host.docker.internal:4000",
+                    "endpoint: http://localhost:4000",
                 )
+                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
                 .replace(
                     "{{GRAPH_STUDIO_URL}}",
                     &format!(
@@ -1353,7 +1423,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{#if REST_CONNECTORS}}", "")
                 .replace("{{else}}", "")
                 .replace("{{/if}}", "");
-
         }
 
         // Convert back to bytes and update the template
