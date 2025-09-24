@@ -263,9 +263,6 @@ type ApiKeyResource {
 input ApiKeyResourceInput {
   """One or more subgraphs that a key has access to"""
   subgraphs: [SubgraphIdentifierInput!]
-
-  """One or more variants that a key has access to"""
-  variants: [VariantIdentifierInput!]
 }
 
 type AuditLogExport {
@@ -368,6 +365,9 @@ enum BuildPipelineTrack {
   FED_2_1
   FED_2_10
   FED_2_11
+
+  """Federation 2.12"""
+  FED_2_12
   FED_2_3
   FED_2_4
   FED_2_5
@@ -5783,6 +5783,27 @@ type ServiceAccount implements Identity {
 
   """The organization this service account belongs to."""
   organization: Organization
+
+  """The type of service account, indicating its intended use case."""
+  type: ServiceAccountKind!
+}
+
+"""The type of service account, indicating its intended use case."""
+enum ServiceAccountKind {
+  """An operator service account used for administrative operations"""
+  OPERATOR
+
+  """A pipeline service account used for data processing operations"""
+  PIPELINE
+
+  """A router service account used for Apollo Router operations"""
+  ROUTER
+
+  """A SCIM service account used for user provisioning and management"""
+  SCIM
+
+  """An unknown or unspecified service account type"""
+  UNKNOWN
 }
 
 """
@@ -6791,15 +6812,6 @@ type VariantCheckConfigurationTimeRange {
 input VariantCreationConfig {
   buildConfigInput: BuildConfigInput!
   endpointSlug: String
-  variantName: String!
-}
-
-"""Details to identify a subgraph"""
-input VariantIdentifierInput {
-  """The graph id"""
-  graphId: String!
-
-  """The variant name"""
   variantName: String!
 }
 
