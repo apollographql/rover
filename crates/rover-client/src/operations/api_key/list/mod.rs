@@ -3,7 +3,7 @@ use graphql_client::GraphQLQuery;
 use serde::Serialize;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::list::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
+use crate::operations::api_key::list::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
 use crate::RoverClientError;
 use crate::RoverClientError::OrganizationIDNotFound;
 
@@ -12,7 +12,7 @@ type Timestamp = String;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/list/list_keys_query.graphql",
+    query_path = "src/operations/api_key/list/list_keys_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"

@@ -1,12 +1,12 @@
 use graphql_client::GraphQLQuery;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::GraphOsKeyType;
+use crate::operations::api_key::GraphOsKeyType;
 use crate::RoverClientError;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/create/create_key_mutation.graphql",
+    query_path = "src/operations/api_key/create/create_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"

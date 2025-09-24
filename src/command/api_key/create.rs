@@ -1,8 +1,8 @@
 use clap::Parser;
-use rover_client::operations::api_keys::create::{CreateKeyInput, run};
+use rover_client::operations::api_key::create::{CreateKeyInput, run};
 use serde::Serialize;
 
-use crate::command::api_keys::{ApiKeyType, OrganizationOpt};
+use crate::command::api_key::{ApiKeyType, OrganizationOpt};
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};

@@ -6,13 +6,13 @@ mod rename;
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use rover_client::operations::api_keys::GraphOsKeyType;
+use rover_client::operations::api_key::GraphOsKeyType;
 use serde::Serialize;
 
-use crate::command::api_keys::create::Create;
-use crate::command::api_keys::delete::Delete;
-use crate::command::api_keys::list::List;
-use crate::command::api_keys::rename::Rename;
+use crate::command::api_key::create::Create;
+use crate::command::api_key::delete::Delete;
+use crate::command::api_key::list::List;
+use crate::command::api_key::rename::Rename;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 

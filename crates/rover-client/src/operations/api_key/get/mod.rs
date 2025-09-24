@@ -2,8 +2,8 @@ use chrono::DateTime;
 use graphql_client::GraphQLQuery;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::get::get_key_query::GetKeyQueryOrganizationApiKey;
-use crate::operations::api_keys::list::ApiKey;
+use crate::operations::api_key::get::get_key_query::GetKeyQueryOrganizationApiKey;
+use crate::operations::api_key::list::ApiKey;
 use crate::RoverClientError;
 use crate::RoverClientError::OrganizationIDNotFound;
 
@@ -11,7 +11,7 @@ type Timestamp = String;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/get/get_key_query.graphql",
+    query_path = "src/operations/api_key/get/get_key_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"

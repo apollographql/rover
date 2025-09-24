@@ -1,38 +1,43 @@
-use std::collections::BTreeMap;
-use std::fmt::Write;
-use std::io::{self, IsTerminal};
-
-use calm_io::{stderr, stderrln};
-use camino::Utf8PathBuf;
-use comfy_table::Attribute::Bold;
-use comfy_table::Cell;
-use comfy_table::CellAlignment::Center;
-use rover_client::RoverClientError;
-use rover_client::operations::api_keys::list::ApiKey;
-use rover_client::operations::contract::describe::ContractDescribeResponse;
-use rover_client::operations::contract::publish::ContractPublishResponse;
-use rover_client::operations::graph::publish::GraphPublishResponse;
-use rover_client::operations::init::memberships::InitMembershipsResponse;
-use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
-use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
-use rover_client::operations::subgraph::list::SubgraphListResponse;
-use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{
-    CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
-    SdlType,
-};
-use rover_std::Style;
-use serde_json::{Value, json};
-use termimad::MadSkin;
-use termimad::crossterm::style::Attribute::Underlined;
-
-use crate::RoverError;
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::{JsonVersion, ProjectLanguage};
-use crate::utils::table;
+use crate::{
+    command::{
+        supergraph::compose::CompositionOutput,
+        template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
+    },
+    options::{JsonVersion, ProjectLanguage},
+    utils::table,
+    RoverError,
+};
+use calm_io::{stderr, stderrln};
+use camino::Utf8PathBuf;
+use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
+use rover_client::{
+    operations::{
+        api_key::list::ApiKey,
+        contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
+        graph::publish::GraphPublishResponse,
+        init::memberships::InitMembershipsResponse,
+        persisted_queries::publish::PersistedQueriesPublishResponse,
+        subgraph::{
+            delete::SubgraphDeleteResponse, list::SubgraphListResponse,
+            publish::SubgraphPublishResponse,
+        },
+    },
+    shared::{
+        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
+        SdlType,
+    },
+    RoverClientError,
+};
+use rover_std::Style;
+use serde_json::{json, Value};
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    io::{self, IsTerminal},
+};
+use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -807,26 +812,30 @@ impl RoverOutput {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
+    use super::*;
+    use crate::options::JsonOutput;
     use anyhow::anyhow;
     use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
     use console::strip_ansi_codes;
-    use rover_client::operations::graph::publish::{ChangeSummary, FieldChanges, TypeChanges};
-    use rover_client::operations::persisted_queries::publish::PersistedQueriesOperationCounts;
-    use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
-    use rover_client::operations::subgraph::list::{SubgraphInfo, SubgraphUpdatedAt};
-    use rover_client::shared::{
-        ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
-        SdlType, Violation,
+    use rover_client::{
+        operations::{
+            graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
+            persisted_queries::publish::PersistedQueriesOperationCounts,
+            subgraph::{
+                delete::SubgraphDeleteResponse,
+                list::{SubgraphInfo, SubgraphUpdatedAt},
+            },
+        },
+        shared::{
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+            SdlType, Violation,
+        },
     };
-
-    use super::*;
-    use crate::options::JsonOutput;
+    use std::collections::BTreeMap;
 
     #[test]
     fn docs_list_json() {
