@@ -60,20 +60,6 @@ impl ProjectTemplateOpt {
     fn generate_template_variants(base_templates: &[Template]) -> Vec<Template> {
         let mut all_templates = base_templates.to_vec();
 
-        // Add separator template for visual grouping
-        all_templates.push(Template {
-            id: TemplateId("separator".to_string()),
-            display_name: "─────────────────────────────────".to_string(),
-            path: "".to_string(),
-            language: "".to_string(),
-            federation_version: "".to_string(),
-            max_schema_depth: 0,
-            routing_url: "".to_string(),
-            commands: None,
-            start_point_file: "".to_string(),
-            print_depth: None,
-        });
-
         // Generate MCP variants
         for base_template in base_templates {
             // Skip certain templates that don't make sense for MCP
