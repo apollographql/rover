@@ -991,30 +991,36 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
+        println!("   {}:", Style::WarningHeading.paint("1. Add credentials to MCP config"));
+        println!("      Open {} and add your credentials:", Style::Path.paint(".apollo/mcp.local.yaml"));
+        println!("      ");
+        println!("      graphos:");
+        println!("        apollo_graph_ref: {}", graph_ref_str);
+        println!("        apollo_key: {}", apollo_key);
+        println!("      ");
+        println!("      ⚠️  {} Do not commit this file after adding real credentials", Style::WarningHeading.paint("IMPORTANT:"));
+        println!();
+        println!("   2. Test with rover dev:");
+        println!("      {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("      → API: {} | MCP: {}",
+            Style::Link.paint("http://localhost:4000"),
+            Style::Link.paint("http://localhost:5000")
+        );
+        println!();
+        println!("   3. For containerized deployment:");
         println!(
-            "   1. {}",
+            "      {}",
             Style::Command.paint(format!(
                 "docker build -f mcp.Dockerfile -t {}-mcp .",
                 project_name
             ))
         );
         println!(
-            "   2. {}",
+            "      {}",
             Style::Command.paint(format!(
                 "docker run --env-file .env -p5000:5000 {}-mcp",
                 project_name
             ))
-        );
-        println!(
-            "      Linux: {}",
-            Style::Command.paint(format!(
-                "docker run --network=host --env-file .env {}-mcp",
-                project_name
-            ))
-        );
-        println!(
-            "   3. {}",
-            Style::Command.paint("npx @modelcontextprotocol/inspector")
         );
 
         Ok(RoverOutput::EmptySuccess)
@@ -1169,20 +1175,31 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("   Then restart Claude Desktop.");
 
         println!();
-        println!("2. Start MCP server:");
-        println!("   {}", Style::Command.paint("source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("   {}:", Style::WarningHeading.paint("2. Add credentials to MCP config"));
+        println!("      After your graph is created, open {} and add your credentials:", Style::Path.paint(".apollo/mcp.local.yaml"));
+        println!("      ");
+        println!("      graphos:");
+        println!("        apollo_graph_ref: your-graph-id@current");
+        println!("        apollo_key: service:your-graph-id:your-api-key");
+        println!("      ");
+        println!("      ⚠️  {} Copy these from your .env file after graph creation", Style::WarningHeading.paint("NOTE:"));
+        println!("      ⚠️  {} Do not commit this file after adding real credentials", Style::WarningHeading.paint("IMPORTANT:"));
+
+        println!();
+        println!("3. Start MCP server:");
+        println!("   {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
         println!("   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
             Style::Link.paint("http://localhost:5000")
         );
 
         println!();
-        println!("3. Try it out in Claude:");
+        println!("4. Try it out in Claude:");
         println!("   Ask \"What tools do I have available?\" or \"Can you get me some product information?\"");
 
         println!();
         println!("Next steps:");
-        println!("- Customize endpoints → See README.md");
+        println!("- Customize endpoints → See the schema.graphql file");
         println!("- Create tools → Studio's Sandbox Explorer: {}", Style::Link.paint("http://localhost:4000"));
         println!("- Deploy → {}", Style::Command.paint("rover docs list mcp-deploy"));
         println!("- Learn more → {}", Style::Command.paint("rover docs list mcp-qs"));
