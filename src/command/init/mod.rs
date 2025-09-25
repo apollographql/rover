@@ -57,9 +57,14 @@ impl std::fmt::Display for MCPSetupType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MCPSetupType::ExistingGraph => {
-                write!(f, "Create MCP tools from an existing Apollo GraphOS project")
+                write!(
+                    f,
+                    "Create MCP tools from an existing Apollo GraphOS project"
+                )
             }
-            MCPSetupType::NewProject => write!(f, "Create MCP tools from a new Apollo GraphOS project")
+            MCPSetupType::NewProject => {
+                write!(f, "Create MCP tools from a new Apollo GraphOS project")
+            }
         }
     }
 }
@@ -562,7 +567,10 @@ impl Init {
         );
         println!("Enhance an Apollo GraphOS graph with MCP server capabilities.");
         println!();
-        println!("{} Your data source (API endpoint, database, or service)", Style::Heading.paint("Requirements:"));
+        println!(
+            "{} Your data source (API endpoint, database, or service)",
+            Style::Heading.paint("Requirements:")
+        );
         println!();
 
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
@@ -997,9 +1005,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!();
         println!("      {}: ", Style::Heading.paint("Windows PowerShell"));
         println!("      {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
-        println!("      {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!(
+            "      {}",
+            Style::Command.paint(
+                "rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"
+            )
+        );
         println!();
-        println!("      → API: {} | MCP: {}",
+        println!(
+            "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
             Style::Link.paint("http://localhost:5000")
         );
@@ -1082,7 +1096,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             "Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources."
         );
         println!();
-        println!("{} Your data source (API endpoint, database, or service)", Style::Heading.paint("Requirements:"));
+        println!(
+            "{} Your data source (API endpoint, database, or service)",
+            Style::Heading.paint("Requirements:")
+        );
         println!();
 
         let options = vec![
@@ -1120,7 +1137,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         if let Some(claude_config_path) = &mcp_result.claude_config {
             println!(
                 "{}",
-                Style::Success.paint(format!("✓ Claude Desktop config generated: {}", claude_config_path))
+                Style::Success.paint(format!(
+                    "✓ Claude Desktop config generated: {}",
+                    claude_config_path
+                ))
             );
         }
 
@@ -1137,7 +1157,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!();
 
-        println!("{}", Style::File.paint("GraphOS credentials for your graph"));
+        println!(
+            "{}",
+            Style::File.paint("GraphOS credentials for your graph")
+        );
         println!(
             "   • {}: {}",
             Style::GraphRef.paint("APOLLO_GRAPH_REF"),
@@ -1178,23 +1201,40 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!();
         println!("   {}: ", Style::Heading.paint("Windows PowerShell"));
         println!("   {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
-        println!("   {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!(
+            "   {}",
+            Style::Command.paint(
+                "rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"
+            )
+        );
         println!();
-        println!("   → API: {} | MCP: {}",
+        println!(
+            "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
             Style::Link.paint("http://localhost:5000")
         );
 
         println!();
         println!("3. Try it out in Claude:");
-        println!("   Ask \"What tools do I have available?\" or \"Can you get me some product information?\"");
+        println!(
+            "   Ask \"What tools do I have available?\" or \"Can you get me some product information?\""
+        );
 
         println!();
         println!("Next steps:");
         println!("- Customize endpoints → See the schema.graphql file");
-        println!("- Create tools → Studio's Sandbox Explorer: {}", Style::Link.paint("http://localhost:4000"));
-        println!("- Deploy → {}", Style::Command.paint("rover docs list mcp-deploy"));
-        println!("- Learn more → {}", Style::Command.paint("rover docs list mcp-qs"));
+        println!(
+            "- Create tools → Studio's Sandbox Explorer: {}",
+            Style::Link.paint("http://localhost:4000")
+        );
+        println!(
+            "- Deploy → {}",
+            Style::Command.paint("rover docs list mcp-deploy")
+        );
+        println!(
+            "- Learn more → {}",
+            Style::Command.paint("rover docs list mcp-qs")
+        );
     }
 
     /// Handle MCP setup for new project creation
@@ -1471,7 +1511,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         )?;
 
         // Display MCP-specific success message instead of standard completion
-        Self::display_mcp_project_success(&completed_project, &mcp_project_type, &data_source_type, &mcp_result);
+        Self::display_mcp_project_success(
+            &completed_project,
+            &mcp_project_type,
+            &data_source_type,
+            &mcp_result,
+        );
 
         Ok(RoverOutput::EmptySuccess)
     }
