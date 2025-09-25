@@ -219,7 +219,10 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
         println!();
         println!("{}", Style::Prompt.paint("GraphQL Schemas"));
         println!("Your data models and API definitions");
-        for file_path in file_paths.iter().filter(|k| k.ends_with(".graphql") && !k.starts_with("tools/")) {
+        for file_path in file_paths
+            .iter()
+            .filter(|k| k.ends_with(".graphql") && !k.starts_with("tools/"))
+        {
             println!(" {}", file_path);
         }
     }

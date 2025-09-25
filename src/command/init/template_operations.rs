@@ -281,15 +281,19 @@ impl SupergraphBuilder {
         }
     }
 
-    // If the file is named "schema", use parent directory name
+    // If the file is named "schema", use parent directory name, else use file stem, else default to "subgraph"
     fn determine_subgraph_name(&self, file_path: &Path) -> RoverResult<String> {
-        let file_stem = file_path.file_stem().unwrap().to_string_lossy();
-        if file_stem == "schema" {
-            let parent = file_path.parent().unwrap();
-            let parent_name = parent.file_name().unwrap().to_string_lossy();
-            Ok(parent_name.to_string())
-        } else {
-            Ok(file_stem.to_string())
+        let file_stem = file_path.file_stem().map(|s| s.to_string_lossy());
+        match file_stem.as_deref() {
+            Some("schema") => {
+                let parent_name = file_path
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().to_string());
+                Ok(parent_name.unwrap_or_else(|| "subgraph".to_string()))
+            }
+            Some(stem) if !stem.is_empty() => Ok(stem.to_string()),
+            _ => Ok("subgraph".to_string()),
         }
     }
 
