@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
 use crate::command::init::states::SelectedTemplateState;
@@ -182,6 +182,7 @@ impl InitTemplateOptions {
     }
 }
 
+
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
     service: GitHubService,
@@ -232,9 +233,19 @@ impl InitTemplateFetcher {
 
         let mcp_state = Self::extract_template_files(&template_options, &add_mcp_template)?;
 
-        // Merge MCP files into base template
+        // Merge MCP files into base template with intelligent merging for special files
         for (mcp_path, mcp_contents) in mcp_state.files {
-            base_state.files.insert(mcp_path, mcp_contents);
+            if mcp_path.as_str() == ".gitignore" {
+                // Special handling for .gitignore files - merge instead of overwrite
+                if let Some(base_gitignore) = base_state.files.get(&mcp_path) {
+                    let merged_gitignore = Self::merge_gitignore_files(base_gitignore, &mcp_contents)?;
+                    base_state.files.insert(mcp_path, merged_gitignore);
+                } else {
+                    base_state.files.insert(mcp_path, mcp_contents);
+                }
+            } else {
+                base_state.files.insert(mcp_path, mcp_contents);
+            }
         }
 
         // Create MCP template metadata
@@ -261,6 +272,51 @@ impl InitTemplateFetcher {
         template: &Template,
     ) -> RoverResult<SelectedTemplateState> {
         template_options.select_template(&template.id)
+    }
+
+    /// Merge two .gitignore files intelligently, preserving unique patterns
+    fn merge_gitignore_files(base_content: &[u8], mcp_content: &[u8]) -> RoverResult<Vec<u8>> {
+        let base_str = String::from_utf8_lossy(base_content);
+        let mcp_str = String::from_utf8_lossy(mcp_content);
+
+        // Track unique patterns to avoid duplicates
+        let mut patterns = HashSet::new();
+        let mut result = Vec::new();
+
+        // Add base template section header and patterns
+        result.push("# Base template ignores".to_string());
+        for line in base_str.lines() {
+            let trimmed = line.trim();
+            // Preserve comments and empty lines as-is
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                result.push(line.to_string());
+            } else {
+                // Only add unique patterns
+                if patterns.insert(trimmed.to_string()) {
+                    result.push(line.to_string());
+                }
+            }
+        }
+
+        // Add separator and MCP section
+        result.push("".to_string()); // empty line
+        result.push("# MCP server additions".to_string());
+        for line in mcp_str.lines() {
+            let trimmed = line.trim();
+            // Preserve comments and empty lines as-is
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                result.push(line.to_string());
+            } else {
+                // Only add unique patterns
+                if patterns.insert(trimmed.to_string()) {
+                    result.push(line.to_string());
+                }
+            }
+        }
+
+        // Convert back to bytes
+        let merged_content = result.join("\n");
+        Ok(merged_content.into_bytes())
     }
 
     pub async fn call(&mut self, reference: &str) -> RoverResult<InitTemplateOptions> {
@@ -357,5 +413,69 @@ mod tests {
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
         assert_eq!(template.start_point_file, "readme.md");
+    }
+
+    #[test]
+    fn test_merge_gitignore_files() {
+        let base_gitignore = b"# TypeScript ignores\nnode_modules/\n*.log\ndist/\n";
+        let mcp_gitignore = b"# MCP ignores\n.env\n*.log\ntools/temp/\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should contain both sets of patterns
+        assert!(merged_str.contains("node_modules/"));
+        assert!(merged_str.contains(".env"));
+        assert!(merged_str.contains("dist/"));
+        assert!(merged_str.contains("tools/temp/"));
+
+        // Should have section headers
+        assert!(merged_str.contains("# Base template ignores"));
+        assert!(merged_str.contains("# MCP server additions"));
+
+        // Should not duplicate *.log pattern
+        let log_count = merged_str.matches("*.log").count();
+        assert_eq!(log_count, 1, "*.log should only appear once in merged file");
+    }
+
+    #[test]
+    fn test_merge_gitignore_files_preserves_comments() {
+        let base_gitignore = b"# Important comment\n# Another comment\nnode_modules/\n\n# Section\ndist/\n";
+        let mcp_gitignore = b"# MCP comment\n.env\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should preserve original comments
+        assert!(merged_str.contains("# Important comment"));
+        assert!(merged_str.contains("# Another comment"));
+        assert!(merged_str.contains("# MCP comment"));
+        assert!(merged_str.contains("# Section"));
+
+        // Should preserve empty lines structure
+        assert!(merged_str.contains("\n\n"));
+    }
+
+    #[test]
+    fn test_merge_gitignore_files_no_base_file() {
+        let base_gitignore = b"";
+        let mcp_gitignore = b"# MCP ignores\n.env\ntools/temp/\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should contain MCP patterns
+        assert!(merged_str.contains(".env"));
+        assert!(merged_str.contains("tools/temp/"));
+
+        // Should still have proper headers
+        assert!(merged_str.contains("# Base template ignores"));
+        assert!(merged_str.contains("# MCP server additions"));
     }
 }
