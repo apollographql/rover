@@ -367,7 +367,7 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
 /// Object that describes how a default subgraph for composition should be retrieved
 pub enum DefaultSubgraphDefinition {
     /// This retrieves default subgraph definitions by prompting the user
-    Prompt(Box<dyn Prompt>),
+    Prompt(Box<dyn Prompt + Send>),
     /// This retrieves default subgraph definitions from CLI args
     Args {
         /// The name of the subgraph

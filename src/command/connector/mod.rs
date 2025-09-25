@@ -63,7 +63,7 @@ pub enum Command {
     Analyze(AnalyzeCurl),
     /// Run a single connector
     Run(RunConnector),
-    // Run tests for one or more connectors
+    /// Run tests for one or more connectors
     Test(TestConnector),
     /// List all available connectors
     List(ListConnector),

@@ -377,7 +377,6 @@ pub enum Command {
     Cloud(command::Cloud),
 
     #[cfg(feature = "composition-js")]
-    #[clap(hide = true)]
     Connector(command::Connector),
 
     /// Configuration profile commands
