@@ -1,4 +1,4 @@
-pub const URL_BASE: &str = "https://go/apollo/dev";
+pub const URL_BASE: &str = "https://go.apollo.dev";
 
 use serde::Serialize;
 use std::collections::BTreeMap;
