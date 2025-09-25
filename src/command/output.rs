@@ -28,6 +28,7 @@ use termimad::crossterm::style::Attribute::Underlined;
 use crate::RoverError;
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::{JsonVersion, ProjectLanguage};
@@ -54,7 +55,7 @@ pub enum RoverOutput {
     InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
-    DocsList(BTreeMap<&'static str, &'static str>),
+    DocsList(BTreeMap<&'static str, ShortlinkInfo>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
     JsonSchema(String),
@@ -194,8 +195,8 @@ impl RoverOutput {
                         .into_iter()
                         .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
                 );
-                for (shortlink_slug, shortlink_description) in shortlinks {
-                    table.add_row(vec![shortlink_slug, shortlink_description]);
+                for (slug, shortlink_info) in shortlinks {
+                    table.add_row(vec![slug, shortlink_info.description]);
                 }
                 Some(format!("{table}"))
             }
@@ -531,9 +532,9 @@ impl RoverOutput {
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
-                for (shortlink_slug, shortlink_description) in shortlinks {
+                for (shortlink_slug, shortlink_info) in shortlinks {
                     shortlink_vec.push(
-                        json!({"slug": shortlink_slug, "description": shortlink_description }),
+                        json!({"slug": shortlink_slug, "description": shortlink_info.description }),
                     );
                 }
                 json!({ "shortlinks": shortlink_vec })
@@ -748,8 +749,14 @@ mod tests {
     #[test]
     fn docs_list_json() {
         let mut mock_shortlinks = BTreeMap::new();
-        mock_shortlinks.insert("slug_one", "description_one");
-        mock_shortlinks.insert("slug_two", "description_two");
+        mock_shortlinks.insert(
+            "slug_one",
+            ShortlinkInfo::new("description_one", "r", "slug_one"),
+        );
+        mock_shortlinks.insert(
+            "slug_two",
+            ShortlinkInfo::new("description_two", "r", "slug_two"),
+        );
         let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
         let expected_json = json!(
         {

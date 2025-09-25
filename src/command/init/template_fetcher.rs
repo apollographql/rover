@@ -182,7 +182,6 @@ impl InitTemplateOptions {
     }
 }
 
-
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
     service: GitHubService,
@@ -238,7 +237,8 @@ impl InitTemplateFetcher {
             if mcp_path.as_str() == ".gitignore" {
                 // Special handling for .gitignore files - merge instead of overwrite
                 if let Some(base_gitignore) = base_state.files.get(&mcp_path) {
-                    let merged_gitignore = Self::merge_gitignore_files(base_gitignore, &mcp_contents)?;
+                    let merged_gitignore =
+                        Self::merge_gitignore_files(base_gitignore, &mcp_contents)?;
                     base_state.files.insert(mcp_path, merged_gitignore);
                 } else {
                     base_state.files.insert(mcp_path, mcp_contents);
@@ -442,7 +442,8 @@ mod tests {
 
     #[test]
     fn test_merge_gitignore_files_preserves_comments() {
-        let base_gitignore = b"# Important comment\n# Another comment\nnode_modules/\n\n# Section\ndist/\n";
+        let base_gitignore =
+            b"# Important comment\n# Another comment\nnode_modules/\n\n# Section\ndist/\n";
         let mcp_gitignore = b"# MCP comment\n.env\n";
 
         let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
