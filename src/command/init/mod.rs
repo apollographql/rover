@@ -991,23 +991,20 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
-        println!("   {}:", Style::WarningHeading.paint("1. Add credentials to MCP config"));
-        println!("      Open {} and add your credentials:", Style::Path.paint(".apollo/mcp.local.yaml"));
-        println!("      ");
-        println!("      graphos:");
-        println!("        apollo_graph_ref: {}", graph_ref_str);
-        println!("        apollo_key: {}", apollo_key);
-        println!("      ");
-        println!("      ⚠️  {} Do not commit this file after adding real credentials", Style::WarningHeading.paint("IMPORTANT:"));
+        println!("   1. Start the MCP server:");
         println!();
-        println!("   2. Test with rover dev:");
+        println!("      {}: {}", Style::Heading.paint("Linux/macOS"), Style::Command.paint("set -a && source .env && set +a && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!();
+        println!("      {}: ", Style::Heading.paint("Windows PowerShell"));
+        println!("      {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
         println!("      {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!();
         println!("      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
             Style::Link.paint("http://localhost:5000")
         );
         println!();
-        println!("   3. For containerized deployment:");
+        println!("   2. For containerized deployment:");
         println!(
             "      {}",
             Style::Command.paint(format!(
@@ -1175,26 +1172,21 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("   Then restart Claude Desktop.");
 
         println!();
-        println!("   {}:", Style::WarningHeading.paint("2. Add credentials to MCP config"));
-        println!("      After your graph is created, open {} and add your credentials:", Style::Path.paint(".apollo/mcp.local.yaml"));
-        println!("      ");
-        println!("      graphos:");
-        println!("        apollo_graph_ref: your-graph-id@current");
-        println!("        apollo_key: service:your-graph-id:your-api-key");
-        println!("      ");
-        println!("      ⚠️  {} Copy these from your .env file after graph creation", Style::WarningHeading.paint("NOTE:"));
-        println!("      ⚠️  {} Do not commit this file after adding real credentials", Style::WarningHeading.paint("IMPORTANT:"));
-
+        println!("2. Start MCP server (after graph creation):");
         println!();
-        println!("3. Start MCP server:");
+        println!("   {}: {}", Style::Heading.paint("Linux/macOS"), Style::Command.paint("set -a && source .env && set +a && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!();
+        println!("   {}: ", Style::Heading.paint("Windows PowerShell"));
+        println!("   {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
         println!("   {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!();
         println!("   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
             Style::Link.paint("http://localhost:5000")
         );
 
         println!();
-        println!("4. Try it out in Claude:");
+        println!("3. Try it out in Claude:");
         println!("   Ask \"What tools do I have available?\" or \"Can you get me some product information?\"");
 
         println!();
