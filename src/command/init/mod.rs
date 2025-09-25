@@ -103,10 +103,9 @@ enum MCPDataSourceType {
 impl std::fmt::Display for MCPDataSourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPDataSourceType::ExternalAPIs => write!(
-                f,
-                "Apollo graph with Connectors (connect to REST services)"
-            ),
+            MCPDataSourceType::ExternalAPIs => {
+                write!(f, "Apollo graph with Connectors (connect to REST services)")
+            }
             MCPDataSourceType::GraphQLAPI => write!(
                 f,
                 "Apollo graph with GraphQL endpoints (connect to existing GraphQL endpoints)"
@@ -478,7 +477,10 @@ impl Init {
             .collect::<Vec<_>>();
 
         let selection = FuzzySelect::new()
-            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with (or type graph name):"))
+            .with_prompt(
+                Style::Prompt
+                    .paint("? Select existing graph variant to work with (or type graph name):"),
+            )
             .highlight_matches(true)
             .items(&display_names)
             .interact_on_opt(&Term::stderr())?;
@@ -587,15 +589,19 @@ impl Init {
 
             // Find matching graph in the list
             let matching_graph = all_graph_options.iter().find(|option| {
-                option.graph_id == graph_part &&
-                (variant_part.is_none() || variant_part.as_deref() == Some(&option.variant_name))
+                option.graph_id == graph_part
+                    && (variant_part.is_none()
+                        || variant_part.as_deref() == Some(&option.variant_name))
             });
 
             match matching_graph {
                 Some(graph) => graph.clone(),
                 None => {
                     // If no exact match found, fall back to prompting
-                    eprintln!("Warning: Specified graph '{}' not found in available graphs", graph_id);
+                    eprintln!(
+                        "Warning: Specified graph '{}' not found in available graphs",
+                        graph_id
+                    );
                     Self::prompt_graph_selection(all_graph_options)?
                 }
             }
@@ -799,9 +805,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
 
         // Preview files and get user confirmation before creating them
-        let confirmed = self
-            .preview_mcp_files(&selected_graph, &files)
-            .await?;
+        let confirmed = self.preview_mcp_files(&selected_graph, &files).await?;
         if !confirmed {
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
@@ -860,7 +864,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
                 .replace("${GRAPH_STUDIO_URL}", &graph_endpoint)
                 .replace("${PROJECT_VERSION}", "1.0.0")
-                .replace("${PROJECT_REPOSITORY_URL}", &format!("https://github.com/user/{}", project_name))
+                .replace(
+                    "${PROJECT_REPOSITORY_URL}",
+                    &format!("https://github.com/user/{}", project_name),
+                )
                 // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", &project_name)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
@@ -876,7 +883,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
                 .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
                 .replace("{{PROJECT_VERSION}}", "1.0.0")
-                .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name))
+                .replace(
+                    "{{PROJECT_REPOSITORY_URL}}",
+                    &format!("https://github.com/user/{}", project_name),
+                )
                 // Other replacements
                 .replace("- /tools", &format!("- {}", tools_path_str))
                 .replace(
@@ -946,9 +956,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("      {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
         println!(
             "      {}",
-            Style::Command.paint(format!(
-                "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml", graph_ref_str
-            ))
+            Style::Command.paint(
+                "rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"
+            )
         );
         println!();
         println!(
@@ -975,7 +985,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         Ok(RoverOutput::EmptySuccess)
     }
-
 
     /// Get MCP data source type from project_use_case argument or prompt user
     #[cfg(feature = "composition-js")]
@@ -1398,13 +1407,34 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             // Fix Docker image tags to be lowercase and handle spaces
             // Replace any docker build/run commands that use project_name with lowercase version
             *content = content
-                .replace(&format!("-t {}", project_name), &format!("-t {}", docker_tag))
-                .replace(&format!("-t {}-mcp", project_name), &format!("-t {}-mcp", docker_tag))
-                .replace(&format!("p5000:5000 {}", project_name), &format!("p5000:5000 {}", docker_tag))
-                .replace(&format!("p5000:5000 {}-mcp", project_name), &format!("p5000:5000 {}-mcp", docker_tag))
-                .replace(&format!("--env-file .env {}", project_name), &format!("--env-file .env {}", docker_tag))
-                .replace(&format!("--network=host --env-file .env {}", project_name), &format!("--network=host --env-file .env {}", docker_tag))
-                .replace(&format!("--network=host --env-file .env {}-mcp", project_name), &format!("--network=host --env-file .env {}-mcp", docker_tag));
+                .replace(
+                    &format!("-t {}", project_name),
+                    &format!("-t {}", docker_tag),
+                )
+                .replace(
+                    &format!("-t {}-mcp", project_name),
+                    &format!("-t {}-mcp", docker_tag),
+                )
+                .replace(
+                    &format!("p5000:5000 {}", project_name),
+                    &format!("p5000:5000 {}", docker_tag),
+                )
+                .replace(
+                    &format!("p5000:5000 {}-mcp", project_name),
+                    &format!("p5000:5000 {}-mcp", docker_tag),
+                )
+                .replace(
+                    &format!("--env-file .env {}", project_name),
+                    &format!("--env-file .env {}", docker_tag),
+                )
+                .replace(
+                    &format!("--network=host --env-file .env {}", project_name),
+                    &format!("--network=host --env-file .env {}", docker_tag),
+                )
+                .replace(
+                    &format!("--network=host --env-file .env {}-mcp", project_name),
+                    &format!("--network=host --env-file .env {}-mcp", docker_tag),
+                );
         }
 
         // Convert back to bytes and update the template, excluding .env.template
@@ -1478,13 +1508,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Self::display_mcp_project_success(
             &completed_project,
             &mcp_project_type,
+            &data_source_type,
             &mcp_result,
         );
 
         Ok(RoverOutput::EmptySuccess)
     }
-
-
 
     #[cfg(not(feature = "composition-js"))]
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {

@@ -159,24 +159,42 @@ pub fn display_use_template_message() {
 pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     // MCP Server: Config, sample tools and tests
     println!();
-    println!("{}", Style::Prompt.paint("MCP Server: Config, sample tools and tests"));
-    if file_paths.iter().any(|k| k.as_str() == "claude_desktop_config.json") {
+    println!(
+        "{}",
+        Style::Prompt.paint("MCP Server: Config, sample tools and tests")
+    );
+    if file_paths
+        .iter()
+        .any(|k| k.as_str() == "claude_desktop_config.json")
+    {
         println!("- claude_desktop_config.json");
     }
     if file_paths.iter().any(|k| k.as_str() == "mcp.Dockerfile") {
         println!("- mcp.Dockerfile (optional Docker container)");
     }
-    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.local.yaml") {
+    if file_paths
+        .iter()
+        .any(|k| k.as_str() == "mcpconfig/mcp.local.yaml")
+    {
         println!("- mcpconfig/mcp.local.yaml");
     }
-    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.staging.yaml") {
+    if file_paths
+        .iter()
+        .any(|k| k.as_str() == "mcpconfig/mcp.staging.yaml")
+    {
         println!("- mcpconfig/mcp.staging.yaml");
     }
 
     // Apollo GraphOS: Apollo graph credentials and project files
     println!();
-    println!("{}", Style::Prompt.paint("Apollo GraphOS: Apollo graph credentials and project files"));
-    if file_paths.iter().any(|k| k.as_str() == "apollo.config.yaml") {
+    println!(
+        "{}",
+        Style::Prompt.paint("Apollo GraphOS: Apollo graph credentials and project files")
+    );
+    if file_paths
+        .iter()
+        .any(|k| k.as_str() == "apollo.config.yaml")
+    {
         println!("- apollo.config.yaml");
     }
     if file_paths.iter().any(|k| k.as_str() == "schema.graphql") {
@@ -211,7 +229,10 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     // Guides and references
     println!();
     println!("{}", Style::Prompt.paint("Guides and references"));
-    if file_paths.iter().any(|k| k.as_str() == "GETTING_STARTED.md") {
+    if file_paths
+        .iter()
+        .any(|k| k.as_str() == "GETTING_STARTED.md")
+    {
         println!("- GETTING_STARTED.md → Working with Apollo graphs and Apollo Connectors");
     }
     if file_paths.iter().any(|k| k.as_str() == "MCP_README.md") {

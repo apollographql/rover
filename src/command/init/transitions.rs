@@ -342,7 +342,6 @@ impl ProjectNamed {
             graph_id,
         })
     }
-
 }
 
 /// PROMPT UX:

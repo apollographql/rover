@@ -18,7 +18,6 @@ impl ProjectTemplateOpt {
         self.template.clone()
     }
 
-
     /// Check if a template is an MCP variant
     pub fn is_mcp_template(template_id: &TemplateId) -> bool {
         template_id.0.starts_with("mcp-")
@@ -65,8 +64,6 @@ mod tests {
         let result = instance.get_template();
         assert_eq!(result, None);
     }
-
-
 
     // Default trait implementation tests
 

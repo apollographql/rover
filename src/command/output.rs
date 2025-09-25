@@ -1,5 +1,6 @@
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
 use crate::{
     RoverError,
     command::{
@@ -32,13 +33,23 @@ use rover_client::{
 };
 use rover_std::Style;
 use serde_json::{Value, json};
-use crate::command::docs::shortlinks::ShortlinkInfo;
 use std::{
     collections::BTreeMap,
     fmt::Write,
     io::{self, IsTerminal},
 };
+use termimad::MadSkin;
+use termimad::crossterm::style::Attribute::Underlined;
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
+
+use crate::RoverError;
+#[cfg(feature = "composition-js")]
+use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::{JsonVersion, ProjectLanguage};
+use crate::utils::table;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
