@@ -12,7 +12,6 @@ use rover_std::{Spinner, Style, errln};
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 use crate::command::init::config::ProjectConfig;
 use crate::command::init::helpers::*;
-use crate::command::init::mcp::mcp_operations::MCPOperations;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
@@ -262,10 +261,6 @@ impl UseCaseSelected {
             // Select the `connectors` template if using use_case is Connectors
             ProjectUseCase::Connectors => {
                 template_options.select_template(&TemplateId("connectors".to_string()))?
-            }
-            // Select the `mcp` template if using use_case is MCPServer
-            ProjectUseCase::MCPServer => {
-                template_options.select_template(&TemplateId("mcp".to_string()))?
             }
             // Otherwise, show all templates (including MCP variants)
             ProjectUseCase::GraphQLTemplate => {
@@ -546,52 +541,15 @@ impl CreationConfirmed {
 
 impl ProjectCreated {
     pub fn complete(self) -> Completed {
-        // Check if this is an MCP Server project and handle accordingly
-        if self.config.use_case == ProjectUseCase::MCPServer {
-            // Get project root path - rover init always runs in the target directory
-            let project_path: Utf8PathBuf = ".".into();
-
-            match MCPOperations::setup_mcp_project_with_name(
-                &project_path,
-                &self.api_key,
-                &self.graph_ref.to_string(),
-                Some(&self.config.project_name.to_string()),
-            ) {
-                Ok(setup_result) => {
-                    MCPOperations::display_mcp_success_message(
-                        self.config.project_name.to_string(),
-                        &setup_result,
-                        &self.graph_ref.to_string(),
-                        &project_path,
-                        &self.api_key,
-                    );
-                }
-                Err(error) => {
-                    eprintln!("MCP setup failed: {}", error);
-                    // Fall back to standard success message
-                    display_project_created_message(
-                        self.config.project_name.to_string(),
-                        &self.artifacts,
-                        &self.graph_ref,
-                        self.api_key.to_string(),
-                        self.template.commands,
-                        self.template.start_point_file,
-                        self.template.print_depth,
-                    );
-                }
-            }
-        } else {
-            // Standard project setup
-            display_project_created_message(
-                self.config.project_name.to_string(),
-                &self.artifacts,
-                &self.graph_ref,
-                self.api_key.to_string(),
-                self.template.commands,
-                self.template.start_point_file,
-                self.template.print_depth,
-            );
-        }
+        display_project_created_message(
+            self.config.project_name.to_string(),
+            &self.artifacts,
+            &self.graph_ref,
+            self.api_key.to_string(),
+            self.template.commands,
+            self.template.start_point_file,
+            self.template.print_depth,
+        );
 
         Completed
     }

@@ -16,8 +16,6 @@ impl MCPOperations {
         graph_ref: &str,
         project_name: Option<&str>,
     ) -> RoverResult<MCPSetupResult> {
-        println!("{}", Style::Heading.paint("Setting up MCP server..."));
-
         // Check Node version and optionally generate Claude Desktop config
         let (claude_config, _connector_name) = Self::setup_claude_desktop_config_with_name(
             project_path,
@@ -97,71 +95,4 @@ impl MCPOperations {
         Ok(false)
     }
 
-    pub fn display_mcp_success_message(
-        project_name: String,
-        setup_result: &MCPSetupResult,
-        graph_ref: &str,
-        _project_path: &Utf8PathBuf,
-        api_key: &str,
-    ) {
-        println!("{}", Style::Success.paint("✓ MCP server enhanced"));
-        println!(
-            "{}",
-            Style::Success.paint("✓ Credentials saved to .env file")
-        );
-
-        // Project Details section
-        println!();
-        println!("{}", Style::File.paint("Project details"));
-        println!("   • MCP Server Name: mcp-{}", project_name);
-        println!(
-            "   • {}: {}",
-            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
-            graph_ref
-        );
-        println!("   • {}: {}", Style::Command.paint("APOLLO_KEY"), api_key);
-
-        // Next Steps section
-        println!();
-        println!("{}", Style::File.paint("Next steps ↴"));
-
-        println!();
-        println!("1. See the magic - get your MCP server running:");
-        println!("   • {}", Style::Command.paint("npm start"));
-        println!("   • MCP server will start on http://localhost:5000");
-        println!("   • In a new terminal: {}", Style::Command.paint("export $(cat .env | xargs) && APOLLO_ROVER_DEV_ROUTER_VERSION=2.6.0 rover dev --supergraph-config connectors/supergraph.yaml"));
-        println!(
-            "   • Your API + MCP server will start on http://localhost:4000 and http://localhost:5000"
-        );
-
-        println!();
-        println!("2. Connect Claude Desktop to see your API as AI tools:");
-        println!("   • Ensure Node.js 18+ is installed");
-        if setup_result.claude_config.is_some() {
-            println!("   • Copy the generated claude_desktop_config.json to:");
-            println!(
-                "     macOS:   {}",
-                Style::Path
-                    .paint("~/Library/Application Support/Claude/claude_desktop_config.json")
-            );
-            println!(
-                "     Windows: {}",
-                Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json")
-            );
-            println!(
-                "     Linux:   {}",
-                Style::Path.paint("~/.config/Claude/claude_desktop_config.json")
-            );
-            println!("   • Start Claude Desktop");
-            println!("   • Ask Claude: \"What data can you query for me?\"");
-        } else {
-            println!("   • Set up Claude Desktop configuration manually");
-            println!(
-                "   • See: https://www.apollographql.com/docs/apollo-mcp-server/quickstart#step-4-connect-claude-desktop"
-            );
-        }
-
-        println!();
-        println!("💡 Your GraphQL APIs are now AI-accessible through natural language!");
-    }
 }

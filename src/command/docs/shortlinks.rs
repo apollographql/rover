@@ -14,6 +14,8 @@ pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str>
         "template",
         "Learn how to add a template to an existing graph",
     );
+    links.insert("mcp-deploy", "Deploy Apollo MCP Server");
+    links.insert("mcp-qs", "Apollo MCP Server Quick Start");
     links
 }
 
