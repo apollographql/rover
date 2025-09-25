@@ -20,10 +20,9 @@ If you're using Rover with a CI/CD provider not listed here, we'd love for you t
 
 Rover commands that communicate with [GraphOS](/graphos/) require an [API key](/graphos/api-keys). GraphOS supports graph API keys, subgraph API keys, and personal API keys.
 
-On your local development machine, use a personal API key and provide it to Rover with the [<code>rover config auth</code> command](./configuring#via-the-auth-command).
+On your local development machine, use a personal API key and provide it to Rover with the [`rover config auth` command](./configuring#via-the-auth-command).
 
-In shared environments like CI, use a graph or subgraph API key. Because the <code>rover config auth</code> command is interactive, it isn't suitable for CI/CD. Instead, [authenticate using an environment variable](./configuring#with-an-environment-variable).
-
+In shared environments like CI, use a graph or subgraph API key and [set it as an environment variable](./configuring#supported-environment-variables).
 
 ## CircleCI
 
