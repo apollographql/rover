@@ -46,7 +46,6 @@ impl ProjectUseCaseOpt {
 pub enum ProjectUseCase {
     Connectors,
     GraphQLTemplate,
-    MCPServer,
 }
 
 const USE_CASE_DESCRIPTION: &str = "Start a graph with GraphQL APIs";
@@ -57,7 +56,6 @@ impl Display for ProjectUseCase {
         let readable = match self {
             Connectors => "Start a graph with one or more REST APIs",
             GraphQLTemplate => USE_CASE_DESCRIPTION,
-            MCPServer => "Create an MCP server with Apollo Connectors",
         };
         write!(f, "{readable}")
     }
@@ -107,12 +105,4 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_display_trait_for_mcp_server() {
-        let use_case = ProjectUseCase::MCPServer;
-        assert_eq!(
-            use_case.to_string(),
-            "Create an MCP server with Apollo Connectors"
-        );
-    }
 }
