@@ -325,7 +325,7 @@ impl Init {
                     "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory.\n\nIf you are wanting to use MCP with an existing project, you can run `{}` to add the all-in-one container to your project. See our docs for more information on how to configure it: {}",
                     Style::Command.paint("rover init --mcp"),
                     Style::Command.paint("rover dev --mcp"),
-                    hyperlink("https://www.apollographql.com/docs/apollo-mcp-server/config-file")
+                   Style::Command.paint("rover docs open mcp-config"),
                 )
                 .to_string(),
             )));

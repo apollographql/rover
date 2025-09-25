@@ -82,6 +82,22 @@ pub fn get_shortlinks_with_info() -> BTreeMap<&'static str, ShortlinkInfo> {
         "mcp-qs",
         ShortlinkInfo::new("Apollo MCP Server Quick Start", "mcp", "qs"),
     );
+    links.insert(
+        "mcp-config",
+        ShortlinkInfo::new(
+            "Reference guide for the Apollo MCP Server config file",
+            "mcp",
+            "config",
+        ),
+    );
+    links.insert(
+        "mcp-tools",
+        ShortlinkInfo::new(
+            "Learn how to define tools for the Apollo MCP Server",
+            "mcp",
+            "define-tools",
+        ),
+    );
     links
 }
 
