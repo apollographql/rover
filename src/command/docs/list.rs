@@ -10,8 +10,6 @@ pub struct List {}
 
 impl List {
     pub fn run(&self) -> RoverResult<RoverOutput> {
-        Ok(RoverOutput::DocsList(
-            shortlinks::get_shortlinks_with_description(),
-        ))
+        Ok(RoverOutput::DocsList(shortlinks::get_shortlinks_with_info()))
     }
 }
