@@ -144,8 +144,8 @@ impl Welcome {
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         format!(
-                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
-                            Style::Command.paint("init")
+                            "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory",
+                            Style::Command.paint("rover init")
                         )
                         .to_string(),
                     )));

@@ -171,14 +171,14 @@ impl Init {
         use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
 
-        // Handle MCP augmentation as special case - skip all project creation flow
-        if self.project_template.mcp {
-            return self.handle_mcp_augmentation(&client_config).await;
-        }
-
+        // Always check authentication first, then branch on MCP augmentation
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
             .await?;
+
+        if self.project_template.mcp {
+            return self.handle_mcp_augmentation(&client_config).await;
+        }
 
         let project_type_selected =
             welcome.select_project_type(&self.project_type, &self.path, &self.project_template)?;
@@ -322,7 +322,7 @@ impl Init {
             ))
             .with_suggestion(RoverErrorSuggestion::Adhoc(
                 format!(
-                    "Please run `{}` in an empty directory",
+                    "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory",
                     Style::Command.paint("rover init --mcp")
                 )
                 .to_string(),
