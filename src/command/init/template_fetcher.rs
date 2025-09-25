@@ -58,7 +58,7 @@ pub struct Template {
 
 impl Template {
     fn default_start_point_file() -> String {
-        "getting-started.md".to_string()
+        "GETTING_STARTED.MD".to_string()
     }
 }
 
@@ -339,7 +339,7 @@ mod tests {
             "routing_url": "http://localhost:4001"
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
-        assert_eq!(template.start_point_file, "getting-started.md");
+        assert_eq!(template.start_point_file, "GETTING_STARTED.MD");
     }
 
     #[test]
