@@ -8,14 +8,19 @@ description: Configure Rover CLI for interaction with GraphOS. Learn to authenti
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: _personal API keys_ and _graph API keys_.
+All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports three types of API keys: _personal API keys_, _subgraph API Keys_, and _graph API keys_.
 
 - **On your local development machine,** use a personal API key.
-- **In shared environments like CI,** use a graph API key.
+- **In team-specific CI** use a subgraph API key
+- **In all other shared environments** use a graph API key.
 
 [Learn how to obtain an API key.](/graphos/api-keys/)
 
-### 2. Provide the API key to Rover
+### 2. Store the API key
+
+Store the key's token value and name in your secret manager of choice. 
+
+### 3. Provide the API key to Rover
 
 You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
 
@@ -99,7 +104,7 @@ See all [supported environment variables](#supported-environment-variables).
 
 ## Configuration profiles
 
-You can create multiple _configuration profiles_ in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
+You can create multiple _configuration profiles_ in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs or subgraphs.
 
 To specify which configuration profile to use for a particular command, use the `--profile` flag:
 
