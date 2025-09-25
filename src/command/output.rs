@@ -25,10 +25,10 @@ use serde_json::{Value, json};
 use termimad::MadSkin;
 use termimad::crossterm::style::Attribute::Underlined;
 
-use crate::command::docs::shortlinks::ShortlinkInfo;
 use crate::RoverError;
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::{JsonVersion, ProjectLanguage};
@@ -749,8 +749,14 @@ mod tests {
     #[test]
     fn docs_list_json() {
         let mut mock_shortlinks = BTreeMap::new();
-        mock_shortlinks.insert("slug_one", ShortlinkInfo::new("description_one", "r", "slug_one"));
-        mock_shortlinks.insert("slug_two", ShortlinkInfo::new("description_two", "r", "slug_two"));
+        mock_shortlinks.insert(
+            "slug_one",
+            ShortlinkInfo::new("description_one", "r", "slug_one"),
+        );
+        mock_shortlinks.insert(
+            "slug_two",
+            ShortlinkInfo::new("description_two", "r", "slug_two"),
+        );
         let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
         let expected_json = json!(
         {
