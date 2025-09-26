@@ -1,18 +1,19 @@
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::{
+    RoverError,
     command::{
         supergraph::compose::CompositionOutput,
         template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
     },
     options::{JsonVersion, ProjectLanguage},
     utils::table,
-    RoverError,
 };
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
 use rover_client::{
+    RoverClientError,
     operations::{
         api_key::list::ApiKey,
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
@@ -28,16 +29,15 @@ use rover_client::{
         CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
         SdlType,
     },
-    RoverClientError,
 };
 use rover_std::Style;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
     fmt::Write,
     io::{self, IsTerminal},
 };
-use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -561,15 +561,6 @@ impl RoverOutput {
                     ]);
                 }
                 Some(format!("{table}"))
-            }
-            RoverOutput::RenameKeyResponse {
-                id,
-                old_name,
-                new_name,
-            } => {
-                let display_old_name = old_name.clone().unwrap_or(String::new());
-                stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
-                None
             }
             RoverOutput::RenameKeyResponse {
                 id,

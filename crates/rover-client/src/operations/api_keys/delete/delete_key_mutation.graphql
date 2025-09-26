@@ -1,5 +1,0 @@
-mutation DeleteKeyMutation($keyId: ID!, $organizationId: ID!) {
-    organization(id: $organizationId) {
-        deleteKey(keyId: $keyId)
-    }
-}

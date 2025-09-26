@@ -1,9 +1,0 @@
-mutation CreateKeyMutation($organizationId: ID!, $name: String!, $type: GraphOsKeyType!, $resources: ApiKeyResourceInput) {
-  organization(id: $organizationId) {
-    createKey(name: $name, type: $type, resources: $resources) {
-      id
-      keyName
-      token
-    }
-  }
-}

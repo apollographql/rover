@@ -1,8 +1,0 @@
-mutation RenameKeyMutation($keyId: ID!, $name: String!, $organizationId: ID!) {
-    organization(id: $organizationId) {
-        renameKey(keyId: $keyId, name: $name) {
-            keyName
-            id
-        }
-    }
-}
