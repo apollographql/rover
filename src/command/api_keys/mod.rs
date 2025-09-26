@@ -1,11 +1,14 @@
+mod create;
+mod delete;
+
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
 use rover_client::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType as QueryGraphOsKeyType;
-use rover_client::operations::api_keys::create_key::{CreateKeyInput, run};
 use serde::Serialize;
 
-use crate::options::ProfileOpt;
+use crate::command::api_keys::create::CreateKey;
+use crate::command::api_keys::delete::DeleteKey;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -15,18 +18,21 @@ pub struct ApiKeys {
     command: Command,
 }
 
+#[derive(Debug, Serialize, Parser)]
+pub enum Command {
+    #[clap(name = "create", about = "Create a new API key")]
+    CreateKey(CreateKey),
+    #[clap(name = "delete", about = "Delete an existing API key")]
+    DeleteKey(DeleteKey),
+}
+
 impl ApiKeys {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::CreateKey(command) => command.run(client_config).await,
+            Command::DeleteKey(command) => command.run(client_config).await,
         }
     }
-}
-
-#[derive(Debug, Serialize, Parser)]
-pub enum Command {
-    /// Manage Cloud Router config.
-    CreateKey(CreateKey),
 }
 
 // We define a new enum here so that we can keep the implementation details of the actual graph
@@ -51,36 +57,5 @@ impl Display for GraphOsKeyType {
         match self {
             GraphOsKeyType::OPERATOR => write!(f, "Operator"),
         }
-    }
-}
-
-#[derive(Debug, Serialize, Parser)]
-pub(crate) struct CreateKey {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-    organization_id: String,
-    name: String,
-    #[clap(name = "type", value_enum)]
-    key_type: GraphOsKeyType,
-}
-
-impl CreateKey {
-    async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
-        let resp = run(
-            CreateKeyInput {
-                organization_id: self.organization_id.clone(),
-                name: self.name.clone(),
-                key_type: self.key_type.into_query_enum(),
-            },
-            &client,
-        )
-        .await?;
-        Ok(RoverOutput::CreateKeyResponse {
-            api_key: resp.token,
-            key_type: self.key_type.to_string(),
-            id: resp.key_id,
-            name: resp.key_name,
-        })
     }
 }

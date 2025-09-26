@@ -1,19 +1,18 @@
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::{
-    RoverError,
     command::{
         supergraph::compose::CompositionOutput,
         template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
     },
     options::{JsonVersion, ProjectLanguage},
     utils::table,
+    RoverError,
 };
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
 use rover_client::{
-    RoverClientError,
     operations::{
         api_key::list::ApiKey,
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
@@ -29,15 +28,16 @@ use rover_client::{
         CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
         SdlType,
     },
+    RoverClientError,
 };
 use rover_std::Style;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     fmt::Write,
     io::{self, IsTerminal},
 };
-use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
+use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -711,7 +711,6 @@ impl RoverOutput {
             } => {
                 json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
             }
-<<<<<<< HEAD
             RoverOutput::DeleteKeyResponse { id } => {
                 json!({ "id": id })
             }
@@ -725,8 +724,6 @@ impl RoverOutput {
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
-=======
->>>>>>> 4b27d23d (FLEET-359 Fully plumbed in create method)
         }
     }
 
