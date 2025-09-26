@@ -5,6 +5,8 @@ use anyhow::format_err;
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
+
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
@@ -324,6 +326,80 @@ impl SupergraphBuilder {
     }
 }
 
+pub(crate) async fn build_and_write_vscode_settings_file(
+    project_path: &Utf8PathBuf,
+    apollo_api_key: &str,
+    apollo_graph_ref: &str,
+) -> RoverResult<()> {
+    let mut vscode_settings = String::new();
+    vscode_settings.push_str("{\n");
+    vscode_settings.push_str("    \"terminal.integrated.profiles.osx\": {\n");
+    vscode_settings.push_str("        \"graphos\": {\n");
+    vscode_settings.push_str("            \"path\": \"zsh\",\n");
+    vscode_settings.push_str("            \"args\": [\"-l\"],\n");
+    vscode_settings.push_str("            \"env\": {\n");
+    vscode_settings.push_str(&format!(
+        "                \"APOLLO_KEY\": \"{}\",\n",
+        apollo_api_key
+    ));
+    vscode_settings.push_str(&format!(
+        "                \"APOLLO_GRAPH_REF\": \"{}\",\n",
+        apollo_graph_ref
+    ));
+    vscode_settings.push_str("            },\n");
+    vscode_settings.push_str("        },\n");
+    vscode_settings.push_str("    },\n");
+    vscode_settings.push_str("    \"terminal.integrated.defaultProfile.osx\": \"graphos\"\n");
+    vscode_settings.push_str("}\n");
+    let vscode_settings_path = project_path.join(".vscode/settings.json");
+    std::fs::write(&vscode_settings_path, vscode_settings)
+        .map_err(|e| RoverError::new(anyhow!("Failed to write VSCode settings file: {}", e)))?;
+    Ok(())
+}
+
+pub(crate) async fn build_and_write_vscode_tasks_file(
+    project_path: &Utf8PathBuf,
+    is_mcp: bool,
+) -> RoverResult<()> {
+    let mut vscode_tasks = String::new();
+    if is_mcp {
+        vscode_tasks.push_str("{\n");
+        vscode_tasks.push_str("    \"version\": \"2.0.0\",\n");
+        vscode_tasks.push_str("    \"tasks\": [{\n");
+        vscode_tasks.push_str("        \"label\": \"dev\",\n");
+        vscode_tasks
+            .push_str("        \"command\": \"rover\", // Could be any other shell command\n");
+        vscode_tasks.push_str("        \"args\": [\"dev\", \"--mcp\", \".apollo/mcp.local.yaml\", \"--supergraph-config\", \"supergraph.yaml\", \"--router-config\", \"router.yaml\"],\n");
+        vscode_tasks.push_str("        \"type\": \"shell\",\n");
+        vscode_tasks.push_str("        \"problemMatcher\": [],\n");
+        vscode_tasks.push_str("    }, {\n");
+        vscode_tasks.push_str("        \"label\": \"mcp inspector\",\n");
+        vscode_tasks
+            .push_str("        \"command\": \"npx\", // Could be any other shell command\n");
+        vscode_tasks.push_str("        \"args\": [\"@modelcontextprotocol/inspector\"],\n");
+        vscode_tasks.push_str("        \"type\": \"shell\",\n");
+        vscode_tasks.push_str("        \"problemMatcher\": [],\n");
+        vscode_tasks.push_str("    }]\n");
+        vscode_tasks.push_str("}\n");
+    } else {
+        vscode_tasks.push_str("{\n");
+        vscode_tasks.push_str("    \"version\": \"2.0.0\",\n");
+        vscode_tasks.push_str("    \"tasks\": [{\n");
+        vscode_tasks.push_str("        \"label\": \"rover dev\",\n");
+        vscode_tasks
+            .push_str("        \"command\": \"rover\", // Could be any other shell command\n");
+        vscode_tasks.push_str("        \"args\": [\"dev\", \"--supergraph-config\",\"supergraph.yaml\", \"--router-config\",\"router.yaml\"],\n");
+        vscode_tasks.push_str("        \"type\": \"shell\",\n");
+        vscode_tasks.push_str("        \"problemMatcher\": [],\n");
+        vscode_tasks.push_str("    }]\n");
+        vscode_tasks.push_str("}\n");
+    }
+    let vscode_tasks_path = project_path.join(".vscode/tasks.json");
+    std::fs::write(&vscode_tasks_path, vscode_tasks)
+        .map_err(|e| RoverError::new(anyhow!("Failed to write VSCode tasks file: {}", e)))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,6 +530,105 @@ mod tests {
         let actual_file = File::open(temp_dir.path().join("supergraph.yaml"))?;
         let actual: SupergraphConfig = serde_yaml::from_reader(actual_file).unwrap();
         assert_eq!(actual, expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_and_write_vscode_settings_file() -> io::Result<()> {
+        let temp_dir = tempdir()?;
+        let path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
+
+        // Create .vscode directory
+        std::fs::create_dir_all(path.join(".vscode"))?;
+
+        let test_api_key = "test-api-key-123";
+        let test_graph_ref = "my-graph@main";
+
+        // Since build_and_write_vscode_settings_file is async, we need to block on it in a sync test
+        futures::executor::block_on(async {
+            build_and_write_vscode_settings_file(&path, test_api_key, test_graph_ref)
+                .await
+                .unwrap();
+        });
+
+        // Read the file and verify it contains the expected dynamic content
+        let vscode_settings_path = path.join(".vscode/settings.json");
+        let written = std::fs::read_to_string(&vscode_settings_path)?;
+
+        // Check that the API key and graph ref are properly inserted
+        let expected_api_key = format!("\"APOLLO_KEY\": \"{}\"", test_api_key);
+        let expected_graph_ref = format!("\"APOLLO_GRAPH_REF\": \"{}\"", test_graph_ref);
+        assert!(written.contains(&expected_api_key));
+        assert!(written.contains(&expected_graph_ref));
+
+        // Check for expected structure
+        assert!(written.contains("\"terminal.integrated.profiles.osx\""));
+        assert!(written.contains("\"graphos\""));
+        assert!(written.contains("\"terminal.integrated.defaultProfile.osx\": \"graphos\""));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_and_write_vscode_tasks_file_mcp_true() -> io::Result<()> {
+        let temp_dir = tempdir()?;
+        let path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
+
+        // Create .vscode directory
+        std::fs::create_dir_all(path.join(".vscode"))?;
+
+        // Test with MCP enabled
+        futures::executor::block_on(async {
+            build_and_write_vscode_tasks_file(&path, true)
+                .await
+                .unwrap();
+        });
+
+        let vscode_tasks_path = path.join(".vscode/tasks.json");
+        let written = std::fs::read_to_string(&vscode_tasks_path)?;
+
+        // Check MCP-specific content
+        assert!(written.contains("\"label\": \"dev\""));
+        assert!(written.contains("\"label\": \"mcp inspector\""));
+        assert!(written.contains("\"--mcp\""));
+        assert!(written.contains("\".apollo/mcp.local.yaml\""));
+        assert!(written.contains("\"command\": \"rover\""));
+        assert!(written.contains("\"command\": \"npx\""));
+        assert!(written.contains("\"@modelcontextprotocol/inspector\""));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_and_write_vscode_tasks_file_mcp_false() -> io::Result<()> {
+        let temp_dir = tempdir()?;
+        let path = Utf8PathBuf::from_path_buf(temp_dir.path().to_owned()).unwrap();
+
+        // Create .vscode directory
+        std::fs::create_dir_all(path.join(".vscode"))?;
+
+        // Test with MCP disabled
+        futures::executor::block_on(async {
+            build_and_write_vscode_tasks_file(&path, false)
+                .await
+                .unwrap();
+        });
+
+        let vscode_tasks_path = path.join(".vscode/tasks.json");
+        let written = std::fs::read_to_string(&vscode_tasks_path)?;
+
+        // Check non-MCP content
+        assert!(written.contains("\"label\": \"rover dev\""));
+        assert!(written.contains("\"command\": \"rover\""));
+        assert!(written.contains("\"--supergraph-config\""));
+        assert!(written.contains("\"--router-config\""));
+
+        // Ensure MCP-specific content is not present
+        assert!(!written.contains("\"--mcp\""));
+        assert!(!written.contains("\"mcp inspector\""));
+        assert!(!written.contains("\"@modelcontextprotocol/inspector\""));
+        assert!(!written.contains("\".apollo/mcp.local.yaml\""));
 
         Ok(())
     }

@@ -1233,6 +1233,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             .fetch_mcp_template(base_template_id, branch_ref)
             .await?;
 
+        // Add VSCode configuration files to MCP templates
+        selected_template.add_vscode_files();
+
         // Filter files based on data source selection BEFORE preview
         let mut string_files: std::collections::HashMap<camino::Utf8PathBuf, String> =
             selected_template
@@ -1496,6 +1499,20 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         let env_path = output_path.join(".env");
         std::fs::write(&env_path, env_content)?;
+
+        // Generate VSCode configuration files for MCP projects
+        crate::command::init::template_operations::build_and_write_vscode_settings_file(
+            &output_path,
+            &completed_project.api_key,
+            &completed_project.graph_ref.to_string(),
+        )
+        .await?;
+
+        crate::command::init::template_operations::build_and_write_vscode_tasks_file(
+            &output_path,
+            true, // MCP projects always have MCP capabilities
+        )
+        .await?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;
