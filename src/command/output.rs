@@ -711,6 +711,7 @@ impl RoverOutput {
             } => {
                 json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
             }
+<<<<<<< HEAD
             RoverOutput::DeleteKeyResponse { id } => {
                 json!({ "id": id })
             }
@@ -724,6 +725,8 @@ impl RoverOutput {
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
+=======
+>>>>>>> 4b27d23d (FLEET-359 Fully plumbed in create method)
         }
     }
 

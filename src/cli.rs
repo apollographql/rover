@@ -441,6 +441,8 @@ pub enum Command {
     #[cfg(feature = "composition-js")]
     #[clap(hide = true)]
     Lsp(command::Lsp),
+
+    ApiKeys(command::ApiKeys),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]

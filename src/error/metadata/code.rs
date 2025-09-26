@@ -1,6 +1,8 @@
 use serde::Serialize;
-use std::collections::HashMap;
-use std::fmt::{self, Display};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 use strum_macros::EnumString;
 
 /// `Code` contains the error codes associated with specific errors.

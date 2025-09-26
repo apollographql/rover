@@ -1,12 +1,12 @@
-use std::cmp::Ordering;
-use std::fmt::{self, Display, Write as _};
-
+use crate::utils::env::RoverEnvKey;
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::Style;
 use serde::Serialize;
-
-use crate::utils::env::RoverEnvKey;
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display, Write as _},
+};
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
 #[derive(Clone, Serialize, Debug)]
@@ -312,10 +312,8 @@ mod test {
     #[test]
     fn possible_values_nomatch() {
         let p_vals = ["test", "possible", "values"];
-        assert!(
-            super::did_you_mean("hahaahahah", p_vals.iter())
-                .pop()
-                .is_none()
-        );
+        assert!(super::did_you_mean("hahaahahah", p_vals.iter())
+            .pop()
+            .is_none());
     }
 }
