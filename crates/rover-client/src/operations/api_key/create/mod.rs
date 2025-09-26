@@ -13,10 +13,14 @@ use crate::RoverClientError;
 )]
 pub(crate) struct CreateKeyMutation;
 
+pub use create_key_mutation::ApiKeyResourceInput;
+pub use create_key_mutation::SubgraphIdentifierInput;
+
 pub struct CreateKeyInput {
     pub organization_id: String,
     pub name: String,
     pub key_type: GraphOsKeyType,
+    pub resources: Option<ApiKeyResourceInput>,
 }
 
 impl From<CreateKeyInput> for create_key_mutation::Variables {
@@ -25,6 +29,7 @@ impl From<CreateKeyInput> for create_key_mutation::Variables {
             organization_id: value.organization_id,
             name: value.name,
             type_: value.key_type,
+            resources: value.resources,
         }
     }
 }

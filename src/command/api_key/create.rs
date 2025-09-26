@@ -1,14 +1,16 @@
 use std::collections::HashMap;
-use std::io::IsTerminal;
 use std::fs::canonicalize;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
 use clap::Parser;
-use rover_client::operations::api_keys::create::{CreateKeyInput, run, SubgraphIdentifierInput, ApiKeyResourceInput};
+use rover_client::operations::api_key::create::{
+    ApiKeyResourceInput, CreateKeyInput, SubgraphIdentifierInput, run,
+};
 use serde::Serialize;
 
-use crate::command::api_keys::{ApiKeyType, OrganizationOpt};
+use crate::command::api_key::{ApiKeyType, OrganizationOpt};
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
@@ -34,7 +36,9 @@ impl Create {
         let resources = match self.key_type {
             ApiKeyType::Operator => None,
             ApiKeyType::Subgraph => {
-                let file_descriptor = self.subgraph_config.clone()
+                let file_descriptor = self
+                    .subgraph_config
+                    .clone()
                     .map(canonicalize)
                     .transpose()?
                     .map(Utf8PathBuf::from_path_buf)
@@ -43,16 +47,17 @@ impl Create {
                     .map(FileDescriptorType::File)
                     .unwrap_or_else(|| FileDescriptorType::Stdin);
                 let mut stdin = std::io::stdin();
-                if let FileDescriptorType::Stdin = file_descriptor {
-                    if stdin.is_terminal() {
-                        return Err(RoverError::new(
-                            anyhow::anyhow!("Expected subgraph config from stdin, received none")
-                        ).with_suggestion(
-                            crate::RoverErrorSuggestion::Adhoc("Pipe supergraph config to stdin or provide a file path via the --subgraph-config flag".to_string()))
-                        );
-                    }
+                if let FileDescriptorType::Stdin = file_descriptor
+                    && stdin.is_terminal()
+                {
+                    return Err(RoverError::new(
+                        anyhow::anyhow!("Expected subgraph config from stdin, received none")
+                    ).with_suggestion(
+                        crate::RoverErrorSuggestion::Adhoc("Pipe supergraph config to stdin or provide a file path via the --subgraph-config flag".to_string()))
+                    );
                 }
-                let content = file_descriptor.read_file_descriptor("subgraph config", &mut stdin)?;
+                let content =
+                    file_descriptor.read_file_descriptor("subgraph config", &mut stdin)?;
                 let config: SubgraphKeyConfig = serde_yaml::from_str(&content)?;
                 let mut subgraphs_input = Vec::new();
                 for (graph_id, variants) in config.iter() {
@@ -61,7 +66,7 @@ impl Create {
                             subgraphs_input.push(SubgraphIdentifierInput {
                                 graph_id: graph_id.clone(),
                                 variant_name: variant_name.clone(),
-                                subgraph_name: subgraph_name.to_string()
+                                subgraph_name: subgraph_name.to_string(),
                             })
                         }
                     }
@@ -77,7 +82,7 @@ impl Create {
                 organization_id: self.organization_opt.organization_id.clone(),
                 name: self.name.clone(),
                 key_type: self.key_type.into_query_enum(),
-                resources
+                resources,
             },
             &client,
         )
