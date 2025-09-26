@@ -1,11 +1,9 @@
-use std::fmt::Debug;
-
+use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
 use apollo_federation_types::rover::BuildErrors;
 use itertools::Itertools;
 use rover_graphql::GraphQLServiceError;
+use std::fmt::Debug;
 use thiserror::Error;
-
-use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
