@@ -1,12 +1,8 @@
 use graphql_client::GraphQLQuery;
-use serde::{Deserialize, Serialize};
 
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use crate::RoverClientError::OrganizationIDNotFound;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
-struct Void {}
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
