@@ -276,9 +276,11 @@ impl UseCaseSelected {
                     template
                 } else {
                     // Auto-select first available template for basic flow
-                    templates.first()
+                    templates
+                        .first()
                         .ok_or_else(|| RoverError::new(anyhow!("No templates available")))?
-                        .id.clone()
+                        .id
+                        .clone()
                 };
 
                 // Check if this is an MCP template and handle composition
