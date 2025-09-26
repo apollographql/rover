@@ -20,42 +20,13 @@ fn strip_ansi_codes(s: &str) -> String {
 
 #[test]
 fn test_get_command() {
-    let api_key = "test-api-key";
-    let graph_ref = "my-graph@main";
+    // Test command with supergraph config
+    let cmd = get_command(true);
+    assert_eq!(cmd, "rover dev --supergraph-config supergraph.yaml");
 
-    #[cfg(target_os = "windows")]
-    {
-        // Test Windows command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Windows command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Test Unix command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Unix command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
+    // Test command without supergraph config
+    let cmd = get_command(false);
+    assert_eq!(cmd, "rover dev");
 }
 
 #[test]

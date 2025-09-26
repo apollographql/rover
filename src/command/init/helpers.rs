@@ -18,47 +18,12 @@ pub fn display_welcome_message() {
     println!();
 }
 
-pub(crate) fn get_command(api_key: &str, graph_ref: &str, supergraph_config: bool) -> String {
-    #[cfg(target_os = "windows")]
-    {
-        let mut output = String::new();
-
-        // PowerShell command
-        output.push_str("PowerShell:\n");
-        output.push_str(&format!(
-            "$env:APOLLO_KEY = \"{}\"; $env:APOLLO_GRAPH_REF = \"{}\"; rover dev",
-            api_key, graph_ref
-        ));
-        if supergraph_config {
-            output.push_str(" --supergraph-config supergraph.yaml");
-        }
-
-        output.push_str("\n\n");
-
-        // CMD
-        output.push_str("Command Prompt:\n");
-        output.push_str(&format!(
-            "set APOLLO_KEY={} && set APOLLO_GRAPH_REF={} && rover dev",
-            api_key, graph_ref
-        ));
-        if supergraph_config {
-            output.push_str(" --supergraph-config supergraph.yaml");
-        }
-
-        output
+pub(crate) fn get_command(supergraph_config: bool) -> String {
+    let mut output = String::from("rover dev");
+    if supergraph_config {
+        output.push_str(" --supergraph-config supergraph.yaml");
     }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let mut output = String::new();
-        output.push_str(&format!(
-            "APOLLO_KEY={api_key} APOLLO_GRAPH_REF={graph_ref} rover dev"
-        ));
-        if supergraph_config {
-            output.push_str(" --supergraph-config supergraph.yaml");
-        }
-        output
-    }
+    output
 }
 
 pub fn generate_project_created_message(
@@ -114,7 +79,7 @@ pub fn generate_project_created_message(
 
     // Add next steps section
     output.push_str(&format!("{}\n", Style::Heading.paint("Next steps")));
-    let dev_command = get_command(&api_key, &graph_ref.to_string(), !artifacts.is_empty());
+    let dev_command = get_command(!artifacts.is_empty());
 
     if let Some(commands) = commands {
         // Filter out empty commands
