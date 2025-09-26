@@ -1,10 +1,13 @@
-use crate::{options::JsonVersion, utils::env::RoverEnvKey};
+use std::env;
+
 pub use code::RoverErrorCode;
 use houston::HoustonProblem;
 use rover_client::{EndpointKind, RoverClientError};
 use serde::Serialize;
-use std::env;
 pub use suggestion::RoverErrorSuggestion;
+
+use crate::options::JsonVersion;
+use crate::utils::env::RoverEnvKey;
 
 mod code;
 mod suggestion;
