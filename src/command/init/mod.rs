@@ -29,7 +29,7 @@ use crate::command::init::options::ProjectTemplateOpt;
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
-    ProjectUseCaseOpt,
+    ProjectUseCase, ProjectUseCaseOpt,
 };
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
@@ -337,8 +337,8 @@ impl Init {
             }
         };
 
-        // Prompt for MCP setup type
-        let setup_type = Self::prompt_mcp_setup_type()?;
+        // Determine MCP setup type from project_type argument or prompt
+        let setup_type = self.get_or_prompt_mcp_setup_type()?;
 
         match setup_type {
             MCPSetupType::ExistingGraph => {
@@ -346,6 +346,22 @@ impl Init {
             }
             MCPSetupType::NewProject => self.handle_new_project_mcp(&client, client_config).await,
         }
+    }
+
+    /// Get MCP setup type from project_type argument or prompt user
+    #[cfg(feature = "composition-js")]
+    fn get_or_prompt_mcp_setup_type(&self) -> RoverResult<MCPSetupType> {
+        // Check if project_type was provided via command line
+        if let Some(project_type) = &self.project_type.project_type {
+            let setup_type = match project_type {
+                ProjectType::CreateNew => MCPSetupType::NewProject,
+                ProjectType::AddSubgraph => MCPSetupType::ExistingGraph,
+            };
+            return Ok(setup_type);
+        }
+
+        // If no argument provided, prompt the user
+        Self::prompt_mcp_setup_type()
     }
 
     /// Prompt user to choose MCP setup type
@@ -451,7 +467,7 @@ impl Init {
         graph_options: Vec<GraphVariantOption>,
     ) -> RoverResult<GraphVariantOption> {
         use anyhow::anyhow;
-        use dialoguer::Select;
+        use dialoguer::FuzzySelect;
         use dialoguer::console::Term;
         use rover_std::Style;
 
@@ -460,10 +476,10 @@ impl Init {
             .map(|option| option.display_name.clone())
             .collect::<Vec<_>>();
 
-        let selection = Select::new()
-            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with"))
+        let selection = FuzzySelect::new()
+            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with (or type graph name):"))
+            .highlight_matches(true)
             .items(&display_names)
-            .default(0)
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
@@ -558,8 +574,34 @@ impl Init {
             return Ok(RoverOutput::EmptySuccess);
         }
 
-        // Present graph selection dropdown
-        let selected_graph = Self::prompt_graph_selection(all_graph_options)?;
+        // Check if graph_id was provided via command line
+        let selected_graph = if let Some(ref graph_id) = self.graph_id.graph_id {
+            // Try to parse the graph_id (format: graph-id@variant or just graph-id)
+            let (graph_part, variant_part) = if graph_id.contains('@') {
+                let parts: Vec<&str> = graph_id.splitn(2, '@').collect();
+                (parts[0].to_string(), Some(parts[1].to_string()))
+            } else {
+                (graph_id.clone(), None)
+            };
+
+            // Find matching graph in the list
+            let matching_graph = all_graph_options.iter().find(|option| {
+                option.graph_id == graph_part &&
+                (variant_part.is_none() || variant_part.as_deref() == Some(&option.variant_name))
+            });
+
+            match matching_graph {
+                Some(graph) => graph.clone(),
+                None => {
+                    // If no exact match found, fall back to prompting
+                    eprintln!("Warning: Specified graph '{}' not found in available graphs", graph_id);
+                    Self::prompt_graph_selection(all_graph_options)?
+                }
+            }
+        } else {
+            // No graph_id provided, prompt for selection
+            Self::prompt_graph_selection(all_graph_options)?
+        };
 
         // Display project context and requirements
         println!();
@@ -804,9 +846,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
    docker build -f mcp.Dockerfile -t {}-mcp .
    ```
 
-2. Create your .env file and run the MCP server:
+2. Run the MCP server:
    ```bash
-   cp .env.template .env
    docker run --env-file .env -p5000:5000 {}-mcp
    # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
@@ -958,18 +999,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                         "\"{{APOLLO_GRAPH_REF}}\"",
                         &format!("\"{}\"", graph_ref_str),
                     );
+
+                // Write processed template as .env file instead of .env.template
+                let env_path = current_dir.join(".env");
+                std::fs::write(&env_path, processed_content)?;
+                continue; // Skip writing .env.template
             }
 
             std::fs::write(&target_path, processed_content)?;
         }
-
-        // Create .env file with actual credentials
-        let env_content = format!(
-            "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
-            apollo_key, graph_ref_str
-        );
-        let env_path = current_dir.join(".env");
-        std::fs::write(&env_path, env_content)?;
 
         println!();
         println!(
@@ -1039,45 +1077,21 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Ok(RoverOutput::EmptySuccess)
     }
 
-    /// Update .env.template file with real values from completed project
+
+    /// Get MCP data source type from project_use_case argument or prompt user
     #[cfg(feature = "composition-js")]
-    fn update_env_template_with_real_values(
-        completed_project: &states::ProjectCreated,
-        output_path: &camino::Utf8PathBuf,
-    ) -> RoverResult<()> {
-        use rover_std::Fs;
-
-        let env_template_path = output_path.join(".env.template");
-
-        // Check if .env.template file exists
-        if env_template_path.exists() {
-            // Read the current content
-            let current_content = Fs::read_file(&env_template_path)?;
-
-            // Apply template replacement with real values
-            let updated_content = current_content
-                .replace(
-                    "\"{{PROJECT_NAME}}\"",
-                    &format!("\"{}\"", completed_project.config.project_name.to_string()),
-                )
-                .replace(
-                    "\"{{GRAPHQL_ENDPOINT}}\"",
-                    "\"http://host.docker.internal:4000/graphql\"",
-                )
-                .replace(
-                    "\"{{APOLLO_KEY}}\"",
-                    &format!("\"{}\"", completed_project.api_key),
-                )
-                .replace(
-                    "\"{{APOLLO_GRAPH_REF}}\"",
-                    &format!("\"{}\"", completed_project.graph_ref),
-                );
-
-            // Write the updated content back
-            Fs::write_file(&env_template_path, updated_content)?;
+    fn get_or_prompt_mcp_data_source(&self) -> RoverResult<MCPDataSourceType> {
+        // Check if project_use_case was provided via command line
+        if let Some(use_case) = &self.project_use_case.project_use_case {
+            let data_source = match use_case {
+                ProjectUseCase::Connectors => MCPDataSourceType::ExternalAPIs,
+                ProjectUseCase::GraphQLTemplate => MCPDataSourceType::GraphQLAPI,
+            };
+            return Ok(data_source);
         }
 
-        Ok(())
+        // If no argument provided, prompt the user
+        Self::prompt_mcp_data_source()
     }
 
     /// Prompt user to select MCP data source type
@@ -1253,8 +1267,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         use crate::command::init::transitions::CreateProjectResult;
         use anyhow::anyhow;
 
-        // Prompt for data source type
-        let data_source_type = Self::prompt_mcp_data_source()?;
+        // Determine data source type from project_use_case argument or prompt
+        let data_source_type = self.get_or_prompt_mcp_data_source()?;
 
         // Authenticate
         let _welcome = UserAuthenticated::new()
@@ -1445,10 +1459,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{/if}}", "");
         }
 
-        // Convert back to bytes and update the template
+        // Convert back to bytes and update the template, excluding .env.template
         let mut updated_graph_id_entered = graph_id_entered;
         updated_graph_id_entered.selected_template.files = string_files
             .into_iter()
+            .filter(|(path, _)| path != ".env.template") // Skip .env.template files
             .map(|(path, content)| (path, content.into_bytes()))
             .collect();
 
@@ -1493,9 +1508,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .map_err(|_| RoverError::new(anyhow!("Invalid path")))?,
             None => camino::Utf8PathBuf::from("."),
         };
-
-        // Update .env.template file with real values if it exists
-        Self::update_env_template_with_real_values(&completed_project, &output_path)?;
 
         // Create .env file with actual credentials
         let env_content = format!(

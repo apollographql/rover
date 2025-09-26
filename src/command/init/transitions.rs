@@ -262,7 +262,7 @@ impl UseCaseSelected {
             ProjectUseCase::Connectors => {
                 template_options.select_template(&TemplateId("connectors".to_string()))?
             }
-            // Otherwise, show all templates (including MCP variants)
+            // Otherwise, automatically select the first available template (basic flow)
             ProjectUseCase::GraphQLTemplate => {
                 let templates = template_options
                     .list_templates()
@@ -271,7 +271,17 @@ impl UseCaseSelected {
                     .cloned()
                     .collect::<Vec<_>>();
 
-                let template_id = options.get_or_prompt_template(&templates)?;
+                let template_id = if let Some(template) = options.get_template() {
+                    // Use explicitly provided template
+                    template
+                } else {
+                    // Auto-select first available template for basic flow
+                    templates
+                        .first()
+                        .ok_or_else(|| RoverError::new(anyhow!("No templates available")))?
+                        .id
+                        .clone()
+                };
 
                 // Check if this is an MCP template and handle composition
                 if ProjectTemplateOpt::is_mcp_template(&template_id) {
