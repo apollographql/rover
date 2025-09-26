@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_client::operations::api_keys::create_key::{CreateKeyInput, run};
+use rover_client::operations::api_keys::create::{CreateKeyInput, run};
 use serde::Serialize;
 
 use crate::command::api_keys::ApiKeyType;
@@ -8,7 +8,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub(crate) struct CreateKey {
+pub(crate) struct Create {
     #[clap(flatten)]
     profile: ProfileOpt,
     organization_id: String,
@@ -17,7 +17,7 @@ pub(crate) struct CreateKey {
     key_type: ApiKeyType,
 }
 
-impl CreateKey {
+impl Create {
     pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let resp = run(

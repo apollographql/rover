@@ -3,16 +3,16 @@ use graphql_client::GraphQLQuery;
 use serde::Serialize;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::list_keys::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
+use crate::operations::api_keys::list::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
 use crate::RoverClientError;
 use crate::RoverClientError::OrganizationIDNotFound;
 
-type Timestamp = String;
 type RemoteApiKey = ListKeysQueryOrganizationApiKeysEdges;
+type Timestamp = String;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/list_keys/list_keys_query.graphql",
+    query_path = "src/operations/api_keys/list/list_keys_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -79,27 +79,30 @@ pub async fn run(
         end_cursor = api_keys.page_info.end_cursor;
     }
 
-    build_response(final_list)
+    let mut keys = Vec::new();
+    for remote_api_key in final_list {
+        keys.push(remote_api_key.try_into()?);
+    }
+    Ok(ListKeysResponse { keys })
 }
 
-fn build_response(data: Vec<RemoteApiKey>) -> Result<ListKeysResponse, RoverClientError> {
-    let mut keys = Vec::new();
-    for remote_api_key in data {
-        let created_at = DateTime::parse_from_rfc3339(&remote_api_key.node.created_at)?;
-        let expires_at = match remote_api_key.node.expires_at {
+impl TryFrom<RemoteApiKey> for ApiKey {
+    type Error = RoverClientError;
+
+    fn try_from(value: RemoteApiKey) -> Result<Self, Self::Error> {
+        let created_at = DateTime::parse_from_rfc3339(&value.node.created_at)?;
+        let expires_at = match value.node.expires_at {
             None => None,
             Some(timestamp) => {
                 let parsed_timestamp = DateTime::parse_from_rfc3339(&timestamp)?;
                 Some(parsed_timestamp)
             }
         };
-        let new_key = ApiKey {
+        Ok(Self {
             created_at,
             expires_at,
-            id: remote_api_key.node.id.clone(),
-            name: remote_api_key.node.key_name.clone(),
-        };
-        keys.push(new_key);
+            id: value.node.id.clone(),
+            name: value.node.key_name.clone(),
+        })
     }
-    Ok(ListKeysResponse { keys })
 }

@@ -6,7 +6,7 @@ use crate::RoverClientError;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/create_key/create_key_mutation.graphql",
+    query_path = "src/operations/api_keys/create/create_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"

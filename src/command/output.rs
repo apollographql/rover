@@ -571,6 +571,15 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                let display_old_name = old_name.clone().unwrap_or(String::new());
+                stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
+                None
+            }
         })
     }
 

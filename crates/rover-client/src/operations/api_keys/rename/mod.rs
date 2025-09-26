@@ -6,17 +6,17 @@ use crate::RoverClientError::OrganizationIDNotFound;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/rename_key/rename_key_mutation.graphql",
+    query_path = "src/operations/api_keys/rename/rename_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct RenameKeyMutation;
+struct RenameKeyMutation;
 
-pub(crate) struct RenameKeyInput {
-    pub(crate) organization_id: String,
-    pub(crate) key_id: String,
-    pub(crate) new_name: String,
+pub struct RenameKeyInput {
+    pub organization_id: String,
+    pub key_id: String,
+    pub new_name: String,
 }
 
 impl From<RenameKeyInput> for rename_key_mutation::Variables {
@@ -29,9 +29,9 @@ impl From<RenameKeyInput> for rename_key_mutation::Variables {
     }
 }
 
-pub(crate) struct RenameKeyResponse {
-    pub(crate) key_id: String,
-    pub(crate) name: String,
+pub struct RenameKeyResponse {
+    pub key_id: String,
+    pub name: String,
 }
 
 pub async fn run(

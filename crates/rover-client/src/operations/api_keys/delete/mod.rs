@@ -10,7 +10,7 @@ struct Void {}
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
-    query_path = "src/operations/api_keys/delete_key/delete_key_mutation.graphql",
+    query_path = "src/operations/api_keys/delete/delete_key_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
