@@ -449,7 +449,7 @@ impl Init {
         graph_options: Vec<GraphVariantOption>,
     ) -> RoverResult<GraphVariantOption> {
         use anyhow::anyhow;
-        use dialoguer::Select;
+        use dialoguer::FuzzySelect;
         use dialoguer::console::Term;
         use rover_std::Style;
 
@@ -458,10 +458,10 @@ impl Init {
             .map(|option| option.display_name.clone())
             .collect::<Vec<_>>();
 
-        let selection = Select::new()
-            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with"))
+        let selection = FuzzySelect::new()
+            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with:"))
+            .highlight_matches(true)
             .items(&display_names)
-            .default(0)
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
