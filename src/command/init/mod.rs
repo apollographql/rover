@@ -459,7 +459,7 @@ impl Init {
             .collect::<Vec<_>>();
 
         let selection = FuzzySelect::new()
-            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with:"))
+            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with (or type graph name):"))
             .highlight_matches(true)
             .items(&display_names)
             .interact_on_opt(&Term::stderr())?;
