@@ -53,12 +53,14 @@ impl ApiKeys {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiKeyType {
     Operator,
+    Subgraph,
 }
 
 impl ApiKeyType {
     fn into_query_enum(self) -> GraphOsKeyType {
         match self {
             Self::Operator => GraphOsKeyType::OPERATOR,
+            Self::Subgraph => GraphOsKeyType::SUBGRAPH,
         }
     }
 }
@@ -67,6 +69,7 @@ impl Display for ApiKeyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ApiKeyType::Operator => write!(f, "Operator"),
+            ApiKeyType::Subgraph => write!(f, "Subgraph"),
         }
     }
 }
