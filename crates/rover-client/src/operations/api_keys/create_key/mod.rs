@@ -1,7 +1,7 @@
 use graphql_client::GraphQLQuery;
 
 use crate::blocking::StudioClient;
-use crate::operations::api_keys::create_key::create_key_mutation::GraphOsKeyType;
+use crate::operations::api_keys::GraphOsKeyType;
 use crate::RoverClientError;
 
 #[derive(GraphQLQuery, Debug)]
@@ -11,7 +11,7 @@ use crate::RoverClientError;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct CreateKeyMutation;
+pub(crate) struct CreateKeyMutation;
 
 pub struct CreateKeyInput {
     pub organization_id: String,
