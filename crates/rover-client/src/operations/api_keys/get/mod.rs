@@ -41,13 +41,14 @@ pub async fn run(
     client: &StudioClient,
 ) -> Result<GetKeyResponse, RoverClientError> {
     let organization_id = input.organization_id.clone();
+    let key_id = input.key_id.clone();
     let data = client.post::<GetKeyQuery>(input.into()).await?;
     match data
         .organization
         .ok_or_else(|| OrganizationIDNotFound { organization_id })?
         .api_key
     {
-        None => Err(RoverClientError::InvalidKey),
+        None => Err(RoverClientError::ApiKeyNotFound { api_key_id: key_id }),
         Some(key) => {
             let key = ApiKey::try_from(key)?;
             Ok(GetKeyResponse { key })

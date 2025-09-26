@@ -2,6 +2,7 @@ use clap::Parser;
 use rover_client::operations::api_keys::list::{ListKeysInput, run};
 use serde::Serialize;
 
+use crate::command::api_keys::OrganizationOpt;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
@@ -10,8 +11,8 @@ use crate::{RoverOutput, RoverResult};
 pub(crate) struct List {
     #[clap(flatten)]
     profile: ProfileOpt,
-    organization_id: String,
-    id: String,
+    #[clap(flatten)]
+    organization_opt: OrganizationOpt,
 }
 
 impl List {
@@ -19,7 +20,7 @@ impl List {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let resp = run(
             ListKeysInput {
-                organization_id: self.organization_id.clone(),
+                organization_id: self.organization_opt.organization_id.clone(),
             },
             &client,
         )

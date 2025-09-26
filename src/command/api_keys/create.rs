@@ -2,7 +2,7 @@ use clap::Parser;
 use rover_client::operations::api_keys::create::{CreateKeyInput, run};
 use serde::Serialize;
 
-use crate::command::api_keys::ApiKeyType;
+use crate::command::api_keys::{ApiKeyType, OrganizationOpt};
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
@@ -11,10 +11,12 @@ use crate::{RoverOutput, RoverResult};
 pub(crate) struct Create {
     #[clap(flatten)]
     profile: ProfileOpt,
-    organization_id: String,
-    name: String,
-    #[clap(name = "type", value_enum)]
+    #[clap(flatten)]
+    organization_opt: OrganizationOpt,
+    #[clap(name = "TYPE", value_enum, help = "The type of the API key")]
     key_type: ApiKeyType,
+    #[clap(help = "The name of the key to be created")]
+    name: String,
 }
 
 impl Create {
@@ -22,7 +24,7 @@ impl Create {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let resp = run(
             CreateKeyInput {
-                organization_id: self.organization_id.clone(),
+                organization_id: self.organization_opt.organization_id.clone(),
                 name: self.name.clone(),
                 key_type: self.key_type.into_query_enum(),
             },

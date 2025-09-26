@@ -69,3 +69,15 @@ impl Display for ApiKeyType {
         }
     }
 }
+
+#[derive(Debug, Parser, Serialize)]
+pub struct OrganizationOpt {
+    #[clap(help = "The ID of the Organization")]
+    organization_id: String,
+}
+
+#[derive(Debug, Parser, Serialize)]
+pub struct IdOpt {
+    #[clap(help = "The ID of the API key")]
+    id: String,
+}

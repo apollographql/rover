@@ -3,6 +3,7 @@ use rover_client::operations::api_keys::get::{GetKeyInput, run as run_get};
 use rover_client::operations::api_keys::rename::{RenameKeyInput, run as run_rename};
 use serde::Serialize;
 
+use crate::command::api_keys::{IdOpt, OrganizationOpt};
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
@@ -11,8 +12,11 @@ use crate::{RoverOutput, RoverResult};
 pub(crate) struct Rename {
     #[clap(flatten)]
     profile: ProfileOpt,
-    organization_id: String,
-    id: String,
+    #[clap(flatten)]
+    organization_opt: OrganizationOpt,
+    #[clap(flatten)]
+    id_opt: IdOpt,
+    #[clap(help = "The new name of the key once it has been renamed")]
     new_name: String,
 }
 
@@ -22,8 +26,8 @@ impl Rename {
 
         let old_key_resp = run_get(
             GetKeyInput {
-                organization_id: self.organization_id.clone(),
-                key_id: self.id.clone(),
+                organization_id: self.organization_opt.organization_id.clone(),
+                key_id: self.id_opt.id.clone(),
             },
             &client,
         )
@@ -31,8 +35,8 @@ impl Rename {
 
         let rename_resp = run_rename(
             RenameKeyInput {
-                organization_id: self.organization_id.clone(),
-                key_id: self.id.clone(),
+                organization_id: self.organization_opt.organization_id.clone(),
+                key_id: self.id_opt.id.clone(),
                 new_name: self.new_name.clone(),
             },
             &client,
