@@ -172,14 +172,14 @@ impl Init {
         use crate::command::init::states::UserAuthenticated;
         use helpers::display_use_template_message;
 
-        // Handle MCP augmentation as special case - skip all project creation flow
-        if self.project_template.mcp {
-            return self.handle_mcp_augmentation(&client_config).await;
-        }
-
+        // Always check authentication first, then branch on MCP augmentation
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
             .await?;
+
+        if self.project_template.mcp {
+            return self.handle_mcp_augmentation(&client_config).await;
+        }
 
         let project_type_selected =
             welcome.select_project_type(&self.project_type, &self.path, &self.project_template)?;
@@ -318,8 +318,10 @@ impl Init {
             ))
             .with_suggestion(RoverErrorSuggestion::Adhoc(
                 format!(
-                    "Please run `{}` in an empty directory",
-                    Style::Command.paint("rover init --mcp")
+                    "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory.\n\nIf you are wanting to use MCP with an existing project, you can run `{}` to add the all-in-one container to your project. See our docs for more information on how to configure it: {}",
+                    Style::Command.paint("rover init --mcp"),
+                    Style::Command.paint("rover dev --mcp"),
+                   Style::Command.paint("rover docs open mcp-config"),
                 )
                 .to_string(),
             )));
@@ -1322,6 +1324,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             .fetch_mcp_template(base_template_id, branch_ref)
             .await?;
 
+        // Add VSCode configuration files to MCP templates
+        selected_template.add_vscode_files();
+
         // Filter files based on data source selection BEFORE preview
         let mut string_files: std::collections::HashMap<camino::Utf8PathBuf, String> =
             selected_template
@@ -1512,6 +1517,20 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         let env_path = output_path.join(".env");
         std::fs::write(&env_path, env_content)?;
+
+        // Generate VSCode configuration files for MCP projects
+        crate::command::init::template_operations::build_and_write_vscode_settings_file(
+            &output_path,
+            &completed_project.api_key,
+            &completed_project.graph_ref.to_string(),
+        )
+        .await?;
+
+        crate::command::init::template_operations::build_and_write_vscode_tasks_file(
+            &output_path,
+            true, // MCP projects always have MCP capabilities
+        )
+        .await?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;

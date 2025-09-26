@@ -144,8 +144,8 @@ impl Welcome {
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         format!(
-                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
-                            Style::Command.paint("init")
+                            "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory",
+                            Style::Command.paint("rover init")
                         )
                         .to_string(),
                     )));
@@ -257,7 +257,7 @@ impl UseCaseSelected {
         }
 
         // Determine the list of templates based on the use case
-        let selected_template: SelectedTemplateState = match self.use_case {
+        let mut selected_template: SelectedTemplateState = match self.use_case {
             // Select the `connectors` template if using use_case is Connectors
             ProjectUseCase::Connectors => {
                 template_options.select_template(&TemplateId("connectors".to_string()))?
@@ -294,6 +294,9 @@ impl UseCaseSelected {
                 }
             }
         };
+
+        // Add VSCode configuration files to all templates
+        selected_template.add_vscode_files();
 
         Ok(TemplateSelected {
             output_path: self.output_path,
@@ -534,6 +537,24 @@ impl CreationConfirmed {
             profile,
             self.config.graph_id.to_string(),
             self.config.project_name.to_string(),
+        )
+        .await?;
+
+        // Generate VSCode configuration files with actual values
+        let graph_ref_string = format!("{}@{}", graph_ref.name, graph_ref.variant);
+        let is_mcp = self.selected_template.template.id.0.starts_with("mcp-")
+            || self.selected_template.template.id.0.contains("mcp");
+
+        crate::command::init::template_operations::build_and_write_vscode_settings_file(
+            &self.output_path,
+            &api_key,
+            &graph_ref_string,
+        )
+        .await?;
+
+        crate::command::init::template_operations::build_and_write_vscode_tasks_file(
+            &self.output_path,
+            is_mcp,
         )
         .await?;
 
