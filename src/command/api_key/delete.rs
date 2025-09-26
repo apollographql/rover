@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use rover_client::operations::api_key::delete::{DeleteKeyInput, run};
 use serde::Serialize;
