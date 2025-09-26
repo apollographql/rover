@@ -6,13 +6,13 @@ mod rename;
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use rover_client::operations::api_key::GraphOsKeyType;
+use rover_client::operations::api_keys::GraphOsKeyType;
 use serde::Serialize;
 
-use crate::command::api_key::create::Create;
-use crate::command::api_key::delete::Delete;
-use crate::command::api_key::list::List;
-use crate::command::api_key::rename::Rename;
+use crate::command::api_keys::create::Create;
+use crate::command::api_keys::delete::Delete;
+use crate::command::api_keys::list::List;
+use crate::command::api_keys::rename::Rename;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -53,12 +53,14 @@ impl ApiKeys {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiKeyType {
     Operator,
+    Subgraph,
 }
 
 impl ApiKeyType {
     fn into_query_enum(self) -> GraphOsKeyType {
         match self {
             Self::Operator => GraphOsKeyType::OPERATOR,
+            Self::Subgraph => GraphOsKeyType::SUBGRAPH,
         }
     }
 }
@@ -67,6 +69,7 @@ impl Display for ApiKeyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ApiKeyType::Operator => write!(f, "Operator"),
+            ApiKeyType::Subgraph => write!(f, "Subgraph")
         }
     }
 }
