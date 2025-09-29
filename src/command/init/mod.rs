@@ -1258,7 +1258,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Continue with the normal naming flow, but skip the generic preview for MCP (we have our own)
         let graph_id_entered = template_selected
             .enter_project_name(&self.project_name)?
-            .auto_generate_graph_id()?;
+            .confirm_graph_id(&self.graph_id)?;
 
         // NOW apply template placeholder replacement after we have the project name
         // Convert files back to string format for processing

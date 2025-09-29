@@ -343,30 +343,6 @@ impl ProjectNamed {
         })
     }
 
-    /// Skip graph ID confirmation for MCP flows - auto-generate graph ID
-    pub fn auto_generate_graph_id(self) -> RoverResult<GraphIdConfirmed> {
-        use crate::command::init::graph_id::{
-            generation::generate_graph_id, utils::random::DefaultRandomStringGenerator,
-        };
-        use std::str::FromStr;
-
-        let graph_id = generate_graph_id(
-            &self.project_name.to_string(),
-            &mut DefaultRandomStringGenerator,
-            None,
-        );
-        let graph_id = crate::command::init::graph_id::GraphId::from_str(&graph_id.into_string())?;
-
-        Ok(GraphIdConfirmed {
-            output_path: self.output_path,
-            project_type: self.project_type,
-            organization: self.organization,
-            use_case: self.use_case,
-            selected_template: self.selected_template,
-            project_name: self.project_name,
-            graph_id,
-        })
-    }
 }
 
 /// PROMPT UX:
