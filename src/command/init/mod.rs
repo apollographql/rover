@@ -409,7 +409,6 @@ impl Init {
     async fn preview_mcp_new_project_files(
         &self,
         _project_name: &str,
-        _data_source_type: &MCPDataSourceType,
         template_files: &std::collections::HashMap<camino::Utf8PathBuf, Vec<u8>>,
     ) -> RoverResult<bool> {
         use crate::command::init::helpers::print_mcp_file_categories;
@@ -443,7 +442,6 @@ impl Init {
     async fn preview_mcp_files(
         &self,
         _selected_graph: &GraphVariantOption,
-        _data_source_type: &MCPDataSourceType,
         files: &std::collections::HashMap<camino::Utf8PathBuf, String>,
     ) -> RoverResult<bool> {
         use crate::command::init::helpers::print_mcp_file_categories;
@@ -621,7 +619,7 @@ impl Init {
         println!();
 
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
-        let data_source_type = MCPDataSourceType::GraphQLAPI;
+        let _data_source_type = MCPDataSourceType::GraphQLAPI;
 
         // Fetch graph schemas from GraphOS
         println!(
@@ -701,130 +699,8 @@ impl Init {
         let mut template_fetcher = InitTemplateFetcher::new();
         let template_options = template_fetcher.call(branch_ref).await?;
 
-        // Extract files directly from the add-mcp directory
+        // Extract files directly from the add-mcp directory (no examples to remove)
         let mut files = template_options.extract_directory_files("add-mcp")?;
-
-        // Filter tools based on data source selection
-        let tools_to_include = match data_source_type {
-            MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
-            MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
-        };
-
-        // Copy only selected examples to tools/
-        let mut files_to_remove = Vec::new();
-        let mut files_to_add = Vec::new();
-
-        for (file_path, content) in &files {
-            if file_path.starts_with("examples/") {
-                // Check if this example should be included
-                let should_include = tools_to_include
-                    .iter()
-                    .any(|&prefix| file_path.starts_with(prefix));
-                if should_include {
-                    // Rename from examples/category/file.graphql to tools/file.graphql
-                    let new_path = file_path
-                        .as_str()
-                        .replace("examples/api/", "tools/")
-                        .replace("examples/aws/", "tools/")
-                        .replace("examples/graphql/", "tools/");
-                    files_to_add.push((new_path, content.clone()));
-                }
-                // Mark original examples/ file for removal
-                files_to_remove.push(file_path.clone());
-            }
-        }
-
-        // Remove example files
-        for path in files_to_remove {
-            files.remove(&path);
-        }
-
-        // Add renamed tool files
-        for (path, content) in files_to_add {
-            files.insert(path.into(), content);
-        }
-
-        // Remove problematic product-specific queries and replace with simple template
-        let tools_files_to_remove: Vec<_> = files
-            .keys()
-            .filter(|path| {
-                let path_str = path.as_str();
-                path_str.starts_with("tools/")
-                    && path_str.ends_with(".graphql")
-                    && (path_str.contains("Product")
-                        || path_str.contains("CreateProduct")
-                        || path_str.contains("GetProduct")
-                        || path_str.contains("GetProducts")
-                        || path_str.contains("ListProducts"))
-            })
-            .cloned()
-            .collect();
-
-        for path in tools_files_to_remove {
-            files.remove(&path);
-        }
-
-        // Add simple query template with instructions
-        let simple_query_content = r#"# Simple Query Template for MCP Tools
-# 
-# IMPORTANT: This is a template query that you MUST customize for your GraphQL schema.
-# The current query will work but only returns basic type information.
-# Replace it with actual fields from your schema to make your MCP tools useful.
-# 
-# HOW TO CUSTOMIZE:
-# 1. Look at your supergraph.graphql file (generated in this directory)
-# 2. Find fields in the Query type that don't require arguments
-# 3. Replace the query below with those fields
-#
-# EXAMPLE: If your schema has these fields:
-#   type Query {
-#     users: [User!]!
-#     currentUser: User
-#     settings: Settings!
-#   }
-#
-# Replace the query below with:
-#   query GetUsers {
-#     users {
-#       id
-#       name
-#       email
-#     }
-#   }
-#
-# CURRENT BASIC QUERY (replace this):
-
-query SimpleQuery {
-  __typename
-}
-
-# INTROSPECTION HELPER (uncomment to explore your schema):
-# query IntrospectionQuery {
-#   __schema {
-#     queryType {
-#       fields {
-#         name
-#         description
-#         args {
-#           name
-#           type {
-#             name
-#           }
-#         }
-#         type {
-#           name
-#           kind
-#         }
-#       }
-#     }
-#   }
-# }
-"#;
-
-        files.insert(
-            "tools/SimpleQuery.graphql".into(),
-            simple_query_content.to_string(),
-        );
 
         // If we have a supergraph schema, save it for reference
         if !supergraph_sdl.is_empty() {
@@ -925,7 +801,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Preview files and get user confirmation before creating them
         let confirmed = self
-            .preview_mcp_files(&selected_graph, &data_source_type, &files)
+            .preview_mcp_files(&selected_graph, &files)
             .await?;
         if !confirmed {
             println!("Setup cancelled.");
@@ -1164,7 +1040,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     fn display_mcp_project_success(
         completed_project: &states::ProjectCreated,
         _mcp_project_type: &MCPProjectType,
-        _data_source_type: &MCPDataSourceType,
         mcp_result: &crate::command::init::mcp::mcp_operations::MCPSetupResult,
     ) {
         use rover_std::Style;
@@ -1356,7 +1231,16 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .map(|(path, bytes)| (path.clone(), String::from_utf8_lossy(bytes).to_string()))
                 .collect();
 
-        Self::filter_template_files_by_data_source(&mut string_files, &data_source_type);
+        // Remove tools and examples since all MCP configs use operation collections
+        let files_to_remove: Vec<_> = string_files
+            .keys()
+            .filter(|path| path.starts_with("examples/") || path.starts_with("tools/"))
+            .cloned()
+            .collect();
+
+        for path in files_to_remove {
+            string_files.remove(&path);
+        }
 
         // Convert back to bytes (template replacement will happen later after project creation)
         selected_template.files = string_files
@@ -1540,7 +1424,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let mcp_confirmed = self
             .preview_mcp_new_project_files(
                 &creation_confirmed.config.project_name.to_string(),
-                &data_source_type,
                 &creation_confirmed.selected_template.files,
             )
             .await?;
@@ -1596,59 +1479,13 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Self::display_mcp_project_success(
             &completed_project,
             &mcp_project_type,
-            &data_source_type,
             &mcp_result,
         );
 
         Ok(RoverOutput::EmptySuccess)
     }
 
-    /// Filter template files based on data source selection (for preview and creation)
-    #[cfg(feature = "composition-js")]
-    fn filter_template_files_by_data_source(
-        files: &mut std::collections::HashMap<camino::Utf8PathBuf, String>,
-        data_source_type: &MCPDataSourceType,
-    ) {
-        // Determine which examples to include
-        let tools_to_include = match data_source_type {
-            MCPDataSourceType::ExternalAPIs => vec!["examples/api"],
-            MCPDataSourceType::GraphQLAPI => vec!["examples/graphql"],
-        };
 
-        // Copy only selected examples to tools/
-        let mut files_to_remove = Vec::new();
-        let mut files_to_add = Vec::new();
-
-        for (file_path, content) in files.iter() {
-            if file_path.starts_with("examples/") {
-                // Check if this example should be included
-                let should_include = tools_to_include
-                    .iter()
-                    .any(|&prefix| file_path.starts_with(prefix));
-                if should_include {
-                    // Rename from examples/category/file.graphql to tools/file.graphql
-                    let new_path = file_path
-                        .as_str()
-                        .replace("examples/api/", "tools/")
-                        .replace("examples/aws/", "tools/")
-                        .replace("examples/graphql/", "tools/");
-                    files_to_add.push((camino::Utf8PathBuf::from(new_path), content.clone()));
-                }
-                // Mark original examples/ file for removal
-                files_to_remove.push(file_path.clone());
-            }
-        }
-
-        // Remove example files
-        for path in files_to_remove {
-            files.remove(&path);
-        }
-
-        // Add renamed tool files
-        for (path, content) in files_to_add {
-            files.insert(path, content);
-        }
-    }
 
     #[cfg(not(feature = "composition-js"))]
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
