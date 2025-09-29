@@ -619,7 +619,6 @@ impl Init {
         println!();
 
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
-        let _data_source_type = MCPDataSourceType::GraphQLAPI;
 
         // Fetch graph schemas from GraphOS
         println!(
