@@ -157,105 +157,67 @@ pub fn display_use_template_message() {
 
 /// Print categorized MCP file listing
 pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
-    // Group files by category
-    let mut has_apollo_config = false;
-    let mut has_mcp_files = false;
-    let mut has_docs = false;
-    let mut has_ide_files = false;
-    let mut has_graphql_schemas = false;
-    let mut has_tools = false;
-
-    // Check what categories we have
-    for file_path in &file_paths {
-        if file_path.starts_with(".apollo/") || file_path.as_str() == "supergraph.yaml" {
-            has_apollo_config = true;
-        } else if file_path.as_str() == "mcp.Dockerfile" {
-            has_mcp_files = true;
-        } else if file_path.starts_with("tools/") {
-            has_tools = true;
-        } else if file_path.starts_with("docs/")
-            || file_path.as_str() == "README.md"
-            || file_path.as_str() == "QUICKSTART_MCP.md"
-        {
-            has_docs = true;
-        } else if file_path.starts_with(".idea/")
-            || file_path.starts_with(".vscode/")
-            || file_path.as_str() == ".gitignore"
-        {
-            has_ide_files = true;
-        } else if file_path.ends_with(".graphql") && !file_path.starts_with("tools/") {
-            has_graphql_schemas = true;
-        }
+    // MCP Server: Config, sample tools and tests
+    println!();
+    println!("{}", Style::Prompt.paint("**MCP Server: Config, sample tools and tests**"));
+    if file_paths.iter().any(|k| k.as_str() == "claude_desktop_config.json") {
+        println!("- claude_desktop_config.json");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "mcp.Dockerfile") {
+        println!("- mcp.Dockerfile (optional Docker container)");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.local.yaml") {
+        println!("- mcpconfig/mcp.local.yaml");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.staging.yaml") {
+        println!("- mcpconfig/mcp.staging.yaml");
     }
 
-    // Apollo Configuration
-    if has_apollo_config {
-        println!();
-        println!("{}", Style::Prompt.paint("Apollo configuration"));
-        println!("Connect to Apollo GraphOS for schema management");
-        if file_paths.iter().any(|k| k.starts_with(".apollo/")) {
-            println!(" .apollo/");
-        }
-        if file_paths.iter().any(|k| k.as_str() == "supergraph.yaml") {
-            println!(" supergraph.yaml");
-        }
+    // Apollo GraphOS: Apollo graph credentials and project files
+    println!();
+    println!("{}", Style::Prompt.paint("**Apollo GraphOS: Apollo graph credentials and project files**"));
+    if file_paths.iter().any(|k| k.as_str() == "apollo.config.yaml") {
+        println!("- apollo.config.yaml");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "schema.graphql") {
+        println!("- schema.graphql");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "supergraph.yaml") {
+        println!("- supergraph.yaml");
+    }
+    if file_paths.iter().any(|k| k.as_str() == ".env") {
+        println!("- .env");
     }
 
-    // MCP Server Files
-    if has_mcp_files || has_tools {
-        println!();
-        println!("{}", Style::Prompt.paint("MCP Server"));
-        println!("Docker container and tools for AI interaction");
-        if file_paths.iter().any(|k| k.as_str() == "mcp.Dockerfile") {
-            println!(" mcp.Dockerfile");
-        }
-        if has_tools {
-            println!(" tools/ (AI-callable operations)");
-        }
+    // IDE: Project settings
+    println!();
+    println!("{}", Style::Prompt.paint("**IDE: Project settings**"));
+    if file_paths.iter().any(|k| k.as_str() == ".gitignore") {
+        println!("- .gitignore");
+    }
+    if file_paths.iter().any(|k| k.as_str() == ".env") {
+        println!("- .env");
+    }
+    if file_paths.iter().any(|k| k.starts_with(".idea/")) {
+        println!("- .idea/");
+    }
+    if file_paths.iter().any(|k| k.starts_with(".vscode/")) {
+        println!("- .vscode/");
+    }
+    if file_paths.iter().any(|k| k.as_str() == "tasks.json") {
+        println!("- tasks.json");
     }
 
-    // GraphQL Schemas
-    if has_graphql_schemas {
-        println!();
-        println!("{}", Style::Prompt.paint("GraphQL Schemas"));
-        println!("Your data models and API definitions");
-        for file_path in file_paths
-            .iter()
-            .filter(|k| k.ends_with(".graphql") && !k.starts_with("tools/"))
-        {
-            println!(" {}", file_path);
-        }
+    // Guides and references
+    println!();
+    println!("{}", Style::Prompt.paint("**Guides and references**"));
+    if file_paths.iter().any(|k| k.as_str() == "GETTING_STARTED.md") {
+        println!("- GETTING_STARTED.md → Working with Apollo graphs and Apollo Connectors");
     }
-
-    // Documentation
-    if has_docs {
-        println!();
-        println!("{}", Style::Prompt.paint("Documentation"));
-        println!("Getting started guides and references");
-        if file_paths.iter().any(|k| k.as_str() == "README.md") {
-            println!(" README.md");
-        }
-        if file_paths.iter().any(|k| k.as_str() == "QUICKSTART_MCP.md") {
-            println!(" QUICKSTART_MCP.md");
-        }
-        if file_paths.iter().any(|k| k.starts_with("docs/")) {
-            println!(" docs/");
-        }
+    if file_paths.iter().any(|k| k.as_str() == "MCP_README.md") {
+        println!("- MCP_README.md → Working with Apollo MCP Server");
     }
-
-    // Development Environment
-    if has_ide_files {
-        println!();
-        println!("{}", Style::Prompt.paint("Development environment"));
-        println!("IDE configuration and project settings");
-        if file_paths.iter().any(|k| k.starts_with(".vscode/")) {
-            println!(" .vscode/");
-        }
-        if file_paths.iter().any(|k| k.starts_with(".idea/")) {
-            println!(" .idea/");
-        }
-        if file_paths.iter().any(|k| k.as_str() == ".gitignore") {
-            println!(" .gitignore");
-        }
+    if file_paths.iter().any(|k| k.as_str() == "AGENTS.md") {
+        println!("- AGENTS.md → Agent rules for the robots");
     }
 }
