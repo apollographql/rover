@@ -287,6 +287,11 @@ impl Init {
     }
 
     /// Handle MCP augmentation directly without going through project creation flow
+    ///
+    /// Template Variable Convention:
+    /// - YAML files use ${VARIABLE} format to avoid YAML linting errors
+    /// - Other templates use {{VARIABLE}} format for standard template syntax
+    /// - Both formats are supported for compatibility during transition
     #[cfg(feature = "composition-js")]
     async fn handle_mcp_augmentation(
         &self,
@@ -958,7 +963,25 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             }
 
             // Replace template placeholders with selected graph information
+            // Use ${} format for YAML files (avoids linting issues)
+            // Use {{}} format for other templates and conditionals
             let mut processed_content = content
+                // ${} format - primarily for YAML files
+                .replace("${PROJECT_NAME}", &project_name)
+                .replace("${GRAPH_REF}", &graph_ref_str)
+                .replace("${GRAPH_ID}", &selected_graph.graph_id)
+                .replace("${GRAPH_NAME}", &selected_graph.graph_name)
+                .replace("${VARIANT_NAME}", &selected_graph.variant_name)
+                .replace("${ORGANIZATION_NAME}", &selected_graph.organization_name)
+                .replace("${APOLLO_API_KEY}", &apollo_key)
+                .replace("${APOLLO_KEY}", &apollo_key)
+                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
+                .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
+                .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
+                .replace("${GRAPH_STUDIO_URL}", &graph_endpoint)
+                .replace("${PROJECT_VERSION}", "1.0.0")
+                .replace("${PROJECT_REPOSITORY_URL}", &format!("https://github.com/user/{}", project_name))
+                // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", &project_name)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
                 .replace("{{GRAPH_ID}}", &selected_graph.graph_id)
@@ -970,17 +993,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
+                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
+                .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
+                .replace("{{PROJECT_VERSION}}", "1.0.0")
+                .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name))
+                // Other replacements
                 .replace("- /tools", &format!("- {}", tools_path_str))
                 .replace(
                     "endpoint: http://host.docker.internal:4000",
                     "endpoint: http://localhost:4000",
-                )
-                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
-                .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
-                .replace("{{PROJECT_VERSION}}", "1.0.0")
-                .replace(
-                    "{{PROJECT_REPOSITORY_URL}}",
-                    &format!("https://github.com/user/{}", project_name),
                 );
 
             // Handle the specific case where .env.template needs dynamic values populated
@@ -1407,7 +1428,35 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let graph_ref_str = format!("{}@current", project_name);
 
         for (_file_path, content) in string_files.iter_mut() {
+            // Replace template placeholders - use both formats for compatibility
+            // ${} format for YAML files (avoids linting issues)
+            // {{}} format for other templates and conditionals
             *content = content
+                // ${} format - primarily for YAML files
+                .replace("${PROJECT_NAME}", project_name)
+                .replace("${GRAPH_REF}", &graph_ref_str)
+                .replace("${GRAPH_ID}", project_name)
+                .replace("${GRAPH_NAME}", project_name)
+                .replace("${VARIANT_NAME}", "current")
+                .replace("${ORGANIZATION_NAME}", "YOUR_ORGANIZATION")
+                .replace("${APOLLO_API_KEY}", "YOUR_API_KEY_HERE")
+                .replace("${APOLLO_KEY}", "YOUR_API_KEY_HERE")
+                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
+                .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
+                .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
+                .replace(
+                    "${GRAPH_STUDIO_URL}",
+                    &format!(
+                        "https://studio.apollographql.com/graph/{}/explorer",
+                        project_name
+                    ),
+                )
+                .replace("${PROJECT_VERSION}", "1.0.0")
+                .replace(
+                    "${PROJECT_REPOSITORY_URL}",
+                    &format!("https://github.com/user/{}", project_name),
+                )
+                // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", project_name)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
                 .replace("{{GRAPH_ID}}", project_name)
@@ -1419,11 +1468,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
-                .replace("- /tools", &format!("- {}", tools_path_str))
-                .replace(
-                    "endpoint: http://host.docker.internal:4000",
-                    "endpoint: http://localhost:4000",
-                )
                 .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
                 .replace(
                     "{{GRAPH_STUDIO_URL}}",
@@ -1436,6 +1480,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace(
                     "{{PROJECT_REPOSITORY_URL}}",
                     &format!("https://github.com/user/{}", project_name),
+                )
+                // Other replacements
+                .replace("- /tools", &format!("- {}", tools_path_str))
+                .replace(
+                    "endpoint: http://host.docker.internal:4000",
+                    "endpoint: http://localhost:4000",
                 );
 
             // Handle REST_CONNECTORS placeholder based on data source type (simple approach)
