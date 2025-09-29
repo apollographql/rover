@@ -826,10 +826,13 @@ query SimpleQuery {
             simple_query_content.to_string(),
         );
 
-        // If we have a supergraph schema, save it
+        // If we have a supergraph schema, save it for reference
         if !supergraph_sdl.is_empty() {
             files.insert("supergraph.graphql".into(), supergraph_sdl.clone());
         }
+
+        // Remove supergraph.yaml for existing graphs since we use --graph-ref instead of --supergraph-config
+        files.remove(&camino::Utf8PathBuf::from("supergraph.yaml"));
 
         // Add a basic README with graph info
         let readme_content = format!(
@@ -1062,15 +1065,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. Start the MCP server:");
         println!();
-        println!("      {}: {}", Style::Heading.paint("Linux/macOS"), Style::Command.paint("set -a && source .env && set +a && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!("      {}: {}", Style::Heading.paint("Linux/macOS"), Style::Command.paint(format!("set -a && source .env && set +a && rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml", graph_ref_str)));
         println!();
         println!("      {}: ", Style::Heading.paint("Windows PowerShell"));
         println!("      {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
         println!(
             "      {}",
-            Style::Command.paint(
-                "rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"
-            )
+            Style::Command.paint(format!(
+                "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml", graph_ref_str
+            ))
         );
         println!();
         println!(
