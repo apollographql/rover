@@ -1143,11 +1143,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "- Deploy → {}",
-            Style::Command.paint("rover docs list mcp-deploy")
+            Style::Command.paint("rover docs open mcp-deploy")
         );
         println!(
             "- Learn more → {}",
-            Style::Command.paint("rover docs list mcp-qs")
+            Style::Command.paint("rover docs open mcp-qs")
         );
     }
 
