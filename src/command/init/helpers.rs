@@ -159,7 +159,7 @@ pub fn display_use_template_message() {
 pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     // MCP Server: Config, sample tools and tests
     println!();
-    println!("{}", Style::Prompt.paint("**MCP Server: Config, sample tools and tests**"));
+    println!("{}", Style::Prompt.paint("MCP Server: Config, sample tools and tests"));
     if file_paths.iter().any(|k| k.as_str() == "claude_desktop_config.json") {
         println!("- claude_desktop_config.json");
     }
@@ -175,7 +175,7 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
 
     // Apollo GraphOS: Apollo graph credentials and project files
     println!();
-    println!("{}", Style::Prompt.paint("**Apollo GraphOS: Apollo graph credentials and project files**"));
+    println!("{}", Style::Prompt.paint("Apollo GraphOS: Apollo graph credentials and project files"));
     if file_paths.iter().any(|k| k.as_str() == "apollo.config.yaml") {
         println!("- apollo.config.yaml");
     }
@@ -191,7 +191,7 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
 
     // IDE: Project settings
     println!();
-    println!("{}", Style::Prompt.paint("**IDE: Project settings**"));
+    println!("{}", Style::Prompt.paint("IDE: Project settings"));
     if file_paths.iter().any(|k| k.as_str() == ".gitignore") {
         println!("- .gitignore");
     }
@@ -210,7 +210,7 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
 
     // Guides and references
     println!();
-    println!("{}", Style::Prompt.paint("**Guides and references**"));
+    println!("{}", Style::Prompt.paint("Guides and references"));
     if file_paths.iter().any(|k| k.as_str() == "GETTING_STARTED.md") {
         println!("- GETTING_STARTED.md → Working with Apollo graphs and Apollo Connectors");
     }
@@ -220,4 +220,15 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     if file_paths.iter().any(|k| k.as_str() == "AGENTS.md") {
         println!("- AGENTS.md → Agent rules for the robots");
     }
+}
+
+/// Normalizes a graph ID into a valid Docker image tag name
+/// Docker image tags must be lowercase and cannot contain spaces or special characters
+pub fn normalize_docker_tag(graph_id: &str) -> String {
+    graph_id
+        .to_lowercase()
+        .replace(' ', "-")
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
+        .collect()
 }

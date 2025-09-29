@@ -105,11 +105,11 @@ impl std::fmt::Display for MCPDataSourceType {
         match self {
             MCPDataSourceType::ExternalAPIs => write!(
                 f,
-                "Apollo graph with Apollo connectors (connect to REST services)"
+                "Apollo graph with Connectors (connect to REST services)"
             ),
             MCPDataSourceType::GraphQLAPI => write!(
                 f,
-                "Apollo graph with GraphQL connectors (connect to existing GraphQL endpoints)"
+                "Apollo graph with GraphQL endpoints (connect to existing GraphQL endpoints)"
             ),
         }
     }
@@ -678,6 +678,8 @@ impl Init {
 
         // Step 5: Use selected graph info for template replacement
         let project_name = selected_graph.graph_id.clone();
+        // Docker requires lowercase image names without spaces or special characters
+        let docker_tag = helpers::normalize_docker_tag(&selected_graph.graph_id);
         let graph_ref_str = format!(
             "{}@{}",
             selected_graph.graph_id, selected_graph.variant_name
@@ -874,9 +876,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             } else {
                 String::new()
             },
-            project_name,
-            project_name,
-            project_name,
+            docker_tag,
+            docker_tag,
+            docker_tag,
             graph_endpoint
         );
         files.insert("README.md".into(), readme_content);
@@ -1082,14 +1084,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             "      {}",
             Style::Command.paint(format!(
                 "docker build -f mcp.Dockerfile -t {}-mcp .",
-                project_name
+                docker_tag
             ))
         );
         println!(
             "      {}",
             Style::Command.paint(format!(
                 "docker run --env-file .env -p5000:5000 {}-mcp",
-                project_name
+                docker_tag
             ))
         );
 
@@ -1384,6 +1386,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Get the actual project name that will be used
         let project_name = &graph_id_entered.project_name.to_string();
+        // Docker requires lowercase image names without spaces or special characters
+        let docker_tag = helpers::normalize_docker_tag(project_name);
 
         // Get the user's home directory for MCP server binary path
         let home_dir = if cfg!(windows) {
@@ -1434,6 +1438,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             *content = content
                 // ${} format - primarily for YAML files
                 .replace("${PROJECT_NAME}", project_name)
+                .replace("${DOCKER_TAG}", &docker_tag)
                 .replace("${GRAPH_REF}", &graph_ref_str)
                 .replace("${GRAPH_ID}", project_name)
                 .replace("${GRAPH_NAME}", project_name)
@@ -1458,6 +1463,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 )
                 // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", project_name)
+                .replace("{{DOCKER_TAG}}", &docker_tag)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
                 .replace("{{GRAPH_ID}}", project_name)
                 .replace("{{GRAPH_NAME}}", project_name)
@@ -1502,6 +1508,17 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{#if REST_CONNECTORS}}", "")
                 .replace("{{else}}", "")
                 .replace("{{/if}}", "");
+
+            // Fix Docker image tags to be lowercase and handle spaces
+            // Replace any docker build/run commands that use project_name with lowercase version
+            *content = content
+                .replace(&format!("-t {}", project_name), &format!("-t {}", docker_tag))
+                .replace(&format!("-t {}-mcp", project_name), &format!("-t {}-mcp", docker_tag))
+                .replace(&format!("p5000:5000 {}", project_name), &format!("p5000:5000 {}", docker_tag))
+                .replace(&format!("p5000:5000 {}-mcp", project_name), &format!("p5000:5000 {}-mcp", docker_tag))
+                .replace(&format!("--env-file .env {}", project_name), &format!("--env-file .env {}", docker_tag))
+                .replace(&format!("--network=host --env-file .env {}", project_name), &format!("--network=host --env-file .env {}", docker_tag))
+                .replace(&format!("--network=host --env-file .env {}-mcp", project_name), &format!("--network=host --env-file .env {}-mcp", docker_tag));
         }
 
         // Convert back to bytes and update the template, excluding .env.template
