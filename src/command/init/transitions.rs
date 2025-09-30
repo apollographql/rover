@@ -15,9 +15,9 @@ use crate::command::init::helpers::*;
 use crate::command::init::operations::create_api_key;
 use crate::command::init::operations::publish_subgraphs;
 use crate::command::init::operations::update_variant_federation_version;
+use crate::command::init::options::ProjectUseCaseOpt;
 use crate::command::init::options::*;
 use crate::command::init::states::*;
-use crate::command::init::options::ProjectUseCaseOpt;
 use crate::command::init::template_fetcher::TemplateId;
 use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
 
@@ -242,7 +242,6 @@ impl UseCaseSelected {
         self,
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
-
         // Fetch the template to get the list of files
         let repo_ref = "camille/start-with-mcp-template";
         let mut template_fetcher = InitTemplateFetcher::new();
@@ -334,7 +333,6 @@ impl ProjectNamed {
             graph_id,
         })
     }
-
 }
 
 /// PROMPT UX:
@@ -385,7 +383,6 @@ impl GraphIdConfirmed {
             Err(e) => Err(anyhow!("Failed to prompt user for confirmation: {}", e).into()),
         }
     }
-
 }
 
 impl CreationConfirmed {
@@ -515,11 +512,22 @@ impl ProjectCreated {
         use rover_std::Style;
 
         println!("{}", Style::Success.paint("✓ MCP server generated"));
-        println!("{}", Style::Success.paint("✓ Credentials saved to .env file"));
+        println!(
+            "{}",
+            Style::Success.paint("✓ Credentials saved to .env file")
+        );
 
         // Check if claude_desktop_config.json was created
-        if self.artifacts.iter().any(|p| p.as_str().contains("claude_desktop_config.json")) {
-            println!("{}", Style::Success.paint("✓ Claude Desktop config generated: ./claude_desktop_config.json"));
+        if self
+            .artifacts
+            .iter()
+            .any(|p| p.as_str().contains("claude_desktop_config.json"))
+        {
+            println!(
+                "{}",
+                Style::Success
+                    .paint("✓ Claude Desktop config generated: ./claude_desktop_config.json")
+            );
         }
 
         // Project Details section
@@ -529,9 +537,20 @@ impl ProjectCreated {
         println!("   • GraphOS Organization: {}", self.config.organization);
         println!();
 
-        println!("{}", Style::Heading.paint("GraphOS credentials for your graph"));
-        println!("   • {}: {}", Style::GraphRef.paint("APOLLO_GRAPH_REF"), self.graph_ref);
-        println!("   • {}: {} (This is your graph's API key)", Style::Command.paint("APOLLO_KEY"), self.api_key);
+        println!(
+            "{}",
+            Style::Heading.paint("GraphOS credentials for your graph")
+        );
+        println!(
+            "   • {}: {}",
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            self.graph_ref
+        );
+        println!(
+            "   • {}: {} (This is your graph's API key)",
+            Style::Command.paint("APOLLO_KEY"),
+            self.api_key
+        );
         println!();
 
         // Next Steps section
@@ -541,9 +560,18 @@ impl ProjectCreated {
 
         // Step 1: Always Claude Desktop configuration first
         println!("1. Configure Claude Desktop by copying claude_desktop_config.json to:");
-        println!("   • macOS: {}", Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json"));
-        println!("   • Windows: {}", Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json"));
-        println!("   • Linux: {}", Style::Path.paint("~/.config/Claude/claude_desktop_config.json"));
+        println!(
+            "   • macOS: {}",
+            Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json")
+        );
+        println!(
+            "   • Windows: {}",
+            Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json")
+        );
+        println!(
+            "   • Linux: {}",
+            Style::Path.paint("~/.config/Claude/claude_desktop_config.json")
+        );
         println!();
         println!("   Then restart Claude Desktop.");
         println!();
@@ -562,7 +590,9 @@ impl ProjectCreated {
                     println!();
                     println!("   {}", Style::Command.paint(valid_commands[0]));
                 } else {
-                    println!("2. Start the subgraph server by running the following commands in order:");
+                    println!(
+                        "2. Start the subgraph server by running the following commands in order:"
+                    );
                     println!();
                     for cmd in valid_commands {
                         println!("   {}", Style::Command.paint(cmd));
@@ -580,26 +610,49 @@ impl ProjectCreated {
         // Determine the final step number based on whether commands were shown
         let final_step_num = if has_commands { "3" } else { "2" };
 
-        println!("{}. Start MCP server (after completing the above steps):", final_step_num);
+        println!(
+            "{}. Start MCP server (after completing the above steps):",
+            final_step_num
+        );
         println!();
         println!("   Linux/macOS: {}", Style::Command.paint("set -a && source .env && set +a && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
         println!();
         println!("   Windows PowerShell:");
         println!("   {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
-        println!("   {}", Style::Command.paint("rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"));
+        println!(
+            "   {}",
+            Style::Command.paint(
+                "rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml"
+            )
+        );
         println!();
-        println!("   → API: {} | MCP: {}", Style::Link.paint("http://localhost:4000"), Style::Link.paint("http://localhost:5000"));
+        println!(
+            "   → API: {} | MCP: {}",
+            Style::Link.paint("http://localhost:4000"),
+            Style::Link.paint("http://localhost:5000")
+        );
         println!();
 
         println!("3. Try it out in Claude:");
-        println!("   Ask \"What tools do I have available?\" or \"Can you get me some product information?\"");
+        println!(
+            "   Ask \"What tools do I have available?\" or \"Can you get me some product information?\""
+        );
         println!();
 
         println!("Next steps:");
         println!("- Customize endpoints → See the schema.graphql file");
-        println!("- Create tools → Studio's Sandbox Explorer: {}", Style::Link.paint("http://localhost:4000"));
-        println!("- Deploy → {}", Style::Command.paint("rover docs open mcp-deploy"));
-        println!("- Learn more → {}", Style::Command.paint("rover docs open mcp-qs"));
+        println!(
+            "- Create tools → Studio's Sandbox Explorer: {}",
+            Style::Link.paint("http://localhost:4000")
+        );
+        println!(
+            "- Deploy → {}",
+            Style::Command.paint("rover docs open mcp-deploy")
+        );
+        println!(
+            "- Learn more → {}",
+            Style::Command.paint("rover docs open mcp-qs")
+        );
         println!();
     }
 
@@ -666,10 +719,7 @@ impl ProjectTypeSelected {
 }
 
 impl MCPInitialization {
-    pub fn select_setup_type(
-        self,
-        options: &ProjectTypeOpt,
-    ) -> RoverResult<MCPSetupTypeSelected> {
+    pub fn select_setup_type(self, options: &ProjectTypeOpt) -> RoverResult<MCPSetupTypeSelected> {
         use dialoguer::Select;
         use rover_std::Style;
 
@@ -687,9 +737,8 @@ impl MCPInitialization {
             );
             println!();
             println!(
-                "To learn more about init, run `{}` or visit {}",
-                Style::Command.paint("rover init --mcp -h"),
-                "https://www.apollographql.com/docs/rover/commands/init"
+                "To learn more about init, run `{}` or visit https://www.apollographql.com/docs/rover/commands/init",
+                Style::Command.paint("rover init --mcp -h")
             );
             println!();
 
@@ -740,7 +789,8 @@ impl MCPSetupTypeSelected {
             println!();
             println!(
                 "️{}",
-                Style::File.paint("▲ AI-powered Apollo graph with MCP server ~10 minute setup time")
+                Style::File
+                    .paint("▲ AI-powered Apollo graph with MCP server ~10 minute setup time")
             );
             println!(
                 "Build an Apollo GraphOS graph with MCP server capabilities. Start with a working template and connect your own APIs and data sources."
@@ -748,7 +798,8 @@ impl MCPSetupTypeSelected {
             println!();
             println!(
                 "{}",
-                Style::Heading.paint("Requirements: Your data source (API endpoint, database, or service)")
+                Style::Heading
+                    .paint("Requirements: Your data source (API endpoint, database, or service)")
             );
             println!();
 
@@ -819,9 +870,7 @@ impl MCPDataSourceSelected {
 }
 
 impl MCPOrganizationSelected {
-    pub async fn compose_mcp_template(
-        self,
-    ) -> RoverResult<MCPTemplateComposed> {
+    pub async fn compose_mcp_template(self) -> RoverResult<MCPTemplateComposed> {
         // Determine use case and template based on data source type
         let use_case = match self.data_source_type {
             MCPDataSourceType::ExternalAPIs => ProjectUseCase::Connectors,
@@ -839,14 +888,14 @@ impl MCPOrganizationSelected {
         };
 
         // Use the MCP-specific template fetcher that merges base template + add-mcp
-        let selected_template = template_fetcher.fetch_mcp_template(template_id, repo_ref).await?;
+        let selected_template = template_fetcher
+            .fetch_mcp_template(template_id, repo_ref)
+            .await?;
 
         // Create MCPComposedTemplate from the pre-merged files
         // The selected_template.files already contains base template + MCP additions
-        let composed_template = MCPComposedTemplate::new(
-            selected_template.template,
-            selected_template.files,
-        );
+        let composed_template =
+            MCPComposedTemplate::new(selected_template.template, selected_template.files);
 
         Ok(MCPTemplateComposed {
             output_path: self.output_path,
@@ -861,10 +910,7 @@ impl MCPOrganizationSelected {
 }
 
 impl MCPTemplateComposed {
-    pub fn enter_project_name(
-        self,
-        options: &ProjectNameOpt,
-    ) -> RoverResult<MCPProjectNamed> {
+    pub fn enter_project_name(self, options: &ProjectNameOpt) -> RoverResult<MCPProjectNamed> {
         let project_name = options.get_or_prompt_project_name()?;
 
         Ok(MCPProjectNamed {
@@ -881,10 +927,7 @@ impl MCPTemplateComposed {
 }
 
 impl MCPProjectNamed {
-    pub fn confirm_graph_id(
-        self,
-        options: &GraphIdOpt,
-    ) -> RoverResult<MCPGraphIdConfirmed> {
+    pub fn confirm_graph_id(self, options: &GraphIdOpt) -> RoverResult<MCPGraphIdConfirmed> {
         let graph_id = options.get_or_prompt_graph_id(&self.project_name.to_string())?;
 
         Ok(MCPGraphIdConfirmed {
@@ -960,19 +1003,17 @@ impl MCPGraphIdConfirmed {
             Ok(None)
         }
     }
-
 }
 
 impl MCPCreationPreviewed {
     /// Convert to MCPCreationConfirmed for type-safe MCP project creation
-    pub fn to_mcp_creation_confirmed(self) -> RoverResult<MCPCreationConfirmed> {
+    pub fn into_mcp_creation_confirmed(self) -> RoverResult<MCPCreationConfirmed> {
         Ok(MCPCreationConfirmed {
             config: self.config,
             composed_template: self.composed_template,
             output_path: self.output_path,
         })
     }
-
 }
 
 impl MCPCreationConfirmed {
@@ -980,26 +1021,35 @@ impl MCPCreationConfirmed {
 
     /// Process template placeholders in any file content (for MCP projects)
     /// Handles both ${} and {{}} placeholder formats for comprehensive compatibility
-    pub fn process_template_placeholders(&self, content: &str, api_key: &str, graph_ref: &GraphRef) -> String {
-        use crate::command::init::helpers::process_mcp_template_placeholders;
+    pub fn process_template_placeholders(
+        &self,
+        content: &str,
+        api_key: &str,
+        graph_ref: &GraphRef,
+    ) -> String {
+        use crate::command::init::helpers::{
+            MCPTemplateContext, process_mcp_template_placeholders,
+        };
 
         let project_name = self.config.project_name.to_string();
         let graph_id = self.config.graph_id.to_string();
+        let organization = self.config.organization.to_string();
 
         // Use unified template processing for consistency
-        process_mcp_template_placeholders(
-            content,
-            &project_name,
-            &graph_id,
-            &project_name, // graph_name same as project_name for new projects
-            "current",     // variant_name
-            &self.config.organization.to_string(),
+        let ctx = MCPTemplateContext {
+            project_name: &project_name,
+            graph_id: &graph_id,
+            graph_name: &project_name, // graph_name same as project_name for new projects
+            variant_name: "current",
+            organization_name: &organization,
             api_key,
             graph_ref,
-            None, // mcp_server_binary - not used in new project flow
-            None, // mcp_config_path - not used in new project flow
-            None, // tools_path - not used in new project flow
-        )
+            mcp_server_binary: None,
+            mcp_config_path: None,
+            tools_path: None,
+        };
+
+        process_mcp_template_placeholders(content, &ctx)
     }
 
     pub async fn create_project(
@@ -1097,7 +1147,8 @@ impl MCPCreationConfirmed {
         let mut processed_files = HashMap::new();
         for (file_path, content) in &self.composed_template.merged_files {
             let content_str = String::from_utf8_lossy(content);
-            let processed_content = self.process_template_placeholders(&content_str, &api_key, &graph_ref);
+            let processed_content =
+                self.process_template_placeholders(&content_str, &api_key, &graph_ref);
 
             // Handle .env.template → .env renaming for MCP projects
             let final_path = if file_path.as_str().ends_with(".env.template") {

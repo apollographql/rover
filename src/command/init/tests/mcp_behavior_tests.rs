@@ -15,10 +15,18 @@ mod mcp_characterization_tests {
     #[test]
     fn test_mcp_template_detection() {
         // Current logic: template IDs starting with "mcp-" are MCP templates
-        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId("mcp-typescript".to_string())));
-        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId("mcp-python".to_string())));
-        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId("typescript".to_string())));
-        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId("connectors".to_string())));
+        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId(
+            "mcp-typescript".to_string()
+        )));
+        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId(
+            "mcp-python".to_string()
+        )));
+        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId(
+            "typescript".to_string()
+        )));
+        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId(
+            "connectors".to_string()
+        )));
     }
 
     #[test]

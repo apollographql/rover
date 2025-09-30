@@ -44,7 +44,12 @@ mod tests {
 
         let result = project_type_selected.initialize_mcp_augmentation(&non_mcp_options);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("MCP initialization called without --mcp flag"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("MCP initialization called without --mcp flag")
+        );
     }
 
     #[test]
@@ -113,7 +118,11 @@ mod tests {
 
         assert_eq!(composed.base_template.id, base_template.id);
         assert_eq!(composed.merged_files, pre_merged_files);
-        assert!(composed.merged_files.contains_key(&Utf8PathBuf::from(".apollo/mcp.local.yaml")));
+        assert!(
+            composed
+                .merged_files
+                .contains_key(&Utf8PathBuf::from(".apollo/mcp.local.yaml"))
+        );
     }
 
     #[test]

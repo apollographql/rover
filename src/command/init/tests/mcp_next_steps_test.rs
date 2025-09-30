@@ -1,7 +1,7 @@
 use crate::command::init::states::*;
 use crate::command::init::template_fetcher::*;
-use rover_client::shared::GraphRef;
 use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 use std::str::FromStr;
 
 // Tests verify the logic without trying to capture println! output
@@ -27,10 +27,15 @@ fn test_mcp_success_includes_base_template_commands() {
 
     let project_created = ProjectCreated {
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("my_test_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("my-test-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("my_test_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str(
+                "my-test-graph",
+            )
+            .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         artifacts: vec![
@@ -54,7 +59,10 @@ fn test_mcp_success_includes_base_template_commands() {
     assert_eq!(commands[0], "npm ci");
     assert_eq!(commands[1], "npm start");
 
-    println!("✅ MCP project has access to base template commands: {:?}", commands);
+    println!(
+        "✅ MCP project has access to base template commands: {:?}",
+        commands
+    );
 }
 
 #[test]
@@ -76,10 +84,15 @@ fn test_mcp_success_with_no_commands() {
 
     let project_created = ProjectCreated {
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("minimal_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("minimal-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("minimal_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str(
+                "minimal-graph",
+            )
+            .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         artifacts: vec![
@@ -119,15 +132,18 @@ fn test_mcp_success_with_empty_commands() {
 
     let project_created = ProjectCreated {
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("empty_cmd_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("empty-cmd-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("empty_cmd_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str(
+                "empty-cmd-graph",
+            )
+            .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
-        artifacts: vec![
-            Utf8PathBuf::from("claude_desktop_config.json"),
-        ],
+        artifacts: vec![Utf8PathBuf::from("claude_desktop_config.json")],
         api_key: "service:empty-cmd-graph:def456".to_string(),
         graph_ref: GraphRef {
             name: "empty-cmd-graph".to_string(),
@@ -138,7 +154,14 @@ fn test_mcp_success_with_empty_commands() {
 
     // Verify that empty commands array is handled correctly
     assert!(project_created.template.commands.is_some());
-    assert!(project_created.template.commands.as_ref().unwrap().is_empty());
+    assert!(
+        project_created
+            .template
+            .commands
+            .as_ref()
+            .unwrap()
+            .is_empty()
+    );
 
     println!("✅ MCP project handles templates with empty commands array correctly");
 }
@@ -157,10 +180,10 @@ fn test_mcp_success_commands_filtering() {
         routing_url: "http://localhost:4001".to_string(),
         commands: Some(vec![
             "npm install".to_string(),
-            "".to_string(),           // Empty string
-            "   ".to_string(),        // Whitespace only
+            "".to_string(),    // Empty string
+            "   ".to_string(), // Whitespace only
             "npm run dev".to_string(),
-            "\t\n".to_string(),       // Tabs and newlines
+            "\t\n".to_string(), // Tabs and newlines
         ]),
         start_point_file: "GETTING_STARTED.md".to_string(),
         print_depth: Some(1),
@@ -168,10 +191,13 @@ fn test_mcp_success_commands_filtering() {
 
     let project_created = ProjectCreated {
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("mixed_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("mixed-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("mixed_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("mixed-graph")
+                .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         artifacts: vec![
@@ -267,6 +293,12 @@ fn test_mcp_step_numbering_logic() {
 
     println!("✅ Step numbering logic works correctly (new order)");
     println!("   - Step 1: Always Claude Desktop configuration");
-    println!("   - With commands: Step 2 = Commands, Step {} = MCP server", final_step_num_with_commands);
-    println!("   - Without commands: Step {} = MCP server directly", final_step_num_without_commands);
+    println!(
+        "   - With commands: Step 2 = Commands, Step {} = MCP server",
+        final_step_num_with_commands
+    );
+    println!(
+        "   - Without commands: Step {} = MCP server directly",
+        final_step_num_without_commands
+    );
 }

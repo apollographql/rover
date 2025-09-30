@@ -72,7 +72,7 @@ impl std::fmt::Display for MCPSetupType {
 #[cfg(feature = "composition-js")]
 #[derive(Clone, Debug)]
 enum MCPProjectType {
-    REST,
+    Rest,
     GraphQL,
 }
 
@@ -80,7 +80,7 @@ enum MCPProjectType {
 impl std::fmt::Display for MCPProjectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPProjectType::REST => write!(
+            MCPProjectType::Rest => write!(
                 f,
                 "MCP server for REST APIs (make existing REST services AI-accessible)"
             ),
@@ -103,10 +103,9 @@ enum MCPDataSourceType {
 impl std::fmt::Display for MCPDataSourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MCPDataSourceType::ExternalAPIs => write!(
-                f,
-                "Apollo graph with Connectors (connect to REST services)"
-            ),
+            MCPDataSourceType::ExternalAPIs => {
+                write!(f, "Apollo graph with Connectors (connect to REST services)")
+            }
             MCPDataSourceType::GraphQLAPI => write!(
                 f,
                 "Apollo graph with GraphQL endpoints (connect to existing GraphQL endpoints)"
@@ -169,10 +168,10 @@ pub struct Init {
 impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        use crate::command::init::states::{UserAuthenticated, ProjectTypeSelected};
+        use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
+        use camino::Utf8PathBuf;
         use helpers::display_use_template_message;
         use std::env;
-        use camino::Utf8PathBuf;
 
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
@@ -181,20 +180,23 @@ impl Init {
         // Branch to MCP flow BEFORE directory validation
         if self.project_template.mcp {
             // Create ProjectTypeSelected state for MCP flow (bypasses directory check)
-            let project_type = self.project_type.get_project_type()
+            let project_type = self
+                .project_type
+                .get_project_type()
                 .unwrap_or(ProjectType::CreateNew); // Default to CreateNew for MCP
 
             let current_dir = env::current_dir()?;
-            let output_path = Utf8PathBuf::from_path_buf(
-                self.path.clone().unwrap_or(current_dir)
-            ).map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
+            let output_path = Utf8PathBuf::from_path_buf(self.path.clone().unwrap_or(current_dir))
+                .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
 
             let project_type_selected = ProjectTypeSelected {
                 project_type,
                 output_path,
             };
 
-            return self.handle_mcp_flow(project_type_selected, &client_config).await;
+            return self
+                .handle_mcp_flow(project_type_selected, &client_config)
+                .await;
         }
 
         let project_type_selected =
@@ -312,18 +314,16 @@ impl Init {
         use crate::command::init::states::*;
 
         // Initialize MCP augmentation (bypasses directory check)
-        let mcp_init = project_type_selected
-            .initialize_mcp_augmentation(&self.project_template)?;
+        let mcp_init = project_type_selected.initialize_mcp_augmentation(&self.project_template)?;
 
         // Step 1: MCP Setup Type Selection (New Project vs Existing Graph)
-        let mcp_setup_selected = mcp_init
-            .select_setup_type(&self.project_type)?;
+        let mcp_setup_selected = mcp_init.select_setup_type(&self.project_type)?;
 
         match mcp_setup_selected.setup_type {
             MCPSetupType::NewProject => {
                 // Step 2: Data Source Selection for New Project (REST vs GraphQL)
-                let mcp_data_source_selected = mcp_setup_selected
-                    .select_data_source(&self.project_use_case)?;
+                let mcp_data_source_selected =
+                    mcp_setup_selected.select_data_source(&self.project_use_case)?;
 
                 // Step 3: Continue with organization selection
                 let mcp_org_selected = mcp_data_source_selected
@@ -331,29 +331,25 @@ impl Init {
                     .await?;
 
                 // Step 4: Template composition based on data source
-                let mcp_template_composed = mcp_org_selected
-                    .compose_mcp_template()
-                    .await?;
+                let mcp_template_composed = mcp_org_selected.compose_mcp_template().await?;
 
                 // Step 5: Project naming
-                let mcp_project_named = mcp_template_composed
-                    .enter_project_name(&self.project_name)?;
+                let mcp_project_named =
+                    mcp_template_composed.enter_project_name(&self.project_name)?;
 
                 // Step 6: Graph ID confirmation
-                let mcp_graph_confirmed = mcp_project_named
-                    .confirm_graph_id(&self.graph_id)?;
+                let mcp_graph_confirmed = mcp_project_named.confirm_graph_id(&self.graph_id)?;
 
                 // Step 7: MCP-specific preview and confirmation
-                let mcp_creation_previewed = match mcp_graph_confirmed
-                    .preview_mcp_creation()
-                    .await?
-                {
-                    Some(previewed) => previewed,
-                    None => return Ok(RoverOutput::EmptySuccess), // User cancelled
-                };
+                let mcp_creation_previewed =
+                    match mcp_graph_confirmed.preview_mcp_creation().await? {
+                        Some(previewed) => previewed,
+                        None => return Ok(RoverOutput::EmptySuccess), // User cancelled
+                    };
 
                 // Step 8: Convert to MCPCreationConfirmed for type-safe MCP project creation
-                let mcp_creation_confirmed = mcp_creation_previewed.to_mcp_creation_confirmed()?;
+                let mcp_creation_confirmed =
+                    mcp_creation_previewed.into_mcp_creation_confirmed()?;
 
                 // Step 9: Follow the MCP-specific project creation flow
                 let project_created = mcp_creation_confirmed
@@ -570,7 +566,10 @@ impl Init {
             .collect::<Vec<_>>();
 
         let selection = FuzzySelect::new()
-            .with_prompt(Style::Prompt.paint("? Select existing graph variant to work with (or type graph name):"))
+            .with_prompt(
+                Style::Prompt
+                    .paint("? Select existing graph variant to work with (or type graph name):"),
+            )
             .highlight_matches(true)
             .items(&display_names)
             .interact_on_opt(&Term::stderr())?;
@@ -605,7 +604,7 @@ impl Init {
         };
         use rover_client::shared::GraphRef;
 
-        let memberships_response = memberships::run(&client).await.map_err(|e| match e {
+        let memberships_response = memberships::run(client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
                 auth_error_to_rover_error(AuthenticationError::AuthenticationFailed(msg))
             }
@@ -679,15 +678,19 @@ impl Init {
 
             // Find matching graph in the list
             let matching_graph = all_graph_options.iter().find(|option| {
-                option.graph_id == graph_part &&
-                (variant_part.is_none() || variant_part.as_deref() == Some(&option.variant_name))
+                option.graph_id == graph_part
+                    && (variant_part.is_none()
+                        || variant_part.as_deref() == Some(&option.variant_name))
             });
 
             match matching_graph {
                 Some(graph) => graph.clone(),
                 None => {
                     // If no exact match found, fall back to prompting
-                    eprintln!("Warning: Specified graph '{}' not found in available graphs", graph_id);
+                    eprintln!(
+                        "Warning: Specified graph '{}' not found in available graphs",
+                        graph_id
+                    );
                     Self::prompt_graph_selection(all_graph_options)?
                 }
             }
@@ -891,9 +894,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
 
         // Preview files and get user confirmation before creating them
-        let confirmed = self
-            .preview_mcp_files(&selected_graph, &files)
-            .await?;
+        let confirmed = self.preview_mcp_files(&selected_graph, &files).await?;
         if !confirmed {
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
@@ -952,7 +953,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
                 .replace("${GRAPH_STUDIO_URL}", &graph_endpoint)
                 .replace("${PROJECT_VERSION}", "1.0.0")
-                .replace("${PROJECT_REPOSITORY_URL}", &format!("https://github.com/user/{}", project_name))
+                .replace(
+                    "${PROJECT_REPOSITORY_URL}",
+                    &format!("https://github.com/user/{}", project_name),
+                )
                 // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", &project_name)
                 .replace("{{GRAPH_REF}}", &graph_ref_str)
@@ -968,7 +972,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
                 .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
                 .replace("{{PROJECT_VERSION}}", "1.0.0")
-                .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name))
+                .replace(
+                    "{{PROJECT_REPOSITORY_URL}}",
+                    &format!("https://github.com/user/{}", project_name),
+                )
                 // Other replacements
                 .replace("- /tools", &format!("- {}", tools_path_str))
                 .replace(
@@ -1039,7 +1046,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      {}",
             Style::Command.paint(format!(
-                "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml", graph_ref_str
+                "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml",
+                graph_ref_str
             ))
         );
         println!();
@@ -1067,7 +1075,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         Ok(RoverOutput::EmptySuccess)
     }
-
 
     /// Get MCP data source type from project_use_case argument or prompt user
     #[cfg(feature = "composition-js")]
@@ -1287,7 +1294,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 (
                     ProjectUseCase::Connectors,
                     "connectors",
-                    MCPProjectType::REST,
+                    MCPProjectType::Rest,
                 )
             }
             MCPDataSourceType::GraphQLAPI => {
@@ -1490,13 +1497,34 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             // Fix Docker image tags to be lowercase and handle spaces
             // Replace any docker build/run commands that use project_name with lowercase version
             *content = content
-                .replace(&format!("-t {}", project_name), &format!("-t {}", docker_tag))
-                .replace(&format!("-t {}-mcp", project_name), &format!("-t {}-mcp", docker_tag))
-                .replace(&format!("p5000:5000 {}", project_name), &format!("p5000:5000 {}", docker_tag))
-                .replace(&format!("p5000:5000 {}-mcp", project_name), &format!("p5000:5000 {}-mcp", docker_tag))
-                .replace(&format!("--env-file .env {}", project_name), &format!("--env-file .env {}", docker_tag))
-                .replace(&format!("--network=host --env-file .env {}", project_name), &format!("--network=host --env-file .env {}", docker_tag))
-                .replace(&format!("--network=host --env-file .env {}-mcp", project_name), &format!("--network=host --env-file .env {}-mcp", docker_tag));
+                .replace(
+                    &format!("-t {}", project_name),
+                    &format!("-t {}", docker_tag),
+                )
+                .replace(
+                    &format!("-t {}-mcp", project_name),
+                    &format!("-t {}-mcp", docker_tag),
+                )
+                .replace(
+                    &format!("p5000:5000 {}", project_name),
+                    &format!("p5000:5000 {}", docker_tag),
+                )
+                .replace(
+                    &format!("p5000:5000 {}-mcp", project_name),
+                    &format!("p5000:5000 {}-mcp", docker_tag),
+                )
+                .replace(
+                    &format!("--env-file .env {}", project_name),
+                    &format!("--env-file .env {}", docker_tag),
+                )
+                .replace(
+                    &format!("--network=host --env-file .env {}", project_name),
+                    &format!("--network=host --env-file .env {}", docker_tag),
+                )
+                .replace(
+                    &format!("--network=host --env-file .env {}-mcp", project_name),
+                    &format!("--network=host --env-file .env {}-mcp", docker_tag),
+                );
         }
 
         // Convert back to bytes and update the template, excluding .env.template
@@ -1555,8 +1583,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Create .env file with actual credentials
         let env_content = format!(
             "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
-            completed_project.api_key,
-            completed_project.graph_ref.to_string()
+            completed_project.api_key, completed_project.graph_ref
         );
         let env_path = output_path.join(".env");
         std::fs::write(&env_path, env_content)?;
@@ -1571,16 +1598,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         )?;
 
         // Display MCP-specific success message instead of standard completion
-        Self::display_mcp_project_success(
-            &completed_project,
-            &mcp_project_type,
-            &mcp_result,
-        );
+        Self::display_mcp_project_success(&completed_project, &mcp_project_type, &mcp_result);
 
         Ok(RoverOutput::EmptySuccess)
     }
-
-
 
     #[cfg(not(feature = "composition-js"))]
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {

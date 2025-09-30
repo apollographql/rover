@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::command::init::options::{ProjectTypeOpt, ProjectUseCaseOpt, ProjectType, ProjectUseCase};
+    use crate::command::init::options::{
+        ProjectType, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
+    };
     use crate::command::init::states::*;
     use camino::Utf8PathBuf;
 
@@ -21,7 +23,10 @@ mod tests {
         assert!(result.is_ok());
 
         let setup_selected = result.unwrap();
-        assert!(matches!(setup_selected.setup_type, MCPSetupType::NewProject));
+        assert!(matches!(
+            setup_selected.setup_type,
+            MCPSetupType::NewProject
+        ));
 
         // Test with AddSubgraph project type
         let mcp_init2 = MCPInitialization {
@@ -37,7 +42,10 @@ mod tests {
         assert!(result2.is_ok());
 
         let setup_selected2 = result2.unwrap();
-        assert!(matches!(setup_selected2.setup_type, MCPSetupType::ExistingGraph));
+        assert!(matches!(
+            setup_selected2.setup_type,
+            MCPSetupType::ExistingGraph
+        ));
     }
 
     #[test]
@@ -58,7 +66,10 @@ mod tests {
         assert!(result.is_ok());
 
         let data_source_selected = result.unwrap();
-        assert!(matches!(data_source_selected.data_source_type, MCPDataSourceType::ExternalAPIs));
+        assert!(matches!(
+            data_source_selected.data_source_type,
+            MCPDataSourceType::ExternalAPIs
+        ));
 
         // Test with GraphQLTemplate use case
         let mcp_setup_selected2 = MCPSetupTypeSelected {
@@ -75,7 +86,10 @@ mod tests {
         assert!(result2.is_ok());
 
         let data_source_selected2 = result2.unwrap();
-        assert!(matches!(data_source_selected2.data_source_type, MCPDataSourceType::GraphQLAPI));
+        assert!(matches!(
+            data_source_selected2.data_source_type,
+            MCPDataSourceType::GraphQLAPI
+        ));
     }
 
     #[test]
@@ -93,7 +107,12 @@ mod tests {
 
         let result = mcp_setup_selected.select_data_source(&options);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Data source selection only available for new project flow"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Data source selection only available for new project flow")
+        );
     }
 
     #[test]
@@ -135,19 +154,30 @@ mod tests {
             project_type: Some(ProjectType::CreateNew),
         };
         let setup_selected = mcp_init.select_setup_type(&setup_options).unwrap();
-        assert!(matches!(setup_selected.setup_type, MCPSetupType::NewProject));
+        assert!(matches!(
+            setup_selected.setup_type,
+            MCPSetupType::NewProject
+        ));
 
         // Step 2: Data source selection
         let data_source_options = ProjectUseCaseOpt {
             project_use_case: Some(ProjectUseCase::Connectors),
         };
-        let data_source_selected = setup_selected.select_data_source(&data_source_options).unwrap();
-        assert!(matches!(data_source_selected.data_source_type, MCPDataSourceType::ExternalAPIs));
+        let data_source_selected = setup_selected
+            .select_data_source(&data_source_options)
+            .unwrap();
+        assert!(matches!(
+            data_source_selected.data_source_type,
+            MCPDataSourceType::ExternalAPIs
+        ));
 
         // Verify state carries through correctly
         assert_eq!(data_source_selected.output_path, Utf8PathBuf::from("."));
         assert_eq!(data_source_selected.project_type, ProjectType::CreateNew);
-        assert!(matches!(data_source_selected.setup_type, MCPSetupType::NewProject));
+        assert!(matches!(
+            data_source_selected.setup_type,
+            MCPSetupType::NewProject
+        ));
     }
 
     #[test]
@@ -179,13 +209,13 @@ mod tests {
             print_depth: None,
         };
 
-        let mut mcp_additions = HashMap::new();
-        mcp_additions.insert(
+        let mut merged_files = HashMap::new();
+        merged_files.insert(
             Utf8PathBuf::from(".apollo/mcp.local.yaml"),
             b"operations:\n  source: collection".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new(template, mcp_additions);
+        let composed_template = MCPComposedTemplate::new(template, merged_files);
 
         let mcp_previewed = MCPCreationPreviewed {
             output_path: Utf8PathBuf::from("."),
@@ -196,12 +226,18 @@ mod tests {
         };
 
         // Test conversion to MCPCreationConfirmed
-        let result = mcp_previewed.to_mcp_creation_confirmed();
+        let result = mcp_previewed.into_mcp_creation_confirmed();
         assert!(result.is_ok());
 
         let mcp_creation_confirmed = result.unwrap();
-        assert_eq!(mcp_creation_confirmed.config.project_name.to_string(), "test-project");
-        assert_eq!(mcp_creation_confirmed.config.graph_id.to_string(), "test-graph-id");
+        assert_eq!(
+            mcp_creation_confirmed.config.project_name.to_string(),
+            "test-project"
+        );
+        assert_eq!(
+            mcp_creation_confirmed.config.graph_id.to_string(),
+            "test-graph-id"
+        );
         assert_eq!(mcp_creation_confirmed.output_path, Utf8PathBuf::from("."));
     }
 
@@ -255,17 +291,17 @@ mod tests {
             print_depth: None,
         };
 
-        let mut mcp_additions = HashMap::new();
-        mcp_additions.insert(
+        let mut merged_files = HashMap::new();
+        merged_files.insert(
             Utf8PathBuf::from(".apollo/mcp.local.yaml"),
             b"operations:\n  source: collection".to_vec(),
         );
-        mcp_additions.insert(
+        merged_files.insert(
             Utf8PathBuf::from("claude_desktop_config.json"),
             b"{}".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new(template, mcp_additions);
+        let composed_template = MCPComposedTemplate::new(template, merged_files);
 
         let mcp_graph_confirmed = MCPGraphIdConfirmed {
             output_path: Utf8PathBuf::from("."),
@@ -318,13 +354,13 @@ mod tests {
             print_depth: None,
         };
 
-        let mut mcp_additions = HashMap::new();
-        mcp_additions.insert(
+        let mut merged_files = HashMap::new();
+        merged_files.insert(
             Utf8PathBuf::from(".apollo/mcp.local.yaml"),
             b"operations:\n  source: collection".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new(template, mcp_additions);
+        let composed_template = MCPComposedTemplate::new(template, merged_files);
 
         let mcp_previewed = MCPCreationPreviewed {
             output_path: Utf8PathBuf::from("."),
@@ -335,16 +371,25 @@ mod tests {
         };
 
         // Test conversion to MCPCreationConfirmed
-        let result = mcp_previewed.to_mcp_creation_confirmed();
+        let result = mcp_previewed.into_mcp_creation_confirmed();
         assert!(result.is_ok());
 
         let mcp_creation_confirmed = result.unwrap();
-        assert_eq!(mcp_creation_confirmed.config.project_name.to_string(), "test-project");
-        assert_eq!(mcp_creation_confirmed.config.graph_id.to_string(), "test-graph-id");
+        assert_eq!(
+            mcp_creation_confirmed.config.project_name.to_string(),
+            "test-project"
+        );
+        assert_eq!(
+            mcp_creation_confirmed.config.graph_id.to_string(),
+            "test-graph-id"
+        );
         assert_eq!(mcp_creation_confirmed.output_path, Utf8PathBuf::from("."));
 
         // Verify the composed_template is properly converted
-        assert_eq!(mcp_creation_confirmed.composed_template.base_template.id.0, "connectors");
+        assert_eq!(
+            mcp_creation_confirmed.composed_template.base_template.id.0,
+            "connectors"
+        );
     }
 
     #[test]
@@ -393,10 +438,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
             print_depth: None,
         };
 
-        let composed_template = MCPComposedTemplate::new(
-            template,
-            HashMap::new(),
-        );
+        let composed_template = MCPComposedTemplate::new(template, HashMap::new());
 
         let mcp_creation_confirmed = MCPCreationConfirmed {
             config,
@@ -414,13 +456,20 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
         // Process the .env.template file
         // Use unified template processing instead of removed method
         let env_template_content = std::fs::read_to_string(&env_template_path).unwrap();
-        let processed_content = mcp_creation_confirmed.process_template_placeholders(&env_template_content, &api_key, &graph_ref);
+        let processed_content = mcp_creation_confirmed.process_template_placeholders(
+            &env_template_content,
+            &api_key,
+            &graph_ref,
+        );
         let env_path = mcp_creation_confirmed.output_path.join(".env");
         std::fs::write(&env_path, processed_content).unwrap();
         std::fs::remove_file(&env_template_path).unwrap();
 
         // Verify .env.template file was removed and .env file was created
-        assert!(!env_template_path.exists(), ".env.template file should be removed");
+        assert!(
+            !env_template_path.exists(),
+            ".env.template file should be removed"
+        );
 
         let env_path = temp_path.join(".env");
         assert!(env_path.exists(), ".env file should be created");
@@ -431,7 +480,10 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
         assert!(processed_content.contains("PROJECT_NAME=test-project"));
         assert!(processed_content.contains(&format!("APOLLO_KEY=\"{}\"", api_key)));
         assert!(processed_content.contains("APOLLO_GRAPH_REF=\"test-graph-id@current\""));
-        assert!(processed_content.contains("GRAPHQL_ENDPOINT=\"http://host.docker.internal:4000/graphql\""));
+        assert!(
+            processed_content
+                .contains("GRAPHQL_ENDPOINT=\"http://host.docker.internal:4000/graphql\"")
+        );
 
         // Check that header comments were added
         assert!(processed_content.contains("# Apollo GraphOS Credentials for MCP Server"));
@@ -485,10 +537,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             print_depth: None,
         };
 
-        let composed_template = MCPComposedTemplate::new(
-            template,
-            HashMap::new(),
-        );
+        let composed_template = MCPComposedTemplate::new(template, HashMap::new());
 
         let mcp_creation_confirmed = MCPCreationConfirmed {
             config,
@@ -506,13 +555,20 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         // Process the .env.template file
         // Use unified template processing instead of removed method
         let env_template_content = std::fs::read_to_string(&env_template_path).unwrap();
-        let processed_content = mcp_creation_confirmed.process_template_placeholders(&env_template_content, &api_key, &graph_ref);
+        let processed_content = mcp_creation_confirmed.process_template_placeholders(
+            &env_template_content,
+            &api_key,
+            &graph_ref,
+        );
         let env_path = mcp_creation_confirmed.output_path.join(".env");
         std::fs::write(&env_path, processed_content).unwrap();
         std::fs::remove_file(&env_template_path).unwrap();
 
         // Verify .env.template file was removed and .env file was created
-        assert!(!env_template_path.exists(), ".env.template file should be removed");
+        assert!(
+            !env_template_path.exists(),
+            ".env.template file should be removed"
+        );
 
         let env_path = temp_path.join(".env");
         assert!(env_path.exists(), ".env file should be created");
@@ -564,10 +620,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             print_depth: None,
         };
 
-        let composed_template = MCPComposedTemplate::new(
-            template,
-            HashMap::new(),
-        );
+        let composed_template = MCPComposedTemplate::new(template, HashMap::new());
 
         let mcp_creation_confirmed = MCPCreationConfirmed {
             config,
@@ -584,7 +637,11 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
         // Process should succeed even with no .env.template file
         // Test that template processing works (no actual file processing needed for this test)
-        let _processed = mcp_creation_confirmed.process_template_placeholders("test {{PROJECT_NAME}}", &api_key, &graph_ref);
+        let _processed = mcp_creation_confirmed.process_template_placeholders(
+            "test {{PROJECT_NAME}}",
+            &api_key,
+            &graph_ref,
+        );
         let result: Result<(), crate::RoverError> = Ok(());
         assert!(result.is_ok());
 
@@ -633,10 +690,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             print_depth: None,
         };
 
-        let composed_template = MCPComposedTemplate::new(
-            template,
-            HashMap::new(),
-        );
+        let composed_template = MCPComposedTemplate::new(template, HashMap::new());
 
         let mcp_creation_confirmed = MCPCreationConfirmed {
             config,
@@ -647,12 +701,21 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         // Verify MCPCreationConfirmed has the required interface and follows rover init patterns
 
         // 1. Verify proper config structure (core rover init pattern)
-        assert_eq!(mcp_creation_confirmed.config.project_name.to_string(), "test-project");
-        assert_eq!(mcp_creation_confirmed.config.graph_id.to_string(), "test-graph-id");
+        assert_eq!(
+            mcp_creation_confirmed.config.project_name.to_string(),
+            "test-project"
+        );
+        assert_eq!(
+            mcp_creation_confirmed.config.graph_id.to_string(),
+            "test-graph-id"
+        );
         assert_eq!(mcp_creation_confirmed.output_path, temp_path);
 
         // 2. Verify composed template with base template (MCP-specific structure)
-        assert_eq!(mcp_creation_confirmed.composed_template.base_template.id.0, "connectors");
+        assert_eq!(
+            mcp_creation_confirmed.composed_template.base_template.id.0,
+            "connectors"
+        );
 
         // 3. Verify MCP-specific interface exists (compilation test)
         // The fact that this compiles proves the interface exists and follows type safety
@@ -664,7 +727,11 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
         // This line verifies that MCPCreationConfirmed has the MCP-specific method
         // (will fail compilation if method doesn't exist or has wrong signature)
-        let _can_process_env = mcp_creation_confirmed.process_template_placeholders("test {{PROJECT_NAME}}", &api_key, &graph_ref);
+        let _can_process_env = mcp_creation_confirmed.process_template_placeholders(
+            "test {{PROJECT_NAME}}",
+            &api_key,
+            &graph_ref,
+        );
 
         // The existence of create_project method is verified by the compiler
         // since the struct implements the required interface for complete project creation
@@ -732,7 +799,11 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         // Process should succeed and rename .env.template to .env
         // Read the .env.template content and process it
         let env_template_content = fs::read_to_string(&env_template_path).unwrap();
-        let processed_content = mcp_creation_confirmed.process_template_placeholders(&env_template_content, &api_key, &graph_ref);
+        let processed_content = mcp_creation_confirmed.process_template_placeholders(
+            &env_template_content,
+            &api_key,
+            &graph_ref,
+        );
 
         // Write the processed content to .env and remove .env.template (simulating the actual flow)
         let env_path = temp_path.join(".env");
@@ -740,7 +811,10 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         fs::remove_file(&env_template_path).unwrap();
 
         // Verify .env.template was removed and .env was created
-        assert!(!env_template_path.exists(), ".env.template should be removed");
+        assert!(
+            !env_template_path.exists(),
+            ".env.template should be removed"
+        );
 
         let env_path = temp_path.join(".env");
         assert!(env_path.exists(), ".env should be created");

@@ -1,7 +1,7 @@
 use crate::command::init::states::*;
+use camino::Utf8PathBuf;
 use std::collections::HashMap;
 use std::str::FromStr;
-use camino::Utf8PathBuf;
 
 #[test]
 fn test_unified_template_processing_fix() {
@@ -29,10 +29,13 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
     let mcp_creation_confirmed = MCPCreationConfirmed {
         output_path: Utf8PathBuf::from("/tmp/test"),
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("test_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("test-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("test_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("test-graph")
+                .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         composed_template: MCPComposedTemplate {
@@ -48,16 +51,13 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
                 start_point_file: "README.md".to_string(),
                 print_depth: None,
             },
-            mcp_additions: HashMap::new(),
+            merged_files: HashMap::new(),
             merged_files: HashMap::new(),
         },
     };
 
-    let result = mcp_creation_confirmed.process_template_placeholders(
-        test_content,
-        apollo_key,
-        &graph_ref
-    );
+    let result =
+        mcp_creation_confirmed.process_template_placeholders(test_content, apollo_key, &graph_ref);
 
     println!("=== Original Content ===");
     println!("{}", test_content);
@@ -66,46 +66,89 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
     println!("{}", result);
 
     // Key assertions - these placeholders MUST be replaced
-    assert!(result.contains("PROJECT_NAME=test_project"), "PROJECT_NAME should be replaced");
-    assert!(result.contains(&format!("APOLLO_KEY={}", apollo_key)), "APOLLO_KEY should be replaced");
-    assert!(result.contains("DOCKER_TAG=test-graph"), "DOCKER_TAG should be replaced (this was the main bug!)");
-    assert!(result.contains("GRAPH_ID=test-graph"), "GRAPH_ID should be replaced");
-    assert!(result.contains("VARIANT_NAME=current"), "VARIANT_NAME should be replaced");
-    assert!(result.contains("ENDPOINT=http://host.docker.internal:4000/graphql"), "GRAPHQL_ENDPOINT should be replaced");
+    assert!(
+        result.contains("PROJECT_NAME=test_project"),
+        "PROJECT_NAME should be replaced"
+    );
+    assert!(
+        result.contains(&format!("APOLLO_KEY={}", apollo_key)),
+        "APOLLO_KEY should be replaced"
+    );
+    assert!(
+        result.contains("DOCKER_TAG=test-graph"),
+        "DOCKER_TAG should be replaced (this was the main bug!)"
+    );
+    assert!(
+        result.contains("GRAPH_ID=test-graph"),
+        "GRAPH_ID should be replaced"
+    );
+    assert!(
+        result.contains("VARIANT_NAME=current"),
+        "VARIANT_NAME should be replaced"
+    );
+    assert!(
+        result.contains("ENDPOINT=http://host.docker.internal:4000/graphql"),
+        "GRAPHQL_ENDPOINT should be replaced"
+    );
 
     // Ensure placeholders are gone
-    assert!(!result.contains("{{PROJECT_NAME}}"), "PROJECT_NAME placeholder should be removed");
-    assert!(!result.contains("{{APOLLO_KEY}}"), "APOLLO_KEY placeholder should be removed");
-    assert!(!result.contains("{{DOCKER_TAG}}"), "DOCKER_TAG placeholder should be removed");
-    assert!(!result.contains("${GRAPH_ID}"), "GRAPH_ID placeholder should be removed");
-    assert!(!result.contains("${VARIANT_NAME}"), "VARIANT_NAME placeholder should be removed");
-    assert!(!result.contains("{{GRAPHQL_ENDPOINT}}"), "GRAPHQL_ENDPOINT placeholder should be removed");
+    assert!(
+        !result.contains("{{PROJECT_NAME}}"),
+        "PROJECT_NAME placeholder should be removed"
+    );
+    assert!(
+        !result.contains("{{APOLLO_KEY}}"),
+        "APOLLO_KEY placeholder should be removed"
+    );
+    assert!(
+        !result.contains("{{DOCKER_TAG}}"),
+        "DOCKER_TAG placeholder should be removed"
+    );
+    assert!(
+        !result.contains("${GRAPH_ID}"),
+        "GRAPH_ID placeholder should be removed"
+    );
+    assert!(
+        !result.contains("${VARIANT_NAME}"),
+        "VARIANT_NAME placeholder should be removed"
+    );
+    assert!(
+        !result.contains("{{GRAPHQL_ENDPOINT}}"),
+        "GRAPHQL_ENDPOINT placeholder should be removed"
+    );
 
-    println!("\n✅ Template processing fix verified - all critical placeholders are correctly replaced!");
+    println!(
+        "\n✅ Template processing fix verified - all critical placeholders are correctly replaced!"
+    );
 }
 
 #[test]
 fn test_unified_helper_directly() {
     // Test the unified helper function directly to ensure it handles all placeholders
 
-    let test_content = "PROJECT={{PROJECT_NAME}} KEY={{APOLLO_KEY}} TAG={{DOCKER_TAG}} ID=${GRAPH_ID}";
+    let test_content =
+        "PROJECT={{PROJECT_NAME}} KEY={{APOLLO_KEY}} TAG={{DOCKER_TAG}} ID=${GRAPH_ID}";
 
-    let result = crate::command::init::helpers::process_mcp_template_placeholders(
-        test_content,
-        "my_project",      // project_name
-        "my-graph",        // graph_id
-        "my_project",      // graph_name
-        "current",         // variant_name
-        "my_org",          // organization_name
-        "service:key:123", // api_key
-        &rover_client::shared::GraphRef {
-            name: "my-graph".to_string(),
-            variant: "current".to_string(),
-        },
-        None, // mcp_server_binary
-        None, // mcp_config_path
-        None, // tools_path
-    );
+    let graph_ref = rover_client::shared::GraphRef {
+        name: "my-graph".to_string(),
+        variant: "current".to_string(),
+    };
+
+    let ctx = crate::command::init::helpers::MCPTemplateContext {
+        project_name: "my_project",
+        graph_id: "my-graph",
+        graph_name: "my_project",
+        variant_name: "current",
+        organization_name: "my_org",
+        api_key: "service:key:123",
+        graph_ref: &graph_ref,
+        mcp_server_binary: None,
+        mcp_config_path: None,
+        tools_path: None,
+    };
+
+    let result =
+        crate::command::init::helpers::process_mcp_template_placeholders(test_content, &ctx);
 
     println!("Direct helper test result: {}", result);
 

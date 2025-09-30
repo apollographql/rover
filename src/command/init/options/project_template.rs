@@ -18,7 +18,6 @@ impl ProjectTemplateOpt {
         self.template.clone()
     }
 
-
     /// Check if a template is an MCP variant
     /// DEPRECATED: MCP flow now uses dedicated state transitions
     #[allow(dead_code)]
@@ -69,8 +68,6 @@ mod tests {
         let result = instance.get_template();
         assert_eq!(result, None);
     }
-
-
 
     // Default trait implementation tests
 

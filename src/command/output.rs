@@ -1,5 +1,6 @@
 #[cfg(feature = "composition-js")]
 use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
 use crate::{
     RoverError,
     command::{
@@ -32,7 +33,6 @@ use rover_client::{
 };
 use rover_std::Style;
 use serde_json::{Value, json};
-use crate::command::docs::shortlinks::ShortlinkInfo;
 use std::{
     collections::BTreeMap,
     fmt::Write,

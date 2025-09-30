@@ -1,8 +1,8 @@
-use crate::command::init::states::*;
-use crate::command::init::options::*;
 use crate::command::init::graph_id::validation::GraphId;
-use rover_client::shared::GraphRef;
+use crate::command::init::options::*;
+use crate::command::init::states::*;
 use camino::Utf8PathBuf;
+use rover_client::shared::GraphRef;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -18,7 +18,9 @@ fn test_mcp_template_placeholder_processing() {
 APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 PROJECT_NAME={{PROJECT_NAME}}
 GRAPHQL_ENDPOINT={{GRAPHQL_ENDPOINT}}
-"#.as_bytes().to_vec()
+"#
+        .as_bytes()
+        .to_vec(),
     );
 
     // Add a YAML file with ${} placeholders
@@ -29,7 +31,9 @@ project: ${PROJECT_NAME}
 apollo_key: ${APOLLO_KEY}
 graph_ref: ${APOLLO_GRAPH_REF}
 endpoint: ${GRAPHQL_ENDPOINT}
-"#.as_bytes().to_vec()
+"#
+        .as_bytes()
+        .to_vec(),
     );
 
     // Add a Docker file with mixed placeholders
@@ -41,7 +45,9 @@ COPY . .
 ENV PROJECT_NAME={{PROJECT_NAME}}
 ENV APOLLO_KEY={{APOLLO_KEY}}
 RUN echo "Building {{PROJECT_NAME}}"
-"#.as_bytes().to_vec()
+"#
+        .as_bytes()
+        .to_vec(),
     );
 
     let composed_template = MCPComposedTemplate {
@@ -57,7 +63,6 @@ RUN echo "Building {{PROJECT_NAME}}"
             start_point_file: "README.md".to_string(),
             print_depth: None,
         },
-        mcp_additions: HashMap::new(),
         merged_files: files,
     };
 
@@ -90,7 +95,7 @@ GRAPHQL_ENDPOINT={{GRAPHQL_ENDPOINT}}
     let processed_env = mcp_creation_confirmed.process_template_placeholders(
         env_content,
         test_api_key,
-        &test_graph_ref
+        &test_graph_ref,
     );
 
     println!("=== Original .env.template content ===");
@@ -121,7 +126,7 @@ endpoint: ${GRAPHQL_ENDPOINT}
     let processed_yaml = mcp_creation_confirmed.process_template_placeholders(
         yaml_content,
         test_api_key,
-        &test_graph_ref
+        &test_graph_ref,
     );
 
     println!("=== Original YAML content ===");
@@ -153,7 +158,9 @@ fn test_mcp_template_file_processing_in_create_project() {
         r#"# Test env file
 APOLLO_KEY="{{APOLLO_KEY}}"
 PROJECT_NAME="{{PROJECT_NAME}}"
-"#.as_bytes().to_vec()
+"#
+        .as_bytes()
+        .to_vec(),
     );
 
     files.insert(
@@ -161,7 +168,9 @@ PROJECT_NAME="{{PROJECT_NAME}}"
         r#"# {{PROJECT_NAME}}
 
 This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
-"#.as_bytes().to_vec()
+"#
+        .as_bytes()
+        .to_vec(),
     );
 
     let composed_template = MCPComposedTemplate {
@@ -177,7 +186,6 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
             start_point_file: "README.md".to_string(),
             print_depth: None,
         },
-        mcp_additions: HashMap::new(),
         merged_files: files,
     };
 
@@ -203,7 +211,11 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
     let mut processed_files = HashMap::new();
     for (file_path, content) in &mcp_creation_confirmed.composed_template.merged_files {
         let content_str = String::from_utf8_lossy(content);
-        let processed_content = mcp_creation_confirmed.process_template_placeholders(&content_str, test_api_key, &test_graph_ref);
+        let processed_content = mcp_creation_confirmed.process_template_placeholders(
+            &content_str,
+            test_api_key,
+            &test_graph_ref,
+        );
 
         // Handle .env.template → .env renaming for MCP projects
         let final_path = if file_path.as_str().ends_with(".env.template") {
@@ -227,7 +239,9 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
     assert!(!env_content.contains("{{PROJECT_NAME}}"));
 
     // Verify README.md content was processed
-    let readme_content = processed_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+    let readme_content = processed_files
+        .get(&Utf8PathBuf::from("README.md"))
+        .unwrap();
     assert!(readme_content.contains("# my_test_project"));
     assert!(readme_content.contains(&format!("graph ref: {}", test_graph_ref)));
     assert!(!readme_content.contains("{{PROJECT_NAME}}"));

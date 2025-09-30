@@ -1,7 +1,7 @@
 use crate::command::init::states::*;
+use camino::Utf8PathBuf;
 use std::collections::HashMap;
 use std::str::FromStr;
-use camino::Utf8PathBuf;
 
 // Async test removed - would require network access and tokio_test dependency
 
@@ -34,10 +34,13 @@ DOCKER_TAG={{DOCKER_TAG}}
     let mcp_creation_confirmed = MCPCreationConfirmed {
         output_path: Utf8PathBuf::from("/tmp/test"),
         config: crate::command::init::config::ProjectConfig {
-            organization: crate::command::init::options::OrganizationId::from_str("test_org").unwrap(),
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
             use_case: crate::command::init::options::ProjectUseCase::Connectors,
-            project_name: crate::command::init::options::ProjectName::from_str("test_project").unwrap(),
-            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("test-graph").unwrap(),
+            project_name: crate::command::init::options::ProjectName::from_str("test_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("test-graph")
+                .unwrap(),
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         composed_template: MCPComposedTemplate {
@@ -53,16 +56,12 @@ DOCKER_TAG={{DOCKER_TAG}}
                 start_point_file: "README.md".to_string(),
                 print_depth: None,
             },
-            mcp_additions: HashMap::new(),
             merged_files: HashMap::new(),
         },
     };
 
-    let new_approach_result = mcp_creation_confirmed.process_template_placeholders(
-        test_content,
-        apollo_key,
-        &graph_ref
-    );
+    let new_approach_result =
+        mcp_creation_confirmed.process_template_placeholders(test_content, apollo_key, &graph_ref);
 
     // Test Method 2: Existing graph approach (simulated)
     let mut old_approach_result = test_content.to_string();
@@ -120,8 +119,14 @@ DOCKER_TAG={{DOCKER_TAG}}
         let old_still_has_placeholder = old_approach_result.contains(placeholder);
 
         println!("\n=== Checking {} ===", placeholder);
-        println!("New approach replaced: {} (still has placeholder: {})", new_contains, new_still_has_placeholder);
-        println!("Old approach replaced: {} (still has placeholder: {})", old_contains, old_still_has_placeholder);
+        println!(
+            "New approach replaced: {} (still has placeholder: {})",
+            new_contains, new_still_has_placeholder
+        );
+        println!(
+            "Old approach replaced: {} (still has placeholder: {})",
+            old_contains, old_still_has_placeholder
+        );
 
         if new_still_has_placeholder != old_still_has_placeholder {
             println!("⚠️  MISMATCH: Different placeholder replacement behavior");

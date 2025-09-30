@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod integration_tests {
-    use crate::command::init::options::*;
     use crate::command::init::Init;
+    use crate::command::init::options::*;
     use camino::Utf8PathBuf;
     use std::fs;
     use tempfile::TempDir;
@@ -27,12 +27,8 @@ mod integration_tests {
             project_type: ProjectTypeOpt {
                 project_type: Some(ProjectType::CreateNew),
             },
-            project_name: ProjectNameOpt {
-                project_name: None,
-            },
-            organization: ProjectOrganizationOpt {
-                organization: None,
-            },
+            project_name: ProjectNameOpt { project_name: None },
+            organization: ProjectOrganizationOpt { organization: None },
             project_use_case: ProjectUseCaseOpt {
                 project_use_case: Some(ProjectUseCase::Connectors),
             },
@@ -50,12 +46,8 @@ mod integration_tests {
             project_type: ProjectTypeOpt {
                 project_type: Some(ProjectType::CreateNew),
             },
-            project_name: ProjectNameOpt {
-                project_name: None,
-            },
-            organization: ProjectOrganizationOpt {
-                organization: None,
-            },
+            project_name: ProjectNameOpt { project_name: None },
+            organization: ProjectOrganizationOpt { organization: None },
             project_use_case: ProjectUseCaseOpt {
                 project_use_case: Some(ProjectUseCase::Connectors),
             },
@@ -126,12 +118,8 @@ mod integration_tests {
             project_type: ProjectTypeOpt {
                 project_type: Some(ProjectType::CreateNew),
             },
-            project_name: ProjectNameOpt {
-                project_name: None,
-            },
-            organization: ProjectOrganizationOpt {
-                organization: None,
-            },
+            project_name: ProjectNameOpt { project_name: None },
+            organization: ProjectOrganizationOpt { organization: None },
             project_use_case: ProjectUseCaseOpt {
                 project_use_case: Some(ProjectUseCase::Connectors),
             },
