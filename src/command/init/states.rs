@@ -221,16 +221,86 @@ pub struct MCPCreationConfirmed {
 pub struct MCPComposedTemplate {
     pub base_template: Template,
     pub merged_files: HashMap<Utf8PathBuf, Vec<u8>>,
+    #[allow(dead_code)]
+    pub agents_merged_into_readme: bool,
 }
 
 impl MCPComposedTemplate {
+    #[allow(dead_code)]
     pub fn new(base_template: Template, merged_files: HashMap<Utf8PathBuf, Vec<u8>>) -> Self {
         // The merged_files should already contain base template + MCP additions
         // as they are pre-merged by template_fetcher.rs
         Self {
             base_template,
             merged_files,
+            agents_merged_into_readme: false,
         }
+    }
+
+    /// Create a new MCPComposedTemplate for new projects with AGENTS.md merged into README.md
+    pub fn new_with_agents_merge(
+        base_template: Template,
+        mut merged_files: HashMap<Utf8PathBuf, Vec<u8>>,
+        project_type: crate::command::init::options::ProjectType,
+    ) -> Self {
+        use crate::command::init::options::ProjectType;
+
+        // Check if AGENTS.md exists before merging
+        let agents_path = camino::Utf8PathBuf::from("AGENTS.md");
+        let has_agents_md = merged_files.contains_key(&agents_path);
+
+        // Only merge for NEW projects
+        let agents_merged = if project_type == ProjectType::CreateNew && has_agents_md {
+            merged_files = Self::merge_agents_into_readme(merged_files);
+            true
+        } else {
+            false
+        };
+
+        Self {
+            base_template,
+            merged_files,
+            agents_merged_into_readme: agents_merged,
+        }
+    }
+
+    /// Merge AGENTS.md content into README.md while keeping AGENTS.md as a separate file
+    fn merge_agents_into_readme(
+        mut files: HashMap<Utf8PathBuf, Vec<u8>>,
+    ) -> HashMap<Utf8PathBuf, Vec<u8>> {
+        use camino::Utf8PathBuf;
+
+        let agents_path = Utf8PathBuf::from("AGENTS.md");
+        let readme_path = Utf8PathBuf::from("README.md");
+
+        // Get AGENTS.md content if it exists (without removing it)
+        let agents_content = match files.get(&agents_path) {
+            Some(content) => content.clone(),
+            None => return files, // No AGENTS.md, nothing to merge
+        };
+
+        // Get or create README.md
+        let readme_content = files.remove(&readme_path).unwrap_or_else(|| Vec::new());
+
+        // Convert to strings for processing
+        let mut readme_str = String::from_utf8_lossy(&readme_content).to_string();
+        let agents_str = String::from_utf8_lossy(&agents_content);
+
+        // Ensure README ends with newlines before appending
+        if !readme_str.is_empty() && !readme_str.ends_with("\n\n") {
+            if !readme_str.ends_with('\n') {
+                readme_str.push('\n');
+            }
+            readme_str.push('\n');
+        }
+
+        // Append AGENTS.md content to README.md
+        readme_str.push_str(&agents_str);
+
+        // Put the updated README.md back
+        files.insert(readme_path, readme_str.into_bytes());
+
+        files
     }
 
     pub fn list_files(&self) -> Vec<Utf8PathBuf> {

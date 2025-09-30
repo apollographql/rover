@@ -52,7 +52,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
                 print_depth: None,
             },
             merged_files: HashMap::new(),
-            merged_files: HashMap::new(),
+            agents_merged_into_readme: false,
         },
     };
 

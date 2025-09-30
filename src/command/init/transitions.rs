@@ -892,10 +892,13 @@ impl MCPOrganizationSelected {
             .fetch_mcp_template(template_id, repo_ref)
             .await?;
 
-        // Create MCPComposedTemplate from the pre-merged files
+        // Create MCPComposedTemplate with AGENTS.md merge applied for new projects
         // The selected_template.files already contains base template + MCP additions
-        let composed_template =
-            MCPComposedTemplate::new(selected_template.template, selected_template.files);
+        let composed_template = MCPComposedTemplate::new_with_agents_merge(
+            selected_template.template,
+            selected_template.files,
+            self.project_type.clone(),
+        );
 
         Ok(MCPTemplateComposed {
             output_path: self.output_path,
@@ -1051,6 +1054,7 @@ impl MCPCreationConfirmed {
 
         process_mcp_template_placeholders(content, &ctx)
     }
+
 
     pub async fn create_project(
         self,
