@@ -249,7 +249,9 @@ impl UseCaseSelected {
 
         // MCP flow is handled in separate state machine, should not reach here with --mcp flag
         if options.mcp {
-            unreachable!("MCP flow should use dedicated state transitions, not reach template selection");
+            unreachable!(
+                "MCP flow should use dedicated state transitions, not reach template selection"
+            );
         }
 
         // Determine the list of templates based on the use case

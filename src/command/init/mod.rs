@@ -603,7 +603,7 @@ impl Init {
             AuthenticationError, auth_error_to_rover_error,
         };
         use anyhow::anyhow;
-        use rover_std::Style;
+        use rover_std::{Style, hyperlink};
 
         // Query GraphOS for user's organizations and their graphs
         use rover_client::operations::init::{list_graphs, memberships};
@@ -626,8 +626,8 @@ impl Init {
                 Style::WarningHeading.paint("▲ No organizations found")
             );
             println!(
-                "You need to create a graph first. Run {} to create your first graph.",
-                Style::Command.paint("rover init")
+                "You need to create an organization first. Visit {} to create your first organization.",
+                hyperlink("https://studio.apollographql.com")
             );
             return Ok(RoverOutput::EmptySuccess);
         }
@@ -671,8 +671,9 @@ impl Init {
         if all_graph_options.is_empty() {
             println!("{}", Style::WarningHeading.paint("▲ No graphs found"));
             println!(
-                "You need to create a graph first. Run {} to create your first graph.",
-                Style::Command.paint("rover init")
+                "You must have a graph registered in GraphOS. Visit {} to connect an existing graph or run `{}` to create a new graph pre-configured to work with the Apollo MCP Server.",
+                hyperlink("https://studio.apollographql.com"),
+                Style::Command.paint("rover init --mcp")
             );
             return Ok(RoverOutput::EmptySuccess);
         }
