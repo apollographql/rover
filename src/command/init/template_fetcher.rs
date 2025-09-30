@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
 use crate::command::init::states::SelectedTemplateState;
@@ -58,7 +58,7 @@ pub struct Template {
 
 impl Template {
     fn default_start_point_file() -> String {
-        "getting-started.md".to_string()
+        "GETTING_STARTED.MD".to_string()
     }
 }
 
@@ -232,7 +232,7 @@ impl InitTemplateFetcher {
 
         let mcp_state = Self::extract_template_files(&template_options, &add_mcp_template)?;
 
-        // Merge MCP files into base template
+        // Merge MCP files into base template with intelligent merging for special files
         for (mcp_path, mcp_contents) in mcp_state.files {
             if mcp_path.as_str() == ".gitignore" {
                 // Special handling for .gitignore files - merge instead of overwrite
@@ -280,7 +280,7 @@ impl InitTemplateFetcher {
         let mcp_str = String::from_utf8_lossy(mcp_content);
 
         // Track unique patterns to avoid duplicates
-        let mut patterns = std::collections::HashSet::new();
+        let mut patterns = HashSet::new();
         let mut result = Vec::new();
 
         // Add base template section header and patterns
@@ -395,7 +395,7 @@ mod tests {
             "routing_url": "http://localhost:4001"
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
-        assert_eq!(template.start_point_file, "getting-started.md");
+        assert_eq!(template.start_point_file, "GETTING_STARTED.MD");
     }
 
     #[test]
@@ -413,5 +413,70 @@ mod tests {
         }"#;
         let template: Template = serde_json::from_str(json).unwrap();
         assert_eq!(template.start_point_file, "readme.md");
+    }
+
+    #[test]
+    fn test_merge_gitignore_files() {
+        let base_gitignore = b"# TypeScript ignores\nnode_modules/\n*.log\ndist/\n";
+        let mcp_gitignore = b"# MCP ignores\n.env\n*.log\ntools/temp/\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should contain both sets of patterns
+        assert!(merged_str.contains("node_modules/"));
+        assert!(merged_str.contains(".env"));
+        assert!(merged_str.contains("dist/"));
+        assert!(merged_str.contains("tools/temp/"));
+
+        // Should have section headers
+        assert!(merged_str.contains("# Base template ignores"));
+        assert!(merged_str.contains("# MCP server additions"));
+
+        // Should not duplicate *.log pattern
+        let log_count = merged_str.matches("*.log").count();
+        assert_eq!(log_count, 1, "*.log should only appear once in merged file");
+    }
+
+    #[test]
+    fn test_merge_gitignore_files_preserves_comments() {
+        let base_gitignore =
+            b"# Important comment\n# Another comment\nnode_modules/\n\n# Section\ndist/\n";
+        let mcp_gitignore = b"# MCP comment\n.env\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should preserve original comments
+        assert!(merged_str.contains("# Important comment"));
+        assert!(merged_str.contains("# Another comment"));
+        assert!(merged_str.contains("# MCP comment"));
+        assert!(merged_str.contains("# Section"));
+
+        // Should preserve empty lines structure
+        assert!(merged_str.contains("\n\n"));
+    }
+
+    #[test]
+    fn test_merge_gitignore_files_no_base_file() {
+        let base_gitignore = b"";
+        let mcp_gitignore = b"# MCP ignores\n.env\ntools/temp/\n";
+
+        let result = InitTemplateFetcher::merge_gitignore_files(base_gitignore, mcp_gitignore)
+            .expect("Failed to merge gitignore files");
+
+        let merged_str = String::from_utf8(result).expect("Invalid UTF-8");
+
+        // Should contain MCP patterns
+        assert!(merged_str.contains(".env"));
+        assert!(merged_str.contains("tools/temp/"));
+
+        // Should still have proper headers
+        assert!(merged_str.contains("# Base template ignores"));
+        assert!(merged_str.contains("# MCP server additions"));
     }
 }

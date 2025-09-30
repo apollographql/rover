@@ -38,8 +38,7 @@ use std::{
     fmt::Write,
     io::{self, IsTerminal},
 };
-use termimad::MadSkin;
-use termimad::crossterm::style::Attribute::Underlined;
+use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
