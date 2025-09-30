@@ -1,0 +1,45 @@
+# Apollo GraphOS Credentials for MCP Server
+# These credentials connect your MCP server to Apollo GraphOS
+#
+# Usage:
+# - For VSCode: These variables are automatically loaded
+# - For manual runs: Source this file before running rover dev
+#   Linux/macOS: set -a && source .env && set +a && rover dev --mcp .apollo/mcp.local.yaml
+#   Windows: Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }; rover dev --mcp .apollo/mcp.local.yaml
+
+# Base template ignores
+# .env to store APOLLO_KEY
+.env
+
+# MCP server additions
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node modules
+node_modules/
+
+# Mac OS
+.DS_Store
+
+# Environment variables
+.env.*
+!.env.template
+
+# Docker volumes and caches
+.docker/
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated files
+dist/
+build/

@@ -1348,8 +1348,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case::env_var_set(vec![("MY_ENV_VAR", Some("foo.bar.com"))], "http://foo.bar.com:5000/graphql")]
-    #[case::default_value_used(vec![], "http://host.docker.internal:5000/graphql")]
+    #[case::env_var_set(vec![("MY_ENV_VAR", Some("foo.bar.com"))], "http://foo.bar.com:5050/graphql")]
+    #[case::default_value_used(vec![], "http://host.docker.internal:5050/graphql")]
     #[tokio::test]
     async fn test_expansion_works_inside_supergraph_yaml(
         #[case] kvs: Vec<(&str, Option<&str>)>,
@@ -1358,7 +1358,7 @@ mod tests {
         let supergraph_config = r#"federation_version: =2.9.3
 subgraphs:
   products:
-    routing_url: http://${env.MY_ENV_VAR:-host.docker.internal}:5000/graphql
+    routing_url: http://${env.MY_ENV_VAR:-host.docker.internal}:5050/graphql
     schema:
       subgraph_url: http://localhost:4001
   users:

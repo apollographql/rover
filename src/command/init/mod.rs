@@ -25,12 +25,15 @@ pub mod transitions;
 #[cfg(feature = "composition-js")]
 use crate::RoverError;
 #[cfg(feature = "composition-js")]
+use crate::command::init::helpers::update_template_files_with_real_values;
+#[cfg(feature = "composition-js")]
 use crate::command::init::options::ProjectTemplateOpt;
 #[cfg(feature = "composition-js")]
 use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCase, ProjectUseCaseOpt,
 };
+use crate::command::init::transitions::DEFAULT_VARIANT;
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
@@ -236,6 +239,7 @@ impl Init {
 
         // Handle project creation result
         if let CreateProjectResult::Created(project) = project_created {
+            update_template_files_with_real_values(&project)?;
             return Ok(project.complete().success());
         }
 
@@ -275,6 +279,7 @@ impl Init {
                     .await?
                 {
                     CreateProjectResult::Created(project) => {
+                        update_template_files_with_real_values(&project)?;
                         return Ok(project.complete().success());
                     }
                     CreateProjectResult::Restart {
@@ -358,6 +363,7 @@ impl Init {
 
                 // Handle project creation result
                 if let CreateProjectResult::Created(project) = project_created {
+                    update_template_files_with_real_values(&project)?;
                     return Ok(project.complete().success());
                 }
 
@@ -411,8 +417,10 @@ impl Init {
             ))
             .with_suggestion(RoverErrorSuggestion::Adhoc(
                 format!(
-                    "Please run `{}` in an empty directory",
-                    Style::Command.paint("rover init --mcp")
+                    "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory.\n\nIf you are wanting to use MCP with an existing project, you can run `{}` to add the all-in-one container to your project. See our docs for more information on how to configure it: {}",
+                    Style::Command.paint("rover init --mcp"),
+                    Style::Command.paint("rover dev --mcp"),
+                   Style::Command.paint("rover docs open mcp-config"),
                 )
                 .to_string(),
             )));
@@ -826,7 +834,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
 2. Run the MCP server:
    ```bash
-   docker run --env-file .env -p5000:5000 {}-mcp
+   docker run --env-file .env -p5050:5050 {}-mcp
    # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
 
@@ -1054,7 +1062,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5050")
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -1068,7 +1076,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      {}",
             Style::Command.paint(format!(
-                "docker run --env-file .env -p5000:5000 {}-mcp",
+                "docker run --env-file .env -p5050:5050 {}-mcp",
                 docker_tag
             ))
         );
@@ -1224,7 +1232,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5050")
         );
 
         println!();
@@ -1263,6 +1271,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
         use crate::command::init::transitions::CreateProjectResult;
         use anyhow::anyhow;
+        use rover_client::shared::GraphRef;
 
         // Determine data source type from project_use_case argument or prompt
         let data_source_type = self.get_or_prompt_mcp_data_source()?;
@@ -1414,7 +1423,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Apply template placeholder replacement (was missing in new project flow!)
         // Use placeholder values for new projects since we don't have a real graph yet
-        let graph_ref_str = format!("{}@current", project_name);
+        let graph_ref = GraphRef::new(
+            graph_id_entered.graph_id.clone().to_string(),
+            Some(DEFAULT_VARIANT.to_string()),
+        )?;
 
         for (_file_path, content) in string_files.iter_mut() {
             // Replace template placeholders - use both formats for compatibility
@@ -1424,14 +1436,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 // ${} format - primarily for YAML files
                 .replace("${PROJECT_NAME}", project_name)
                 .replace("${DOCKER_TAG}", &docker_tag)
-                .replace("${GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPH_ID}", project_name)
+                .replace("${GRAPH_REF}", &graph_ref.to_string())
+                .replace("${GRAPH_ID}", &graph_ref.name)
                 .replace("${GRAPH_NAME}", project_name)
-                .replace("${VARIANT_NAME}", "current")
+                .replace("${VARIANT_NAME}", &graph_ref.variant)
                 .replace("${ORGANIZATION_NAME}", "YOUR_ORGANIZATION")
-                .replace("${APOLLO_API_KEY}", "YOUR_API_KEY_HERE")
-                .replace("${APOLLO_KEY}", "YOUR_API_KEY_HERE")
-                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
+                .replace("${APOLLO_GRAPH_REF}", &graph_ref.to_string())
                 .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
                 .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
                 .replace(
@@ -1449,14 +1459,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", project_name)
                 .replace("{{DOCKER_TAG}}", &docker_tag)
-                .replace("{{GRAPH_REF}}", &graph_ref_str)
-                .replace("{{GRAPH_ID}}", project_name)
+                .replace("{{GRAPH_REF}}", &graph_ref.to_string())
+                .replace("{{GRAPH_ID}}", &graph_ref.name)
                 .replace("{{GRAPH_NAME}}", project_name)
-                .replace("{{VARIANT_NAME}}", "current")
+                .replace("{{VARIANT_NAME}}", &graph_ref.variant)
                 .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION") // Placeholder since org structure is complex
-                .replace("{{APOLLO_API_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
-                .replace("{{APOLLO_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
-                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
+                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref.to_string())
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
                 .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
@@ -1506,12 +1514,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     &format!("-t {}-mcp", docker_tag),
                 )
                 .replace(
-                    &format!("p5000:5000 {}", project_name),
-                    &format!("p5000:5000 {}", docker_tag),
+                    &format!("p5050:5050 {}", project_name),
+                    &format!("p5050:5050 {}", docker_tag),
                 )
                 .replace(
-                    &format!("p5000:5000 {}-mcp", project_name),
-                    &format!("p5000:5000 {}-mcp", docker_tag),
+                    &format!("p5050:5050 {}-mcp", project_name),
+                    &format!("p5050:5050 {}-mcp", docker_tag),
                 )
                 .replace(
                     &format!("--env-file .env {}", project_name),
@@ -1596,6 +1604,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             &completed_project.graph_ref.to_string(),
             Some(&completed_project.config.project_name.to_string()),
         )?;
+
+        update_template_files_with_real_values(&completed_project)?;
 
         // Display MCP-specific success message instead of standard completion
         Self::display_mcp_project_success(&completed_project, &mcp_project_type, &mcp_result);

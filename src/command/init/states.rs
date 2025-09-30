@@ -71,6 +71,7 @@ pub struct CreationConfirmed {
 
 #[derive(Debug)]
 pub struct ProjectCreated {
+    pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,

@@ -145,7 +145,7 @@ mod tests {
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         }
     }
