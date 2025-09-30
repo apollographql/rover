@@ -1,5 +1,6 @@
-use crate::command::init::template_operations::PrintMode::Confirmation;
+use crate::RoverResult;
 use crate::command::init::template_operations::print_grouped_files;
+use crate::command::init::{states, template_operations::PrintMode::Confirmation};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::{Style, hyperlink};
@@ -395,4 +396,77 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
     );
 
     processed_content
+}
+
+/// Update template files with real values from completed project
+pub fn update_template_files_with_real_values(
+    completed_project: &states::ProjectCreated,
+) -> RoverResult<()> {
+    let output_path = completed_project.output_path.clone();
+
+    // Check if output path exists and is a directory
+    if !output_path.exists() || !output_path.is_dir() {
+        return Ok(()); // Nothing to process
+    }
+
+    // Helper function to recursively process all files in a directory
+    fn process_directory_recursive(
+        dir_path: &camino::Utf8Path,
+        completed_project: &states::ProjectCreated,
+    ) -> RoverResult<()> {
+        use rover_std::Fs;
+
+        for entry in std::fs::read_dir(dir_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let utf8_path = match path.to_str() {
+                Some(path_str) => camino::Utf8PathBuf::from(path_str),
+                None => continue, // Skip non-UTF-8 paths
+            };
+
+            if utf8_path.is_dir() {
+                // Recursively process subdirectories
+                process_directory_recursive(&utf8_path, completed_project)?;
+            } else if utf8_path.is_file() {
+                // Process individual files
+                if let Ok(current_content) = std::fs::read_to_string(&utf8_path) {
+                    let updated_content = current_content
+                        .replace("{{APOLLO_KEY}}", &completed_project.api_key)
+                        .replace("{{APOLLO_API_KEY}}", &completed_project.api_key)
+                        .replace(
+                            "{{APOLLO_GRAPH_REF}}",
+                            &completed_project.graph_ref.to_string(),
+                        )
+                        .replace("{{GRAPH_REF}}", &completed_project.graph_ref.to_string())
+                        .replace(
+                            "{{PROJECT_NAME}}",
+                            &completed_project.config.project_name.to_string(),
+                        )
+                        .replace("${APOLLO_KEY}", &completed_project.api_key)
+                        .replace("${APOLLO_API_KEY}", &completed_project.api_key)
+                        .replace(
+                            "${APOLLO_GRAPH_REF}",
+                            &completed_project.graph_ref.to_string(),
+                        )
+                        .replace("${GRAPH_REF}}", &completed_project.graph_ref.to_string())
+                        .replace(
+                            "${PROJECT_NAME}",
+                            &completed_project.config.project_name.to_string(),
+                        );
+
+                    // Only write if content changed
+                    if updated_content != current_content {
+                        Fs::write_file(&utf8_path, updated_content)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    // Start recursive processing from the output directory
+    process_directory_recursive(&output_path, completed_project)?;
+
+    Ok(())
 }

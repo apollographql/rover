@@ -205,7 +205,7 @@ mod tests {
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -287,7 +287,7 @@ mod tests {
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -350,7 +350,7 @@ mod tests {
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -434,7 +434,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -533,7 +533,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -616,7 +616,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -686,7 +686,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 
@@ -778,7 +778,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
             max_schema_depth: 5,
             routing_url: "http://ignore".to_string(),
             commands: None,
-            start_point_file: "GETTING_STARTED.MD".to_string(),
+            start_point_file: "GETTING_STARTED.md".to_string(),
             print_depth: None,
         };
 

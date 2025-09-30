@@ -1,4 +1,4 @@
-pub const URL_BASE: &str = "https://go/apollo/dev";
+pub const URL_BASE: &str = "https://go.apollo.dev";
 
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -82,6 +82,22 @@ pub fn get_shortlinks_with_info() -> BTreeMap<&'static str, ShortlinkInfo> {
         "mcp-qs",
         ShortlinkInfo::new("Apollo MCP Server Quick Start", "mcp", "qs"),
     );
+    links.insert(
+        "mcp-config",
+        ShortlinkInfo::new(
+            "Reference guide for the Apollo MCP Server config file",
+            "mcp",
+            "config",
+        ),
+    );
+    links.insert(
+        "mcp-tools",
+        ShortlinkInfo::new(
+            "Learn how to define tools for the Apollo MCP Server",
+            "mcp",
+            "define-tools",
+        ),
+    );
     links
 }
 
@@ -137,7 +153,7 @@ mod tests {
 
     #[test]
     fn can_get_url_from_slug() {
-        let expected_link = "https://go/apollo/dev/r/start";
+        let expected_link = "https://go.apollo.dev/r/start";
         let actual_link = super::get_url_from_slug("start");
         assert_eq!(expected_link, actual_link);
     }
@@ -162,7 +178,7 @@ mod tests {
             )
         };
 
-        assert_eq!(expected_url, "https://go/apollo/dev/test-slug");
+        assert_eq!(expected_url, "https://go.apollo.dev/test-slug");
     }
 
     #[test]

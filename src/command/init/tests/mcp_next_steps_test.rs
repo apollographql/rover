@@ -26,6 +26,7 @@ fn test_mcp_success_includes_base_template_commands() {
     };
 
     let project_created = ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
         config: crate::command::init::config::ProjectConfig {
             organization: crate::command::init::options::OrganizationId::from_str("test_org")
                 .unwrap(),
@@ -83,6 +84,7 @@ fn test_mcp_success_with_no_commands() {
     };
 
     let project_created = ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
         config: crate::command::init::config::ProjectConfig {
             organization: crate::command::init::options::OrganizationId::from_str("test_org")
                 .unwrap(),
@@ -131,6 +133,7 @@ fn test_mcp_success_with_empty_commands() {
     };
 
     let project_created = ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
         config: crate::command::init::config::ProjectConfig {
             organization: crate::command::init::options::OrganizationId::from_str("test_org")
                 .unwrap(),
@@ -190,6 +193,7 @@ fn test_mcp_success_commands_filtering() {
     };
 
     let project_created = ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
         config: crate::command::init::config::ProjectConfig {
             organization: crate::command::init::options::OrganizationId::from_str("test_org")
                 .unwrap(),

@@ -47,7 +47,7 @@ pub enum CreateProjectResult {
     },
 }
 
-const DEFAULT_VARIANT: &str = "current";
+pub(crate) const DEFAULT_VARIANT: &str = "current";
 
 /// PROMPT UX:
 /// =========
@@ -144,8 +144,8 @@ impl Welcome {
                     ))
                     .with_suggestion(RoverErrorSuggestion::Adhoc(
                         format!(
-                            "Please run `{}` in an empty directory and make sure to check for hidden files.",
-                            Style::Command.paint("init")
+                            "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory.\n",
+                            Style::Command.paint("rover init"),
                         )
                         .to_string(),
                     )));
@@ -342,7 +342,7 @@ impl ProjectNamed {
 ///
 /// .vscode/extensions.json
 /// .idea/externalDependencies.xml
-/// getting-started.md
+/// GETTING_STARTED.md
 /// router.yaml
 /// supergraph.yaml
 /// schema.graphql
@@ -498,6 +498,7 @@ impl CreationConfirmed {
         spinner.success("Successfully created project files and credentials");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
+            output_path: self.output_path,
             config: self.config,
             artifacts,
             api_key,
@@ -629,7 +630,7 @@ impl ProjectCreated {
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5050")
         );
         println!();
 
@@ -1055,7 +1056,6 @@ impl MCPCreationConfirmed {
         process_mcp_template_placeholders(content, &ctx)
     }
 
-
     pub async fn create_project(
         self,
         client_config: &StudioClientConfig,
@@ -1194,6 +1194,7 @@ impl MCPCreationConfirmed {
         spinner.success("Successfully created project files and credentials");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
+            output_path: self.output_path,
             config: self.config,
             artifacts,
             api_key,
