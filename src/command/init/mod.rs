@@ -577,7 +577,7 @@ impl Init {
         let selection = FuzzySelect::new()
             .with_prompt(
                 Style::Prompt
-                    .paint("? Select existing graph variant to work with (or type graph name):"),
+                    .paint("? Select existing graph variant to work with (or type graph id):"),
             )
             .highlight_matches(true)
             .items(&display_names)
