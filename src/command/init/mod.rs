@@ -742,7 +742,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
 2. Run the MCP server:
    ```bash
-   docker run --env-file .env -p5001:5001 {}-mcp
+   docker run --env-file .env -p5050:5050 {}-mcp
    # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
 
@@ -969,7 +969,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5001")
+            Style::Link.paint("http://localhost:5050")
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -983,7 +983,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      {}",
             Style::Command.paint(format!(
-                "docker run --env-file .env -p5001:5001 {}-mcp",
+                "docker run --env-file .env -p5050:5050 {}-mcp",
                 docker_tag
             ))
         );
@@ -1209,7 +1209,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5050")
         );
 
         println!();
@@ -1493,12 +1493,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     &format!("-t {}-mcp", docker_tag),
                 )
                 .replace(
-                    &format!("p5001:5001 {}", project_name),
-                    &format!("p5001:5001 {}", docker_tag),
+                    &format!("p5050:5050 {}", project_name),
+                    &format!("p5050:5050 {}", docker_tag),
                 )
                 .replace(
-                    &format!("p5001:5001 {}-mcp", project_name),
-                    &format!("p5001:5001 {}-mcp", docker_tag),
+                    &format!("p5050:5050 {}-mcp", project_name),
+                    &format!("p5050:5050 {}-mcp", docker_tag),
                 )
                 .replace(
                     &format!("--env-file .env {}", project_name),
