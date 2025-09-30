@@ -968,7 +968,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5001")
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -982,7 +982,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      {}",
             Style::Command.paint(format!(
-                "docker run --env-file .env -p5000:5000 {}-mcp",
+                "docker run --env-file .env -p5001:5001 {}-mcp",
                 docker_tag
             ))
         );
@@ -1183,7 +1183,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5000")
+            Style::Link.paint("http://localhost:5001")
         );
 
         println!();
@@ -1463,12 +1463,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     &format!("-t {}-mcp", docker_tag),
                 )
                 .replace(
-                    &format!("p5000:5000 {}", project_name),
-                    &format!("p5000:5000 {}", docker_tag),
+                    &format!("p5001:5001 {}", project_name),
+                    &format!("p5001:5001 {}", docker_tag),
                 )
                 .replace(
-                    &format!("p5000:5000 {}-mcp", project_name),
-                    &format!("p5000:5000 {}-mcp", docker_tag),
+                    &format!("p5001:5001 {}-mcp", project_name),
+                    &format!("p5001:5001 {}-mcp", docker_tag),
                 )
                 .replace(
                     &format!("--env-file .env {}", project_name),
