@@ -1,6 +1,14 @@
 pub mod authentication_tests;
+pub mod mcp_behavior_tests;
+pub mod mcp_flow_integration_test;
+pub mod mcp_integration_tests;
+pub mod mcp_next_steps_test;
+pub mod mcp_prompting_tests;
+pub mod mcp_transitions_tests;
 pub mod project_authentication_tests;
 pub mod project_created_message_tests;
+pub mod template_consistency_test;
+pub mod template_hydration_tests;
 pub mod transitions_tests;
 
 #[cfg(test)]
