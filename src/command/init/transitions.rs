@@ -243,7 +243,7 @@ impl UseCaseSelected {
         options: &ProjectTemplateOpt,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
-        let repo_ref = "camille/start-with-mcp-template";
+        let repo_ref = "release/v3";
         let mut template_fetcher = InitTemplateFetcher::new();
         let template_options = template_fetcher.call(repo_ref).await?;
 
@@ -878,8 +878,7 @@ impl MCPOrganizationSelected {
             MCPDataSourceType::GraphQLAPI => ProjectUseCase::GraphQLTemplate,
         };
 
-        // TODO: Remove hardcoded repo_ref and implement proper template composition
-        let repo_ref = "camille/start-with-mcp-template";
+        let repo_ref = "release/v3";
         let mut template_fetcher = InitTemplateFetcher::new();
 
         // Select template based on data source type
