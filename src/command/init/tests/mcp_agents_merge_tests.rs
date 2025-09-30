@@ -40,11 +40,8 @@ mod mcp_agents_merge_tests {
             b"Other file content".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new_with_agents_merge(
-            template,
-            files,
-            ProjectType::CreateNew,
-        );
+        let composed_template =
+            MCPComposedTemplate::new_with_agents_merge(template, files, ProjectType::CreateNew);
 
         // AGENTS.md should remain in file list (no longer removed after merging)
         let file_list = composed_template.list_files();
@@ -53,7 +50,10 @@ mod mcp_agents_merge_tests {
         assert!(file_list.contains(&Utf8PathBuf::from("other.md")));
 
         // README.md should contain both contents
-        let readme_content = composed_template.merged_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+        let readme_content = composed_template
+            .merged_files
+            .get(&Utf8PathBuf::from("README.md"))
+            .unwrap();
         let readme_str = String::from_utf8_lossy(readme_content);
 
         assert!(readme_str.contains("# My Project"));
@@ -93,10 +93,16 @@ mod mcp_agents_merge_tests {
         assert_eq!(file_list.len(), 2);
 
         // Content should be unchanged
-        let readme_content = composed_template.merged_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+        let readme_content = composed_template
+            .merged_files
+            .get(&Utf8PathBuf::from("README.md"))
+            .unwrap();
         assert_eq!(readme_content, b"# Existing Project README");
 
-        let agents_content = composed_template.merged_files.get(&Utf8PathBuf::from("AGENTS.md")).unwrap();
+        let agents_content = composed_template
+            .merged_files
+            .get(&Utf8PathBuf::from("AGENTS.md"))
+            .unwrap();
         assert_eq!(agents_content, b"# Agents Documentation");
     }
 
@@ -127,7 +133,10 @@ mod mcp_agents_merge_tests {
         assert!(file_list.contains(&Utf8PathBuf::from("README.md")));
         assert_eq!(file_list.len(), 2);
 
-        let readme_content = composed_template.merged_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+        let readme_content = composed_template
+            .merged_files
+            .get(&Utf8PathBuf::from("README.md"))
+            .unwrap();
         assert_eq!(readme_content, b"# My Project\n\nNo agents file here.");
     }
 
@@ -146,11 +155,8 @@ mod mcp_agents_merge_tests {
             b"Other file content".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new_with_agents_merge(
-            template,
-            files,
-            ProjectType::CreateNew,
-        );
+        let composed_template =
+            MCPComposedTemplate::new_with_agents_merge(template, files, ProjectType::CreateNew);
 
         // AGENTS.md should remain in file list
         let file_list = composed_template.list_files();
@@ -158,7 +164,10 @@ mod mcp_agents_merge_tests {
 
         // README.md should be created with AGENTS content
         assert!(file_list.contains(&Utf8PathBuf::from("README.md")));
-        let readme_content = composed_template.merged_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+        let readme_content = composed_template
+            .merged_files
+            .get(&Utf8PathBuf::from("README.md"))
+            .unwrap();
         let readme_str = String::from_utf8_lossy(readme_content);
 
         assert_eq!(readme_str, "# Agents Documentation\n\nAgent content here.");
@@ -182,10 +191,7 @@ mod mcp_agents_merge_tests {
                 Utf8PathBuf::from("README.md"),
                 readme_ending.as_bytes().to_vec(),
             );
-            files.insert(
-                Utf8PathBuf::from("AGENTS.md"),
-                b"Agent content".to_vec(),
-            );
+            files.insert(Utf8PathBuf::from("AGENTS.md"), b"Agent content".to_vec());
 
             let composed_template = MCPComposedTemplate::new_with_agents_merge(
                 template.clone(),
@@ -193,7 +199,10 @@ mod mcp_agents_merge_tests {
                 ProjectType::CreateNew,
             );
 
-            let readme_content = composed_template.merged_files.get(&Utf8PathBuf::from("README.md")).unwrap();
+            let readme_content = composed_template
+                .merged_files
+                .get(&Utf8PathBuf::from("README.md"))
+                .unwrap();
             let readme_str = String::from_utf8_lossy(readme_content);
 
             let expected = format!("{}Agent content", expected_prefix);
@@ -229,9 +238,17 @@ mod mcp_agents_merge_tests {
         // Should track that agents were merged
         assert!(composed_template.agents_merged_into_readme);
         // AGENTS.md should remain in the file list (not removed after merging)
-        assert!(composed_template.list_files().contains(&Utf8PathBuf::from("AGENTS.md")));
+        assert!(
+            composed_template
+                .list_files()
+                .contains(&Utf8PathBuf::from("AGENTS.md"))
+        );
         // README.md should contain merged content
-        assert!(composed_template.merged_files.contains_key(&Utf8PathBuf::from("README.md")));
+        assert!(
+            composed_template
+                .merged_files
+                .contains_key(&Utf8PathBuf::from("README.md"))
+        );
 
         // Test case 2: Existing project with AGENTS.md should NOT merge
         let mut files = HashMap::new();
@@ -253,7 +270,11 @@ mod mcp_agents_merge_tests {
         // Should NOT track agents merge for existing projects
         assert!(!composed_template.agents_merged_into_readme);
         // AGENTS.md should remain in the file list
-        assert!(composed_template.list_files().contains(&Utf8PathBuf::from("AGENTS.md")));
+        assert!(
+            composed_template
+                .list_files()
+                .contains(&Utf8PathBuf::from("AGENTS.md"))
+        );
 
         // Test case 3: New project without AGENTS.md should not track merge
         let mut files = HashMap::new();
@@ -262,11 +283,8 @@ mod mcp_agents_merge_tests {
             b"# My Project\n\nNo agents here.".to_vec(),
         );
 
-        let composed_template = MCPComposedTemplate::new_with_agents_merge(
-            template,
-            files,
-            ProjectType::CreateNew,
-        );
+        let composed_template =
+            MCPComposedTemplate::new_with_agents_merge(template, files, ProjectType::CreateNew);
 
         // Should NOT track agents merge when no AGENTS.md exists
         assert!(!composed_template.agents_merged_into_readme);

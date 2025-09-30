@@ -1056,7 +1056,6 @@ impl MCPCreationConfirmed {
         process_mcp_template_placeholders(content, &ctx)
     }
 
-
     pub async fn create_project(
         self,
         client_config: &StudioClientConfig,
