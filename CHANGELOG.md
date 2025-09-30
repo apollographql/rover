@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.36.0] - 2025-09-30
+
+## 🚀 Features
+
+- **Add `--mcp` flag to `rover init` for Model Context Protocol support - [@camillelawrence](https://github.com/camillelawrence) PR [#2731](https://github.com/apollographql/rover/pull/2731)**
+  - Developers can now [add AI tooling capabilities](https://www.apollographql.com/docs/apollo-mcp-server/run) to their GraphQL projects with `rover init --mcp`. This enables two flows: creating new graphs with MCP server capabilities, or augmenting existing projects with MCP tooling.
+- **Add support for [Connectors 0.3 and Federation 2.12 preview](https://www.apollographql.com/docs/graphos/connectors/reference/preview-features)**
+
 # [0.35.0] - 2025-07-30
 
 ## ❗ BREAKING ❗

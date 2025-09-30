@@ -12,7 +12,7 @@ type Organization {
   apiKey(keyId: ID!): GraphOsKey
 
   """
-  Returns a list of all active Operator, Subgraph, and SCIM API keys for the account
+  Returns a list of all active Operator, Subgraph, and SCIM API keys for the account. Org Admins can view all keys; Graph Admins can view only keys that they have created.
   """
   apiKeys(after: String, before: String, first: Int, last: Int): GraphOsKeyConnection!
 
@@ -1251,6 +1251,18 @@ type ConnectorTools {
   spec: String!
 }
 
+"""Represents a section of documentation content"""
+type ContentSlice {
+  """The index of the section"""
+  index: Int!
+
+  """Total number of sections available"""
+  totalCount: Int!
+
+  """The content of the section"""
+  content: String!
+}
+
 input ContractConfigInput {
   baseGraphRef: String!
   filterConfigInput: FilterConfigInput!
@@ -1452,6 +1464,36 @@ union DeletePersistedQueryListResultOrError = CannotDeleteLinkedPersistedQueryLi
 type GraphVariantDeletionResult {
   """Whether the variant was deleted or not."""
   deleted: Boolean!
+}
+
+"""Documentation access and search functionality"""
+type Documentation {
+  """Retrieve a specific documentation page by its slug"""
+  page(slug: String!): DocumentationPage
+
+  """Search for documentation pages matching the query"""
+  search(query: String!, maxResults: Int): [DocumentationPage!]!
+}
+
+"""Input parameters for slicing documentation content"""
+input DocumentationContentSliceInput {
+  """The section index to start from"""
+  sectionIndex: Int
+
+  """Maximum number of characters to return"""
+  maxCharacters: Int
+}
+
+"""Represents a single documentation page"""
+type DocumentationPage {
+  """Unique slug identifier for the page"""
+  slug: String!
+
+  """The content of the page, optionally sliced based on input parameters"""
+  contentSlice(slice: DocumentationContentSliceInput): ContentSlice!
+
+  """The full URL of the documentation page"""
+  url: String!
 }
 
 """
@@ -4938,6 +4980,9 @@ type Query {
   Returns details of a Studio graph variant with the provided graph ref. A graph ref has the format `graphID@variantName` (or just `graphID` for the default variant `current`). Returns null if the graph or variant doesn't exist, or if the graph isn't accessible by the current actor.
   """
   variant(ref: ID!): GraphVariantLookup
+
+  """Access documentation pages and search functionality"""
+  documentation: Documentation!
 
   """
   Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID. This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
