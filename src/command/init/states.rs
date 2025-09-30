@@ -87,5 +87,3 @@ pub struct SelectedTemplateState {
     pub template: Template,
     pub files: HashMap<Utf8PathBuf, Vec<u8>>,
 }
-
-impl SelectedTemplateState {}

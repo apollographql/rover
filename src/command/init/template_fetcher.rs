@@ -372,12 +372,6 @@ impl TemplateWrite for SelectedTemplateState {
                 Fs::create_dir_all(parent)?;
             }
 
-            // Skip writing VSCode files here - they will be generated later during project creation
-            // with the actual API key and graph ref values
-            // if path.as_str() == ".vscode/settings.json" || path.as_str() == ".vscode/tasks.json" {
-            //     continue;
-            // }
-
             Fs::write_file(&full_path, contents)?;
         }
         Ok(())
