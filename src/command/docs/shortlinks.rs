@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn can_get_url_from_slug() {
-        let expected_link = "https://go/apollo/dev/r/start";
+        let expected_link = "https://go.apollo.dev/r/start";
         let actual_link = super::get_url_from_slug("start");
         assert_eq!(expected_link, actual_link);
     }
@@ -178,7 +178,7 @@ mod tests {
             )
         };
 
-        assert_eq!(expected_url, "https://go/apollo/dev/test-slug");
+        assert_eq!(expected_url, "https://go.apollo.dev/test-slug");
     }
 
     #[test]
