@@ -17,30 +17,6 @@ impl ProjectTemplateOpt {
     pub fn get_template(&self) -> Option<TemplateId> {
         self.template.clone()
     }
-
-    /// Check if a template is an MCP variant
-    /// DEPRECATED: MCP flow now uses dedicated state transitions
-    #[allow(dead_code)]
-    pub fn is_mcp_template(template_id: &TemplateId) -> bool {
-        template_id.0.starts_with("mcp-")
-    }
-
-    /// Get base template ID from MCP template ID
-    /// DEPRECATED: MCP flow now uses dedicated state transitions
-    #[allow(dead_code)]
-    pub fn get_base_template_id(template_id: &TemplateId) -> TemplateId {
-        if Self::is_mcp_template(template_id) {
-            TemplateId(
-                template_id
-                    .0
-                    .strip_prefix("mcp-")
-                    .unwrap_or(&template_id.0)
-                    .to_string(),
-            )
-        } else {
-            template_id.clone()
-        }
-    }
 }
 
 // TODO: Add tests for interactive prompts and sad paths

@@ -13,35 +13,6 @@ mod mcp_characterization_tests {
     }
 
     #[test]
-    fn test_mcp_template_detection() {
-        // Current logic: template IDs starting with "mcp-" are MCP templates
-        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId(
-            "mcp-typescript".to_string()
-        )));
-        assert!(ProjectTemplateOpt::is_mcp_template(&TemplateId(
-            "mcp-python".to_string()
-        )));
-        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId(
-            "typescript".to_string()
-        )));
-        assert!(!ProjectTemplateOpt::is_mcp_template(&TemplateId(
-            "connectors".to_string()
-        )));
-    }
-
-    #[test]
-    fn test_base_template_extraction() {
-        // Current logic: strips "mcp-" prefix to get base template
-        let mcp_template = TemplateId("mcp-typescript".to_string());
-        let base_template = ProjectTemplateOpt::get_base_template_id(&mcp_template);
-        assert_eq!(base_template.0, "typescript");
-
-        let non_mcp_template = TemplateId("connectors".to_string());
-        let base_template = ProjectTemplateOpt::get_base_template_id(&non_mcp_template);
-        assert_eq!(base_template.0, "connectors");
-    }
-
-    #[test]
     fn test_mcp_flag_behavior() {
         let mcp_enabled = ProjectTemplateOpt {
             template: None,
