@@ -1,8 +1,10 @@
 ---
 title: The Rover dev Command
-subtitle: Run your supergraph in your local dev environment
-description: Use the Rover CLI dev command to run your federated GraphQL API in your local development environment. Learn how to start a router session, add and remove subgraphs, and more.
+subtitle: Run your supergraph or MCP server in your local dev environment
+description: Use the Rover CLI dev command to run your federated GraphQL API or MCP server in your local development environment. Learn how to start a router session, add and remove subgraphs, MCP tools, and more.
 ---
+
+# Running Your Supergraph
 
 A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a _graph router_ that runs in front of them:
 
@@ -224,3 +226,34 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 ## Versioning
 
 By default, `rover dev` uses the version of the router and composition plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override either of these by setting the environment variables `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0` and `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`. If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
+
+# Running Your MCP Server
+
+There are multiple ways to run the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) - `rover dev --mcp` being one of them. You can also run the Apollo MCP Server via Docker, Apollo Runtime Container or using the MCP server binary. 
+
+### `rover dev --mcp`
+
+You can use the Rover CLI's rover `dev` command to run the MCP server locally, alongside your GraphQL API. Use the `--mcp` flag to start an MCP server and provide an optional configuration file:
+
+```terminal showLineNumbers=false
+rover init \
+  --supergraph-config <SUPERGRAPH_YAML> \
+  --mcp <MCP_ENV_YAML>
+```
+
+This will start up and serve your Graph API and MCP server as two local endpoints:
+
+```bash
+# Load environment and start GraphQL API + MCP server
+source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
+
+# This starts:
+# → GraphQL API: http://localhost:4000
+# → MCP Server: http://localhost:5050
+```
+
+### Additional Resources
+
+Read [Running the Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server/run) for a full guide on the different ways to run your MCP server.
+
+
