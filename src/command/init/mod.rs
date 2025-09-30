@@ -33,6 +33,7 @@ use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCase, ProjectUseCaseOpt,
 };
+#[cfg(feature = "composition-js")]
 use crate::command::init::transitions::DEFAULT_VARIANT;
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
