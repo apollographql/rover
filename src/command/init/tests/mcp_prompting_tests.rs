@@ -447,7 +447,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
         };
 
         // Mock API key and graph ref
-        let api_key = "service:test-graph-id:mock-api-key";
+        let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
         let graph_ref = GraphRef {
             name: "test-graph-id".to_string(),
             variant: "current".to_string(),
@@ -546,7 +546,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         };
 
         // Mock API key and graph ref
-        let api_key = "service:test-graph-id:mock-api-key";
+        let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
         let graph_ref = GraphRef {
             name: "test-graph-id".to_string(),
             variant: "current".to_string(),
@@ -629,7 +629,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         };
 
         // Mock API key and graph ref
-        let api_key = "service:test-graph-id:mock-api-key";
+        let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
         let graph_ref = GraphRef {
             name: "test-graph-id".to_string(),
             variant: "current".to_string(),
@@ -790,7 +790,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         };
 
         // Test the MCP-specific env file processing
-        let api_key = "service:integration-test-graph:test-api-key";
+        let api_key = "service:integration-test-graph:test-api-key"; // gitleaks:allow
         let graph_ref = GraphRef {
             name: "integration-test-graph".to_string(),
             variant: "current".to_string(),

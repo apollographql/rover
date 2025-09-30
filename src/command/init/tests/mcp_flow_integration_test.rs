@@ -23,7 +23,7 @@ DOCKER_TAG={{DOCKER_TAG}}
 
     // Simulate the values that would be used
     let project_name = "test_project";
-    let apollo_key = "service:test-graph:abc123";
+    let apollo_key = "service:test-graph:abc123"; // gitleaks:allow
     let graph_ref = rover_client::shared::GraphRef {
         name: "test-graph".to_string(),
         variant: "current".to_string(),

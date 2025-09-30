@@ -43,7 +43,7 @@ fn test_mcp_success_includes_base_template_commands() {
             Utf8PathBuf::from("package.json"),
             Utf8PathBuf::from(".env"),
         ],
-        api_key: "service:my-test-graph:abc123".to_string(),
+        api_key: "service:my-test-graph:abc123".to_string(), // gitleaks:allow
         graph_ref: GraphRef {
             name: "my-test-graph".to_string(),
             variant: "current".to_string(),
@@ -99,7 +99,7 @@ fn test_mcp_success_with_no_commands() {
             Utf8PathBuf::from("claude_desktop_config.json"),
             Utf8PathBuf::from(".env"),
         ],
-        api_key: "service:minimal-graph:xyz789".to_string(),
+        api_key: "service:minimal-graph:xyz789".to_string(), // gitleaks:allow
         graph_ref: GraphRef {
             name: "minimal-graph".to_string(),
             variant: "current".to_string(),
@@ -144,7 +144,7 @@ fn test_mcp_success_with_empty_commands() {
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         artifacts: vec![Utf8PathBuf::from("claude_desktop_config.json")],
-        api_key: "service:empty-cmd-graph:def456".to_string(),
+        api_key: "service:empty-cmd-graph:def456".to_string(), // gitleaks:allow
         graph_ref: GraphRef {
             name: "empty-cmd-graph".to_string(),
             variant: "current".to_string(),
@@ -204,7 +204,7 @@ fn test_mcp_success_commands_filtering() {
             Utf8PathBuf::from("claude_desktop_config.json"),
             Utf8PathBuf::from("package.json"),
         ],
-        api_key: "service:mixed-graph:ghi789".to_string(),
+        api_key: "service:mixed-graph:ghi789".to_string(), // gitleaks:allow
         graph_ref: GraphRef {
             name: "mixed-graph".to_string(),
             variant: "current".to_string(),

@@ -1180,7 +1180,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             completed_project.graph_ref
         );
         println!(
-            "   • {}: {} (This is your graph's API key)",
+            "   • {}: {} (This is your graph's API key)", // gitleaks:allow
             Style::Command.paint("APOLLO_KEY"),
             completed_project.api_key
         );

@@ -7,3 +7,15 @@
       "3a98baf1cf77f725249192f08248d9d15a993a6e",
       "d506e938a126525e8afbde878203df1c9308ff53",
     ]
+
+[[ rules ]]
+  id = "apollo-graphos-api-key"
+  [ rules.allowlist ]
+    paths = [
+      "src/command/init/tests/template_consistency_test.rs",
+      "src/command/init/tests/mcp_flow_integration_test.rs",
+      "src/command/init/tests/mcp_next_steps_test.rs",
+      "src/command/init/tests/template_hydration_tests.rs",
+      "src/command/init/tests/mcp_prompting_tests.rs",
+      "src/command/init/mod.rs",
+    ]

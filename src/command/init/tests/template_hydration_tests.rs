@@ -79,7 +79,7 @@ RUN echo "Building {{PROJECT_NAME}}"
     };
 
     // Test the template placeholder processing
-    let test_api_key = "service:my-test-graph:abc123def456";
+    let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref = GraphRef {
         name: "my-test-graph".to_string(),
         variant: "current".to_string(),
@@ -201,7 +201,7 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
         composed_template,
     };
 
-    let test_api_key = "service:my-test-graph:abc123def456";
+    let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref = GraphRef {
         name: "my-test-graph".to_string(),
         variant: "current".to_string(),

@@ -19,7 +19,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
 "#;
 
     let _project_name = "test_project";
-    let apollo_key = "service:test-graph:abc123";
+    let apollo_key = "service:test-graph:abc123"; // gitleaks:allow
     let graph_ref = rover_client::shared::GraphRef {
         name: "test-graph".to_string(),
         variant: "current".to_string(),
@@ -97,7 +97,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
         "PROJECT_NAME placeholder should be removed"
     );
     assert!(
-        !result.contains("{{APOLLO_KEY}}"),
+        !result.contains("{{APOLLO_KEY}}"), // gitleaks:allow
         "APOLLO_KEY placeholder should be removed"
     );
     assert!(
@@ -110,7 +110,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
     );
     assert!(
         !result.contains("${VARIANT_NAME}"),
-        "VARIANT_NAME placeholder should be removed"
+        "VARIANT_NAME placeholder should be removed" // gitleaks:allow
     );
     assert!(
         !result.contains("{{GRAPHQL_ENDPOINT}}"),
@@ -140,7 +140,7 @@ fn test_unified_helper_directly() {
         graph_name: "my_project",
         variant_name: "current",
         organization_name: "my_org",
-        api_key: "service:key:123",
+        api_key: "service:key:123", // gitleaks:allow
         graph_ref: &graph_ref,
         mcp_server_binary: None,
         mcp_config_path: None,
