@@ -157,68 +157,91 @@ pub fn display_use_template_message() {
 
 /// Print categorized MCP file listing
 pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
-    // MCP Server: Config, sample tools and tests
-    println!();
-    println!("{}", Style::Prompt.paint("MCP Server: Config, sample tools and tests"));
-    if file_paths.iter().any(|k| k.as_str() == "claude_desktop_config.json") {
-        println!("- claude_desktop_config.json");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "mcp.Dockerfile") {
-        println!("- mcp.Dockerfile (optional Docker container)");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.local.yaml") {
-        println!("- mcpconfig/mcp.local.yaml");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "mcpconfig/mcp.staging.yaml") {
-        println!("- mcpconfig/mcp.staging.yaml");
+    // Categorize files for MCP-specific display
+    let mut mcp_server_files = Vec::new();
+    let mut apollo_files = Vec::new();
+    let mut ide_files = Vec::new();
+    let mut guide_files = Vec::new();
+
+    for file in file_paths {
+        let mut file_str = file.to_string();
+
+        // For MCP projects, display .env.template as .env since it will be renamed during processing
+        if file_str.contains(".env.template") {
+            file_str = file_str.replace(".env.template", ".env");
+        }
+
+        if file_str.contains("claude_desktop_config.json")
+            || file_str.contains("mcp.Dockerfile")
+            || file_str.contains("mcpconfig/")
+            || file_str.contains(".apollo/mcp") {
+            mcp_server_files.push(file_str);
+        } else if file_str.contains("apollo.config.yaml")
+            || file_str.contains("schema.graphql")
+            || file_str.contains("supergraph.yaml")
+            || file_str.contains(".env") {
+            apollo_files.push(file_str);
+        } else if file_str.contains(".gitignore")
+            || file_str.contains(".idea/")
+            || file_str.contains(".vscode/")
+            || file_str.contains("tasks.json") {
+            ide_files.push(file_str);
+        } else if file_str.contains("GETTING_STARTED.md")
+            || file_str.contains("MCP_README.md")
+            || file_str.contains("AGENTS.md") {
+            guide_files.push(file_str);
+        }
     }
 
-    // Apollo GraphOS: Apollo graph credentials and project files
-    println!();
-    println!("{}", Style::Prompt.paint("Apollo GraphOS: Apollo graph credentials and project files"));
-    if file_paths.iter().any(|k| k.as_str() == "apollo.config.yaml") {
-        println!("- apollo.config.yaml");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "schema.graphql") {
-        println!("- schema.graphql");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "supergraph.yaml") {
-        println!("- supergraph.yaml");
-    }
-    if file_paths.iter().any(|k| k.as_str() == ".env") {
-        println!("- .env");
+    // Print categorized files
+    if !mcp_server_files.is_empty() {
+        println!();
+        println!("{}", Style::Heading.paint("MCP Server: Config, sample tools and tests"));
+        for file in mcp_server_files {
+            if file.contains("mcp.Dockerfile") {
+                println!("- {} (optional Docker container)", file);
+            } else {
+                println!("- {}", file);
+            }
+        }
     }
 
-    // IDE: Project settings
-    println!();
-    println!("{}", Style::Prompt.paint("IDE: Project settings"));
-    if file_paths.iter().any(|k| k.as_str() == ".gitignore") {
-        println!("- .gitignore");
-    }
-    if file_paths.iter().any(|k| k.as_str() == ".env") {
-        println!("- .env");
-    }
-    if file_paths.iter().any(|k| k.starts_with(".idea/")) {
-        println!("- .idea/");
-    }
-    if file_paths.iter().any(|k| k.starts_with(".vscode/")) {
-        println!("- .vscode/");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "tasks.json") {
-        println!("- tasks.json");
+    if !apollo_files.is_empty() {
+        println!();
+        println!("{}", Style::Heading.paint("Apollo GraphOS: Apollo graph credentials and project files"));
+        for file in apollo_files {
+            println!("- {}", file);
+        }
     }
 
-    // Guides and references
-    println!();
-    println!("{}", Style::Prompt.paint("Guides and references"));
-    if file_paths.iter().any(|k| k.as_str() == "GETTING_STARTED.md") {
-        println!("- GETTING_STARTED.md → Working with Apollo graphs and Apollo Connectors");
+    if !ide_files.is_empty() {
+        println!();
+        println!("{}", Style::Heading.paint("IDE: Project settings"));
+        for file in ide_files {
+            if file.contains(".idea/") {
+                println!("- {}", file);
+            } else if file.contains(".vscode/") {
+                println!("- {}", file);
+            } else {
+                println!("- {}", file);
+            }
+        }
     }
-    if file_paths.iter().any(|k| k.as_str() == "MCP_README.md") {
-        println!("- MCP_README.md → Working with Apollo MCP Server");
-    }
-    if file_paths.iter().any(|k| k.as_str() == "AGENTS.md") {
-        println!("- AGENTS.md → Agent rules for the robots");
+
+    if !guide_files.is_empty() {
+        println!();
+        println!("{}", Style::Heading.paint("Guides and references"));
+        for file in guide_files {
+            if file.contains("GETTING_STARTED.md") {
+                println!("- {} → Working with Apollo graphs and Apollo Connectors", file);
+            } else if file.contains("MCP_README.md") {
+                println!("- {} → Working with Apollo MCP Server", file);
+            } else if file.contains("AGENTS.md") {
+                println!("- {} → Agent rules for the robots", file);
+            } else {
+                println!("- {}", file);
+            }
+        }
     }
 }
 
@@ -231,4 +254,100 @@ pub fn normalize_docker_tag(graph_id: &str) -> String {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect()
+}
+
+/// Unified template placeholder processing for MCP projects
+/// Handles both ${} and {{}} placeholder formats comprehensively
+/// This ensures consistency between new project and existing graph flows
+pub fn process_mcp_template_placeholders(
+    content: &str,
+    project_name: &str,
+    graph_id: &str,
+    graph_name: &str,
+    variant_name: &str,
+    organization_name: &str,
+    api_key: &str,
+    graph_ref: &GraphRef,
+    mcp_server_binary: Option<&str>,
+    mcp_config_path: Option<&str>,
+    tools_path: Option<&str>,
+) -> String {
+    let graph_ref_str = graph_ref.to_string();
+    let docker_tag = normalize_docker_tag(graph_id);
+
+    // Add header for .env files containing Apollo credentials
+    let mut processed_content = if content.contains("APOLLO_KEY") || content.contains("apollo_key") {
+        let header = r#"# Apollo GraphOS Credentials for MCP Server
+# These credentials connect your MCP server to Apollo GraphOS
+#
+# Usage:
+# - For VSCode: These variables are automatically loaded
+# - For manual runs: Source this file before running rover dev
+#   Linux/macOS: set -a && source .env && set +a && rover dev --mcp .apollo/mcp.local.yaml
+#   Windows: Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }; rover dev --mcp .apollo/mcp.local.yaml
+
+"#;
+        format!("{}{}", header, content)
+    } else {
+        content.to_string()
+    };
+
+    // Process both ${} format (for YAML files) and {{}} format (for other templates)
+    processed_content = processed_content
+        // ${} format - primarily for YAML files
+        .replace("${PROJECT_NAME}", project_name)
+        .replace("${DOCKER_TAG}", &docker_tag)
+        .replace("${GRAPH_REF}", &graph_ref_str)
+        .replace("${GRAPH_ID}", graph_id)
+        .replace("${GRAPH_NAME}", graph_name)
+        .replace("${VARIANT_NAME}", variant_name)
+        .replace("${ORGANIZATION_NAME}", organization_name)
+        .replace("${APOLLO_KEY}", api_key)
+        .replace("${APOLLO_API_KEY}", api_key)
+        .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
+        .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000/graphql")
+        .replace("${LOCAL_GRAPHQL_ENDPOINT}", "http://localhost:4000/graphql")
+        .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000")
+        .replace("${PROJECT_VERSION}", "1.0.0")
+        .replace("${PROJECT_REPOSITORY_URL}", &format!("https://github.com/user/{}", project_name))
+        .replace("${GRAPH_STUDIO_URL}", &format!("https://studio.apollographql.com/graph/{}/explorer", graph_id))
+        // {{}} format - for non-YAML templates and backwards compatibility
+        .replace("{{PROJECT_NAME}}", project_name)
+        .replace("{{DOCKER_TAG}}", &docker_tag)
+        .replace("{{GRAPH_REF}}", &graph_ref_str)
+        .replace("{{GRAPH_ID}}", graph_id)
+        .replace("{{GRAPH_NAME}}", graph_name)
+        .replace("{{VARIANT_NAME}}", variant_name)
+        .replace("{{ORGANIZATION_NAME}}", organization_name)
+        .replace("{{APOLLO_KEY}}", api_key)
+        .replace("{{APOLLO_API_KEY}}", api_key)
+        .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
+        .replace("{{GRAPHQL_ENDPOINT}}", "http://host.docker.internal:4000/graphql")
+        .replace("{{LOCAL_GRAPHQL_ENDPOINT}}", "http://localhost:4000/graphql")
+        .replace("{{STAGING_GRAPHQL_ENDPOINT}}", "http://localhost:4000")
+        .replace("{{PROJECT_VERSION}}", "1.0.0")
+        .replace("{{PROJECT_REPOSITORY_URL}}", &format!("https://github.com/user/{}", project_name))
+        .replace("{{GRAPH_STUDIO_URL}}", &format!("https://studio.apollographql.com/graph/{}/explorer", graph_id))
+        // Quoted versions for JSON/specific formats
+        .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", project_name))
+        .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", api_key))
+        .replace("\"{{APOLLO_GRAPH_REF}}\"", &format!("\"{}\"", graph_ref_str))
+        .replace("\"{{GRAPHQL_ENDPOINT}}\"", "\"http://host.docker.internal:4000/graphql\"");
+
+    // Handle optional MCP-specific paths
+    if let Some(binary_path) = mcp_server_binary {
+        processed_content = processed_content.replace("{{MCP_SERVER_BINARY}}", binary_path);
+    }
+    if let Some(config_path) = mcp_config_path {
+        processed_content = processed_content.replace("{{MCP_CONFIG_PATH}}", config_path);
+    }
+    if let Some(tools_path_str) = tools_path {
+        processed_content = processed_content.replace("- /tools", &format!("- {}", tools_path_str));
+    }
+
+    // Additional endpoint replacements
+    processed_content = processed_content
+        .replace("endpoint: http://host.docker.internal:4000", "endpoint: http://localhost:4000");
+
+    processed_content
 }

@@ -169,17 +169,33 @@ pub struct Init {
 impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        use crate::command::init::states::UserAuthenticated;
+        use crate::command::init::states::{UserAuthenticated, ProjectTypeSelected};
         use helpers::display_use_template_message;
-
-        // Handle MCP augmentation as special case - skip all project creation flow
-        if self.project_template.mcp {
-            return self.handle_mcp_augmentation(&client_config).await;
-        }
+        use std::env;
+        use camino::Utf8PathBuf;
 
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
             .await?;
+
+        // Branch to MCP flow BEFORE directory validation
+        if self.project_template.mcp {
+            // Create ProjectTypeSelected state for MCP flow (bypasses directory check)
+            let project_type = self.project_type.get_project_type()
+                .unwrap_or(ProjectType::CreateNew); // Default to CreateNew for MCP
+
+            let current_dir = env::current_dir()?;
+            let output_path = Utf8PathBuf::from_path_buf(
+                self.path.clone().unwrap_or(current_dir)
+            ).map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
+
+            let project_type_selected = ProjectTypeSelected {
+                project_type,
+                output_path,
+            };
+
+            return self.handle_mcp_flow(project_type_selected, &client_config).await;
+        }
 
         let project_type_selected =
             welcome.select_project_type(&self.project_type, &self.path, &self.project_template)?;
@@ -286,14 +302,90 @@ impl Init {
         Ok(RoverOutput::EmptySuccess)
     }
 
-    /// Handle MCP augmentation directly without going through project creation flow
+    /// Handle MCP flow using dedicated state transitions
+    #[cfg(feature = "composition-js")]
+    async fn handle_mcp_flow(
+        &self,
+        project_type_selected: crate::command::init::states::ProjectTypeSelected,
+        client_config: &StudioClientConfig,
+    ) -> RoverResult<RoverOutput> {
+        use crate::command::init::states::*;
+
+        // Initialize MCP augmentation (bypasses directory check)
+        let mcp_init = project_type_selected
+            .initialize_mcp_augmentation(&self.project_template)?;
+
+        // Step 1: MCP Setup Type Selection (New Project vs Existing Graph)
+        let mcp_setup_selected = mcp_init
+            .select_setup_type(&self.project_type)?;
+
+        match mcp_setup_selected.setup_type {
+            MCPSetupType::NewProject => {
+                // Step 2: Data Source Selection for New Project (REST vs GraphQL)
+                let mcp_data_source_selected = mcp_setup_selected
+                    .select_data_source(&self.project_use_case)?;
+
+                // Step 3: Continue with organization selection
+                let mcp_org_selected = mcp_data_source_selected
+                    .select_organization(&self.organization, &self.profile, client_config)
+                    .await?;
+
+                // Step 4: Template composition based on data source
+                let mcp_template_composed = mcp_org_selected
+                    .compose_mcp_template()
+                    .await?;
+
+                // Step 5: Project naming
+                let mcp_project_named = mcp_template_composed
+                    .enter_project_name(&self.project_name)?;
+
+                // Step 6: Graph ID confirmation
+                let mcp_graph_confirmed = mcp_project_named
+                    .confirm_graph_id(&self.graph_id)?;
+
+                // Step 7: MCP-specific preview and confirmation
+                let mcp_creation_previewed = match mcp_graph_confirmed
+                    .preview_mcp_creation()
+                    .await?
+                {
+                    Some(previewed) => previewed,
+                    None => return Ok(RoverOutput::EmptySuccess), // User cancelled
+                };
+
+                // Step 8: Convert to MCPCreationConfirmed for type-safe MCP project creation
+                let mcp_creation_confirmed = mcp_creation_previewed.to_mcp_creation_confirmed()?;
+
+                // Step 9: Follow the MCP-specific project creation flow
+                let project_created = mcp_creation_confirmed
+                    .create_project(client_config, &self.profile)
+                    .await?;
+
+                // Handle project creation result
+                if let CreateProjectResult::Created(project) = project_created {
+                    return Ok(project.complete().success());
+                }
+
+                // Handle restart logic if needed
+                Ok(RoverOutput::EmptySuccess)
+            }
+            MCPSetupType::ExistingGraph => {
+                // Handle existing graph MCP flow directly
+                let client = client_config.get_authenticated_client(&self.profile)?;
+                self.handle_existing_graph_mcp(&client, client_config).await
+            }
+        }
+    }
+
+    /// DEPRECATED: Handle MCP augmentation directly without going through project creation flow
+    /// This method is being replaced by handle_mcp_flow using dedicated state transitions
     ///
     /// Template Variable Convention:
     /// - YAML files use ${VARIABLE} format to avoid YAML linting errors
     /// - Other templates use {{VARIABLE}} format for standard template syntax
     /// - Both formats are supported for compatibility during transition
     #[cfg(feature = "composition-js")]
-    async fn handle_mcp_augmentation(
+    #[allow(dead_code)]
+    async fn _deprecated_handle_mcp_augmentation(
         &self,
         client_config: &StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
@@ -1417,7 +1509,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         let graph_id_entered = updated_graph_id_entered;
 
-        let creation_confirmed = graph_id_entered.skip_preview_to_creation_confirmed()?;
+        // Use regular preview for the deprecated MCP method
+        let creation_confirmed = match graph_id_entered.preview_and_confirm_creation().await? {
+            Some(confirmed) => confirmed,
+            None => return Ok(RoverOutput::EmptySuccess),
+        };
 
         // Add MCP-specific preview before project creation
         let mcp_confirmed = self
