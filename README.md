@@ -41,8 +41,12 @@ Usage: rover [OPTIONS] <COMMAND>
 Commands:
   init
           Initialize a federated graph in your current directory
+  api-keys
+          API Key Related Commands
   cloud
           Cloud configuration commands
+  connector
+          Work with Apollo Connectors
   config
           Configuration profile commands
   contract
