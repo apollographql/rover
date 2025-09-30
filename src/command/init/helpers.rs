@@ -231,9 +231,9 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     println!("{}", Style::Prompt.paint("Guides and references"));
     if file_paths
         .iter()
-        .any(|k| k.as_str() == "GETTING_STARTED.md")
+        .any(|k| k.as_str() == "GETTING_STARTED.MD")
     {
-        println!("- GETTING_STARTED.md → Working with Apollo graphs and Apollo Connectors");
+        println!("- GETTING_STARTED.MD → Working with Apollo graphs and Apollo Connectors");
     }
     if file_paths.iter().any(|k| k.as_str() == "MCP_README.md") {
         println!("- MCP_README.md → Working with Apollo MCP Server");

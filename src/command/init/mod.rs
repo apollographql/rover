@@ -31,6 +31,7 @@ use crate::command::init::options::{
     GraphIdOpt, ProjectNameOpt, ProjectOrganizationOpt, ProjectType, ProjectTypeOpt,
     ProjectUseCase, ProjectUseCaseOpt,
 };
+use crate::command::init::transitions::DEFAULT_VARIANT;
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
@@ -1032,6 +1033,15 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                             .replace(
                                 "{{PROJECT_NAME}}",
                                 &completed_project.config.project_name.to_string(),
+                            )
+                            .replace("${APOLLO_KEY}", &completed_project.api_key)
+                            .replace(
+                                "${APOLLO_GRAPH_REF}",
+                                &completed_project.graph_ref.to_string(),
+                            )
+                            .replace(
+                                "${PROJECT_NAME}",
+                                &completed_project.config.project_name.to_string(),
                             );
 
                         // Only write if content changed
@@ -1049,6 +1059,22 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         process_directory_recursive(&output_path, completed_project)?;
 
         Ok(())
+    }
+
+    /// Get MCP data source type from project_use_case argument or prompt user
+    #[cfg(feature = "composition-js")]
+    fn get_or_prompt_mcp_data_source(&self) -> RoverResult<MCPDataSourceType> {
+        // Check if project_use_case was provided via command line
+        if let Some(use_case) = &self.project_use_case.project_use_case {
+            let data_source = match use_case {
+                ProjectUseCase::Connectors => MCPDataSourceType::ExternalAPIs,
+                ProjectUseCase::GraphQLTemplate => MCPDataSourceType::GraphQLAPI,
+            };
+            return Ok(data_source);
+        }
+
+        // If no argument provided, prompt the user
+        Self::prompt_mcp_data_source()
     }
 
     /// Prompt user to select MCP data source type
@@ -1183,7 +1209,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5001")
+            Style::Link.paint("http://localhost:5000")
         );
 
         println!();
@@ -1201,11 +1227,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "- Deploy → {}",
-            Style::Command.paint("rover docs list mcp-deploy")
+            Style::Command.paint("rover docs open mcp-deploy")
         );
         println!(
             "- Learn more → {}",
-            Style::Command.paint("rover docs list mcp-qs")
+            Style::Command.paint("rover docs open mcp-qs")
         );
     }
 
@@ -1222,6 +1248,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
         use crate::command::init::transitions::CreateProjectResult;
         use anyhow::anyhow;
+        use rover_client::shared::GraphRef;
 
         // Determine data source type from project_use_case argument or prompt
         let data_source_type = self.get_or_prompt_mcp_data_source()?;
@@ -1373,7 +1400,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Apply template placeholder replacement (was missing in new project flow!)
         // Use placeholder values for new projects since we don't have a real graph yet
-        let graph_ref_str = format!("{}@current", project_name);
+        let graph_ref = GraphRef::new(
+            graph_id_entered.graph_id.clone().to_string(),
+            Some(DEFAULT_VARIANT.to_string()),
+        )?;
 
         for (_file_path, content) in string_files.iter_mut() {
             // Replace template placeholders - use both formats for compatibility
@@ -1383,14 +1413,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 // ${} format - primarily for YAML files
                 .replace("${PROJECT_NAME}", project_name)
                 .replace("${DOCKER_TAG}", &docker_tag)
-                .replace("${GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPH_ID}", project_name)
+                .replace("${GRAPH_REF}", &graph_ref.to_string())
+                .replace("${GRAPH_ID}", &graph_ref.name)
                 .replace("${GRAPH_NAME}", project_name)
-                .replace("${VARIANT_NAME}", "current")
-                .replace("${ORGANIZATION_NAME}", "YOUR_ORGANIZATION")
+                .replace("${VARIANT_NAME}", &graph_ref.variant)
+                .replace("${ORGANIZATION_NAME}", "YOUR_ORGANIZATION_HERE")
                 .replace("${APOLLO_API_KEY}", "YOUR_API_KEY_HERE")
                 .replace("${APOLLO_KEY}", "YOUR_API_KEY_HERE")
-                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
+                .replace("${APOLLO_GRAPH_REF}", &graph_ref.to_string())
                 .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
                 .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
                 .replace(
@@ -1408,12 +1438,12 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 // {{}} format - for non-YAML templates and backwards compatibility
                 .replace("{{PROJECT_NAME}}", project_name)
                 .replace("{{DOCKER_TAG}}", &docker_tag)
-                .replace("{{GRAPH_REF}}", &graph_ref_str)
-                .replace("{{GRAPH_ID}}", project_name)
+                .replace("{{GRAPH_REF}}", &graph_ref.to_string())
+                .replace("{{GRAPH_ID}}", &graph_ref.name)
                 .replace("{{GRAPH_NAME}}", project_name)
-                .replace("{{VARIANT_NAME}}", "current")
+                .replace("{{VARIANT_NAME}}", &graph_ref.variant)
                 .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION_HERE") // Placeholder since org structure is complex
-                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
+                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref.to_string())
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
                 .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
@@ -1555,12 +1585,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         )?;
 
         // Display MCP-specific success message instead of standard completion
-        Self::display_mcp_project_success(
-            &completed_project,
-            &mcp_project_type,
-            &data_source_type,
-            &mcp_result,
-        );
+        Self::display_mcp_project_success(&completed_project, &mcp_project_type, &mcp_result);
 
         Ok(RoverOutput::EmptySuccess)
     }

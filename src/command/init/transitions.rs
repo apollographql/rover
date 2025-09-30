@@ -46,7 +46,7 @@ pub enum CreateProjectResult {
     },
 }
 
-const DEFAULT_VARIANT: &str = "current";
+pub(crate) const DEFAULT_VARIANT: &str = "current";
 
 /// PROMPT UX:
 /// =========
@@ -257,7 +257,7 @@ impl UseCaseSelected {
         }
 
         // Determine the list of templates based on the use case
-        let mut selected_template: SelectedTemplateState = match self.use_case {
+        let selected_template: SelectedTemplateState = match self.use_case {
             // Select the `connectors` template if using use_case is Connectors
             ProjectUseCase::Connectors => {
                 template_options.select_template(&TemplateId("connectors".to_string()))?

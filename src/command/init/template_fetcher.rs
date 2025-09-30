@@ -234,7 +234,18 @@ impl InitTemplateFetcher {
 
         // Merge MCP files into base template
         for (mcp_path, mcp_contents) in mcp_state.files {
-            base_state.files.insert(mcp_path, mcp_contents);
+            if mcp_path.as_str() == ".gitignore" {
+                // Special handling for .gitignore files - merge instead of overwrite
+                if let Some(base_gitignore) = base_state.files.get(&mcp_path) {
+                    let merged_gitignore =
+                        Self::merge_gitignore_files(base_gitignore, &mcp_contents)?;
+                    base_state.files.insert(mcp_path, merged_gitignore);
+                } else {
+                    base_state.files.insert(mcp_path, mcp_contents);
+                }
+            } else {
+                base_state.files.insert(mcp_path, mcp_contents);
+            }
         }
 
         // Create MCP template metadata
@@ -261,6 +272,51 @@ impl InitTemplateFetcher {
         template: &Template,
     ) -> RoverResult<SelectedTemplateState> {
         template_options.select_template(&template.id)
+    }
+
+    /// Merge two .gitignore files intelligently, preserving unique patterns
+    fn merge_gitignore_files(base_content: &[u8], mcp_content: &[u8]) -> RoverResult<Vec<u8>> {
+        let base_str = String::from_utf8_lossy(base_content);
+        let mcp_str = String::from_utf8_lossy(mcp_content);
+
+        // Track unique patterns to avoid duplicates
+        let mut patterns = std::collections::HashSet::new();
+        let mut result = Vec::new();
+
+        // Add base template section header and patterns
+        result.push("# Base template ignores".to_string());
+        for line in base_str.lines() {
+            let trimmed = line.trim();
+            // Preserve comments and empty lines as-is
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                result.push(line.to_string());
+            } else {
+                // Only add unique patterns
+                if patterns.insert(trimmed.to_string()) {
+                    result.push(line.to_string());
+                }
+            }
+        }
+
+        // Add separator and MCP section
+        result.push("".to_string()); // empty line
+        result.push("# MCP server additions".to_string());
+        for line in mcp_str.lines() {
+            let trimmed = line.trim();
+            // Preserve comments and empty lines as-is
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                result.push(line.to_string());
+            } else {
+                // Only add unique patterns
+                if patterns.insert(trimmed.to_string()) {
+                    result.push(line.to_string());
+                }
+            }
+        }
+
+        // Convert back to bytes
+        let merged_content = result.join("\n");
+        Ok(merged_content.into_bytes())
     }
 
     pub async fn call(&mut self, reference: &str) -> RoverResult<InitTemplateOptions> {

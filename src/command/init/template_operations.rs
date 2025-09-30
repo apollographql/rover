@@ -6,7 +6,6 @@ use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 
-use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use rover_std::infoln;
 use rover_std::prompt::prompt_confirm_default_yes;
