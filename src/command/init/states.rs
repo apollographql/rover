@@ -281,7 +281,7 @@ impl MCPComposedTemplate {
         };
 
         // Get or create README.md
-        let readme_content = files.remove(&readme_path).unwrap_or_else(|| Vec::new());
+        let readme_content = files.remove(&readme_path).unwrap_or_else(Vec::new);
 
         // Convert to strings for processing
         let mut readme_str = String::from_utf8_lossy(&readme_content).to_string();
