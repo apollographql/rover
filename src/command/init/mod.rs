@@ -626,7 +626,8 @@ impl Init {
                 Style::WarningHeading.paint("▲ No organizations found")
             );
             println!(
-                "You need to create a graph first. Visit https://studio.apollographql.com to create your first graph."
+                "You need to create a graph first. Run {} to create your first graph.",
+                Style::Command.paint("rover init")
             );
             return Ok(RoverOutput::EmptySuccess);
         }
@@ -670,7 +671,8 @@ impl Init {
         if all_graph_options.is_empty() {
             println!("{}", Style::WarningHeading.paint("▲ No graphs found"));
             println!(
-                "You need to create a graph first. Visit https://studio.apollographql.com to create your first graph."
+                "You need to create a graph first. Run {} to create your first graph.",
+                Style::Command.paint("rover init")
             );
             return Ok(RoverOutput::EmptySuccess);
         }
