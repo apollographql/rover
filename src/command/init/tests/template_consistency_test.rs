@@ -43,6 +43,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
                 id: crate::command::init::template_fetcher::TemplateId("test".to_string()),
                 display_name: "Test".to_string(),
                 path: "test".to_string(),
+              
                 language: "TypeScript".to_string(),
                 federation_version: "=2.10.0".to_string(),
                 max_schema_depth: 5,
@@ -52,6 +53,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
                 print_depth: None,
             },
             merged_files: HashMap::new(),
+            agents_merged_into_readme: false,
         },
     };
 

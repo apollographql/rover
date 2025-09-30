@@ -1,4 +1,5 @@
 pub mod authentication_tests;
+pub mod mcp_agents_merge_tests;
 pub mod mcp_behavior_tests;
 pub mod mcp_flow_integration_test;
 pub mod mcp_integration_tests;

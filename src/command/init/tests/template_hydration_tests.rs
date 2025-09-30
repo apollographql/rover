@@ -64,6 +64,7 @@ RUN echo "Building {{PROJECT_NAME}}"
             print_depth: None,
         },
         merged_files: files,
+        agents_merged_into_readme: false,
     };
 
     let mcp_creation_confirmed = MCPCreationConfirmed {
@@ -187,6 +188,7 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
             print_depth: None,
         },
         merged_files: files,
+        agents_merged_into_readme: false,
     };
 
     let mcp_creation_confirmed = MCPCreationConfirmed {

@@ -57,6 +57,7 @@ DOCKER_TAG={{DOCKER_TAG}}
                 print_depth: None,
             },
             merged_files: HashMap::new(),
+            agents_merged_into_readme: false,
         },
     };
 
