@@ -798,7 +798,7 @@ impl Init {
         };
 
         // Fetch raw files from the add-mcp directory
-        let branch_ref = "camille/start-with-mcp-template";
+        let branch_ref = "release/v3";
         let mut template_fetcher = InitTemplateFetcher::new();
         let template_options = template_fetcher.call(branch_ref).await?;
 
@@ -1325,7 +1325,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
 
         // Fetch base template + add-mcp using the existing fetch_mcp_template method
-        let branch_ref = "camille/start-with-mcp-template";
+        let branch_ref = "release/v3";
         let mut template_fetcher = InitTemplateFetcher::new();
         let mut selected_template = template_fetcher
             .fetch_mcp_template(base_template_id, branch_ref)
