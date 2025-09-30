@@ -217,6 +217,7 @@ impl Init {
 
         // Handle project creation result
         if let CreateProjectResult::Created(project) = project_created {
+            Self::update_template_files_with_real_values(&project)?;
             return Ok(project.complete().success());
         }
 
@@ -256,6 +257,7 @@ impl Init {
                     .await?
                 {
                     CreateProjectResult::Created(project) => {
+                        Self::update_template_files_with_real_values(&project)?;
                         return Ok(project.complete().success());
                     }
                     CreateProjectResult::Restart {
@@ -702,7 +704,7 @@ impl Init {
         };
 
         // Fetch raw files from the add-mcp directory
-        let branch_ref = "camille/start-with-mcp-template";
+        let branch_ref = "taylor/tasking";
         let mut template_fetcher = InitTemplateFetcher::new();
         let template_options = template_fetcher.call(branch_ref).await?;
 
@@ -739,7 +741,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
 2. Run the MCP server:
    ```bash
-   docker run --env-file .env -p5000:5000 {}-mcp
+   docker run --env-file .env -p5001:5001 {}-mcp
    # Linux users may need: docker run --network=host --env-file .env {}-mcp
    ```
 
@@ -988,20 +990,65 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         Ok(RoverOutput::EmptySuccess)
     }
 
-    /// Get MCP data source type from project_use_case argument or prompt user
+    /// Update template files with real values from completed project
     #[cfg(feature = "composition-js")]
-    fn get_or_prompt_mcp_data_source(&self) -> RoverResult<MCPDataSourceType> {
-        // Check if project_use_case was provided via command line
-        if let Some(use_case) = &self.project_use_case.project_use_case {
-            let data_source = match use_case {
-                ProjectUseCase::Connectors => MCPDataSourceType::ExternalAPIs,
-                ProjectUseCase::GraphQLTemplate => MCPDataSourceType::GraphQLAPI,
-            };
-            return Ok(data_source);
+    fn update_template_files_with_real_values(
+        completed_project: &states::ProjectCreated,
+    ) -> RoverResult<()> {
+        let output_path = completed_project.output_path.clone();
+
+        // Check if output path exists and is a directory
+        if !output_path.exists() || !output_path.is_dir() {
+            return Ok(()); // Nothing to process
         }
 
-        // If no argument provided, prompt the user
-        Self::prompt_mcp_data_source()
+        // Helper function to recursively process all files in a directory
+        fn process_directory_recursive(
+            dir_path: &camino::Utf8Path,
+            completed_project: &states::ProjectCreated,
+        ) -> RoverResult<()> {
+            use rover_std::Fs;
+
+            for entry in std::fs::read_dir(dir_path)? {
+                let entry = entry?;
+                let path = entry.path();
+                let utf8_path = match path.to_str() {
+                    Some(path_str) => camino::Utf8PathBuf::from(path_str),
+                    None => continue, // Skip non-UTF-8 paths
+                };
+
+                if utf8_path.is_dir() {
+                    // Recursively process subdirectories
+                    process_directory_recursive(&utf8_path, completed_project)?;
+                } else if utf8_path.is_file() {
+                    // Process individual files
+                    if let Ok(current_content) = std::fs::read_to_string(&utf8_path) {
+                        let updated_content = current_content
+                            .replace("{{APOLLO_KEY}}", &completed_project.api_key)
+                            .replace(
+                                "{{APOLLO_GRAPH_REF}}",
+                                &completed_project.graph_ref.to_string(),
+                            )
+                            .replace(
+                                "{{PROJECT_NAME}}",
+                                &completed_project.config.project_name.to_string(),
+                            );
+
+                        // Only write if content changed
+                        if updated_content != current_content {
+                            Fs::write_file(&utf8_path, updated_content)?;
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        }
+
+        // Start recursive processing from the output directory
+        process_directory_recursive(&output_path, completed_project)?;
+
+        Ok(())
     }
 
     /// Prompt user to select MCP data source type
@@ -1227,14 +1274,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
 
         // Fetch base template + add-mcp using the existing fetch_mcp_template method
-        let branch_ref = "camille/start-with-mcp-template";
+        let branch_ref = "taylor/tasking";
         let mut template_fetcher = InitTemplateFetcher::new();
         let mut selected_template = template_fetcher
             .fetch_mcp_template(base_template_id, branch_ref)
             .await?;
-
-        // Add VSCode configuration files to MCP templates
-        selected_template.add_vscode_files();
 
         // Filter files based on data source selection BEFORE preview
         let mut string_files: std::collections::HashMap<camino::Utf8PathBuf, String> =
@@ -1368,9 +1412,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{GRAPH_ID}}", project_name)
                 .replace("{{GRAPH_NAME}}", project_name)
                 .replace("{{VARIANT_NAME}}", "current")
-                .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION") // Placeholder since org structure is complex
-                .replace("{{APOLLO_API_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
-                .replace("{{APOLLO_KEY}}", "YOUR_API_KEY_HERE") // Will be filled in later
+                .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION_HERE") // Placeholder since org structure is complex
                 .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
                 .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
@@ -1491,6 +1533,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             None => camino::Utf8PathBuf::from("."),
         };
 
+        // Update template files with real values if it exists
+        Self::update_template_files_with_real_values(&completed_project)?;
+
         // Create .env file with actual credentials
         let env_content = format!(
             "APOLLO_KEY={}\nAPOLLO_GRAPH_REF={}\n",
@@ -1499,20 +1544,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         let env_path = output_path.join(".env");
         std::fs::write(&env_path, env_content)?;
-
-        // Generate VSCode configuration files for MCP projects
-        crate::command::init::template_operations::build_and_write_vscode_settings_file(
-            &output_path,
-            &completed_project.api_key,
-            &completed_project.graph_ref.to_string(),
-        )
-        .await?;
-
-        crate::command::init::template_operations::build_and_write_vscode_tasks_file(
-            &output_path,
-            true, // MCP projects always have MCP capabilities
-        )
-        .await?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;

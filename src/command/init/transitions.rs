@@ -245,7 +245,7 @@ impl UseCaseSelected {
         use crate::command::init::options::project_template::ProjectTemplateOpt;
 
         // Fetch the template to get the list of files
-        let repo_ref = "camille/start-with-mcp-template";
+        let repo_ref = "taylor/tasking";
         let mut template_fetcher = InitTemplateFetcher::new();
         let template_options = template_fetcher.call(repo_ref).await?;
 
@@ -294,9 +294,6 @@ impl UseCaseSelected {
                 }
             }
         };
-
-        // Add VSCode configuration files to all templates
-        selected_template.add_vscode_files();
 
         Ok(TemplateSelected {
             output_path: self.output_path,
@@ -516,26 +513,27 @@ impl CreationConfirmed {
         .await?;
 
         // Generate VSCode configuration files with actual values
-        let graph_ref_string = format!("{}@{}", graph_ref.name, graph_ref.variant);
-        let is_mcp = self.selected_template.template.id.0.starts_with("mcp-")
-            || self.selected_template.template.id.0.contains("mcp");
+        // let graph_ref_string = format!("{}@{}", graph_ref.name, graph_ref.variant);
+        // let is_mcp = self.selected_template.template.id.0.starts_with("mcp-")
+        //     || self.selected_template.template.id.0.contains("mcp");
 
-        crate::command::init::template_operations::build_and_write_vscode_settings_file(
-            &self.output_path,
-            &api_key,
-            &graph_ref_string,
-        )
-        .await?;
+        // crate::command::init::template_operations::build_and_write_vscode_settings_file(
+        //     &self.output_path,
+        //     &api_key,
+        //     &graph_ref_string,
+        // )
+        // .await?;
 
-        crate::command::init::template_operations::build_and_write_vscode_tasks_file(
-            &self.output_path,
-            is_mcp,
-        )
-        .await?;
+        // crate::command::init::template_operations::build_and_write_vscode_tasks_file(
+        //     &self.output_path,
+        //     is_mcp,
+        // )
+        // .await?;
 
         spinner.success("Successfully created project files and credentials");
 
         Ok(CreateProjectResult::Created(ProjectCreated {
+            output_path: self.output_path,
             config: self.config,
             artifacts,
             api_key,

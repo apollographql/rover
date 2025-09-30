@@ -71,6 +71,7 @@ pub struct CreationConfirmed {
 
 #[derive(Debug)]
 pub struct ProjectCreated {
+    pub output_path: Utf8PathBuf,
     pub config: ProjectConfig,
     pub artifacts: Vec<Utf8PathBuf>,
     pub api_key: String,
@@ -87,17 +88,4 @@ pub struct SelectedTemplateState {
     pub files: HashMap<Utf8PathBuf, Vec<u8>>,
 }
 
-impl SelectedTemplateState {
-    /// Add VSCode configuration files to the template files
-    pub fn add_vscode_files(&mut self) {
-        // Add placeholder content for VSCode files - actual content will be generated during creation
-        let placeholder_content = Vec::new();
-
-        self.files.insert(
-            Utf8PathBuf::from(".vscode/settings.json"),
-            placeholder_content.clone(),
-        );
-        self.files
-            .insert(Utf8PathBuf::from(".vscode/tasks.json"), placeholder_content);
-    }
-}
+impl SelectedTemplateState {}
