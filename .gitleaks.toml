@@ -15,3 +15,10 @@
     commits = [
       "c8efac81365648b0236d691a2fc622ba0d516f0c"
     ]
+    paths = [
+      "src/command/init/tests/template_consistency_test.rs",
+      "src/command/init/tests/mcp_flow_integration_test.rs",
+      "src/command/init/tests/mcp_next_steps_test.rs",
+      "src/command/init/tests/template_hydration_tests.rs",
+      "src/command/init/tests/mcp_prompting_tests.rs"
+    ]
