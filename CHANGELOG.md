@@ -18,6 +18,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.36.1] (unreleased) - 2025-10-01
+
+## 🛠 Maintenance
+
+- Maintenance-only release to fix the x86 Ubuntu NPM installer
+
 # [0.36.0] - 2025-09-30
 
 ## 🚀 Features
