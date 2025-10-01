@@ -197,6 +197,13 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
+          <<: *run_release
+
+      - publish_release:
+          name: Publish GitHub release and release to npm
+          matrix:
+            parameters:
+              platform: [volta]
           requires:
             - "Run cargo unit + integration tests (stable rust on amd_manylinux)"
             - "Run cargo unit + integration tests (stable rust on amd_musl)"
@@ -209,14 +216,6 @@ workflows:
             - "Test installation for Javascript Package Managers (npm_global on windows)"
             - "Test installation for Javascript Package Managers (pnpm on windows)"
             - "Test NPM Installer Scripts"
-          <<: *run_release
-
-      - publish_release:
-          name: Publish GitHub release and release to npm
-          matrix:
-            parameters:
-              platform: [volta]
-          requires:
             - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
