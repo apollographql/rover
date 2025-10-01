@@ -108,7 +108,7 @@ impl NpmRunner {
 
     fn publish_dry_run(&self) -> Result<()> {
         let command_output = self.npm_exec(
-            &["publish", "--dry-run"],
+            &["publish", "--dry-run", "--tag", "preview"],
             &self.npm_installer_package_directory,
         )?;
 

@@ -20,7 +20,7 @@ BINARY_DOWNLOAD_PREFIX="${APOLLO_ROVER_BINARY_DOWNLOAD_PREFIX:="https://github.c
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-PACKAGE_VERSION="v0.36.0"
+PACKAGE_VERSION="v0.36.1-rc.1"
 
 download_binary_and_run_installer() {
     downloader --check
