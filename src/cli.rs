@@ -375,6 +375,7 @@ pub enum Command {
     Init(command::Init),
 
     /// API Key Related Commands
+    #[clap(name = "api-key")]
     ApiKeys(command::ApiKeys),
 
     /// Cloud configuration commands

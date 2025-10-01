@@ -47,8 +47,8 @@ pub fn get_shortlinks_with_info() -> BTreeMap<&'static str, ShortlinkInfo> {
         ShortlinkInfo::new("Rover's Documentation Homepage", "r", "docs"),
     );
     links.insert(
-        "api-keys",
-        ShortlinkInfo::new("Understanding Apollo's API Keys", "r", "api-keys"),
+        "api-key",
+        ShortlinkInfo::new("Understanding Apollo's API Keys", "r", "api-key"),
     );
     links.insert(
         "contributing",
