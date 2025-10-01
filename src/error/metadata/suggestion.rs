@@ -197,7 +197,7 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             ProperKey => {
-                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-keys`"))
+                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-key`"))
             }
             ValidComposeFile => {
                 "Make sure supergraph compose config YAML points to a valid schema file.".to_string()

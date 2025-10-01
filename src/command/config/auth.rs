@@ -18,7 +18,7 @@ use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options:
 /// Running without the --profile flag will set an API key for
 /// a profile named "default".
 ///
-/// Run `rover docs open api-keys` for more details on Apollo's API keys.
+/// Run `rover docs open api-key` for more details on Apollo's API keys.
 pub struct Auth {
     #[clap(flatten)]
     profile: ProfileOpt,
