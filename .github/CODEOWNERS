@@ -1,9 +1,9 @@
-* @apollographql/graph-tooling
-crates/rover-client @apollographql/team-growth @apollographql/graph-tooling
-Cargo.lock @apollographql/team-growth @apollographql/graph-tooling
-docs @apollographql/docs @apollographql/graph-tooling
-src/command/init @apollographql/team-growth @apollographql/graph-tooling
-src/command/tests @apollographql/team-growth @apollographql/graph-tooling
-src/options @apollographql/team-growth @apollographql/graph-tooling
+* @apollographql/graph-dev
+crates/rover-client @apollographql/team-growth @apollographql/graph-dev
+Cargo.lock @apollographql/team-growth @apollographql/graph-dev
+docs @apollographql/docs @apollographql/graph-dev
+src/command/init @apollographql/team-growth @apollographql/graph-dev
+src/command/tests @apollographql/team-growth @apollographql/graph-dev
+src/options @apollographql/team-growth @apollographql/graph-dev
 src/command/connector @apollographql/graph-dev
 src/command/lsp @apollographql/graph-dev
