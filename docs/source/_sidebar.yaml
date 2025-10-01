@@ -19,7 +19,7 @@ items:
     href: ./errors
   - label: Commands
     children:
-      - label: api-keys
+      - label: api-key
         href: ./commands/api-keys    
       - label: cloud
         href: ./commands/cloud    
