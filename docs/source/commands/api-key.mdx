@@ -37,7 +37,7 @@ You can also pipe the subgraph configuration from stdin:
 cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <NAME>
 ```
 
-#### Key Types
+#### Key types
 The available key types are:
 - `operator`: Full access to the organization
 - `subgraph`: Limited access to specific subgraphs
@@ -64,7 +64,9 @@ The `api-key delete` command deletes an existing API key:
 rover api-key delete <ORGANIZATION_ID> <ID>
 ```
 
+<Caution>
 This action can't be undone. Make sure you have the correct key ID before deleting.
+</Caution>
 
 ## Renaming API keys
 
