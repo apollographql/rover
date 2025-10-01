@@ -85,6 +85,7 @@ impl Package {
             flate2::Compression::default(),
         );
         let mut ar = tar::Builder::new(&mut file);
+        ar.sparse(false); // Disable sparse file detection which breaks npm tar extraction (the npm "tar" package silently ignores/skips SparseFile)
         crate::info!("Adding {} to tarball", release_path);
         ar.append_file(
             Path::new("dist").join(bin_name_with_suffix),
