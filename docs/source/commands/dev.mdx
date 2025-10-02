@@ -229,7 +229,7 @@ By default, `rover dev` uses the version of the router and composition plugins [
 
 # Run Your MCP Server
 
-Following the `[rover init --mcp](https://www.apollographql.com/docs/rover/commands/init#initializing-a-graph)` command, which walks you through the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
+Following the `[rover init --mcp](https://www.apollographql.com/docs/rover/commands/init#initializing-an-mcp-server)` command, which walks you through the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
 
 ### `rover dev --mcp`
 
@@ -248,7 +248,7 @@ This starts and serves your graph API and MCP server as two local endpoints:
 source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
 # This starts:
 # → GraphQL API: http://localhost:4000
-# → MCP Server: http://localhost:5050
+# → MCP Server: http://localhost:5000
 ```
 
 ### Additional resources
