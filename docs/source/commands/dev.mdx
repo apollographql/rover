@@ -229,16 +229,16 @@ By default, `rover dev` uses the version of the router and composition plugins [
 
 # Run Your MCP Server
 
-Following the `[rover init --mcp](./init#initializing-an-mcp-server)` command, which walks you through the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
+Following the `[rover init --mcp](https://www.apollographql.com/docs/rover/commands/init#initializing-a-graph)` command, which walks you through the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
 
 ### `rover dev --mcp`
 
 Use the `rover dev` command, with the addition of the `--mcp` flag to start your MCP server, with an optional configuration file:
 
 ```terminal showLineNumbers=false
-rover init \
-  --supergraph-config <SUPERGRAPH_YAML> \
-  --mcp <MCP_ENV_YAML>
+rover dev \
+  --supergraph-config supergraph.yaml \
+  --mcp mcp-config.yaml
 ```
 
 This starts and serves your graph API and MCP server as two local endpoints:
@@ -253,6 +253,6 @@ source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.l
 
 ### Additional resources
 
-There are multiple ways to run [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) - `rover dev --mcp` being one of them. You can also run the Apollo MCP Server via Docker, Apollo Runtime Container or using the MCP server binary.
+There are multiple ways to run [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) - `rover dev --mcp` being one of them. You can also run the Apollo MCP Server with [Docker](https://www.apollographql.com/docs/apollo-mcp-server/run#with-docker), the [Apollo Runtime Container](https://www.apollographql.com/docs/apollo-mcp-server/run#with-the-apollo-runtime-container) or using the [standalone MCP server binary](https://www.apollographql.com/docs/apollo-mcp-server/run#standalone-mcp-server-binary).
 
 Read [Running the Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server/run) for a full guide on the different ways to run your MCP server.

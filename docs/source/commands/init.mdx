@@ -119,7 +119,7 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
 - If you learn best with videos and exercises, this [interactive course](https://www.apollographql.com/tutorials/connectors-intro-rest) teaches you how to integrate a demo REST API into a graph using Apollo Connectors.
 
 
-## Initializing an MCP Server
+## Initializing an MCP server
 ### `rover init --mcp`
 
 Rover's `init --mcp` command provides a helpful starting point for working with the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server). 
@@ -161,22 +161,10 @@ rover init --mcp \
 | `--graph-id` | The ID for your graph in GraphOS. (This must be a unique identifier.) | *(your graph ID)* |
 
 
-#### Next Steps
+### Next Steps
 
 Once you've completed the wizard, you will be shown recommended next steps for using and running your MCP server.
 
-#### Configure Your Environment
-
-The `rover init --mcp` command generates a starter `.env.template` file, which you will need to modify:
-
-```bash
-# Create environment file
-cp .env.template .env
-
-# Edit .env with your API details:
-PROJECT_NAME="your-project-name"
-GRAPHQL_ENDPOINT="http://localhost:4000/graphql"
-```
 
 #### Connect your MCP server to Claude Desktop
 
