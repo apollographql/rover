@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.36.0"
+version = "0.36.1"
 default-run = "rover"
 
 publish = false
@@ -100,6 +100,7 @@ console = "0.16"
 derive-getters = "0.5.0"
 dialoguer = { version = "0.11", features = ["fuzzy-select"] }
 directories-next = "2.0"
+dotenvy = "0.15"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.4.5"
@@ -184,6 +185,7 @@ chrono = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
+dotenvy = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 graphql_client = { workspace = true }

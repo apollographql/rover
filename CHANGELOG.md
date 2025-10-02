@@ -18,6 +18,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.36.1] - 2025-10-01
+
+## 🐛 Fixes
+
+- **Fix the NPM installer for some Linux distributions. #2724 by @andrewmcgivery**
+
 # [0.36.0] - 2025-09-30
 
 ## 🚀 Features
