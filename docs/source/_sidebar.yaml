@@ -20,7 +20,7 @@ items:
   - label: Commands
     children:
       - label: api-key
-        href: ./commands/api-keys    
+        href: ./commands/api-key
       - label: cloud
         href: ./commands/cloud    
       - label: config
