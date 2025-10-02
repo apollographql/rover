@@ -227,9 +227,9 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 
 By default, `rover dev` uses the version of the router and composition plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override either of these by setting the environment variables `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0` and `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`. If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
 
-# Run Your MCP Server
+# Run your MCP server
 
-Following the `[rover init --mcp](https://www.apollographql.com/docs/rover/commands/init#initializing-an-mcp-server)` command, which walks you through the [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
+Following the `[rover init --mcp](/rover/commands/init#initializing-an-mcp-server)` command, which walks you through the [Apollo MCP Server](/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
 
 ### `rover dev --mcp`
 
@@ -238,14 +238,47 @@ Use the `rover dev` command, with the addition of the `--mcp` flag to start your
 ```terminal showLineNumbers=false
 rover dev \
   --supergraph-config supergraph.yaml \
-  --mcp mcp-config.yaml
+  --mcp .apollo/mcp.local.yaml
 ```
+
+You can define your GraphOS credentials in the terminal as environment variables - or set a source `.env` file, depending on your preference.
+
+Sourcing an `.env` file:
+
+```terminal showLineNumbers=false
+source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
+```
+
+Setting credentials as environment variables:
+
+  <Tabs>
+
+    <Tab label="Linux / MacOS">
+
+    ```terminal showLineNumbers=false
+    # MacOS / Linux
+    APOLLO_KEY=<YOUR_APOLLO_KEY> \
+    APOLLO_GRAPH_REF=<YOUR_APOLLO_GRAPH_REF> \
+    rover dev <OPTIONS>
+    ```
+
+    </Tab>
+    <Tab label="Windows">
+
+    ```terminal showLineNumbers=false
+    # Windows
+    $env:APOLLO_KEY="<YOUR_APOLLO_KEY>"; `
+    $env:APOLLO_GRAPH_REF="<YOUR_APOLLO_GRAPH_REF>"; `
+    rover dev <OPTIONS>
+    ```
+
+    </Tab>
+
+  </Tabs>
 
 This starts and serves your graph API and MCP server as two local endpoints:
 
-```bash
-# Load environment and start GraphQL API + MCP server
-source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
+```terminal showLineNumbers=false
 # This starts:
 # → GraphQL API: http://localhost:4000
 # → MCP Server: http://localhost:5000
@@ -253,6 +286,6 @@ source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.l
 
 ### Additional resources
 
-There are multiple ways to run [Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server) - `rover dev --mcp` being one of them. You can also run the Apollo MCP Server with [Docker](https://www.apollographql.com/docs/apollo-mcp-server/run#with-docker), the [Apollo Runtime Container](https://www.apollographql.com/docs/apollo-mcp-server/run#with-the-apollo-runtime-container) or using the [standalone MCP server binary](https://www.apollographql.com/docs/apollo-mcp-server/run#standalone-mcp-server-binary).
+You can also run the Apollo MCP Server with [Docker](/apollo-mcp-server/run#with-docker), the [Apollo Runtime Container](/apollo-mcp-server/run#with-the-apollo-runtime-container) or using the [standalone MCP server binary](/apollo-mcp-server/run#standalone-mcp-server-binary).
 
-Read [Running the Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server/run) for a full guide on the different ways to run your MCP server.
+For a full guide on the different ways to run your MCP server, read [Running the Apollo MCP Server](/apollo-mcp-server/run).

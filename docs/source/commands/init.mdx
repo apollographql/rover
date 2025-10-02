@@ -47,7 +47,7 @@ For `rover init --mcp` options, see the [Initializing an MCP Server](#initializi
 | `--project-use-case` | Helps preconfigure your graph for specific patterns. | `connectors`, <br/>`graph-ql-template` |
 | `--project-name` | The name for your new graph. | *(your graph name)* |
 | `--graph-id` | The ID for your graph in GraphOS. (This must be a unique identifier.) | *(your graph ID)* |
-| `--mcp` | See the [Initializing an MCP Server](#initializing-an-mcp-server) section.) |  |
+| `--mcp` | See the [Initializing an MCP Server](#initializing-an-mcp-server) section.|  |
 
 #### Choosing your use case
 
@@ -118,7 +118,6 @@ Once you've completed the wizard, it provides a [`rover dev`](./dev) command wit
 - To go further, check out the [Getting started guide](/graphos/get-started/guides/rest) to learn what else you can do with Apollo Connectors.
 - If you learn best with videos and exercises, this [interactive course](https://www.apollographql.com/tutorials/connectors-intro-rest) teaches you how to integrate a demo REST API into a graph using Apollo Connectors.
 
-
 ## Initializing an MCP server
 ### `rover init --mcp`
 
@@ -134,7 +133,7 @@ The command creates the following files:
 
 - MCP config YAML for local and staging scenarios
 - MCP config for adding to Claude Desktop
-- Starter MCP tools, based on your GraphQL API operations
+- Starter [MCP tools](https://www.apollographql.com/docs/apollo-mcp-server/define-tools), based on your GraphQL API operations
 - `.env` files for running the GraphQL API and MCP Server
 - A set of local configuration files and boilerplate code that represent the graph
 - mcp.Dockerfile (optional Docker container) 
@@ -163,13 +162,14 @@ rover init --mcp \
 
 ### Next Steps
 
-Once you've completed the wizard, you will be shown recommended next steps for using and running your MCP server.
+#### Run your MCP server
 
+When the `rover init` wizard is complete, you can use [`rover dev`](./dev) to start everything together. See [Running the Apollo MCP Server](/apollo-mcp-server/run).
 
 #### Connect your MCP server to Claude Desktop
 
 ```bash
-# Copy the configuration for Claude Desktop
+# Copy and provide the configuration to Claude Desktop
 # macOS:
 cp claude_desktop_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 
@@ -182,20 +182,4 @@ cp claude_desktop_config.json ~/.config/Claude/claude_desktop_config.json
 # Restart Claude Desktop
 ```
 
-For instructions on adding your MCP server to other AI clients, see the [MCP Quickstart guide](https://www.apollographql.com/docs/apollo-mcp-server/quickstart).
-
-
-#### Run your MCP server and GraphQL API
-
-When the `rover init` wizard is complete, you can use [`rover dev`](./dev) to start everything together:
-
-```bash
-# Load environment and start GraphQL API + MCP server
-source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
-
-# This starts:
-# → GraphQL API: http://localhost:4000
-# → MCP Server: http://localhost:5000
-```
-
-There are many ways to run the MCP server. In addition to `rover dev` you can use Docker, the Apollo Runtime Container, or the server binary. Read [Running the Apollo MCP Server](https://www.apollographql.com/docs/apollo-mcp-server/run) for the full guide on the different ways to run your MCP server.
+For instructions on adding your MCP server to other AI clients, see the [MCP Quickstart guide](/apollo-mcp-server/quickstart).
