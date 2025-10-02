@@ -4,6 +4,8 @@ subtitle: Run your supergraph or MCP server in your local dev environment
 description: Use the Rover CLI dev command to run your federated GraphQL API in your local development environment. Learn how to start a router session, add and remove subgraphs, and more.
 ---
 
+The `rover dev` command runs your supergraph locally. With the `--mcp` flag, it can also [run your MCP server](#run-your-mcp-server) alongside your supergraph.
+
 # Run your supergraph
 
 A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a _graph router_ that runs in front of them:
@@ -229,7 +231,7 @@ By default, `rover dev` uses the version of the router and composition plugins [
 
 # Run your MCP server
 
-Following the `[rover init --mcp](/rover/commands/init#initializing-an-mcp-server)` command, which walks you through the [Apollo MCP Server](/apollo-mcp-server) creation wizard in your CLI, the `rover dev --mcp` command provides a way to run and test your MCP tools locally alongside your Graph API.
+Run and test your [Apollo MCP Server](/apollo-mcp-server) locally alongside your graph.
 
 ### `rover dev --mcp`
 
@@ -241,13 +243,13 @@ rover dev \
   --mcp .apollo/mcp.local.yaml
 ```
 
-You can define your `APOLLO_KEY` and `APOLLO_GRAPH_REF` in the terminal as environment variables - or set a source `.env` file, depending on your preference.
+This starts and serves your graph and MCP server as two local endpoints:
 
-Sourcing an `.env` file:
+- GraphQL API: `http://localhost:4000`
+- MCP Server: `http://localhost:5000`
 
-```terminal showLineNumbers=false
-source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
-```
+To provide your graph credentials, you can define the `APOLLO_KEY` and `APOLLO_GRAPH_REF` in the terminal as environment variables, or set a source `.env` file.
+
 
 Setting environment variables:
 
@@ -276,12 +278,10 @@ Setting environment variables:
 
   </Tabs>
 
-This starts and serves your graph API and MCP server as two local endpoints:
+Sourcing an `.env` file:
 
 ```terminal showLineNumbers=false
-# This starts:
-# → GraphQL API: http://localhost:4000
-# → MCP Server: http://localhost:5000
+source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
 ```
 
 ### Additional resources
