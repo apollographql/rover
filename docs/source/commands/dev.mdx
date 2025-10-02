@@ -241,7 +241,7 @@ rover dev \
   --mcp .apollo/mcp.local.yaml
 ```
 
-You can define your GraphOS credentials in the terminal as environment variables - or set a source `.env` file, depending on your preference.
+You can define your `APOLLO_KEY` and `APOLLO_GRAPH_REF` in the terminal as environment variables - or set a source `.env` file, depending on your preference.
 
 Sourcing an `.env` file:
 
@@ -249,7 +249,7 @@ Sourcing an `.env` file:
 source .env && rover dev --supergraph-config supergraph.yaml --mcp .apollo/mcp.local.yaml
 ```
 
-Setting credentials as environment variables:
+Setting environment variables:
 
   <Tabs>
 
