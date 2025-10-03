@@ -534,7 +534,7 @@ impl ProjectCreated {
         // Project Details section
         println!();
         println!("{}", Style::Heading.paint("Project details"));
-        println!("   • MCP Server Name: mcp-{}", self.config.project_name);
+        println!("   • MCP Server Name: {}", self.config.project_name);
         println!("   • GraphOS Organization: {}", self.config.organization);
         println!();
 
@@ -564,7 +564,7 @@ impl ProjectCreated {
         println!();
         println!(
             "   Your MCP server name: {}",
-            Style::Command.paint(format!("mcp-{}", self.config.project_name))
+            Style::Command.paint(format!("{}", self.config.project_name))
         );
         println!(
             "   MCP endpoint: {}",
