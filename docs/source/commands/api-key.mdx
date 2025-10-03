@@ -20,13 +20,13 @@ Rover enables you to manage `operator` and `subgraph` API keys for your GraphOS 
 The `api-key create` command creates a new API key for your organization:
 
 ```
-rover api-key create <ORGANIZATION_ID> <TYPE> <NAME>
+rover api-key create <ORGANIZATION_ID> <TYPE> <KEY_NAME>
 ```
 
 For subgraph keys, you can specify which subgraphs the key should have access to using a configuration file:
 
 ```
-rover api-key create <ORGANIZATION_ID> subgraph <NAME> --subgraph-config subgraph-config.yaml
+rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME> --subgraph-config subgraph-config.yaml
 ```
 
 The subgraph configuration file should be in YAML format:
@@ -41,7 +41,7 @@ graph-id:
 You can also pipe the subgraph configuration from stdin:
 
 ```
-cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <NAME>
+cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME>
 ```
 
 #### Key types
@@ -68,7 +68,7 @@ This command displays all API keys with their details, including creation date, 
 The `api-key delete` command deletes an existing API key:
 
 ```
-rover api-key delete <ORGANIZATION_ID> <ID>
+rover api-key delete <ORGANIZATION_ID> <KEY_ID>
 ```
 
 <Caution>
@@ -82,7 +82,7 @@ This action can't be undone. Make sure you have the correct key ID before deleti
 The `api-key rename` command renames an existing API key:
 
 ```
-rover api-key rename <ORGANIZATION_ID> <ID> <NEW_NAME>
+rover api-key rename <ORGANIZATION_ID> <KEY_ID> <NEW_KEY_NAME>
 ```
 
 Use this command to organize and identify your API keys more easily.
