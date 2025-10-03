@@ -98,14 +98,6 @@ pub fn get_shortlinks_with_info() -> BTreeMap<&'static str, ShortlinkInfo> {
             "define-tools",
         ),
     );
-    links.insert(
-        "mcp-claude",
-        ShortlinkInfo::new(
-            "Connect Claude Desktop to Apollo MCP Server",
-            "mcp",
-            "claude",
-        ),
-    );
     links
 }
 
