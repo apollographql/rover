@@ -23,6 +23,10 @@ The `api-key create` command creates a new API key for your organization:
 rover api-key create <ORGANIZATION_ID> <TYPE> <KEY_NAME>
 ```
 
+The available key types are:
+- `operator`: Full access to the organization
+- `subgraph`: Limited access to specific subgraphs
+
 For subgraph keys, you can specify which subgraphs the key should have access to using a configuration file:
 
 ```
@@ -43,11 +47,6 @@ You can also pipe the subgraph configuration from stdin:
 ```
 cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME>
 ```
-
-#### Key types
-The available key types are:
-- `operator`: Full access to the organization
-- `subgraph`: Limited access to specific subgraphs
 
 ## Listing API keys
 
