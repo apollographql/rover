@@ -562,10 +562,19 @@ impl ProjectCreated {
         // Step 1: AI client setup
         println!("1. Connect an AI client to your MCP server:");
         println!();
-        println!("   Your MCP server name: {}", Style::Command.paint(format!("mcp-{}", self.config.project_name)));
-        println!("   MCP endpoint: {}", Style::Link.paint("http://127.0.0.1:5050/mcp"));
+        println!(
+            "   Your MCP server name: {}",
+            Style::Command.paint(format!("mcp-{}", self.config.project_name))
+        );
+        println!(
+            "   MCP endpoint: {}",
+            Style::Link.paint("http://127.0.0.1:5050/mcp")
+        );
         println!();
-        println!("   For Claude Desktop setup: {}", Style::Command.paint("rover docs open mcp-claude"));
+        println!(
+            "   For Claude Desktop setup: {}",
+            Style::Command.paint("rover docs open mcp-claude")
+        );
         println!();
 
         // Step 2: Base template commands (npm install, npm start, etc.) if they exist
