@@ -18,6 +18,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.36.2] - 2025-10-03
+
+## 🚀 Features
+
+- **Remove `claude_desktop_config.json` from MCP template and update "Next Steps" UX - @gocamille, #2746 fixes apollographql/rover-init-starters#84**
+
+  Updates the MCP template to be more flexible and AI-client agnostic. Removes the prescriptive `claude_desktop_config.json` file and provides more generic "Next Steps" guidance for connecting any AI client to the generated MCP server.
+
+- **Remove mcp-claude shortlink - @gocamille, #2747**
+
+  Removes the Claude Desktop-specific shortlink to align with the more flexible, AI-client agnostic approach to MCP server setup.
+
 # [0.36.1] - 2025-10-01
 
 ## 🐛 Fixes
