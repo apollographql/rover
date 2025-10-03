@@ -48,7 +48,7 @@ pub enum ProjectUseCase {
     GraphQLTemplate,
 }
 
-const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
+const USE_CASE_DESCRIPTION: &str = "Start a graph with GraphQL APIs";
 
 impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

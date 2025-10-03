@@ -1,7 +1,5 @@
-use std::{
-    cmp::Ordering,
-    fmt::{self, Display, Write as _},
-};
+use std::cmp::Ordering;
+use std::fmt::{self, Display, Write as _};
 
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
@@ -93,6 +91,7 @@ pub enum RoverErrorSuggestion {
     ContactApolloAccountManager,
     TryAgainLater,
     ContactApolloSupport,
+    CheckOrganizationId,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -187,6 +186,9 @@ impl Display for RoverErrorSuggestion {
             CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
             }
+            CheckOrganizationId => {
+                "Check your Organization ID to make sure it's valid.".to_string()
+            }
             TryUnsetKey => {
                 format!(
                     "Try to unset your {} key if you want to use {}.",
@@ -195,7 +197,7 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             ProperKey => {
-                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-keys`"))
+                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-key`"))
             }
             ValidComposeFile => {
                 "Make sure supergraph compose config YAML points to a valid schema file.".to_string()

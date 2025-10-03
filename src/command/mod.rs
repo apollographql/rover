@@ -1,3 +1,4 @@
+mod api_key;
 mod cloud;
 mod config;
 #[cfg(feature = "composition-js")]
@@ -21,6 +22,7 @@ pub(crate) mod supergraph;
 pub(crate) mod template;
 mod update;
 
+pub use api_key::ApiKeys;
 pub use cloud::Cloud;
 pub use config::Config;
 #[cfg(feature = "composition-js")]

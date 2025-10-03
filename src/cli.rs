@@ -252,6 +252,7 @@ impl Rover {
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
+            Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
         }
     }
 
@@ -372,6 +373,10 @@ impl Rover {
 pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),
+
+    /// API Key Related Commands
+    #[clap(name = "api-key")]
+    ApiKeys(command::ApiKeys),
 
     /// Cloud configuration commands
     Cloud(command::Cloud),

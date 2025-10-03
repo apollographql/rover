@@ -58,7 +58,7 @@ impl GraphIdOpt {
 
     fn prompt_for_input(&self, suggested_id: &str) -> RoverResult<String> {
         let input = Input::<String>::new()
-            .with_prompt(Style::Prompt.paint("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
+            .with_prompt(Style::Prompt.paint("? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
             .with_initial_text(suggested_id.to_string())
             .allow_empty(true)
             .interact_text()?;
