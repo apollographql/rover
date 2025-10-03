@@ -573,7 +573,7 @@ impl ProjectCreated {
         println!();
         println!(
             "   For Claude Desktop setup: {}",
-            Style::Command.paint("rover docs open mcp-claude")
+            Style::Command.paint("rover docs open mcp-qs")
         );
         println!();
 
