@@ -559,22 +559,13 @@ impl ProjectCreated {
         println!("{}", Style::Heading.paint("Next steps ↴"));
         println!();
 
-        // Step 1: Always Claude Desktop configuration first
-        println!("1. Configure Claude Desktop by copying claude_desktop_config.json to:");
-        println!(
-            "   • macOS: {}",
-            Style::Path.paint("~/Library/Application Support/Claude/claude_desktop_config.json")
-        );
-        println!(
-            "   • Windows: {}",
-            Style::Path.paint("%APPDATA%\\Claude\\claude_desktop_config.json")
-        );
-        println!(
-            "   • Linux: {}",
-            Style::Path.paint("~/.config/Claude/claude_desktop_config.json")
-        );
+        // Step 1: AI client setup
+        println!("1. Connect an AI client to your MCP server:");
         println!();
-        println!("   Then restart Claude Desktop.");
+        println!("   Your MCP server name: {}", Style::Command.paint(format!("mcp-{}", self.config.project_name)));
+        println!("   MCP endpoint: {}", Style::Link.paint("http://127.0.0.1:5050/mcp"));
+        println!();
+        println!("   For Claude Desktop setup: {}", Style::Command.paint("rover docs open mcp-claude"));
         println!();
 
         // Step 2: Base template commands (npm install, npm start, etc.) if they exist
