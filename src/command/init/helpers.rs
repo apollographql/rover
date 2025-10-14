@@ -288,23 +288,7 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
     let graph_ref_str = ctx.graph_ref.to_string();
     let docker_tag = normalize_docker_tag(ctx.graph_id);
 
-    // Add header for .env files containing Apollo credentials
-    let mut processed_content = if content.contains("APOLLO_KEY") || content.contains("apollo_key")
-    {
-        let header = r#"# Apollo GraphOS Credentials for MCP Server
-# These credentials connect your MCP server to Apollo GraphOS
-#
-# Usage:
-# - For VSCode: These variables are automatically loaded
-# - For manual runs: Source this file before running rover dev
-#   Linux/macOS: set -a && source .env && set +a && rover dev --mcp .apollo/mcp.local.yaml
-#   Windows: Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }; rover dev --mcp .apollo/mcp.local.yaml
-
-"#;
-        format!("{}{}", header, content)
-    } else {
-        content.to_string()
-    };
+    let mut processed_content = content.to_string();
 
     // Process both ${} format (for YAML files) and {{}} format (for other templates)
     processed_content = processed_content
