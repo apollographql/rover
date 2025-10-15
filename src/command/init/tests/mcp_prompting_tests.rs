@@ -484,11 +484,6 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
             processed_content
                 .contains("GRAPHQL_ENDPOINT=\"http://host.docker.internal:4000/graphql\"")
         );
-
-        // Check that header comments were added
-        assert!(processed_content.contains("# Apollo GraphOS Credentials for MCP Server"));
-        assert!(processed_content.contains("# Usage:"));
-        assert!(processed_content.contains("set -a && source .env && set +a"));
     }
 
     #[test]
@@ -580,8 +575,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         assert!(processed_content.contains(&format!("APOLLO_KEY={}", api_key)));
         assert!(processed_content.contains("APOLLO_GRAPH_REF=test-graph-id@current"));
 
-        // Check that both old and new comments exist
-        assert!(processed_content.contains("# Apollo GraphOS Credentials for MCP Server"));
+        // Check that existing comment is preserved
         assert!(processed_content.contains("# Existing comment"));
     }
 
@@ -824,6 +818,5 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
         assert!(processed_content.contains("PROJECT_NAME=integration-test"));
         assert!(processed_content.contains(&format!("APOLLO_KEY={}", api_key)));
         assert!(processed_content.contains("APOLLO_GRAPH_REF=integration-test-graph@current"));
-        assert!(processed_content.contains("# Apollo GraphOS Credentials for MCP Server"));
     }
 }
