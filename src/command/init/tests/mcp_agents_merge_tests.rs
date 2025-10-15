@@ -119,11 +119,8 @@ fn test_no_agents_file_leaves_readme_unchanged() {
         b"Other file content".to_vec(),
     );
 
-    let composed_template = MCPComposedTemplate::new_with_agents_merge(
-        template,
-        files.clone(),
-        ProjectType::CreateNew,
-    );
+    let composed_template =
+        MCPComposedTemplate::new_with_agents_merge(template, files.clone(), ProjectType::CreateNew);
 
     // Files should remain unchanged when no AGENTS.md exists
     let file_list = composed_template.list_files();
@@ -227,11 +224,8 @@ fn test_mcp_composed_template_tracks_agents_merge_status() {
         b"\n## AI Agents\n\nThis is the agents documentation.".to_vec(),
     );
 
-    let composed_template = MCPComposedTemplate::new_with_agents_merge(
-        template.clone(),
-        files,
-        ProjectType::CreateNew,
-    );
+    let composed_template =
+        MCPComposedTemplate::new_with_agents_merge(template.clone(), files, ProjectType::CreateNew);
 
     // Should track that agents were merged
     assert!(composed_template.agents_merged_into_readme);

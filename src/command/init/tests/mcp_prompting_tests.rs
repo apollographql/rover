@@ -1,4 +1,3 @@
-
 use crate::command::init::options::{
     ProjectType, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
 };
@@ -477,8 +476,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
     assert!(processed_content.contains(&format!("APOLLO_KEY=\"{}\"", api_key)));
     assert!(processed_content.contains("APOLLO_GRAPH_REF=\"test-graph-id@current\""));
     assert!(
-        processed_content
-            .contains("GRAPHQL_ENDPOINT=\"http://host.docker.internal:4000/graphql\"")
+        processed_content.contains("GRAPHQL_ENDPOINT=\"http://host.docker.internal:4000/graphql\"")
     );
 }
 

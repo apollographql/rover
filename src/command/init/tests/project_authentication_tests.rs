@@ -76,9 +76,7 @@ impl AuthWorkflowSimulation {
         match &self.error {
             Some(err) => {
                 let rover_error =
-                    crate::command::init::authentication::auth_error_to_rover_error(
-                        err.clone(),
-                    );
+                    crate::command::init::authentication::auth_error_to_rover_error(err.clone());
                 rover_error.to_string()
             }
             None => "No authentication attempt made.".to_string(),

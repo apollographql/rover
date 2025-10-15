@@ -1,4 +1,3 @@
-
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 
 // ARCHITECTURE TESTS: Error Conversion System
