@@ -42,6 +42,6 @@ octocrab = "0.44.0"
 lychee-lib = { version = "0.19", features = ["vendored-openssl"] }
 
 [dev-dependencies]
-mockito = "=1.7.0"
+mockito = "1.7.0"
 rstest = { workspace = true }
 speculoos = { workspace = true }

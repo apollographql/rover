@@ -123,7 +123,7 @@ os_info = "3.7"
 os_type = "2.6"
 predicates = "3"
 pretty_assertions = "1"
-rand = "=0.9.2"
+rand = "0.9.2"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.25.0"
@@ -239,25 +239,25 @@ comfy-table = { workspace = true }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
-dircpy = "=0.3.19"
-duct = "=1.1.0"
+dircpy = "0.3.19"
+duct = "1.1.0"
 git2 = { workspace = true, features = ["https"] }
-graphql-schema-diff = "=0.2.0"
+graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "=0.30.0"
-mime = "=0.3.17"
-mockall = "=0.13.1"
-portpicker = "=0.1.1"
+jsonschema = "0.30.0"
+mime = "0.3.17"
+mockall = "0.13.1"
+portpicker = "0.1.1"
 predicates = { workspace = true }
-rand_regex = "=0.18.1"
+rand_regex = "0.18.1"
 reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
-temp-env = { version = "=0.3.6", features = ["async_closure"] }
+temp-env = { version = "0.3.6", features = ["async_closure"] }
 
 # For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
