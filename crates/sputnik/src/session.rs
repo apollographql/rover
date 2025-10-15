@@ -216,7 +216,7 @@ mod tests {
                 arch: "itecture".into(),
                 continuous_integration: None,
             },
-            cli_version: Version::parse("0.0.0-test".into()).unwrap(),
+            cli_version: Version::parse("0.0.0-test").unwrap(),
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
