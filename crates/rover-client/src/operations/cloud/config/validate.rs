@@ -55,6 +55,7 @@ fn build_response(
 }
 
 #[cfg(test)]
+#[expect(clippy::panic)]
 mod tests {
     use super::*;
     use crate::shared::GraphRef;

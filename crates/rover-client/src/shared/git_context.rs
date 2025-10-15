@@ -153,6 +153,7 @@ fn parse_git_remote(remote_url: &str) -> Option<GitUrl> {
 }
 
 #[cfg(test)]
+#[expect(clippy::panic)]
 mod tests {
     use super::*;
 

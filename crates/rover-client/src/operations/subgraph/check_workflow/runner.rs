@@ -458,6 +458,7 @@ fn get_downstream_response_from_result(
 }
 
 #[cfg(test)]
+#[expect(clippy::panic)]
 mod tests {
     use super::*;
     use serde_json::json;
