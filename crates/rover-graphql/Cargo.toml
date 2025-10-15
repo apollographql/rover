@@ -6,11 +6,11 @@ edition = "2021"
 publish = false
 
 [dependencies]
-buildstructor = { workspace = true }
+# buildstructor = { workspace = true }
 bytes = { workspace = true }
 graphql_client = { workspace = true }
 http = { workspace = true }
-http-body = { workspace = true }
+# http-body = { workspace = true }
 http-body-util = { workspace = true }
 rover-http = { workspace = true }
 serde_json = { workspace = true }

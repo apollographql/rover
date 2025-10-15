@@ -24,7 +24,7 @@ reqwest = { workspace = true, features = [
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
-tower-http = { workspace = true }
+# tower-http = { workspace = true }
 tap = { workspace = true }
 tracing = { workspace = true }
 

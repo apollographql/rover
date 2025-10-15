@@ -119,7 +119,7 @@ mod tests {
 
         let _ = extend_headers_service.call(request).await?;
 
-        mock.assert_hits(1);
+        mock.assert_calls(1);
 
         Ok(())
     }

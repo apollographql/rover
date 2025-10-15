@@ -49,6 +49,6 @@ async fn e2e_test_rover_client_timeout_option(
     //  expoential backoff and jitter; this works out for smaller timeouts, but after a certain
     //  threshold of retries, enough backoff would be added to make the calls lower than the
     //  overall timeout (understood as a number that gets used as seconds in a Duration)
-    let calls = mocked_route.hits();
+    let calls = mocked_route.calls();
     assert!(calls >= timeout);
 }
