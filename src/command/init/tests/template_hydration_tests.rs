@@ -136,7 +136,7 @@ endpoint: ${GRAPHQL_ENDPOINT}
     println!("{}", processed_yaml);
 
     // Verify ${} placeholders were replaced
-    assert!(processed_yaml.contains(&format!("project: my_test_project")));
+    assert!(processed_yaml.contains("project: my_test_project"));
     assert!(processed_yaml.contains(&format!("apollo_key: {}", test_api_key)));
     assert!(processed_yaml.contains(&format!("graph_ref: {}", test_graph_ref)));
     assert!(processed_yaml.contains("endpoint: http://localhost:4000/graphql"));
