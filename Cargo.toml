@@ -89,7 +89,7 @@ base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.6.0"
 bytes = "1.8.0"
-cargo_metadata = "0.21"
+cargo_metadata = "0.23"
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
 clap = "4"
