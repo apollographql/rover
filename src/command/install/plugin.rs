@@ -241,7 +241,7 @@ fn could_not_install_plugin(plugin_name: &str, version: &str) -> RoverError {
 }
 
 impl PluginInstaller {
-    pub fn new(client_config: StudioClientConfig, installer: Installer, force: bool) -> Self {
+    pub const fn new(client_config: StudioClientConfig, installer: Installer, force: bool) -> Self {
         Self {
             client_config,
             installer,

@@ -60,7 +60,7 @@ pub struct McpServerBinary {
 }
 
 impl McpServerBinary {
-    pub fn new(exe: Utf8PathBuf, version: Version) -> McpServerBinary {
+    pub const fn new(exe: Utf8PathBuf, version: Version) -> McpServerBinary {
         McpServerBinary { exe, version }
     }
 }

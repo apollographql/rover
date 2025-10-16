@@ -34,7 +34,7 @@ pub struct InstallMcpServer {
 
 impl InstallMcpServer {
     #[allow(unused)]
-    pub fn new(
+    pub const fn new(
         mcp_server_version: McpServerVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallMcpServer {

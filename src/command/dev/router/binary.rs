@@ -36,10 +36,7 @@ fn should_select_log_message(log_message: &str) -> bool {
     // the match "exposed at http" captures expressions:
     // * Health check exposed at http://127.0.0.1:8088/health
     // * GraphQL endpoint exposed at http://127.0.0.1:4090/
-    !log_message
-        .matches("exposed at http")
-        .collect::<Vec<&str>>()
-        .is_empty()
+    log_message.matches("exposed at http").next().is_some()
 }
 
 fn produce_special_message(raw_message: &str) {
@@ -160,7 +157,7 @@ pub struct RouterBinary {
 }
 
 impl RouterBinary {
-    pub fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
+    pub const fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
         RouterBinary { exe, version }
     }
 }

@@ -264,11 +264,11 @@ impl RunRouter<state::Run> {
                 );
             }
             None => {
-                match Config::new(home_override.as_ref(), api_key_override.clone())
+                match Config::new(home_override.as_ref(), api_key_override)
                     .and_then(|config| Profile::get_credential(&profile.profile_name, &config))
                 {
                     Ok(credential) => {
-                        env.insert("APOLLO_KEY".to_string(), credential.api_key.clone());
+                        env.insert("APOLLO_KEY".to_string(), credential.api_key);
                     }
                     Err(err) => {
                         if profile.profile_name != DEFAULT_PROFILE {
@@ -371,16 +371,15 @@ impl RunRouter<state::Watch> {
         WriteF: WriteFile + Send + Clone + 'static,
     {
         tracing::info!("Watching for subgraph changes");
-        let (router_config_updates, config_watcher_subtask) = if let Some(config_path) =
-            self.state.config_path
-        {
-            let config_watcher = RouterConfigWatcher::new(FileWatcher::new(config_path.clone()));
-            let (events, subtask): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
-                Subtask::new(config_watcher);
-            (Some(events), Some(subtask))
-        } else {
-            (None, None)
-        };
+        let (router_config_updates, config_watcher_subtask) =
+            if let Some(config_path) = self.state.config_path {
+                let config_watcher = RouterConfigWatcher::new(FileWatcher::new(config_path));
+                let (events, subtask): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
+                    Subtask::new(config_watcher);
+                (Some(events), Some(subtask))
+            } else {
+                (None, None)
+            };
 
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
@@ -443,7 +442,7 @@ impl RunRouter<state::Watch> {
 }
 
 impl RunRouter<state::Abort> {
-    pub fn router_logs(
+    pub const fn router_logs(
         &mut self,
     ) -> &mut UnboundedReceiverStream<Result<RouterLog, RunRouterBinaryError>> {
         &mut self.state.router_logs

@@ -45,7 +45,6 @@ impl SubgraphWatchers {
         let watchers = stream::iter(subgraphs.into_iter().map(|(name, resolved_subgraph)| {
             let resolve_introspect_subgraph_factory = resolve_introspect_subgraph_factory.clone();
             let fetch_remote_subgraph_factory = fetch_remote_subgraph_factory.clone();
-            let resolved_subgraph = resolved_subgraph.clone();
             async move {
                 let resolver = FullyResolvedSubgraph::resolver(
                     resolve_introspect_subgraph_factory,
@@ -114,7 +113,7 @@ pub struct SubgraphSchemaChanged {
 
 impl SubgraphSchemaChanged {
     #[cfg(test)]
-    pub fn new(
+    pub const fn new(
         name: String,
         sdl: String,
         routing_url: String,

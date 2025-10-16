@@ -17,7 +17,7 @@ use crate::{PKG_NAME, PKG_VERSION, options::ProfileOpt};
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
@@ -31,7 +31,7 @@ impl Default for ClientBuilder {
 }
 
 impl ClientBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             accept_invalid_certs: false,
             accept_invalid_hostnames: false,
@@ -39,21 +39,21 @@ impl ClientBuilder {
         }
     }
 
-    pub fn accept_invalid_certs(self, value: bool) -> Self {
+    pub const fn accept_invalid_certs(self, value: bool) -> Self {
         Self {
             accept_invalid_certs: value,
             ..self
         }
     }
 
-    pub fn accept_invalid_hostnames(self, value: bool) -> Self {
+    pub const fn accept_invalid_hostnames(self, value: bool) -> Self {
         Self {
             accept_invalid_hostnames: value,
             ..self
         }
     }
 
-    pub fn with_timeout(self, timeout: std::time::Duration) -> Self {
+    pub const fn with_timeout(self, timeout: std::time::Duration) -> Self {
         Self {
             timeout: Some(timeout),
             ..self
@@ -85,13 +85,13 @@ pub struct ClientTimeout {
 }
 
 impl ClientTimeout {
-    pub fn new(duration_in_seconds: u64) -> ClientTimeout {
+    pub const fn new(duration_in_seconds: u64) -> ClientTimeout {
         ClientTimeout {
             duration: Duration::from_secs(duration_in_seconds),
         }
     }
 
-    pub fn get_duration(&self) -> Duration {
+    pub const fn get_duration(&self) -> Duration {
         self.duration
     }
 }
@@ -204,7 +204,7 @@ impl StudioClientConfig {
         Ok(service)
     }
 
-    pub fn retry_period(&self) -> Duration {
+    pub const fn retry_period(&self) -> Duration {
         self.client_timeout.get_duration()
     }
 }

@@ -16,7 +16,7 @@ struct AuthWorkflowSimulation {
 }
 
 impl AuthWorkflowSimulation {
-    fn new() -> Self {
+    const fn new() -> Self {
         AuthWorkflowSimulation {
             entered_key: None,
             authenticated: false,
@@ -73,13 +73,12 @@ impl AuthWorkflowSimulation {
             return "Successfully saved your API key.".to_string();
         }
 
-        match &self.error {
-            Some(err) => {
-                let rover_error =
-                    crate::command::init::authentication::auth_error_to_rover_error(err.clone());
-                rover_error.to_string()
-            }
-            None => "No authentication attempt made.".to_string(),
+        if let Some(err) = &self.error {
+            let rover_error =
+                crate::command::init::authentication::auth_error_to_rover_error(err.clone());
+            rover_error.to_string()
+        } else {
+            "No authentication attempt made.".to_string()
         }
     }
 }

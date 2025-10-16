@@ -57,7 +57,7 @@ pub(crate) const DEFAULT_VARIANT: &str = "current";
 /// Copy the key and paste it into the prompt below.
 /// ?
 impl UserAuthenticated {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         UserAuthenticated {}
     }
 
@@ -117,7 +117,7 @@ impl UserAuthenticated {
 /// > Create a new graph
 /// > Add a subgraph to an existing graph
 impl Welcome {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Welcome {}
     }
 
@@ -146,8 +146,7 @@ impl Welcome {
                         format!(
                             "Please run `{}` in an empty directory or use the `--path` flag to specify a different directory.\n",
                             Style::Command.paint("rover init"),
-                        )
-                        .to_string(),
+                        ),
                     )));
         }
 
@@ -689,7 +688,7 @@ impl ProjectCreated {
 
 // Completed state transition
 impl Completed {
-    pub fn success(self) -> RoverOutput {
+    pub const fn success(self) -> RoverOutput {
         RoverOutput::EmptySuccess
     }
 }

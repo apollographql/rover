@@ -377,8 +377,8 @@ mod tests {
                 send_response.send_response(
                     RemoteSubgraph::builder()
                         .name(subgraph_name)
-                        .routing_url(remote_subgraph_routing_url.to_string())
-                        .schema(remote_subgraph_sdl.to_string())
+                        .routing_url(remote_subgraph_routing_url)
+                        .schema(remote_subgraph_sdl)
                         .build(),
                 )
             }
@@ -677,9 +677,9 @@ mod tests {
                 let remote_subgraph_routing_url = remote_subgraph_routing_url.to_string();
                 send_response.send_response(
                     RemoteSubgraph::builder()
-                        .name(remote_subgraph_subgraph_name.to_string().to_string())
-                        .routing_url(remote_subgraph_routing_url.to_string())
-                        .schema(remote_subgraph_sdl.to_string())
+                        .name(remote_subgraph_subgraph_name.to_string())
+                        .routing_url(remote_subgraph_routing_url)
+                        .schema(remote_subgraph_sdl)
                         .build(),
                 );
             }

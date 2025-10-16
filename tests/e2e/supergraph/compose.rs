@@ -76,8 +76,8 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
     .expect("failed to get composition result path");
     let composition_result = std::fs::read_to_string(composition_result_path)
         .expect("Could not read composition result file");
-    let matched: Vec<_> = re_set.matches(&composition_result).into_iter().collect();
-    assert_eq!(matched.len(), retail_supergraph.get_subgraph_names().len());
+    let matched_len: usize = re_set.matches(&composition_result).into_iter().count();
+    assert_eq!(matched_len, retail_supergraph.get_subgraph_names().len());
 }
 
 #[rstest]

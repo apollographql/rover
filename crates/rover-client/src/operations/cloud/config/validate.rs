@@ -40,11 +40,7 @@ fn build_response(
 ) -> Result<CloudConfigResponse, RoverClientError> {
     let graph_variant = match data.variant {
         Some(GraphVariant(gv)) => gv,
-        _ => {
-            return Err(RoverClientError::GraphNotFound {
-                graph_ref: graph_ref.clone(),
-            })
-        }
+        _ => return Err(RoverClientError::GraphNotFound { graph_ref }),
     };
 
     match graph_variant.validate_router {

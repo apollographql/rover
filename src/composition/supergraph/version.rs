@@ -28,7 +28,7 @@ pub struct SupergraphVersion {
 }
 
 impl SupergraphVersion {
-    pub fn new(version: Version) -> SupergraphVersion {
+    pub const fn new(version: Version) -> SupergraphVersion {
         SupergraphVersion { version }
     }
     /// Establishes whether this version supports the `--output` flag

@@ -228,7 +228,7 @@ pub struct MCPComposedTemplate {
 
 impl MCPComposedTemplate {
     #[allow(dead_code)]
-    pub fn new(base_template: Template, merged_files: HashMap<Utf8PathBuf, Vec<u8>>) -> Self {
+    pub const fn new(base_template: Template, merged_files: HashMap<Utf8PathBuf, Vec<u8>>) -> Self {
         // The merged_files should already contain base template + MCP additions
         // as they are pre-merged by template_fetcher.rs
         Self {

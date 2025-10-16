@@ -17,7 +17,7 @@ pub struct Organization {
 }
 
 impl Organization {
-    pub fn new(name: String, id: String) -> Self {
+    pub const fn new(name: String, id: String) -> Self {
         Self { name, id }
     }
 }
@@ -80,12 +80,9 @@ impl ProjectOrganizationOpt {
         &self,
         organizations: &[Organization],
     ) -> RoverResult<OrganizationId> {
-        let organization_ids = organizations
-            .iter()
-            .map(|o| o.id.to_string())
-            .collect::<Vec<_>>();
+        let mut organization_ids = organizations.iter().map(|o| o.id.to_string());
         if let Some(org) = self.get_organization() {
-            if organization_ids.contains(&org.to_string()) {
+            if organization_ids.any(|id| id == org.to_string()) {
                 return Ok(org);
             } else {
                 return Err(RoverError::new(anyhow!(
@@ -126,10 +123,9 @@ mod tests {
         let organizations = ["org1".to_string(), "org2".to_string()];
 
         let selection = Some(0);
-        let result = match selection {
-            Some(index) => Ok(organizations[index].clone()),
-            None => Err(RoverError::new(anyhow!("No organization selected"))),
-        };
+        let result = selection
+            .map(|index| organizations[index].clone())
+            .ok_or_else(|| RoverError::new(anyhow!("No organization selected")));
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "org1");

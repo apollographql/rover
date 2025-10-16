@@ -254,13 +254,10 @@ impl Init {
 
             for attempt in 0..MAX_RETRIES {
                 if attempt >= MAX_RETRIES {
-                    let suggestion = RoverErrorSuggestion::Adhoc(
-                        format!(
-                            "If the issue persists, please contact support at {}.",
-                            hyperlink("https://support.apollographql.com")
-                        )
-                        .to_string(),
-                    );
+                    let suggestion = RoverErrorSuggestion::Adhoc(format!(
+                        "If the issue persists, please contact support at {}.",
+                        hyperlink("https://support.apollographql.com")
+                    ));
                     let error = RoverError::from(RoverClientError::MaxRetriesExceeded {
                         max_retries: MAX_RETRIES,
                     })
@@ -422,8 +419,7 @@ impl Init {
                     Style::Command.paint("rover init --mcp"),
                     Style::Command.paint("rover dev --mcp"),
                    Style::Command.paint("rover docs open mcp-config"),
-                )
-                .to_string(),
+                ),
             )));
         }
 
@@ -1413,7 +1409,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .ok()
                 .and_then(|cwd| camino::Utf8PathBuf::try_from(cwd).ok())
                 .map(|cwd| cwd.join(&output_path))
-                .unwrap_or(output_path.clone())
+                .unwrap_or_else(|| output_path.clone())
         } else {
             output_path.clone()
         };

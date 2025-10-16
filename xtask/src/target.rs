@@ -92,7 +92,7 @@ impl Target {
         Ok(env)
     }
 
-    fn composition_js(&self) -> bool {
+    const fn composition_js(&self) -> bool {
         !matches!(self, Target::LinuxUnknownMusl)
     }
 
