@@ -8,11 +8,9 @@ publish = false
 [dependencies]
 bytes = { workspace = true }
 buildstructor = { workspace = true }
-graphql_client = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 houston = { workspace = true }
-rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 tower = { workspace = true }
 thiserror = { workspace = true }

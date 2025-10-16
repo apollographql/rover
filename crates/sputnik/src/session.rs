@@ -281,7 +281,7 @@ mod tests {
 
         if let ReportCase::TelemetryDisabled = case {
             // When telemetry is disabled, we should expect not outbound calls
-            mocked.assert_hits(0);
+            mocked.assert_calls(0);
         } else {
             mocked.assert();
         }

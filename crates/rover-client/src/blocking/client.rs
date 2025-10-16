@@ -341,7 +341,7 @@ mod tests {
             )
             .await;
 
-        let mock_hits = success_mock.hits();
+        let mock_hits = success_mock.calls();
 
         assert_eq!(mock_hits, 1);
         assert!(response.is_ok())
@@ -372,7 +372,7 @@ mod tests {
             )
             .await;
 
-        let mock_hits = internal_server_error_mock.hits();
+        let mock_hits = internal_server_error_mock.calls();
 
         assert!(mock_hits > 1);
         assert!(response.is_err());
@@ -400,7 +400,7 @@ mod tests {
             )
             .await;
 
-        let mock_hits = not_found_mock.hits();
+        let mock_hits = not_found_mock.calls();
 
         assert!(mock_hits > 1);
 
@@ -435,7 +435,7 @@ mod tests {
             )
             .await;
 
-        let mock_hits = timeout_mock.hits();
+        let mock_hits = timeout_mock.calls();
 
         assert!(mock_hits > 1);
         assert!(response.is_err());

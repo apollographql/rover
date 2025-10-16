@@ -191,7 +191,7 @@ mod tests {
 
         let resp = service.call(request).await;
 
-        mock.assert_hits(1);
+        mock.assert_calls(1);
 
         if request_length.is_some() {
             assert_that!(resp)
