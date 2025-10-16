@@ -62,7 +62,7 @@ impl WhoAmI {
         })
     }
 
-    fn is_valid_actor_type(&self, identity: &RegistryIdentity) -> bool {
+    const fn is_valid_actor_type(&self, identity: &RegistryIdentity) -> bool {
         matches!(identity.key_actor_type, Actor::USER | Actor::GRAPH)
     }
 

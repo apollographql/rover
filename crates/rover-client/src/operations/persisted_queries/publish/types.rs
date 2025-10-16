@@ -288,7 +288,7 @@ impl PersistedQueriesOperationCounts {
         Self::ops_str(self.removed)
     }
 
-    pub fn total(&self) -> i64 {
+    pub const fn total(&self) -> i64 {
         self.added + self.identical + self.unaffected + self.updated - self.removed
     }
 

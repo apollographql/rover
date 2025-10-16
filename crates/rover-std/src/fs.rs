@@ -60,16 +60,16 @@ impl Fs {
 
         // Try and grab the last element of the path, which should be the file name, if we can't
         // then we should bail out and throw that back to the user.
-        let file_name = path.file_name().ok_or(anyhow!(
-            "cannot write to a path without a final element {path}"
-        ))?;
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| anyhow!("cannot write to a path without a final element {path}"))?;
 
         // Grab the parent path then attempt to canonicalize it, we can't just canonicalize the
         // entire path because that would entail the file existing, which of course it doesn't yet.
         let mut canonical_final_path = path
             .parent()
             .map(Self::upsert_path_exists)
-            .ok_or(anyhow!("cannot write file to root or prefix {path}"))??;
+            .ok_or_else(|| anyhow!("cannot write file to root or prefix {path}"))??;
 
         // Create the final version of the path we want to create
         canonical_final_path.push(file_name);
@@ -353,8 +353,6 @@ impl Fs {
         let cancellation_token_c = cancellation_token.clone();
 
         tokio::task::spawn({
-            let path = path.to_path_buf();
-
             async move {
                 match poll_watcher {
                     Ok(mut poll_watcher) => {

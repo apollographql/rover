@@ -154,7 +154,7 @@ impl SubtaskHandleUnit for SubgraphWatcher {
         sender: UnboundedSender<Self::Output>,
         cancellation_token: Option<CancellationToken>,
     ) {
-        let watcher = self.watcher.clone();
+        let watcher = self.watcher;
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::spawn(async move {
             let stream = watcher.watch(cancellation_token.clone()).await;

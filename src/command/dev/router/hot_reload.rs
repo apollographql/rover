@@ -119,9 +119,7 @@ impl HotReloadConfig {
                 let config = serde_yaml::to_string(&config)
                     .map_err(|err| HotReloadError::Config { err: err.into() })?;
 
-                Ok(Self {
-                    content: config.to_string(),
-                })
+                Ok(Self { content: config })
             }
             None => Ok(Self { content }),
         }

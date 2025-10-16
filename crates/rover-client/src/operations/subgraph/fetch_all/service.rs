@@ -42,7 +42,7 @@ pub struct SubgraphFetchAllRequest {
 }
 
 impl SubgraphFetchAllRequest {
-    pub fn new(graph_ref: GraphRef) -> SubgraphFetchAllRequest {
+    pub const fn new(graph_ref: GraphRef) -> SubgraphFetchAllRequest {
         SubgraphFetchAllRequest { graph_ref }
     }
 }
@@ -53,7 +53,7 @@ pub struct SubgraphFetchAll<S: Clone> {
 }
 
 impl<S: Clone> SubgraphFetchAll<S> {
-    pub fn new(inner: S) -> SubgraphFetchAll<S> {
+    pub const fn new(inner: S) -> SubgraphFetchAll<S> {
         SubgraphFetchAll { inner }
     }
 }

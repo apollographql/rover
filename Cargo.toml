@@ -39,7 +39,15 @@ members = [
 ]
 
 [workspace.lints.clippy]
-panic = "deny"
+all = "deny"
+panic = {level = "warn", priority = 10 }
+or_fun_call = "deny"
+redundant_clone = "deny"
+missing_const_for_fn = "deny"
+needless_collect = "deny"
+
+[lints]
+workspace = true
 
 [features]
 default = ["composition-js"]

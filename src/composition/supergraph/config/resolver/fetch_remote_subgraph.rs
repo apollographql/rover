@@ -122,7 +122,7 @@ pub struct FetchRemoteSubgraph<S: Clone> {
 
 impl<S: Clone> FetchRemoteSubgraph<S> {
     /// Creates a new [`FetchRemoteSubgraph`]
-    pub fn new(inner: S) -> FetchRemoteSubgraph<S> {
+    pub const fn new(inner: S) -> FetchRemoteSubgraph<S> {
         FetchRemoteSubgraph { inner }
     }
 }

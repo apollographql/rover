@@ -24,7 +24,11 @@ pub struct ShortlinkInfo {
  * The description is the description of the shortlink.
  */
 impl ShortlinkInfo {
-    pub fn new(description: &'static str, parent_route: &'static str, slug: &'static str) -> Self {
+    pub const fn new(
+        description: &'static str,
+        parent_route: &'static str,
+        slug: &'static str,
+    ) -> Self {
         Self {
             description,
             parent_route,

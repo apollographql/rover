@@ -112,7 +112,7 @@ impl ApiKey {
     }
 
     // Type-safe validation that only user keys are acceptable
-    fn validate_is_user_key(&self) -> Result<(), AuthenticationError> {
+    const fn validate_is_user_key(&self) -> Result<(), AuthenticationError> {
         match self.key_type {
             KeyType::User => Ok(()),
             KeyType::Graph => Err(AuthenticationError::NotUserKey),

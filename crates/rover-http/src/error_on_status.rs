@@ -58,7 +58,7 @@ pub struct ErrorOnStatus<S> {
 
 impl<S> ErrorOnStatus<S> {
     /// Constructs a new [`ErrorOnStatus`]
-    pub fn new(criteria: ErrorOnStatusCriteria, inner: S) -> ErrorOnStatus<S> {
+    pub const fn new(criteria: ErrorOnStatusCriteria, inner: S) -> ErrorOnStatus<S> {
         ErrorOnStatus { criteria, inner }
     }
 }

@@ -81,13 +81,11 @@ async fn do_update_check(
 
 fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemTime> {
     match Fs::read_file(version_file) {
-        Ok(contents) => match toml::from_str(&contents) {
-            Ok(last_checked_version) => Some(last_checked_version),
-            Err(_) => {
-                tracing::debug!("Failed to parse last update check time from version file");
-                None
-            }
-        },
+        Ok(contents) => toml::from_str(&contents)
+            .inspect_err(|_err| {
+                tracing::debug!("Failed to parse last update check time from version file")
+            })
+            .ok(),
         Err(e) => {
             tracing::debug!(
                 "Failed to read version file containing last update check time: {}",

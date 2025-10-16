@@ -36,7 +36,7 @@ pub struct ExtendHeaders<S: Clone> {
 
 impl<S: Clone> ExtendHeaders<S> {
     /// Constructs a new [`ExtendHeaders`]
-    pub fn new(headers: HeaderMap, inner: S) -> ExtendHeaders<S> {
+    pub const fn new(headers: HeaderMap, inner: S) -> ExtendHeaders<S> {
         ExtendHeaders { headers, inner }
     }
 }

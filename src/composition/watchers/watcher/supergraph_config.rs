@@ -307,7 +307,7 @@ impl SupergraphConfigDiff {
         })
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.added.is_empty() && self.changed.is_empty() && self.removed.is_empty()
     }
 }
@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(1, diff.removed().len());
         assert!(
             diff.added()
-                .contains(&("subgraph_c".to_string(), subgraph_def.clone()))
+                .contains(&("subgraph_c".to_string(), subgraph_def))
         );
         assert!(diff.removed().iter().any(|(name, _)| name == "subgraph_b"));
     }
@@ -401,7 +401,7 @@ mod tests {
     ) {
         // Create an old supergraph config with subgraph definitions.
         let old_subgraph_defs: BTreeMap<String, SubgraphConfig> =
-            BTreeMap::from([("subgraph_a".to_string(), old_subgraph_config.clone())]);
+            BTreeMap::from([("subgraph_a".to_string(), old_subgraph_config)]);
         let old = SupergraphConfig::new(old_subgraph_defs, None);
 
         // Create a new supergraph config with 1 new and 1 old subgraph definitions.
@@ -415,7 +415,7 @@ mod tests {
         assert_eq!(diff.changed().len(), 1);
         assert!(
             diff.changed()
-                .contains(&("subgraph_a".to_string(), new_subgraph_config.clone()))
+                .contains(&("subgraph_a".to_string(), new_subgraph_config))
         );
     }
 

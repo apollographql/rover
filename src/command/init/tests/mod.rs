@@ -54,21 +54,16 @@ mod mcp_tools_tests {
         }
 
         // Verify all examples and tools were removed
-        let examples_files: Vec<_> = files
-            .keys()
-            .filter(|path| path.starts_with("examples/"))
-            .collect();
-        let tools_files: Vec<_> = files
-            .keys()
-            .filter(|path| path.starts_with("tools/"))
-            .collect();
+        let examples_files = files.keys().find(|path| path.starts_with("examples/"));
+
+        let tools_files = files.keys().find(|path| path.starts_with("tools/"));
 
         assert!(
-            examples_files.is_empty(),
+            examples_files.is_none(),
             "Examples should always be removed for MCP projects"
         );
         assert!(
-            tools_files.is_empty(),
+            tools_files.is_none(),
             "Tools should never be generated for MCP projects"
         );
 
@@ -98,21 +93,15 @@ mod mcp_tools_tests {
         files.insert("MCP_README.md".into(), "# MCP Server Setup".to_string());
 
         // Verify no examples or tools files exist (they shouldn't be in add-mcp directory)
-        let examples_files: Vec<_> = files
-            .keys()
-            .filter(|path| path.starts_with("examples/"))
-            .collect();
-        let tools_files: Vec<_> = files
-            .keys()
-            .filter(|path| path.starts_with("tools/"))
-            .collect();
+        let examples_files = files.keys().find(|path| path.starts_with("examples/"));
+        let tools_files = files.keys().find(|path| path.starts_with("tools/"));
 
         assert!(
-            examples_files.is_empty(),
+            examples_files.is_none(),
             "add-mcp directory should contain no examples"
         );
         assert!(
-            tools_files.is_empty(),
+            tools_files.is_none(),
             "add-mcp directory should contain no tools"
         );
 

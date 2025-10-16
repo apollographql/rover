@@ -23,7 +23,7 @@ pub struct FileWatcher {
 
 impl FileWatcher {
     /// Create a new filewatcher
-    pub fn new(path: Utf8PathBuf) -> Self {
+    pub const fn new(path: Utf8PathBuf) -> Self {
         Self { path }
     }
 
@@ -50,7 +50,7 @@ impl FileWatcher {
 
         output
             .filter_map({
-                let path = self.path.clone();
+                let path = self.path;
                 move |result| {
                     let cancellation_token = cancellation_token.clone();
                     let path = path.clone();
@@ -89,7 +89,7 @@ pub struct SubgraphFileWatcher {
 
 impl SubgraphFileWatcher {
     /// Create a new filewatcher
-    pub fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraphService) -> Self {
+    pub const fn new(path: Utf8PathBuf, resolver: FullyResolveSubgraphService) -> Self {
         Self { path, resolver }
     }
 
@@ -119,7 +119,7 @@ impl SubgraphFileWatcher {
 
         output
             .filter_map({
-                let resolver = self.resolver.clone();
+                let resolver = self.resolver;
                 move |result| {
                     let cancellation_token = cancellation_token.clone();
                     let mut resolver = resolver.clone();

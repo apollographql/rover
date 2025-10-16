@@ -23,7 +23,7 @@ pub struct SubgraphIntrospection {
 
 //TODO: impl retry (needed at least for dev)
 impl SubgraphIntrospection {
-    pub fn new(resolver: FullyResolveSubgraphService, polling_interval: Duration) -> Self {
+    pub const fn new(resolver: FullyResolveSubgraphService, polling_interval: Duration) -> Self {
         Self {
             resolver,
             polling_interval,
@@ -42,7 +42,7 @@ impl SubgraphIntrospection {
     ) -> Pin<Box<dyn Stream<Item = FullyResolvedSubgraph> + Send>> {
         let watch = Watch::builder()
             .polling_interval(self.polling_interval)
-            .service(self.resolver.clone())
+            .service(self.resolver)
             .build();
         let (watch_messages, watch_subtask) = Subtask::new(watch);
         watch_subtask.run(Some(cancellation_token));

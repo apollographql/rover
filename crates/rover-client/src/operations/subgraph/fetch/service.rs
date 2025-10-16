@@ -51,7 +51,7 @@ pub struct SubgraphFetch<S: Clone> {
 }
 
 impl<S: Clone> SubgraphFetch<S> {
-    pub fn new(inner: S) -> SubgraphFetch<S> {
+    pub const fn new(inner: S) -> SubgraphFetch<S> {
         SubgraphFetch { inner }
     }
 }

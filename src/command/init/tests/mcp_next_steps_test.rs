@@ -253,16 +253,10 @@ fn test_mcp_step_numbering_logic() {
     };
 
     // Simulate the new step numbering logic (has_commands determines final step)
-    let has_commands_with = if let Some(commands) = &template_with_commands.commands {
-        let valid_commands: Vec<&str> = commands
-            .iter()
-            .filter(|cmd| !cmd.trim().is_empty())
-            .map(|cmd| cmd.trim())
-            .collect();
-        !valid_commands.is_empty()
-    } else {
-        false
-    };
+    let has_commands_with = template_with_commands.commands.is_some_and(|commands| {
+        let valid_commands = commands.iter().find(|cmd| !cmd.trim().is_empty());
+        valid_commands.is_some()
+    });
 
     let final_step_num_with_commands = if has_commands_with { "3" } else { "2" };
     assert_eq!(final_step_num_with_commands, "3");
@@ -281,16 +275,10 @@ fn test_mcp_step_numbering_logic() {
         print_depth: None,
     };
 
-    let has_commands_without = if let Some(commands) = &template_without_commands.commands {
-        let valid_commands: Vec<&str> = commands
-            .iter()
-            .filter(|cmd| !cmd.trim().is_empty())
-            .map(|cmd| cmd.trim())
-            .collect();
-        !valid_commands.is_empty()
-    } else {
-        false
-    };
+    let has_commands_without = template_without_commands.commands.is_some_and(|commands| {
+        let valid_commands = commands.iter().find(|cmd| !cmd.trim().is_empty());
+        valid_commands.is_some()
+    });
 
     let final_step_num_without_commands = if has_commands_without { "3" } else { "2" };
     assert_eq!(final_step_num_without_commands, "2");

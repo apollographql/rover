@@ -73,7 +73,7 @@ fn test_project_type_selected_transition() {
         let organization = options.get_organization().unwrap();
         if organizations.contains(&organization.to_string()) {
             Ok(OrganizationSelected {
-                project_type: project_type_selected.project_type.clone(),
+                project_type: project_type_selected.project_type,
                 organization,
                 output_path: ".".into(),
             })
@@ -104,11 +104,11 @@ fn test_organization_selected_transition() {
     };
 
     let result: RoverResult<UseCaseSelected> = {
-        let use_case = options.project_use_case.clone().unwrap();
+        let use_case = options.project_use_case.unwrap();
         Ok(UseCaseSelected {
             output_path: ".".into(),
             project_type: org_selected.project_type.clone(),
-            organization: org_selected.organization.clone(),
+            organization: org_selected.organization,
             use_case,
         })
     };
@@ -142,7 +142,7 @@ fn test_use_case_selected_transition() {
             output_path: ".".into(),
             project_type: use_case_selected.project_type.clone(),
             organization: use_case_selected.organization.clone(),
-            use_case: use_case_selected.use_case.clone(),
+            use_case: use_case_selected.use_case,
             project_name,
             selected_template: SelectedTemplateState {
                 template: Template {
@@ -260,7 +260,7 @@ fn test_graph_id_confirmed_config() {
         organization: graph_id_confirmed.organization.clone(),
         use_case: graph_id_confirmed.use_case.clone(),
         project_name: graph_id_confirmed.project_name,
-        graph_id: graph_id_confirmed.graph_id.clone(),
+        graph_id: graph_id_confirmed.graph_id,
     };
 
     assert_eq!(config.project_type, ProjectType::CreateNew);
@@ -316,7 +316,7 @@ async fn test_graph_id_confirmed_preview_for_connectors() {
         let template_fetcher = mock::MockTemplateFetcher::new(http_service);
 
         let artifacts = template_fetcher.list_files()?;
-        let confirmed = mock::MockTemplateOperations::prompt_creation(artifacts.clone())?;
+        let confirmed = mock::MockTemplateOperations::prompt_creation(artifacts)?;
 
         if confirmed {
             Ok(Some(mock::MockCreationConfirmed {

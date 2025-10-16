@@ -36,10 +36,9 @@ impl TemplateOpt {
                 .default(0)
                 .interact_on_opt(&Term::stderr())?;
 
-            match selection {
-                Some(index) => Ok(languages[index].clone()),
-                None => Err(RoverError::new(anyhow!("No language selected"))),
-            }
+            selection
+                .map(|index| languages[index].clone())
+                .ok_or_else(|| RoverError::new(anyhow!("No language selected")))
         }
     }
 }
@@ -55,7 +54,7 @@ pub struct TemplateProject {
 }
 
 impl TemplateFetcher {
-    pub fn new(request_service: ReqwestService) -> Self {
+    pub const fn new(request_service: ReqwestService) -> Self {
         Self { request_service }
     }
 

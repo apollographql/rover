@@ -55,7 +55,7 @@ pub type FederationVersionResolverFromSupergraphConfig =
 
 impl FederationVersionResolver<state::FromSupergraphConfig> {
     /// Creates a new `FederationVersionResolver` from a [`FederationVersion`]
-    pub fn new(
+    pub const fn new(
         federation_version: FederationVersion,
     ) -> FederationVersionResolver<state::FromSupergraphConfig> {
         FederationVersionResolver {
@@ -74,7 +74,7 @@ impl FederationVersionResolver<state::FromSupergraphConfig> {
             Some(supergraph_config) => {
                 let federation_version = self
                     .federation_version
-                    .or(supergraph_config.get_federation_version());
+                    .or_else(|| supergraph_config.get_federation_version());
                 FederationVersionResolver {
                     state: PhantomData::<state::FromSubgraphs>,
                     federation_version,
@@ -108,7 +108,7 @@ pub type FederationVersionResolverFromSubgraphs = FederationVersionResolver<stat
 
 impl FederationVersionResolver<state::FromSubgraphs> {
     #[cfg(test)]
-    pub(crate) fn new(
+    pub(crate) const fn new(
         target_federation_version: Option<FederationVersion>,
     ) -> FederationVersionResolver<state::FromSubgraphs> {
         FederationVersionResolver {
@@ -140,15 +140,11 @@ impl FederationVersionResolver<state::FromSubgraphs> {
         match &self.federation_version {
             Some(specified_federation_version) => {
                 let specified_federation_version = specified_federation_version.clone();
-                if specified_federation_version.is_fed_one() {
-                    if contains_fed_two_subgraphs {
-                        Err(FederationVersionMismatch {
-                            specified_federation_version,
-                            subgraph_names: fed_two_subgraphs,
-                        })
-                    } else {
-                        Ok(specified_federation_version)
-                    }
+                if specified_federation_version.is_fed_one() && contains_fed_two_subgraphs {
+                    Err(FederationVersionMismatch {
+                        specified_federation_version,
+                        subgraph_names: fed_two_subgraphs,
+                    })
                 } else {
                     Ok(specified_federation_version)
                 }
@@ -194,7 +190,7 @@ mod tests {
         let resolved_subgraphs = [(
             subgraph_name.to_string(),
             FullyResolvedSubgraph::builder()
-                .name(subgraph_name.to_string())
+                .name(subgraph_name)
                 .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
                 .schema_source(SchemaSource::Sdl {
@@ -234,7 +230,7 @@ mod tests {
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
-                .name(subgraph_name.to_string())
+                .name(subgraph_name)
                 .schema_source(SchemaSource::Sdl {
                     sdl: subgraph_scenario.sdl,
                 })
@@ -271,7 +267,7 @@ mod tests {
             FullyResolvedSubgraph::builder()
                 .schema(subgraph_scenario.sdl.clone())
                 .routing_url(subgraph_scenario.routing_url.to_string())
-                .name(subgraph_name.to_string())
+                .name(subgraph_name)
                 .schema_source(SchemaSource::Sdl {
                     sdl: subgraph_scenario.sdl,
                 })

@@ -33,7 +33,7 @@ pub struct InstallRouter {
 }
 
 impl InstallRouter {
-    pub fn new(
+    pub const fn new(
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallRouter {

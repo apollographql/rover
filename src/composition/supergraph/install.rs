@@ -32,7 +32,7 @@ pub struct InstallSupergraph {
 }
 
 impl InstallSupergraph {
-    pub fn new(
+    pub const fn new(
         federation_version: FederationVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallSupergraph {

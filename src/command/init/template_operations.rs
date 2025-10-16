@@ -179,7 +179,7 @@ impl SupergraphBuilder {
         let canonical_base = base_prefix.canonicalize().unwrap();
         let canonical_path = path.canonicalize().unwrap();
         canonical_path
-            .strip_prefix(canonical_base.clone())
+            .strip_prefix(canonical_base)
             .unwrap()
             .to_owned()
     }

@@ -42,22 +42,22 @@ pub enum HttpServiceError {
 
 impl HttpServiceError {
     /// The error is caused by a bad connection
-    pub fn is_connect(&self) -> bool {
+    pub const fn is_connect(&self) -> bool {
         matches!(self, HttpServiceError::Connect(_))
     }
     /// The error is caused by a timeout
-    pub fn is_timeout(&self) -> bool {
+    pub const fn is_timeout(&self) -> bool {
         matches!(self, HttpServiceError::TimedOut(_))
     }
     /// The error is related to decoding the response
-    pub fn is_decode(&self) -> bool {
+    pub const fn is_decode(&self) -> bool {
         matches!(
             self,
             HttpServiceError::Decode(_) | HttpServiceError::Body(_)
         )
     }
     /// The error is because of a bad [`StatusCode`]
-    pub fn is_status(&self) -> bool {
+    pub const fn is_status(&self) -> bool {
         matches!(self, HttpServiceError::BadStatusCode { .. })
     }
 }

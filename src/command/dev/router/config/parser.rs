@@ -21,7 +21,10 @@ pub struct RouterConfigParser<'a> {
 }
 
 impl<'a> RouterConfigParser<'a> {
-    pub fn new(yaml: &'a serde_yaml::Value, address: RouterAddress) -> RouterConfigParser<'a> {
+    pub const fn new(
+        yaml: &'a serde_yaml::Value,
+        address: RouterAddress,
+    ) -> RouterConfigParser<'a> {
         RouterConfigParser { yaml, address }
     }
     pub fn address(&self) -> Result<RouterAddress, ParseRouterConfigError> {

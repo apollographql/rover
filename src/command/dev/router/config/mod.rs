@@ -68,7 +68,7 @@ pub enum RouterHost {
 }
 
 impl RouterHost {
-    fn get_ip_addr(&self) -> IpAddr {
+    const fn get_ip_addr(&self) -> IpAddr {
         match self {
             RouterHost::CliOption(ip_addr)
             | RouterHost::ConfigFile(ip_addr)
@@ -91,7 +91,7 @@ pub enum RouterPort {
 }
 
 impl RouterPort {
-    fn get_port(&self) -> u16 {
+    const fn get_port(&self) -> u16 {
         match self {
             RouterPort::CliOption(port)
             | RouterPort::ConfigFile(port)
@@ -179,7 +179,7 @@ impl Default for RunRouterConfig<RunRouterConfigDefault> {
 }
 
 impl RunRouterConfig<RunRouterConfigDefault> {
-    pub fn with_address(
+    pub const fn with_address(
         self,
         router_address: RouterAddress,
     ) -> RunRouterConfig<RunRouterConfigReadConfig> {
@@ -235,7 +235,7 @@ impl RunRouterConfig<RunRouterConfigReadConfig> {
                         health_check_enabled,
                         health_check_endpoint,
                         health_check_path,
-                        raw_config: contents.to_string(),
+                        raw_config: contents,
                     })
                 }
                 Err(RoverStdError::EmptyFile { .. }) => Ok(default_config),
@@ -264,15 +264,15 @@ impl RunRouterConfig<RunRouterConfigFinal> {
     }
 
     #[allow(unused)]
-    pub fn address(&self) -> &RouterAddress {
+    pub const fn address(&self) -> &RouterAddress {
         &self.state.address
     }
 
-    pub fn health_check_enabled(&self) -> bool {
+    pub const fn health_check_enabled(&self) -> bool {
         self.state.health_check_enabled
     }
 
-    pub fn health_check_endpoint(&self) -> Option<&SocketAddr> {
+    pub const fn health_check_endpoint(&self) -> Option<&SocketAddr> {
         self.state.health_check_endpoint.as_ref()
     }
 
