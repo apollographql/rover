@@ -106,7 +106,7 @@ ci_info = "0.14"
 comfy-table = { version = "7.1.4", features = ["custom_styling"] }
 console = "0.16"
 derive-getters = "0.5.0"
-dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 directories-next = "2.0"
 dotenvy = "0.15"
 flate2 = "1"
