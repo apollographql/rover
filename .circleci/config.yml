@@ -99,7 +99,7 @@ executors:
 
   node_js_nix:
     docker:
-      - image: node:20.19.5
+      - image: node:25.0.0
     resource_class: medium
 
   node_js_windows:
