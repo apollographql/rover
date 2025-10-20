@@ -19,7 +19,9 @@ use crate::command::dev::router::binary::RunRouterBinaryError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
-use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
+use crate::command::dev::{
+    OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_MCP_VERSION, OVERRIDE_DEV_ROUTER_VERSION,
+};
 use crate::command::install::McpServerVersion;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
@@ -275,9 +277,21 @@ impl Dev {
             .await;
 
         if let Some(ref config) = self.opts.mcp.config {
+            let mcp_version = match &*OVERRIDE_DEV_MCP_VERSION {
+                Some(version) => match McpServerVersion::from_str(&format!("={version}")) {
+                    Ok(version) => version,
+                    Err(err) => {
+                        errln!("{err}");
+                        tracing::error!("{:?}", err);
+                        McpServerVersion::Latest
+                    }
+                },
+                None => McpServerVersion::Latest,
+            };
+
             let run_mcp_server = RunMcpServer::default()
                 .install(
-                    McpServerVersion::Latest,
+                    mcp_version,
                     client_config.clone(),
                     override_install_path,
                     elv2_license_accepter,
