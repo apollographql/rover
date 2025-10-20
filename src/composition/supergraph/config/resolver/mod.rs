@@ -56,7 +56,7 @@ pub struct SupergraphConfigResolver<State> {
 
 impl SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
     /// Creates a new [`SupergraphConfigResolver`] using a target federation Version
-    pub fn new(
+    pub const fn new(
         federation_version: FederationVersion,
     ) -> SupergraphConfigResolver<state::LoadRemoteSubgraphs> {
         SupergraphConfigResolver {
@@ -1277,7 +1277,7 @@ mod tests {
                         ));
                         let subgraph_name = remote_subgraph_scenario.subgraph_name.to_string();
                         send_response.send_response(BTreeMap::from_iter([(
-                            subgraph_name.to_string(),
+                            subgraph_name,
                             subgraph_config.clone(),
                         )]));
                     }
@@ -1302,9 +1302,9 @@ mod tests {
                     let sdl = remote_subgraph_scenario.sdl.to_string();
                     send_response.send_response(
                         RemoteSubgraph::builder()
-                            .name(subgraph_name.to_string())
-                            .routing_url(routing_url.to_string())
-                            .schema(sdl.to_string())
+                            .name(subgraph_name)
+                            .routing_url(routing_url)
+                            .schema(sdl)
                             .build(),
                     )
                 }

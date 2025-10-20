@@ -51,7 +51,7 @@ mod tests {
     fn test_default_trait_for_project_template_opt() {
         let default_instance = ProjectTemplateOpt::default();
         assert_eq!(default_instance.template, None);
-        assert_eq!(default_instance.mcp, false);
+        assert!(!default_instance.mcp);
     }
 
     // Derived trait tests (Debug, Clone, etc.)

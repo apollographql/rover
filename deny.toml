@@ -27,9 +27,6 @@ ignore = [
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
     "RUSTSEC-2024-0320",
-    # Package is unmaintained but only used by HTTP mock and currently there isn't a stable version of HTTP Mock that
-    # fixes this issue. This represents no security risk to us.
-    "RUSTSEC-2025-0052"
 ]
 
 # This section is considered when running `cargo deny check licenses`

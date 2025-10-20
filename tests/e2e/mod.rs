@@ -68,7 +68,7 @@ impl RetailSupergraph<'_> {
             .collect()
     }
 
-    pub fn get_working_directory(&self) -> &TempDir {
+    pub const fn get_working_directory(&self) -> &TempDir {
         self.working_dir.expect("no working directory")
     }
 }

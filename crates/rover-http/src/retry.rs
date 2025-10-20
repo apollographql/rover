@@ -153,7 +153,7 @@ mod tests {
 
         let resp = retry_service.call(request).await;
 
-        mock.assert_hits(3);
+        mock.assert_calls(3);
 
         assert_that!(resp)
             .is_ok()

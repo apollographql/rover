@@ -33,7 +33,7 @@ pub struct InstallRouter {
 }
 
 impl InstallRouter {
-    pub fn new(
+    pub const fn new(
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallRouter {
@@ -184,16 +184,14 @@ mod tests {
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_router = InstallRouter::new(router_version, studio_client_config);
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::HEAD.to_string()
-                    && request.path.starts_with("/tar/router")
+            when.is_true(|request| {
+                request.method() == Method::HEAD && request.uri().path().starts_with("/tar/router")
             });
             then.status(302).header("X-Version", "v1.57.1");
         });
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string()
-                    && request.path.starts_with("/tar/router/")
+            when.is_true(|request| {
+                request.method() == Method::GET && request.uri().path().starts_with("/tar/router/")
             });
             then.status(302)
                 .header("Location", format!("{mock_server_endpoint}/router/"));
@@ -212,8 +210,8 @@ mod tests {
         let finished_archive_bytes = finished_archive.finish()?;
 
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string() && request.path.starts_with("/router")
+            when.is_true(|request| {
+                request.method() == Method::GET && request.uri().path().starts_with("/router")
             });
             then.status(200)
                 .header("Content-Type", "application/octet-stream")

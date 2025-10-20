@@ -558,7 +558,7 @@ impl RoverOutput {
                         key.created_at.to_string(),
                         key.expires_at
                             .map(|timestamp| timestamp.to_string())
-                            .unwrap_or(String::from("Never")),
+                            .unwrap_or_else(|| "Never".to_string()),
                     ]);
                 }
                 Some(format!("{table}"))
@@ -789,7 +789,7 @@ impl RoverOutput {
         }
         Ok(())
     }
-    pub(crate) fn descriptor(&self) -> Option<&str> {
+    pub(crate) const fn descriptor(&self) -> Option<&str> {
         match &self {
             RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
             RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
@@ -1905,7 +1905,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         };
         let mock_publish_response = PersistedQueriesPublishResponse {
             unchanged: true,
-            graph_id: graph_id.clone(),
+            graph_id,
             list_id: list_id.clone(),
             list_name: list_name.clone(),
             total_published_operations,
@@ -1962,7 +1962,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         };
         let mock_publish_response = PersistedQueriesPublishResponse {
             revision,
-            graph_id: graph_id.clone(),
+            graph_id,
             list_id: list_id.clone(),
             list_name: list_name.clone(),
             total_published_operations,

@@ -58,7 +58,7 @@ pub struct MembershipsRequest {
 }
 
 impl MembershipsRequest {
-    pub fn new(credential_origin: CredentialOrigin) -> MembershipsRequest {
+    pub const fn new(credential_origin: CredentialOrigin) -> MembershipsRequest {
         MembershipsRequest {
             input: InitMembershipsInput {},
             credential_origin,
@@ -71,7 +71,7 @@ pub struct Memberships<S> {
 }
 
 impl<S> Memberships<S> {
-    pub fn new(inner: S) -> Memberships<S> {
+    pub const fn new(inner: S) -> Memberships<S> {
         Memberships { inner }
     }
 }

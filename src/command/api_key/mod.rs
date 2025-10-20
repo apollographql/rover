@@ -57,7 +57,7 @@ pub enum ApiKeyType {
 }
 
 impl ApiKeyType {
-    fn into_query_enum(self) -> GraphOsKeyType {
+    const fn into_query_enum(self) -> GraphOsKeyType {
         match self {
             Self::Operator => GraphOsKeyType::OPERATOR,
             Self::Subgraph => GraphOsKeyType::SUBGRAPH,

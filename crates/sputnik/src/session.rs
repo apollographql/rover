@@ -216,7 +216,7 @@ mod tests {
                 arch: "itecture".into(),
                 continuous_integration: None,
             },
-            cli_version: Version::parse("0.0.0-test".into()).unwrap(),
+            cli_version: Version::parse("0.0.0-test").unwrap(),
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
@@ -281,7 +281,7 @@ mod tests {
 
         if let ReportCase::TelemetryDisabled = case {
             // When telemetry is disabled, we should expect not outbound calls
-            mocked.assert_hits(0);
+            mocked.assert_calls(0);
         } else {
             mocked.assert();
         }

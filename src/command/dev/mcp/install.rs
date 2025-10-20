@@ -34,7 +34,7 @@ pub struct InstallMcpServer {
 
 impl InstallMcpServer {
     #[allow(unused)]
-    pub fn new(
+    pub const fn new(
         mcp_server_version: McpServerVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallMcpServer {
@@ -188,16 +188,16 @@ mod tests {
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_mcp_server = InstallMcpServer::new(mcp_server_version, studio_client_config);
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::HEAD.to_string()
-                    && request.path.starts_with("/tar/apollo-mcp-server")
+            when.is_true(|request| {
+                request.method() == Method::HEAD
+                    && request.uri().path().starts_with("/tar/apollo-mcp-server")
             });
             then.status(302).header("X-Version", "v0.1.0");
         });
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string()
-                    && request.path.starts_with("/tar/apollo-mcp-server/")
+            when.is_true(|request| {
+                request.method() == Method::GET
+                    && request.uri().path().starts_with("/tar/apollo-mcp-server/")
             });
             then.status(302).header(
                 "Location",
@@ -222,9 +222,9 @@ mod tests {
         let finished_archive_bytes = finished_archive.finish()?;
 
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string()
-                    && request.path.starts_with("/apollo-mcp-server")
+            when.is_true(|request| {
+                request.method() == Method::GET
+                    && request.uri().path().starts_with("/apollo-mcp-server")
             });
             then.status(200)
                 .header("Content-Type", "application/octet-stream")

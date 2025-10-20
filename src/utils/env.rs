@@ -64,7 +64,7 @@ impl RoverEnv {
     }
 
     fn get_debug_value(key: RoverEnvKey, value: &str) -> String {
-        let value = if let RoverEnvKey::Key = key {
+        let value = if matches!(key, RoverEnvKey::Key) {
             houston::mask_key(value)
         } else {
             value.to_string()

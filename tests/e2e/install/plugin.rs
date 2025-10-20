@@ -28,7 +28,7 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    cmd.env("APOLLO_HOME", temp_dir.clone());
+    cmd.env("APOLLO_HOME", temp_dir);
     cmd.args(args);
     let output = cmd.output().expect("Could not run command");
 
@@ -160,7 +160,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         .to_string()
         .replace("\"", "");
 
-    cmd.env("APOLLO_HOME", temp_dir.clone());
+    cmd.env("APOLLO_HOME", temp_dir);
     cmd.args([
         "install",
         "--plugin",

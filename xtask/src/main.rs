@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 use anyhow::Result;
 use clap::Parser;
 use console::style;

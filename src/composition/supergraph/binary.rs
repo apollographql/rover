@@ -134,7 +134,7 @@ impl SupergraphBinary {
     ) -> Result<RoverOutput, BinaryError> {
         let args = vec![
             "run-connector".to_string(),
-            "--path".to_string(),
+            "--schema".to_string(),
             schema_path.to_str().unwrap_or_default().into(),
             "--connector-id".to_string(),
             connector_id,
@@ -201,7 +201,7 @@ impl SupergraphBinary {
         }
 
         if let Some(schema_file) = schema_file {
-            args.push("--schema-file".to_string());
+            args.push("--schema".to_string());
             args.push(schema_file.to_str().unwrap_or_default().to_string());
         }
 
@@ -279,7 +279,7 @@ impl SupergraphBinary {
     ) -> Result<RoverOutput, BinaryError> {
         let mut args = vec!["list-connectors".to_string()];
 
-        args.push("--path".to_string());
+        args.push("--schema".to_string());
         args.push(schema_path.into_string());
 
         let config = ExecCommandConfig::builder()

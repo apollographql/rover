@@ -52,7 +52,7 @@ impl IntrospectSubgraph for StudioClientConfig {
             &client,
         )
         .await?;
-        Ok(response.result.to_string())
+        Ok(response.result)
     }
 }
 
