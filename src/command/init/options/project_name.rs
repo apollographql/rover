@@ -1,6 +1,6 @@
 use crate::RoverResult;
-use clap::arg;
 use clap::Parser;
+use clap::arg;
 use dialoguer::Input;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,7 @@ impl ProjectNameOpt {
         loop {
             // Prompt for user input
             let input: Input<String> = Input::new()
-                .with_prompt(Style::Prompt.paint("? Name your graph"))
+                .with_prompt(Style::Prompt.paint("? Name your project"))
                 .with_initial_text(default.clone());
             let input_name = input.interact_text().map_err(|e| e.to_string()).unwrap();
 

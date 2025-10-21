@@ -10,8 +10,8 @@ use rover_client::operations::subgraph::introspect::{
     SubgraphIntrospect, SubgraphIntrospectError, SubgraphIntrospectResponse,
 };
 use rover_graphql::GraphQLLayer;
-use rover_http::{extend_headers::ExtendHeadersLayer, HttpService};
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use rover_http::{HttpService, extend_headers::ExtendHeadersLayer};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 use url::Url;
 
 use super::FullyResolvedSubgraph;
@@ -38,13 +38,13 @@ pub struct MakeResolveIntrospectSubgraph {
 
 impl MakeResolveIntrospectSubgraph {
     /// Constructs a new [`MakeResolveIntrospectSubgraph`]
-    pub fn new(http_service: HttpService) -> MakeResolveIntrospectSubgraph {
+    pub const fn new(http_service: HttpService) -> MakeResolveIntrospectSubgraph {
         MakeResolveIntrospectSubgraph { http_service }
     }
 }
 
 /// Request object that specifies the necessary details to introspect a subgraph
-#[derive(Clone, Debug, Builder, PartialEq)]
+#[derive(Clone, Debug, Builder, PartialEq, Eq)]
 pub struct MakeResolveIntrospectSubgraphRequest {
     endpoint: Url,
     routing_url: Option<String>,
@@ -72,7 +72,6 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
             let subgraph_name = req.subgraph_name;
             let routing_url = req.routing_url.clone();
             let header_map = headers
-                .clone()
                 .iter()
                 .map(|(key, value)| {
                     HeaderName::from_bytes(key.as_bytes())
@@ -96,8 +95,8 @@ impl Service<MakeResolveIntrospectSubgraphRequest> for MakeResolveIntrospectSubg
                 .service(http_service);
             Ok(ResolveIntrospectSubgraph::builder()
                 .inner(introspect_service)
-                .subgraph_name(subgraph_name.to_string())
-                .routing_url(routing_url.clone().unwrap_or_else(|| endpoint.to_string()))
+                .subgraph_name(subgraph_name)
+                .routing_url(routing_url.unwrap_or_else(|| endpoint.to_string()))
                 .introspection_headers(headers)
                 .build()
                 .boxed_clone())

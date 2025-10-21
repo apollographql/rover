@@ -1,35 +1,44 @@
-use std::collections::BTreeMap;
-use std::fmt::Write;
-use std::io::{self, IsTerminal};
-
+#[cfg(feature = "composition-js")]
+use crate::command::connector::run::{RunConnector, RunConnectorOutput};
+use crate::command::docs::shortlinks::ShortlinkInfo;
+use crate::{
+    RoverError,
+    command::{
+        supergraph::compose::CompositionOutput,
+        template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
+    },
+    options::{JsonVersion, ProjectLanguage},
+    utils::table,
+};
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
-use comfy_table::Attribute::Bold;
-use comfy_table::Cell;
-use comfy_table::CellAlignment::Center;
-use rover_client::operations::contract::describe::ContractDescribeResponse;
-use rover_client::operations::contract::publish::ContractPublishResponse;
-use rover_client::operations::graph::publish::GraphPublishResponse;
-use rover_client::operations::init::memberships::InitMembershipsResponse;
-use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
-use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
-use rover_client::operations::subgraph::list::SubgraphListResponse;
-use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{
-    CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
-    SdlType,
+use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
+use rover_client::{
+    RoverClientError,
+    operations::{
+        api_key::list::ApiKey,
+        contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
+        graph::publish::GraphPublishResponse,
+        init::memberships::InitMembershipsResponse,
+        persisted_queries::publish::PersistedQueriesPublishResponse,
+        subgraph::{
+            delete::SubgraphDeleteResponse, list::SubgraphListResponse,
+            publish::SubgraphPublishResponse,
+        },
+    },
+    shared::{
+        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
+        SdlType,
+    },
 };
-use rover_client::RoverClientError;
 use rover_std::Style;
-use serde_json::{json, Value};
-use termimad::crossterm::style::Attribute::Underlined;
-use termimad::MadSkin;
-
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::{JsonVersion, ProjectLanguage};
-use crate::utils::table;
-use crate::RoverError;
+use serde_json::{Value, json};
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    io::{self, IsTerminal},
+};
+use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -52,7 +61,7 @@ pub enum RoverOutput {
     InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
-    DocsList(BTreeMap<&'static str, &'static str>),
+    DocsList(BTreeMap<&'static str, ShortlinkInfo>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
     JsonSchema(String),
@@ -105,6 +114,31 @@ pub enum RoverOutput {
     },
     MessageResponse {
         msg: String,
+    },
+    #[cfg(feature = "composition-js")]
+    ConnectorRunResponse {
+        output: RunConnectorOutput,
+    },
+    #[cfg(feature = "composition-js")]
+    ConnectorTestResponse {
+        output: String,
+    },
+    CreateKeyResponse {
+        api_key: String,
+        key_type: String,
+        id: String,
+        name: String,
+    },
+    DeleteKeyResponse {
+        id: String,
+    },
+    ListKeysResponse {
+        keys: Vec<ApiKey>,
+    },
+    RenameKeyResponse {
+        id: String,
+        old_name: Option<String>,
+        new_name: String,
     },
 }
 
@@ -184,8 +218,8 @@ impl RoverOutput {
                         .into_iter()
                         .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
                 );
-                for (shortlink_slug, shortlink_description) in shortlinks {
-                    table.add_row(vec![shortlink_slug, shortlink_description]);
+                for (slug, shortlink_info) in shortlinks {
+                    table.add_row(vec![slug, shortlink_info.description]);
                 }
                 Some(format!("{table}"))
             }
@@ -225,7 +259,11 @@ impl RoverOutput {
                 }
 
                 if publish_response.supergraph_was_updated {
-                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
+                    stderrln!(
+                        "The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph",
+                        graph_ref,
+                        subgraph
+                    )?;
                 } else {
                     stderrln!(
                         "The supergraph schema for '{}' was NOT updated with a new schema",
@@ -261,10 +299,19 @@ impl RoverOutput {
                         )?;
 
                         stderrln!("{}", &delete_response.build_errors)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
+                        stderrln!(
+                            "{} This is only a prediction. If the graph changes before confirming, these errors could change.",
+                            warn_prefix
+                        )?;
                     } else {
-                        stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?;
+                        stderrln!(
+                            "{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.",
+                            warn_prefix
+                        )?;
+                        stderrln!(
+                            "{} This is only a prediction. If the graph changes before confirming, there could be build errors.",
+                            warn_prefix
+                        )?;
                     }
                     None
                 } else {
@@ -375,7 +422,9 @@ impl RoverOutput {
                     "Have a question or suggestion about templates? Let us know at \
                     https://community.apollographql.com/",
                 );
-                Some(format!("Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"))
+                Some(format!(
+                    "Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"
+                ))
             }
             RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
@@ -416,9 +465,11 @@ impl RoverOutput {
                 let result = if response.unchanged {
                     format!(
                         "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
-                        Style::NewOperationCount.paint(response.total_published_operations.to_string()),
+                        Style::NewOperationCount
+                            .paint(response.total_published_operations.to_string()),
                         Style::PersistedQueryList.paint(&response.list_name),
-                        Style::TotalOperationCount.paint(response.operation_counts.total().to_string())
+                        Style::TotalOperationCount
+                            .paint(response.operation_counts.total().to_string())
                     )
                 } else {
                     let mut result = "Successfully ".to_string();
@@ -471,6 +522,56 @@ impl RoverOutput {
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorRunResponse { output } => {
+                Some(RunConnector::format_output(output))
+            }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorTestResponse { output } => Some(output.into()),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                let mut table = table::get_table();
+
+                table.add_row(vec![&Style::WhoAmIKey.paint("ID"), id]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Name"), name]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("Key Type"), key_type]);
+                table.add_row(vec![&Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{table}"))
+            }
+            RoverOutput::DeleteKeyResponse { id } => {
+                stderrln!("Deleted API Key {id}")?;
+                None
+            }
+            RoverOutput::ListKeysResponse { keys } => {
+                let mut table = table::get_table();
+
+                table.set_header(vec!["ID", "Name", "Created At", "Expires At"]);
+                for key in keys {
+                    table.add_row(vec![
+                        key.id.clone(),
+                        key.name.clone().unwrap_or(String::new()),
+                        key.created_at.to_string(),
+                        key.expires_at
+                            .map(|timestamp| timestamp.to_string())
+                            .unwrap_or_else(|| "Never".to_string()),
+                    ]);
+                }
+                Some(format!("{table}"))
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                let display_old_name = old_name.clone().unwrap_or(String::new());
+                stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
+                None
+            }
         })
     }
 
@@ -498,9 +599,9 @@ impl RoverOutput {
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
-                for (shortlink_slug, shortlink_description) in shortlinks {
+                for (shortlink_slug, shortlink_info) in shortlinks {
                     shortlink_vec.push(
-                        json!({"slug": shortlink_slug, "description": shortlink_description }),
+                        json!({"slug": shortlink_slug, "description": shortlink_info.description }),
                     );
                 }
                 json!({ "shortlinks": shortlink_vec })
@@ -597,6 +698,33 @@ impl RoverOutput {
             RoverOutput::MessageResponse { msg } => {
                 json!({ "message": msg })
             }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorRunResponse { output } => {
+                json!({ "output": output })
+            }
+            #[cfg(feature = "composition-js")]
+            RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
+            RoverOutput::CreateKeyResponse {
+                api_key,
+                key_type,
+                id,
+                name,
+            } => {
+                json!({ "api_key": api_key, "key_type": key_type, "id": id, "name": name })
+            }
+            RoverOutput::DeleteKeyResponse { id } => {
+                json!({ "id": id })
+            }
+            RoverOutput::ListKeysResponse { keys } => {
+                json!({ "keys": keys })
+            }
+            RoverOutput::RenameKeyResponse {
+                id,
+                old_name,
+                new_name,
+            } => {
+                json!({ "old_name": old_name, "new_name": new_name, "id": id })
+            }
         }
     }
 
@@ -646,22 +774,22 @@ impl RoverOutput {
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
-        if std::io::stdout().is_terminal() {
-            if let Some(descriptor) = self.descriptor() {
-                stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
-            }
+        if std::io::stdout().is_terminal()
+            && let Some(descriptor) = self.descriptor()
+        {
+            stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
         }
         Ok(())
     }
     pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
-        if std::io::stdout().is_terminal() {
-            if let Some(descriptor) = self.descriptor() {
-                stderr!("{}: ", Style::Heading.paint(descriptor))?;
-            }
+        if std::io::stdout().is_terminal()
+            && let Some(descriptor) = self.descriptor()
+        {
+            stderr!("{}: ", Style::Heading.paint(descriptor))?;
         }
         Ok(())
     }
-    pub(crate) fn descriptor(&self) -> Option<&str> {
+    pub(crate) const fn descriptor(&self) -> Option<&str> {
         match &self {
             RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
             RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
@@ -685,32 +813,42 @@ impl RoverOutput {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
+    use super::*;
+    use crate::options::JsonOutput;
     use anyhow::anyhow;
     use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
     use console::strip_ansi_codes;
-    use rover_client::operations::graph::publish::{ChangeSummary, FieldChanges, TypeChanges};
-    use rover_client::operations::persisted_queries::publish::PersistedQueriesOperationCounts;
-    use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
-    use rover_client::operations::subgraph::list::{SubgraphInfo, SubgraphUpdatedAt};
-    use rover_client::shared::{
-        ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
-        SdlType, Violation,
+    use rover_client::{
+        operations::{
+            graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
+            persisted_queries::publish::PersistedQueriesOperationCounts,
+            subgraph::{
+                delete::SubgraphDeleteResponse,
+                list::{SubgraphInfo, SubgraphUpdatedAt},
+            },
+        },
+        shared::{
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+            SdlType, Violation,
+        },
     };
-
-    use super::*;
-    use crate::options::JsonOutput;
+    use std::collections::BTreeMap;
 
     #[test]
     fn docs_list_json() {
         let mut mock_shortlinks = BTreeMap::new();
-        mock_shortlinks.insert("slug_one", "description_one");
-        mock_shortlinks.insert("slug_two", "description_two");
+        mock_shortlinks.insert(
+            "slug_one",
+            ShortlinkInfo::new("description_one", "r", "slug_one"),
+        );
+        mock_shortlinks.insert(
+            "slug_two",
+            ShortlinkInfo::new("description_two", "r", "slug_two"),
+        );
         let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
         let expected_json = json!(
         {
@@ -1767,7 +1905,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         };
         let mock_publish_response = PersistedQueriesPublishResponse {
             unchanged: true,
-            graph_id: graph_id.clone(),
+            graph_id,
             list_id: list_id.clone(),
             list_name: list_name.clone(),
             total_published_operations,
@@ -1824,7 +1962,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         };
         let mock_publish_response = PersistedQueriesPublishResponse {
             revision,
-            graph_id: graph_id.clone(),
+            graph_id,
             list_id: list_id.clone(),
             list_name: list_name.clone(),
             total_published_operations,

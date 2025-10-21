@@ -51,14 +51,14 @@ pub struct ChangeSummary {
 }
 
 impl ChangeSummary {
-    pub(crate) fn none() -> ChangeSummary {
+    pub(crate) const fn none() -> ChangeSummary {
         ChangeSummary {
             field_changes: FieldChanges::none(),
             type_changes: TypeChanges::none(),
         }
     }
 
-    pub(crate) fn is_none(&self) -> bool {
+    pub(crate) const fn is_none(&self) -> bool {
         self.field_changes.is_none() && self.type_changes.is_none()
     }
 }
@@ -81,7 +81,7 @@ pub struct FieldChanges {
 }
 
 impl FieldChanges {
-    pub(crate) fn none() -> FieldChanges {
+    pub(crate) const fn none() -> FieldChanges {
         FieldChanges {
             additions: 0,
             removals: 0,
@@ -89,7 +89,7 @@ impl FieldChanges {
         }
     }
 
-    pub(crate) fn with_diff(additions: u64, removals: u64, edits: u64) -> FieldChanges {
+    pub(crate) const fn with_diff(additions: u64, removals: u64, edits: u64) -> FieldChanges {
         FieldChanges {
             additions,
             removals,
@@ -97,7 +97,7 @@ impl FieldChanges {
         }
     }
 
-    pub(crate) fn is_none(&self) -> bool {
+    pub(crate) const fn is_none(&self) -> bool {
         self.additions == 0 && self.removals == 0 && self.edits == 0
     }
 }
@@ -120,7 +120,7 @@ pub struct TypeChanges {
 }
 
 impl TypeChanges {
-    pub(crate) fn none() -> TypeChanges {
+    pub(crate) const fn none() -> TypeChanges {
         TypeChanges {
             additions: 0,
             removals: 0,
@@ -128,7 +128,7 @@ impl TypeChanges {
         }
     }
 
-    pub(crate) fn with_diff(additions: u64, removals: u64, edits: u64) -> TypeChanges {
+    pub(crate) const fn with_diff(additions: u64, removals: u64, edits: u64) -> TypeChanges {
         TypeChanges {
             additions,
             removals,
@@ -136,7 +136,7 @@ impl TypeChanges {
         }
     }
 
-    pub(crate) fn is_none(&self) -> bool {
+    pub(crate) const fn is_none(&self) -> bool {
         self.additions == 0 && self.removals == 0 && self.edits == 0
     }
 }

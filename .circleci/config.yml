@@ -3,9 +3,9 @@ version: 2.1
 # Our CircleCI dependencies
 orbs:
   rust: circleci/rust@1.8.0
-  gh: circleci/github-cli@2.7.0
-  node: circleci/node@7.1.0
-  slack: circleci/slack@5.1.1
+  gh: circleci/github-cli@2.7.2
+  node: circleci/node@7.2.0
+  slack: circleci/slack@6.0.0
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -34,7 +34,7 @@ executors:
     docker:
       # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
       # glibc 2.17.
-      - image:  quay.io/pypa/manylinux2014_x86_64:2025.07.24-0
+      - image:  quay.io/pypa/manylinux2014_x86_64:2025.08.27-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -61,8 +61,8 @@ executors:
 
   amd_macos: &amd_macos_executor
     macos:
-      xcode: "15.0.0"
-    resource_class: macos.m1.large.gen1
+      xcode: "15.4.0"
+    resource_class: m2pro.large
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -72,8 +72,8 @@ executors:
   # until there is official support for building on real ARM Macs
   arm_macos: &arm_macos_executor
     macos:
-      xcode: "15.0.0"
-    resource_class: macos.m1.large.gen1
+      xcode: "15.4.0"
+    resource_class: m2pro.large
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -99,7 +99,7 @@ executors:
 
   node_js_nix:
     docker:
-      - image: node:20.19.4
+      - image: node:20.19.5
     resource_class: medium
 
   node_js_windows:
@@ -197,6 +197,13 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
+          <<: *run_release
+
+      - publish_release:
+          name: Publish GitHub release and release to npm
+          matrix:
+            parameters:
+              platform: [volta]
           requires:
             - "Run cargo unit + integration tests (stable rust on amd_manylinux)"
             - "Run cargo unit + integration tests (stable rust on amd_musl)"
@@ -209,14 +216,6 @@ workflows:
             - "Test installation for Javascript Package Managers (npm_global on windows)"
             - "Test installation for Javascript Package Managers (pnpm on windows)"
             - "Test NPM Installer Scripts"
-          <<: *run_release
-
-      - publish_release:
-          name: Publish GitHub release and release to npm
-          matrix:
-            parameters:
-              platform: [volta]
-          requires:
             - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"

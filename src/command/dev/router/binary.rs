@@ -8,7 +8,7 @@ use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use regex::Regex;
-use rover_std::{infoln, Style};
+use rover_std::{Style, infoln};
 use semver::Version;
 use tap::TapFallible;
 use timber::Level;
@@ -18,10 +18,10 @@ use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use super::hot_reload::HotReloadError;
+use crate::RoverError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::subtask::SubtaskHandleUnit;
 use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
-use crate::RoverError;
 
 pub enum RouterLog {
     Stdout(String),
@@ -36,10 +36,7 @@ fn should_select_log_message(log_message: &str) -> bool {
     // the match "exposed at http" captures expressions:
     // * Health check exposed at http://127.0.0.1:8088/health
     // * GraphQL endpoint exposed at http://127.0.0.1:4090/
-    !log_message
-        .matches("exposed at http")
-        .collect::<Vec<&str>>()
-        .is_empty()
+    log_message.matches("exposed at http").next().is_some()
 }
 
 fn produce_special_message(raw_message: &str) {
@@ -57,7 +54,9 @@ fn produce_special_message(raw_message: &str) {
                         Some(RouterPort::CliOption(socket_addr.port())),
                     )
                     .pretty_string();
-                    format!("Your supergraph is running! head to {router_address} to query your supergraph")
+                    format!(
+                        "Your supergraph is running! head to {router_address} to query your supergraph"
+                    )
                 }
                 _ => raw_message.to_string(),
             }
@@ -158,7 +157,7 @@ pub struct RouterBinary {
 }
 
 impl RouterBinary {
-    pub fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
+    pub const fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
         RouterBinary { exe, version }
     }
 }

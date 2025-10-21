@@ -1,0 +1,81 @@
+---
+title: Rover API Key Commands
+subtitle: Create and manage API keys for your organization
+description: Create, list, delete, and rename API keys for your GraphOS organization with the rover api-key commands.
+redirectFrom: /rover/commands/api-keys
+---
+
+Rover enables you to manage `operator` and `subgraph` API keys for your GraphOS organization. These API key types are used to authenticate with GraphOS and determine permissions for accessing graphs, subgraphs, and other resources for your organization. You can manage your organization's API keys with the `rover api-key` set of commands.
+
+## Creating API keys
+
+### `api-key create`
+
+The `api-key create` command creates a new API key for your organization:
+
+```
+rover api-key create <ORGANIZATION_ID> <TYPE> <KEY_NAME>
+```
+
+The available key types are:
+- `operator`: Full access to the organization
+- `subgraph`: Limited access to specific subgraphs
+
+For subgraph keys, you can specify which subgraphs the key should have access to using a configuration file:
+
+```
+rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME> --subgraph-config subgraph-config.yaml
+```
+
+The subgraph configuration file should be in YAML format:
+
+```yaml
+graph-id:
+  variant-name:
+    - subgraph-name-1
+    - subgraph-name-2
+```
+
+You can also pipe the subgraph configuration from stdin:
+
+```
+cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME>
+```
+
+## Listing API keys
+
+### `api-key list`
+
+The `api-key list` command lists all API keys for your organization:
+
+```
+rover api-key list <ORGANIZATION_ID>
+```
+
+This command displays all API keys with their details, including creation date, expiration date (if any), ID, and name.
+
+## Deleting API keys
+
+### `api-key delete`
+
+The `api-key delete` command deletes an existing API key:
+
+```
+rover api-key delete <ORGANIZATION_ID> <KEY_ID>
+```
+
+<Caution>
+This action can't be undone. Make sure you have the correct key ID before deleting.
+</Caution>
+
+## Renaming API keys
+
+### `api-key rename`
+
+The `api-key rename` command renames an existing API key:
+
+```
+rover api-key rename <ORGANIZATION_ID> <KEY_ID> <NEW_KEY_NAME>
+```
+
+Use this command to organize and identify your API keys more easily.

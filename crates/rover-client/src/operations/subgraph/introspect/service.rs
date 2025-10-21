@@ -53,7 +53,7 @@ pub struct SubgraphIntrospect<S: Clone> {
 }
 
 impl<S: Clone> SubgraphIntrospect<S> {
-    pub fn new(inner: S) -> SubgraphIntrospect<S> {
+    pub const fn new(inner: S) -> SubgraphIntrospect<S> {
         SubgraphIntrospect { inner }
     }
 }

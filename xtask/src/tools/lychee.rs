@@ -1,10 +1,10 @@
-use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::{collections::HashSet, fs};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use http::{HeaderMap, StatusCode};
+use http::StatusCode;
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
     Result as LycheeResult, Uri,
@@ -36,7 +36,7 @@ impl LycheeRunner {
     pub(crate) async fn lint(&self) -> Result<()> {
         crate::info!("Checking HTTP links in repository");
 
-        let inputs: Vec<Input> = get_md_files()
+        let inputs: HashSet<Input> = get_md_files()
             .iter()
             // Skip the changelog to preserve history, but also to avoid checking hundreds of
             // PR links and similar that don't need validation
@@ -44,8 +44,6 @@ impl LycheeRunner {
             .map(|file| Input {
                 source: InputSource::FsPath(PathBuf::from(file)),
                 file_type_hint: Some(FileType::Markdown),
-                excluded_paths: None,
-                headers: HeaderMap::new(),
             })
             .collect();
 
@@ -78,7 +76,7 @@ impl LycheeRunner {
                     "❌ [Status Code: {}]: {}",
                     status_code
                         .map(|status_code| status_code.to_string())
-                        .unwrap_or("unknown".to_string()),
+                        .unwrap_or_else(|| "unknown".to_string()),
                     uri
                 );
             }

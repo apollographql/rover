@@ -10,10 +10,10 @@ use tokio_util::sync::CancellationToken;
 
 use super::config::parser::RouterConfigParser;
 use super::config::{RouterAddress, RouterConfig};
+use crate::RoverError;
 use crate::subtask::SubtaskHandleStream;
 use crate::utils::effect::write_file::WriteFile;
 use crate::utils::expansion::expand;
-use crate::RoverError;
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
@@ -119,9 +119,7 @@ impl HotReloadConfig {
                 let config = serde_yaml::to_string(&config)
                     .map_err(|err| HotReloadError::Config { err: err.into() })?;
 
-                Ok(Self {
-                    content: config.to_string(),
-                })
+                Ok(Self { content: config })
             }
             None => Ok(Self { content }),
         }

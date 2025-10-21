@@ -11,6 +11,7 @@ use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
+use crate::composition::CompositionError::ResolvingSubgraphsError;
 use crate::composition::events::CompositionEvent;
 use crate::composition::supergraph::binary::SupergraphBinary;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
@@ -21,7 +22,6 @@ use crate::composition::watchers::composition::CompositionInputEvent::{
     Federation, Passthrough, Recompose, Subgraph,
 };
 use crate::composition::watchers::subgraphs::SubgraphEvent;
-use crate::composition::CompositionError::ResolvingSubgraphsError;
 use crate::composition::{
     CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
     FederationUpdaterConfig,
@@ -294,8 +294,8 @@ mod tests {
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource};
     use camino::Utf8PathBuf;
-    use futures::stream::{once, BoxStream};
     use futures::StreamExt;
+    use futures::stream::{BoxStream, once};
     use mockall::predicate;
     use rstest::rstest;
     use semver::Version;
@@ -304,6 +304,7 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::{CompositionInputEvent, CompositionWatcher};
+    use crate::composition::CompositionSubgraphAdded;
     use crate::composition::events::CompositionEvent;
     use crate::composition::supergraph::binary::SupergraphBinary;
     use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
@@ -311,7 +312,6 @@ mod tests {
     use crate::composition::test::{default_composition_json, default_composition_success};
     use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
     use crate::composition::watchers::subgraphs::{SubgraphEvent, SubgraphSchemaChanged};
-    use crate::composition::CompositionSubgraphAdded;
     use crate::subtask::{Subtask, SubtaskRunStream};
     use crate::utils::effect::exec::MockExecCommand;
     use crate::utils::effect::read_file::MockReadFile;

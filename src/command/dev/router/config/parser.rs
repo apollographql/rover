@@ -21,7 +21,10 @@ pub struct RouterConfigParser<'a> {
 }
 
 impl<'a> RouterConfigParser<'a> {
-    pub fn new(yaml: &'a serde_yaml::Value, address: RouterAddress) -> RouterConfigParser<'a> {
+    pub const fn new(
+        yaml: &'a serde_yaml::Value,
+        address: RouterAddress,
+    ) -> RouterConfigParser<'a> {
         RouterConfigParser { yaml, address }
     }
     pub fn address(&self) -> Result<RouterAddress, ParseRouterConfigError> {
@@ -140,7 +143,7 @@ mod tests {
 
     use super::RouterConfigParser;
     use crate::command::dev::router::config::{
-        RouterAddress, RouterHost, RouterPort, DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT,
+        DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT, RouterAddress, RouterHost, RouterPort,
     };
 
     #[rstest]

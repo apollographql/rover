@@ -143,7 +143,7 @@ where
 
 impl<Q: GraphQLQuery> GraphQLRequest<Q> {
     /// Constructs a new [`GraphQLRequest`]
-    pub fn new(variables: Q::Variables) -> GraphQLRequest<Q> {
+    pub const fn new(variables: Q::Variables) -> GraphQLRequest<Q> {
         GraphQLRequest { variables }
     }
     /// Consumes the [`GraphQLRequest`] and produces the inner [`GraphQLQuery::Variables`] object
@@ -160,7 +160,7 @@ pub struct GraphQLLayer {
 
 impl GraphQLLayer {
     /// Constructs a new [`GraphQLLayer`]
-    pub fn new(endpoint: Url) -> GraphQLLayer {
+    pub const fn new(endpoint: Url) -> GraphQLLayer {
         GraphQLLayer {
             endpoint: Some(endpoint),
         }
@@ -183,7 +183,7 @@ pub struct GraphQLService<S> {
 
 impl<S> GraphQLService<S> {
     /// Constructs a new [`GraphQLService`]
-    pub fn new(endpoint: Option<Url>, inner: S) -> GraphQLService<S> {
+    pub const fn new(endpoint: Option<Url>, inner: S) -> GraphQLService<S> {
         GraphQLService { endpoint, inner }
     }
 }

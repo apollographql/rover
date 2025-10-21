@@ -61,7 +61,7 @@ pub struct GetTarRequest {
 }
 
 impl GetTarRequest {
-    pub fn new(owner: String, repo: String, reference: String) -> Self {
+    pub const fn new(owner: String, repo: String, reference: String) -> Self {
         Self {
             owner,
             repo,
@@ -130,7 +130,7 @@ pub struct GetAllReleasesRequest {
 }
 
 impl GetAllReleasesRequest {
-    pub fn new(owner: String, repo: String) -> Self {
+    pub const fn new(owner: String, repo: String) -> Self {
         Self { owner, repo }
     }
 }

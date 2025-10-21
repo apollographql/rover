@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
-use futures::{stream::BoxStream, StreamExt};
-use rover_std::{errln, Fs, RoverStdError};
+use futures::{StreamExt, stream::BoxStream};
+use rover_std::{Fs, RoverStdError, errln};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -14,7 +14,7 @@ pub struct FileWatcher {
 
 impl FileWatcher {
     /// Create a new filewatcher
-    pub fn new(path: Utf8PathBuf) -> Self {
+    pub const fn new(path: Utf8PathBuf) -> Self {
         Self { path }
     }
 
@@ -86,7 +86,7 @@ mod tests {
             .expect("Cannot open file");
 
         writeable_file
-            .write_all("some change".as_bytes())
+            .write_all(b"some change")
             .expect("couldn't write to file");
 
         let mut output = None;

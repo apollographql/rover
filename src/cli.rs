@@ -2,8 +2,8 @@ use std::fmt::Display;
 use std::{io, process};
 
 use camino::Utf8PathBuf;
-use clap::builder::styling::{AnsiColor, Effects};
 use clap::builder::Styles;
+use clap::builder::styling::{AnsiColor, Effects};
 use clap::{Parser, ValueEnum};
 use config::Config;
 use houston as config;
@@ -15,13 +15,13 @@ use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
+use crate::RoverResult;
 use crate::command::{self, RoverOutput};
 use crate::options::OutputOpts;
 use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
 use crate::utils::env::{RoverEnv, RoverEnvKey};
 use crate::utils::stringify::option_from_display;
 use crate::utils::version;
-use crate::RoverResult;
 
 /// Clap styling
 const STYLES: Styles = Styles::styled()
@@ -189,7 +189,11 @@ impl Rover {
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
-            Command::Connector(command) => command.run().await,
+            Command::Connector(command) => {
+                command
+                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
+            }
             Command::Contract(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
@@ -248,6 +252,7 @@ impl Rover {
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
+            Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
         }
     }
 
@@ -369,11 +374,14 @@ pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),
 
+    /// API Key Related Commands
+    #[clap(name = "api-key")]
+    ApiKeys(command::ApiKeys),
+
     /// Cloud configuration commands
     Cloud(command::Cloud),
 
     #[cfg(feature = "composition-js")]
-    #[clap(hide = true)]
     Connector(command::Connector),
 
     /// Configuration profile commands

@@ -6,12 +6,12 @@ use buildstructor::Builder;
 use derive_getters::Getters;
 use futures::Future;
 use rover_client::{
+    RoverClientError,
     operations::subgraph::fetch::{SubgraphFetch, SubgraphFetchRequest},
     shared::{FetchResponse, GraphRef, SdlType},
-    RoverClientError,
 };
 use rover_graphql::GraphQLLayer;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 
@@ -122,7 +122,7 @@ pub struct FetchRemoteSubgraph<S: Clone> {
 
 impl<S: Clone> FetchRemoteSubgraph<S> {
     /// Creates a new [`FetchRemoteSubgraph`]
-    pub fn new(inner: S) -> FetchRemoteSubgraph<S> {
+    pub const fn new(inner: S) -> FetchRemoteSubgraph<S> {
         FetchRemoteSubgraph { inner }
     }
 }

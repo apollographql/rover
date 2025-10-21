@@ -1,8 +1,8 @@
 use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
-use dialoguer::console::Term;
 use dialoguer::Select;
+use dialoguer::console::Term;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
@@ -48,7 +48,7 @@ pub enum ProjectUseCase {
     GraphQLTemplate,
 }
 
-const USE_CASE_DESCRIPTION: &str = "Start a graph with recommended libraries";
+const USE_CASE_DESCRIPTION: &str = "Start a graph with GraphQL APIs";
 
 impl Display for ProjectUseCase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

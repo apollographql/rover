@@ -80,10 +80,10 @@ impl CompositionPipeline<state::Init> {
     ) -> Result<CompositionPipeline<state::ResolveFederationVersion>, CompositionPipelineError>
     where
         S: MakeService<
-            (),
-            FetchRemoteSubgraphsRequest,
-            Response = BTreeMap<String, SubgraphConfig>,
-        >,
+                (),
+                FetchRemoteSubgraphsRequest,
+                Response = BTreeMap<String, SubgraphConfig>,
+            >,
         S::MakeError: std::error::Error + Send + Sync + 'static,
         S::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -113,7 +113,6 @@ impl CompositionPipeline<state::Init> {
                 )
                 .unwrap()
             });
-        eprintln!("merging supergraph schema files");
         let resolver = SupergraphConfigResolver::default()
             .load_remote_subgraphs(fetch_remote_subgraphs_factory, graph_ref.as_ref())
             .await?
@@ -124,7 +123,6 @@ impl CompositionPipeline<state::Init> {
                 .map_err(CompositionPipelineError::ResolveSubgraphFromPrompt)?,
             None => resolver.skip_default_subgraph(),
         };
-        eprintln!("supergraph config loaded successfully");
         Ok(CompositionPipeline {
             state: state::ResolveFederationVersion {
                 resolver,
@@ -156,7 +154,9 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 fully_resolved_supergraph_config.federation_version
             }
             Err(err) => {
-                warn!("Could not fully resolve SupergraphConfig to discover Federation Version: {err}");
+                warn!(
+                    "Could not fully resolve SupergraphConfig to discover Federation Version: {err}"
+                );
                 warn!("Defaulting to Federation Version: {LatestFedTwo}");
                 warnln!("Federation Version could not be detected, defaulting to: {LatestFedTwo}");
                 LatestFedTwo
@@ -363,14 +363,14 @@ impl CompositionPipeline<state::Run> {
     }
 }
 
-mod state {
+pub(crate) mod state {
     use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
 
     use crate::composition::supergraph::binary::SupergraphBinary;
     use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
     use crate::composition::supergraph::config::resolver::InitializedSupergraphConfigResolver;
+    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
     use crate::composition::supergraph::install::InstallSupergraphError;
     use crate::utils::parsers::FileDescriptorType;
 

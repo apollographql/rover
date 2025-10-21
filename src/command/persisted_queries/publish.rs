@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use clap::Parser;
 use rover_client::operations::persisted_queries::{
     name::{self, PersistedQueryListNameInput},

@@ -1,7 +1,5 @@
-use std::{
-    cmp::Ordering,
-    fmt::{self, Display, Write as _},
-};
+use std::cmp::Ordering;
+use std::fmt::{self, Display, Write as _};
 
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
@@ -93,6 +91,7 @@ pub enum RoverErrorSuggestion {
     ContactApolloAccountManager,
     TryAgainLater,
     ContactApolloSupport,
+    CheckOrganizationId,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -187,6 +186,9 @@ impl Display for RoverErrorSuggestion {
             CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
             }
+            CheckOrganizationId => {
+                "Check your Organization ID to make sure it's valid.".to_string()
+            }
             TryUnsetKey => {
                 format!(
                     "Try to unset your {} key if you want to use {}.",
@@ -195,7 +197,7 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             ProperKey => {
-                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-keys`"))
+                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-key`"))
             }
             ValidComposeFile => {
                 "Make sure supergraph compose config YAML points to a valid schema file.".to_string()
@@ -213,11 +215,11 @@ impl Display for RoverErrorSuggestion {
             CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
             ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             CheckGnuVersion => {
-                let mut suggestion = "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing.";
                 if cfg!(target_env = "musl") {
-                    suggestion = "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.";
-                }
-                suggestion.to_string()
+                    "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries."
+                } else {
+                    "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing."
+                }.to_string()
             },
             FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
             FixSupergraphConfigErrors => {
@@ -310,8 +312,10 @@ mod test {
     #[test]
     fn possible_values_nomatch() {
         let p_vals = ["test", "possible", "values"];
-        assert!(super::did_you_mean("hahaahahah", p_vals.iter())
-            .pop()
-            .is_none());
+        assert!(
+            super::did_you_mean("hahaahahah", p_vals.iter())
+                .pop()
+                .is_none()
+        );
     }
 }

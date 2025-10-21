@@ -4,6 +4,7 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
+use dotenvy::dotenv;
 use futures::StreamExt;
 use rover_client::RoverClientError;
 use rover_std::{errln, infoln};
@@ -11,6 +12,7 @@ use semver::Version;
 use timber::Level;
 use tower::ServiceExt;
 
+use crate::command::Dev;
 use crate::command::dev::mcp::binary::RunMcpServerBinaryError;
 use crate::command::dev::mcp::run::RunMcpServer;
 use crate::command::dev::router::binary::RunRouterBinaryError;
@@ -19,7 +21,6 @@ use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
 use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::install::McpServerVersion;
-use crate::command::Dev;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
 use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
@@ -42,6 +43,7 @@ impl Dev {
         client_config: StudioClientConfig,
         log_level: Option<Level>,
     ) -> RoverResult<RoverOutput> {
+        dotenv().ok();
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
@@ -182,26 +184,30 @@ impl Dev {
             match composition_messages.next().await {
                 Some(CompositionEvent::Started) => {
                     if let Ok(ref binary) = composition_pipeline.state.supergraph_binary {
-                        eprintln!(
-                            "composing supergraph with Federation {}",
-                            binary.version()
-                        );
+                        eprintln!("composing supergraph with Federation {}", binary.version());
                     }
-                },
+                }
                 Some(CompositionEvent::Success(success)) => {
                     supergraph_schema = success.supergraph_sdl;
                     break;
-                },
-                Some(CompositionEvent::Error(CompositionError::Build {source,..})) => {
+                }
+                Some(CompositionEvent::Error(CompositionError::Build { source, .. })) => {
                     let number_of_subgraphs = source.len();
-                    let error_to_output = RoverError::from(RoverClientError::BuildErrors{ source, num_subgraphs: number_of_subgraphs });
+                    let error_to_output = RoverError::from(RoverClientError::BuildErrors {
+                        source,
+                        num_subgraphs: number_of_subgraphs,
+                    });
                     eprintln!("{error_to_output}")
                 }
                 Some(CompositionEvent::Error(err)) => {
                     errln!("Error occurred when composing supergraph\n{}", err)
                 }
-                Some(_) => {},
-                None => return Err(RoverError::new(anyhow!("Composition Events Stream closed before supergraph schema could successfully compose")))
+                Some(_) => {}
+                None => {
+                    return Err(RoverError::new(anyhow!(
+                        "Composition Events Stream closed before supergraph schema could successfully compose"
+                    )));
+                }
             }
         }
 

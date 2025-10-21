@@ -179,7 +179,7 @@ impl SupergraphBuilder {
         let canonical_base = base_prefix.canonicalize().unwrap();
         let canonical_path = path.canonicalize().unwrap();
         canonical_path
-            .strip_prefix(canonical_base.clone())
+            .strip_prefix(canonical_base)
             .unwrap()
             .to_owned()
     }
@@ -256,6 +256,12 @@ impl SupergraphBuilder {
                 let path = entry.path();
 
                 if path.is_dir() {
+                    // Skip the 'tools' directory - it contains MCP tool definitions, not GraphQL schemas
+                    if let Some(dir_name) = path.file_name()
+                        && dir_name == "tools"
+                    {
+                        continue;
+                    }
                     self.visit_dirs(&path, current_depth + 1, max_depth, result)?;
                 } else if self.is_graphql_file(&path) {
                     let path = self.strip_base_prefix(path.as_path(), self.directory.as_std_path());
@@ -275,15 +281,19 @@ impl SupergraphBuilder {
         }
     }
 
-    // If the file is named "schema", use parent directory name
+    // If the file is named "schema", use parent directory name, else use file stem, else default to "subgraph"
     fn determine_subgraph_name(&self, file_path: &Path) -> RoverResult<String> {
-        let file_stem = file_path.file_stem().unwrap().to_string_lossy();
-        if file_stem == "schema" {
-            let parent = file_path.parent().unwrap();
-            let parent_name = parent.file_name().unwrap().to_string_lossy();
-            Ok(parent_name.to_string())
-        } else {
-            Ok(file_stem.to_string())
+        let file_stem = file_path.file_stem().map(|s| s.to_string_lossy());
+        match file_stem.as_deref() {
+            Some("schema") => {
+                let parent_name = file_path
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().to_string());
+                Ok(parent_name.unwrap_or_else(|| "subgraph".to_string()))
+            }
+            Some(stem) if !stem.is_empty() => Ok(stem.to_string()),
+            _ => Ok("subgraph".to_string()),
         }
     }
 

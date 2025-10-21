@@ -1,11 +1,11 @@
 use std::env;
 
 use anyhow::anyhow;
-use dialoguer::console::Term;
 use dialoguer::Select;
+use dialoguer::console::Term;
 use reqwest::Client;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use graphql_client::{GraphQLQuery, Response};
 

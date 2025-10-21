@@ -20,42 +20,13 @@ fn strip_ansi_codes(s: &str) -> String {
 
 #[test]
 fn test_get_command() {
-    let api_key = "test-api-key";
-    let graph_ref = "my-graph@main";
+    // Test command with supergraph config
+    let cmd = get_command(true);
+    assert_eq!(cmd, "rover dev --supergraph-config supergraph.yaml");
 
-    #[cfg(target_os = "windows")]
-    {
-        // Test Windows command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Windows command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("PowerShell:"));
-        assert!(cmd.contains("Command Prompt:"));
-        assert!(cmd.contains("$env:APOLLO_KEY"));
-        assert!(cmd.contains("set APOLLO_KEY"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Test Unix command with supergraph config
-        let cmd = get_command(api_key, graph_ref, true);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(cmd.contains("--supergraph-config supergraph.yaml"));
-
-        // Test Unix command without supergraph config
-        let cmd = get_command(api_key, graph_ref, false);
-        assert!(cmd.contains("APOLLO_KEY=test-api-key"));
-        assert!(cmd.contains("APOLLO_GRAPH_REF=my-graph@main"));
-        assert!(!cmd.contains("--supergraph-config"));
-    }
+    // Test command without supergraph config
+    let cmd = get_command(false);
+    assert_eq!(cmd, "rover dev");
 }
 
 #[test]
@@ -63,13 +34,13 @@ fn test_display_project_created_message_with_single_command() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![
         Utf8PathBuf::from("supergraph.yaml"),
-        Utf8PathBuf::from("getting-started.md"),
+        Utf8PathBuf::from("GETTING_STARTED.md"),
     ];
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = &["npm ci"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
-    let start_point_file = "getting-started.md".to_string();
+    let start_point_file = "GETTING_STARTED.md".to_string();
 
     let output = generate_project_created_message(
         project_name,
@@ -86,13 +57,15 @@ fn test_display_project_created_message_with_single_command() {
     assert!(plain_output.contains(&format!("APOLLO_GRAPH_REF={graph_ref}")));
     assert!(plain_output.contains(&format!("APOLLO_KEY={}", "test-api-key")));
     assert!(plain_output.contains("Store your graph API key securely"));
-    assert!(plain_output.contains("1) Start the subgraph server by running the following command:"));
+    assert!(
+        plain_output.contains("1) Start the subgraph server by running the following command:")
+    );
     assert!(plain_output.contains("npm ci"));
     assert!(plain_output.contains("2) In a new terminal, start a local development session:"));
     assert!(plain_output.contains("rover dev"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
-        "getting-started.md"
+        "GETTING_STARTED.md"
     )));
 }
 
@@ -104,7 +77,7 @@ fn test_display_project_created_message_with_multiple_commands() {
     let api_key = "test-api-key".to_string();
     let commands = &["npm install", "npm run build", "npm start"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
-    let start_point_file = "getting-started.md".to_string();
+    let start_point_file = "GETTING_STARTED.md".to_string();
 
     let output = generate_project_created_message(
         project_name,
@@ -118,8 +91,10 @@ fn test_display_project_created_message_with_multiple_commands() {
     let plain_output = strip_ansi_codes(&output);
 
     // Test that the output contains expected content
-    assert!(plain_output
-        .contains("1) Start the subgraph server by running the following commands in order:"));
+    assert!(
+        plain_output
+            .contains("1) Start the subgraph server by running the following commands in order:")
+    );
     assert!(plain_output.contains("npm install"));
     assert!(plain_output.contains("npm run build"));
     assert!(plain_output.contains("npm start"));
@@ -134,7 +109,7 @@ fn test_display_project_created_message_with_empty_command_array() {
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = Some(Vec::new());
-    let start_point_file = "getting-started.md".to_string();
+    let start_point_file = "GETTING_STARTED.md".to_string();
 
     let output = generate_project_created_message(
         project_name,
@@ -161,7 +136,7 @@ fn test_display_project_created_message_without_command() {
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
-    let start_point_file = "getting-started.md".to_string();
+    let start_point_file = "GETTING_STARTED.md".to_string();
 
     let output = generate_project_created_message(
         project_name,
@@ -184,7 +159,7 @@ fn test_display_project_created_message_without_command() {
     assert!(!plain_output.contains("Start the subgraph server"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
-        "getting-started.md"
+        "GETTING_STARTED.md"
     )));
 }
 
@@ -195,7 +170,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
     let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
-    let start_point_file = "getting-started.md".to_string();
+    let start_point_file = "GETTING_STARTED.md".to_string();
 
     let output = generate_project_created_message(
         project_name,
@@ -217,7 +192,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
     assert!(!plain_output.contains("supergraph.yaml\n"));
     assert!(plain_output.contains(&format!(
         "For more information, check out '{}'",
-        "getting-started.md"
+        "GETTING_STARTED.md"
     )));
 }
 
@@ -250,5 +225,5 @@ fn test_display_project_created_message_with_custom_start_point() {
         "readme.md"
     )));
     // Should not contain the default start point file
-    assert!(!plain_output.contains("For more information, check out 'getting-started.md'"));
+    assert!(!plain_output.contains("For more information, check out 'GETTING_STARTED.md'"));
 }

@@ -1,7 +1,7 @@
+use crate::RoverResult;
 use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::RoverResult;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use rover_client::blocking::StudioClient;
 use rover_client::operations::init::build_pipeline_track;

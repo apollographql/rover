@@ -111,6 +111,7 @@ where
 }
 
 #[cfg(test)]
+#[expect(clippy::panic)]
 mod tests {
     use std::str::FromStr;
 

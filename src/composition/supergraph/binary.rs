@@ -1,15 +1,19 @@
-use std::fmt::Debug;
-use std::process::Stdio;
-
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildOutput, BuildResult},
 };
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+use http::Method;
+use semver::Version;
+use serde_json::Value;
+use std::process::Stdio;
+use std::{fmt::Debug, path::PathBuf};
 use tap::TapFallible;
 
 use super::version::SupergraphVersion;
+use crate::RoverOutput;
+use crate::command::connector::run::RunConnectorOutput;
 use crate::utils::effect::exec::ExecCommandOutput;
 use crate::{
     composition::{CompositionError, CompositionSuccess},
@@ -120,6 +124,408 @@ impl SupergraphBinary {
                 error: format!("{err:?}"),
             })
     }
+
+    pub async fn run_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        schema_path: PathBuf,
+        connector_id: String,
+        variables: String,
+    ) -> Result<RoverOutput, BinaryError> {
+        let args = vec![
+            "run-connector".to_string(),
+            "--schema".to_string(),
+            schema_path.to_str().unwrap_or_default().into(),
+            "--connector-id".to_string(),
+            connector_id,
+            "--variables".to_string(),
+            variables,
+        ];
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        let output: RunConnectorOutput =
+            serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?;
+
+        Ok(RoverOutput::ConnectorRunResponse { output })
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    pub async fn test_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        file: Option<PathBuf>,
+        directory: Option<PathBuf>,
+        no_fail: bool,
+        schema_file: Option<PathBuf>,
+        output_file: Option<Utf8PathBuf>,
+        verbose: bool,
+        quiet: bool,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["test-connectors".to_string()];
+
+        if no_fail {
+            args.push("--no-fail-fast".to_string());
+        }
+
+        if verbose {
+            args.push("--verbose".to_string());
+        }
+
+        if quiet {
+            args.push("--quiet".to_string());
+        }
+
+        if let Some(file) = file {
+            args.push("--file".to_string());
+            args.push(file.to_str().unwrap_or_default().to_string());
+        }
+
+        if let Some(directory) = directory {
+            args.push("--directory".to_string());
+            args.push(directory.to_str().unwrap_or_default().to_string());
+        }
+
+        if let Some(output_file) = output_file {
+            args.push("--report".to_string());
+            args.push(output_file.into_string());
+        }
+
+        if let Some(schema_file) = schema_file {
+            args.push("--schema".to_string());
+            args.push(schema_file.to_str().unwrap_or_default().to_string());
+        }
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .build(),
+            )
+            .should_spawn(true)
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    pub async fn generate_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        name: Option<String>,
+        analysis_dir: Option<Utf8PathBuf>,
+        output_dir: Option<Utf8PathBuf>,
+        verbose: bool,
+        quiet: bool,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["generate-connector-schema".to_string()];
+
+        if let Some(name) = name {
+            args.push("--name".to_string());
+            args.push(name);
+        }
+
+        if let Some(analysis_dir) = analysis_dir {
+            args.push("--analysis-dir".to_string());
+            args.push(analysis_dir.into_string());
+        }
+
+        if let Some(output_dir) = output_dir {
+            args.push("--output-dir".to_string());
+            args.push(output_dir.into_string());
+        }
+
+        if verbose {
+            args.push("--verbose".to_string());
+        }
+
+        if quiet {
+            args.push("--quiet".to_string());
+        }
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    pub async fn list_connector(
+        &self,
+        exec_impl: &impl ExecCommand,
+        schema_path: Utf8PathBuf,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["list-connectors".to_string()];
+
+        args.push("--schema".to_string());
+        args.push(schema_path.into_string());
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    pub async fn analyze_clean(
+        &self,
+        exec_impl: &impl ExecCommand,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["analyze-for-connector".to_string()];
+
+        args.push("clean".to_string());
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    pub async fn analyze_interactive(
+        &self,
+        exec_impl: &impl ExecCommand,
+        port: Option<u16>,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["analyze-for-connector".to_string()];
+
+        args.push("interactive".to_string());
+
+        if let Some(port) = port {
+            args.push("--port".to_string());
+            args.push(port.to_string());
+        }
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stdin(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .build(),
+            )
+            .should_spawn(true)
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    pub async fn analyze_curl(
+        &self,
+        exec_impl: &impl ExecCommand,
+        url: &url::Url,
+        headers: &[crate::command::connector::analyze::HeaderData],
+        method: Option<&Method>,
+        timeout: Option<&u64>,
+        data: Option<&Value>,
+        analysis_dir: Option<Utf8PathBuf>,
+        quiet: bool,
+        verbose: bool,
+    ) -> Result<RoverOutput, BinaryError> {
+        let mut args = vec!["analyze-for-connector".to_string()];
+
+        args.push("curl".to_string());
+
+        args.push(url.to_string());
+
+        for header in headers {
+            args.push("-H".to_string());
+            args.push(header.to_string());
+        }
+
+        if let Some(method) = method {
+            args.push("-X".to_string());
+            args.push(method.to_string());
+        }
+
+        if let Some(timeout) = timeout {
+            args.push("--timeout".to_string());
+            args.push(timeout.to_string());
+        }
+
+        if let Some(data) = data {
+            args.push("--data".to_string());
+            args.push(serde_json::to_string(data).unwrap_or_default());
+        }
+
+        if let Some(analysis_dir) = analysis_dir {
+            args.push("--analysis-dir".to_string());
+            args.push(analysis_dir.into_string());
+        }
+
+        if verbose {
+            args.push("--verbose".to_string());
+        }
+
+        if quiet {
+            args.push("--quiet".to_string());
+        }
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+
+        Ok(RoverOutput::ConnectorTestResponse { output })
+    }
+
+    pub(crate) async fn load_spec_for_file(
+        &self,
+        schema_path: PathBuf,
+        exec_impl: &impl ExecCommand,
+    ) -> Result<String, BinaryError> {
+        let minimum_version =
+            Version::parse("2.12.0-preview.7").expect("hardcoded version is valid");
+        let current_version = self.version();
+        if current_version < &minimum_version {
+            return Err(BinaryError::UnsupportedVersion {
+                minimum: minimum_version,
+                current: current_version.clone(),
+            });
+        }
+
+        let args = vec![
+            "fill-schema-gaps".to_string(),
+            schema_path.to_string_lossy().to_string(),
+        ];
+
+        let config = ExecCommandConfig::builder()
+            .exe(self.exe.clone())
+            .args(args)
+            .output(
+                ExecCommandOutput::builder()
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .build(),
+            )
+            .build();
+
+        let output = self.execute(exec_impl, config).await?;
+        let parsed: serde_json::Value =
+            serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?;
+        let diff = parsed.get("diff").and_then(|d| d.as_str()).ok_or_else(|| {
+            BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: "Missing 'diff' field in output".to_string(),
+            }
+        })?;
+        Ok(diff.to_string())
+    }
+
+    async fn execute(
+        &self,
+        exec_impl: &impl ExecCommand,
+        config: ExecCommandConfig,
+    ) -> Result<String, BinaryError> {
+        let output = exec_impl
+            .exec_command(config)
+            .await
+            .tap_err(|err| tracing::error!("{:?}", err))
+            .map_err(|err| BinaryError::Run {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?;
+
+        let exit_code = output.status.code();
+        if exit_code != Some(0) && exit_code != Some(1) {
+            return Err(BinaryError::Exit {
+                binary: self.exe.clone(),
+                exit_code,
+                stdout: String::from_utf8(output.stdout).unwrap(),
+                stderr: String::from_utf8(output.stderr).unwrap(),
+            });
+        }
+
+        let output = std::str::from_utf8(&output.stdout)
+            .map_err(|err| BinaryError::InvalidOutput {
+                binary: self.exe.clone(),
+                error: format!("{err:?}"),
+            })?
+            .to_string();
+        Ok(output)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum BinaryError {
+    #[error("Failed to run `{binary}`")]
+    Run { binary: Utf8PathBuf, error: String },
+
+    #[error("`{binary}` exited with errors.\nStdout: {}\nStderr: {}", .stdout, .stderr)]
+    Exit {
+        binary: Utf8PathBuf,
+        exit_code: Option<i32>,
+        stdout: String,
+        stderr: String,
+    },
+
+    #[error("Failed to parse output of `{binary}`\n{error}")]
+    InvalidOutput { binary: Utf8PathBuf, error: String },
+
+    #[error(
+        "This command requires at least version {minimum} of the supergraph binary, but the current version is {current}.\
+             Please update your `supergraph.yaml` or use --federation-version to specify a compatible version."
+    )]
+    UnsupportedVersion {
+        minimum: Version,
+        current: SupergraphVersion,
+    },
 }
 
 #[cfg(test)]

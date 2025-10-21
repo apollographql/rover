@@ -4,8 +4,8 @@ use camino::Utf8PathBuf;
 
 use super::binary::SupergraphBinary;
 use super::version::{SupergraphVersion, SupergraphVersionError};
-use crate::command::install::Plugin;
 use crate::command::Install;
+use crate::command::install::Plugin;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::effect::install::InstallBinary;
@@ -32,7 +32,7 @@ pub struct InstallSupergraph {
 }
 
 impl InstallSupergraph {
-    pub fn new(
+    pub const fn new(
         federation_version: FederationVersion,
         studio_client_config: StudioClientConfig,
     ) -> InstallSupergraph {
@@ -98,8 +98,8 @@ mod tests {
     use apollo_federation_types::config::FederationVersion;
     use assert_fs::{NamedTempFile, TempDir};
     use camino::Utf8PathBuf;
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use houston::Config;
     use httpmock::{Method, MockServer};
     use rstest::{fixture, rstest};
@@ -180,16 +180,16 @@ mod tests {
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_supergraph = InstallSupergraph::new(federation_version, studio_client_config);
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::HEAD.to_string()
-                    && request.path.starts_with("/tar/supergraph")
+            when.is_true(|request| {
+                request.method() == Method::HEAD
+                    && request.uri().path().starts_with("/tar/supergraph")
             });
             then.status(302).header("X-Version", "v2.9.0");
         });
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string()
-                    && request.path.starts_with("/tar/supergraph/")
+            when.is_true(|request| {
+                request.method() == Method::GET
+                    && request.uri().path().starts_with("/tar/supergraph/")
             });
             then.status(302)
                 .header("Location", format!("{mock_server_endpoint}/supergraph/"));
@@ -212,8 +212,8 @@ mod tests {
         let finished_archive_bytes = finished_archive.finish()?;
 
         http_server.mock(|when, then| {
-            when.matches(|request| {
-                request.method == Method::GET.to_string() && request.path.starts_with("/supergraph")
+            when.is_true(|request| {
+                request.method() == Method::GET && request.uri().path().starts_with("/supergraph")
             });
             then.status(200)
                 .header("Content-Type", "application/octet-stream")

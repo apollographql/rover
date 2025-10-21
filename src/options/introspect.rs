@@ -49,10 +49,10 @@ impl IntrospectOpts {
             match exec_fn().await {
                 Ok(sdl) => {
                     let mut was_updated = true;
-                    if let Some(last) = last_result {
-                        if last == sdl {
-                            was_updated = false
-                        }
+                    if let Some(last) = last_result
+                        && last == sdl
+                    {
+                        was_updated = false
                     }
 
                     if was_updated {
@@ -70,10 +70,10 @@ impl IntrospectOpts {
                 Err(error) => {
                     let mut was_updated = true;
                     let e = error.to_string();
-                    if let Some(last) = last_result {
-                        if last == e {
-                            was_updated = false;
-                        }
+                    if let Some(last) = last_result
+                        && last == e
+                    {
+                        was_updated = false;
                     }
                     if was_updated {
                         let _ = error.write_or_print(output_opts).map_err(|e| e.print());

@@ -1,0 +1,19 @@
+query ListKeysQuery($organizationId: ID!, $after: String) {
+    organization(id: $organizationId) {
+        apiKeys(after: $after) {
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                node {
+                    createdAt
+                    expiresAt
+                    id
+                    keyName
+                    token
+                }
+            }
+        }
+    }
+}

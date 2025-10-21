@@ -18,6 +18,7 @@ pub struct ExecCommandConfig {
     args: Option<Vec<String>>,
     env: Option<HashMap<String, String>>,
     output: Option<ExecCommandOutput>,
+    should_spawn: Option<bool>,
 }
 
 #[derive(Builder, Default, Debug)]
@@ -46,9 +47,14 @@ pub struct TokioCommand {}
 impl ExecCommand for TokioCommand {
     type Error = std::io::Error;
     async fn exec_command<'a>(&self, config: ExecCommandConfig) -> Result<Output, Self::Error> {
+        let should_spawn = config.should_spawn.is_some_and(|can_spawn| can_spawn);
         let mut command = Command::new(config.exe.clone());
         let command = build_command(&mut command, config);
-        command.output().await
+        if should_spawn {
+            command.spawn().unwrap().wait_with_output().await
+        } else {
+            command.output().await
+        }
     }
 }
 
@@ -91,10 +97,9 @@ fn build_command(command: &mut Command, config: ExecCommandConfig) -> &mut Comma
     } else {
         command
     };
-    let command = if let Some(stdin) = output.stdin {
+    if let Some(stdin) = output.stdin {
         command.stdin(stdin)
     } else {
         command
-    };
-    command
+    }
 }

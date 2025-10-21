@@ -15,7 +15,7 @@ pub struct RouterConfigWatcher {
 }
 
 impl RouterConfigWatcher {
-    pub fn new(file_watcher: FileWatcher) -> Self {
+    pub const fn new(file_watcher: FileWatcher) -> Self {
         Self { file_watcher }
     }
 }

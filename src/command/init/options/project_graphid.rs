@@ -1,10 +1,10 @@
-use crate::command::init::graph_id::{
-    errors::conversions::validation_error_to_rover_error, generation::generate_graph_id,
-    utils::random::DefaultRandomStringGenerator, validation::GraphIdValidationError, GraphId,
-};
 use crate::RoverResult;
-use clap::arg;
+use crate::command::init::graph_id::{
+    GraphId, errors::conversions::validation_error_to_rover_error, generation::generate_graph_id,
+    utils::random::DefaultRandomStringGenerator, validation::GraphIdValidationError,
+};
 use clap::Parser;
+use clap::arg;
 use dialoguer::Input;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,7 @@ impl GraphIdOpt {
 
     fn prompt_for_input(&self, suggested_id: &str) -> RoverResult<String> {
         let input = Input::<String>::new()
-            .with_prompt(Style::Prompt.paint("Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
+            .with_prompt(Style::Prompt.paint("? Confirm or modify graph ID (start with a letter and use only letters, numbers, and dashes)"))
             .with_initial_text(suggested_id.to_string())
             .allow_empty(true)
             .interact_text()?;

@@ -36,7 +36,10 @@ impl Open {
                 Ok(())
             }
         } else {
-            eprintln!("Opening {} with your default browser. This can be overridden by setting the {} environment variable.", &painted_url, &painted_browser_var);
+            eprintln!(
+                "Opening {} with your default browser. This can be overridden by setting the {} environment variable.",
+                &painted_url, &painted_browser_var
+            );
             opener::open(&url)?;
             Ok(())
         }?;

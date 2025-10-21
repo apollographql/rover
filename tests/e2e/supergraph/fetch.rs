@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::process::Command;
 
 use assert_cmd::prelude::CommandCargoExt;
-use httpmock::Regex;
+use regex::Regex;
 use rstest::rstest;
 use tempfile::Builder;
 use tracing::error;

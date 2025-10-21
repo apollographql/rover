@@ -6,11 +6,11 @@ use apollo_federation_types::config::SubgraphConfig;
 use buildstructor::Builder;
 use futures::Future;
 use rover_client::{
+    RoverClientError,
     operations::subgraph::fetch_all::{
         SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse,
     },
     shared::GraphRef,
-    RoverClientError,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;
@@ -74,7 +74,7 @@ pub struct FetchRemoteSubgraphsRequest {
 
 impl FetchRemoteSubgraphsRequest {
     /// Creates a new [`FetchRemoteSubgraphrequest`] from a [`GraphRef`]
-    pub fn new(graph_ref: GraphRef) -> FetchRemoteSubgraphsRequest {
+    pub const fn new(graph_ref: GraphRef) -> FetchRemoteSubgraphsRequest {
         FetchRemoteSubgraphsRequest { graph_ref }
     }
 }
@@ -86,7 +86,7 @@ pub struct FetchRemoteSubgraphs<S> {
 
 impl<S> FetchRemoteSubgraphs<S> {
     /// Creates a new [`FetchRemoteSubgraphs`]
-    pub fn new(inner: S) -> FetchRemoteSubgraphs<S> {
+    pub const fn new(inner: S) -> FetchRemoteSubgraphs<S> {
         FetchRemoteSubgraphs { inner }
     }
 }

@@ -58,7 +58,7 @@ pub struct WhoAmIRequest {
 }
 
 impl WhoAmIRequest {
-    pub fn new(credential_origin: CredentialOrigin) -> WhoAmIRequest {
+    pub const fn new(credential_origin: CredentialOrigin) -> WhoAmIRequest {
         WhoAmIRequest {
             input: ConfigWhoAmIInput {},
             credential_origin,
@@ -71,7 +71,7 @@ pub struct WhoAmI<S> {
 }
 
 impl<S> WhoAmI<S> {
-    pub fn new(inner: S) -> WhoAmI<S> {
+    pub const fn new(inner: S) -> WhoAmI<S> {
         WhoAmI { inner }
     }
 }

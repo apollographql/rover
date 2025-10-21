@@ -62,7 +62,7 @@ impl RunMcpServer<state::Run> {
         Spawn::Future: Send,
     {
         let run_mcp_server_binary = RunMcpServerBinary::builder()
-            .mcp_server_binary(self.state.binary.clone())
+            .mcp_server_binary(self.state.binary)
             .supergraph_schema_path(supergraph_schema_path.clone())
             .spawn(spawn)
             .router_address(router_address)
@@ -83,7 +83,7 @@ impl RunMcpServer<state::Run> {
 
         Ok(RunMcpServer {
             state: state::Abort {
-                cancellation_token: cancellation_token.clone(),
+                cancellation_token,
                 mcp_server_logs,
                 supergraph_schema_path,
             },
@@ -92,7 +92,7 @@ impl RunMcpServer<state::Run> {
 }
 
 impl RunMcpServer<state::Abort> {
-    pub fn mcp_server_logs(
+    pub const fn mcp_server_logs(
         &mut self,
     ) -> &mut UnboundedReceiverStream<Result<McpServerLog, RunMcpServerBinaryError>> {
         &mut self.state.mcp_server_logs

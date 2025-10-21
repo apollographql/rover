@@ -4,7 +4,7 @@ use rover_client::blocking::StudioClient;
 use rover_client::operations::config::who_am_i::{self, Actor, RegistryIdentity};
 use serde::Serialize;
 
-use houston::{mask_key, CredentialOrigin};
+use houston::{CredentialOrigin, mask_key};
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
@@ -62,7 +62,7 @@ impl WhoAmI {
         })
     }
 
-    fn is_valid_actor_type(&self, identity: &RegistryIdentity) -> bool {
+    const fn is_valid_actor_type(&self, identity: &RegistryIdentity) -> bool {
         matches!(identity.key_actor_type, Actor::USER | Actor::GRAPH)
     }
 

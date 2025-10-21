@@ -28,7 +28,7 @@ pub struct SupergraphVersion {
 }
 
 impl SupergraphVersion {
-    pub fn new(version: Version) -> SupergraphVersion {
+    pub const fn new(version: Version) -> SupergraphVersion {
         SupergraphVersion { version }
     }
     /// Establishes whether this version supports the `--output` flag
@@ -136,6 +136,18 @@ impl TryFrom<FederationVersion> for SupergraphVersion {
                 Ok(SupergraphVersion::new(version))
             }
         }
+    }
+}
+
+impl PartialEq<Version> for SupergraphVersion {
+    fn eq(&self, other: &Version) -> bool {
+        self.version == *other
+    }
+}
+
+impl PartialOrd<Version> for SupergraphVersion {
+    fn partial_cmp(&self, other: &Version) -> Option<std::cmp::Ordering> {
+        self.version.partial_cmp(other)
     }
 }
 
