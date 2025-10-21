@@ -204,19 +204,4 @@ mod tests {
         let bytes = result.unwrap();
         assert!(!bytes.is_empty());
     }
-
-    #[tokio::test]
-    async fn test_get_all_releases() {
-        let mut service = GitHubService::new();
-        let request = GetAllReleasesRequest::new(
-            "apollographql".to_string(),
-            "rover-init-starters".to_string(),
-        );
-
-        let ready_service = ServiceExt::<GetAllReleasesRequest>::ready(&mut service)
-            .await
-            .unwrap();
-        let result: Result<Vec<Release>, GitHubServiceError> = ready_service.call(request).await;
-        assert!(result.is_ok());
-    }
 }
