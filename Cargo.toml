@@ -176,7 +176,7 @@ zip = "6.0"
 ### rover specific dependencies
 [dependencies]
 anyhow = { workspace = true }
-assert_fs = { workspace = true }
+# assert_fs = { workspace = true }
 async-trait = { workspace = true }
 apollo-language-server = { workspace = true }
 apollo-federation-types = { workspace = true }
@@ -243,7 +243,6 @@ comfy-table = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
-assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3.19"
 duct = "1.1.0"
