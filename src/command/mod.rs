@@ -43,6 +43,7 @@ pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;
 pub use subgraph::Subgraph;
+#[cfg(feature = "composition-js")]
 pub use supergraph::Supergraph;
 pub use template::Template;
 pub use update::Update;
