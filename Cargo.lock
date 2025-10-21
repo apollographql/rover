@@ -4996,6 +4996,7 @@ dependencies = [
  "apollo-parser 0.8.4",
  "assert-json-diff",
  "assert_cmd",
+ "assert_fs",
  "async-trait",
  "billboard",
  "binstall",

@@ -176,6 +176,7 @@ zip = "6.0"
 ### rover specific dependencies
 [dependencies]
 anyhow = { workspace = true }
+assert_fs = { workspace = true }
 async-trait = { workspace = true }
 apollo-language-server = { workspace = true }
 apollo-federation-types = { workspace = true }
