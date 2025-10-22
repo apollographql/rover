@@ -56,10 +56,8 @@
 //! ```
 
 use futures::stream::BoxStream;
-use tokio::sync::broadcast;
-use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
-use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 
 /// A trait whose implementation will be able to send events
@@ -84,15 +82,8 @@ pub trait SubtaskHandleStream {
     );
 }
 
-/// A trait whose implementation will be able to send events to multiple channels with
-/// broadcast semantics.
-pub trait SubtaskHandleMultiStream {
-    type Output;
-    fn handle(self, sender: Sender<Self::Output>, cancellation_token: Option<CancellationToken>);
-}
-
 /// A trait whose implementation can run a subtask that only ingests messages
-pub trait SubtaskRunUnit {
+pub(crate) trait SubtaskRunUnit {
     fn run(self, cancellation_token: Option<CancellationToken>);
 }
 
@@ -126,29 +117,6 @@ impl<T, Output> Subtask<T, Output> {
     }
 }
 
-#[derive(Debug)]
-pub struct BroadcastSubtask<T, Output> {
-    inner: T,
-    sender: Sender<Output>,
-}
-
-impl<T, Output: Clone + Send + 'static> BroadcastSubtask<T, Output> {
-    /// Crates a new Subtask with bounded channels for transmitting and receiving in a broadcast
-    /// manner. A version of transmitter is returned to the caller so that it can be used to send
-    /// messages to the Subtask's receiver, however more can be acquired via the subscribe method.
-    pub fn new(inner: T) -> (BroadcastStream<Output>, BroadcastSubtask<T, Output>) {
-        let (tx, rx) = broadcast::channel(100);
-        (
-            BroadcastStream::new(rx),
-            BroadcastSubtask { inner, sender: tx },
-        )
-    }
-
-    pub fn subscribe(&self) -> BroadcastStream<Output> {
-        BroadcastStream::new(self.sender.subscribe())
-    }
-}
-
 impl<T: SubtaskHandleUnit<Output = Output>, Output> SubtaskRunUnit for Subtask<T, Output> {
     /// Begin running the subtask, calling handle() on the type implementing the SubTaskHandleUnit trait
     fn run(self, cancellation_token: Option<CancellationToken>) {
@@ -165,14 +133,5 @@ impl<T: SubtaskHandleStream<Output = Output>, Output> SubtaskRunStream for Subta
         cancellation_token: Option<CancellationToken>,
     ) {
         self.inner.handle(self.sender, input, cancellation_token)
-    }
-}
-
-impl<T: SubtaskHandleMultiStream<Output = Output>, Output> SubtaskRunUnit
-    for BroadcastSubtask<T, Output>
-{
-    /// Begin running the subtask, calling handle() on the type implementing the SubTaskHandleUnit trait
-    fn run(self, cancellation_token: Option<CancellationToken>) {
-        self.inner.handle(self.sender, cancellation_token)
     }
 }

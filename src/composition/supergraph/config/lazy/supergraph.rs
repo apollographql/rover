@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::{StreamExt, stream};
 use itertools::Itertools;
 
 use super::LazilyResolvedSubgraph;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
@@ -30,20 +31,19 @@ impl LazilyResolvedSupergraphConfig {
         LazilyResolvedSupergraphConfig,
         BTreeMap<String, ResolveSubgraphError>,
     ) {
-        let subgraphs = stream::iter(
-            unresolved_supergraph_config
-                .subgraphs()
-                .clone()
-                .into_iter()
-                .map(|(name, unresolved_subgraph)| async move {
-                    let result = LazilyResolvedSubgraph::resolve(
-                        supergraph_config_root,
-                        unresolved_subgraph.clone(),
-                    )
-                    .map_err(|err| (name.to_string(), err))?;
-                    Ok((name.to_string(), result))
-                }),
-        )
+        let federation_version = unresolved_supergraph_config.target_federation_version();
+        let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs.into_iter().map(
+            |(name, unresolved_subgraph)| async move {
+                match LazilyResolvedSubgraph::resolve(
+                    supergraph_config_root,
+                    name.clone(),
+                    unresolved_subgraph,
+                ) {
+                    Ok(result) => Ok((name, result)),
+                    Err(err) => Err((name, err)),
+                }
+            },
+        ))
         .buffer_unordered(50)
         .collect::<Vec<Result<(String, LazilyResolvedSubgraph), (String, ResolveSubgraphError)>>>()
         .await;
@@ -54,9 +54,9 @@ impl LazilyResolvedSupergraphConfig {
         ) = subgraphs.into_iter().partition_result();
         (
             LazilyResolvedSupergraphConfig {
-                origin_path: unresolved_supergraph_config.origin_path().clone(),
+                origin_path: unresolved_supergraph_config.origin_path.clone(),
                 subgraphs: BTreeMap::from_iter(subgraphs),
-                federation_version: unresolved_supergraph_config.target_federation_version(),
+                federation_version,
             },
             BTreeMap::from_iter(errors.into_iter()),
         )
@@ -70,7 +70,7 @@ impl LazilyResolvedSupergraphConfig {
     }
 }
 
-impl From<LazilyResolvedSupergraphConfig> for SupergraphConfig {
+impl From<LazilyResolvedSupergraphConfig> for SupergraphConfigYaml {
     fn from(value: LazilyResolvedSupergraphConfig) -> Self {
         let subgraphs = BTreeMap::from_iter(
             value
@@ -78,6 +78,9 @@ impl From<LazilyResolvedSupergraphConfig> for SupergraphConfig {
                 .into_iter()
                 .map(|(name, subgraph)| (name, subgraph.into())),
         );
-        SupergraphConfig::new(subgraphs, value.federation_version)
+        SupergraphConfigYaml {
+            subgraphs,
+            federation_version: value.federation_version,
+        }
     }
 }
