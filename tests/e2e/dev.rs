@@ -48,6 +48,9 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", version);
     };
+    if let Ok(version) = env::var("APOLLO_ROVER_DEV_MCP_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", version);
+    };
     cmd.spawn().expect("Could not run rover dev command");
     tokio::task::block_in_place(|| {
         let handle = tokio::runtime::Handle::current();
