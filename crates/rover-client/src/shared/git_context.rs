@@ -3,6 +3,7 @@ use std::{env, panic};
 use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
 use serde::Serialize;
+use url::form_urlencoded;
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct GitContext {
@@ -94,28 +95,25 @@ impl GitContext {
     // If parsing fails, or if the url doesn't match a valid host, this fn
     // will return None
     fn sanitize_remote_url(remote_url: &str) -> Option<String> {
+        let remote_url = remote_url.to_lowercase();
         // try to parse url into git info
-        let parsed_remote_url = parse_git_remote(remote_url);
+        let parsed_remote_url = parse_git_remote(&remote_url);
 
-        if let Some(mut parsed_remote_url) = parsed_remote_url {
+        if let Some(parsed_remote_url) = parsed_remote_url {
             // return None for any remote that does not have a host
             parsed_remote_url.host()?;
 
-            let parsed_remote_url_aux = parsed_remote_url.clone();
-            let optional_user = parsed_remote_url_aux.user();
-            parsed_remote_url = parsed_remote_url.trim_auth();
+            let user = parsed_remote_url.user();
 
             // if the user is "git" we can add back in the user. Otherwise, return
             // the clean remote url
             // this is done previously here:
             // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
-            if let Some(user) = &optional_user {
-                if user == &"git" {
-                    parsed_remote_url = GitUrl::parse(remote_url).ok()?;
-                }
-            };
-
-            Some(parsed_remote_url.to_string())
+            if let Some("git") = user {
+                Some(format!("git@{}", parsed_remote_url.trim_auth()))
+            } else {
+                Some(parsed_remote_url.trim_auth().to_string())
+            }
         } else {
             None
         }
@@ -136,6 +134,16 @@ impl Default for GitContext {
 // GitUrl::parse can panic, so we attempt to catch it and
 // just return None if the parsing fails.
 fn parse_git_remote(remote_url: &str) -> Option<GitUrl> {
+    // Removes `@` because it GitUrl parse doesnt understand usernames and passwords with `@`
+    let remote_url = remote_url.replace("%40", "");
+    // Decodes url components as they break GitUrl
+    let mut decoded = form_urlencoded::parse(remote_url.as_bytes());
+    let decoded = decoded.next()?;
+    // Should not have anything for url component, only valid in query pairs
+    if !decoded.1.is_empty() {
+        return None;
+    }
+    let remote_url = decoded.0;
     // we make sure to store the original panic handler
     let original_panic_handler = panic::take_hook();
 
@@ -143,7 +151,7 @@ fn parse_git_remote(remote_url: &str) -> Option<GitUrl> {
     panic::set_hook(Box::new(|_| {}));
 
     // parse the git remote
-    let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(remote_url).ok())
+    let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(&remote_url).ok())
         .ok()
         .flatten();
 
