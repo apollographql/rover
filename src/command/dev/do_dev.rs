@@ -19,9 +19,7 @@ use crate::command::dev::router::binary::RunRouterBinaryError;
 use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
 use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
 use crate::command::dev::router::run::RunRouter;
-use crate::command::dev::{
-    OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION,
-};
+use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
 use crate::command::install::McpServerVersion;
 use crate::composition::events::CompositionEvent;
 use crate::composition::pipeline::CompositionPipeline;
