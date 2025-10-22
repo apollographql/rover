@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use apollo_federation_types::config::FederationVersion;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
@@ -14,6 +14,7 @@ use tracing::{error, info};
 use crate::composition::CompositionError::ResolvingSubgraphsError;
 use crate::composition::events::CompositionEvent;
 use crate::composition::supergraph::binary::SupergraphBinary;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 use crate::composition::supergraph::config::error::ResolveSubgraphError;
 use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
 use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
@@ -240,7 +241,7 @@ where
         supergraph_config: &FullyResolvedSupergraphConfig,
         target_file: &Utf8PathBuf,
     ) -> Result<(), CompositionError> {
-        let supergraph_config = SupergraphConfig::from(supergraph_config.clone());
+        let supergraph_config = SupergraphConfigYaml::from(supergraph_config.clone());
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config);
 
         let supergraph_config_yaml = match supergraph_config_yaml {
