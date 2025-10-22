@@ -84,7 +84,7 @@ Internally, the `npm` installer downloads router binaries from `https://rover.ap
 
    <Note>
 
-   This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
+   This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router, composition, and MCP server. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION`, `APOLLO_ROVER_DEV_ROUTER_VERSION`, and `APOLLO_ROVER_DEV_MCP_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
 
    </Note>
 
