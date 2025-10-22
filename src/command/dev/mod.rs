@@ -113,7 +113,4 @@ lazy_static::lazy_static! {
     // https://www.apollographql.com/docs/router/federation-version-support/#support-table
     pub(crate) static ref OVERRIDE_DEV_COMPOSITION_VERSION: Option<String> =
         std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").ok();
-
-    pub(crate) static ref OVERRIDE_DEV_MCP_VERSION: Option<String> =
-        std::env::var("APOLLO_ROVER_DEV_MCP_VERSION").ok();
 }
