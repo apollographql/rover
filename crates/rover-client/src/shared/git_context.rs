@@ -99,9 +99,10 @@ impl GitContext {
 
         if let Some(mut parsed_remote_url) = parsed_remote_url {
             // return None for any remote that does not have a host
-            parsed_remote_url.host.as_ref()?;
+            parsed_remote_url.host()?;
 
-            let optional_user = parsed_remote_url.user.clone();
+            let parsed_remote_url_aux = parsed_remote_url.clone();
+            let optional_user = parsed_remote_url_aux.user();
             parsed_remote_url = parsed_remote_url.trim_auth();
 
             // if the user is "git" we can add back in the user. Otherwise, return
@@ -109,8 +110,8 @@ impl GitContext {
             // this is done previously here:
             // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
             if let Some(user) = &optional_user {
-                if user == "git" {
-                    parsed_remote_url.user = optional_user;
+                if user == &"git" {
+                    parsed_remote_url = GitUrl::parse(remote_url).ok()?;
                 }
             };
 
