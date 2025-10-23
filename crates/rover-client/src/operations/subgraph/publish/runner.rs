@@ -1,16 +1,16 @@
-use super::types::*;
-use crate::blocking::StudioClient;
-use crate::operations::graph::variant::VariantListInput;
-use crate::operations::{
-    config::is_federated::{self, IsFederatedInput},
-    graph::variant,
-};
-use crate::shared::GraphRef;
-use crate::RoverClientError;
-
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
 
-use apollo_federation_types::rover::{BuildError, BuildErrors};
+use super::types::*;
+use crate::{
+    blocking::StudioClient,
+    operations::{
+        config::is_federated::{self, IsFederatedInput},
+        graph::{variant, variant::VariantListInput},
+    },
+    shared::GraphRef,
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -119,8 +119,9 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
     #[test]
     fn build_response_works_with_composition_errors() {
         let json_response = json!({

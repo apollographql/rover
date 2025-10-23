@@ -4,7 +4,7 @@ version: 2.1
 orbs:
   rust: circleci/rust@1.8.0
   gh: circleci/github-cli@2.7.2
-  node: circleci/node@7.2.0
+  node: circleci/node@7.2.1
   slack: circleci/slack@6.0.0
 
 # These filters are used in all of the jobs for our release workflow

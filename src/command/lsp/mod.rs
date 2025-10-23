@@ -1,45 +1,52 @@
 mod errors;
 
-use std::collections::HashMap;
-use std::env::temp_dir;
-use std::fmt::Debug;
-use std::io::stdin;
-use std::path::PathBuf;
+use std::{collections::HashMap, env::temp_dir, fmt::Debug, io::stdin, path::PathBuf};
 
 use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
-use futures::StreamExt;
-use futures::channel::oneshot;
+use futures::{StreamExt, channel::oneshot};
 use serde::Serialize;
 use tower::ServiceExt;
-use tower_lsp::Server;
-use tower_lsp::lsp_types::{Diagnostic, Range};
+use tower_lsp::{
+    Server,
+    lsp_types::{Diagnostic, Range},
+};
 use tracing::{debug, info};
 use url::Url;
 
-use crate::command::lsp::errors::StartCompositionError;
-use crate::command::lsp::errors::StartCompositionError::SupergraphYamlUrlConversionFailed;
-use crate::composition::events::CompositionEvent;
-use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::runner::CompositionRunner;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
-use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::install::InstallSupergraphError;
-use crate::composition::{
-    CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
-    FederationUpdaterConfig, get_supergraph_binary,
+use crate::{
+    RoverOutput, RoverResult,
+    command::lsp::errors::{
+        StartCompositionError, StartCompositionError::SupergraphYamlUrlConversionFailed,
+    },
+    composition::{
+        CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
+        FederationUpdaterConfig,
+        events::CompositionEvent,
+        get_supergraph_binary,
+        pipeline::CompositionPipeline,
+        runner::CompositionRunner,
+        supergraph::{
+            config::{
+                error::ResolveSubgraphError,
+                full::introspect::MakeResolveIntrospectSubgraph,
+                resolver::{
+                    ResolveSupergraphConfigError, fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                    fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+                },
+            },
+            install::InstallSupergraphError,
+        },
+    },
+    options::PluginOpts,
+    utils::{
+        client::StudioClientConfig,
+        effect::{exec::TokioCommand, write_file::FsWriteFile},
+        parsers::FileDescriptorType,
+    },
 };
-use crate::options::PluginOpts;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::write_file::FsWriteFile;
-use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Lsp {

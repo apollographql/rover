@@ -1,11 +1,12 @@
-use crate::{RoverError, RoverResult};
+use std::fmt::{self, Display};
+
 use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
-use dialoguer::Select;
-use dialoguer::console::Term;
+use dialoguer::{Select, console::Term};
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display};
+
+use crate::{RoverError, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTypeOpt {

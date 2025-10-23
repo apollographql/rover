@@ -1,14 +1,15 @@
+use cloud_config_update_query::{
+    CloudConfigUpdateQueryGraphVariantUpsertRouterConfig::{GraphVariant, RouterUpsertFailure},
+    CloudConfigUpdateQueryGraphVariantUpsertRouterConfigOnRouterUpsertFailure as OnRouterUpsertFailure,
+};
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::cloud::config::types::{CloudConfigInput, CloudConfigResponse};
-use crate::shared::GraphRef;
-use crate::RoverClientError;
-
-use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterConfig::{
-    GraphVariant, RouterUpsertFailure,
+use crate::{
+    blocking::StudioClient,
+    operations::cloud::config::types::{CloudConfigInput, CloudConfigResponse},
+    shared::GraphRef,
+    RoverClientError,
 };
-use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterConfigOnRouterUpsertFailure as OnRouterUpsertFailure;
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -63,9 +64,10 @@ fn build_response(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::shared::GraphRef;
-    use serde_json::json;
 
     fn mock_graph_ref() -> GraphRef {
         GraphRef {

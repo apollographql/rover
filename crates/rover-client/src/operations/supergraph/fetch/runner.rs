@@ -1,10 +1,12 @@
 use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::supergraph::fetch::SupergraphFetchInput;
-use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
-use crate::RoverClientError;
+use crate::{
+    blocking::StudioClient,
+    operations::supergraph::fetch::SupergraphFetchInput,
+    shared::{FetchResponse, GraphRef, Sdl, SdlType},
+    RoverClientError,
+};
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema

@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::composition::supergraph::binary::SupergraphBinary;
-use crate::utils::effect::exec::TokioCommand;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
+    utils::effect::exec::TokioCommand,
+};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 pub struct GenerateConnector {

@@ -3,9 +3,6 @@ use std::{
     io::{self, IsTerminal},
 };
 
-use crate::cli::Rover;
-use crate::options::{TemplateFetcher, TemplateOpt, TemplateWrite};
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, Parser, error::ErrorKind as ClapErrorKind};
@@ -14,6 +11,11 @@ use rover_http::ReqwestService;
 use serde::Serialize;
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    cli::Rover,
+    options::{TemplateFetcher, TemplateOpt, TemplateWrite},
+};
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct Use {

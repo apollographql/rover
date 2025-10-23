@@ -1,8 +1,12 @@
-use crate::command::init::options::ProjectType;
-use crate::command::init::states::MCPComposedTemplate;
-use crate::command::init::template_fetcher::{Template, TemplateId};
-use camino::Utf8PathBuf;
 use std::collections::HashMap;
+
+use camino::Utf8PathBuf;
+
+use crate::command::init::{
+    options::ProjectType,
+    states::MCPComposedTemplate,
+    template_fetcher::{Template, TemplateId},
+};
 
 fn create_test_template() -> Template {
     Template {

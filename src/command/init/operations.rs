@@ -1,21 +1,23 @@
-use crate::RoverResult;
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
-use rover_client::blocking::StudioClient;
-use rover_client::operations::init::build_pipeline_track;
-use std::collections::BTreeMap;
-use std::fs::read_to_string;
-use thiserror::Error;
+use std::{collections::BTreeMap, fs::read_to_string};
 
 use anyhow::anyhow;
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
-use rover_client::operations::init::build_pipeline_track::*;
-use rover_client::operations::subgraph::publish::*;
-use rover_client::shared::GitContext;
-use rover_client::shared::GraphRef;
+use rover_client::{
+    blocking::StudioClient,
+    operations::{
+        init::{build_pipeline_track, build_pipeline_track::*},
+        subgraph::publish::*,
+    },
+    shared::{GitContext, GraphRef},
+};
 use semver::Version;
+use thiserror::Error;
+
+use crate::{
+    RoverResult, composition::supergraph::config::unresolved::UnresolvedSubgraph,
+    options::ProfileOpt, utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Error, Clone)]
 pub enum GraphOperationError {
@@ -151,8 +153,9 @@ pub(crate) async fn update_variant_federation_version(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rover_client::operations::init::build_pipeline_track::BuildPipelineTrack;
+
+    use super::*;
 
     #[test]
     fn test_map_federation_version_to_build_pipeline_track_valid_versions() {

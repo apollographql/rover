@@ -1,8 +1,8 @@
 // most of this code is taken wholesale from this:
 // https://github.com/rust-lang/rustup/blob/master/src/cli/self_update/windows.rs
-use crate::{Installer, InstallerError};
-
 use std::io;
+
+use crate::{Installer, InstallerError};
 
 /// Adds the downloaded binary in Installer to a Windows PATH
 pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
@@ -26,8 +26,10 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
 // this returns None then the PATH variable is not unicode and we
 // should not mess with it.
 fn get_windows_path_var() -> Result<Option<String>, InstallerError> {
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
-    use winreg::RegKey;
+    use winreg::{
+        enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE},
+        RegKey,
+    };
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
     let environment = root.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)?;
@@ -54,6 +56,7 @@ fn get_windows_path_var() -> Result<Option<String>, InstallerError> {
 // conversion.
 fn string_from_winreg_value(val: &winreg::RegValue) -> Option<String> {
     use std::slice;
+
     use winreg::enums::RegType;
 
     match val.vtype {
@@ -91,12 +94,15 @@ fn add_to_path(old_path: &str, path_str: &str) -> Option<String> {
 
 fn apply_new_path(new_path: &str) -> Result<(), InstallerError> {
     use std::ptr;
-    use winapi::shared::minwindef::*;
-    use winapi::um::winuser::{
-        SendMessageTimeoutA, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+
+    use winapi::{
+        shared::minwindef::*,
+        um::winuser::{SendMessageTimeoutA, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE},
     };
-    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
-    use winreg::{RegKey, RegValue};
+    use winreg::{
+        enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE},
+        RegKey, RegValue,
+    };
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
     let environment = root.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)?;
@@ -128,8 +134,7 @@ fn apply_new_path(new_path: &str) -> Result<(), InstallerError> {
 }
 
 fn string_to_winreg_bytes(s: &str) -> Vec<u8> {
-    use std::ffi::OsStr;
-    use std::os::windows::ffi::OsStrExt;
+    use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
     let v: Vec<u16> = OsStr::new(s).encode_wide().chain(Some(0)).collect();
     unsafe { std::slice::from_raw_parts(v.as_ptr().cast::<u8>(), v.len() * 2).to_vec() }
 }

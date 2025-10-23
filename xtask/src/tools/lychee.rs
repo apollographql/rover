@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-use std::time::Duration;
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
@@ -152,7 +150,7 @@ mod tests {
 
     use anyhow::Result;
     use http::StatusCode;
-    use lychee_lib::{Client, InputSource, Request, Uri};
+    use lychee_lib::{Client, Request, ResolvedInputSource, Uri};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tokio::runtime::Runtime;
@@ -180,7 +178,7 @@ mod tests {
             .create();
         let request = Request::new(
             Uri::try_from(&format!("{}/{}", url, "success") as &str)?,
-            InputSource::String("test".to_string()),
+            ResolvedInputSource::String("test".into()),
             None,
             None,
             None,
@@ -213,7 +211,7 @@ mod tests {
         let uri = Uri::try_from(&format!("{}/{}", url, "success") as &str)?;
         let request = Request::new(
             uri.clone(),
-            InputSource::String("test".to_string()),
+            ResolvedInputSource::String("test".into()),
             None,
             None,
             None,

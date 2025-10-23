@@ -6,9 +6,11 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use super::OutputChannelKind;
-use crate::options::{OutputOpts, RoverPrinter};
-use crate::utils::parsers::parse_header;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{OutputOpts, RoverPrinter},
+    utils::parsers::parse_header,
+};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {

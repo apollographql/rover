@@ -1,10 +1,9 @@
-use crate::blocking::StudioClient;
-use crate::operations::config::who_am_i::types::RegistryIdentity;
-use crate::RoverClientError;
-
 use tower::{Service, ServiceExt};
 
 use super::service::{WhoAmI, WhoAmIRequest};
+use crate::{
+    blocking::StudioClient, operations::config::who_am_i::types::RegistryIdentity, RoverClientError,
+};
 
 /// Get info from the registry about an API key, i.e. the name/id of the
 /// user/graph and what kind of key it is (GRAPH/USER/Other)

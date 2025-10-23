@@ -1,12 +1,9 @@
-use std::env;
-use std::process::Command;
-use std::time::Duration;
+use std::{env, process::Command, time::Duration};
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
 use portpicker::pick_unused_port;
-use reqwest::Client;
-use reqwest::header::CONTENT_TYPE;
+use reqwest::{Client, header::CONTENT_TYPE};
 use rstest::*;
 use serde_json::{Value, json};
 use speculoos::assert_that;

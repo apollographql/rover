@@ -1,10 +1,9 @@
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
 use clap::Parser;
 use rover_client::operations::license::fetch::LicenseFetchInput;
 use rover_std::Style;
 use serde::Serialize;
+
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {

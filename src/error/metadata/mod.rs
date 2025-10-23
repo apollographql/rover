@@ -6,8 +6,7 @@ use rover_client::{EndpointKind, RoverClientError};
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
-use crate::options::JsonVersion;
-use crate::utils::env::RoverEnvKey;
+use crate::{options::JsonVersion, utils::env::RoverEnvKey};
 
 mod code;
 mod suggestion;

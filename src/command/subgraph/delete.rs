@@ -1,12 +1,13 @@
 use clap::Parser;
-use serde::Serialize;
-
-use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
-
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
 use rover_std::{Style, prompt};
+use serde::Serialize;
+
+use crate::{
+    RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt, SubgraphOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Delete {

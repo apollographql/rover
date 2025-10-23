@@ -1,10 +1,12 @@
-use crate::command::init::options::{
-    OrganizationId, ProjectName, ProjectNameOpt, ProjectTemplateOpt, ProjectType,
-};
-use crate::command::init::states::*;
-use crate::command::init::template_fetcher::{Template, TemplateId};
-use camino::Utf8PathBuf;
 use std::collections::HashMap;
+
+use camino::Utf8PathBuf;
+
+use crate::command::init::{
+    options::{OrganizationId, ProjectName, ProjectNameOpt, ProjectTemplateOpt, ProjectType},
+    states::*,
+    template_fetcher::{Template, TemplateId},
+};
 
 #[test]
 fn test_project_type_selected_mcp_initialization() {

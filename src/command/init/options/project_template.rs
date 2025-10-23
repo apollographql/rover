@@ -1,7 +1,7 @@
-use crate::command::init::template_fetcher::TemplateId;
-use clap::Parser;
-use clap::arg;
+use clap::{Parser, arg};
 use serde::{Deserialize, Serialize};
+
+use crate::command::init::template_fetcher::TemplateId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTemplateOpt {

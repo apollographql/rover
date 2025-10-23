@@ -2,14 +2,16 @@ use std::fmt;
 
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::graph::fetch;
-use crate::operations::graph::fetch::GraphFetchInput;
-use crate::operations::graph::lint::types::{
-    LintGraphInput, LintGraphMutationInput, LintResponseData,
+use crate::{
+    blocking::StudioClient,
+    operations::graph::{
+        fetch,
+        fetch::GraphFetchInput,
+        lint::types::{LintGraphInput, LintGraphMutationInput, LintResponseData},
+    },
+    shared::{Diagnostic, GraphRef, LintResponse},
+    RoverClientError,
 };
-use crate::shared::{Diagnostic, GraphRef, LintResponse};
-use crate::RoverClientError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

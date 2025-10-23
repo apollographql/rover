@@ -15,9 +15,8 @@ use tower::{
     util::rng::HasherRng,
 };
 
-use crate::{HttpRequest, HttpResponse};
-
 use super::HttpServiceError;
+use crate::{HttpRequest, HttpResponse};
 
 /// [`Policy`] implementation that describes whetheer to retry a request
 #[derive(Clone, Debug)]
@@ -106,9 +105,8 @@ mod tests {
     use speculoos::prelude::*;
     use tower::{Service, ServiceBuilder, ServiceExt};
 
-    use crate::{HttpService, ReqwestService};
-
     use super::RetryPolicy;
+    use crate::{HttpService, ReqwestService};
 
     #[fixture]
     pub fn raw_service() -> HttpService {

@@ -1,6 +1,4 @@
-use std::fmt::Display;
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{fmt::Display, str::FromStr, sync::Arc};
 
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;

@@ -3,27 +3,27 @@ use std::time::{Duration, Instant};
 use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::subgraph::check_workflow::types::QueryResponseData;
-use crate::shared::{
-    CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse, GraphRef,
-    LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-    ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
-};
-use crate::RoverClientError;
-
-use super::types::*;
-
-use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
-    ProposalsCheckTask,
-};
 use self::subgraph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
+    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
+        CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, LintCheckTask,
+        OperationsCheckTask, ProposalsCheckTask,
+    },
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+};
+use super::types::*;
+use crate::{
+    blocking::StudioClient,
+    operations::subgraph::check_workflow::types::QueryResponseData,
+    shared::{
+        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse, GraphRef,
+        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
+    },
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]
@@ -460,8 +460,9 @@ fn get_downstream_response_from_result(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     fn create_check_workflow_data(
         status: CheckWorkflowStatus,

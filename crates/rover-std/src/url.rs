@@ -1,5 +1,6 @@
-use crate::style::Style;
 use url::Url;
+
+use crate::style::Style;
 
 pub fn sanitize_url(url: &str) -> Option<String> {
     Url::parse(url).ok().and_then(|mut parsed_url| {

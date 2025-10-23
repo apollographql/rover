@@ -1,11 +1,17 @@
-use crate::blocking::StudioClient;
-use crate::operations::graph::check::types::{CheckSchemaAsyncInput, MutationResponseData};
-use crate::shared::{CheckRequestSuccessResult, GraphRef};
-use crate::RoverClientError;
-
 use graphql_client::*;
 
-use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError, RateLimitExceededError};
+use crate::{
+    blocking::StudioClient,
+    operations::graph::check::{
+        runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{
+            CheckRequestSuccess, InvalidInputError, PermissionError, PlanError,
+            RateLimitExceededError,
+        },
+        types::{CheckSchemaAsyncInput, MutationResponseData},
+    },
+    shared::{CheckRequestSuccessResult, GraphRef},
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

@@ -6,15 +6,19 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tower::Service;
 
-use super::binary::{McpServerLog, RunMcpServerBinary, RunMcpServerBinaryError};
-use super::install::{InstallMcpServer, InstallMcpServerError};
-use crate::command::dev::router::config::RouterAddress;
-use crate::command::install::McpServerVersion;
-use crate::options::LicenseAccepter;
-use crate::subtask::{Subtask, SubtaskRunUnit};
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::exec::ExecCommandConfig;
-use crate::utils::effect::install::InstallBinary;
+use super::{
+    binary::{McpServerLog, RunMcpServerBinary, RunMcpServerBinaryError},
+    install::{InstallMcpServer, InstallMcpServerError},
+};
+use crate::{
+    command::{dev::router::config::RouterAddress, install::McpServerVersion},
+    options::LicenseAccepter,
+    subtask::{Subtask, SubtaskRunUnit},
+    utils::{
+        client::StudioClientConfig,
+        effect::{exec::ExecCommandConfig, install::InstallBinary},
+    },
+};
 
 pub struct RunMcpServer<S> {
     pub(crate) state: S,

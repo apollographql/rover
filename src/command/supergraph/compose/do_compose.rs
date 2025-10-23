@@ -7,13 +7,19 @@ use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use serde::Serialize;
 
-use crate::composition::get_supergraph_binary;
-use crate::options::PluginOpts;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::exec::TokioCommand;
-use crate::utils::effect::write_file::{FsWriteFile, WriteFile};
-use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    composition::get_supergraph_binary,
+    options::PluginOpts,
+    utils::{
+        client::StudioClientConfig,
+        effect::{
+            exec::TokioCommand,
+            write_file::{FsWriteFile, WriteFile},
+        },
+        parsers::FileDescriptorType,
+    },
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {

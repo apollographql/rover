@@ -1,7 +1,6 @@
 use clap::Parser;
-use serde::Serialize;
-
 use houston as config;
+use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 

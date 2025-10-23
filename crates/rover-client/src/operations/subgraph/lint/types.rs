@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display, Formatter, Result};
 
-use crate::shared::GraphRef;
-
 use super::runner::lint_subgraph_mutation;
+use crate::shared::GraphRef;
 
 pub(crate) type LintQueryVariables = lint_subgraph_mutation::Variables;
 pub(crate) type LintResponseData = lint_subgraph_mutation::ResponseData;

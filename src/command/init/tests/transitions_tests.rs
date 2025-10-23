@@ -1,16 +1,21 @@
 use std::collections::HashMap;
 
-use crate::command::init::config::ProjectConfig;
-use crate::command::init::graph_id::GraphId;
-use crate::command::init::options::{
-    OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
-    ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
-};
-use crate::command::init::states::*;
-use crate::command::init::template_fetcher::{Template, TemplateId};
-use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+
+use crate::{
+    RoverError, RoverResult,
+    command::init::{
+        config::ProjectConfig,
+        graph_id::GraphId,
+        options::{
+            OrganizationId, ProjectName, ProjectNameOpt, ProjectOrganizationOpt, ProjectType,
+            ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
+        },
+        states::*,
+        template_fetcher::{Template, TemplateId},
+    },
+};
 
 mod mock {
     use super::*;

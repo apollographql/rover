@@ -1,8 +1,7 @@
+use std::{error::Error, fmt, str::FromStr};
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
-use std::str::FromStr;
 use termimad::minimad::once_cell::sync::Lazy;
 
 const MAX_GRAPH_ID_LENGTH: usize = 64;

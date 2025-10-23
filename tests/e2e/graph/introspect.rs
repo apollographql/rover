@@ -1,16 +1,20 @@
-use std::fs::{OpenOptions, read_to_string};
-use std::io::{BufReader, Seek, SeekFrom, Write};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::{
+    fs::{OpenOptions, read_to_string},
+    io::{BufReader, Seek, SeekFrom, Write},
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::Duration,
+};
 
 use assert_cmd::prelude::CommandCargoExt;
 use graphql_schema_diff::diff;
 use regex::Regex;
 use rstest::rstest;
 use serde_json::Value;
-use speculoos::assert_that;
-use speculoos::prelude::{VecAssertions, asserting};
+use speculoos::{
+    assert_that,
+    prelude::{VecAssertions, asserting},
+};
 use tempfile::Builder;
 use tokio::time::timeout;
 use tracing::info;

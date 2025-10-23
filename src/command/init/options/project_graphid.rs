@@ -1,14 +1,18 @@
-use crate::RoverResult;
-use crate::command::init::graph_id::{
-    GraphId, errors::conversions::validation_error_to_rover_error, generation::generate_graph_id,
-    utils::random::DefaultRandomStringGenerator, validation::GraphIdValidationError,
-};
-use clap::Parser;
-use clap::arg;
+use std::str::FromStr;
+
+use clap::{Parser, arg};
 use dialoguer::Input;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+
+use crate::{
+    RoverResult,
+    command::init::graph_id::{
+        GraphId, errors::conversions::validation_error_to_rover_error,
+        generation::generate_graph_id, utils::random::DefaultRandomStringGenerator,
+        validation::GraphIdValidationError,
+    },
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct GraphIdOpt {

@@ -1,9 +1,13 @@
+use std::{
+    convert::TryFrom,
+    env,
+    fmt::Debug,
+    fs,
+    io::{self, Write},
+    path::PathBuf,
+};
+
 use camino::Utf8PathBuf;
-use std::convert::TryFrom;
-use std::fmt::Debug;
-use std::fs;
-use std::io::{self, Write};
-use std::{env, path::PathBuf};
 
 use crate::{Installer, InstallerError};
 
@@ -143,8 +147,7 @@ struct Zsh;
 
 impl Zsh {
     fn zdotdir() -> Result<Utf8PathBuf, InstallerError> {
-        use std::ffi::OsStr;
-        use std::os::unix::ffi::OsStrExt;
+        use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
 
         if matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) {
             match env::var("ZDOTDIR") {

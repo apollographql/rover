@@ -1,7 +1,7 @@
-use crate::{RoverErrorCode, RoverOutput, RoverResult};
-
 use clap::Parser;
 use serde::Serialize;
+
+use crate::{RoverErrorCode, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Explain {

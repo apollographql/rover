@@ -1,5 +1,7 @@
-use crate::operations::subgraph::check::runner::subgraph_check_mutation;
-use crate::shared::{CheckConfig, GitContext, GraphRef};
+use crate::{
+    operations::subgraph::check::runner::subgraph_check_mutation,
+    shared::{CheckConfig, GitContext, GraphRef},
+};
 
 type MutationInput = subgraph_check_mutation::SubgraphCheckAsyncInput;
 type MutationConfig = subgraph_check_mutation::HistoricQueryParametersInput;

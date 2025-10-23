@@ -1,5 +1,4 @@
-use super::utils::random::RandomStringGenerator;
-use super::utils::strings::slugify;
+use super::utils::{random::RandomStringGenerator, strings::slugify};
 use crate::command::init::graph_id::GraphId;
 
 const GRAPH_ID_MAX_CHAR: usize = 27;

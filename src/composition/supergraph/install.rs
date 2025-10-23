@@ -2,13 +2,15 @@ use apollo_federation_types::config::FederationVersion;
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
 
-use super::binary::SupergraphBinary;
-use super::version::{SupergraphVersion, SupergraphVersionError};
-use crate::command::Install;
-use crate::command::install::Plugin;
-use crate::options::LicenseAccepter;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::install::InstallBinary;
+use super::{
+    binary::SupergraphBinary,
+    version::{SupergraphVersion, SupergraphVersionError},
+};
+use crate::{
+    command::{Install, install::Plugin},
+    options::LicenseAccepter,
+    utils::{client::StudioClientConfig, effect::install::InstallBinary},
+};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum InstallSupergraphError {
@@ -91,15 +93,13 @@ impl InstallBinary for InstallSupergraph {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use std::time::Duration;
+    use std::{str::FromStr, time::Duration};
 
     use anyhow::Result;
     use apollo_federation_types::config::FederationVersion;
     use assert_fs::{NamedTempFile, TempDir};
     use camino::Utf8PathBuf;
-    use flate2::Compression;
-    use flate2::write::GzEncoder;
+    use flate2::{Compression, write::GzEncoder};
     use houston::Config;
     use httpmock::{Method, MockServer};
     use rstest::{fixture, rstest};
@@ -108,10 +108,14 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::InstallSupergraph;
-    use crate::composition::supergraph::version::SupergraphVersion;
-    use crate::options::LicenseAccepter;
-    use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
-    use crate::utils::effect::install::InstallBinary;
+    use crate::{
+        composition::supergraph::version::SupergraphVersion,
+        options::LicenseAccepter,
+        utils::{
+            client::{ClientBuilder, ClientTimeout, StudioClientConfig},
+            effect::install::InstallBinary,
+        },
+    };
 
     #[fixture]
     #[once]

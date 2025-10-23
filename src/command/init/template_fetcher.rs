@@ -1,18 +1,22 @@
-use std::collections::{HashMap, HashSet};
-use std::io::Read;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    io::{Cursor, Read},
+    str::FromStr,
+};
 
-use crate::command::init::states::SelectedTemplateState;
-use crate::options::{TemplateListFiles, TemplateWrite};
-use crate::{RoverError, RoverResult};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use rover_client::operations::init::github::{GetTarRequest, GitHubService};
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::io::Cursor;
-use std::str::FromStr;
 use tower::Service;
+
+use crate::{
+    RoverError, RoverResult,
+    command::init::states::SelectedTemplateState,
+    options::{TemplateListFiles, TemplateWrite},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
@@ -379,8 +383,9 @@ impl TemplateWrite for SelectedTemplateState {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json;
+
+    use super::*;
 
     #[test]
     fn test_template_start_point_file_default() {

@@ -1,6 +1,5 @@
-use crate::shared::GraphRef;
-
 use super::service::SubgraphFetchRequest;
+use crate::shared::GraphRef;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphFetchInput {

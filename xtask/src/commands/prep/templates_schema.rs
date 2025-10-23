@@ -1,10 +1,8 @@
-use std::process::Command;
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, process::Command, time::Duration};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use reqwest::Client;
-
 use rover_client::{
     blocking::GraphQLClient,
     operations::graph::introspect::{self, GraphIntrospectInput},

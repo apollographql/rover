@@ -1,8 +1,8 @@
-use crate::command::install::plugin::PluginVersion;
-use crate::command::install::plugin::error::PluginError;
+use std::{fmt::Display, str::FromStr};
+
 use serde_with::{DeserializeFromStr, SerializeDisplay};
-use std::fmt::Display;
-use std::str::FromStr;
+
+use crate::command::install::plugin::{PluginVersion, error::PluginError};
 
 /// An MCP Server version.
 #[derive(Debug, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]

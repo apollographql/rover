@@ -111,7 +111,7 @@ directories-next = "2.0"
 dotenvy = "0.15"
 flate2 = "1"
 futures = "0.3"
-git-url-parse = "0.4.5"
+git-url-parse = "0.6.0"
 git2 = { version = "0.20", default-features = false }
 graphql_client = "0.14"
 heck = "0.5"

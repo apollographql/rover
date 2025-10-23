@@ -1,9 +1,12 @@
-use crate::blocking::StudioClient;
-use crate::operations::persisted_queries::name::{
-    PersistedQueryListNameInput, PersistedQueryListNameResponse,
-};
-use crate::RoverClientError;
 use graphql_client::*;
+
+use crate::{
+    blocking::StudioClient,
+    operations::persisted_queries::name::{
+        PersistedQueryListNameInput, PersistedQueryListNameResponse,
+    },
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

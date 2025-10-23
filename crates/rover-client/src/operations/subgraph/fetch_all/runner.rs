@@ -1,10 +1,10 @@
 use tower::{Service, ServiceExt};
 
-use crate::blocking::StudioClient;
-use crate::RoverClientError;
-
-use super::service::{SubgraphFetchAll, SubgraphFetchAllRequest};
-use super::types::*;
+use super::{
+    service::{SubgraphFetchAll, SubgraphFetchAllRequest},
+    types::*,
+};
+use crate::{blocking::StudioClient, RoverClientError};
 
 /// For a given graph return all of its subgraphs as a list
 pub async fn run(

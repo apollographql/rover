@@ -1,14 +1,19 @@
 use clap::Parser;
-use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
+use rover_client::{
+    operations::subgraph::{
+        check::{self, SubgraphCheckAsyncInput},
+        check_workflow::{self, CheckWorkflowInput},
+    },
+    shared::{CheckConfig, GitContext},
+};
 use rover_std::Style;
 use serde::Serialize;
 
-use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
-use rover_client::shared::{CheckConfig, GitContext};
-
-use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Check {

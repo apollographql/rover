@@ -1,7 +1,7 @@
-use super::service::init_memberships_query;
-
 use houston::CredentialOrigin;
 use serde::Serialize;
+
+use super::service::init_memberships_query;
 
 pub(crate) type QueryVariables = init_memberships_query::Variables;
 

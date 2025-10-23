@@ -2,8 +2,7 @@ use clap::Parser;
 use schemars::schema_for;
 use serde::Serialize;
 
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, composition::supergraph::config::SupergraphConfigYaml};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Schema {}

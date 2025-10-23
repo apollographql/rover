@@ -3,8 +3,7 @@ mod config;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Cloud {

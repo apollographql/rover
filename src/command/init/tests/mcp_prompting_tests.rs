@@ -1,8 +1,9 @@
-use crate::command::init::options::{
-    ProjectType, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt,
-};
-use crate::command::init::states::*;
 use camino::Utf8PathBuf;
+
+use crate::command::init::{
+    options::{ProjectType, ProjectTypeOpt, ProjectUseCase, ProjectUseCaseOpt},
+    states::*,
+};
 
 #[test]
 fn test_mcp_setup_type_selection_with_command_line_args() {
@@ -180,10 +181,13 @@ fn test_mcp_complete_new_project_flow_state_transitions() {
 
 #[test]
 fn test_mcp_creation_previewed_to_creation_confirmed() {
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
     use std::collections::HashMap;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a mock MCPCreationPreviewed state
     let config = ProjectConfig {
@@ -268,9 +272,12 @@ fn test_mcp_file_categorization_logic() {
 
 #[tokio::test]
 async fn test_mcp_preview_creation_flow() {
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
     use std::collections::HashMap;
+
+    use crate::command::init::{
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a mock MCPGraphIdConfirmed state
     let template = Template {
@@ -322,10 +329,13 @@ async fn test_mcp_preview_creation_flow() {
 
 #[test]
 fn test_mcp_creation_previewed_to_confirmed_conversion() {
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
     use std::collections::HashMap;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a mock MCPCreationPreviewed state
     let config = ProjectConfig {
@@ -389,13 +399,16 @@ fn test_mcp_creation_previewed_to_confirmed_conversion() {
 
 #[test]
 fn test_mcp_env_file_processing_with_template_vars() {
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
+    use std::{collections::HashMap, fs};
+
     use rover_client::shared::GraphRef;
-    use std::collections::HashMap;
-    use std::fs;
     use tempfile::TempDir;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a temporary directory for testing
     let temp_dir = TempDir::new().unwrap();
@@ -482,13 +495,16 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
 
 #[test]
 fn test_mcp_env_file_processing() {
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
+    use std::{collections::HashMap, fs};
+
     use rover_client::shared::GraphRef;
-    use std::collections::HashMap;
-    use std::fs;
     use tempfile::TempDir;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a temporary directory for testing
     let temp_dir = TempDir::new().unwrap();
@@ -575,12 +591,16 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
 #[test]
 fn test_mcp_env_no_file_processing() {
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
-    use rover_client::shared::GraphRef;
     use std::collections::HashMap;
+
+    use rover_client::shared::GraphRef;
     use tempfile::TempDir;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a temporary directory for testing (no .env.template file)
     let temp_dir = TempDir::new().unwrap();
@@ -646,11 +666,15 @@ fn test_mcp_env_no_file_processing() {
 fn test_mcp_creation_confirmed_has_complete_interface() {
     // This test verifies that MCPCreationConfirmed has all necessary methods
     // for complete project creation following rover init patterns
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
     use std::collections::HashMap;
+
     use tempfile::TempDir;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a temporary directory for testing
     let temp_dir = TempDir::new().unwrap();
@@ -728,13 +752,16 @@ fn test_mcp_creation_confirmed_has_complete_interface() {
 #[test]
 fn test_mcp_creation_confirmed_env_processing_integration() {
     // Integration test to verify .env.template processing works within MCPCreationConfirmed
-    use crate::command::init::config::ProjectConfig;
-    use crate::command::init::graph_id::validation::GraphId;
-    use crate::command::init::template_fetcher::{Template, TemplateId};
+    use std::{collections::HashMap, fs};
+
     use rover_client::shared::GraphRef;
-    use std::collections::HashMap;
-    use std::fs;
     use tempfile::TempDir;
+
+    use crate::command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        template_fetcher::{Template, TemplateId},
+    };
 
     // Create a temporary directory for testing
     let temp_dir = TempDir::new().unwrap();

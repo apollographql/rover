@@ -1,14 +1,16 @@
 #[cfg(target_os = "macos")]
 mod macos;
 
+use std::path::Path;
+
 use anyhow::{bail, ensure, Context, Result};
 use camino::Utf8PathBuf;
 use clap::Parser;
 
-use std::path::Path;
-
-use crate::target::Target;
-use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, TARGET_DIR};
+use crate::{
+    target::Target,
+    utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, TARGET_DIR},
+};
 
 const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 

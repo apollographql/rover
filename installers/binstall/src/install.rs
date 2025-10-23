@@ -1,10 +1,11 @@
-use std::env;
-use std::io::{self, IsTerminal, Write};
+use std::{
+    env,
+    io::{self, IsTerminal, Write},
+};
 
 use camino::Utf8PathBuf;
-use url::Url;
-
 use rover_std::Fs;
+use url::Url;
 
 use crate::InstallerError;
 

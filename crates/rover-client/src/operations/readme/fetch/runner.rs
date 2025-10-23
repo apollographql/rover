@@ -1,9 +1,10 @@
-use super::types::ReadmeFetchResponse;
-use crate::blocking::StudioClient;
-use crate::operations::readme::fetch::ReadmeFetchInput;
-use crate::shared::GraphRef;
-use crate::RoverClientError;
 use graphql_client::*;
+
+use super::types::ReadmeFetchResponse;
+use crate::{
+    blocking::StudioClient, operations::readme::fetch::ReadmeFetchInput, shared::GraphRef,
+    RoverClientError,
+};
 
 type Timestamp = String;
 
@@ -53,9 +54,10 @@ fn build_response(
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::shared::GraphRef;
-    use serde_json::json;
 
     fn mock_graph_ref() -> GraphRef {
         GraphRef {

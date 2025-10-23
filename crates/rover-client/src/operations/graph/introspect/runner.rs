@@ -3,10 +3,11 @@ use std::convert::{Into, TryFrom};
 use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use crate::blocking::GraphQLClient;
-use crate::error::{EndpointKind, RoverClientError};
-use crate::operations::graph::introspect::types::*;
-use crate::operations::graph::introspect::Schema;
+use crate::{
+    blocking::GraphQLClient,
+    error::{EndpointKind, RoverClientError},
+    operations::graph::introspect::{types::*, Schema},
+};
 
 #[derive(GraphQLQuery)]
 #[graphql(

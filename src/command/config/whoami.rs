@@ -1,18 +1,19 @@
 use anyhow::anyhow;
 use clap::Parser;
-use rover_client::blocking::StudioClient;
-use rover_client::operations::config::who_am_i::{self, Actor, RegistryIdentity};
+use houston as config;
+use houston::{CredentialOrigin, mask_key};
+use rover_client::{
+    RoverClientError,
+    blocking::StudioClient,
+    operations::config::who_am_i::{self, Actor, RegistryIdentity},
+};
 use serde::Serialize;
 
-use houston::{CredentialOrigin, mask_key};
-
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::env::RoverEnvKey;
-use crate::{RoverError, RoverOutput, RoverResult};
-
-use houston as config;
-use rover_client::RoverClientError;
+use crate::{
+    RoverError, RoverOutput, RoverResult,
+    options::ProfileOpt,
+    utils::{client::StudioClientConfig, env::RoverEnvKey},
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct WhoAmI {

@@ -14,8 +14,9 @@ pub mod transitions_tests;
 
 #[cfg(test)]
 mod mcp_tools_tests {
-    use camino::Utf8PathBuf;
     use std::collections::HashMap;
+
+    use camino::Utf8PathBuf;
 
     #[test]
     fn test_all_mcp_projects_use_operation_collections_never_generate_tools() {

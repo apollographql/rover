@@ -2,13 +2,11 @@ use std::{fmt, io, str::FromStr};
 
 use anyhow::{Context, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
+use rover_std::Fs;
 use serde::Serialize;
 
-use rover_std::Fs;
-
-use crate::{RoverError, RoverErrorSuggestion, RoverResult};
-
 use super::effect::read_stdin::ReadStdin;
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub enum FileDescriptorType {
@@ -118,16 +116,14 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-    use std::str::FromStr;
+    use std::{convert::TryFrom, str::FromStr};
 
     use assert_fs::prelude::*;
     use camino::Utf8PathBuf;
     use mockall::predicate;
 
-    use crate::utils::effect::read_stdin::MockReadStdin;
-
     use super::FileDescriptorType;
+    use crate::utils::effect::read_stdin::MockReadStdin;
 
     #[test]
     fn it_correctly_parses_stdin_flag() {

@@ -1,7 +1,6 @@
 //! Utilities that allow for resolving file-based subgraphs
 
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -10,8 +9,9 @@ use rover_std::Fs;
 use tower::Service;
 
 use super::FullyResolvedSubgraph;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
+};
 
 /// Service that resolves a file-based subgraph
 #[derive(Clone, Builder)]

@@ -155,10 +155,11 @@ fn get_subgraph_from_response_data(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::shared::GraphRef;
     use rstest::{fixture, rstest};
     use serde_json::json;
+
+    use super::*;
+    use crate::shared::GraphRef;
 
     #[rstest]
     fn get_services_from_response_data_works(subgraph_name: String, graph_ref: GraphRef) {

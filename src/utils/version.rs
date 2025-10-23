@@ -3,12 +3,12 @@ use std::time::SystemTime;
 use anyhow::Result;
 use billboard::{Alignment, Billboard};
 use camino::Utf8PathBuf;
+use houston as config;
 use reqwest::Client;
+use rover_client::releases::{Version, get_latest_release};
 use rover_std::{Fs, Style};
 
 use crate::PKG_VERSION;
-use houston as config;
-use rover_client::releases::{Version, get_latest_release};
 
 const ONE_HOUR: u64 = 60 * 60;
 const ONE_DAY: u64 = ONE_HOUR * 24;

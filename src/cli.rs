@@ -1,10 +1,13 @@
-use std::fmt::Display;
-use std::{io, process};
+use std::{fmt::Display, io, process};
 
 use camino::Utf8PathBuf;
-use clap::builder::Styles;
-use clap::builder::styling::{AnsiColor, Effects};
-use clap::{Parser, ValueEnum};
+use clap::{
+    Parser, ValueEnum,
+    builder::{
+        Styles,
+        styling::{AnsiColor, Effects},
+    },
+};
 use config::Config;
 use houston as config;
 use lazycell::{AtomicLazyCell, LazyCell};
@@ -15,13 +18,17 @@ use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
-use crate::RoverResult;
-use crate::command::{self, RoverOutput};
-use crate::options::OutputOpts;
-use crate::utils::client::{ClientBuilder, ClientTimeout, StudioClientConfig};
-use crate::utils::env::{RoverEnv, RoverEnvKey};
-use crate::utils::stringify::option_from_display;
-use crate::utils::version;
+use crate::{
+    RoverResult,
+    command::{self, RoverOutput},
+    options::OutputOpts,
+    utils::{
+        client::{ClientBuilder, ClientTimeout, StudioClientConfig},
+        env::{RoverEnv, RoverEnvKey},
+        stringify::option_from_display,
+        version,
+    },
+};
 
 /// Clap styling
 const STYLES: Styles = Styles::styled()

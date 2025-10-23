@@ -1,5 +1,4 @@
-use std::error::Error;
-use std::fmt;
+use std::{error::Error, fmt};
 
 /// Represents the specific reason an authentication validation failed
 #[derive(Debug, PartialEq, Clone)]

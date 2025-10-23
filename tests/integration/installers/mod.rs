@@ -1,5 +1,4 @@
-use std::fs;
-use std::process::Command;
+use std::{fs, process::Command};
 
 use camino::Utf8PathBuf;
 use serde_json::Value;

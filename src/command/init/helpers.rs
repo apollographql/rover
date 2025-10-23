@@ -1,9 +1,14 @@
-use crate::RoverResult;
-use crate::command::init::template_operations::print_grouped_files;
-use crate::command::init::{states, template_operations::PrintMode::Confirmation};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::{Style, hyperlink};
+
+use crate::{
+    RoverResult,
+    command::init::{
+        states,
+        template_operations::{PrintMode::Confirmation, print_grouped_files},
+    },
+};
 
 pub fn display_welcome_message() {
     println!();

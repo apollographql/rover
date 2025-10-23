@@ -1,10 +1,10 @@
-use crate::blocking::StudioClient;
-use crate::operations::init::memberships::types::InitMembershipsResponse;
-use crate::RoverClientError;
-
 use tower::{Service, ServiceExt};
 
 use super::service::{Memberships, MembershipsRequest};
+use crate::{
+    blocking::StudioClient, operations::init::memberships::types::InitMembershipsResponse,
+    RoverClientError,
+};
 
 /// Get info from the registry about the user's memberships, i.e. the name/id of each of
 /// the organizations the user is a member of

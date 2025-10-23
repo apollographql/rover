@@ -1,10 +1,8 @@
 use clap::Parser;
 use serde::Serialize;
 
-use crate::options::TemplateOpt;
-use crate::{RoverOutput, RoverResult};
-
 use super::templates::list_templates;
+use crate::{RoverOutput, RoverResult, options::TemplateOpt};
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct List {

@@ -1,5 +1,4 @@
-use crate::operations::readme::fetch::runner::readme_fetch_query;
-use crate::shared::GraphRef;
+use crate::{operations::readme::fetch::runner::readme_fetch_query, shared::GraphRef};
 
 type QueryVariables = readme_fetch_query::Variables;
 type Timestamp = String;

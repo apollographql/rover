@@ -3,12 +3,7 @@
 //! A `Report` contains the metadata collected about the event
 //! to construct a helpful error message.
 
-use std::borrow::Cow;
-use std::convert::TryFrom;
-use std::env;
-use std::error::Error;
-use std::fmt::Write as FmtWrite;
-use std::mem;
+use std::{borrow::Cow, convert::TryFrom, env, error::Error, fmt::Write as FmtWrite, mem};
 
 use backtrace::Backtrace;
 use camino::Utf8PathBuf;
