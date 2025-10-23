@@ -18,6 +18,7 @@ pub(crate) mod output;
 mod persisted_queries;
 mod readme;
 pub(crate) mod subgraph;
+#[cfg(feature = "composition-js")]
 pub(crate) mod supergraph;
 pub(crate) mod template;
 mod update;
@@ -42,6 +43,7 @@ pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;
 pub use subgraph::Subgraph;
+#[cfg(feature = "composition-js")]
 pub use supergraph::Supergraph;
 pub use template::Template;
 pub use update::Update;

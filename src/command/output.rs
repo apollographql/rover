@@ -1,12 +1,12 @@
-#[cfg(feature = "composition-js")]
-use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::command::docs::shortlinks::ShortlinkInfo;
+#[cfg(feature = "composition-js")]
+use crate::command::{
+    connector::run::{RunConnector, RunConnectorOutput},
+    supergraph::compose::CompositionOutput,
+};
 use crate::{
     RoverError,
-    command::{
-        supergraph::compose::CompositionOutput,
-        template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
-    },
+    command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
     options::{JsonVersion, ProjectLanguage},
     utils::table,
 };
@@ -65,6 +65,7 @@ pub enum RoverOutput {
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
     JsonSchema(String),
+    #[cfg(feature = "composition-js")]
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckWorkflowResponse(CheckWorkflowResponse),
@@ -344,6 +345,7 @@ impl RoverOutput {
             }
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::JsonSchema(schema) => Some(schema.clone()),
+            #[cfg(feature = "composition-js")]
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -609,6 +611,7 @@ impl RoverOutput {
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::JsonSchema(schema) => Value::String(schema.clone()),
+            #[cfg(feature = "composition-js")]
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
@@ -797,6 +800,7 @@ impl RoverOutput {
                 SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
                 SdlType::Supergraph => Some("Supergraph Schema"),
             },
+            #[cfg(feature = "composition-js")]
             RoverOutput::CompositionResult(_) | RoverOutput::SupergraphSchema(_) => {
                 Some("Supergraph Schema")
             }

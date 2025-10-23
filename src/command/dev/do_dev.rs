@@ -275,9 +275,16 @@ impl Dev {
             .await;
 
         if let Some(ref config) = self.opts.mcp.config {
+            let mcp_version = self
+                .opts
+                .mcp
+                .version
+                .clone()
+                .unwrap_or(McpServerVersion::Latest);
+
             let run_mcp_server = RunMcpServer::default()
                 .install(
-                    McpServerVersion::Latest,
+                    mcp_version,
                     client_config.clone(),
                     override_install_path,
                     elv2_license_accepter,

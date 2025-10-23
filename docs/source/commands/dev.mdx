@@ -227,7 +227,13 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 
 ## Versioning
 
-By default, `rover dev` uses the version of the router and composition plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override either of these by setting the environment variables `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0` and `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`. If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
+By default, `rover dev` uses the version of the router, composition, and MCP server plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override any of these versions:
+
+- Router: Set the `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variable (e.g., `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`)
+- Composition: Use the `--federation-version` flag or set the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment variable (e.g., `--federation-version 2.0.0` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`)
+- MCP Server: Use the `--mcp-version` flag or set the `APOLLO_ROVER_DEV_MCP_VERSION` environment variable (e.g., `--mcp-version 1.0.0` or `APOLLO_ROVER_DEV_MCP_VERSION=1.0.0`)
+
+If you already have these plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
 
 # Run your MCP server
 
@@ -243,10 +249,19 @@ rover dev \
   --mcp .apollo/mcp.local.yaml
 ```
 
+You can optionally specify a specific version of the MCP server to use:
+
+```terminal showLineNumbers=false
+rover dev \
+  --supergraph-config supergraph.yaml \
+  --mcp .apollo/mcp.local.yaml \
+  --mcp-version 1.1.0-rc.1
+```
+
 This starts and serves your graph and MCP server as two local endpoints:
 
 - GraphQL API: `http://localhost:4000`
-- MCP Server: `http://localhost:5000`
+- MCP Server: `http://localhost:8000`
 
 To provide your graph credentials, you can define the `APOLLO_KEY` and `APOLLO_GRAPH_REF` in the terminal as environment variables, or set a source `.env` file.
 
