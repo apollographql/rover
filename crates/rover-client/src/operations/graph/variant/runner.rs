@@ -1,8 +1,8 @@
-use crate::blocking::StudioClient;
-use crate::operations::graph::variant::VariantListInput;
-use crate::RoverClientError;
-
 use graphql_client::*;
+
+use crate::{
+    blocking::StudioClient, operations::graph::variant::VariantListInput, RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 #[graphql(

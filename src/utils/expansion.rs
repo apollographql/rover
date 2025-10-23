@@ -2,12 +2,11 @@
 //! by the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/).
 //! Before calling this code from other functions, make sure that the license is accepted (like
 //! `supergraph compose`)
-use anyhow::{Context, Error, bail};
-use serde_yaml::{Mapping, Sequence, Value};
-use std::env;
-use std::path::Path;
+use std::{env, path::Path};
 
+use anyhow::{Context, Error, bail};
 use rover_std::Fs;
+use serde_yaml::{Mapping, Sequence, Value};
 use shellexpand::env_with_context;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
@@ -121,8 +120,9 @@ fn context(key: &str) -> Result<Option<String>, Error> {
 
 #[cfg(test)]
 mod test_expand_str {
-    use super::*;
     use assert_fs::fixture::{FileWriteBin, FileWriteStr, NamedTempFile};
+
+    use super::*;
 
     // Env vars are global, so if you're going to reuse them you'd better make them constants
     // These point at each other for testing nested values

@@ -1,11 +1,11 @@
-use crate::RoverResult;
-use clap::Parser;
-use clap::arg;
+use std::{fmt, str::FromStr};
+
+use clap::{Parser, arg};
 use dialoguer::Input;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
+
+use crate::RoverResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {

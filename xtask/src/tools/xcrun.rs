@@ -1,7 +1,6 @@
-use crate::tools::Runner;
-use crate::utils::PKG_PROJECT_ROOT;
-
 use anyhow::{anyhow, Result};
+
+use crate::{tools::Runner, utils::PKG_PROJECT_ROOT};
 
 pub(crate) struct XcrunRunner {
     runner: Runner,

@@ -1,9 +1,8 @@
 use camino::Utf8PathBuf;
 use reqwest::Client;
+use rover_std::Fs;
 use url::Url;
 use uuid::Uuid;
-
-use rover_std::Fs;
 
 use crate::{Command, SputnikError};
 
@@ -67,11 +66,12 @@ fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_or_write_machine_id, write_machine_id};
+    use std::convert::TryFrom;
 
     use assert_fs::prelude::*;
     use camino::Utf8PathBuf;
-    use std::convert::TryFrom;
+
+    use super::{get_or_write_machine_id, write_machine_id};
 
     /// if a machine ID hasn't been written already, one will be created
     /// and saved.

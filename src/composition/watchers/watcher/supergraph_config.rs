@@ -1,6 +1,8 @@
-use std::collections::{BTreeMap, HashSet};
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, HashSet},
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 use apollo_federation_types::config::{
     ConfigError, ConfigResult, FederationVersion, SubgraphConfig,
@@ -16,16 +18,21 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use super::file::FileWatcher;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::federation::FederationVersionResolver;
-use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
-use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError;
-use crate::utils::expansion::expand;
+use crate::{
+    composition::{
+        supergraph::config::{
+            SupergraphConfigYaml,
+            error::ResolveSubgraphError,
+            federation::FederationVersionResolver,
+            full::{FullyResolvedSupergraphConfig, introspect::ResolveIntrospectSubgraphFactory},
+            lazy::LazilyResolvedSupergraphConfig,
+            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+            unresolved::UnresolvedSupergraphConfig,
+        },
+        watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError,
+    },
+    utils::expansion::expand,
+};
 
 /// Watches a `supergraph.yaml` file and emits [`SupergraphConfigDiff`]s
 #[derive(Debug)]
@@ -306,15 +313,13 @@ pub enum SupergraphConfigSerialisationError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::BTreeMap;
 
     use apollo_federation_types::config::{ConfigError, SchemaSource, SubgraphConfig};
     use rstest::rstest;
 
+    use super::{SupergraphConfigDiff, *};
     use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
-
-    use super::SupergraphConfigDiff;
 
     #[test]
     fn test_supergraph_config_diff() {

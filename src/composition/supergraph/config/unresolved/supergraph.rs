@@ -32,9 +32,11 @@ impl UnresolvedSupergraphConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeMap, HashSet};
-    use std::str::FromStr;
-    use std::sync::Arc;
+    use std::{
+        collections::{BTreeMap, HashSet},
+        str::FromStr,
+        sync::Arc,
+    };
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
@@ -45,24 +47,24 @@ mod tests {
     use tower::ServiceBuilder;
     use url::Url;
 
-    use crate::composition::supergraph::config::error::ResolveSubgraphError;
-    use crate::composition::supergraph::config::federation::FederationVersionResolverFromSubgraphs;
-    use crate::composition::supergraph::config::full::introspect::{
-        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService,
+    use crate::composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        federation::FederationVersionResolverFromSubgraphs,
+        full::{
+            FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
+            introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphService},
+        },
+        lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
+        resolver::{
+            ResolveSupergraphConfigError,
+            fetch_remote_subgraph::{
+                FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+                MakeFetchRemoteSubgraphError, RemoteSubgraph,
+            },
+        },
+        scenario::*,
+        unresolved::UnresolvedSupergraphConfig,
     };
-    use crate::composition::supergraph::config::full::{
-        FullyResolvedSubgraph, FullyResolvedSupergraphConfig,
-    };
-    use crate::composition::supergraph::config::lazy::{
-        LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig,
-    };
-    use crate::composition::supergraph::config::resolver::ResolveSupergraphConfigError;
-    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
-        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-        MakeFetchRemoteSubgraphError, RemoteSubgraph,
-    };
-    use crate::composition::supergraph::config::scenario::*;
-    use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
 
     #[fixture]
     fn supergraph_config_root_dir() -> TempDir {

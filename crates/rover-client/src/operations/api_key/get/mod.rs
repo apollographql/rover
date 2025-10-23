@@ -1,11 +1,12 @@
 use chrono::DateTime;
 use graphql_client::GraphQLQuery;
 
-use crate::blocking::StudioClient;
-use crate::operations::api_key::get::get_key_query::GetKeyQueryOrganizationApiKey;
-use crate::operations::api_key::list::ApiKey;
-use crate::RoverClientError;
-use crate::RoverClientError::OrganizationIDNotFound;
+use crate::{
+    blocking::StudioClient,
+    operations::api_key::{get::get_key_query::GetKeyQueryOrganizationApiKey, list::ApiKey},
+    RoverClientError,
+    RoverClientError::OrganizationIDNotFound,
+};
 
 type Timestamp = String;
 

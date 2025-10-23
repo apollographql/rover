@@ -1,9 +1,8 @@
 use clap::Parser;
+use houston as config;
 use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
-
-use houston as config;
 
 #[derive(Debug, Serialize, Parser)]
 /// Clear ALL configuration

@@ -1,5 +1,6 @@
-use super::runner::list_graphs_for_organization;
 use serde::Serialize;
+
+use super::runner::list_graphs_for_organization;
 
 pub(crate) type QueryVariables = list_graphs_for_organization::Variables;
 

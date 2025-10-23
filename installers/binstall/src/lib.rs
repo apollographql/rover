@@ -18,10 +18,10 @@
 //! it's pretty simple! We're largely just moving over our currently running
 //! executable to a different path.
 
+use std::convert::TryFrom;
+
 use camino::Utf8PathBuf;
 use directories_next::BaseDirs;
-
-use std::convert::TryFrom;
 
 mod error;
 mod install;
@@ -29,10 +29,8 @@ mod system;
 
 pub use error::InstallerError;
 pub use install::Installer;
-
 #[cfg(not(windows))]
 pub(crate) use system::unix;
-
 #[cfg(windows)]
 pub(crate) use system::windows;
 
@@ -52,16 +50,14 @@ mod tests {
     use std::convert::TryFrom;
 
     #[cfg(not(windows))]
+    use assert_fs::TempDir;
+    #[cfg(not(windows))]
+    use camino::Utf8PathBuf;
+    #[cfg(not(windows))]
     use serial_test::serial;
 
     #[cfg(not(windows))]
     use super::Installer;
-
-    #[cfg(not(windows))]
-    use assert_fs::TempDir;
-
-    #[cfg(not(windows))]
-    use camino::Utf8PathBuf;
 
     #[cfg(not(windows))]
     #[test]

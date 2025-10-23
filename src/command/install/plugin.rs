@@ -2,12 +2,11 @@ use std::{env::consts, str::FromStr};
 
 use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
+use binstall::Installer;
 use camino::Utf8PathBuf;
+use rover_std::{Fs, sanitize_url};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-
-use binstall::Installer;
-use rover_std::{Fs, sanitize_url};
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
 
@@ -503,8 +502,7 @@ fn find_installed_plugin(
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
-    use speculoos::assert_that;
-    use speculoos::prelude::ResultAssertions;
+    use speculoos::{assert_that, prelude::ResultAssertions};
 
     use super::*;
 

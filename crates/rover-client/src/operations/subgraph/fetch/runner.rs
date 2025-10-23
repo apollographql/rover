@@ -1,11 +1,10 @@
 use tower::{Service, ServiceExt};
 
-use crate::blocking::StudioClient;
-use crate::shared::FetchResponse;
-use crate::RoverClientError;
-
-use super::service::{SubgraphFetch, SubgraphFetchRequest};
-use super::types::*;
+use super::{
+    service::{SubgraphFetch, SubgraphFetchRequest},
+    types::*,
+};
+use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
 
 /// Fetches a schema from apollo studio and returns its SDL (String)
 pub async fn run(

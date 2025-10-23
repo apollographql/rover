@@ -2,20 +2,20 @@ use anyhow::{Context, anyhow};
 use clap::Parser;
 use rover_client::operations::persisted_queries::{
     name::{self, PersistedQueryListNameInput},
-    publish::RelayPersistedQueryManifest,
+    publish::{
+        self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
+        RelayPersistedQueryManifest,
+    },
+    resolve::{self, ResolvePersistedQueryListInput},
 };
 use rover_std::Style;
 use serde::Serialize;
 
-use crate::options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
-
-use rover_client::operations::persisted_queries::publish::{
-    self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
+use crate::{
+    RoverOutput, RoverResult,
+    options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt},
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
-use rover_client::operations::persisted_queries::resolve::{self, ResolvePersistedQueryListInput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {

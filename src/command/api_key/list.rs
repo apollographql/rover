@@ -2,10 +2,10 @@ use clap::Parser;
 use rover_client::operations::api_key::list::{ListKeysInput, run};
 use serde::Serialize;
 
-use crate::command::api_key::OrganizationOpt;
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult, command::api_key::OrganizationOpt, options::ProfileOpt,
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct List {

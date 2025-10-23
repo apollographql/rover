@@ -1,13 +1,12 @@
 mod publish;
 
-pub use publish::Publish;
-
 use clap::Parser;
+pub use publish::Publish;
 use serde::Serialize;
 
-use crate::command::persisted_queries;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult, command::persisted_queries, utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct PersistedQueries {

@@ -1,9 +1,9 @@
+use std::{env, str};
+
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use cargo_metadata::{Metadata, MetadataCommand};
 use lazy_static::lazy_static;
-
-use std::{env, str};
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 #[allow(dead_code)]

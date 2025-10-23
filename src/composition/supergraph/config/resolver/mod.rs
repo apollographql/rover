@@ -12,34 +12,35 @@
 //!      from [`SupergraphBinary`]. This must be written to a file first, using the format defined
 //!      by [`SupergraphConfig`]
 
-use std::collections::BTreeMap;
-use std::io::IsTerminal;
+use std::{collections::BTreeMap, io::IsTerminal};
 
 use anyhow::Context;
 use apollo_federation_types::config::{ConfigError, SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
-use clap::CommandFactory;
-use clap::error::ErrorKind as ClapErrorKind;
+use clap::{CommandFactory, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
 use rover_client::shared::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
 use tracing::warn;
 use url::Url;
 
-use self::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use self::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
-use super::error::ResolveSubgraphError;
-use super::federation::{FederationVersionMismatch, FederationVersionResolver};
-use super::full::FullyResolvedSupergraphConfig;
-use super::full::introspect::ResolveIntrospectSubgraphFactory;
-use super::lazy::LazilyResolvedSupergraphConfig;
-use super::unresolved::UnresolvedSupergraphConfig;
-use crate::RoverError;
-use crate::cli::Rover;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::utils::effect::read_stdin::ReadStdin;
-use crate::utils::expansion::expand;
-use crate::utils::parsers::FileDescriptorType;
+use self::{
+    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
+};
+use super::{
+    error::ResolveSubgraphError,
+    federation::{FederationVersionMismatch, FederationVersionResolver},
+    full::{FullyResolvedSupergraphConfig, introspect::ResolveIntrospectSubgraphFactory},
+    lazy::LazilyResolvedSupergraphConfig,
+    unresolved::UnresolvedSupergraphConfig,
+};
+use crate::{
+    RoverError,
+    cli::Rover,
+    composition::supergraph::config::SupergraphConfigYaml,
+    utils::{effect::read_stdin::ReadStdin, expansion::expand, parsers::FileDescriptorType},
+};
 
 pub mod fetch_remote_subgraph;
 pub mod fetch_remote_subgraphs;
@@ -450,14 +451,14 @@ fn maybe_name_from_dir() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use std::str::FromStr;
-    use std::sync::Arc;
+    use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
-    use assert_fs::TempDir;
-    use assert_fs::prelude::{FileTouch, FileWriteStr, PathChild};
+    use assert_fs::{
+        TempDir,
+        prelude::{FileTouch, FileWriteStr, PathChild},
+    };
     use camino::Utf8PathBuf;
     use mockall::predicate;
     use rover_client::RoverClientError;
@@ -467,24 +468,31 @@ mod tests {
     use tower::{ServiceBuilder, ServiceExt};
     use tower_test::mock::Handle;
 
-    use super::fetch_remote_subgraph::{
-        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-        MakeFetchRemoteSubgraphError, RemoteSubgraph,
+    use super::{
+        DefaultSubgraphDefinition, MockPrompt, SupergraphConfigResolver,
+        fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
+        fetch_remote_subgraphs::{FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError},
     };
-    use super::fetch_remote_subgraphs::{
-        FetchRemoteSubgraphsRequest, MakeFetchRemoteSubgraphsError,
+    use crate::{
+        composition::supergraph::config::{
+            SupergraphConfigYaml,
+            error::ResolveSubgraphError,
+            full::{
+                FullyResolvedSubgraph,
+                introspect::{
+                    MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+                },
+            },
+            scenario::*,
+        },
+        utils::{
+            effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
+            parsers::FileDescriptorType,
+        },
     };
-    use super::{DefaultSubgraphDefinition, MockPrompt, SupergraphConfigResolver};
-    use crate::composition::supergraph::config::SupergraphConfigYaml;
-    use crate::composition::supergraph::config::error::ResolveSubgraphError;
-    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
-    use crate::composition::supergraph::config::full::introspect::{
-        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
-    };
-    use crate::composition::supergraph::config::scenario::*;
-    use crate::utils::effect::introspect::MockIntrospectSubgraph;
-    use crate::utils::effect::read_stdin::MockReadStdin;
-    use crate::utils::parsers::FileDescriptorType;
 
     /// Test showing that federation version is selected from the local supergraph config fed version
     /// over remote composition version, or version inferred from resolved SDLs

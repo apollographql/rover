@@ -1,16 +1,16 @@
+use std::{fmt::Write, path::PathBuf};
+
 use anyhow::anyhow;
 use clap::Parser;
 use rover_std::Style;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fmt::Write;
-use std::path::PathBuf;
 
-use crate::composition::supergraph::binary::SupergraphBinary;
-use crate::utils::effect::exec::TokioCommand;
-use crate::utils::table;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    composition::supergraph::binary::SupergraphBinary,
+    utils::{effect::exec::TokioCommand, table},
+};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 pub struct RunConnector {

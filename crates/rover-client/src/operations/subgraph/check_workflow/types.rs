@@ -1,11 +1,11 @@
 use core::fmt;
 use std::fmt::{Debug, Display, Formatter, Result};
 
-use crate::operations::subgraph::check_workflow::runner::subgraph_check_workflow_query;
-use crate::shared::CheckTaskStatus;
-use crate::shared::{ChangeSeverity, GraphRef};
-
 use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
+use crate::{
+    operations::subgraph::check_workflow::runner::subgraph_check_workflow_query,
+    shared::{ChangeSeverity, CheckTaskStatus, GraphRef},
+};
 
 type QueryVariables = subgraph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = subgraph_check_workflow_query::ResponseData;

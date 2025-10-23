@@ -5,9 +5,8 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::{shared::GraphRef, EndpointKind, RoverClientError};
-
 use super::{types::Subgraph, SubgraphFetchAllResponse};
+use crate::{shared::GraphRef, EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -257,9 +256,8 @@ mod tests {
     use semver::Version;
     use serde_json::{json, Value};
 
-    use crate::shared::GraphRef;
-
     use super::*;
+    use crate::shared::GraphRef;
 
     const SDL: &str =
         "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n";

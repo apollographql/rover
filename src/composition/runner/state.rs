@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 
-use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
-use crate::composition::watchers::{
-    composition::CompositionWatcher, subgraphs::SubgraphWatchers,
-    watcher::supergraph_config::SupergraphConfigWatcher,
+use crate::composition::{
+    supergraph::config::lazy::LazilyResolvedSupergraphConfig,
+    watchers::{
+        composition::CompositionWatcher, subgraphs::SubgraphWatchers,
+        watcher::supergraph_config::SupergraphConfigWatcher,
+    },
 };
 
 pub(crate) struct SetupSubgraphWatchers;

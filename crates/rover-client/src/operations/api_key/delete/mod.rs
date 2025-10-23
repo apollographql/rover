@@ -1,8 +1,6 @@
 use graphql_client::GraphQLQuery;
 
-use crate::blocking::StudioClient;
-use crate::RoverClientError;
-use crate::RoverClientError::OrganizationIDNotFound;
+use crate::{blocking::StudioClient, RoverClientError, RoverClientError::OrganizationIDNotFound};
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(

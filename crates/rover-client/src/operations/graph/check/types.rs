@@ -1,5 +1,7 @@
-use crate::operations::graph::check::runner::graph_check_mutation;
-use crate::shared::{CheckConfig, GitContext, GraphRef};
+use crate::{
+    operations::graph::check::runner::graph_check_mutation,
+    shared::{CheckConfig, GitContext, GraphRef},
+};
 
 type MutationInput = graph_check_mutation::CheckSchemaAsyncInput;
 type MutationConfig = graph_check_mutation::HistoricQueryParametersInput;

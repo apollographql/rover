@@ -1,5 +1,4 @@
-use crate::operations::graph::variant::runner::variant_list_query;
-use crate::shared::GraphRef;
+use crate::{operations::graph::variant::runner::variant_list_query, shared::GraphRef};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct VariantListInput {

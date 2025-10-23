@@ -1,15 +1,18 @@
 use clap::Parser;
+use rover_client::{
+    blocking::StudioClient,
+    operations::cloud::config::{
+        fetch,
+        types::{CloudConfigFetchInput, CloudConfigInput},
+        update, validate,
+    },
+};
 use serde::Serialize;
 
-use crate::options::{FileOpt, GraphRefOpt, ProfileOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
-
-use rover_client::blocking::StudioClient;
-use rover_client::operations::cloud::config::{
-    fetch,
-    types::{CloudConfigFetchInput, CloudConfigInput},
-    update, validate,
+use crate::{
+    RoverOutput, RoverResult,
+    options::{FileOpt, GraphRefOpt, ProfileOpt},
+    utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Serialize, Parser)]

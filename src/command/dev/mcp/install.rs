@@ -3,9 +3,11 @@ use camino::{Utf8Path, Utf8PathBuf};
 use semver::Version;
 
 use super::binary::McpServerBinary;
-use crate::command::install::McpServerVersion;
 use crate::{
-    command::{Install, install::Plugin},
+    command::{
+        Install,
+        install::{McpServerVersion, Plugin},
+    },
     options::LicenseAccepter,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
@@ -98,7 +100,6 @@ fn version_from_path(path: &Utf8Path) -> Result<Version, InstallMcpServerError> 
 mod tests {
     use std::{env, str::FromStr, time::Duration};
 
-    use crate::command::install::McpServerVersion;
     use anyhow::Result;
     use assert_fs::{NamedTempFile, TempDir};
     use camino::Utf8PathBuf;
@@ -113,6 +114,7 @@ mod tests {
 
     use super::InstallMcpServer;
     use crate::{
+        command::install::McpServerVersion,
         options::LicenseAccepter,
         utils::{
             client::{ClientBuilder, ClientTimeout, StudioClientConfig},

@@ -1,9 +1,11 @@
-use crate::operations::graph::publish::runner::graph_publish_mutation;
-use crate::shared::{GitContext, GraphRef};
+use std::fmt;
 
 use serde::Serialize;
 
-use std::fmt;
+use crate::{
+    operations::graph::publish::runner::graph_publish_mutation,
+    shared::{GitContext, GraphRef},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphPublishInput {

@@ -2,10 +2,11 @@ use chrono::{DateTime, FixedOffset};
 use graphql_client::GraphQLQuery;
 use serde::Serialize;
 
-use crate::blocking::StudioClient;
-use crate::operations::api_key::list::list_keys_query::ListKeysQueryOrganizationApiKeysEdges;
-use crate::RoverClientError;
-use crate::RoverClientError::OrganizationIDNotFound;
+use crate::{
+    blocking::StudioClient,
+    operations::api_key::list::list_keys_query::ListKeysQueryOrganizationApiKeysEdges,
+    RoverClientError, RoverClientError::OrganizationIDNotFound,
+};
 
 type RemoteApiKey = ListKeysQueryOrganizationApiKeysEdges;
 type Timestamp = String;

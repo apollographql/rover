@@ -7,10 +7,9 @@ use std::{
 use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::Parser;
+use rover_std::{Fs, Style};
 use serde::Serialize;
 use serde_json::{Value, json};
-
-use rover_std::{Fs, Style};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{RoverError, RoverOutput, RoverResult, cli::RoverOutputFormatKind};

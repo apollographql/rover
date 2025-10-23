@@ -1,10 +1,14 @@
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::graph::publish::types::{ChangeSummary, FieldChanges, TypeChanges};
-use crate::operations::graph::publish::{GraphPublishInput, GraphPublishResponse};
-use crate::shared::GraphRef;
-use crate::RoverClientError;
+use crate::{
+    blocking::StudioClient,
+    operations::graph::publish::{
+        types::{ChangeSummary, FieldChanges, TypeChanges},
+        GraphPublishInput, GraphPublishResponse,
+    },
+    shared::GraphRef,
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

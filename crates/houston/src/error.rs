@@ -1,7 +1,7 @@
+use std::io;
+
 use rover_std::RoverStdError;
 use thiserror::Error;
-
-use std::io;
 
 /// HoustonProblem is the type of Error that occured.
 #[derive(Error, Debug)]

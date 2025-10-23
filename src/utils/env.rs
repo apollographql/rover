@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::{env, fmt, io};
+use std::{collections::HashMap, env, fmt, io};
 
 use heck::AsShoutySnekCase;
 use strum::IntoEnumIterator;

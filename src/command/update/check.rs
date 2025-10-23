@@ -1,10 +1,9 @@
 use clap::Parser;
+use houston as config;
 use reqwest::Client;
 use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, utils::version};
-
-use houston as config;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Check {

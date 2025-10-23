@@ -2,8 +2,7 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
 pub(crate) mod compose;
 mod config;

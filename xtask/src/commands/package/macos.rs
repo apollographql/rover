@@ -1,13 +1,17 @@
-use std::io::Write as _;
-use std::path::Path;
-use std::process::{Command, Stdio};
+use std::{
+    io::Write as _,
+    path::Path,
+    process::{Command, Stdio},
+};
 
 use anyhow::{ensure, Context, Result};
 use base64::Engine;
 use clap::Parser;
 
-use crate::tools::XcrunRunner;
-use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
+use crate::{
+    tools::XcrunRunner,
+    utils::{PKG_PROJECT_ROOT, PKG_VERSION},
+};
 
 const ENTITLEMENTS: &str = "macos-entitlements.plist";
 

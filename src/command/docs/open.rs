@@ -1,13 +1,12 @@
-use crate::{RoverOutput, RoverResult};
-
-use super::shortlinks;
+use std::process::Command;
 
 use anyhow::anyhow;
 use clap::Parser;
 use rover_std::Style;
 use serde::Serialize;
 
-use std::process::Command;
+use super::shortlinks;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Open {

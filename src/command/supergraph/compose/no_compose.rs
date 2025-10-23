@@ -3,9 +3,10 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options::ProfileOpt,
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {

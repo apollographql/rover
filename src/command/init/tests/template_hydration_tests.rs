@@ -1,10 +1,9 @@
-use crate::command::init::graph_id::validation::GraphId;
-use crate::command::init::options::*;
-use crate::command::init::states::*;
+use std::{collections::HashMap, str::FromStr};
+
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use std::collections::HashMap;
-use std::str::FromStr;
+
+use crate::command::init::{graph_id::validation::GraphId, options::*, states::*};
 
 #[test]
 fn test_mcp_template_placeholder_processing() {

@@ -1,10 +1,9 @@
+use std::io;
+
 use anyhow::anyhow;
 use clap::Parser;
-use serde::{Deserialize, Serialize};
-
 use rover_client::shared::ValidationPeriod;
-
-use std::io;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct CheckConfigOpts {

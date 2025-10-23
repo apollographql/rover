@@ -1,15 +1,9 @@
-use crate::command::docs::shortlinks::ShortlinkInfo;
-#[cfg(feature = "composition-js")]
-use crate::command::{
-    connector::run::{RunConnector, RunConnectorOutput},
-    supergraph::compose::CompositionOutput,
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    io::{self, IsTerminal},
 };
-use crate::{
-    RoverError,
-    command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
-    options::{JsonVersion, ProjectLanguage},
-    utils::table,
-};
+
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
@@ -33,12 +27,22 @@ use rover_client::{
 };
 use rover_std::Style;
 use serde_json::{Value, json};
-use std::{
-    collections::BTreeMap,
-    fmt::Write,
-    io::{self, IsTerminal},
-};
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
+
+#[cfg(feature = "composition-js")]
+use crate::command::{
+    connector::run::{RunConnector, RunConnectorOutput},
+    supergraph::compose::CompositionOutput,
+};
+use crate::{
+    RoverError,
+    command::{
+        docs::shortlinks::ShortlinkInfo,
+        template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
+    },
+    options::{JsonVersion, ProjectLanguage},
+    utils::table,
+};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -817,8 +821,8 @@ impl RoverOutput {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::options::JsonOutput;
+    use std::collections::BTreeMap;
+
     use anyhow::anyhow;
     use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
@@ -840,7 +844,9 @@ mod tests {
             SdlType, Violation,
         },
     };
-    use std::collections::BTreeMap;
+
+    use super::*;
+    use crate::options::JsonOutput;
 
     #[test]
     fn docs_list_json() {

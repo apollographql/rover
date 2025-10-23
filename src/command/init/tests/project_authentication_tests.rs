@@ -1,5 +1,6 @@
-use crate::command::init::authentication::AuthenticationError;
-use crate::command::init::options::ProjectAuthenticationOpt;
+use crate::command::init::{
+    authentication::AuthenticationError, options::ProjectAuthenticationOpt,
+};
 
 #[test]
 fn test_project_authentication_opt_default() {

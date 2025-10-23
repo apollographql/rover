@@ -1,16 +1,11 @@
 use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Client;
 use rover_graphql::GraphQLLayer;
-use rover_http::extend_headers::ExtendHeadersLayer;
-use rover_http::retry::RetryPolicy;
-use rover_http::ReqwestService;
-use tower::retry::RetryLayer;
-use tower::{Service, ServiceBuilder, ServiceExt};
-
-use crate::operations::subgraph::introspect::types::*;
-use crate::RoverClientError;
+use rover_http::{extend_headers::ExtendHeadersLayer, retry::RetryPolicy, ReqwestService};
+use tower::{retry::RetryLayer, Service, ServiceBuilder, ServiceExt};
 
 use super::SubgraphIntrospect;
+use crate::{operations::subgraph::introspect::types::*, RoverClientError};
 
 pub async fn run(
     input: SubgraphIntrospectInput,

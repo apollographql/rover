@@ -1,8 +1,8 @@
-use super::types::*;
-use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use create_graph_mutation::CreateGraphMutationOrganizationCreateGraph;
 use graphql_client::*;
+
+use super::types::*;
+use crate::{blocking::StudioClient, RoverClientError};
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -51,8 +51,9 @@ fn build_response(data: ResponseData) -> Result<CreateGraphResponse, RoverClient
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_build_response_success() {

@@ -1,7 +1,8 @@
-use crate::command::init::states::*;
+use std::{collections::HashMap, str::FromStr};
+
 use camino::Utf8PathBuf;
-use std::collections::HashMap;
-use std::str::FromStr;
+
+use crate::command::init::states::*;
 
 // Async test removed - would require network access and tokio_test dependency
 

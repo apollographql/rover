@@ -7,9 +7,7 @@ use std::{fmt::Debug, str::Utf8Error, time::Duration};
 use buildstructor::Builder;
 use bytes::Bytes;
 use derive_getters::Getters;
-
 pub use http_body_util::{Empty, Full};
-
 use tower::{timeout::error::Elapsed, util::BoxCloneService};
 
 pub mod body;

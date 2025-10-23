@@ -1,9 +1,11 @@
-use crate::operations::cloud::config::fetch::cloud_config_fetch_query;
-use crate::operations::cloud::config::update::cloud_config_update_query;
-use crate::operations::cloud::config::validate::cloud_config_validate_query::{
-    self, RouterConfigInput,
+use crate::{
+    operations::cloud::config::{
+        fetch::cloud_config_fetch_query,
+        update::cloud_config_update_query,
+        validate::cloud_config_validate_query::{self, RouterConfigInput},
+    },
+    shared::GraphRef,
 };
-use crate::shared::GraphRef;
 
 type FetchQueryVariables = cloud_config_fetch_query::Variables;
 type UpdateQueryVariables = cloud_config_update_query::Variables;

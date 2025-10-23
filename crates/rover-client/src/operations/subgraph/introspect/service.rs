@@ -4,9 +4,8 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::{EndpointKind, RoverClientError};
-
 use super::SubgraphIntrospectResponse;
+use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
 #[graphql(

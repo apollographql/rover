@@ -4,7 +4,6 @@ pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMu
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
 
 use apollo_federation_types::rover::BuildErrors;
-
 use serde::Serialize;
 
 #[cfg(test)]

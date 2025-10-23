@@ -1,8 +1,11 @@
-use std::collections::HashMap;
-use std::fmt::Formatter;
-use std::net::{AddrParseError, SocketAddr};
-use std::process::{ExitStatus, Stdio};
-use std::{fmt, io};
+use std::{
+    collections::HashMap,
+    fmt,
+    fmt::Formatter,
+    io,
+    net::{AddrParseError, SocketAddr},
+    process::{ExitStatus, Stdio},
+};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -12,16 +15,20 @@ use rover_std::{Style, infoln};
 use semver::Version;
 use tap::TapFallible;
 use timber::Level;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Child;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Child,
+};
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use super::hot_reload::HotReloadError;
-use crate::RoverError;
-use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
-use crate::subtask::SubtaskHandleUnit;
-use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
+use crate::{
+    RoverError,
+    command::dev::router::config::{RouterAddress, RouterHost, RouterPort},
+    subtask::SubtaskHandleUnit,
+    utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
+};
 
 pub enum RouterLog {
     Stdout(String),

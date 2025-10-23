@@ -1,5 +1,7 @@
-use crate::operations::persisted_queries::resolve::runner::resolve_persisted_query_list_query;
-use crate::shared::GraphRef;
+use crate::{
+    operations::persisted_queries::resolve::runner::resolve_persisted_query_list_query,
+    shared::GraphRef,
+};
 
 type QueryVariables = resolve_persisted_query_list_query::Variables;
 

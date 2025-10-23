@@ -71,9 +71,8 @@ mod tests {
     use rstest::{fixture, rstest};
     use tower::{Service, ServiceBuilder, ServiceExt};
 
-    use crate::{HttpService, ReqwestService};
-
     use super::ExtendHeadersLayer;
+    use crate::{HttpService, ReqwestService};
 
     #[fixture]
     pub fn raw_service() -> HttpService {

@@ -1,20 +1,22 @@
+use std::{str::FromStr, time::Duration};
+
+use graphql_client::GraphQLQuery;
+use houston::{Credential, CredentialOrigin};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client as ReqwestClient,
+};
+use rover_graphql::{GraphQLLayer, GraphQLService};
+use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
+use rover_studio::{HttpStudioServiceError, HttpStudioServiceLayer};
+use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
+use url::Url;
+
 use crate::{
     blocking::{GraphQLClient, CLIENT_NAME},
     error::EndpointKind,
     RoverClientError,
 };
-
-use houston::{Credential, CredentialOrigin};
-use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
-use rover_studio::{HttpStudioServiceError, HttpStudioServiceLayer};
-use std::{str::FromStr, time::Duration};
-use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
-
-use graphql_client::GraphQLQuery;
-use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::Client as ReqwestClient;
-use url::Url;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InitStudioServiceError {

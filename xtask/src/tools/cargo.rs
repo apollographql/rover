@@ -3,10 +3,12 @@ use std::fs;
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 
-use crate::commands::version::RoverVersion;
-use crate::target::Target;
-use crate::tools::{GitRunner, Runner};
-use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
+use crate::{
+    commands::version::RoverVersion,
+    target::Target,
+    tools::{GitRunner, Runner},
+    utils::{CommandOutput, PKG_PROJECT_ROOT},
+};
 
 pub(crate) struct CargoRunner {
     cargo_package_directory: Utf8PathBuf,
@@ -78,7 +80,7 @@ impl CargoRunner {
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None)?;
+        self.cargo_exec(vec!["+nightly", "fmt", "--all"], vec!["--check"], None)?;
         self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None)?;
 
         Ok(())

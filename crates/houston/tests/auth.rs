@@ -1,8 +1,7 @@
-use config::Config;
-use houston as config;
-
 use assert_fs::TempDir;
 use camino::Utf8Path;
+use config::Config;
+use houston as config;
 
 #[test]
 fn it_can_set_and_get_an_api_key_via_creds_file() {

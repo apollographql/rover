@@ -1,5 +1,4 @@
-use crate::operations::config::is_federated::runner::is_federated_graph;
-use crate::shared::GraphRef;
+use crate::{operations::config::is_federated::runner::is_federated_graph, shared::GraphRef};
 
 type QueryVariables = is_federated_graph::Variables;
 

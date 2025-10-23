@@ -3,8 +3,10 @@
 
 #![warn(missing_docs)]
 
-use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Debug,
+};
 
 use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt, select};
@@ -14,24 +16,34 @@ use tokio_stream::wrappers::BroadcastStream;
 use tower::ServiceExt;
 
 use self::state::SetupSubgraphWatchers;
-use super::FederationUpdaterConfig;
-use super::events::CompositionEvent;
-use super::supergraph::binary::SupergraphBinary;
-use super::supergraph::config::error::ResolveSubgraphError;
-use super::supergraph::config::full::FullyResolvedSupergraphConfig;
-use super::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
-use super::supergraph::config::lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig};
-use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use super::watchers::composition::CompositionWatcher;
-use super::watchers::subgraphs::SubgraphWatchers;
-use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-use crate::composition::supergraph::install::InstallSupergraphError;
-use crate::composition::watchers::federation::FederationWatcher;
-use crate::composition::watchers::watcher::file::FileWatcher;
-use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
-use crate::subtask::{Subtask, SubtaskRunStream};
-use crate::utils::effect::exec::ExecCommand;
-use crate::utils::effect::write_file::WriteFile;
+use super::{
+    FederationUpdaterConfig,
+    events::CompositionEvent,
+    supergraph::{
+        binary::SupergraphBinary,
+        config::{
+            error::ResolveSubgraphError,
+            full::{FullyResolvedSupergraphConfig, introspect::MakeResolveIntrospectSubgraph},
+            lazy::{LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
+            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+        },
+    },
+    watchers::{composition::CompositionWatcher, subgraphs::SubgraphWatchers},
+};
+use crate::{
+    composition::{
+        supergraph::{
+            config::full::introspect::ResolveIntrospectSubgraphFactory,
+            install::InstallSupergraphError,
+        },
+        watchers::{
+            federation::FederationWatcher,
+            watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
+        },
+    },
+    subtask::{Subtask, SubtaskRunStream},
+    utils::effect::{exec::ExecCommand, write_file::WriteFile},
+};
 
 mod state;
 

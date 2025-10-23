@@ -1,3 +1,5 @@
+use std::{fmt::Debug, path::PathBuf, process::Stdio};
+
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildOutput, BuildResult},
@@ -7,17 +9,14 @@ use camino::Utf8PathBuf;
 use http::Method;
 use semver::Version;
 use serde_json::Value;
-use std::process::Stdio;
-use std::{fmt::Debug, path::PathBuf};
 use tap::TapFallible;
 
 use super::version::SupergraphVersion;
-use crate::RoverOutput;
-use crate::command::connector::run::RunConnectorOutput;
-use crate::utils::effect::exec::ExecCommandOutput;
 use crate::{
+    RoverOutput,
+    command::connector::run::RunConnectorOutput,
     composition::{CompositionError, CompositionSuccess},
-    utils::effect::exec::{ExecCommand, ExecCommandConfig},
+    utils::effect::exec::{ExecCommand, ExecCommandConfig, ExecCommandOutput},
 };
 
 impl From<std::io::Error> for CompositionError {

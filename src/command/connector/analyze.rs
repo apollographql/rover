@@ -1,17 +1,18 @@
-use std::fmt::Display;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use clap::Parser;
 use http::{HeaderMap, HeaderName, HeaderValue};
-use serde::ser::{Error, SerializeStruct};
-use serde::{Serialize, Serializer};
-
-use crate::composition::supergraph::binary::SupergraphBinary;
-use crate::utils::effect::exec::TokioCommand;
-use crate::{RoverOutput, RoverResult};
 use reqwest::{Method, Url};
+use serde::{
+    Serialize, Serializer,
+    ser::{Error, SerializeStruct},
+};
 use serde_json::Value;
+
+use crate::{
+    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
+    utils::effect::exec::TokioCommand,
+};
 
 /// Failure modes of Loading Test data from a file or command line input
 #[derive(Debug, thiserror::Error)]

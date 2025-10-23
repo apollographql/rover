@@ -1,6 +1,8 @@
-use std::io::Error;
-use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
-use std::str::FromStr;
+use std::{
+    io::Error,
+    net::{SocketAddr, SocketAddrV4, ToSocketAddrs},
+    str::FromStr,
+};
 
 use thiserror::Error;
 

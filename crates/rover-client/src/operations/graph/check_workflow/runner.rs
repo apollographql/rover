@@ -2,22 +2,23 @@ use std::time::{Duration, Instant};
 
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
-use crate::shared::{
-    CheckWorkflowResponse, CustomCheckResponse, Diagnostic, GraphRef, LintCheckResponse,
-    OperationCheckResponse, SchemaChange, Violation,
-};
-use crate::RoverClientError;
-
-use self::graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CustomCheckTask, LintCheckTask, OperationsCheckTask,
-};
 use self::graph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus,
+    GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
+        CustomCheckTask, LintCheckTask, OperationsCheckTask,
+    },
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+};
+use crate::{
+    blocking::StudioClient,
+    operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
+    shared::{
+        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, GraphRef, LintCheckResponse,
+        OperationCheckResponse, SchemaChange, Violation,
+    },
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

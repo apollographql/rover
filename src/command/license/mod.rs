@@ -1,11 +1,10 @@
 mod fetch;
 
-pub use fetch::Fetch;
-
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
 use clap::Parser;
+pub use fetch::Fetch;
 use serde::Serialize;
+
+use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct License {

@@ -1,6 +1,9 @@
-use crate::command::init::graph_id::validation::GraphId;
-use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
 use serde::{Deserialize, Serialize};
+
+use crate::command::init::{
+    graph_id::validation::GraphId,
+    options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectConfig {

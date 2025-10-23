@@ -7,13 +7,12 @@ pub(crate) use no_compose::Compose;
 #[cfg(feature = "composition-js")]
 pub(crate) mod do_compose;
 
+use apollo_federation_types::rover::BuildHint;
 #[cfg(feature = "composition-js")]
 pub(crate) use do_compose::Compose;
 
 #[cfg(feature = "composition-js")]
 use crate::composition::CompositionSuccess;
-
-use apollo_federation_types::rover::BuildHint;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CompositionOutput {

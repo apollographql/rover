@@ -1,11 +1,13 @@
-use crate::blocking::StudioClient;
-use crate::operations::graph::{
-    delete::GraphDeleteInput,
-    variant::{self, VariantListInput},
-};
-use crate::RoverClientError;
-
 use graphql_client::*;
+
+use crate::{
+    blocking::StudioClient,
+    operations::graph::{
+        delete::GraphDeleteInput,
+        variant::{self, VariantListInput},
+    },
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 #[graphql(

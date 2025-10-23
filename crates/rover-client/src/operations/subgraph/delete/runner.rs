@@ -1,11 +1,10 @@
-use crate::blocking::StudioClient;
-use crate::operations::subgraph::delete::types::*;
-use crate::shared::GraphRef;
-use crate::RoverClientError;
-
 use apollo_federation_types::rover::{BuildError, BuildErrors};
-
 use graphql_client::*;
+
+use crate::{
+    blocking::StudioClient, operations::subgraph::delete::types::*, shared::GraphRef,
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -63,8 +62,9 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn get_delete_data_from_response_works() {

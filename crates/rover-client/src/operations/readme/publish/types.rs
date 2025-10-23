@@ -1,5 +1,4 @@
-use crate::operations::readme::publish::runner::readme_publish_mutation;
-use crate::shared::GraphRef;
+use crate::{operations::readme::publish::runner::readme_publish_mutation, shared::GraphRef};
 
 type QueryVariables = readme_publish_mutation::Variables;
 type Timestamp = String;

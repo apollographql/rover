@@ -1,7 +1,7 @@
+use std::io;
+
 use rover_std::RoverStdError;
 use thiserror::Error;
-
-use std::io;
 
 /// InstallerError is the type of Error that occurred while installing.
 #[derive(Error, Debug)]

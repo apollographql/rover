@@ -1,8 +1,10 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 
-use crate::commands::prep::docs::DocsRunner;
-use crate::tools::{CargoRunner, NpmRunner};
+use crate::{
+    commands::prep::docs::DocsRunner,
+    tools::{CargoRunner, NpmRunner},
+};
 
 mod docs;
 mod installers;

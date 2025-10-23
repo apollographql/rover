@@ -1,8 +1,9 @@
-use crate::command::init::states::*;
-use crate::command::init::template_fetcher::*;
+use std::str::FromStr;
+
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use std::str::FromStr;
+
+use crate::command::init::{states::*, template_fetcher::*};
 
 // Tests verify the logic without trying to capture println! output
 

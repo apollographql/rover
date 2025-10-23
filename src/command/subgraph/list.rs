@@ -1,12 +1,13 @@
 use clap::Parser;
-use serde::Serialize;
-
 use rover_client::operations::subgraph::list::{self, SubgraphListInput};
 use rover_std::Style;
+use serde::Serialize;
 
-use crate::options::{GraphRefOpt, ProfileOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct List {

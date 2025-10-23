@@ -1,9 +1,11 @@
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::graph::fetch::GraphFetchInput;
-use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
-use crate::RoverClientError;
+use crate::{
+    blocking::StudioClient,
+    operations::graph::fetch::GraphFetchInput,
+    shared::{FetchResponse, GraphRef, Sdl, SdlType},
+    RoverClientError,
+};
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema

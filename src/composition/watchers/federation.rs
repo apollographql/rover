@@ -1,17 +1,22 @@
-use futures::StreamExt;
-use futures::stream::BoxStream;
+use futures::{StreamExt, stream::BoxStream};
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 
-use crate::composition::CompositionError;
-use crate::composition::events::CompositionEvent;
-use crate::composition::watchers::composition::CompositionInputEvent;
-use crate::composition::watchers::watcher::supergraph_config::{
-    SupergraphConfigDiff, SupergraphConfigSerialisationError,
+use crate::{
+    composition::{
+        CompositionError,
+        events::CompositionEvent,
+        watchers::{
+            composition::CompositionInputEvent,
+            watcher::supergraph_config::{
+                SupergraphConfigDiff, SupergraphConfigSerialisationError,
+            },
+        },
+    },
+    subtask::SubtaskHandleStream,
 };
-use crate::subtask::SubtaskHandleStream;
 
 pub struct FederationWatcher {}
 

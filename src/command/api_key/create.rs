@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-use std::fs::canonicalize;
-use std::io::IsTerminal;
-use std::path::PathBuf;
+use std::{collections::HashMap, fs::canonicalize, io::IsTerminal, path::PathBuf};
 
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -10,11 +7,12 @@ use rover_client::operations::api_key::create::{
 };
 use serde::Serialize;
 
-use crate::command::api_key::{ApiKeyType, OrganizationOpt};
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{
+    RoverError, RoverOutput, RoverResult,
+    command::api_key::{ApiKeyType, OrganizationOpt},
+    options::ProfileOpt,
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct Create {

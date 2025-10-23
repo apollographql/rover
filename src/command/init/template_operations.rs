@@ -1,18 +1,22 @@
-use crate::command::init::template_operations::PrintMode::{Confirmation, Normal};
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
-use crate::{RoverError, RoverResult};
+use std::{
+    collections::BTreeMap,
+    fs,
+    fs::File,
+    io,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
+
 use anyhow::format_err;
 use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
-use rover_std::infoln;
-use rover_std::prompt::prompt_confirm_default_yes;
-use rover_std::successln;
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::{fs, io};
+use rover_std::{infoln, prompt::prompt_confirm_default_yes, successln};
+
+use crate::{
+    RoverError, RoverResult,
+    command::init::template_operations::PrintMode::{Confirmation, Normal},
+    composition::supergraph::config::{SupergraphConfigYaml, lazy::LazilyResolvedSubgraph},
+};
 
 pub struct TemplateOperations;
 
@@ -325,10 +329,14 @@ impl SupergraphBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::fs::{self, File};
-    use std::io::Write;
+    use std::{
+        fs::{self, File},
+        io::Write,
+    };
+
     use tempfile::tempdir;
+
+    use super::*;
 
     // Helper function to create a GraphQL file in a temp directory
     fn create_graphql_file(base_dir: &Path, rel_path: &str, content: &str) -> io::Result<()> {

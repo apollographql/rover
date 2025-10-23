@@ -1,7 +1,7 @@
-use crate::{error::EndpointKind, RoverClientError};
-
 use reqwest::Client;
 pub use semver::Version;
+
+use crate::{error::EndpointKind, RoverClientError};
 
 const LATEST_RELEASE_URL: &str = "https://github.com/apollographql/rover/releases/latest";
 

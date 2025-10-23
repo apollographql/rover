@@ -2,13 +2,11 @@ use std::fs;
 
 use assert_cmd::Command;
 use camino::Utf8PathBuf;
-use rstest::rstest;
-use speculoos::assert_that;
-use speculoos::prelude::BooleanAssertions;
-use tempfile::TempDir;
-
 use houston::{Config, Profile};
 use rover::utils::env::RoverEnvKey;
+use rstest::rstest;
+use speculoos::{assert_that, prelude::BooleanAssertions};
+use tempfile::TempDir;
 
 const CUSTOM_PROFILE: &str = "custom-profile";
 const CUSTOM_API_KEY: &str = "custom-api-key";

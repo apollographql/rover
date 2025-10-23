@@ -2,8 +2,7 @@ use assert_cmd::Command;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
-use speculoos::assert_that;
-use speculoos::prelude::BooleanAssertions;
+use speculoos::{assert_that, prelude::BooleanAssertions};
 use tempfile::Builder;
 
 #[derive(Deserialize, Debug)]

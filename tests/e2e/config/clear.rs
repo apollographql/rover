@@ -2,12 +2,11 @@ use std::convert::TryFrom;
 
 use assert_cmd::Command;
 use camino::Utf8PathBuf;
+use houston::{Config, Profile};
 use predicates::prelude::*;
+use rover::utils::env::RoverEnvKey;
 use rstest::rstest;
 use tempfile::TempDir;
-
-use houston::{Config, Profile};
-use rover::utils::env::RoverEnvKey;
 
 const CUSTOM_PROFILE: &str = "custom-profile";
 const CUSTOM_API_KEY: &str = "custom-api-key";

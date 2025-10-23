@@ -1,10 +1,9 @@
 use anyhow::anyhow;
 use clap::Parser;
-use rover_std::Style;
-use serde::Serialize;
-
 use config::Profile;
 use houston as config;
+use rover_std::Style;
+use serde::Serialize;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options::ProfileOpt};
 
@@ -64,9 +63,8 @@ fn validate(api_key: String) -> RoverResult<String> {
 mod tests {
     use assert_fs::TempDir;
     use camino::Utf8Path;
-    use serial_test::serial;
-
     use houston::{Config, Profile};
+    use serial_test::serial;
 
     const DEFAULT_PROFILE: &str = "default";
     const DEFAULT_KEY: &str = "default-key";

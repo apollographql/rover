@@ -1,10 +1,10 @@
-use crate::{profile::Profile, Config, HoustonProblem};
-use rover_std::Fs;
-
 use std::fmt;
 
 use camino::Utf8PathBuf;
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
+
+use crate::{profile::Profile, Config, HoustonProblem};
 
 /// Holds sensitive information regarding authentication.
 #[derive(Debug, Serialize, Deserialize)]

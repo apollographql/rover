@@ -1,12 +1,12 @@
-use clap::Parser;
-use reqwest::Client;
-use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
 
+use clap::Parser;
+use reqwest::Client;
 use rover_client::{
     blocking::GraphQLClient,
     operations::graph::introspect::{self, GraphIntrospectInput},
 };
+use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,

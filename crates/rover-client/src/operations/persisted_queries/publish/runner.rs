@@ -1,10 +1,13 @@
-use crate::blocking::StudioClient;
-use crate::operations::persisted_queries::publish::{
-    PersistedQueriesOperationCounts, PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
-    PersistedQueryPublishOperationResult,
-};
-use crate::RoverClientError;
 use graphql_client::*;
+
+use crate::{
+    blocking::StudioClient,
+    operations::persisted_queries::publish::{
+        PersistedQueriesOperationCounts, PersistedQueriesPublishInput,
+        PersistedQueriesPublishResponse, PersistedQueryPublishOperationResult,
+    },
+    RoverClientError,
+};
 
 type GraphQLDocument = String;
 

@@ -1,12 +1,13 @@
 mod sensitive;
 
-use crate::{Config, HoustonProblem};
-use sensitive::Sensitive;
-use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use camino::Utf8PathBuf as PathBuf;
 use rover_std::Fs;
-use std::fmt;
+use sensitive::Sensitive;
+use serde::{Deserialize, Serialize};
+
+use crate::{Config, HoustonProblem};
 
 /// Collects configuration related to a profile.
 #[derive(Debug, Serialize, Deserialize)]

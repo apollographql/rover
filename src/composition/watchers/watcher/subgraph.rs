@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use apollo_federation_types::config::SchemaSource;
 use camino::Utf8PathBuf;
-use futures::StreamExt;
-use futures::stream::BoxStream;
+use futures::{StreamExt, stream::BoxStream};
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectError;
 use rover_std::{RoverStdError, infoln};
 use tap::TapFallible;
@@ -11,14 +10,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::file::SubgraphFileWatcher;
-use super::introspection::SubgraphIntrospection;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::{
-    FullyResolveSubgraphService, FullyResolvedSubgraph,
+use super::{file::SubgraphFileWatcher, introspection::SubgraphIntrospection};
+use crate::{
+    composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
+        lazy::LazilyResolvedSubgraph,
+    },
+    subtask::SubtaskHandleUnit,
 };
-use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
-use crate::subtask::SubtaskHandleUnit;
 
 #[derive(thiserror::Error, Debug)]
 #[allow(dead_code)]

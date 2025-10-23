@@ -184,8 +184,9 @@ pub type BoxedGitHubService =
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tower::ServiceExt;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_get_tar() {

@@ -1,7 +1,10 @@
-use std::io::{self, Write};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
+use std::{
+    io::{self, Write},
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+
 use termimad::crossterm::{
     cursor::{position, Hide, MoveTo, Show},
     execute,

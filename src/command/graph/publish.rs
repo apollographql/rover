@@ -1,13 +1,16 @@
 use clap::Parser;
+use rover_client::{
+    operations::graph::publish::{self, GraphPublishInput},
+    shared::GitContext,
+};
+use rover_std::Style;
 use serde::Serialize;
 
-use rover_client::operations::graph::publish::{self, GraphPublishInput};
-use rover_client::shared::GitContext;
-use rover_std::Style;
-
-use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt, SchemaOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {

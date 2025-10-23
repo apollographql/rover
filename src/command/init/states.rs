@@ -1,10 +1,14 @@
-use crate::command::init::config::ProjectConfig;
-use crate::command::init::graph_id::validation::GraphId;
-use crate::command::init::options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase};
-use crate::command::init::template_fetcher::Template;
+use std::collections::HashMap;
+
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
-use std::collections::HashMap;
+
+use crate::command::init::{
+    config::ProjectConfig,
+    graph_id::validation::GraphId,
+    options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase},
+    template_fetcher::Template,
+};
 
 #[derive(Debug)]
 pub struct UserAuthenticated;

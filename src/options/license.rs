@@ -2,11 +2,10 @@ use std::io::IsTerminal;
 
 use anyhow::anyhow;
 use clap::Parser;
+use rover_std::prompt;
 use serde::Serialize;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
-
-use rover_std::prompt;
 
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, Serialize, Parser, Clone, Copy)]
