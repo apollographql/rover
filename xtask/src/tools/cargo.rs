@@ -80,7 +80,7 @@ impl CargoRunner {
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None)?;
+        self.cargo_exec(vec!["+nightly", "fmt", "--all"], vec!["--check"], None)?;
         self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None)?;
 
         Ok(())
