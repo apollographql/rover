@@ -1,15 +1,14 @@
-use crate::{shared::lint_response::Diagnostic, RoverClientError};
-use comfy_table::presets::UTF8_FULL;
-use comfy_table::Attribute::Bold;
-use comfy_table::CellAlignment::Center;
-use comfy_table::{Cell, Table};
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
+
+use comfy_table::{presets::UTF8_FULL, Attribute::Bold, Cell, CellAlignment::Center, Table};
 use rover_std::{hyperlink, Style};
-use std::fmt::{self, Display};
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
-
 use serde_json::{json, Value};
+
+use crate::{shared::lint_response::Diagnostic, RoverClientError};
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowResponse {

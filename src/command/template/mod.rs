@@ -4,13 +4,13 @@ pub(crate) mod queries;
 mod templates;
 mod r#use;
 
+use clap::Parser;
 pub use list::List;
+use rover_http::ReqwestService;
+use serde::Serialize;
 pub use r#use::Use;
 
 use crate::{RoverOutput, RoverResult};
-use clap::Parser;
-use rover_http::ReqwestService;
-use serde::Serialize;
 
 #[derive(Debug, Clone, Parser, Serialize)]
 pub struct Template {

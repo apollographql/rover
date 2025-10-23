@@ -1,10 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
-use std::env::current_dir;
-use std::fmt::Debug;
-use std::fs::canonicalize;
+use std::{
+    collections::{BTreeMap, HashMap},
+    env::current_dir,
+    fmt::Debug,
+    fs::canonicalize,
+};
 
-use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
+use apollo_federation_types::config::{
+    FederationVersion, FederationVersion::LatestFedTwo, SubgraphConfig,
+};
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_http::HttpService;
@@ -13,27 +16,37 @@ use tempfile::tempdir;
 use tower::MakeService;
 use tracing::{debug, warn};
 
-use super::runner::{CompositionRunner, Runner};
-use super::supergraph::config::error::ResolveSubgraphError;
-use super::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-use super::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use super::supergraph::config::resolver::fetch_remote_subgraphs::FetchRemoteSubgraphsRequest;
-use super::supergraph::config::resolver::{
-    DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
-    ResolveSupergraphConfigError, SupergraphConfigResolver,
+use super::{
+    CompositionError, CompositionSuccess, FederationUpdaterConfig,
+    runner::{CompositionRunner, Runner},
+    supergraph::{
+        config::{
+            error::ResolveSubgraphError,
+            full::introspect::ResolveIntrospectSubgraphFactory,
+            resolver::{
+                DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
+                ResolveSupergraphConfigError, SupergraphConfigResolver,
+                fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+                fetch_remote_subgraphs::FetchRemoteSubgraphsRequest,
+            },
+        },
+        install::{InstallSupergraph, InstallSupergraphError},
+    },
 };
-use super::supergraph::install::{InstallSupergraph, InstallSupergraphError};
-use super::{CompositionError, CompositionSuccess, FederationUpdaterConfig};
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::composition::supergraph::config::full::FullyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::lazy::LazilyResolvedSupergraphConfig;
-use crate::options::LicenseAccepter;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::exec::ExecCommand;
-use crate::utils::effect::install::InstallBinary;
-use crate::utils::effect::read_stdin::ReadStdin;
-use crate::utils::effect::write_file::WriteFile;
-use crate::utils::parsers::FileDescriptorType;
+use crate::{
+    composition::supergraph::config::{
+        SupergraphConfigYaml, full::FullyResolvedSupergraphConfig,
+        lazy::LazilyResolvedSupergraphConfig,
+    },
+    options::LicenseAccepter,
+    utils::{
+        client::StudioClientConfig,
+        effect::{
+            exec::ExecCommand, install::InstallBinary, read_stdin::ReadStdin, write_file::WriteFile,
+        },
+        parsers::FileDescriptorType,
+    },
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionPipelineError {
@@ -373,12 +386,20 @@ pub(crate) mod state {
     use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
 
-    use crate::composition::supergraph::binary::SupergraphBinary;
-    use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-    use crate::composition::supergraph::config::resolver::InitializedSupergraphConfigResolver;
-    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-    use crate::composition::supergraph::install::InstallSupergraphError;
-    use crate::utils::parsers::FileDescriptorType;
+    use crate::{
+        composition::supergraph::{
+            binary::SupergraphBinary,
+            config::{
+                full::introspect::ResolveIntrospectSubgraphFactory,
+                resolver::{
+                    InitializedSupergraphConfigResolver,
+                    fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+                },
+            },
+            install::InstallSupergraphError,
+        },
+        utils::parsers::FileDescriptorType,
+    };
 
     pub struct Init;
     pub struct ResolveFederationVersion {

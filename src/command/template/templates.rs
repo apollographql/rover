@@ -1,22 +1,17 @@
 use std::env;
 
 use anyhow::anyhow;
-use dialoguer::Select;
-use dialoguer::console::Term;
-use reqwest::Client;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-
+use dialoguer::{Select, console::Term};
 use graphql_client::{GraphQLQuery, Response};
-
-use crate::options::ProjectLanguage;
-use crate::{RoverError, RoverErrorSuggestion, RoverResult};
+use reqwest::Client;
+use serde::{Serialize, de::DeserializeOwned};
 
 use super::queries::{
     get_template_by_id::GetTemplateByIdTemplate,
     get_templates_for_language::GetTemplatesForLanguageTemplates,
     list_templates_for_language::ListTemplatesForLanguageTemplates, *,
 };
+use crate::{RoverError, RoverErrorSuggestion, RoverResult, options::ProjectLanguage};
 
 async fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverResult<Data> {
     let uri = env::var("APOLLO_TEMPLATES_API")

@@ -1,6 +1,5 @@
 //! Utilities that help resolve a subgraph via introspection
-use std::sync::Arc;
-use std::{collections::HashMap, pin::Pin};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;

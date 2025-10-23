@@ -1,5 +1,4 @@
-use crate::operations::supergraph::fetch::runner::supergraph_fetch_query;
-use crate::shared::GraphRef;
+use crate::{operations::supergraph::fetch::runner::supergraph_fetch_query, shared::GraphRef};
 
 type QueryVariables = supergraph_fetch_query::Variables;
 

@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
-use super::FullyResolvedSupergraphConfig;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use thiserror::Error;
+
+use super::FullyResolvedSupergraphConfig;
+use crate::composition::supergraph::config::SupergraphConfigYaml;
 
 /// Error that occurs when a subgraph schema source is invalid
 #[derive(Error, Debug)]

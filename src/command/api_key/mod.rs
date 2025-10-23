@@ -9,12 +9,11 @@ use clap::{Parser, ValueEnum};
 use rover_client::operations::api_key::GraphOsKeyType;
 use serde::Serialize;
 
-use crate::command::api_key::create::Create;
-use crate::command::api_key::delete::Delete;
-use crate::command::api_key::list::List;
-use crate::command::api_key::rename::Rename;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    command::api_key::{create::Create, delete::Delete, list::List, rename::Rename},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct ApiKeys {

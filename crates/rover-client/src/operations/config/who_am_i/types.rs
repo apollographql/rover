@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
 
-use super::service::config_who_am_i_query;
-
 use houston::CredentialOrigin;
+
+use super::service::config_who_am_i_query;
 
 pub(crate) type QueryVariables = config_who_am_i_query::Variables;
 

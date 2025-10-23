@@ -5,9 +5,8 @@ use houston::CredentialOrigin;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::RoverClientError;
-
 use super::{types::QueryVariables, Actor, ConfigWhoAmIInput, RegistryIdentity};
+use crate::RoverClientError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

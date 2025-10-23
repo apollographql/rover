@@ -1,7 +1,6 @@
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use futures::stream::BoxStream;
-use futures::{StreamExt, TryFutureExt};
+use futures::{StreamExt, TryFutureExt, stream::BoxStream};
 use rover_std::{Fs, RoverStdError, errln};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
@@ -9,9 +8,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::{
-    FullyResolveSubgraphService, FullyResolvedSubgraph,
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError,
+    full::{FullyResolveSubgraphService, FullyResolvedSubgraph},
 };
 
 /// File watcher specifically for files related to composition
@@ -153,9 +152,7 @@ impl SubgraphFileWatcher {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    use std::time::Duration;
+    use std::{fs::OpenOptions, io::Write, time::Duration};
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
     use speculoos::prelude::*;
@@ -164,8 +161,9 @@ mod tests {
     use tracing_test::traced_test;
 
     use super::*;
-    use crate::composition::supergraph::config::full::file::ResolveFileSubgraph;
-    use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
+    use crate::composition::supergraph::config::{
+        full::file::ResolveFileSubgraph, unresolved::UnresolvedSubgraph,
+    };
 
     #[tokio::test]
     #[traced_test(level = "error")]

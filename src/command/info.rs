@@ -1,9 +1,10 @@
-use crate::{PKG_VERSION, RoverOutput, RoverResult};
+use std::env;
 
 use calm_io::stderrln;
 use clap::Parser;
 use serde::Serialize;
-use std::env;
+
+use crate::{PKG_VERSION, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Info {}

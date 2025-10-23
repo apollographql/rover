@@ -1,9 +1,8 @@
-use crate::{RoverOutput, RoverResult};
-
-use super::shortlinks;
-
 use clap::Parser;
 use serde::Serialize;
+
+use super::shortlinks;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct List {}

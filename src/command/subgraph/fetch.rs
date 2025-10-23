@@ -1,12 +1,13 @@
 use clap::Parser;
-use serde::Serialize;
-
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_std::Style;
+use serde::Serialize;
 
-use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt, SubgraphOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {

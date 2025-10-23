@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-use std::io::Write;
-use std::path::Path;
-use std::str::FromStr;
+use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
 
 use anyhow::Result;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};

@@ -3,34 +3,29 @@ use std::{collections::HashMap, env, fs::read_dir, path::PathBuf};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use houston::Profile;
-use rover_client::RoverClientError;
-use rover_client::operations::init::create_graph::*;
-use rover_client::operations::init::memberships;
-use rover_client::shared::GraphRef;
+use rover_client::{
+    RoverClientError,
+    operations::init::{create_graph::*, memberships},
+    shared::GraphRef,
+};
 use rover_std::{Spinner, Style, errln};
 
-use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
-use crate::command::init::config::ProjectConfig;
-use crate::command::init::helpers::*;
-use crate::command::init::operations::create_api_key;
-use crate::command::init::operations::publish_subgraphs;
-use crate::command::init::operations::update_variant_federation_version;
-use crate::command::init::options::ProjectUseCaseOpt;
-use crate::command::init::options::*;
-use crate::command::init::states::*;
-use crate::command::init::template_fetcher::TemplateId;
-use crate::command::init::template_operations::{SupergraphBuilder, TemplateOperations};
-
-use crate::command::init::InitTemplateFetcher;
-
-use crate::options::{TemplateListFiles, TemplateWrite};
-
-use crate::RoverError;
-use crate::RoverErrorSuggestion;
-use crate::RoverOutput;
-use crate::RoverResult;
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    command::init::{
+        InitTemplateFetcher,
+        authentication::{AuthenticationError, auth_error_to_rover_error},
+        config::ProjectConfig,
+        helpers::*,
+        operations::{create_api_key, publish_subgraphs, update_variant_federation_version},
+        options::{ProjectUseCaseOpt, *},
+        states::*,
+        template_fetcher::TemplateId,
+        template_operations::{SupergraphBuilder, TemplateOperations},
+    },
+    options::{ProfileOpt, TemplateListFiles, TemplateWrite},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug)]
 pub enum RestartReason {

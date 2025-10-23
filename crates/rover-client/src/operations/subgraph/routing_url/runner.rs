@@ -1,8 +1,7 @@
-use super::types::*;
-use crate::blocking::StudioClient;
-use crate::RoverClientError;
-
 use graphql_client::*;
+
+use super::types::*;
+use crate::{blocking::StudioClient, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -61,9 +60,10 @@ fn get_routing_url_from_response_data(
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::shared::GraphRef;
-    use serde_json::json;
 
     #[test]
     fn get_routing_url_from_response_data_works() {

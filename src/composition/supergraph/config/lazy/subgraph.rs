@@ -3,8 +3,9 @@ use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, unresolved::UnresolvedSubgraph,
+};
 
 /// A subgraph config that has had its file paths validated and
 /// confirmed to be relative to a supergraph config file

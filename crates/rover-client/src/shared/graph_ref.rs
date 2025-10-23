@@ -1,10 +1,9 @@
-use std::fmt;
-use std::str::FromStr;
-
-use crate::RoverClientError;
+use std::{fmt, str::FromStr};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::RoverClientError;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GraphRef {
@@ -63,8 +62,9 @@ impl FromStr for GraphRef {
 
 #[cfg(test)]
 mod tests {
-    use super::GraphRef;
     use std::str::FromStr;
+
+    use super::GraphRef;
 
     #[test]
     fn from_str_works() {

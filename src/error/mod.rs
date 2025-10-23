@@ -4,16 +4,17 @@ pub use metadata::{RoverErrorCode, RoverErrorMetadata, RoverErrorSuggestion};
 
 pub type RoverResult<T> = std::result::Result<T, RoverError>;
 
-use std::borrow::BorrowMut;
-use std::error::Error;
-use std::fmt::{self, Debug, Display};
+use std::{
+    borrow::BorrowMut,
+    error::Error,
+    fmt::{self, Debug, Display},
+};
 
 use apollo_federation_types::rover::BuildErrors;
 use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
 use rover_std::Style;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::{Value, json};
 
 use crate::options::JsonVersion;

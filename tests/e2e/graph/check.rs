@@ -1,11 +1,9 @@
-use std::path::PathBuf;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 use assert_cmd::prelude::CommandCargoExt;
 use regex::Regex;
 use rstest::rstest;
-use speculoos::assert_that;
-use speculoos::boolean::BooleanAssertions;
+use speculoos::{assert_that, boolean::BooleanAssertions};
 use tracing_test::traced_test;
 
 use crate::e2e::{remote_supergraph_graphref, test_artifacts_directory};

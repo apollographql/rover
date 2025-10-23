@@ -1,7 +1,10 @@
-use std::fs::OpenOptions;
-use std::io::{ErrorKind, Write};
-use std::path::PathBuf;
-use std::{fs, time::Duration};
+use std::{
+    fs,
+    fs::OpenOptions,
+    io::{ErrorKind, Write},
+    path::PathBuf,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
@@ -394,9 +397,10 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
     use tempfile::{NamedTempFile, TempDir};
-    use tokio::sync::mpsc::unbounded_channel;
-    use tokio::sync::Mutex;
-    use tokio::time::sleep;
+    use tokio::{
+        sync::{mpsc::unbounded_channel, Mutex},
+        time::sleep,
+    };
 
     use super::*;
 

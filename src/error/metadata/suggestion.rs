@@ -1,5 +1,7 @@
-use std::cmp::Ordering;
-use std::fmt::{self, Display, Write as _};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display, Write as _},
+};
 
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;

@@ -1,19 +1,14 @@
+use std::{collections::HashMap, convert::TryFrom, env, fmt::Debug, time::Duration};
+
 use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
-use reqwest::Client;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use rover_client::shared::GitContext;
 use semver::Version;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use wsl::is_wsl;
-
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::env;
-use std::fmt::Debug;
-use std::time::Duration;
 
 use crate::{Report, SputnikError};
 
@@ -181,11 +176,12 @@ fn get_repo_hash() -> Option<String> {
 mod tests {
     use std::error::Error;
 
-    use super::*;
     use httpmock::{Method::POST, MockServer};
     use reqwest::Client;
     use rstest::*;
     use speculoos::{assert_that, result::ResultAssertions};
+
+    use super::*;
 
     #[fixture]
     fn report_path() -> &'static str {

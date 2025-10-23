@@ -36,12 +36,13 @@
 //! Thanks for your patience!
 
 pub mod report;
+use std::{
+    borrow::Cow,
+    io::{Result as IoResult, Write},
+    panic::PanicHookInfo,
+};
+
 use report::{Method, Report};
-
-use std::borrow::Cow;
-use std::io::{Result as IoResult, Write};
-use std::panic::PanicHookInfo;
-
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
 /// A convenient metadata struct that describes a crate
@@ -87,6 +88,7 @@ macro_rules! setup_panic {
     ($meta:expr) => {
         #[allow(unused_imports)]
         use std::panic::{self, PanicHookInfo};
+
         #[allow(unused_imports)]
         use $crate::{get_report, print_msg, Metadata};
 
@@ -106,6 +108,7 @@ macro_rules! setup_panic {
     () => {
         #[allow(unused_imports)]
         use std::panic::{self, PanicHookInfo};
+
         #[allow(unused_imports)]
         use $crate::{get_report, print_msg, Metadata};
 

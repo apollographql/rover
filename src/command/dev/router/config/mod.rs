@@ -1,18 +1,23 @@
-use std::error::Error;
-use std::fmt;
-use std::fmt::{Display, Formatter};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    error::Error,
+    fmt,
+    fmt::{Display, Formatter},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use rover_std::{RoverStdError, errln};
 use thiserror::Error;
 
-use self::parser::{ParseRouterConfigError, RouterConfigParser};
-use self::state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig};
-use crate::RoverError;
-use crate::utils::effect::read_file::ReadFile;
-use crate::utils::expansion::expand;
+use self::{
+    parser::{ParseRouterConfigError, RouterConfigParser},
+    state::{RunRouterConfigDefault, RunRouterConfigFinal, RunRouterConfigReadConfig},
+};
+use crate::{
+    RoverError,
+    utils::{effect::read_file::ReadFile, expansion::expand},
+};
 
 pub mod parser;
 pub mod remote;

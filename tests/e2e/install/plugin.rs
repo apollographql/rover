@@ -1,5 +1,4 @@
-use std::process::Command;
-use std::str::from_utf8;
+use std::{process::Command, str::from_utf8};
 
 use assert_cmd::prelude::CommandCargoExt;
 use assert_fs::TempDir;

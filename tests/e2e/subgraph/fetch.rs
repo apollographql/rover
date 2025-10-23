@@ -1,12 +1,9 @@
-use std::fs::read_to_string;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{fs::read_to_string, path::PathBuf, process::Command};
 
 use assert_cmd::prelude::CommandCargoExt;
 use graphql_schema_diff::diff;
 use rstest::rstest;
-use speculoos::assert_that;
-use speculoos::prelude::VecAssertions;
+use speculoos::{assert_that, prelude::VecAssertions};
 use tempfile::Builder;
 use tracing::error;
 use tracing_test::traced_test;

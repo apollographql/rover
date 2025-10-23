@@ -1,13 +1,12 @@
-use crate::{RoverError, RoverResult};
+use std::{fmt, str::FromStr};
+
 use anyhow::anyhow;
-use clap::Parser;
-use clap::arg;
-use dialoguer::Select;
-use dialoguer::console::Term;
+use clap::{Parser, arg};
+use dialoguer::{Select, console::Term};
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
+
+use crate::{RoverError, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 

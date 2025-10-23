@@ -3,13 +3,14 @@
 //! More information on Schema Definition language(SDL) can be found in [this
 //! documentation](https://www.apollographql.com/docs/apollo-server/schema/schema/).
 //!
+use std::convert::TryFrom;
+
 use apollo_encoder::{
     Argument, Directive, DirectiveDefinition, Document as SDL, EnumDefinition, EnumValue,
     FieldDefinition, InputField, InputObjectDefinition, InputValueDefinition, InterfaceDefinition,
     ObjectDefinition, ScalarDefinition, SchemaDefinition, Type_, UnionDefinition, Value,
 };
 use serde::Deserialize;
-use std::convert::TryFrom;
 
 use crate::operations::graph::introspect::runner::graph_introspect_query;
 
@@ -396,14 +397,13 @@ fn create_deprecated_directive(reason: Option<String>) -> Directive {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::{convert::TryFrom, fs::File};
 
     use graphql_client::Response;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
-    use std::convert::TryFrom;
-    use std::fs::File;
 
+    use super::*;
     use crate::operations::graph::introspect::types::QueryResponseData;
 
     #[test]

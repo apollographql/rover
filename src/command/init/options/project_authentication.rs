@@ -5,10 +5,12 @@ use houston as config;
 use rover_std::{hyperlink, successln};
 use serde::{Deserialize, Serialize};
 
-use crate::RoverResult;
-use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
+use crate::{
+    RoverResult,
+    command::init::authentication::{AuthenticationError, auth_error_to_rover_error},
+    options::ProfileOpt,
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectAuthenticationOpt {}

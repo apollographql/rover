@@ -8,12 +8,12 @@ use serde_yaml::{Mapping, Value};
 use tap::TapFallible;
 use tokio_util::sync::CancellationToken;
 
-use super::config::parser::RouterConfigParser;
-use super::config::{RouterAddress, RouterConfig};
-use crate::RoverError;
-use crate::subtask::SubtaskHandleStream;
-use crate::utils::effect::write_file::WriteFile;
-use crate::utils::expansion::expand;
+use super::config::{RouterAddress, RouterConfig, parser::RouterConfigParser};
+use crate::{
+    RoverError,
+    subtask::SubtaskHandleStream,
+    utils::{effect::write_file::WriteFile, expansion::expand},
+};
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },

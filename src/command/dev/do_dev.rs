@@ -1,5 +1,4 @@
-use std::io::stdin;
-use std::str::FromStr;
+use std::{io::stdin, str::FromStr};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
@@ -12,28 +11,45 @@ use semver::Version;
 use timber::Level;
 use tower::ServiceExt;
 
-use crate::command::Dev;
-use crate::command::dev::mcp::binary::RunMcpServerBinaryError;
-use crate::command::dev::mcp::run::RunMcpServer;
-use crate::command::dev::router::binary::RunRouterBinaryError;
-use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
-use crate::command::dev::router::hot_reload::HotReloadConfigOverrides;
-use crate::command::dev::router::run::RunRouter;
-use crate::command::dev::{OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION};
-use crate::command::install::McpServerVersion;
-use crate::composition::events::CompositionEvent;
-use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{DefaultSubgraphDefinition, SubgraphPrompt};
-use crate::composition::{CompositionError, FederationUpdaterConfig};
-use crate::utils::client::StudioClientConfig;
-use crate::utils::effect::exec::{TokioCommand, TokioSpawn};
-use crate::utils::effect::read_file::FsReadFile;
-use crate::utils::effect::write_file::FsWriteFile;
-use crate::utils::env::RoverEnvKey;
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{
+    RoverError, RoverOutput, RoverResult,
+    command::{
+        Dev,
+        dev::{
+            OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION,
+            mcp::{binary::RunMcpServerBinaryError, run::RunMcpServer},
+            router::{
+                binary::RunRouterBinaryError,
+                config::{RouterAddress, RouterHost, RouterPort},
+                hot_reload::HotReloadConfigOverrides,
+                run::RunRouter,
+            },
+        },
+        install::McpServerVersion,
+    },
+    composition::{
+        CompositionError, FederationUpdaterConfig,
+        events::CompositionEvent,
+        pipeline::CompositionPipeline,
+        supergraph::config::{
+            full::introspect::MakeResolveIntrospectSubgraph,
+            resolver::{
+                DefaultSubgraphDefinition, SubgraphPrompt,
+                fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+            },
+        },
+    },
+    utils::{
+        client::StudioClientConfig,
+        effect::{
+            exec::{TokioCommand, TokioSpawn},
+            read_file::FsReadFile,
+            write_file::FsWriteFile,
+        },
+        env::RoverEnvKey,
+    },
+};
 
 impl Dev {
     /// Runs rover dev

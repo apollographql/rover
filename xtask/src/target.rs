@@ -1,8 +1,8 @@
+use std::{collections::HashMap, env::consts, fmt};
+
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::ValueEnum;
-
-use std::{collections::HashMap, env::consts, fmt};
 
 use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT};
 

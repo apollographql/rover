@@ -1,15 +1,5 @@
-use crate::command::connector::{
-    analyze::AnalyzeCurl, generate::GenerateConnector, list::ListConnector, run::RunConnector,
-    test::TestConnector,
-};
-use crate::composition::get_supergraph_binary;
-use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::pipeline::state::Run;
-use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
-use crate::options::PluginOpts;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::FileDescriptorType;
-use crate::{RoverOutput, RoverResult};
+use std::path::{Path, PathBuf};
+
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use camino::Utf8PathBuf;
@@ -17,7 +7,21 @@ use clap::Parser;
 use rover_client::shared::GraphRef;
 use semver::Version;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+
+use crate::{
+    RoverOutput, RoverResult,
+    command::connector::{
+        analyze::AnalyzeCurl, generate::GenerateConnector, list::ListConnector, run::RunConnector,
+        test::TestConnector,
+    },
+    composition::{
+        get_supergraph_binary,
+        pipeline::{CompositionPipeline, state::Run},
+        supergraph::config::lazy::LazilyResolvedSubgraph,
+    },
+    options::PluginOpts,
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+};
 
 pub mod analyze;
 pub mod generate;

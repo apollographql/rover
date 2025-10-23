@@ -1,5 +1,4 @@
-use crate::operations::graph::delete::runner::graph_delete_mutation;
-use crate::shared::GraphRef;
+use crate::{operations::graph::delete::runner::graph_delete_mutation, shared::GraphRef};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GraphDeleteInput {

@@ -1,12 +1,16 @@
 use clap::Parser;
-use rover_client::operations::api_key::get::{GetKeyInput, run as run_get};
-use rover_client::operations::api_key::rename::{RenameKeyInput, run as run_rename};
+use rover_client::operations::api_key::{
+    get::{GetKeyInput, run as run_get},
+    rename::{RenameKeyInput, run as run_rename},
+};
 use serde::Serialize;
 
-use crate::command::api_key::{IdOpt, OrganizationOpt};
-use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    command::api_key::{IdOpt, OrganizationOpt},
+    options::ProfileOpt,
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct Rename {

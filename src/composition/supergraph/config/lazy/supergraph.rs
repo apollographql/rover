@@ -7,9 +7,9 @@ use futures::{StreamExt, stream};
 use itertools::Itertools;
 
 use super::LazilyResolvedSubgraph;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::unresolved::UnresolvedSupergraphConfig;
+use crate::composition::supergraph::config::{
+    SupergraphConfigYaml, error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
+};
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
 /// known and valid file paths relative to a supergraph config file (or working directory of the

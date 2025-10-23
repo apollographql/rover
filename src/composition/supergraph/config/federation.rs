@@ -153,9 +153,9 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::FederationVersionResolverFromSupergraphConfig;
-    use crate::composition::supergraph::config::SupergraphConfigYaml;
-    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
-    use crate::composition::supergraph::config::scenario::*;
+    use crate::composition::supergraph::config::{
+        SupergraphConfigYaml, full::FullyResolvedSubgraph, scenario::*,
+    };
 
     /// Test showing that federation version is selected from the user-specified fed version
     /// over local supergraph config or resolved subgraphs

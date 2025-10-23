@@ -1,14 +1,13 @@
-use crate::utils::client::StudioClientConfig;
+use clap::Parser;
+use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
+use rover_std::Style;
+use serde::Serialize;
+
 use crate::{
     RoverOutput, RoverResult,
     options::{GraphRefOpt, ProfileOpt},
+    utils::client::StudioClientConfig,
 };
-
-use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
-use rover_std::Style;
-
-use clap::Parser;
-use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {

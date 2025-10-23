@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use std::env;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::path::PathBuf;
-use std::process::ChildStderr;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    env,
+    io::{BufRead, BufReader},
+    path::PathBuf,
+    process::ChildStderr,
+    time::Duration,
+};
 
 use anyhow::Error;
 use camino::Utf8PathBuf;
@@ -18,11 +19,11 @@ use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
-use tokio::process::Child;
-use tokio::process::Command;
-use tokio::time::timeout;
-use tracing::info;
-use tracing::warn;
+use tokio::{
+    process::{Child, Command},
+    time::timeout,
+};
+use tracing::{info, warn};
 
 mod config;
 mod dev;

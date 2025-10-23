@@ -1,5 +1,4 @@
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use apollo_parser::{Parser, cst};
@@ -7,19 +6,21 @@ use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use tower::util::BoxCloneService;
-use tower::{Service, ServiceExt, service_fn};
+use tower::{Service, ServiceExt, service_fn, util::BoxCloneService};
 
 pub mod file;
 pub mod introspect;
 pub mod remote;
 
-use self::file::ResolveFileSubgraph;
-use self::introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory};
-use self::remote::ResolveRemoteSubgraph;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::supergraph::config::unresolved::UnresolvedSubgraph;
+use self::{
+    file::ResolveFileSubgraph,
+    introspect::{MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory},
+    remote::ResolveRemoteSubgraph,
+};
+use crate::composition::supergraph::config::{
+    error::ResolveSubgraphError, resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+    unresolved::UnresolvedSubgraph,
+};
 
 /// Alias for a [`tower::Service`] that fully resolves a subgraph
 pub type FullyResolveSubgraphService =

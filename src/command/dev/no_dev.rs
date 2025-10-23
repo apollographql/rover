@@ -2,9 +2,9 @@ use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use timber::Level;
 
-use crate::command::dev::Dev;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{
+    RoverError, RoverOutput, RoverResult, command::dev::Dev, utils::client::StudioClientConfig,
+};
 
 impl Dev {
     pub async fn run(

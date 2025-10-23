@@ -1,22 +1,21 @@
+use std::{convert::TryFrom, env};
+
 use anyhow::anyhow;
+use binstall::{Installer, InstallerError};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_std::Style;
 use serde::Serialize;
 
-use binstall::{Installer, InstallerError};
-
-use crate::command::docs::shortlinks;
-use crate::options::LicenseAccepter;
-use crate::utils::{client::StudioClientConfig, env::RoverEnvKey};
-use crate::{PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-
-use std::convert::TryFrom;
-use std::env;
+use crate::{
+    PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    command::docs::shortlinks,
+    options::LicenseAccepter,
+    utils::{client::StudioClientConfig, env::RoverEnvKey},
+};
 
 mod plugin;
-pub(crate) use plugin::McpServerVersion;
-pub(crate) use plugin::{Plugin, PluginInstaller};
+pub(crate) use plugin::{McpServerVersion, Plugin, PluginInstaller};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Install {

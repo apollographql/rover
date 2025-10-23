@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-use std::time::Duration;
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;

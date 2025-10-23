@@ -1,9 +1,9 @@
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::config::is_federated::IsFederatedInput;
-use crate::shared::GraphRef;
-use crate::RoverClientError;
+use crate::{
+    blocking::StudioClient, operations::config::is_federated::IsFederatedInput, shared::GraphRef,
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

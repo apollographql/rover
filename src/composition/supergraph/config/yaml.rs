@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
+
 use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// The YAML that a user will write to configure a supergraph.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]

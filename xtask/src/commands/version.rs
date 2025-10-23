@@ -1,9 +1,7 @@
-use anyhow::anyhow;
-use semver::Version;
-
-use anyhow::Result;
-
 use std::{fmt, str::FromStr};
+
+use anyhow::{anyhow, Result};
+use semver::Version;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub(crate) struct RoverVersion {

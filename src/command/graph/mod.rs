@@ -9,9 +9,7 @@ use clap::Parser;
 use rover_client::shared::GitContext;
 use serde::Serialize;
 
-use crate::options::OutputOpts;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, options::OutputOpts, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Graph {

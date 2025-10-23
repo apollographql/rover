@@ -1,9 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 
-use crate::commands::version::RoverVersion;
-use crate::target::Target;
-use crate::tools::CargoRunner;
+use crate::{commands::version::RoverVersion, target::Target, tools::CargoRunner};
 
 #[derive(Debug, Parser)]
 pub struct Dist {

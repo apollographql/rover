@@ -1,11 +1,13 @@
+use std::path::PathBuf;
+
 use anyhow::anyhow;
 use clap::Parser;
 use serde::Serialize;
-use std::path::PathBuf;
 
-use crate::composition::supergraph::binary::SupergraphBinary;
-use crate::utils::effect::exec::TokioCommand;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
+    utils::effect::exec::TokioCommand,
+};
 
 #[derive(Debug, Parser, Clone, Serialize)]
 pub struct ListConnector {

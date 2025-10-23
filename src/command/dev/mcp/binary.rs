@@ -1,7 +1,10 @@
-use std::collections::HashMap;
-use std::fmt::Formatter;
-use std::process::{ExitStatus, Stdio};
-use std::{fmt, io};
+use std::{
+    collections::HashMap,
+    fmt,
+    fmt::Formatter,
+    io,
+    process::{ExitStatus, Stdio},
+};
 
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
@@ -9,14 +12,18 @@ use futures::TryFutureExt;
 use rover_std::Style;
 use semver::Version;
 use tap::TapFallible;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Child;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Child,
+};
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use crate::command::dev::router::config::RouterAddress;
-use crate::subtask::SubtaskHandleUnit;
-use crate::utils::effect::exec::{ExecCommandConfig, ExecCommandOutput};
+use crate::{
+    command::dev::router::config::RouterAddress,
+    subtask::SubtaskHandleUnit,
+    utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
+};
 
 pub enum McpServerLog {
     Stdout(String),

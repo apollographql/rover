@@ -69,12 +69,11 @@ mod test {
     use serde_json::json;
     use speculoos::prelude::*;
 
+    use super::IntrospectSubgraph;
     use crate::utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         effect::test::SUBGRAPH_INTROSPECTION_QUERY,
     };
-
-    use super::IntrospectSubgraph;
 
     #[fixture]
     #[once]

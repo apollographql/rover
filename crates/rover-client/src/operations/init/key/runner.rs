@@ -1,8 +1,7 @@
 use graphql_client::*;
 
 use super::types::*;
-use crate::blocking::StudioClient;
-use crate::RoverClientError;
+use crate::{blocking::StudioClient, RoverClientError};
 
 #[derive(GraphQLQuery)]
 #[graphql(

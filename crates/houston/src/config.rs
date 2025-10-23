@@ -1,11 +1,11 @@
+use std::convert::TryFrom;
+
 use camino::{Utf8Path, Utf8PathBuf};
 use directories_next::ProjectDirs;
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 
 use crate::HoustonProblem;
-use rover_std::Fs;
-
-use std::convert::TryFrom;
 
 /// Config allows end users to override default settings
 /// usually determined by Houston. They are intended to
@@ -101,10 +101,12 @@ struct Elv2Toml {
 
 #[cfg(test)]
 mod tests {
-    use super::Config;
+    use std::convert::TryFrom;
+
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
-    use std::convert::TryFrom;
+
+    use super::Config;
     #[test]
     fn it_can_clear_global_config() {
         let tmp_home = TempDir::new().unwrap();

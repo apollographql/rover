@@ -1,13 +1,14 @@
-use std::env;
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
 
-use crate::target::Target;
-use crate::tools::{CargoRunner, Runner};
-use crate::utils::PKG_PROJECT_ROOT;
+use crate::{
+    target::Target,
+    tools::{CargoRunner, Runner},
+    utils::PKG_PROJECT_ROOT,
+};
 
 #[derive(Debug, Parser)]
 pub struct Test {

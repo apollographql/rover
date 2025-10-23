@@ -4,16 +4,21 @@ use anyhow::anyhow;
 use clap::Parser;
 use futures::Future;
 use reqwest::Url;
-use rover_client::operations::subgraph::routing_url::{self, SubgraphRoutingUrlInput};
+use rover_client::{
+    operations::subgraph::{
+        publish::{self, SubgraphPublishInput},
+        routing_url::{self, SubgraphRoutingUrlInput},
+    },
+    shared::GitContext,
+};
+use rover_std::Style;
 use serde::Serialize;
 
-use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
-
-use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
-use rover_client::shared::GitContext;
-use rover_std::Style;
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {

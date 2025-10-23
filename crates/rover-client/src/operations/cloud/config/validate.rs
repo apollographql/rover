@@ -1,16 +1,17 @@
-use super::types::{CloudConfigInput, CloudConfigResponse};
-
 use graphql_client::*;
 
-use crate::blocking::StudioClient;
-use crate::operations::cloud::config::validate::cloud_config_validate_query::{
-    CloudConfigValidateQueryVariant::GraphVariant,
-    CloudConfigValidateQueryVariantOnGraphVariantValidateRouter::{
-        CloudValidationSuccess, InternalServerError, InvalidInputErrors,
+use super::types::{CloudConfigInput, CloudConfigResponse};
+use crate::{
+    blocking::StudioClient,
+    operations::cloud::config::validate::cloud_config_validate_query::{
+        CloudConfigValidateQueryVariant::GraphVariant,
+        CloudConfigValidateQueryVariantOnGraphVariantValidateRouter::{
+            CloudValidationSuccess, InternalServerError, InvalidInputErrors,
+        },
     },
+    shared::GraphRef,
+    RoverClientError,
 };
-use crate::shared::GraphRef;
-use crate::RoverClientError;
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -53,10 +54,11 @@ fn build_response(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
-    use super::*;
-    use crate::shared::GraphRef;
     use pretty_assertions::assert_eq;
     use serde_json::json;
+
+    use super::*;
+    use crate::shared::GraphRef;
 
     fn mock_graph_ref() -> GraphRef {
         GraphRef {

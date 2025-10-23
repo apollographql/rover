@@ -10,17 +10,25 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
-use super::watcher::subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind};
-use super::watcher::supergraph_config::SupergraphConfigDiff;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
-use crate::composition::supergraph::config::full::introspect::ResolveIntrospectSubgraphFactory;
-use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory;
-use crate::composition::watchers::composition::CompositionInputEvent;
-use crate::composition::watchers::composition::CompositionInputEvent::Subgraph;
-use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigSerialisationError;
-use crate::subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit};
+use super::watcher::{
+    subgraph::{NonRepeatingFetch, SubgraphWatcher, SubgraphWatcherKind},
+    supergraph_config::SupergraphConfigDiff,
+};
+use crate::{
+    composition::{
+        supergraph::config::{
+            error::ResolveSubgraphError,
+            full::{FullyResolvedSubgraph, introspect::ResolveIntrospectSubgraphFactory},
+            lazy::LazilyResolvedSubgraph,
+            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+        },
+        watchers::{
+            composition::{CompositionInputEvent, CompositionInputEvent::Subgraph},
+            watcher::supergraph_config::SupergraphConfigSerialisationError,
+        },
+    },
+    subtask::{Subtask, SubtaskHandleStream, SubtaskRunUnit},
+};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
@@ -486,16 +494,20 @@ mod tests {
     use tower::ServiceBuilder;
 
     use super::SubgraphWatchers;
-    use crate::composition::supergraph::config::error::ResolveSubgraphError;
-    use crate::composition::supergraph::config::full::FullyResolvedSubgraph;
-    use crate::composition::supergraph::config::full::introspect::{
-        MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
-        ResolveIntrospectSubgraphService,
-    };
-    use crate::composition::supergraph::config::lazy::LazilyResolvedSubgraph;
-    use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::{
-        FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
-        FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
+    use crate::composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        full::{
+            FullyResolvedSubgraph,
+            introspect::{
+                MakeResolveIntrospectSubgraphRequest, ResolveIntrospectSubgraphFactory,
+                ResolveIntrospectSubgraphService,
+            },
+        },
+        lazy::LazilyResolvedSubgraph,
+        resolver::fetch_remote_subgraph::{
+            FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
+            FetchRemoteSubgraphService, MakeFetchRemoteSubgraphError, RemoteSubgraph,
+        },
     };
 
     #[tokio::test]

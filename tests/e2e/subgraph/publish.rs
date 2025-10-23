@@ -1,13 +1,10 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::str::from_utf8;
+use std::{path::PathBuf, process::Command, str::from_utf8};
 
 use assert_cmd::prelude::CommandCargoExt;
 use rand::Rng;
 use rstest::rstest;
 use serde::Deserialize;
-use speculoos::assert_that;
-use speculoos::iter::ContainingIntoIterAssertions;
+use speculoos::{assert_that, iter::ContainingIntoIterAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 

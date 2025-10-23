@@ -1,7 +1,6 @@
 //! Utilities that resolve subgraphs from Apollo Studio
 
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;

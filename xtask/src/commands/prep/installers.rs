@@ -1,8 +1,8 @@
+use std::{fs, str};
+
 use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use regex::bytes::Regex;
-
-use std::{fs, str};
 
 use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
 

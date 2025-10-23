@@ -1,20 +1,23 @@
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    io::Cursor,
+};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
-use dialoguer::Select;
-use dialoguer::console::Term;
+use dialoguer::{Select, console::Term};
 use http::Uri;
 use http_body_util::Full;
 use rover_http::ReqwestService;
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
 use tower::{Service, ServiceExt};
 
-use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
-use crate::{RoverError, RoverResult};
+use crate::{
+    RoverError, RoverResult,
+    command::template::queries::{get_templates_for_language, list_templates_for_language},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct TemplateOpt {

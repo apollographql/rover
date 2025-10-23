@@ -22,6 +22,15 @@ pub mod template_operations;
 pub mod tests;
 #[cfg(feature = "composition-js")]
 pub mod transitions;
+use std::path::PathBuf;
+
+use clap::Parser;
+#[cfg(feature = "composition-js")]
+use rover_client::RoverClientError;
+#[cfg(feature = "composition-js")]
+use rover_std::hyperlink;
+use serde::Serialize;
+
 #[cfg(feature = "composition-js")]
 use crate::RoverError;
 #[cfg(feature = "composition-js")]
@@ -39,15 +48,7 @@ use crate::command::init::transitions::DEFAULT_VARIANT;
 use crate::error::RoverErrorSuggestion;
 #[cfg(feature = "composition-js")]
 use crate::options::ProfileOpt;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
-use clap::Parser;
-#[cfg(feature = "composition-js")]
-use rover_client::RoverClientError;
-#[cfg(feature = "composition-js")]
-use rover_std::hyperlink;
-use serde::Serialize;
-use std::path::PathBuf;
+use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
 #[cfg(feature = "composition-js")]
 #[derive(Clone, Debug)]
@@ -130,7 +131,6 @@ struct GraphVariantOption {
 
 #[cfg(feature = "composition-js")]
 pub use template_fetcher::InitTemplateFetcher;
-
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 
@@ -172,10 +172,12 @@ pub struct Init {
 impl Init {
     #[cfg(feature = "composition-js")]
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
+        use std::env;
+
         use camino::Utf8PathBuf;
         use helpers::display_use_template_message;
-        use std::env;
+
+        use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
 
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, &self.profile)
@@ -389,12 +391,14 @@ impl Init {
         &self,
         client_config: &StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        use std::env;
+
+        use anyhow::anyhow;
+        use rover_std::Style;
+
         use crate::command::init::authentication::{
             AuthenticationError, auth_error_to_rover_error,
         };
-        use anyhow::anyhow;
-        use rover_std::Style;
-        use std::env;
 
         // Validate that directory is empty
         let current_dir = env::current_dir()?;
@@ -464,8 +468,7 @@ impl Init {
     #[cfg(feature = "composition-js")]
     fn prompt_mcp_setup_type() -> RoverResult<MCPSetupType> {
         use anyhow::anyhow;
-        use dialoguer::Select;
-        use dialoguer::console::Term;
+        use dialoguer::{Select, console::Term};
         use rover_std::Style;
 
         println!();
@@ -504,10 +507,10 @@ impl Init {
         _project_name: &str,
         template_files: &std::collections::HashMap<camino::Utf8PathBuf, Vec<u8>>,
     ) -> RoverResult<bool> {
-        use crate::command::init::helpers::print_mcp_file_categories;
-        use dialoguer::Confirm;
-        use dialoguer::console::Term;
+        use dialoguer::{Confirm, console::Term};
         use rover_std::Style;
+
+        use crate::command::init::helpers::print_mcp_file_categories;
 
         println!();
         println!("=> You're about to add the following files to your local directory:");
@@ -537,9 +540,9 @@ impl Init {
         _selected_graph: &GraphVariantOption,
         files: &std::collections::HashMap<camino::Utf8PathBuf, String>,
     ) -> RoverResult<bool> {
+        use dialoguer::{Confirm, console::Term};
+
         use crate::command::init::helpers::print_mcp_file_categories;
-        use dialoguer::Confirm;
-        use dialoguer::console::Term;
 
         println!();
         println!("=> You're about to add the following files to your local directory:");
@@ -561,8 +564,7 @@ impl Init {
         graph_options: Vec<GraphVariantOption>,
     ) -> RoverResult<GraphVariantOption> {
         use anyhow::anyhow;
-        use dialoguer::FuzzySelect;
-        use dialoguer::console::Term;
+        use dialoguer::{FuzzySelect, console::Term};
         use rover_std::Style;
 
         let display_names = graph_options
@@ -595,19 +597,21 @@ impl Init {
         client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        use anyhow::anyhow;
+        // Query GraphOS for user's organizations and their graphs
+        use rover_client::operations::init::{list_graphs, memberships};
+        use rover_client::{
+            operations::{
+                subgraph::list::{self as list_subgraphs, SubgraphListInput},
+                supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput},
+            },
+            shared::GraphRef,
+        };
+        use rover_std::{Style, hyperlink};
+
         use crate::command::init::authentication::{
             AuthenticationError, auth_error_to_rover_error,
         };
-        use anyhow::anyhow;
-        use rover_std::{Style, hyperlink};
-
-        // Query GraphOS for user's organizations and their graphs
-        use rover_client::operations::init::{list_graphs, memberships};
-        use rover_client::operations::subgraph::list::{self as list_subgraphs, SubgraphListInput};
-        use rover_client::operations::supergraph::fetch::{
-            self as fetch_supergraph, SupergraphFetchInput,
-        };
-        use rover_client::shared::GraphRef;
 
         let memberships_response = memberships::run(client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
@@ -1104,8 +1108,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     #[cfg(feature = "composition-js")]
     fn prompt_mcp_data_source() -> RoverResult<MCPDataSourceType> {
         use anyhow::anyhow;
-        use dialoguer::Select;
-        use dialoguer::console::Term;
+        use dialoguer::{Select, console::Term};
         use rover_std::Style;
 
         // Display project type and description
@@ -1265,13 +1268,14 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         _client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
-        use crate::command::init::options::{ProjectType, ProjectUseCase};
-        use crate::command::init::states::{
-            ProjectTypeSelected, TemplateSelected, UseCaseSelected, UserAuthenticated,
-        };
-        use crate::command::init::transitions::CreateProjectResult;
         use anyhow::anyhow;
         use rover_client::shared::GraphRef;
+
+        use crate::command::init::{
+            options::{ProjectType, ProjectUseCase},
+            states::{ProjectTypeSelected, TemplateSelected, UseCaseSelected, UserAuthenticated},
+            transitions::CreateProjectResult,
+        };
 
         // Determine data source type from project_use_case argument or prompt
         let data_source_type = self.get_or_prompt_mcp_data_source()?;
@@ -1615,10 +1619,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
     #[cfg(not(feature = "composition-js"))]
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        use crate::RoverError;
-        use crate::RoverErrorSuggestion;
         use anyhow::anyhow;
         use rover_std::hyperlink;
+
+        use crate::{RoverError, RoverErrorSuggestion};
 
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."

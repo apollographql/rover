@@ -1,5 +1,4 @@
-use crate::operations::graph::fetch::runner::graph_fetch_query;
-use crate::shared::GraphRef;
+use crate::{operations::graph::fetch::runner::graph_fetch_query, shared::GraphRef};
 
 type QueryVariables = graph_fetch_query::Variables;
 

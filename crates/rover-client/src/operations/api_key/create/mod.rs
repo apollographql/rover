@@ -1,8 +1,6 @@
 use graphql_client::GraphQLQuery;
 
-use crate::blocking::StudioClient;
-use crate::operations::api_key::GraphOsKeyType;
-use crate::RoverClientError;
+use crate::{blocking::StudioClient, operations::api_key::GraphOsKeyType, RoverClientError};
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
@@ -13,8 +11,7 @@ use crate::RoverClientError;
 )]
 pub(crate) struct CreateKeyMutation;
 
-pub use create_key_mutation::ApiKeyResourceInput;
-pub use create_key_mutation::SubgraphIdentifierInput;
+pub use create_key_mutation::{ApiKeyResourceInput, SubgraphIdentifierInput};
 
 pub struct CreateKeyInput {
     pub organization_id: String,

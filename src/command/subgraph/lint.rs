@@ -2,10 +2,11 @@ use clap::Parser;
 use rover_client::operations::subgraph::lint::{self, LintSubgraphInput};
 use serde::Serialize;
 
-use crate::options::{GraphRefOpt, LintOpts, ProfileOpt, SchemaOpt, SubgraphOpt};
-
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverOutput, RoverResult};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{GraphRefOpt, LintOpts, ProfileOpt, SchemaOpt, SubgraphOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Lint {

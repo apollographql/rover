@@ -1,26 +1,35 @@
-use crate::RoverError;
-use crate::composition::pipeline::CompositionPipeline;
-use crate::composition::pipeline::state::Run;
-use crate::composition::supergraph::config::error::ResolveSubgraphError;
-use crate::composition::supergraph::config::full::introspect::MakeResolveIntrospectSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraph::MakeFetchRemoteSubgraph;
-use crate::composition::supergraph::config::resolver::fetch_remote_subgraphs::MakeFetchRemoteSubgraphs;
-use crate::composition::supergraph::config::resolver::{
-    LoadRemoteSubgraphsError, LoadSupergraphConfigError, ResolveSupergraphConfigError,
-};
-use crate::composition::supergraph::install::InstallSupergraphError;
-use crate::options::{LicenseAccepter, PluginOpts};
-use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::FileDescriptorType;
+use std::{fmt::Debug, io::stdin};
+
 use anyhow::Error;
-use apollo_federation_types::config::{FederationVersion, SchemaSource};
-use apollo_federation_types::rover::{BuildErrors, BuildHint};
+use apollo_federation_types::{
+    config::{FederationVersion, SchemaSource},
+    rover::{BuildErrors, BuildHint},
+};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use std::fmt::Debug;
-use std::io::stdin;
 use tower::ServiceExt;
+
+use crate::{
+    RoverError,
+    composition::{
+        pipeline::{CompositionPipeline, state::Run},
+        supergraph::{
+            config::{
+                error::ResolveSubgraphError,
+                full::introspect::MakeResolveIntrospectSubgraph,
+                resolver::{
+                    LoadRemoteSubgraphsError, LoadSupergraphConfigError,
+                    ResolveSupergraphConfigError, fetch_remote_subgraph::MakeFetchRemoteSubgraph,
+                    fetch_remote_subgraphs::MakeFetchRemoteSubgraphs,
+                },
+            },
+            install::InstallSupergraphError,
+        },
+    },
+    options::{LicenseAccepter, PluginOpts},
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+};
 
 pub mod events;
 pub mod pipeline;

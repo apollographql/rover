@@ -1,12 +1,11 @@
+use std::collections::HashMap;
+
 use camino::Utf8PathBuf;
 use reqwest::Client;
+use sputnik::{Command, Report, SputnikError};
 use url::Url;
 
-use crate::utils::env::RoverEnvKey;
-use crate::{PKG_NAME, PKG_VERSION, cli::Rover};
-use sputnik::{Command, Report, SputnikError};
-
-use std::collections::HashMap;
+use crate::{PKG_NAME, PKG_VERSION, cli::Rover, utils::env::RoverEnvKey};
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
@@ -123,17 +122,17 @@ impl Report for Rover {
 
 #[cfg(test)]
 mod tests {
-    use crate::PKG_NAME;
-    use crate::cli::Rover;
-    use crate::utils::env::RoverEnvKey;
-    use crate::utils::telemetry::Report;
-
-    use sputnik::Command;
+    use std::collections::HashMap;
 
     use clap::Parser;
     use serde_json::json;
+    use sputnik::Command;
 
-    use std::collections::HashMap;
+    use crate::{
+        PKG_NAME,
+        cli::Rover,
+        utils::{env::RoverEnvKey, telemetry::Report},
+    };
 
     #[test]
     fn it_can_serialize_commands() {

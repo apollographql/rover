@@ -1,10 +1,10 @@
 use graphql_client::*;
 
 use super::types::*;
-use crate::blocking::StudioClient;
-use crate::operations::readme::publish::ReadmePublishInput;
-use crate::shared::GraphRef;
-use crate::RoverClientError;
+use crate::{
+    blocking::StudioClient, operations::readme::publish::ReadmePublishInput, shared::GraphRef,
+    RoverClientError,
+};
 
 type Timestamp = String;
 

@@ -1,11 +1,13 @@
-use crate::error::{EndpointKind, RoverClientError};
+use std::time::{Duration, Instant};
+
 use backon::Retryable;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
-use std::time::{Duration, Instant};
+
+use crate::error::{EndpointKind, RoverClientError};
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 
@@ -273,8 +275,9 @@ fn get_source_error_type<T: std::error::Error + 'static>(
 mod tests {
     use std::error::Error;
 
-    use super::*;
     use httpmock::prelude::*;
+
+    use super::*;
 
     #[test]
     fn it_is_ok_on_empty_errors() {

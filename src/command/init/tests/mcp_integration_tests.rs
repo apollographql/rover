@@ -1,8 +1,9 @@
-use crate::command::init::Init;
-use crate::command::init::options::*;
-use camino::Utf8PathBuf;
 use std::fs;
+
+use camino::Utf8PathBuf;
 use tempfile::TempDir;
+
+use crate::command::init::{Init, options::*};
 
 /// Integration test for the bug where --mcp flag was not being respected
 /// due to directory validation happening before MCP branching
