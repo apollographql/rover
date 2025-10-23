@@ -33,7 +33,7 @@ which = { workspace = true }
 zip = { workspace = true }
 
 [target.'cfg(not(windows))'.dependencies]
-lychee-lib = { version = "0.20", features = ["vendored-openssl"] }
+lychee-lib = { version = "0.21", features = ["vendored-openssl"] }
 
 [dev-dependencies]
 mockito = "1.7.0"
