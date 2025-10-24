@@ -62,7 +62,7 @@ executors:
   amd_macos: &amd_macos_executor
     macos:
       xcode: "15.4.0"
-    resource_class: m2pro.large
+    resource_class: m4pro.large
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -73,7 +73,7 @@ executors:
   arm_macos: &arm_macos_executor
     macos:
       xcode: "15.4.0"
-    resource_class: m2pro.large
+    resource_class: m4pro.large
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
