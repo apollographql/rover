@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+
 $ErrorActionPreference = "Stop"
 
 Function New-TemporaryFolder {
@@ -15,9 +17,8 @@ Write-Output "Found installers directory at $installer_dir"
 $test_dir = New-TemporaryFolder
 Write-Output "Created test directory at $test_dir"
 Set-Location $test_dir
-# Initialise an empty NPM package
-npm init -y
-Write-Output "Initialised new npm package"
+# Install pnpm
+npm install -g pnpm@v9.3.0
 
 # The choice of version here is arbitrary (we just need something we know exists) so that we can test if the
 # installer works, given an existing version. This way we're not at the mercy of whether the binary that corresponds
@@ -26,8 +27,9 @@ npm --prefix "$installer_dir" version --allow-same-version 0.23.0
 Write-Output "Temporarily patched package.json to fixed stable binary"
 
 # Install all the dependencies, including `rover`
-npm install --install-links=true "$installer_dir"
-Write-Output "Installed rover as local npm package"
+pnpm init
+pnpm add "file:$installer_dir"
+Write-Output "Installed rover as local pnpm package"
 
 # Move to the installed location
 $node_modules_path=[System.IO.Path]::Combine($test_dir, "node_modules", ".bin")
