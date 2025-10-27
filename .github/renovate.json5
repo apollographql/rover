@@ -1,7 +1,9 @@
 {
   extends: [
     "github>Turbo87/renovate-config//rust/updateToolchain",
+    ":automergeStableNonMajor"
   ],
+  platformAutomerge: true,
   packageRules: [
     {
       matchPackageNames: ["apollographql/federation-rs"],
