@@ -1,0 +1,11 @@
+[tools]
+node = "22"
+
+[tasks.install_npm]
+run = "bash .mise/scripts/install_npm.sh"
+
+[tasks.install_npm_global]
+run = "bash .mise/scripts/install_npm_global.sh"
+
+[tasks.install_pnpm]
+run = "bash .mise/scripts/install_pnpm.sh"
