@@ -68,7 +68,7 @@ jobs:
             export FEATURES=""
           fi
           cargo build --target ${{ matrix.compile_target.target }} --test e2e ${FEATURES}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         name: "Store built binaries to use later on"
         with:
           name: ${{ matrix.compile_target.target }}
