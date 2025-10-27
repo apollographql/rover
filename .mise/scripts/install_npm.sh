@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-INSTALLERS_DIR="$SCRIPT_DIR/../../../installers/npm"
+INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm"
 
 cd "$(mktemp -d)"
 echo "Created test directory"
