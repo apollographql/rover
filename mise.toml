@@ -1,4 +1,5 @@
 [tools]
+lychee = "0.21"
 node = "22"
 
 [tasks.install_npm]

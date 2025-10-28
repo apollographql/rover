@@ -1,7 +1,5 @@
 pub(crate) use cargo::CargoRunner;
 pub(crate) use git::GitRunner;
-#[cfg(not(windows))]
-pub(crate) use lychee::LycheeRunner;
 pub(crate) use npm::NpmRunner;
 pub(crate) use runner::Runner;
 #[cfg(target_os = "macos")]
@@ -15,6 +13,4 @@ mod runner;
 #[cfg(target_os = "macos")]
 mod xcrun;
 
-#[cfg(not(windows))]
-mod lychee;
 mod versions;
