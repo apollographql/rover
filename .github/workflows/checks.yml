@@ -11,6 +11,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install nightly@nightly toolchain
+      uses: dtolnay/rust-toolchain@nightly
     - name: Format
       run: cargo +nightly fmt -- --check
 
