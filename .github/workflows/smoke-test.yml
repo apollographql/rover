@@ -68,7 +68,7 @@ jobs:
             export FEATURES=""
           fi
           cargo build --target ${{ matrix.compile_target.target }} --test e2e ${FEATURES}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         name: "Store built binaries to use later on"
         with:
           name: ${{ matrix.compile_target.target }}
@@ -114,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         name: "Checkout rover repo"
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         name: "Download artifacts built in previous stages"
       - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         name: "Set permissions on artifacts correctly"
