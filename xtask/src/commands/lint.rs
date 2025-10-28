@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::tools::{CargoRunner, NpmRunner};
+use crate::tools::NpmRunner;
 #[cfg(not(windows))]
 use crate::tools::{GitRunner, LycheeRunner};
 
@@ -15,7 +15,6 @@ pub struct Lint {
 
 impl Lint {
     pub async fn run(&self) -> Result<()> {
-        CargoRunner::new()?.lint()?;
         NpmRunner::new()?.lint()?;
         lint_links(self.force).await
     }
