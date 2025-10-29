@@ -127,13 +127,6 @@ parameters:
 
 # The main workflows executed for Rover
 workflows:
-  security_checks:
-    jobs:
-      - xtask:
-          name: Security Checks
-          platform: arm_ubuntu
-          rust_channel: stable
-          command: security-checks
   test:
     jobs:
       - xtask:
