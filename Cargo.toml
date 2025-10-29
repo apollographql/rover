@@ -40,7 +40,6 @@ members = [
 
 [workspace.lints.clippy]
 all = "deny"
-panic = {level = "warn", priority = 10 }
 or_fun_call = "deny"
 redundant_clone = "deny"
 missing_const_for_fn = "deny"

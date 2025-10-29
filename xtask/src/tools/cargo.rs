@@ -79,13 +79,6 @@ impl CargoRunner {
         Ok(bin_path)
     }
 
-    pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["+nightly", "fmt", "--all"], vec!["--check"], None)?;
-        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None)?;
-
-        Ok(())
-    }
-
     pub(crate) fn security_check(&self) -> Result<()> {
         self.cargo_exec(vec!["deny", "check", "licenses"], vec![], None)?;
         self.cargo_exec(vec!["deny", "check", "advisories"], vec![], None)?;

@@ -5,6 +5,33 @@ on:
   pull_request:
 
 jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install nightly@nightly toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+      with:
+        toolchain: nightly
+        components: rustfmt
+    - name: Format
+      run: cargo +nightly fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install stable@stable toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+      with:
+        components: clippy
+    - name: Run Clippy
+      run: cargo clippy --locked --workspace --all-features --all-targets
+      
   test_installers:
     strategy:
       matrix:

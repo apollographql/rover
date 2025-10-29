@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 
-use crate::tools::{CargoRunner, NpmRunner};
+use crate::tools::NpmRunner;
 
 #[derive(Debug, Parser)]
 pub struct Lint {
@@ -11,7 +11,6 @@ pub struct Lint {
 
 impl Lint {
     pub async fn run(&self) -> Result<()> {
-        CargoRunner::new()?.lint()?;
         NpmRunner::new()?.lint()
     }
 }
