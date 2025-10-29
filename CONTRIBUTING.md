@@ -1,15 +1,15 @@
 # Contributing to Rover
 
-> Rover is a project by [Apollo GraphQL] and is not currently ready for 
-> external feature contributors, though some documentation contributions may be 
-> accepted. 
+> Rover is a project by [Apollo GraphQL] and is not currently ready for
+> external feature contributors, though some documentation contributions may be
+> accepted.
 
 ## Prerequisites
 
 Rover is written in [Rust]. In order to contribute, you'll need to have
 Rust installed. To install Rust, visit [https://www.rust-lang.org/tools/install].
 
-Rust has a build tool and package manager called [`cargo`] that you'll use to 
+Rust has a build tool and package manager called [`cargo`] that you'll use to
 interact with Rover's code.
 
 ## Workflows
@@ -66,7 +66,7 @@ cargo clippy
 
 To run the lint checker that is run in CI:
 ```bash
-cargo xtask lint
+mise check
 ```
 
 To run the tests that are run in CI:

@@ -32,9 +32,6 @@ pub enum Command {
     /// Packages Rover's binaries into an archive
     Package(commands::Package),
 
-    /// Run linters for Rover
-    Lint(commands::Lint),
-
     /// Run Security Checks for Rover
     SecurityChecks(commands::SecurityCheck),
 
@@ -49,7 +46,6 @@ impl Xtask {
     pub async fn run(&self) -> Result<()> {
         match &self.command {
             Command::Dist(command) => command.run(),
-            Command::Lint(command) => command.run().await,
             Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),

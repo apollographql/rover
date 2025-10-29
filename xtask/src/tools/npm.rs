@@ -12,7 +12,6 @@ use crate::{
 pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
-    rover_client_lint_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -40,7 +39,6 @@ impl NpmRunner {
         Ok(Self {
             runner,
             npm_installer_package_directory,
-            rover_client_lint_directory,
         })
     }
 
@@ -60,19 +58,6 @@ impl NpmRunner {
 
         self.publish_dry_run()
             .with_context(|| "Publish dry-run failed.")?;
-
-        Ok(())
-    }
-
-    pub(crate) fn update_linter(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.rover_client_lint_directory)?;
-        Ok(())
-    }
-
-    pub(crate) fn lint(&self) -> Result<()> {
-        self.require_volta()?;
-        self.npm_exec(&["install"], &self.rover_client_lint_directory)?;
-        self.npm_exec(&["run", "lint"], &self.rover_client_lint_directory)?;
 
         Ok(())
     }
