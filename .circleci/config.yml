@@ -201,29 +201,6 @@ workflows:
             - "Build and bundle release artifacts (arm_macos)"
             - "Build and bundle release artifacts (amd_windows)"
           <<: *run_release
-  nightly-lint:
-    triggers:
-      - schedule:
-          cron: "0 0 * * *"
-          filters:
-            branches:
-              only:
-                - main
-    jobs:
-      - xtask:
-          name: Lint (Nightly)
-          matrix:
-            parameters:
-              platform: [ volta ]
-              rust_channel: [ stable ]
-              command: [ lint ]
-              options:
-                - |
-                  --force
-      - notify_slack:
-          name: Send Slack Notification (On Failure)
-          requires:
-            - Lint (Nightly)
 
 jobs:
   xtask:
@@ -289,26 +266,6 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
-
-  notify_slack:
-    executor: arm_ubuntu
-    steps:
-      - slack/notify:
-          event: fail
-          channel: $LINT_ALERT_CHANNEL
-          custom: |
-            {
-              blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Nightly lint of `rover` docs has failed. To investigate see linter run here: $CIRCLE_BUILD_URL"
-                  }
-                }
-              ]
-            }
-
 
 # reusable command snippets can be referred to in any `steps` object
 commands:

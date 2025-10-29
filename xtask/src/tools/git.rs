@@ -99,18 +99,4 @@ impl GitRunner {
 
         Ok(repo_path)
     }
-
-    pub(crate) fn get_changed_files() -> Result<Vec<Utf8PathBuf>> {
-        let apollo_main = GitRunner::tmp()?;
-
-        let current_dir = std::env::current_dir()?;
-        let current_dir = Utf8PathBuf::from_path_buf(current_dir).unwrap();
-
-        let output = apollo_main.runner.exec(
-            &[&format!("--work-tree={current_dir}"), "diff", "--name-only"],
-            &current_dir,
-            None,
-        )?;
-        Ok(output.stdout.split("\n").map(Utf8PathBuf::from).collect())
-    }
 }
