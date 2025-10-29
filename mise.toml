@@ -1,6 +1,6 @@
 [tools]
 lychee = "0.21"
-node = "22"
+node = "24"
 "cargo:cargo-deny" = "0.18"
 
 [tasks.check]
