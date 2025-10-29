@@ -32,9 +32,6 @@ pub enum Command {
     /// Packages Rover's binaries into an archive
     Package(commands::Package),
 
-    /// Run Security Checks for Rover
-    SecurityChecks(commands::SecurityCheck),
-
     /// Prepare Rover for a release
     Prep(commands::Prep),
 
@@ -49,7 +46,6 @@ impl Xtask {
             Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
-            Command::SecurityChecks(command) => command.run(),
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

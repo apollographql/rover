@@ -1,6 +1,7 @@
 [tools]
 lychee = "0.21"
 node = "22"
+"cargo:cargo-deny" = "0.18"
 
 [tasks.check]
 description = "Run the same checks as CI"
@@ -20,3 +21,6 @@ run = "bash .mise/scripts/install_npm_global.sh"
 
 [tasks.install_pnpm]
 run = "bash .mise/scripts/install_pnpm.sh"
+
+[tasks.cargo-deny]
+run = "cargo deny check"
