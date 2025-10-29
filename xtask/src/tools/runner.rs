@@ -57,19 +57,9 @@ impl Runner {
             ShellTaskBehavior::<()>::Passthrough
         })?;
         match task_result {
-            ShellTaskOutput::CompleteOutput {
-                status: _,
-                stdout_lines,
-                stderr_lines,
-            }
-            | ShellTaskOutput::EarlyReturn {
-                stdout_lines,
-                stderr_lines,
-                return_value: _,
-            } => Ok(CommandOutput {
-                stdout: stdout_lines.join("\n"),
+            ShellTaskOutput::CompleteOutput { stderr_lines, .. }
+            | ShellTaskOutput::EarlyReturn { stderr_lines, .. } => Ok(CommandOutput {
                 stderr: stderr_lines.join("\n"),
-                directory: directory.clone(),
             }),
         }
     }
