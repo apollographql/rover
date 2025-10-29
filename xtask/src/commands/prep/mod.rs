@@ -33,7 +33,6 @@ impl Prep {
 
         let npm_runner = NpmRunner::new()?;
         npm_runner.prepare_package()?;
-        npm_runner.update_linter()?;
         let cargo_runner = CargoRunner::new()?;
         cargo_runner.update_deps()?;
         installers::update_versions()?;

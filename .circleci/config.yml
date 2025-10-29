@@ -127,13 +127,6 @@ parameters:
 
 # The main workflows executed for Rover
 workflows:
-  lint:
-    jobs:
-      - xtask:
-          name: Lint
-          platform: volta
-          rust_channel: stable
-          command: lint
   security_checks:
     jobs:
       - xtask:
@@ -213,7 +206,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [ lint, test, package, security-checks ]
+        enum: [ test, package, security-checks ]
       options:
         type: string
         default: ""
@@ -470,7 +463,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, test, package, security-checks]
+        enum: [test, package, security-checks]
       options:
         type: string
       platform:

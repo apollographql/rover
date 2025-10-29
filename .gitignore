@@ -12,7 +12,7 @@
 # Local dev-docs folder
 /dev-docs
 
-# output of `cargo xtask lint`
+# Used by `installers/npm`
 node_modules
 
 # rover is in charge of reading/writing .apollo configuration
