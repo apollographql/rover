@@ -245,7 +245,7 @@ assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3.19"
 duct = "1.1.0"
-git2 = { workspace = true, features = ["https"] }
+git2 = { workspace = true }
 graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
@@ -255,7 +255,7 @@ mockall = "0.13.1"
 portpicker = "0.1.1"
 predicates = { workspace = true }
 rand_regex = "0.18.1"
-reqwest = { workspace = true, features = ["native-tls-vendored"] }
+reqwest = { workspace = true, features = ["rustls-tls"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }

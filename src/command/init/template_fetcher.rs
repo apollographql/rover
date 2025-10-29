@@ -12,11 +12,7 @@ use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use tower::Service;
 
-use crate::{
-    RoverError, RoverResult,
-    command::init::states::SelectedTemplateState,
-    options::{TemplateListFiles, TemplateWrite},
-};
+use crate::{RoverError, RoverResult, command::init::states::SelectedTemplateState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
@@ -362,14 +358,12 @@ impl InitTemplateFetcher {
     }
 }
 
-impl TemplateListFiles for SelectedTemplateState {
-    fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
+impl SelectedTemplateState {
+    pub(crate) fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
         Ok(self.files.keys().cloned().collect())
     }
-}
 
-impl TemplateWrite for SelectedTemplateState {
-    fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
+    pub(crate) fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
         for (path, contents) in &self.files {
             let full_path = template_path.join(path);
             if let Some(parent) = full_path.parent() {

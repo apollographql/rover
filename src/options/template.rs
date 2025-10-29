@@ -1,18 +1,9 @@
-use std::{
-    fmt::{self, Display},
-    io::Cursor,
-};
+use std::fmt::{self, Display};
 
 use anyhow::anyhow;
-use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use dialoguer::{Select, console::Term};
-use http::Uri;
-use http_body_util::Full;
-use rover_http::ReqwestService;
-use rover_std::Fs;
 use serde::{Deserialize, Serialize};
-use tower::{Service, ServiceExt};
 
 use crate::{
     RoverError, RoverResult,
@@ -44,98 +35,6 @@ impl TemplateOpt {
                 .ok_or_else(|| RoverError::new(anyhow!("No language selected")))
         }
     }
-}
-
-#[derive(Debug)]
-pub struct TemplateFetcher {
-    request_service: ReqwestService,
-}
-
-#[derive(Debug)]
-pub struct TemplateProject {
-    pub contents: Vec<u8>,
-}
-
-impl TemplateFetcher {
-    pub const fn new(request_service: ReqwestService) -> Self {
-        Self { request_service }
-    }
-
-    pub async fn call(&mut self, download_url: Uri) -> RoverResult<TemplateProject> {
-        tracing::debug!("Downloading from {}", &download_url);
-        let req = http::Request::builder()
-            .method(http::Method::GET)
-            .header(reqwest::header::ACCEPT, "application/octet-stream")
-            .header(reqwest::header::USER_AGENT, "rover-client")
-            .uri(download_url)
-            .body(Full::default())?;
-
-        let service = self.request_service.ready().await?;
-        let res = service.call(req).await?;
-        let res = res.body().to_vec();
-
-        if res.is_empty() {
-            return Err(RoverError::new(anyhow!("No template found")));
-        }
-
-        Ok(TemplateProject { contents: res })
-    }
-}
-
-#[cfg(feature = "composition-js")]
-impl TemplateListFiles for TemplateProject {
-    fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>> {
-        let cursor = Cursor::new(&self.contents);
-        let tar = flate2::read::GzDecoder::new(cursor);
-        let mut archive = tar::Archive::new(tar);
-
-        let mut files = Vec::new();
-        for entry in archive.entries()? {
-            let entry = entry?;
-            let path = entry.path()?;
-            let mut components = path.components();
-            components.next();
-            let path = components.as_path();
-
-            if !(path.starts_with("pax_global_header") || path.starts_with(".."))
-                && let Ok(path_buf) = Utf8PathBuf::from_path_buf(path.to_path_buf())
-            {
-                //ignore top level directories
-                if !entry.header().entry_type().is_dir() {
-                    files.push(path_buf);
-                }
-            }
-        }
-
-        Ok(files)
-    }
-}
-
-impl TemplateWrite for TemplateProject {
-    fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()> {
-        let cursor = Cursor::new(&self.contents);
-        let tar = flate2::read::GzDecoder::new(cursor);
-        let mut archive = tar::Archive::new(tar);
-
-        archive.unpack(template_path)?;
-
-        let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
-        if let Some(Ok(extra_dir_name)) = extra_dir_name {
-            Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
-            Fs::remove_dir_all(extra_dir_name.path())?;
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "composition-js")]
-pub trait TemplateListFiles {
-    fn list_files(&self) -> RoverResult<Vec<Utf8PathBuf>>;
-}
-
-pub trait TemplateWrite {
-    fn write_template(&self, template_path: &Utf8PathBuf) -> RoverResult<()>;
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
