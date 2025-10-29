@@ -1,6 +1,6 @@
 [tools]
 lychee = "0.21"
-node = "22"
+node = "24"
 
 [tasks.check]
 description = "Run the same checks as CI"
