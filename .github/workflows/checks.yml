@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Install nightly@nightly toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+      uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
         toolchain: nightly
         components: rustfmt
@@ -26,7 +26,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+      uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
         components: clippy
     - name: Run Clippy
