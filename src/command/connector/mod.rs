@@ -100,7 +100,7 @@ impl Connector {
         .await?;
         let default_subgraph = default_subgraph(&supergraph_yaml, &composition_pipeline).await;
         let supergraph_binary = composition_pipeline.state.supergraph_binary?;
-        let minimum_version = Version::parse("2.12.0-preview.7")?;
+        let minimum_version = Version::parse("2.12.0-preview.9")?;
         let current_version = supergraph_binary.version();
         if current_version < &minimum_version {
             return Err(anyhow!(
