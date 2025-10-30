@@ -27,4 +27,4 @@ run = "cargo deny check"
 
 [tasks.e2e]
 description = "Run CI E2E"
-run = "cargo test --test snapshot_e2e"
+run = "cargo test --test snapshot"
