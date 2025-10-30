@@ -79,13 +79,6 @@ impl CargoRunner {
         Ok(bin_path)
     }
 
-    pub(crate) fn security_check(&self) -> Result<()> {
-        self.cargo_exec(vec!["deny", "check", "licenses"], vec![], None)?;
-        self.cargo_exec(vec!["deny", "check", "advisories"], vec![], None)?;
-
-        Ok(())
-    }
-
     pub(crate) fn update_deps(&self) -> Result<()> {
         self.cargo_exec(vec!["update"], vec![], None)?;
         self.cargo_exec(vec!["update"], vec![], None)?;

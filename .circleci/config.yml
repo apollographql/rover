@@ -127,13 +127,6 @@ parameters:
 
 # The main workflows executed for Rover
 workflows:
-  security_checks:
-    jobs:
-      - xtask:
-          name: Security Checks
-          platform: arm_ubuntu
-          rust_channel: stable
-          command: security-checks
   test:
     jobs:
       - xtask:
@@ -206,7 +199,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [ test, package, security-checks ]
+        enum: [ test, package ]
       options:
         type: string
         default: ""
@@ -215,11 +208,6 @@ jobs:
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
-      - when:
-          condition:
-            equal: [ "security-checks", << parameters.command >> ]
-          steps:
-            - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
           condition:
             and:
@@ -463,7 +451,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [test, package, security-checks]
+        enum: [test, package]
       options:
         type: string
       platform:
