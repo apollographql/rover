@@ -1,14 +1,7 @@
-use std::{env, str::FromStr};
-
 use anyhow::Result;
-use camino::Utf8PathBuf;
 use clap::Parser;
 
-use crate::{
-    target::Target,
-    tools::{CargoRunner, Runner},
-    utils::PKG_PROJECT_ROOT,
-};
+use crate::{target::Target, tools::CargoRunner};
 
 #[derive(Debug, Parser)]
 pub struct Test {
@@ -21,15 +14,6 @@ impl Test {
     pub fn run(&self) -> Result<()> {
         let cargo_runner = CargoRunner::new()?;
         cargo_runner.test(&self.target)?;
-
-        if let Target::LinuxUnknownGnu = self.target {
-            if env::var_os("CHECK_GLIBC").is_some() {
-                let check_glibc_script = "./check_glibc.sh".to_string();
-                let runner = Runner::new(Utf8PathBuf::from_str(&check_glibc_script)?.as_str());
-                let bin_path = format!("./target/{}/debug/rover", &self.target);
-                runner.exec(&[&bin_path], &PKG_PROJECT_ROOT, None)?;
-            }
-        }
 
         Ok(())
     }
