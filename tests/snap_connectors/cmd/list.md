@@ -3,7 +3,7 @@
 ## Connectors on fields
 
 ```console
-$ rover connector list --schema tests/e2e_connectors/fixtures/body.graphql
+$ rover --elv2-license accept connector --federation-version="2.12.0-preview.8" list --schema tests/e2e_connectors/fixtures/body.graphql
 {
   "connectors": [
     {
@@ -19,7 +19,7 @@ $ rover connector list --schema tests/e2e_connectors/fixtures/body.graphql
 ### No schema provided
 
 ```console
-$ rover connector list
+$ rover --elv2-license accept connector --federation-version="=2.12.0-preview.8" list
 ? 2
 error: the following required arguments were not provided:
   --schema <SCHEMA_PATH>
