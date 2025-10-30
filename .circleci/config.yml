@@ -38,7 +38,6 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
 
@@ -48,7 +47,6 @@ executors:
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_musl: &amd_musl_executor
