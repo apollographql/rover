@@ -24,3 +24,10 @@ run = "bash .mise/scripts/install_pnpm.sh"
 
 [tasks.cargo-deny]
 run = "cargo deny check"
+
+[tasks.e2e]
+description = "Run CI E2E"
+depends = ["e2e_connectors"]
+
+[tasks.e2e_connectors]
+run = "cargo test --test snapshot_e2e"

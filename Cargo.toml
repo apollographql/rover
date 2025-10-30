@@ -24,6 +24,10 @@ path = "src/bin/rover.rs"
 name = "e2e"
 path = "tests/test_e2e.rs"
 
+[[test]]
+name = "snapshot"
+path = "tests/snapshot_e2e.rs"
+
 [workspace]
 members = [
     ".",
@@ -259,9 +263,10 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
+temp-env = { version = "0.3.6", features = ["async_closure"] }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
-temp-env = { version = "0.3.6", features = ["async_closure"] }
+trycmd = "=0.15.10"
 
 # For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
