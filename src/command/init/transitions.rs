@@ -23,7 +23,7 @@ use crate::{
         template_fetcher::TemplateId,
         template_operations::{SupergraphBuilder, TemplateOperations},
     },
-    options::{ProfileOpt, TemplateListFiles, TemplateWrite},
+    options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
 

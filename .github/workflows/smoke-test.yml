@@ -46,7 +46,7 @@ jobs:
           run: |
             yum -y update && yum -y upgrade
             yum groupinstall -y "Development Tools"
-            yum -y install perl-core gcc openssl-devel openssl git
+            yum -y install perl-core gcc git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
             rustup show active-toolchain || rustup toolchain install

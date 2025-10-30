@@ -30,7 +30,7 @@ use crate::e2e::{
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_graph_introspect(
-    run_subgraphs_retail_supergraph: &RetailSupergraph<'_>,
+    run_subgraphs_retail_supergraph: &RetailSupergraph,
     test_artifacts_directory: PathBuf,
 ) {
     // Extract the inventory URL from the supergraph.yaml
