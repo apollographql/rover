@@ -5,7 +5,6 @@ orbs:
   rust: circleci/rust@1.8.0
   gh: circleci/github-cli@2.7.2
   node: circleci/node@7.2.1
-  slack: circleci/slack@6.0.0
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -125,39 +124,8 @@ parameters:
 
 # The main workflows executed for Rover
 workflows:
-  test:
-    jobs:
-      - xtask:
-          name: Run cargo unit + integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
-              rust_channel: [stable]
-              command: [test]
-
-      - node/test:
-          name: Test NPM Installer Scripts
-          app-dir: "~/project/installers/npm"
-          test-results-for: jest
-          override-ci-command: npm install --ignore-scripts
   release:
     jobs:
-      - xtask:
-          name: Run cargo unit + integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
-              rust_channel: [stable]
-              command: [test]
-          <<: *run_release
-
-      - node/test:
-          name: Test NPM Installer Scripts
-          app-dir: "~/project/installers/npm"
-          test-results-for: jest
-          override-ci-command: npm install --ignore-scripts
-          <<: *run_release
-
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
@@ -174,10 +142,6 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Run cargo unit + integration tests (stable rust on amd_manylinux)"
-            - "Run cargo unit + integration tests (stable rust on amd_musl)"
-            - "Run cargo unit + integration tests (stable rust on arm_macos)"
-            - "Run cargo unit + integration tests (stable rust on amd_windows)"
             - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
@@ -197,7 +161,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [ test, package ]
+        enum: [ package ]
       options:
         type: string
         default: ""
@@ -449,7 +413,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [test, package]
+        enum: [package]
       options:
         type: string
       platform:

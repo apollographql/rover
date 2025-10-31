@@ -71,7 +71,7 @@ mise check
 
 To run the tests that are run in CI:
 ```bash
-cargo xtask test
+mise test
 ```
 
 [Apollo GraphQL]: https://www.apollographql.com

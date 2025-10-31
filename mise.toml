@@ -5,13 +5,16 @@ node = "24"
 
 [tasks.check]
 description = "Run the same checks as CI"
-depends = ["clippy", "format-check"]
+depends = ["clippy", "format-check", "test"]
 
 [tasks.format-check]
 run = "cargo +nightly fmt --all -- --check"
 
 [tasks.clippy]
 run = "cargo clippy --locked --workspace --all-features --all-targets"
+
+[tasks.test]
+run = "cargo test --locked --workspace"
 
 [tasks.install_npm]
 run = "bash .mise/scripts/install_npm.sh"

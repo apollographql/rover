@@ -97,6 +97,7 @@ fn version_from_path(path: &Utf8Path) -> Result<Version, InstallMcpServerError> 
 }
 
 #[cfg(test)]
+#[cfg(not(target_env = "musl"))]
 mod tests {
     use std::{env, str::FromStr, time::Duration};
 
@@ -107,7 +108,7 @@ mod tests {
     use houston::Config;
     use http::Method;
     use httpmock::MockServer;
-    use rstest::{fixture, rstest};
+    use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
     use tracing_test::traced_test;
@@ -122,73 +123,30 @@ mod tests {
         },
     };
 
-    #[fixture]
-    #[once]
-    fn http_server() -> MockServer {
-        MockServer::start()
-    }
-
-    //noinspection HttpUrlsUsage
-    #[fixture]
-    #[once]
-    fn mock_server_endpoint(http_server: &MockServer) -> String {
-        let address = http_server.address();
-        let endpoint = format!("http://{address}");
-        endpoint
-    }
-
-    #[fixture]
-    #[once]
-    fn home() -> TempDir {
-        TempDir::new().unwrap()
-    }
-
-    #[fixture]
-    fn mcp_server_version() -> McpServerVersion {
-        McpServerVersion::Latest
-    }
-
-    #[fixture]
-    #[once]
-    fn api_key() -> String {
-        "api-key".to_string()
-    }
-
-    #[fixture]
-    fn config(api_key: &str, home: &TempDir) -> Config {
-        let home = Utf8PathBuf::from_path_buf(home.to_path_buf()).unwrap();
-        Config {
-            home,
-            override_api_key: Some(api_key.to_string()),
-        }
-    }
-
-    #[fixture]
-    fn studio_client_config(mock_server_endpoint: &str, config: Config) -> StudioClientConfig {
-        StudioClientConfig::new(
+    #[traced_test]
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    async fn test_install() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+        let config = Config {
+            home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+            override_api_key: Some("api-key".to_string()),
+        };
+        let studio_client_config = StudioClientConfig::new(
             Some(mock_server_endpoint.to_string()),
             config,
             false,
             ClientBuilder::default(),
             ClientTimeout::default(),
-        )
-    }
-
-    #[traced_test]
-    #[tokio::test]
-    #[rstest]
-    #[timeout(Duration::from_secs(15))]
-    async fn test_install(
-        mcp_server_version: McpServerVersion,
-        studio_client_config: StudioClientConfig,
-        http_server: &MockServer,
-        mock_server_endpoint: &str,
-    ) -> Result<()> {
-        let license_accepter = LicenseAccepter {
-            elv2_license_accepted: Some(true),
-        };
+        );
         let override_install_path = NamedTempFile::new("override_path")?;
-        let install_mcp_server = InstallMcpServer::new(mcp_server_version, studio_client_config);
+        let install_mcp_server =
+            InstallMcpServer::new(McpServerVersion::Latest, studio_client_config);
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD

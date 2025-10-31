@@ -501,12 +501,9 @@ fn find_installed_plugin(
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
-    use speculoos::{assert_that, prelude::ResultAssertions};
-
     use super::*;
 
-    #[rstest]
+    #[rstest::rstest]
     // #### macOS, x86_64 ####
     // # Router #
     #[case::macos_x86_64_router_latest_one(
@@ -791,6 +788,8 @@ mod tests {
         #[case] arch: &str,
         #[case] expected_architecture: Option<&str>,
     ) {
+        use speculoos::{assert_that, prelude::ResultAssertions};
+
         if let Some(expected_arch) = expected_architecture {
             assert_that!(plugin_version.get_arch_for_env(os, arch).unwrap())
                 .is_equal_to(String::from(expected_arch));

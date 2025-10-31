@@ -85,49 +85,6 @@ impl CargoRunner {
         Ok(())
     }
 
-    pub(crate) fn test(&self, target: &Target) -> Result<()> {
-        let command_output = self.cargo_exec(
-            vec!["test", "--workspace", "--locked"],
-            vec!["--nocapture"],
-            Some(target),
-        )?;
-
-        // for some reason, cargo test doesn't actually fail if there are failed tests...????
-        // so here we manually collect all the lines including failed tests and display them
-        // as warnings for the dev.
-        let mut failed_tests = Vec::new();
-
-        for line in command_output.stdout.lines() {
-            if line.starts_with("test") && line.contains("FAILED") {
-                failed_tests.push(line);
-            }
-        }
-
-        if !failed_tests.is_empty() {
-            for failed_test in &failed_tests {
-                let split_test: Vec<&str> = failed_test.splitn(3, ' ').collect();
-                if split_test.len() < 3 {
-                    panic!("Something went wrong with xtask's failed test detection.");
-                }
-                let exact_test = split_test[1];
-
-                // drop the result here so we can re-run the failed tests and print their output.
-                let _ = self.cargo_exec(
-                    vec![
-                        "test",
-                        "--manifest-path",
-                        command_output.directory.join("Cargo.toml").as_ref(),
-                    ],
-                    vec![exact_test, "--exact", "--nocapture"],
-                    Some(target),
-                );
-            }
-            Err(anyhow!("`cargo test` failed {} times.", failed_tests.len()))
-        } else {
-            Ok(())
-        }
-    }
-
     fn cargo_exec(
         &self,
         cargo_args: Vec<&str>,
