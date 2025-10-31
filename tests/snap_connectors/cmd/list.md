@@ -5,6 +5,8 @@
 ```console
 $ rover connector --elv2-license accept --federation-version="=2.12.0-preview.9" list --schema tests/snap_connectors/fixtures/body.graphql
 merging supergraph schema files
+... supergraph ...
+... supergraph ...
 {
   "connectors": [
     {
