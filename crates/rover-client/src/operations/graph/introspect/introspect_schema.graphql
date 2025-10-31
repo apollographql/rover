@@ -51,6 +51,8 @@ type __InputValue {
   name: String!
   description: String
   type: __Type!
+  isDeprecated: Boolean!
+  deprecationReason: String
   defaultValue: String
 }
 
