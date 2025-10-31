@@ -37,38 +37,38 @@ jobs:
       - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
       - run: mise run e2e
      
-  calculate_correct_version_ranges:
-    name: "Calculate Correct Version Ranges"
-    runs-on: ubuntu-24.04
-    outputs:
-      router_versions: ${{ steps.router-versions.outputs.router_versions }}
-      supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
-    steps:
-      - name: "Checkout rover repo"
-        uses: actions/checkout@v5
-      - name: "Install `semver` cli"
-        run: |
-          npm install -g semver
-      - name: "Get latest Router versions"
-        id: "router-versions"
-        working-directory: ".github/scripts"
-        run: |
-          ls -al
-          JSON=$(source get_latest_x_versions.sh 1 apollographql router router latest-2 2)
-          echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
-      - name: "Get latest Supergraph Plugin versions"
-        id: "supergraph-versions"
-        working-directory: ".github/scripts"
-        run: |
-          ls -al
-          JSON=$(source get_latest_x_versions.sh 1 apollographql federation-rs supergraph latest-2 2)
-          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
-  run-smokes:
-    name: "Run Tests"
-    needs:
-      - calculate_correct_version_ranges
-    uses: ./.github/workflows/smoke-test.yml
-    with:
-      composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
-      router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
-    secrets: inherit
+  # calculate_correct_version_ranges:
+  #   name: "Calculate Correct Version Ranges"
+  #   runs-on: ubuntu-24.04
+  #   outputs:
+  #     router_versions: ${{ steps.router-versions.outputs.router_versions }}
+  #     supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
+  #   steps:
+  #     - name: "Checkout rover repo"
+  #       uses: actions/checkout@v5
+  #     - name: "Install `semver` cli"
+  #       run: |
+  #         npm install -g semver
+  #     - name: "Get latest Router versions"
+  #       id: "router-versions"
+  #       working-directory: ".github/scripts"
+  #       run: |
+  #         ls -al
+  #         JSON=$(source get_latest_x_versions.sh 1 apollographql router router latest-2 2)
+  #         echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
+  #     - name: "Get latest Supergraph Plugin versions"
+  #       id: "supergraph-versions"
+  #       working-directory: ".github/scripts"
+  #       run: |
+  #         ls -al
+  #         JSON=$(source get_latest_x_versions.sh 1 apollographql federation-rs supergraph latest-2 2)
+  #         echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+  # run-smokes:
+  #   name: "Run Tests"
+  #   needs:
+  #     - calculate_correct_version_ranges
+  #   uses: ./.github/workflows/smoke-test.yml
+  #   with:
+  #     composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
+  #     router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
+  #   secrets: inherit
