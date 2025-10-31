@@ -18,7 +18,7 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "native-tls-vendored",
+    "rustls-tls",
     "socks",
 ] }
 thiserror = { workspace = true }

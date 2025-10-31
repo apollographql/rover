@@ -11,10 +11,10 @@ use anyhow::Error;
 use camino::Utf8PathBuf;
 use dircpy::CopyBuilder;
 use duct::cmd;
-use git2::Repository;
 use portpicker::pick_unused_port;
 use regex::Regex;
 use reqwest::Client;
+use rover::utils::template::download_template;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
@@ -42,9 +42,9 @@ pub struct RetailSupergraphConfig {
 }
 
 #[derive(Debug)]
-pub struct RetailSupergraph<'a> {
+pub struct RetailSupergraph {
     retail_supergraph_config: RetailSupergraphConfig,
-    working_dir: Option<&'a TempDir>,
+    working_dir: TempDir,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +52,7 @@ struct ReducedSubgraphConfig {
     routing_url: String,
 }
 
-impl RetailSupergraph<'_> {
+impl RetailSupergraph {
     pub fn get_subgraph_urls(&self) -> Vec<String> {
         self.retail_supergraph_config
             .subgraphs
@@ -68,23 +68,27 @@ impl RetailSupergraph<'_> {
             .cloned()
             .collect()
     }
-
-    pub const fn get_working_directory(&self) -> &TempDir {
-        self.working_dir.expect("no working directory")
-    }
 }
 
-#[fixture]
-#[once]
 fn clone_retail_supergraph_repo() -> TempDir {
     info!("Cloning required git repository");
     // Clone the Git Repository that's needed to a temporary folder
     let working_dir = TempDir::new().expect("Could not create temporary directory");
-    Repository::clone(
-        "https://github.com/apollosolutions/retail-supergraph",
-        working_dir.path(),
-    )
-    .expect("Could not clone supergraph repository");
+
+    // Run this one-off with Tokio rather than make all these tests async
+    tokio::task::block_in_place(|| {
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(async {
+            download_template(
+                "https://github.com/apollosolutions/retail-supergraph/archive/refs/heads/main.tar.gz"
+                    .parse()
+                    .unwrap(),
+                &Utf8PathBuf::from_path_buf(working_dir.path().to_path_buf()).unwrap(),
+            )
+            .await
+            .expect("Could not download supergraph repository");
+        });
+    });
 
     working_dir
 }
@@ -93,7 +97,7 @@ fn clone_retail_supergraph_repo() -> TempDir {
 #[once]
 fn run_subgraphs_retail_supergraph(
     retail_supergraph: &'static RetailSupergraph,
-) -> &'static RetailSupergraph<'static> {
+) -> &'static RetailSupergraph {
     println!("Kicking off subgraphs");
 
     // Although the retail supergraph package.json has a `dev:subgraphs` script, windows can't
@@ -102,7 +106,7 @@ fn run_subgraphs_retail_supergraph(
     Command::new("npx")
         .env("NODE_ENV", "dev")
         .args(["nodemon", "index.js"])
-        .current_dir(retail_supergraph.get_working_directory())
+        .current_dir(&retail_supergraph.working_dir)
         .spawn()
         .expect("Could not spawn subgraph process");
 
@@ -127,20 +131,16 @@ fn run_subgraphs_retail_supergraph(
 
 #[fixture]
 #[once]
-fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSupergraph<'static> {
+fn retail_supergraph() -> RetailSupergraph {
+    let working_dir = clone_retail_supergraph_repo();
     // Jump into that temporary folder and run npm commands to kick off subgraphs
     info!("Installing subgraph dependencies");
     cmd!("npm", "install")
-        .dir(clone_retail_supergraph_repo.path())
+        .dir(working_dir.path())
         .run()
         .expect("Could not install subgraph dependencies");
 
-    let supergraph_yaml_path = Utf8PathBuf::from_path_buf(
-        clone_retail_supergraph_repo
-            .path()
-            .join("supergraph-config-dev.yaml"),
-    )
-    .expect("Could not create path to config");
+    let supergraph_yaml_path = working_dir.path().join("supergraph-config-dev.yaml");
 
     let content = std::fs::read_to_string(supergraph_yaml_path)
         .expect("Could not read supergraph schema file");
@@ -150,7 +150,7 @@ fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSu
 
     RetailSupergraph {
         retail_supergraph_config,
-        working_dir: Some(clone_retail_supergraph_repo),
+        working_dir,
     }
 }
 

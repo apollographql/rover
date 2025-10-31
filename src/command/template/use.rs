@@ -7,14 +7,12 @@ use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, Parser, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
-use rover_http::ReqwestService;
 use serde::Serialize;
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
 use crate::{
-    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    cli::Rover,
-    options::{TemplateFetcher, TemplateOpt, TemplateWrite},
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, cli::Rover, options::TemplateOpt,
+    utils::template::download_template,
 };
 
 #[derive(Clone, Debug, Parser, Serialize)]
@@ -35,7 +33,7 @@ pub struct Use {
 }
 
 impl Use {
-    pub async fn run(&self, request_service: ReqwestService) -> RoverResult<RoverOutput> {
+    pub async fn run(&self) -> RoverResult<RoverOutput> {
         // find the template to extract
         let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
@@ -61,10 +59,7 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        let template = TemplateFetcher::new(request_service)
-            .call(download_url.as_str().parse()?)
-            .await?;
-        template.write_template(&path)?;
+        download_template(download_url, &path).await?;
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
 
