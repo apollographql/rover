@@ -1,4 +1,0 @@
-[normalize]
-# Remove download/install lines
-"^downloading the 'supergraph'.*" = ""
-"^the 'supergraph' plugin was successfully installed.*" = ""

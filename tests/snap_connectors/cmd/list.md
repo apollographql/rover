@@ -5,8 +5,8 @@
 ```console
 $ rover connector --elv2-license accept --federation-version="=2.12.0-preview.9" list --schema tests/snap_connectors/fixtures/body.graphql
 merging supergraph schema files
-[REPLACEMENT]
-[REPLACEMENT]
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/aarch64-apple-darwin/v2.12.0-preview.9 ...
+... the 'supergraph' plugin was successfully installed to /Users/runner/.rover/bin/supergraph-v2.12.0-preview.9 ...
 {
   "connectors": [
     {
