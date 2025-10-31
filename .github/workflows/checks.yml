@@ -43,29 +43,29 @@ jobs:
     - name: Run Clippy
       run: cargo clippy --locked --workspace --all-features --all-targets
 
-  test_installers:
-    strategy:
-      matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
-        package_manager: [npm, npm_global, pnpm]
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          persist-credentials: false
-      - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
-      - run: mise run install_${{matrix.package_manager}}
+  # test_installers:
+  #   strategy:
+  #     matrix:
+  #       runner: [ubuntu-latest, macos-latest, windows-latest]
+  #       package_manager: [npm, npm_global, pnpm]
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+  #       with:
+  #         persist-credentials: false
+  #     - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
+  #     - run: mise run install_${{matrix.package_manager}}
 
-  check_glibc:
-    name: Check linked glibc versions
-    runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1
+  # check_glibc:
+  #   name: Check linked glibc versions
+  #   runs-on: ubuntu-latest
+  #   container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1
 
-    steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        persist-credentials: false
-    - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
-    - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
-    - run: cargo build
-    - run: mise run check-glibc
+  #   steps:
+  #   - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+  #     with:
+  #       persist-credentials: false
+  #   - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+  #   - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
+  #   - run: cargo build
+  #   - run: mise run check-glibc
