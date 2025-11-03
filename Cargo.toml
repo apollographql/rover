@@ -85,7 +85,7 @@ apollo-language-server = { version = "0.5.0", default-features = false, features
 
 # crates.io dependencies
 anyhow = "1"
-ariadne = "0.5"
+ariadne = "0.6"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"

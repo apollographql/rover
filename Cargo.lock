@@ -175,7 +175,7 @@ checksum = "87e4c0116cde9e3e5679806cf91c464d9efb7f1e231abffc505e0f6d4b911260"
 dependencies = [
  "ahash 0.8.12",
  "apollo-parser 0.8.4",
- "ariadne",
+ "ariadne 0.5.1",
  "futures",
  "indexmap 2.12.0",
  "rowan 0.16.1",
@@ -319,6 +319,16 @@ checksum = "36f5e3dca4e09a6f340a61a0e9c7b61e030c69fc27bf29d73218f7e5e3b7638f"
 dependencies = [
  "concolor",
  "unicode-width 0.1.14",
+ "yansi",
+]
+
+[[package]]
+name = "ariadne"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8454c8a44ce2cb9cc7e7fae67fc6128465b343b92c6631e94beca3c8d1524ea5"
+dependencies = [
+ "unicode-width 0.2.2",
  "yansi",
 ]
 
@@ -700,9 +710,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.43"
+version = "1.2.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "739eb0f94557554b3ca9a86d2d37bebd49c5e6d0c1d2bda35ba5bdac830befc2"
+checksum = "37521ac7aabe3d13122dc382493e20c9416f299d2ccd5b3a5340a2570cdeb0f3"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -738,9 +748,9 @@ dependencies = [
 
 [[package]]
 name = "ci_info"
-version = "0.14.14"
+version = "0.14.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "840dbb7bdd1f2c4d434d6b08420ef204e0bfad0ab31a07a80a1248d24cc6e38b"
+checksum = "7d502ead02cc105c33a87aa76817cdca915a7576b59caba5eeb4e7abdd633f23"
 dependencies = [
  "envmnt",
  "serde",
@@ -3480,7 +3490,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3867,7 +3877,7 @@ dependencies = [
  "apollo-encoder",
  "apollo-federation-types",
  "apollo-parser 0.8.4",
- "ariadne",
+ "ariadne 0.6.0",
  "backon",
  "buildstructor",
  "camino",
