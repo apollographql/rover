@@ -6,8 +6,10 @@ use apollo_federation_types::{
 };
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+#[cfg(target_os = "macos")]
 use http::Method;
 use semver::Version;
+#[cfg(target_os = "macos")]
 use serde_json::Value;
 use tap::TapFallible;
 
