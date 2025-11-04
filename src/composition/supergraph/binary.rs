@@ -221,6 +221,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn generate_connector(
         &self,
         exec_impl: &impl ExecCommand,
@@ -297,6 +298,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn analyze_clean(
         &self,
         exec_impl: &impl ExecCommand,
@@ -321,6 +323,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn analyze_interactive(
         &self,
         exec_impl: &impl ExecCommand,
@@ -353,6 +356,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     #[expect(clippy::too_many_arguments)]
     pub async fn analyze_curl(
         &self,
