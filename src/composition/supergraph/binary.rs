@@ -6,8 +6,10 @@ use apollo_federation_types::{
 };
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
+#[cfg(target_os = "macos")]
 use http::Method;
 use semver::Version;
+#[cfg(target_os = "macos")]
 use serde_json::Value;
 use tap::TapFallible;
 
@@ -221,6 +223,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn generate_connector(
         &self,
         exec_impl: &impl ExecCommand,
@@ -297,6 +300,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn analyze_clean(
         &self,
         exec_impl: &impl ExecCommand,
@@ -321,6 +325,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     pub async fn analyze_interactive(
         &self,
         exec_impl: &impl ExecCommand,
@@ -353,6 +358,7 @@ impl SupergraphBinary {
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
+    #[cfg(target_os = "macos")]
     #[expect(clippy::too_many_arguments)]
     pub async fn analyze_curl(
         &self,

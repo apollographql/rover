@@ -8,12 +8,11 @@ use rover_client::shared::GraphRef;
 use semver::Version;
 use serde::Serialize;
 
+#[cfg(target_os = "macos")]
+use crate::command::connector::{analyze::AnalyzeCurl, generate::GenerateConnector};
 use crate::{
     RoverOutput, RoverResult,
-    command::connector::{
-        analyze::AnalyzeCurl, generate::GenerateConnector, list::ListConnector, run::RunConnector,
-        test::TestConnector,
-    },
+    command::connector::{list::ListConnector, run::RunConnector, test::TestConnector},
     composition::{
         get_supergraph_binary,
         pipeline::{CompositionPipeline, state::Run},
@@ -23,7 +22,9 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
+#[cfg(target_os = "macos")]
 pub mod analyze;
+#[cfg(target_os = "macos")]
 pub mod generate;
 pub mod list;
 pub mod run;
@@ -60,8 +61,10 @@ pub struct Connector {
 #[derive(Debug, Parser, Serialize)]
 #[clap(about = "Work with Apollo Connectors")]
 pub enum Command {
+    #[cfg(target_os = "macos")]
     /// Generate a schema with connectors from a collection of analyzed data
     Generate(GenerateConnector),
+    #[cfg(target_os = "macos")]
     /// Analyze one or more requests for use in generating
     /// a Connector
     Analyze(AnalyzeCurl),
@@ -111,10 +114,12 @@ impl Connector {
         }
 
         match &self.command {
+            #[cfg(target_os = "macos")]
             Generate(command) => command.run(supergraph_binary).await,
             Test(command) => command.run(supergraph_binary, default_subgraph).await,
             Run(command) => command.run(supergraph_binary, default_subgraph).await,
             List(command) => command.run(supergraph_binary, default_subgraph).await,
+            #[cfg(target_os = "macos")]
             Analyze(command) => command.run(supergraph_binary).await,
         }
     }
