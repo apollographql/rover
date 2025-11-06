@@ -17,7 +17,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
     //   - a supergraph config yaml (fixture)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
     //   (fixture)
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     let mut args: Vec<String> = vec![
         "supergraph",
         "compose",
@@ -81,6 +81,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
 async fn it_fails_without_a_config() {
     // GIVEN
     //   - an invocation of `rover supergraph compose` without any config file
+    #[allow(deprecated, reason = "no out of the box spawn command")]
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.args(["supergraph", "compose"]);
 

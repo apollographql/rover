@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use assert_cmd::Command;
 use camino::Utf8PathBuf;
 use houston::{Config, Profile};
 use predicates::prelude::*;
@@ -20,7 +19,7 @@ fn e2e_test_rover_config_clear() {
     Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_API_KEY).unwrap();
 
     // when one is added
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     let result = cmd
         .env(RoverEnvKey::ConfigHome.to_string(), &temp_dir)
         .arg("config")
@@ -29,7 +28,7 @@ fn e2e_test_rover_config_clear() {
     result.stdout(predicate::str::contains(CUSTOM_PROFILE));
 
     // and then removed via  `config clear`
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     let result = cmd
         .env(RoverEnvKey::ConfigHome.to_string(), &temp_dir)
         .arg("config")
@@ -38,7 +37,7 @@ fn e2e_test_rover_config_clear() {
     result.stderr("Successfully cleared all configuration.\n");
 
     // then we should have no profiles
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     let result = cmd
         .arg("config")
         .env(RoverEnvKey::ConfigHome.to_string(), &temp_dir)

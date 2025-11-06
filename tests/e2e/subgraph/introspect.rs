@@ -42,7 +42,7 @@ async fn e2e_test_rover_subgraph_introspect(
         .suffix(".json")
         .tempfile()
         .expect("Could not create output file");
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.args([
         "subgraph",
         "introspect",
@@ -88,6 +88,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         .tempfile()
         .expect("Could not create output file");
     // Create the Rover command to run the introspection in `--watch` mode
+    #[allow(deprecated, reason = "no out of the box spawn command")]
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     let mut child = cmd
         .args([
