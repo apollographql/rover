@@ -25,6 +25,8 @@ items:
         href: ./commands/cloud    
       - label: config
         href: ./commands/config
+      - label: connector
+        href: ./commands/connectors
       - label: contract
         href: ./commands/contracts
       - label: dev
