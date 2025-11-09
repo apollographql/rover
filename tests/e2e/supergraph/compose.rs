@@ -1,7 +1,6 @@
 use std::{env, process::Command};
 
 use assert_cmd::prelude::CommandCargoExt;
-use camino::Utf8PathBuf;
 use regex::RegexSet;
 use rstest::*;
 use tracing::error;
@@ -13,7 +12,7 @@ use crate::e2e::{RetailSupergraph, retail_supergraph};
 #[ignore]
 #[traced_test]
 #[tokio::test(flavor = "multi_thread")]
-async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergraph<'_>) {
+async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergraph) {
     // GIVEN
     //   - a supergraph config yaml (fixture)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
@@ -37,7 +36,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
         args.push(format!("={version}"));
     };
     cmd.args(args);
-    cmd.current_dir(retail_supergraph.get_working_directory());
+    cmd.current_dir(&retail_supergraph.working_dir);
     let match_set: Vec<String> = retail_supergraph
         .get_subgraph_names()
         .into_iter()
@@ -66,13 +65,10 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
     // AND
     //   - the composition result is saved in the tmp dir
     //   - the composition result joins all the graphs named in the supergraph config
-    let composition_result_path = Utf8PathBuf::from_path_buf(
-        retail_supergraph
-            .get_working_directory()
-            .path()
-            .join("composition-result"),
-    )
-    .expect("failed to get composition result path");
+    let composition_result_path = retail_supergraph
+        .working_dir
+        .path()
+        .join("composition-result");
     let composition_result = std::fs::read_to_string(composition_result_path)
         .expect("Could not read composition result file");
     let matched_len: usize = re_set.matches(&composition_result).into_iter().count();

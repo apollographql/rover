@@ -18,9 +18,7 @@ chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}
 derive-getters = { workspace = true }
 git-url-parse = { workspace = true }
-git2 = { workspace = true, features = [
-    "vendored-openssl",
-] }
+git2 = { workspace = true }
 graphql_client = { workspace = true }
 houston = { workspace = true }
 http = { workspace = true }
@@ -32,7 +30,7 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "native-tls-vendored",
+    "rustls-tls",
     "socks",
 ] }
 rover-graphql = { workspace = true }
@@ -57,7 +55,7 @@ serde_json = { workspace = true }
 reqwest = { workspace = true, features = [
     "json",
     "blocking",
-    "native-tls-vendored",
+    "rustls-tls",
 ] }
 
 [dev-dependencies]
@@ -73,4 +71,3 @@ tracing-test = { workspace = true }
 
 [lints]
 workspace = true
-

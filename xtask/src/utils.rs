@@ -62,7 +62,5 @@ fn cargo_metadata_without_deps() -> Result<Metadata> {
 }
 
 pub(crate) struct CommandOutput {
-    pub(crate) stdout: String,
     pub(crate) stderr: String,
-    pub(crate) directory: Utf8PathBuf,
 }

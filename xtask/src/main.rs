@@ -34,16 +34,12 @@ pub enum Command {
 
     /// Prepare Rover for a release
     Prep(commands::Prep),
-
-    /// Run cargo unit & integration tests for Rover
-    Test(commands::Test),
 }
 
 impl Xtask {
     pub async fn run(&self) -> Result<()> {
         match &self.command {
             Command::Dist(command) => command.run(),
-            Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
         }?;

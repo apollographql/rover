@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
+      - uses: jdx/mise-action@be3be2260bc02bc3fbf94c5e2fed8b7964baf074 # v3.4.0
       - run: mise run cargo-deny
 
   fmt:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
     - name: Install nightly@nightly toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
     - name: Install stable@stable toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -53,5 +53,48 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
+      - uses: jdx/mise-action@be3be2260bc02bc3fbf94c5e2fed8b7964baf074 # v3.4.0
       - run: mise run install_${{matrix.package_manager}}
+
+  test:
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, macos-15, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@be3be2260bc02bc3fbf94c5e2fed8b7964baf074 # v3.4.0
+      - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
+          target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
+      - if: ${{ matrix.runner == 'ubuntu-latest' }}
+        name: Install musl-tools for cross-compiling
+        run: sudo apt-get install --yes --no-install-recommends musl-tools
+      - run: mise run test ${{ matrix.runner == 'ubuntu-latest' && ' --target x86_64-unknown-linux-musl' || '' }}
+
+
+  test_minimal_glibc:
+    name: Test with minimal glibc versions
+    runs-on: ubuntu-latest
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1
+
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        persist-credentials: false
+        ref: ${{ github.head_ref || github.ref_name }}
+    - name: Fix git ownership
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - name: Debug git state
+      run: |
+        git status
+        git branch -a
+        git log --oneline -1
+        git symbolic-ref HEAD || echo "Detached HEAD detected"
+    - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+    - uses: jdx/mise-action@be3be2260bc02bc3fbf94c5e2fed8b7964baf074 # v3.4.0
+    - run: mise run test
+    - run: mise run check-glibc

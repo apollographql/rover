@@ -1,16 +1,14 @@
 #!/bin/bash
 
-# This scripts checks if Rover's compiled executable only asks for 
+# This scripts checks if Rover's compiled executable only asks for
 # supported versions of glibc
 
 # source: https://gist.github.com/fasterthanlime/17e002a8f5e0f189861c
 
-# usage: ./check_glibc.sh ./target/debug/rover
-
-MAX_VER=2.17
+MAX_VER=2.28
 
 SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
-BINARY=$1
+BINARY="target/debug/rover"
 
 # Version comparison function in bash
 vercomp () {

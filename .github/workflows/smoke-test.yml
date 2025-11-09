@@ -23,9 +23,9 @@ jobs:
       matrix:
         compile_target:
           - target: x86_64-apple-darwin
-            compiles_on: macos-13-xlarge
+            compiles_on: macos-14-xlarge
           - target: aarch64-apple-darwin
-            compiles_on: macos-13-xlarge
+            compiles_on: macos-14-xlarge
           - target: x86_64-pc-windows-msvc
             compiles_on: windows-2022
           - target: x86_64-unknown-linux-gnu
@@ -46,7 +46,7 @@ jobs:
           run: |
             yum -y update && yum -y upgrade
             yum groupinstall -y "Development Tools"
-            yum -y install perl-core gcc openssl-devel openssl git
+            yum -y install perl-core gcc git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
             rustup show active-toolchain || rustup toolchain install
@@ -95,16 +95,12 @@ jobs:
         testing_target:
           - run_test_on: windows-2022
             binary_under_test: x86_64-pc-windows-msvc
-          - run_test_on: macos-13
-            binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-14-large
             binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-15-large
             binary_under_test: x86_64-apple-darwin
           - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
-          - run_test_on: macos-13-xlarge
-            binary_under_test: aarch64-apple-darwin
           - run_test_on: macos-14
             binary_under_test: aarch64-apple-darwin
           - run_test_on: macos-15

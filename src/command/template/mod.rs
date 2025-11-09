@@ -6,7 +6,6 @@ mod r#use;
 
 use clap::Parser;
 pub use list::List;
-use rover_http::ReqwestService;
 use serde::Serialize;
 pub use r#use::Use;
 
@@ -29,10 +28,8 @@ enum Command {
 
 impl Template {
     pub(crate) async fn run(&self) -> RoverResult<RoverOutput> {
-        let request_service = ReqwestService::builder().build()?;
-
         match &self.command {
-            Command::Use(use_template) => use_template.run(request_service).await,
+            Command::Use(use_template) => use_template.run().await,
             Command::List(list) => list.run().await,
         }
     }

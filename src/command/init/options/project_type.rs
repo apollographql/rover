@@ -99,10 +99,7 @@ mod tests {
         let result = instance.handle_project_type_selection(project_types, None);
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            RoverError::new(anyhow!("No project type selected")).to_string()
-        );
+        assert_eq!(result.unwrap_err().message(), "No project type selected");
     }
 
     // Display trait implementation tests
