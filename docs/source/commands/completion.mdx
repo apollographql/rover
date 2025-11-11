@@ -1,0 +1,64 @@
+---
+title: Rover completion Commands
+subtitle: Generate shell completion scripts for bash and zsh
+description: Generate shell completion scripts to enable tab completion for Rover commands in bash and zsh shells.
+---
+
+Rover provides shell completion support for bash and zsh, enabling tab completion for Rover commands and their options. This makes it easier to discover available commands and options while working in the terminal.
+
+<Note>
+
+If you install Rover via [Homebrew](../getting-started#unofficial-methods), shell completions are automatically set up for you. You don't need to manually generate or install completion scripts.
+
+</Note>
+
+## Generating completion scripts
+
+### `completion bash`
+
+The `completion bash` command generates a bash completion script:
+
+```
+rover completion bash
+```
+
+This outputs a bash completion script to `stdout`. To enable bash completion, save the output to a file and source it in your shell configuration:
+
+```bash
+# Save the completion script
+rover completion bash > ~/.rover-completion.bash
+
+# Add to your ~/.bashrc or ~/.bash_profile
+echo "source ~/.rover-completion.bash" >> ~/.bashrc
+```
+
+After reloading your shell configuration (or opening a new terminal), you'll have tab completion for Rover commands.
+
+### `completion zsh`
+
+The `completion zsh` command generates a zsh completion script:
+
+```
+rover completion zsh
+```
+
+This outputs a zsh completion script to `stdout`. To enable zsh completion, save the output to a file and source it in your shell configuration:
+
+```zsh
+# Save the completion script
+rover completion zsh > ~/.rover-completion.zsh
+
+# Add to your ~/.zshrc
+echo "source ~/.rover-completion.zsh" >> ~/.zshrc
+```
+
+After reloading your shell configuration (or opening a new terminal), you'll have tab completion for Rover commands.
+
+## Using completion
+
+Once enabled, you can use tab completion to:
+
+- Complete command names: Type `rover ` and press `Tab` to see available commands
+- Complete subcommands: Type `rover graph ` and press `Tab` to see available graph subcommands
+- Complete options: Type `rover graph publish ` and press `Tab` to see available options and flags
+
