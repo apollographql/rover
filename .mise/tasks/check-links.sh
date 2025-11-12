@@ -8,6 +8,7 @@
 
 find . -type f -name "*.md" \
   -not -path "*/node_modules/*" \
+  -not -path "*/CHANGELOG.md" \
   -not -path "*/target/*" \
   -not -path "*/docs/*" \
   -not -path "*/.*/*" \
