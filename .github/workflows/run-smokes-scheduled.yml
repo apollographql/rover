@@ -1,6 +1,16 @@
 on:
   schedule:
     - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      router-versions:
+        description: 'Optional JSON list of router versions (defaults to latest-1 & latest-2)'
+        required: false
+        type: string
+      composition-versions:
+        description: 'Optional JSON list of supergraph versions (defaults to latest-2)'
+        required: false
+        type: string
 
 name: "Run Smoke Tests (Automated)"
 jobs:
@@ -13,25 +23,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         name: "Checkout rover repo"
-      - run: |
-          npm install -g semver
-        name: "Install `semver` cli"
-      - run: |
-          ls -al
-          ROUTER1_VERSIONS=$(source get_latest_x_versions.sh 3 apollographql router router latest-1 1)
-          ROUTER2_VERSIONS=$(source get_latest_x_versions.sh 3 apollographql router router latest-2 2)
-          JSON=$(echo "$ROUTER1_VERSIONS $ROUTER2_VERSIONS" | jq -cs 'add')
-          echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
+      - env:
+          ROUTER_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.router-versions || '' }}
+        run: |
+          if [ -z "$ROUTER_JSON" ]; then
+            ROUTER_JSON=$(source get_latest_x_versions.sh router latest-1 latest-2)
+          fi
+          echo "router_versions=$ROUTER_JSON" >> "$GITHUB_OUTPUT"
         id: "router-versions"
         working-directory: ".github/scripts"
-        name: "Get latest Router versions"
-      - run: |
-          ls -al
-          JSON=$(source get_latest_x_versions.sh 3 apollographql federation-rs supergraph latest-2 2)
-          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+        name: "Resolve Router versions"
+      - env:
+          SUPERGRAPH_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.composition-versions || '' }}
+        run: |
+          if [ -z "$SUPERGRAPH_JSON" ]; then
+            SUPERGRAPH_JSON=$(source get_latest_x_versions.sh supergraph latest-2)
+          fi
+          echo "supergraph_versions=$SUPERGRAPH_JSON" >> "$GITHUB_OUTPUT"
         id: "supergraph-versions"
         working-directory: ".github/scripts"
-        name: "Get latest Supergraph Plugin versions"
+        name: "Resolve Supergraph Plugin versions"
 
   run-smokes:
     name: "Run Smoke Tests"
@@ -46,7 +57,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: run-smokes
     name: "Message Slack On Test Failure"
-    if: ${{ failure() }}
+    if: ${{ failure() && github.event_name != 'workflow_dispatch' }}
     steps:
       - name: Send custom JSON data to Slack workflow
         id: slack
