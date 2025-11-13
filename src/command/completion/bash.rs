@@ -10,7 +10,7 @@ pub struct Bash {}
 impl Bash {
     pub fn run(&self) -> RoverResult<RoverOutput> {
         let mut cmd = Rover::command();
-        let name = cmd.get_name().to_string();
+        let name = "rover".to_string();
         generate(BashShell, &mut cmd, &name, &mut std::io::stdout());
         Ok(RoverOutput::EmptySuccess)
     }
