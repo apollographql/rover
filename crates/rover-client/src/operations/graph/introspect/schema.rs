@@ -428,6 +428,7 @@ mod tests {
           "A simple type for getting started!"
           hello: String
           cats(cat: [String]! = ["Nori"]): [String]!
+          dogs(excludeChihuahuas: Boolean = false @deprecated(reason: "Chihuahuas are dogs too!")): [String]!
         }
         enum CacheControlScope {
           PUBLIC
@@ -438,6 +439,14 @@ mod tests {
           ne: Boolean
           in: [Boolean]
           nin: [Boolean]
+        }
+        input StringQueryOperatorInput {
+          eq: String
+          ne: String
+          in: [String]
+          nin: [String]
+          regex: String
+          glob: String @deprecated(reason: "Glob is deprecated, use regex instead")
         }
         directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
         "Exposes a URL that specifies the behaviour of this scalar."
