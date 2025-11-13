@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [x.x.x] (unreleased) - 2025-mm-dd
+<!-- # [x.x.x] (unreleased) - 2025-mm-dd
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -12,15 +12,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **Add shell completion support for bash and zsh - @shanemyrick**
-
-  Adds `rover completion bash` and `rover completion zsh` commands to generate shell completion scripts. This enables tab completion for Rover commands in bash and zsh shells.
-
 ## 🐛 Fixes
 
 ## 🛠 Maintenance
 
-## 📚 Documentation
+## 📚 Documentation -->
 
 # [0.37.0] - 2025-12-01
 

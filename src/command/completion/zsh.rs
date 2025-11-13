@@ -10,7 +10,7 @@ pub struct Zsh {}
 impl Zsh {
     pub fn run(&self) -> RoverResult<RoverOutput> {
         let mut cmd = Rover::command();
-        let name = cmd.get_name().to_string();
+        let name = "rover".to_string();
         generate(ZshShell, &mut cmd, &name, &mut std::io::stdout());
         Ok(RoverOutput::EmptySuccess)
     }

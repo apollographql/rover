@@ -184,7 +184,7 @@ impl Rover {
         // do their own checks.
         // we also skip this check for completion commands since they don't need it.
         // the check is also skipped if the `--skip-update-check` flag is passed.
-        if let Command::Update(_) | Command::Completion(_) = &self.command { /* skip check */
+        if let Command::Update(_) = &self.command { /* skip check */
         } else if !self.skip_update_check {
             let config = self.get_rover_config();
             if let Ok(config) = config {
