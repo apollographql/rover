@@ -244,12 +244,15 @@ impl Schema {
     fn encode_input_field(field: FullTypeInputField) -> InputField {
         let ty = Self::encode_type(field.type_);
         let mut field_def = InputField::new(field.name, ty);
-
         if let Some(default_value) = field.default_value {
             field_def.default_value(default_value);
         }
         if let Some(desc) = field.description {
             field_def.description(desc);
+        }
+
+        if field.is_deprecated {
+            field_def.directive(create_deprecated_directive(field.deprecation_reason));
         }
         field_def
     }
@@ -257,12 +260,15 @@ impl Schema {
     fn encode_arg(value: FullTypeFieldArg) -> InputValueDefinition {
         let ty = Self::encode_type(value.type_);
         let mut value_def = InputValueDefinition::new(value.name, ty);
-
         if let Some(default_value) = value.default_value {
             value_def.default_value(default_value);
         }
         if let Some(desc) = value.description {
             value_def.description(desc);
+        }
+
+        if value.is_deprecated {
+            value_def.directive(create_deprecated_directive(value.deprecation_reason));
         }
         value_def
     }

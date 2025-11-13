@@ -29,39 +29,19 @@ jobs:
           - target: x86_64-pc-windows-msvc
             compiles_on: windows-2022
           - target: x86_64-unknown-linux-gnu
-            compiles_on: ubuntu-22.04
-            container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
-    # Arm64 runner for cross-compilation
+            compiles_on: ubuntu-latest
+            container: "ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1"
     runs-on: ${{ matrix.compile_target.compiles_on }}
+    container: ${{ matrix.compile_target.container }}
     steps:
       - uses: actions/checkout@v5
         name: "Checkout rover repo"
-      - if: ${{ matrix.compile_target.container != '' }}
-        name: "Build binaries inside container"
-        uses: addnab/docker-run-action@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
         with:
-          image: ${{ matrix.compile_target.container }}
-          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
-          shell: bash
-          run: |
-            yum -y update && yum -y upgrade
-            yum groupinstall -y "Development Tools"
-            yum -y install perl-core gcc git
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            . "$HOME/.cargo/env"
-            rustup show active-toolchain || rustup toolchain install
-            if [ -n "${{ inputs.features }}" ]; then
-              export FEATURES="--features ${{ inputs.features }}"
-            else
-              export FEATURES=""
-            fi
-            cargo build --target ${{ matrix.compile_target.target }} --test e2e ${FEATURES}
-      - if: ${{ matrix.compile_target.container == '' }}
-        name: "Build binaries on host"
+          target: ${{ matrix.compile_target.target }}
+      - name: Build binaries
         shell: bash
         run: |
-          rustup show active-toolchain || rustup toolchain install
-          rustup target add ${{ matrix.compile_target.target }}
           if [ -n "${{ inputs.features }}" ]; then
             export FEATURES="--features ${{ inputs.features }}"
           else
