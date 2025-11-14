@@ -78,6 +78,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
     router_address: RouterAddress,
+    router_path: Option<String>,
     mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
 }
@@ -87,6 +88,13 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
     // understood by the MCP server.
     // TODO: Magic strings are not fun to debug later.
     fn opts_into_env(self) -> HashMap<String, String> {
+        // Build the endpoint URL with the optional path from router config
+        let endpoint = if let Some(path) = &self.router_path {
+            format!("{}{}", self.router_address.pretty_string(), path)
+        } else {
+            self.router_address.pretty_string()
+        };
+
         let overlaid = HashMap::from([
             // Configure the schema to be a local file
             ("APOLLO_MCP_SCHEMA__SOURCE".to_string(), "local".to_string()),
@@ -95,10 +103,7 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
                 self.supergraph_schema_path.to_string(),
             ),
             // Configure the endpoint from the running router instance
-            (
-                "APOLLO_MCP_ENDPOINT".to_string(),
-                self.router_address.pretty_string(),
-            ),
+            ("APOLLO_MCP_ENDPOINT".to_string(), endpoint),
             (
                 "APOLLO_MCP_TRANSPORT__TYPE".to_string(),
                 "streamable_http".to_string(),
@@ -246,5 +251,115 @@ where
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, net::IpAddr};
+
+    use camino::Utf8PathBuf;
+    use semver::Version;
+
+    use super::*;
+    use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
+
+    struct MockSpawn;
+
+    #[test]
+    fn test_mcp_endpoint_without_router_path() {
+        let router_address = RouterAddress::new(
+            Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
+                127, 0, 0, 1,
+            )))),
+            Some(RouterPort::Default(4000)),
+        );
+
+        let binary = McpServerBinary::new(
+            Utf8PathBuf::from("/fake/path"),
+            Version::parse("1.0.0").unwrap(),
+        );
+
+        let router_path: Option<String> = None;
+        let mcp_config_path: Option<Utf8PathBuf> = None;
+
+        let runner = RunMcpServerBinary::<MockSpawn>::builder()
+            .mcp_server_binary(binary)
+            .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
+            .spawn(MockSpawn)
+            .router_address(router_address)
+            .and_router_path(router_path)
+            .and_mcp_config_path(mcp_config_path)
+            .env(HashMap::new())
+            .build();
+
+        let env = runner.opts_into_env();
+        let endpoint = env.get("APOLLO_MCP_ENDPOINT").unwrap();
+
+        assert_eq!(endpoint, "http://localhost:4000");
+    }
+
+    #[test]
+    fn test_mcp_endpoint_with_router_path() {
+        let router_address = RouterAddress::new(
+            Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
+                127, 0, 0, 1,
+            )))),
+            Some(RouterPort::Default(4000)),
+        );
+
+        let binary = McpServerBinary::new(
+            Utf8PathBuf::from("/fake/path"),
+            Version::parse("1.0.0").unwrap(),
+        );
+
+        let mcp_config_path: Option<Utf8PathBuf> = None;
+
+        let runner = RunMcpServerBinary::<MockSpawn>::builder()
+            .mcp_server_binary(binary)
+            .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
+            .spawn(MockSpawn)
+            .router_address(router_address)
+            .and_router_path(Some("/graphql".to_string()))
+            .and_mcp_config_path(mcp_config_path)
+            .env(HashMap::new())
+            .build();
+
+        let env = runner.opts_into_env();
+        let endpoint = env.get("APOLLO_MCP_ENDPOINT").unwrap();
+
+        assert_eq!(endpoint, "http://localhost:4000/graphql");
+    }
+
+    #[test]
+    fn test_mcp_endpoint_with_custom_path() {
+        let router_address = RouterAddress::new(
+            Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
+                127, 0, 0, 1,
+            )))),
+            Some(RouterPort::Default(4000)),
+        );
+
+        let binary = McpServerBinary::new(
+            Utf8PathBuf::from("/fake/path"),
+            Version::parse("1.0.0").unwrap(),
+        );
+
+        let mcp_config_path: Option<Utf8PathBuf> = None;
+
+        let runner = RunMcpServerBinary::<MockSpawn>::builder()
+            .mcp_server_binary(binary)
+            .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
+            .spawn(MockSpawn)
+            .router_address(router_address)
+            .and_router_path(Some("/custom-path".to_string()))
+            .and_mcp_config_path(mcp_config_path)
+            .env(HashMap::new())
+            .build();
+
+        let env = runner.opts_into_env();
+        let endpoint = env.get("APOLLO_MCP_ENDPOINT").unwrap();
+
+        assert_eq!(endpoint, "http://localhost:4000/custom-path");
     }
 }

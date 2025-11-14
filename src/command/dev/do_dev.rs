@@ -265,6 +265,8 @@ impl Dev {
         // the overrides for the temporary config we set for hot-reloading the router, but also as
         // a message to the user for where to find their router
         let router_address = *run_router.state.config.address();
+        // Extract the router's listen path from the config to construct the full endpoint URL for MCP
+        let router_path = run_router.state.config.listen_path();
         let hot_reload_overrides = HotReloadConfigOverrides::builder()
             .address(router_address)
             .build();
@@ -313,6 +315,7 @@ impl Dev {
                     TokioSpawn::default(),
                     run_router.state.hot_reload_schema_path.clone(),
                     router_address,
+                    router_path,
                     config.clone(),
                     run_router.state.env.clone(),
                 )
