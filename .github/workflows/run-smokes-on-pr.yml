@@ -20,23 +20,18 @@ jobs:
     steps:
       - name: "Checkout rover repo"
         uses: actions/checkout@v5
-      - name: "Install `semver` cli"
-        run: |
-          npm install -g semver
-      - name: "Get latest Router versions"
+      - name: "Get latest Router version"
         id: "router-versions"
         working-directory: ".github/scripts"
         run: |
-          ls -al
-          JSON=$(source get_latest_x_versions.sh 1 apollographql router router latest-2 2)
-          echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
-      - name: "Get latest Supergraph Plugin versions"
+          ROUTER_JSON=$(source get_latest_x_versions.sh router latest-2)
+          echo "router_versions=$ROUTER_JSON" >> "$GITHUB_OUTPUT"
+      - name: "Get latest Supergraph Plugin version"
         id: "supergraph-versions"
         working-directory: ".github/scripts"
         run: |
-          ls -al
-          JSON=$(source get_latest_x_versions.sh 1 apollographql federation-rs supergraph latest-2 2)
-          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+          SUPERGRAPH_JSON=$(source get_latest_x_versions.sh supergraph latest-2)
+          echo "supergraph_versions=$SUPERGRAPH_JSON" >> "$GITHUB_OUTPUT"
   run-smokes:
     name: "Run Tests"
     needs:
