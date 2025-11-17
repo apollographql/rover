@@ -77,11 +77,18 @@ timber = { path = "./crates/timber" }
 # https://github.com/apollographql/apollo-rs
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
+apollo-compiler = "1.30"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.15.8", features = ["json_schema"] }
 
 apollo-language-server = { version = "0.5.0", default-features = false, features = ["tokio"] }
+
+# tree-sitter grammars for extraction
+tree-sitter = "0.22"
+tree-sitter-typescript = "0.21"
+tree-sitter-swift = "0.7"
+tree-sitter-kotlin = "0.3"
 
 # crates.io dependencies
 anyhow = "1"
@@ -239,6 +246,12 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-swift = { workspace = true }
+tree-sitter-kotlin = { workspace = true }
+apollo-compiler = { workspace = true }
+apollo-compiler = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
