@@ -78,7 +78,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     supergraph_schema_path: Utf8PathBuf,
     spawn: Spawn,
     router_address: RouterAddress,
-    router_path: Option<String>,
+    router_url_path: Option<String>,
     mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
 }
@@ -89,7 +89,7 @@ impl<Spawn: Send> RunMcpServerBinary<Spawn> {
     // TODO: Magic strings are not fun to debug later.
     fn opts_into_env(self) -> HashMap<String, String> {
         // Build the endpoint URL with the optional path from router config
-        let endpoint = if let Some(path) = &self.router_path {
+        let endpoint = if let Some(path) = &self.router_url_path {
             format!("{}{}", self.router_address.pretty_string(), path)
         } else {
             self.router_address.pretty_string()
@@ -267,7 +267,7 @@ mod tests {
     struct MockSpawn;
 
     #[test]
-    fn test_mcp_endpoint_without_router_path() {
+    fn test_mcp_endpoint_without_router_url_path() {
         let router_address = RouterAddress::new(
             Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
                 127, 0, 0, 1,
@@ -280,7 +280,7 @@ mod tests {
             Version::parse("1.0.0").unwrap(),
         );
 
-        let router_path: Option<String> = None;
+        let router_url_path: Option<String> = None;
         let mcp_config_path: Option<Utf8PathBuf> = None;
 
         let runner = RunMcpServerBinary::<MockSpawn>::builder()
@@ -288,7 +288,7 @@ mod tests {
             .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
             .spawn(MockSpawn)
             .router_address(router_address)
-            .and_router_path(router_path)
+            .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
             .build();
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mcp_endpoint_with_router_path() {
+    fn test_mcp_endpoint_with_router_url_path() {
         let router_address = RouterAddress::new(
             Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
                 127, 0, 0, 1,
@@ -320,7 +320,7 @@ mod tests {
             .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
             .spawn(MockSpawn)
             .router_address(router_address)
-            .and_router_path(Some("/graphql".to_string()))
+            .and_router_url_path(Some("/graphql".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
             .build();
@@ -352,7 +352,7 @@ mod tests {
             .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
             .spawn(MockSpawn)
             .router_address(router_address)
-            .and_router_path(Some("/custom-path".to_string()))
+            .and_router_url_path(Some("/custom-path".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
             .build();
