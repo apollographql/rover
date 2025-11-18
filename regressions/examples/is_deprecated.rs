@@ -38,7 +38,7 @@ pub struct QueryRoot;
 
 #[Object]
 impl QueryRoot {
-    async fn recipe<'a>(&self, ctx: &Context<'a>, id: String) -> Recipe {
+    async fn recipe<'a>(&self, _ctx: &Context<'a>, id: String) -> Recipe {
         Recipe {
             creation: "date".to_string(),
             title: id,
@@ -47,9 +47,9 @@ impl QueryRoot {
 
     async fn bogus<'a>(
         &self,
-        ctx: &Context<'a>,
-        id: String,
-        #[graphql(deprecation = "bar")] title: Option<String>,
+        _ctx: &Context<'a>,
+        _id: String,
+        #[graphql(deprecation = "bar")] _title: Option<String>,
     ) -> i32 {
         0i32
     }
