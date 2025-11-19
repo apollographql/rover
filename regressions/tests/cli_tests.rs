@@ -7,4 +7,3 @@ fn connectors_cli_tests() {
 fn introspection_cli_tests() {
     trycmd::TestCases::new().case("e2e/introspection/*.md");
 }
-
