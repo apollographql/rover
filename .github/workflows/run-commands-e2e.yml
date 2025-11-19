@@ -6,8 +6,8 @@ on:
   merge_group:
 
 jobs:
-  commands_e2e:
-    name: commands E2E
+  introspection_e2e:
+    name: introspection E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -19,8 +19,17 @@ jobs:
         run: !
             ./target/release/examples/is_deprecated &
             echo $! > is_deprecated_service.pid
-      - uses: jdx/mise-action@9dc7d5dd454262207dea3ab5a06a3df6afc8ff26 # v3.4.1
       - name: Run Tests
-        run: mise run cli_commands_test
+        run: cargo test --package regressions --test introspection_cli_tests
       - name: Kill Service
         run: kill $(cat is_deprecated_service.pid)
+
+  connectors_e2e:
+    name: connectors E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install stable@stable toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+      - name: Run Tests
+        run: cargo test --package regressions --test connectors_cli_tests

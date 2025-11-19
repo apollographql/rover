@@ -16,9 +16,6 @@ run = "cargo clippy --locked --workspace --all-features --all-targets"
 [tasks.test]
 run = "cargo test --locked --workspace --exclude regressions"
 
-[tasks.cli_commands_test]
-run = "cargo test --package regressions"
-
 [tasks.install_npm]
 run = "bash .mise/scripts/install_npm.sh"
 
