@@ -16,7 +16,7 @@ run = "cargo clippy --locked --workspace --all-features --all-targets"
 [tasks.test]
 run = "cargo test --locked --workspace --exclude regressions"
 
-[tasks.commands-test]
+[tasks.cli_commands_test]
 run = "cargo test --locked --package regressions"
 
 [tasks.install_npm]
