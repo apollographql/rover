@@ -7,7 +7,7 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/body.
 {
   "connectors": [
     {
-      "id": "query_helloWorld"
+      "id": "queery_helloWorld"
     }
   ]
 }
