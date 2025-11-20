@@ -6,17 +6,6 @@ use tokio::net::TcpListener;
 
 pub struct StarWars;
 
-// type Query {
-//   recipe(id: String!): Recipe!
-//   bogus(id: ID!, title: String @deprecated(reason: "not good")): Int!
-// }
-
-// """recipe"""
-// type Recipe {
-//   creationDate: String!
-//   title: String! @deprecated(reason: "not good")
-// }
-
 struct Recipe {
     creation: String,
     title: String,
