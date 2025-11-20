@@ -1,6 +1,6 @@
 # Is Deprecated
 
-## tests instrospection
+## Introspection tests 
 
 ```console
 $ rover graph introspect http://localhost:8000

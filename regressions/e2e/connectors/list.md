@@ -1,20 +1,20 @@
 # Lists the Connectors in a GraphQL schema file
 
-## Connectors on fields
+## List_Connectors on fields
 
 ```console
 $ rover connector --elv2-license accept list --schema regressions/fixtures/body.graphql
 {
   "connectors": [
     {
-      "id": "queery_helloWorld"
+      "id": "query_helloWorld"
     }
   ]
 }
 
 ```
 
-## Connectors on types
+## List_Connectors on types
 
 ```console
 $ rover connector --elv2-license accept list --schema regressions/fixtures/single_entity.graphql
@@ -45,7 +45,7 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/multi
 
 ```
 
-## Connectors with ID
+## List_Connectors with ID
 
 ```console
 $ rover connector --elv2-license accept list --schema regressions/fixtures/schema.graphql
