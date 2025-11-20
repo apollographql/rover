@@ -20,7 +20,7 @@ jobs:
             ./target/release/examples/is_deprecated &
             echo $! > is_deprecated_service.pid
       - name: Run Tests
-        run: TRYCMD=dump cargo test --package regressions --test cli_tests -- Introspection
+        run: TRYCMD=dump cargo test --package regressions --test cli_tests -- introspection_cli_tests
       - name: Kill Service
         run: kill $(cat is_deprecated_service.pid)
 
@@ -32,5 +32,5 @@ jobs:
       - name: Install stable@stable toolchain
         uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       - name: Run Tests
-        run: TRYCMD=dump cargo test --package regressions --test cli_tests -- List_Connectors
+        run: TRYCMD=dump cargo test --package regressions --test cli_tests -- connectors_cli_tests
 
