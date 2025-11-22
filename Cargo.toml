@@ -251,7 +251,7 @@ httpmock = { workspace = true }
 indoc = { workspace = true }
 jsonschema = "0.37"
 mime = "0.3"
-mockall = "0.13"
+mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.18"
