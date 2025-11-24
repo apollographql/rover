@@ -21,7 +21,7 @@ jobs:
       router_versions: ${{ steps.router-versions.outputs.router_versions }}
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         name: "Checkout rover repo"
       - env:
           ROUTER_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.router-versions || '' }}
