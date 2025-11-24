@@ -17,7 +17,7 @@ jobs:
         run: cargo build -r --bin rover
       - name: Check rover
         run: |
-          export PATH="$PATH:target/release/rover"
+          export PATH="$PATH:./target/release"
           rover -V
       - name: Build Services
         run: cargo build -r -p regressions --example is_deprecated
