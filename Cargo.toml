@@ -250,7 +250,7 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "0.36"
+jsonschema = "0.37"
 mime = "0.3"
 mockall = "0.13"
 portpicker = "0.1"
