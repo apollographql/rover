@@ -26,6 +26,8 @@ jobs:
             ./target/release/examples/is_deprecated &
             echo $! > is_deprecated_service.pid
       - name: Run Tests
-        run: cargo test --locked --package regressions --test cli_tests
+        run: | 
+          cargo build
+          cargo test --locked --package regressions --test cli_tests
       - name: Kill Service
         run: kill $(cat is_deprecated_service.pid)
