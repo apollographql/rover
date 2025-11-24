@@ -3,7 +3,10 @@
 ## List_Connectors on fields
 
 ```console
-$ rover connector --elv2-license accept list --schema regressions/fixtures/body.graphql
+$ rover connector --elv2-license accept list --schema ./regressions/fixtures/body.graphql
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 {
   "connectors": [
     {
@@ -17,7 +20,10 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/body.
 ## List_Connectors on types
 
 ```console
-$ rover connector --elv2-license accept list --schema regressions/fixtures/single_entity.graphql
+$ rover connector --elv2-license accept list --schema ./regressions/fixtures/single_entity.graphql
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 {
   "connectors": [
     {
@@ -31,7 +37,10 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/singl
 ## Multiple Connectors
 
 ```console
-$ rover connector --elv2-license accept list --schema regressions/fixtures/multiple_connectors.graphql
+$ rover connector --elv2-license accept list --schema ./regressions/fixtures/multiple_connectors.graphql
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 {
   "connectors": [
     {
@@ -48,7 +57,10 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/multi
 ## List_Connectors with ID
 
 ```console
-$ rover connector --elv2-license accept list --schema regressions/fixtures/schema.graphql
+$ rover connector --elv2-license accept list --schema ./regressions/fixtures/schema.graphql
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 {
   "connectors": [
     {
@@ -63,7 +75,10 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/schem
 ## No Connectors Found
 
 ```console
-$ rover connector --elv2-license accept list --schema regressions/fixtures/missing_type.graphql
+$ rover connector --elv2-license accept list --schema ./regressions/fixtures/missing_type.graphql
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 {
   "connectors": []
 }
@@ -76,6 +91,9 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/missi
 
 ```console
 $ rover connector --elv2-license accept list
+... merging supergraph schema files ...
+... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
+... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
 ? 2
 error: the following required arguments were not provided:
   --schema <SCHEMA_PATH>
