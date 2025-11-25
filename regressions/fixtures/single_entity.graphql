@@ -1,0 +1,22 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.11", import: ["@key"])
+  @link(url: "https://specs.apollo.dev/connect/v0.3", import: ["@connect", "@source"])        
+  @source(name: "myApi", http: { baseURL: "https://myApi.com" } )
+
+type Product @connect(
+    source: "myApi",
+    http: { GET: "/products/{$this.id}" }
+    selection: """
+        id
+        name
+        description
+    """
+) {
+    id: ID!,
+    name: String,
+    description: String
+}
+
+type Query {
+    products(id: ID!): Product
+}

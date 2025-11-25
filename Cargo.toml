@@ -36,6 +36,7 @@ members = [
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
+    "regressions"
 ]
 
 [workspace.lints.clippy]
