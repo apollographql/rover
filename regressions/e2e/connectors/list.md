@@ -15,6 +15,7 @@ the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/su
   ]
 }
 
+
 ```
 
 ## List_Connectors on types
@@ -29,6 +30,7 @@ merging supergraph schema files
     }
   ]
 }
+
 
 ```
 
@@ -48,6 +50,7 @@ merging supergraph schema files
   ]
 }
 
+
 ```
 
 ## List_Connectors with ID
@@ -63,6 +66,7 @@ merging supergraph schema files
   ]
 }
 
+
 ```
 
 
@@ -74,5 +78,6 @@ merging supergraph schema files
 {
   "connectors": []
 }
+
 
 ```
