@@ -107,6 +107,8 @@ For more information, try '--help'.
 ## Where am I?
 
 ```console
-$ pwd
-/hello/workd
+$ pwd | echo
+{
+  "hello":"world"
+}
 ```
