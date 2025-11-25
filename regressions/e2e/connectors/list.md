@@ -14,7 +14,6 @@ the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/su
     }
   ]
 }
-
 ```
 
 ## List_Connectors on types
@@ -29,7 +28,6 @@ merging supergraph schema files
     }
   ]
 }
-
 ```
 
 ## Multiple Connectors
@@ -47,7 +45,6 @@ merging supergraph schema files
     }
   ]
 }
-
 ```
 
 ## List_Connectors with ID
@@ -62,7 +59,6 @@ merging supergraph schema files
     }
   ]
 }
-
 ```
 
 
@@ -74,7 +70,6 @@ merging supergraph schema files
 {
   "connectors": []
 }
-
 ```
 
 ## Errors
@@ -84,7 +79,6 @@ merging supergraph schema files
 ```console
 $ rover connector --elv2-license accept list
 merging supergraph schema files
-? 2
 error: A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph
 
 ```
