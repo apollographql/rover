@@ -279,10 +279,10 @@ impl SupergraphBinary {
         exec_impl: &impl ExecCommand,
         schema_path: Utf8PathBuf,
     ) -> Result<RoverOutput, BinaryError> {
-        let s = std::process::Command::new("pwd")
+        let s = std::process::Command::new("pwd").arg("-P")
         .output().unwrap();
         eprintln!("CUCU: {}", std::str::from_utf8(&s.stdout).unwrap());
-        
+
         let mut args = vec!["list-connectors".to_string()];
 
         args.push("--schema".to_string());
