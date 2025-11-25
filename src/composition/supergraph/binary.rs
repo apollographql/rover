@@ -297,6 +297,10 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config).await?;
 
+        let s = std::process::Command::new("pwd")
+        .output().unwrap();
+        println!("CUCU: {}", std::str::from_utf8(&s.stdout).unwrap());
+
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
 
