@@ -44,7 +44,6 @@ jobs:
           rover -V
       - name: Run Tests
         run: |
-            cat regressions/fixtures/body.graphql
             cargo build
             cargo test --locked --package regressions --test cli_tests -- connectors_cli_tests
             

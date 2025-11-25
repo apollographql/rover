@@ -103,3 +103,10 @@ Usage: rover connector list --schema <SCHEMA_PATH>
 For more information, try '--help'.
 
 ```
+
+## Where am I?
+
+```console
+$ pwd
+
+```
