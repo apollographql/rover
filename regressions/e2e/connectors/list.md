@@ -90,7 +90,7 @@ $ rover connector --elv2-license accept list --schema regressions/fixtures/missi
 ### No schema provided
 
 ```console
-$ rover connector --elv2-license accept list
+$ rover connector --elv2-license accept list & pwd
 ... merging supergraph schema files ...
 ... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
 ... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
@@ -102,13 +102,4 @@ Usage: rover connector list --schema <SCHEMA_PATH>
 
 For more information, try '--help'.
 
-```
-
-## Where am I?
-
-```console
-$ pwd | echo
-{
-  "hello":"world"
-}
 ```
