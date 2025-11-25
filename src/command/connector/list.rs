@@ -28,11 +28,11 @@ impl ListConnector {
         let schema_path = self.schema.clone().or(default_subgraph).ok_or_else(|| anyhow!(
             "A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph"
         ))?;
-        
+
         let result = supergraph_binary
             .list_connector(
                 &exec_command_impl,
-                camino::Utf8PathBuf::from_path_buf(schema_path?).unwrap_or_default(),
+                camino::Utf8PathBuf::from_path_buf(schema_path).unwrap_or_default(),
             )
             .await?;
         Ok(result)
