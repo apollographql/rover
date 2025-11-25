@@ -3,14 +3,14 @@
 ## List_Connectors on fields
 
 ```console
-$ rover connector --elv2-license accept list --schema "$(PWD)/regressions/fixtures/body.graphql"
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+$ rover connector --elv2-license accept list --schema fixtures/body.graphql
+merging supergraph schema files
+downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2
+the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1
 {
   "connectors": [
     {
-      "id": "queery_helloWorld"
+      "id": "query_helloWorld"
     }
   ]
 }
@@ -20,10 +20,8 @@ $ rover connector --elv2-license accept list --schema "$(PWD)/regressions/fixtur
 ## List_Connectors on types
 
 ```console
-$ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtures/single_entity.graphql"
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+$ rover connector --elv2-license accept list --schema fixtures/single_entity.graphql
+merging supergraph schema files
 {
   "connectors": [
     {
@@ -37,10 +35,8 @@ $ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtur
 ## Multiple Connectors
 
 ```console
-$ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtures/multiple_connectors.graphql"
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+$ rover connector --elv2-license accept list --schema fixtures/multiple_connectors.graphql
+merging supergraph schema files
 {
   "connectors": [
     {
@@ -57,10 +53,8 @@ $ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtur
 ## List_Connectors with ID
 
 ```console
-$ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtures/schema.graphql"
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+$ rover connector --elv2-license accept list --schema fixtures/schema.graphql
+merging supergraph schema files
 {
   "connectors": [
     {
@@ -75,10 +69,8 @@ $ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtur
 ## No Connectors Found
 
 ```console
-$ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtures/missing_type.graphql"
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+$ rover connector --elv2-license accept list --schema fixtures/missing_type.graphql
+merging supergraph schema files
 {
   "connectors": []
 }
@@ -91,15 +83,8 @@ $ rover connector --elv2-license accept list --schema "$(pwd)/regressions/fixtur
 
 ```console
 $ rover connector --elv2-license accept list
-... merging supergraph schema files ...
-... downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2 ...
-... the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1 ...
+merging supergraph schema files
 ? 2
-error: the following required arguments were not provided:
-  --schema <SCHEMA_PATH>
-
-Usage: rover connector list --schema <SCHEMA_PATH>
-
-For more information, try '--help'.
+error: A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph
 
 ```
