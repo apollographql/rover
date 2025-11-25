@@ -108,5 +108,5 @@ For more information, try '--help'.
 
 ```console
 $ pwd
-
+/hello/workd
 ```
