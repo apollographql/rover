@@ -10,7 +10,7 @@ jobs:
     name: Cargo Deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
       - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
+    - uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
     - name: Install nightly@nightly toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
+    - uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
     - name: Install stable@stable toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -50,7 +50,7 @@ jobs:
         package_manager: [npm, npm_global, pnpm]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
       - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
@@ -62,7 +62,7 @@ jobs:
         runner: [ubuntu-latest, macos-15, windows-2025]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
       - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
@@ -82,7 +82,7 @@ jobs:
     container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1
 
     steps:
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       with:
         persist-credentials: false
         ref: ${{ github.head_ref || github.ref_name }}
