@@ -26,7 +26,7 @@ jobs:
             ./target/release/examples/is_deprecated &
             echo $! > is_deprecated_service.pid
             cargo build
-            cargo test --locked --package regressions --test introspection_cli_tests
+            cargo test --locked --package regressions --test cli_tests -- introspection_cli_tests
             kill $(cat is_deprecated_service.pid)
 
   connectors_e2e:
@@ -45,6 +45,6 @@ jobs:
       - name: Run Tests
         run: |
             cargo build
-            cargo test --locked --package regressions --test connectors_cli_tests
+            cargo test --locked --package regressions --test cli_tests -- connectors_cli_tests
             
 
