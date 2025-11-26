@@ -3,13 +3,13 @@ use std::{
     process::{Command as StdCommand, Stdio},
 };
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use which::which;
 
 #[test]
 fn it_generates_bash_completion() {
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = cargo_bin_cmd!("rover");
     let result = cmd.args(["completion", "bash"]).assert().success();
 
     // Bash completion scripts should contain function definitions
@@ -18,7 +18,7 @@ fn it_generates_bash_completion() {
     // Validate bash syntax by piping output to bash -n
     // Skip syntax validation if bash is not available (e.g., in some CI environments)
     if which("bash").is_ok() {
-        let mut rover_cmd = Command::cargo_bin("rover").unwrap();
+        let mut rover_cmd = cargo_bin_cmd!("rover");
         let rover_output = rover_cmd
             .args(["completion", "bash"])
             .output()
@@ -58,7 +58,7 @@ fn it_generates_bash_completion() {
 
 #[test]
 fn it_generates_zsh_completion() {
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = cargo_bin_cmd!("rover");
     let result = cmd.args(["completion", "zsh"]).assert().success();
 
     // Zsh completion scripts should contain completion function definitions
@@ -67,7 +67,7 @@ fn it_generates_zsh_completion() {
     // Validate zsh syntax by piping output to zsh -n
     // Skip syntax validation if zsh is not available (e.g., in some CI environments)
     if which("zsh").is_ok() {
-        let mut rover_cmd = Command::cargo_bin("rover").unwrap();
+        let mut rover_cmd = cargo_bin_cmd!("rover");
         let rover_output = rover_cmd
             .args(["completion", "zsh"])
             .output()
