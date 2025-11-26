@@ -18,6 +18,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.37.0] - 2025-12-01
+
+## 🚀 Features
+
+- **Enable overriding MCP version in `rover dev` - @DaleSeo, PR #2784**
+
+## 🐛 Fixes
+
+- **Remove conditional header in VSCode file from MCP template processing - @gocamille, PR #2757**
+- **Auto-configure MCP server endpoint with router's custom path- @naomijub, PR #2869**
+
+## 📚 Documentation
+
+- **change MCP's default port from 5000 to 8000 - @DaleSeo, PR #2749**
+
+
 # [0.36.2] - 2025-10-03
 
 ## 🚀 Features
