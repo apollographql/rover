@@ -182,7 +182,6 @@ impl Rover {
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
         // do their own checks.
-        // we also skip this check for completion commands since they don't need it.
         // the check is also skipped if the `--skip-update-check` flag is passed.
         if let Command::Update(_) = &self.command { /* skip check */
         } else if !self.skip_update_check {
