@@ -265,6 +265,7 @@ speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "0.3", features = ["async_closure"] }
+which = { workspace = true }
 
 # For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
