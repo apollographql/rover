@@ -12,7 +12,7 @@ type Organization {
   apiKey(keyId: ID!): GraphOsKey
 
   """
-  Returns a list of all active Operator, Subgraph, and SCIM API keys for the account. Org Admins can view all keys; Graph Admins can view only keys that they have created.
+  Returns a list of all active Operator, Subgraph, and SCIM API keys for the account. Org Admins can view all keys; Graph Admins can view only keys for graphs they administer.
   """
   apiKeys(after: String, before: String, first: Int, last: Int): GraphOsKeyConnection!
 
@@ -86,8 +86,16 @@ type OrganizationMutation {
   """Updates the name of an ApiKey"""
   renameKey(keyId: ID!, name: String!): GraphOsKey!
 
+  """
+  Rotate an ApiKey by creating a new key and expiring the old one. Returns the new key
+  """
+  rotateKey(expireOldKeyAt: Timestamp, keyId: ID!, newKeyName: String): GraphOsKey!
+
   """Create or update a custom session length for an org"""
   setCustomSessionLength(sessionDurationInSeconds: Int!): Int!
+
+  """Updates the expiration of an ApiKey"""
+  setKeyExpiration(expiration: Timestamp!, keyId: ID!): GraphOsKey!
 
   """Update a user's role within an organization"""
   updateUserRole(role: UserPermission!, userID: ID!): User
@@ -1571,6 +1579,7 @@ union EditCommentResult = NotFoundError | ParentChangeProposalComment | ParentGe
 
 """GraphQL Error"""
 interface Error {
+  """The error message"""
   message: String!
 }
 
@@ -2128,14 +2137,48 @@ type GraphArtifact {
   """The status of the Graph Artifact"""
   status: GraphArtifactStatus!
 
+  """The OCI tags applied to the Graph Artifact"""
+  tags(
+    """The cursor to start pagination after (for forward pagination)"""
+    after: String
+
+    """
+    The number of tags to return (for forward pagination), defaults to 10, maximum is 20
+    """
+    first: Int
+  ): GraphArtifactTagConnection!
+
   """The last time the Graph Artifact was updated"""
   updatedAt: DateTime!
+}
+
+"""A paginated connection for Graph Artifacts"""
+type GraphArtifactConnection {
+  """The list of Graph Artifact edges containing nodes and cursors"""
+  edges: [GraphArtifactEdge!]!
+
+  """Information about pagination state"""
+  pageInfo: PageInfo!
+
+  """The total number of Graph Artifacts in the connection"""
+  totalCount: Int!
 }
 
 """Artifacts associated to a Graph Artifact"""
 type GraphArtifactContent {
   """The Build associated with the Graph Artifact"""
   build: Build
+}
+
+"""An edge containing a Graph Artifact node and cursor for pagination"""
+type GraphArtifactEdge {
+  """
+  The cursor describing the location of the edge within the pagination result
+  """
+  cursor: String!
+
+  """The Graph Artifact that the edge represents"""
+  node: GraphArtifact!
 }
 
 """Error related to a graph artifact"""
@@ -2161,6 +2204,112 @@ enum GraphArtifactStatus {
 
   """The Graph Artifact is in the process of being created"""
   GRAPH_ARTIFACT_PENDING
+}
+
+"""A tag for a Graph Artifact"""
+type GraphArtifactTag {
+  """The Graph the tag is associated with"""
+  graph: Graph!
+
+  """The Graph Artifact the tag is associated with"""
+  graphArtifact: GraphArtifact!
+
+  """The OCI tag history of the Graph Artifact"""
+  history(
+    """The cursor to start pagination after (for forward pagination)"""
+    after: String
+
+    """
+    The number of Graph Artifacts to return (for forward pagination), defaults to 10, maximum is 20
+    """
+    first: Int
+  ): GraphArtifactTagHistoryConnection!
+
+  """
+  The location where the graph artifact tag can be retrieved from the registry itself
+  """
+  location: GraphArtifactLocation
+
+  """The name of the Graph Artifact tag"""
+  tag: String!
+}
+
+"""A paginated connection for Graph Artifact Tags"""
+type GraphArtifactTagConnection {
+  """The list of Graph Artifact Tag edges containing nodes and cursors"""
+  edges: [GraphArtifactTagEdge!]!
+
+  """Information about pagination state"""
+  pageInfo: PageInfo!
+
+  """The total number of Graph Artifact Tags in the connection"""
+  totalCount: Int!
+}
+
+"""An edge containing a Graph Artifact Tag node and cursor for pagination"""
+type GraphArtifactTagEdge {
+  """
+  The cursor describing the location of the edge within the pagination result
+  """
+  cursor: String!
+
+  """The Graph Artifact Tag that the edge represents"""
+  node: GraphArtifactTag!
+}
+
+"""A paginated connection for Graph Artifact Tags history"""
+type GraphArtifactTagHistoryConnection {
+  """
+  The list of Graph Artifact Tag history edges containing nodes and cursors
+  """
+  edges: [GraphArtifactTagHistoryEdge!]!
+
+  """Information about pagination state"""
+  pageInfo: PageInfo!
+
+  """
+  The total number of Graph Artifact Tag history entries in the connection
+  """
+  totalCount: Int!
+}
+
+"""
+An edge containing a Graph Artifact Tag history node and cursor for pagination
+"""
+type GraphArtifactTagHistoryEdge {
+  """
+  The cursor describing the location of the edge within the pagination result
+  """
+  cursor: String!
+
+  """The Graph Artifact Tag history entry that the edge represents"""
+  node: GraphArtifactTagHistoryEntry!
+}
+
+"""A single graph artifact tag history entry"""
+type GraphArtifactTagHistoryEntry {
+  """When the change occurred"""
+  changedAt: DateTime!
+
+  """The graph artifact to which the tag was assigned"""
+  graphArtifactAssigned: GraphArtifact!
+
+  """
+  The graph artifact from which the tag was removed. This will be null if it is a new tag
+  """
+  graphArtifactUnassigned: GraphArtifact
+
+  """The graph artifact tag that was effected as part of the history event"""
+  tag: GraphArtifactTag!
+}
+
+"""The repository and tag names for a Graph Variant"""
+type GraphArtifactTagLocation {
+  """The repository the tag is associated with"""
+  repository: String!
+
+  """The name of the tag"""
+  tag: String!
 }
 
 """The timing details for the build step of a launch."""
@@ -3867,7 +4016,7 @@ type OperationInsightsTimeseriesReportMetricValue {
 }
 
 """
-The metric and direction to use as the secondary sort order for the operation timeseries report.
+The metric and direction to use as the secondary sort order for the operation timeseries report. The primary sort order will always be time.
 """
 input OperationInsightsTimeseriesReportOrderByInput {
   """
@@ -4942,6 +5091,22 @@ input PublishProposalSubgraphsInput {
   summary: String!
 }
 
+"""The result attempting to publish subgraphs with async build."""
+type PublishSubgraphsAsyncBuildResult {
+  """The Launch result part of this subgraph publish."""
+  launch: Launch
+
+  """
+  The URL of the Studio page for this update's associated launch, if available.
+  """
+  launchUrl: String
+
+  """
+  Human-readable text describing the launch result of the subgraph publish.
+  """
+  launchCliCopy: String
+}
+
 input PublishSubgraphsSubgraphInput {
   activePartialSchema: PartialSchemaInput!
   name: String!
@@ -4950,11 +5115,63 @@ input PublishSubgraphsSubgraphInput {
 
 """Queries defined by this subgraph"""
 type Query {
+  """Get the graph artifact associated with a given digest (SHA)"""
+  graphArtifactByDigest(
+    """The digest (SHA) of the graph artifact"""
+    digest: String!
+
+    """The ID of the graph the graph artifact belongs to"""
+    graphID: ID!
+  ): GraphArtifact
+
   """Get Graph Artifact by Graph Artifact ID"""
   graphArtifactById(
-    """The ID of the Graph Artifact"""
+    """The ID of the graph the graph artifact belongs to"""
+    graphID: ID!
+
+    """The ID of the graph artifact"""
     id: ID!
   ): GraphArtifact
+
+  """Get the Graph Artifact associated with the provided tag"""
+  graphArtifactByTag(
+    """The ID of the graph this tag belongs to"""
+    graphID: ID!
+
+    """The tag name of the Graph Artifact being requested"""
+    tag: String!
+  ): GraphArtifact
+
+  """Get a specific graph artifact tag"""
+  graphArtifactTag(
+    """The ID of the graph where the tag resides"""
+    graphID: ID!
+
+    """The name of the tag"""
+    tag: String!
+  ): GraphArtifactTag
+
+  """Get the repository and tag name for the given variant"""
+  graphArtifactTagLocation(graphID: ID!, variantName: String!): GraphArtifactTagLocation
+
+  """All the graph artifacts associated with a given graphId"""
+  graphArtifacts(
+    """The cursor to start pagination after (for forward pagination)"""
+    after: String
+
+    """
+    The number of artifacts to return (for forward pagination), defaults to 10, maximum is 20
+    """
+    first: Int
+
+    """The cursor to start pagination after (for forward pagination)"""
+    graphID: ID!
+
+    """
+    The optional graph variant name, used to filter the results to a single variant
+    """
+    variantName: String
+  ): GraphArtifactConnection!
 
   """
   Returns details of the authenticated `User` or `Graph` executing this query. If this is an unauthenticated query (i.e., no API key is provided), this field returns null.
@@ -5482,7 +5699,7 @@ type SchemaCoordinateInsightsTimeseriesReportMetricValue {
 }
 
 """
-The metric and direction to use to order the schema coordinate timeseries report.
+The metric and direction to use as the secondary sort order for the schema coordinate timeseries report. The primary sort order will always be time.
 """
 input SchemaCoordinateInsightsTimeseriesReportOrderByInput {
   """The order column used for the metrics results."""
@@ -5755,6 +5972,56 @@ type Graph implements Identity {
     to: Timestamp!
   ): SchemaCoordinateInsightsTimeseriesReportResult!
 
+  """
+   Returns a timeseries of subgraph and connector fetch metrics across a specified time range for this graph. Each
+  request from the router to a subgraph or connector service is counted as a fetch. A single GraphQL operation can
+  result in multiple fetches, depending on the operation shape and query plan. This will return specified metrics (fetch
+  count, avg latency, etc.) grouped by time and the specified dimensions (fetch service ID, fetch service name, client
+  name, etc.). This API is rate limited and only allows a small number of requests per minute, and will return a
+  RATE_LIMIT_EXCEEDED error if too many requests are made for a graph. If a request to this field times out, we
+  recommend that you try a shorter time range or fewer dimensions.
+  """
+  subgraphInsightsTimeseriesReport(
+    """The dimensions to group by."""
+    dimensions: [SubgraphInsightsTimeseriesReportDimension!]!
+
+    """
+    Filtering criteria for the results. Defaults to showing all unfiltered results.
+    """
+    filters: SubgraphInsightsTimeseriesReportFilterInput
+
+    """
+    The starting timestamp for the report. Must be in the format: 2025-01-01T00:00:00Z (ISO 8601).
+    """
+    from: Timestamp!
+
+    """Maximum number of records to return (default: 100, max 10000)."""
+    limit: Int! = 100
+
+    """The metrics to be returned."""
+    metrics: [SubgraphInsightsTimeseriesReportMetric!]!
+
+    """
+    The results will always be sorted by time, but this allows you to set a secondary sorting criteria for the results.
+    """
+    orderBy: SubgraphInsightsTimeseriesReportOrderByInput
+
+    """
+    The resolution of the time groups for the report. This resolution will affect the range of times that can be used for the 'from' and
+    'to' timestamps:
+    - For the MINUTE resolution, the total time between 'from' and 'to' must be no more than 1 day, and the 'from' time must be no earlier than 30 days ago.
+    - For the HOUR resolution, the total time between 'from' and 'to' must be no more than 7 days, and the 'from' time must be no earlier than 90 days ago.
+    - For the DAY and MONTH resolution, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
+    If these criteria are not met, this will return an REQUEST_INVALID error.
+    """
+    resolution: TimeseriesReportResolution!
+
+    """
+    The ending timestamp for the report. Must be in the format: 2025-01-01T08:00:00Z (ISO 8601).
+    """
+    to: Timestamp!
+  ): SubgraphInsightsTimeseriesReportResult!
+
   """The graph's name."""
   title: String!
 
@@ -5983,6 +6250,9 @@ type GraphMutation {
   This field accepts up to 120 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput, downstreamLaunchInitiation: DownstreamLaunchInitiation = ASYNC): SubgraphPublicationResult
+
+  """Publishes multiple subgraphs, running the build async."""
+  publishSubgraphsAsyncBuild(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput): PublishSubgraphsAsyncBuildResult
 
   """
   Removes a subgraph. If composition is successful, this will update running routers.
@@ -6370,6 +6640,193 @@ input SubgraphInput {
   If it is a stable ref i.e. hash then it
   """
   schemaRef: String
+}
+
+"""
+The named type and version of the clients to include or exclude in the subgraph and connector timeseries report.
+"""
+input SubgraphInsightsTimeseriesReportClientFilterInInput {
+  """The client name."""
+  clientName: String
+
+  """The client version."""
+  clientVersion: String
+}
+
+"""
+Dimensions by which the subgraph and connector timeseries data can be grouped or filtered.
+"""
+enum SubgraphInsightsTimeseriesReportDimension {
+  """The client name that issued the request to the graph."""
+  CLIENT_NAME
+
+  """The version string of the client that issued the request to the graph."""
+  CLIENT_VERSION
+
+  """
+  The identifier of the downstream subgraph or connector service that the router made a request to as part of its query plan execution.
+  """
+  FETCH_SERVICE_ID
+
+  """
+  The name of the downstream subgraph or connector service that the router made a request to as part of its query plan execution.
+  """
+  FETCH_SERVICE_NAME
+
+  """The variant or version of the graph serving the request."""
+  GRAPH_VARIANT
+
+  """The unique identifier of the top-level operation executed."""
+  OPERATION_ID
+
+  """The name of the top-level operation executed, if provided."""
+  OPERATION_NAME
+
+  """The GraphQl operation type, e.g. QUERY, MUTATION, SUBSCRIPTION"""
+  OPERATION_TYPE
+}
+
+"""
+The type and value for a subgraph and connector insights timeseries report dimension.
+"""
+type SubgraphInsightsTimeseriesReportDimensionValue {
+  """The type of dimension this represents."""
+  type: SubgraphInsightsTimeseriesReportDimension!
+
+  """
+  The string value of this dimension. Null for subgraphs without this dimension (e.g., unnamed operations).
+  """
+  value: String
+}
+
+"""
+Lists of dimensions to include or exclude in the subgraph and connector timeseries report. Each list can have a maximum of 1000 entries.
+"""
+input SubgraphInsightsTimeseriesReportFilterInInput {
+  """Include or exclude certain clients"""
+  clients: [SubgraphInsightsTimeseriesReportClientFilterInInput]
+
+  """
+  Matches any subgraph or connector fetches targeting a subgraph or connector with an ID in this list.
+  """
+  fetchServiceId: [String]
+
+  """
+  Matches any subgraph or connector fetches targeting a subgraph or connector with a name in this list.
+  """
+  fetchServiceName: [String]
+
+  """
+  Matches any subgraph or connector fetches whose operation ID is in this list.
+  """
+  operationId: [String]
+
+  """
+  Matches any subgraph or connector fetches whose operation name is in this list.
+  """
+  operationName: [String]
+
+  """
+  Matches any subgraph or connector fetches requested from any variant in this list.
+  """
+  variantName: [String]
+}
+
+"""
+The filters available when using the subgraph and connector timeseries report.
+"""
+input SubgraphInsightsTimeseriesReportFilterInput {
+  """
+  Exclude subgraph or connector fetches that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', an REQUEST_INVALID error will be returned.
+  """
+  exclude: SubgraphInsightsTimeseriesReportFilterInInput
+
+  """
+  Include subgraph or connector fetches that match a specified set of dimensions.
+  """
+  include: SubgraphInsightsTimeseriesReportFilterInInput
+}
+
+"""
+Metrics available for subgraph and connector timeseries fetches, representing aggregated data
+collected over the given time window for the selected dimensions. Each request from the router to a downstream subgraph
+or connector service is counted as a fetch.
+"""
+enum SubgraphInsightsTimeseriesReportMetric {
+  """
+  The total number of fetch requests sent from the router to the downstream subgraph or connector service as part of its query plan execution.
+  """
+  FETCH_COUNT
+
+  """The 50th percentile (median) latency of fetches (in milliseconds)."""
+  FETCH_LATENCY_P50_MS
+
+  """The 90th percentile latency of fetch requests (in milliseconds)."""
+  FETCH_LATENCY_P90_MS
+
+  """The 99th percentile latency of fetch requests (in milliseconds)."""
+  FETCH_LATENCY_P99_MS
+
+  """
+  The number of fetch requests that resulted in error responses from the downstream service.
+  """
+  FETCH_WITH_ERRORS_COUNT
+}
+
+"""
+The type and value for subgraph and connector insights timeseries report metric.
+"""
+type SubgraphInsightsTimeseriesReportMetricValue {
+  """The type of metric this represents."""
+  type: SubgraphInsightsTimeseriesReportMetric!
+
+  """The floating point value of this metric."""
+  value: Float!
+}
+
+"""
+The metric and direction to use as the secondary sort order for the subgraph and connector insights timeseries report. The primary sort order will always be time.
+"""
+input SubgraphInsightsTimeseriesReportOrderByInput {
+  """
+  The ordering used for the metrics results. This metric must be included in the requested metrics.
+  """
+  column: SubgraphInsightsTimeseriesReportMetric!
+
+  """The direction used to order the results."""
+  direction: Ordering!
+}
+
+"""
+The data that is returned by the subgraph and connector insights timeseries report.
+"""
+type SubgraphInsightsTimeseriesReportResult {
+  """
+  A CSV representation of the results. This includes a header and rows that have a column for start and end timestamp and all requested dimensions and metrics.
+  """
+  csv: String
+
+  """
+  The result records, with each row having a start and end timestamp and a set of dimensions and metrics.
+  """
+  records: [SubgraphInsightsTimeseriesReportRow!]!
+}
+
+"""
+A single row of data that is returned by the subgraph and connector insights timeseries report.
+"""
+type SubgraphInsightsTimeseriesReportRow {
+  """The dimension values for this row, matching the requested dimensions."""
+  dimensions: [SubgraphInsightsTimeseriesReportDimensionValue!]!
+
+  """The exclusive end of the time bucket for this row."""
+  endExclusiveTimestamp: Timestamp!
+
+  """The metric values for this row, matching the requested metrics."""
+  metrics: [SubgraphInsightsTimeseriesReportMetricValue!]!
+
+  """The start of the time bucket for this row."""
+  startTimestamp: Timestamp!
 }
 
 input SubgraphSdlCheckInput {
