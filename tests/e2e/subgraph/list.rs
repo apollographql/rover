@@ -1,6 +1,3 @@
-use std::process::Command;
-
-use assert_cmd::prelude::CommandCargoExt;
 use regex::Regex;
 use rstest::rstest;
 use speculoos::{assert_that, boolean::BooleanAssertions};
@@ -18,7 +15,7 @@ async fn e2e_test_rover_subgraph_list(remote_supergraph_graphref: String) {
     //   - rover subgraph list to stdout
     // WHEN
     //   - the command is run
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.args(["subgraph", "list", &remote_supergraph_graphref]);
     let output = cmd.output().expect("Could not run command");
 

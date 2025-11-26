@@ -1,6 +1,5 @@
-use std::{path::PathBuf, process::Command, str::from_utf8};
+use std::{path::PathBuf, str::from_utf8};
 
-use assert_cmd::prelude::CommandCargoExt;
 use rand::Rng;
 use rstest::rstest;
 use serde::Deserialize;
@@ -51,8 +50,7 @@ async fn e2e_test_rover_subgraph_publish(
     info!("Using name {} for subgraph", &id);
 
     // Grab the initial list of subgraphs to check that what we want doesn't already exist
-    let mut subgraph_list_cmd =
-        Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut subgraph_list_cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     subgraph_list_cmd.args([
         "subgraph",
         "list",
@@ -76,7 +74,7 @@ async fn e2e_test_rover_subgraph_publish(
     // Construct a command to publish a new subgraph to a variant that's specifically for this
     // purpose
     info!("Creating subgraph with name {}", &id);
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.args([
         "subgraph",
         "publish",
@@ -114,8 +112,7 @@ async fn e2e_test_rover_subgraph_publish(
     // left with subgraphs lying around. In the future we should move to something like
     // test-context (https://docs.rs/test-context/latest/test_context/) so that we get cleanup
     // for free. Until then we can manually clean up if it becomes necessary.
-    let mut subgraph_delete_cmd =
-        Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut subgraph_delete_cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     subgraph_delete_cmd.args([
         "subgraph",
         "delete",

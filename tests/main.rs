@@ -1,10 +1,9 @@
-use assert_cmd::Command;
 use predicates::prelude::*;
 mod integration;
 
 #[test]
 fn its_executable() {
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
 
     // running the CLI with no command returns the help message to stderr
     let result = cmd.assert();
