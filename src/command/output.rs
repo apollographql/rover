@@ -128,6 +128,14 @@ pub enum RoverOutput {
     ConnectorTestResponse {
         output: String,
     },
+    ClientExtractResponse {
+        summary: crate::client::extract::ExtractionSummary,
+        files: Vec<crate::client::extract::MaterializedFile>,
+        skipped: Vec<(Utf8PathBuf, usize, crate::client::extract::SkipReason)>,
+    },
+    ClientCheckResponse {
+        summary: crate::command::client::check::ClientCheckSummary,
+    },
     CreateKeyResponse {
         api_key: String,
         key_type: String,
@@ -578,6 +586,71 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::ClientExtractResponse {
+                summary,
+                files,
+                skipped,
+            } => {
+                stderrln!(
+                    "Processed {} source files; {} contained GraphQL.",
+                    summary.source_files_processed,
+                    summary.source_files_with_graphql
+                )?;
+                if !files.is_empty() {
+                    stderrln!("Wrote {} documents to {}", summary.documents_extracted, summary.out_dir)?;
+                }
+                if !skipped.is_empty() {
+                    stderrln!("Skipped {} documents:", summary.documents_skipped)?;
+                    for (file, line, reason) in skipped {
+                        stderrln!("  {}:{} {:?}", file, line, reason)?;
+                    }
+                }
+                Some(format!(
+                    "Output directory: {}\nDocuments extracted: {}\nDocuments skipped: {}",
+                    summary.out_dir, summary.documents_extracted, summary.documents_skipped
+                ))
+            }
+            RoverOutput::ClientCheckResponse { summary } => {
+                stderrln!(
+                    "Validated {} operations ({} files scanned)",
+                    summary.operations_sent,
+                    summary.files_scanned
+                )?;
+                for result in &summary.validation_results {
+                    let loc = match (&result.file, result.line, result.column) {
+                        (Some(file), Some(line), Some(col)) => format!("{file}:{line}:{col}"),
+                        (Some(file), Some(line), None) => format!("{file}:{line}"),
+                        (Some(file), None, None) => file.to_string(),
+                        _ => String::new(),
+                    };
+                    let styled_desc = match result.r#type.as_str() {
+                        "FAILURE" => Style::Failure.paint(&result.description),
+                        "INVALID" => Style::WarningHeading.paint(&result.description),
+                        _ => Style::Pending.paint(&result.description),
+                    };
+                    let mut message = format!("{} {}", result.r#type, styled_desc);
+                    if !loc.is_empty() {
+                        message = format!("{loc} {message}");
+                    }
+                    stderrln!("{}", message)?;
+                }
+                if !summary.failures.is_empty() {
+                    stderrln!("Local parse errors:")?;
+                    for failure in &summary.failures {
+                        stderrln!("  {}: {}", failure.file, failure.message)?;
+                    }
+                }
+                Some(format!(
+                    "graph_ref: {}\noperations_sent: {}\nvalidation_results: {}\nlocal_failures: {}",
+                    summary
+                        .graph_ref
+                        .clone()
+                        .unwrap_or_else(|| "unspecified".into()),
+                    summary.operations_sent,
+                    summary.validation_results.len(),
+                    summary.failures.len()
+                ))
+            }
         })
     }
 
@@ -711,6 +784,65 @@ impl RoverOutput {
             }
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
+            RoverOutput::ClientExtractResponse {
+                summary,
+                files,
+                skipped,
+            } => {
+                json!({
+                    "client_extract": {
+                        "out_dir": summary.out_dir,
+                        "source_files_processed": summary.source_files_processed,
+                        "source_files_with_graphql": summary.source_files_with_graphql,
+                        "documents_extracted": summary.documents_extracted,
+                        "documents_skipped": summary.documents_skipped,
+                        "files": files
+                            .iter()
+                            .map(|f| json!({
+                                "source": f.source,
+                                "target": f.target,
+                                "documents": f.documents
+                            }))
+                            .collect::<Vec<_>>(),
+                        "skipped": skipped
+                            .iter()
+                            .map(|(source, line, reason)| json!({
+                                "source": source,
+                                "line": line,
+                                "reason": format!("{reason:?}"),
+                            }))
+                            .collect::<Vec<_>>(),
+                    }
+                })
+            }
+            RoverOutput::ClientCheckResponse { summary } => {
+                json!({
+                    "client_check": {
+                        "graph_ref": summary.graph_ref,
+                        "files_scanned": summary.files_scanned,
+                        "operations_sent": summary.operations_sent,
+                        "failures": summary.failures
+                            .iter()
+                            .map(|f| json!({
+                                "file": f.file,
+                                "message": f.message
+                            }))
+                            .collect::<Vec<_>>(),
+                        "validation_results": summary.validation_results
+                            .iter()
+                            .map(|r| json!({
+                                "operation_name": r.operation_name,
+                                "type": r.r#type,
+                                "code": r.code,
+                                "description": r.description,
+                                "file": r.file,
+                                "line": r.line,
+                                "column": r.column,
+                            }))
+                            .collect::<Vec<_>>(),
+                    }
+                })
+            }
             RoverOutput::CreateKeyResponse {
                 api_key,
                 key_type,
