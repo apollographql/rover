@@ -37,7 +37,9 @@ fn it_generates_bash_completion() {
         .write_all(&rover_output.stdout)
         .expect("Failed to write to bash stdin");
 
-    let bash_result = bash_cmd.wait_with_output().expect("Failed to wait for bash");
+    let bash_result = bash_cmd
+        .wait_with_output()
+        .expect("Failed to wait for bash");
     assert!(
         bash_result.status.success(),
         "bash syntax check failed. stderr: {}",
