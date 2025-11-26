@@ -1,5 +1,6 @@
 use std::{env, process::Command};
 
+use assert_cmd::cargo;
 use regex::RegexSet;
 use rstest::*;
 use tracing::error;
@@ -16,7 +17,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
     //   - a supergraph config yaml (fixture)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
     //   (fixture)
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     let mut args: Vec<String> = vec![
         "supergraph",
         "compose",
@@ -80,7 +81,7 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
 async fn it_fails_without_a_config() {
     // GIVEN
     //   - an invocation of `rover supergraph compose` without any config file
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("rover"));
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args(["supergraph", "compose"]);
 
     // WHEN

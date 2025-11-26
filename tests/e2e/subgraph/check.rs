@@ -1,5 +1,7 @@
 use std::path::PathBuf;
+use std::process::Command;
 
+use assert_cmd::cargo;
 use regex::Regex;
 use rstest::rstest;
 use speculoos::{assert_that, boolean::BooleanAssertions};
@@ -23,7 +25,7 @@ async fn e2e_test_rover_subgraph_check(
 
     // WHEN
     //   - the command is run
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "check",

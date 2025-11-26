@@ -1,3 +1,6 @@
+use std::process::Command;
+
+use assert_cmd::cargo;
 use rstest::*;
 
 use crate::e2e::remote_supergraph_graphref;
@@ -25,7 +28,7 @@ async fn e2e_test_rover_client_timeout_option(
 
     // WHEN
     //   - a command supporting the --client-timeout option is invoked
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_REGISTRY_URL", fake_registry);
     cmd.args([
         "subgraph",
