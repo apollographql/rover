@@ -1,6 +1,5 @@
-use std::{process::Command, str::from_utf8};
+use std::str::from_utf8;
 
-use assert_cmd::prelude::CommandCargoExt;
 use assert_fs::TempDir;
 use camino::Utf8PathBuf;
 use regex::Regex;
@@ -26,7 +25,7 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     //   - it's run
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.env("APOLLO_HOME", temp_dir);
     cmd.args(args);
     let output = cmd.output().expect("Could not run command");
@@ -84,7 +83,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
         .collect();
 
     // FIRST INSTALLATION, NO FORCE
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
@@ -105,7 +104,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     assert_that(&installed).is_true();
 
     // SECOND INSTALLATION, NO FORCE, USES EXISTING BINARY
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
@@ -125,7 +124,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     assert_that!(installed).is_true();
 
     // THIRD INSTALLATION, USES FORCE, BINARY EXISTS
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.args(forced_args);
     let output = cmd.output().expect("Could not run command");
@@ -147,7 +146,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
 ) {
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
 
     let config_file_contents = std::fs::read_to_string("latest_plugin_versions.json")
         .expect("Should have been able to read the file");
