@@ -1,9 +1,9 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::predicate;
 
 #[test]
 fn invalid_ip() {
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = cargo_bin_cmd!("rover");
     let assert = cmd
         .arg("dev")
         .arg("--supergraph-address=notanip")
@@ -16,7 +16,7 @@ fn invalid_ip() {
 
 #[test]
 fn invalid_port() {
-    let mut cmd = Command::cargo_bin("rover").unwrap();
+    let mut cmd = cargo_bin_cmd!("rover");
     let assert = cmd
         .arg("dev")
         .arg("--supergraph-port=notaport")

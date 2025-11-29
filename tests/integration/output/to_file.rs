@@ -1,6 +1,6 @@
 use std::fs;
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use camino::Utf8PathBuf;
 use houston::{Config, Profile};
 use rover::utils::env::RoverEnvKey;
@@ -45,7 +45,7 @@ fn it_can_write_files_correctly_no_matter_the_input_path(
         fs::write(file, "foo bar bash").expect("Could not create existing directories");
     }
 
-    let mut starter_cmd = Command::cargo_bin("rover").unwrap();
+    let mut starter_cmd = cargo_bin_cmd!("rover");
     starter_cmd
         .env(RoverEnvKey::ConfigHome.to_string(), temp_config_dir_path)
         .args(vec![

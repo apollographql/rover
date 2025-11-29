@@ -1,6 +1,6 @@
 use std::{env, process::Command, time::Duration};
 
-use assert_cmd::prelude::CommandCargoExt;
+use assert_cmd::cargo;
 use mime::APPLICATION_JSON;
 use portpicker::pick_unused_port;
 use reqwest::{Client, header::CONTENT_TYPE};
@@ -22,7 +22,7 @@ const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 #[once]
 #[allow(clippy::zombie_processes)]
 fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     let port = pick_unused_port().expect("No ports free");
     let router_url = format!("http://localhost:{port}");
     let client = Client::new();
