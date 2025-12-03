@@ -139,8 +139,7 @@ mod tests {
             ..Default::default()
         };
 
-        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql"))
-            .unwrap();
+        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql")).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], file_b);
     }
@@ -155,8 +154,7 @@ mod tests {
         std::fs::write(&nested, "query Ignore { x }").unwrap();
 
         let options = DiscoveryOptions::default();
-        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql"))
-            .unwrap();
+        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql")).unwrap();
         assert!(files.is_empty());
     }
 }

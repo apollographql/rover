@@ -1,7 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
 use graphql_client::GraphQLQuery;
-use serde_json::{Value, json};
 use houston::{Credential, CredentialOrigin};
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -161,52 +160,5 @@ impl StudioClient {
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?
             .boxed_clone();
         Ok(service)
-    }
-
-    /// Execute an arbitrary GraphQL request against Studio.
-    pub async fn post_raw(
-        &self,
-        query: &str,
-        variables: Value,
-    ) -> Result<Value, RoverClientError> {
-        let headers = self.build_studio_headers()?;
-        let res = self
-            .reqwest_client
-            .post(&self.graphql_endpoint)
-            .headers(headers)
-            .json(&json!({
-                "query": query,
-                "variables": variables,
-            }))
-            .send()
-            .await
-            .map_err(|source| RoverClientError::SendRequest {
-                source,
-                endpoint_kind: EndpointKind::ApolloStudio,
-            })?;
-
-        let status = res.status();
-        let body = res
-            .text()
-            .await
-            .map_err(|source| RoverClientError::SendRequest {
-                source,
-                endpoint_kind: EndpointKind::ApolloStudio,
-            })?;
-
-        if !status.is_success() {
-            return Err(RoverClientError::ClientError { msg: body });
-        }
-
-        let json: Value = serde_json::from_str(&body)?;
-        if let Some(errors) = json.get("errors").and_then(|v| v.as_array()) {
-            let msg = errors
-                .iter()
-                .filter_map(|e| e.get("message").and_then(|m| m.as_str()))
-                .collect::<Vec<_>>()
-                .join("\n");
-            return Err(RoverClientError::GraphQl { msg });
-        }
-        Ok(json)
     }
 }

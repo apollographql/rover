@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use tree_sitter::Parser;
 
-use crate::client::graphql::{parse_graphql, GraphQLParseError};
+use crate::client::graphql::{GraphQLParseError, parse_graphql};
 
 /// Supported languages for client extraction.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Serialize)]
@@ -123,7 +123,9 @@ fn parse_call_expression(
     node: &tree_sitter::Node<'_>,
     allowed_tags: &[&str],
 ) -> Option<Result<ExtractedDocument, (usize, SkipReason)>> {
-    let func_node = node.child_by_field_name("function").or_else(|| node.child(0))?;
+    let func_node = node
+        .child_by_field_name("function")
+        .or_else(|| node.child(0))?;
     let func_text = func_node.utf8_text(source.as_bytes()).ok()?;
     let template_node = find_template_child(node, "template_string")?;
     extract_template_node(source, &func_text, &template_node, allowed_tags)
@@ -156,10 +158,7 @@ fn extract_template_node(
     if template_text.contains("${") {
         return Some(Err((line, SkipReason::UnsupportedInterpolation)));
     }
-    let content = template_text
-        .trim_matches('`')
-        .trim()
-        .to_string();
+    let content = template_text.trim_matches('`').trim().to_string();
 
     Some(Ok(ExtractedDocument { content, line }))
 }
@@ -168,7 +167,9 @@ fn extract_triple_quote_documents(source: &str) -> ExtractResult {
     let mut result = ExtractResult::default();
     let markers: Vec<_> = source.match_indices(r#""""#).collect();
     for pair in markers.chunks(2) {
-        let [(start, _), (end, _)] = pair else { continue };
+        let [(start, _), (end, _)] = pair else {
+            continue;
+        };
         let start_idx = *start + 3;
         if start_idx > source.len() || *end <= start_idx {
             continue;

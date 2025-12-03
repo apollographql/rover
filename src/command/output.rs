@@ -597,7 +597,11 @@ impl RoverOutput {
                     summary.source_files_with_graphql
                 )?;
                 if !files.is_empty() {
-                    stderrln!("Wrote {} documents to {}", summary.documents_extracted, summary.out_dir)?;
+                    stderrln!(
+                        "Wrote {} documents to {}",
+                        summary.documents_extracted,
+                        summary.out_dir
+                    )?;
                 }
                 if !skipped.is_empty() {
                     stderrln!("Skipped {} documents:", summary.documents_skipped)?;

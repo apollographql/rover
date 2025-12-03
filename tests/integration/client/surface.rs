@@ -3,13 +3,21 @@ use assert_cmd::Command;
 #[test]
 fn client_extract_help_works() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
-    cmd.arg("client").arg("extract").arg("--help").assert().success();
+    cmd.arg("client")
+        .arg("extract")
+        .arg("--help")
+        .assert()
+        .success();
 }
 
 #[test]
 fn client_check_help_works() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
-    cmd.arg("client").arg("check").arg("--help").assert().success();
+    cmd.arg("client")
+        .arg("check")
+        .arg("--help")
+        .assert()
+        .success();
 }
 
 #[test]

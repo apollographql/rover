@@ -1,20 +1,21 @@
-use std::collections::HashMap;
-use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::anyhow;
-use apollo_compiler::{ExecutableDocument, Schema, ValidationMode};
 use apollo_parser::{Parser, cst};
-use apollo_parser::cst::CstNode;
+use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser as ClapParser;
 use serde::Serialize;
-use serde_json::json;
+use std::collections::HashMap;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
     client::{
-        discovery::{discover_files, DiscoveryOptions},
+        discovery::{DiscoveryOptions, discover_files},
         extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     },
     options::{OptionalGraphRefOpt, ProfileOpt},
+    rover_client::operations::graph::validate_operations,
+    rover_client::operations::graph::validate_operations::{
+        OperationDocument, ValidateOperationsInput,
+    },
     utils::client::StudioClientConfig,
 };
 
@@ -78,12 +79,6 @@ struct ParsedFile {
     extensions: Vec<ExtensionSnippet>,
 }
 
-#[derive(Debug, Clone)]
-struct ExtensionSnippet {
-    text: String,
-    file: Utf8PathBuf,
-}
-
 impl Check {
     pub async fn run(
         &self,
@@ -143,11 +138,10 @@ impl Check {
             )));
         }
 
-        let graph_ref = self
-            .graph
-            .graph_ref
-            .clone()
-            .ok_or_else(|| RoverError::new(anyhow!("A graph ref is required for client check.")))?;
+        let graph_ref =
+            self.graph.graph_ref.clone().ok_or_else(|| {
+                RoverError::new(anyhow!("A graph ref is required for client check."))
+            })?;
 
         let extension_failures =
             collect_extension_failures(&client_config, &self.profile, &graph_ref, &extensions)
@@ -159,10 +153,7 @@ impl Check {
         let validation_results =
             validate_against_remote(&client, &graph_ref, &operations, &git_context).await?;
 
-        let op_lookup: HashMap<_, _> = operations
-            .iter()
-            .map(|op| (op.name.clone(), op))
-            .collect();
+        let op_lookup: HashMap<_, _> = operations.iter().map(|op| (op.name.clone(), op)).collect();
 
         let mapped_results = validation_results
             .into_iter()
@@ -185,9 +176,11 @@ impl Check {
         };
 
         // Fail if any remote validation result is a failure/invalid or there are local failures.
-        let has_errors = summary.validation_results.iter().any(|r| {
-            matches!(r.r#type.as_str(), "FAILURE" | "INVALID")
-        }) || !summary.failures.is_empty();
+        let has_errors = summary
+            .validation_results
+            .iter()
+            .any(|r| matches!(r.r#type.as_str(), "FAILURE" | "INVALID"))
+            || !summary.failures.is_empty();
 
         if has_errors {
             Err(RoverError::new(anyhow!(
@@ -308,21 +301,23 @@ async fn collect_extension_failures(
             return vec![ClientCheckFailure {
                 file: Utf8PathBuf::from("schema.graphql"),
                 message: err.to_string(),
-            }]
+            }];
         }
     };
 
-    let fetch_input =
-        rover_client::operations::graph::fetch::GraphFetchInput { graph_ref: graph_ref.clone() };
-    let fetch_response = match rover_client::operations::graph::fetch::run(fetch_input, &client).await {
-        Ok(res) => res,
-        Err(err) => {
-            return vec![ClientCheckFailure {
-                file: Utf8PathBuf::from("schema.graphql"),
-                message: err.to_string(),
-            }]
-        }
+    let fetch_input = rover_client::operations::graph::fetch::GraphFetchInput {
+        graph_ref: graph_ref.clone(),
     };
+    let fetch_response =
+        match rover_client::operations::graph::fetch::run(fetch_input, &client).await {
+            Ok(res) => res,
+            Err(err) => {
+                return vec![ClientCheckFailure {
+                    file: Utf8PathBuf::from("schema.graphql"),
+                    message: err.to_string(),
+                }];
+            }
+        };
 
     let failures = validate_extensions(&fetch_response.sdl.contents, extensions);
     failures
@@ -348,77 +343,31 @@ async fn validate_against_remote(
     operations: &[OperationInput],
     git_context: &rover_client::shared::GitContext,
 ) -> RoverResult<Vec<ClientValidationResult>> {
-    const VALIDATE_MUTATION: &str = r#"
-        mutation ClientValidate($graph_id: ID!, $tag: String!, $operations: [OperationDocumentInput!]!, $gitContext: GitContextInput) {
-          service(id: $graph_id) {
-            validateOperations(tag: $tag, operations: $operations, gitContext: $gitContext) {
-              validationResults {
-                type
-                code
-                description
-                operation { name }
-              }
-            }
-          }
-        }
-    "#;
-
     let op_inputs = operations
         .iter()
-        .map(|op| json!({ "name": op.name, "body": op.body }))
+        .map(|op| OperationDocument {
+            name: op.name.clone(),
+            body: op.body.clone(),
+        })
         .collect::<Vec<_>>();
 
-    let git_ctx = json!({
-        "branch": git_context.branch,
-        "commit": git_context.commit,
-        "committer": git_context.author,
-        "remoteUrl": git_context.remote_url,
-    });
+    let validation_input = ValidateOperationsInput {
+        graph_ref: graph_ref.clone(),
+        operations: op_inputs,
+        git_context: git_context.clone(),
+    };
 
-    let variables = json!({
-        "graph_id": graph_ref.name,
-        "tag": graph_ref.variant,
-        "operations": op_inputs,
-        "gitContext": git_ctx,
-    });
-
-    let response = client.post_raw(VALIDATE_MUTATION, variables).await?;
-    let results = response
-        .get("data")
-        .and_then(|d| d.get("service"))
-        .and_then(|s| s.get("validateOperations"))
-        .and_then(|v| v.get("validationResults"))
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| RoverError::new(anyhow!("Malformed response from validation API")))?;
-
+    let results = validate_operations::run(validation_input, client).await?;
     Ok(results
-        .iter()
-        .filter_map(|val| {
-            let operation_name = val
-                .get("operation")
-                .and_then(|o| o.get("name"))
-                .and_then(|n| n.as_str())?
-                .to_string();
-            Some(ClientValidationResult {
-                operation_name,
-                r#type: val
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or_default()
-                    .to_string(),
-                code: val
-                    .get("code")
-                    .and_then(|c| c.as_str())
-                    .map(|c| c.to_string()),
-                description: val
-                    .get("description")
-                    .and_then(|d| d.as_str())
-                    .unwrap_or_default()
-                    .to_string(),
-                file: None,
-                line: None,
-                column: None,
-            })
+        .into_iter()
+        .map(|val| ClientValidationResult {
+            operation_name: val.operation_name,
+            r#type: val.r#type,
+            code: val.code,
+            description: val.description,
+            file: None,
+            line: None,
+            column: None,
         })
         .collect())
 }

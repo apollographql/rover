@@ -1,6 +1,6 @@
 pub mod cli;
-pub mod command;
 pub mod client;
+pub mod command;
 #[cfg(feature = "composition-js")]
 pub mod composition;
 mod error;

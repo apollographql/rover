@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::anyhow;
+use camino::{Utf8Path, Utf8PathBuf};
 use clap::{Parser, ValueEnum};
 use rover_std::Fs;
 use serde::Serialize;
@@ -9,10 +9,10 @@ use serde::Serialize;
 use crate::{
     RoverError, RoverOutput, RoverResult,
     client::{
-        discovery::{discover_files, DiscoveryOptions},
+        discovery::{DiscoveryOptions, discover_files},
         extract::{
-            extract_documents, ExtractLanguage, ExtractResult, MaterializedFile, ExtractionSummary,
-            SkipReason,
+            ExtractLanguage, ExtractResult, ExtractionSummary, MaterializedFile, SkipReason,
+            extract_documents,
         },
     },
 };
@@ -76,10 +76,14 @@ impl Extract {
         };
 
         let enabled_languages: BTreeSet<ExtractLanguage> = if self.language.is_empty() {
-            [ExtractLanguage::TypeScript, ExtractLanguage::Swift, ExtractLanguage::Kotlin]
-                .iter()
-                .cloned()
-                .collect()
+            [
+                ExtractLanguage::TypeScript,
+                ExtractLanguage::Swift,
+                ExtractLanguage::Kotlin,
+            ]
+            .iter()
+            .cloned()
+            .collect()
         } else {
             self.language.iter().map(LanguageOpt::to_language).collect()
         };

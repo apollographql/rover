@@ -1,16 +1,12 @@
 pub(crate) mod check;
-mod extract;
 mod extensions;
+mod extract;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
 use serde::Serialize;
 
-use crate::{
-    RoverOutput, RoverResult,
-    options::OutputOpts,
-    utils::client::StudioClientConfig,
-};
+use crate::{RoverOutput, RoverResult, options::OutputOpts, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Client {
@@ -35,7 +31,11 @@ impl Client {
         output_opts: &OutputOpts,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Check(command) => command.run(client_config, git_context, output_opts.format_kind).await,
+            Command::Check(command) => {
+                command
+                    .run(client_config, git_context, output_opts.format_kind)
+                    .await
+            }
             Command::Extract(command) => command.run().await,
         }
     }
