@@ -57,6 +57,7 @@ impl RunMcpServer<state::Run> {
         spawn: Spawn,
         supergraph_schema_path: Utf8PathBuf,
         router_address: RouterAddress,
+        router_url_path: Option<String>,
         mcp_config_path: Option<Utf8PathBuf>,
         env: HashMap<String, String>,
     ) -> Result<RunMcpServer<state::Abort>, RunMcpServerBinaryError>
@@ -70,6 +71,7 @@ impl RunMcpServer<state::Run> {
             .supergraph_schema_path(supergraph_schema_path.clone())
             .spawn(spawn)
             .router_address(router_address)
+            .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(env)
             .build();

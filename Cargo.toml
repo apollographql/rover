@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.36.2"
+version = "0.37.0"
 default-run = "rover"
 
 publish = false
@@ -36,6 +36,7 @@ members = [
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
+    "regressions"
 ]
 
 [workspace.lints.clippy]
@@ -261,9 +262,9 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "0.35"
+jsonschema = "0.37"
 mime = "0.3"
-mockall = "0.13"
+mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.18"

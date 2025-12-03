@@ -15,7 +15,7 @@ pub struct ListConnector {
     ///
     /// Optional if there is a `supergraph.yaml` containing only a single subgraph
     #[arg(long = "schema", value_name = "SCHEMA_FILE_PATH")]
-    schema_path: Option<PathBuf>,
+    schema: Option<PathBuf>,
 }
 
 impl ListConnector {
@@ -25,9 +25,10 @@ impl ListConnector {
         default_subgraph: Option<PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
-        let schema_path = self.schema_path.clone().or(default_subgraph).ok_or_else(|| anyhow!(
+        let schema_path = self.schema.clone().or(default_subgraph).ok_or_else(|| anyhow!(
             "A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph"
         ))?;
+
         let result = supergraph_binary
             .list_connector(
                 &exec_command_impl,

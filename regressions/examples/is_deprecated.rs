@@ -1,0 +1,60 @@
+#![allow(clippy::needless_lifetimes)]
+use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
+use async_graphql_axum::GraphQL;
+use axum::{Router, routing::post_service};
+use tokio::net::TcpListener;
+
+pub struct StarWars;
+
+struct Recipe {
+    creation: String,
+    title: String,
+}
+
+#[Object]
+impl Recipe {
+    async fn creation(&self) -> String {
+        self.creation.to_string()
+    }
+
+    #[graphql(deprecation = "foo")]
+    async fn title(&self) -> String {
+        self.title.to_string()
+    }
+}
+
+pub struct QueryRoot;
+
+#[Object]
+impl QueryRoot {
+    async fn recipe<'a>(&self, _ctx: &Context<'a>, id: String) -> Recipe {
+        Recipe {
+            creation: "date".to_string(),
+            title: id,
+        }
+    }
+
+    async fn bogus<'a>(
+        &self,
+        _ctx: &Context<'a>,
+        _id: String,
+        #[graphql(deprecation = "bar")] _title: Option<String>,
+    ) -> i32 {
+        0i32
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+        .data(StarWars)
+        .finish();
+
+    let app = Router::new().route("/", post_service(GraphQL::new(schema)));
+
+    println!("GraphiQL IDE: http://0.0.0.0:8000");
+
+    axum::serve(TcpListener::bind("0.0.0.0:8000").await.unwrap(), app)
+        .await
+        .unwrap();
+}

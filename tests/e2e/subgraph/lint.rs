@@ -1,6 +1,5 @@
-use std::{path::PathBuf, process::Command};
+use std::path::PathBuf;
 
-use assert_cmd::prelude::CommandCargoExt;
 use rstest::rstest;
 use speculoos::assert_that;
 use tracing::error;
@@ -21,7 +20,7 @@ async fn e2e_test_rover_subgraph_lint(
         .to_str()
         .expect("failed to get path to perfSubgraph00.graphql file");
 
-    let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
     cmd.args([
         "subgraph",
         "lint",

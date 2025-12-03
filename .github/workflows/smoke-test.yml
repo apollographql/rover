@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.compile_target.compiles_on }}
     container: ${{ matrix.compile_target.container }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         name: "Checkout rover repo"
       - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
         with:
@@ -88,7 +88,7 @@ jobs:
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         name: "Checkout rover repo"
       - uses: actions/download-artifact@v6
         name: "Download artifacts built in previous stages"
@@ -96,6 +96,21 @@ jobs:
         name: "Set permissions on artifacts correctly"
         run: |
           chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
+      - name: "Create expected directory structure for test binary lookup"
+        shell: bash
+        run: |
+          mkdir -p target/${{ matrix.testing_target.binary_under_test }}/debug
+          cp -r ./${{ matrix.testing_target.binary_under_test }}/* target/${{ matrix.testing_target.binary_under_test }}/debug/
+      - name: "Create symlink for Linux container path (compiled in Docker with different workspace)"
+        if: ${{ matrix.testing_target.binary_under_test == 'x86_64-unknown-linux-gnu' }}
+        run: |
+          # The Linux binary was compiled in Docker where workspace was /__w/rover/rover
+          # On Ubuntu runner, workspace is /home/runner/work/rover/rover
+          # Create a symlink so any baked-in paths from compilation resolve correctly
+          sudo mkdir -p /__w/rover
+          sudo ln -s ${{ github.workspace }} /__w/rover/rover
+          echo "Created symlink: /__w/rover/rover -> ${{ github.workspace }}"
+          ls -la /__w/rover/
       - uses: volta-cli/action@v4
         name: "Install volta"
       - name: Run Smoke Tests (Non-Windows)
@@ -105,6 +120,7 @@ jobs:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
           APOLLO_ELV2_LICENSE: accept
+          CARGO_BIN_EXE_rover: ${{ github.workspace }}/${{ matrix.testing_target.binary_under_test }}/rover
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
         run: |
@@ -116,6 +132,7 @@ jobs:
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          APOLLO_ELV2_LICENSE: accept
           CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
