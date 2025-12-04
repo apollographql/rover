@@ -1,5 +1,4 @@
-use std::{fs::read_to_string, path::PathBuf};
-use std::process::Command;
+use std::{fs::read_to_string, path::PathBuf, process::Command};
 
 use assert_cmd::cargo;
 use graphql_schema_diff::diff;

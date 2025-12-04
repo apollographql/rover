@@ -1,5 +1,4 @@
-use std::fs::read_to_string;
-use std::process::Command;
+use std::{fs::read_to_string, process::Command};
 
 use assert_cmd::cargo;
 use regex::Regex;
