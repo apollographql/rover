@@ -1,10 +1,14 @@
+#[cfg(not(target_os = "windows"))]
 use std::{
     io::Write,
     process::{Command as StdCommand, Stdio},
 };
 
+#[cfg(not(target_os = "windows"))]
 use assert_cmd::cargo::cargo_bin_cmd;
+#[cfg(not(target_os = "windows"))]
 use predicates::prelude::*;
+#[cfg(not(target_os = "windows"))]
 use which::which;
 
 #[cfg(not(target_os = "windows"))]
