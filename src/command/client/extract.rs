@@ -116,7 +116,7 @@ impl Extract {
             let contents = match Fs::read_file(&file) {
                 Ok(contents) => contents,
                 Err(err) => {
-                    skipped.push((file.clone(), 0, SkipReason::GraphQlSyntax(err.to_string())));
+                    skipped.push((file.clone(), 0, SkipReason::FileReadError(err.to_string())));
                     continue;
                 }
             };
