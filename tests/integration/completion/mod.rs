@@ -7,6 +7,7 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use which::which;
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn it_generates_bash_completion() {
     let mut cmd = cargo_bin_cmd!("rover");
@@ -56,6 +57,7 @@ fn it_generates_bash_completion() {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn it_generates_zsh_completion() {
     let mut cmd = cargo_bin_cmd!("rover");
