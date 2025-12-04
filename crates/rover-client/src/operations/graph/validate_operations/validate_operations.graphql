@@ -1,0 +1,19 @@
+mutation ValidateOperations(
+  $id: ID!
+  $tag: String!
+  $operations: [OperationDocumentInput!]!
+  $gitContext: GitContextInput
+) {
+  service(id: $id) {
+    validateOperations(tag: $tag, operations: $operations, gitContext: $gitContext) {
+      validationResults {
+        type
+        code
+        description
+        operation {
+          name
+        }
+      }
+    }
+  }
+}

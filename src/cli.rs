@@ -262,6 +262,15 @@ impl Rover {
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
             Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
+            Command::Client(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_git_context()?,
+                        &self.output_opts,
+                    )
+                    .await
+            }
         }
     }
 
@@ -455,6 +464,9 @@ pub enum Command {
     #[cfg(feature = "composition-js")]
     #[clap(hide = true)]
     Lsp(command::Lsp),
+
+    /// Client workflow commands
+    Client(command::Client),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
