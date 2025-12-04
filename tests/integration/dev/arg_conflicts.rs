@@ -1,8 +1,9 @@
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 
 #[test]
 fn super_conflicts_with_url() {
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = cargo_bin_cmd!("rover");
     let assert = cmd
         .arg("dev")
         .arg("--supergraph-config=supergraph.yaml")
@@ -16,7 +17,7 @@ fn super_conflicts_with_url() {
 
 #[test]
 fn super_conflicts_with_schema() {
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = cargo_bin_cmd!("rover");
     let assert = cmd
         .arg("dev")
         .arg("--supergraph-config=supergraph.yaml")
@@ -30,7 +31,7 @@ fn super_conflicts_with_schema() {
 
 #[test]
 fn super_conflicts_with_name() {
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = cargo_bin_cmd!("rover");
     let assert = cmd
         .arg("dev")
         .arg("--supergraph-config=supergraph.yaml")

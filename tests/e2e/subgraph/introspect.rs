@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use assert_cmd::cargo;
 use graphql_schema_diff::diff;
 use regex::Regex;
 use rstest::rstest;
@@ -41,7 +42,7 @@ async fn e2e_test_rover_subgraph_introspect(
         .suffix(".json")
         .tempfile()
         .expect("Could not create output file");
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "introspect",
@@ -87,7 +88,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         .tempfile()
         .expect("Could not create output file");
     // Create the Rover command to run the introspection in `--watch` mode
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("rover"));
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     let mut child = cmd
         .args([
             "subgraph",

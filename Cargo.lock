@@ -971,6 +971,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.5.61"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39615915e2ece2550c0149addac32fb5bd312c657f43845bb9088cb9c8a7c992"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4254,6 +4263,7 @@ dependencies = [
  "camino",
  "chrono",
  "clap",
+ "clap_complete",
  "comfy-table",
  "console 0.16.1",
  "derive-getters",
@@ -4324,6 +4334,7 @@ dependencies = [
  "tracing-test",
  "url",
  "uuid",
+ "which 8.0.0",
 ]
 
 [[package]]

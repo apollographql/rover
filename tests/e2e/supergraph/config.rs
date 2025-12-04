@@ -1,3 +1,6 @@
+use std::process::Command;
+
+use assert_cmd::cargo;
 use rstest::rstest;
 use tracing::error;
 use tracing_test::traced_test;
@@ -7,7 +10,7 @@ use tracing_test::traced_test;
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_supergraph_config_schema() {
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args(["supergraph", "config", "schema"]);
 
     let output = cmd.output().expect("Could not run command");

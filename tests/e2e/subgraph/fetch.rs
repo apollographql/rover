@@ -1,5 +1,6 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::{fs::read_to_string, path::PathBuf, process::Command};
 
+use assert_cmd::cargo;
 use graphql_schema_diff::diff;
 use rstest::rstest;
 use speculoos::{assert_that, prelude::VecAssertions};
@@ -22,7 +23,7 @@ async fn e2e_test_rover_subgraph_fetch(
         .suffix(".graphql")
         .tempfile()
         .expect("Could not create output file");
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "fetch",
