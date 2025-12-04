@@ -1,3 +1,4 @@
+use assert_cmd::cargo::cargo_bin_cmd;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
@@ -24,7 +25,7 @@ fn e2e_test_rover_config_whoami() {
         .tempfile()
         .expect("Could not create output file");
 
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = cargo_bin_cmd!("rover");
     cmd.args([
         "config",
         "whoami",

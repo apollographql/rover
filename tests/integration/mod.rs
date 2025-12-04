@@ -1,4 +1,5 @@
 mod client;
+mod completion;
 mod dev;
 mod info;
 mod installers;

@@ -1,3 +1,6 @@
+use std::process::Command;
+
+use assert_cmd::cargo;
 use regex::Regex;
 use rstest::rstest;
 use speculoos::{assert_that, boolean::BooleanAssertions};
@@ -15,7 +18,7 @@ async fn e2e_test_rover_graph_fetch(remote_supergraph_graphref: String) {
     //   - rover graph fetch to stdout
     // WHEN
     //   - the command is run
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("rover");
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args(["graph", "fetch", &remote_supergraph_graphref]);
     let output = cmd.output().expect("Could not run command");
 
