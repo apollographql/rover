@@ -362,4 +362,43 @@ mod tests {
 
         assert_eq!(endpoint, "http://localhost:4000/custom-path");
     }
+
+    #[test]
+    fn test_mcp_endpoint_is_overridden_by_rover_dev() {
+        let router_address = RouterAddress::new(
+            Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
+                127, 0, 0, 1,
+            )))),
+            Some(RouterPort::Default(4000)),
+        );
+
+        let binary = McpServerBinary::new(
+            Utf8PathBuf::from("/fake/path"),
+            Version::parse("1.0.0").unwrap(),
+        );
+
+        // Setting the mcp endpoint via environment variable
+        let env = HashMap::from([(
+            "APOLLO_MCP_ENDPOINT".to_string(),
+            "http://user-specified-endpoint.com/graphql".to_string(),
+        )]);
+
+        let router_url_path: Option<String> = None;
+        let mcp_config_path: Option<Utf8PathBuf> = None;
+
+        let runner = RunMcpServerBinary::<MockSpawn>::builder()
+            .mcp_server_binary(binary)
+            .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
+            .spawn(MockSpawn)
+            .router_address(router_address)
+            .and_router_url_path(router_url_path)
+            .and_mcp_config_path(mcp_config_path)
+            .env(env)
+            .build();
+
+        let env = runner.opts_into_env();
+        let endpoint = env.get("APOLLO_MCP_ENDPOINT").unwrap();
+
+        assert_eq!(endpoint, "http://localhost:4000");
+    }
 }
