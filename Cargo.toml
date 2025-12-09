@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.36.2"
+version = "0.37.0"
 default-run = "rover"
 
 publish = false
@@ -36,6 +36,7 @@ members = [
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
+    "regressions"
 ]
 
 [workspace.lints.clippy]
@@ -107,6 +108,7 @@ cargo_metadata = "0.23"
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
 clap = "4"
+clap_complete = "4"
 chrono = "0.4"
 ci_info = "0.14"
 comfy-table = { version = "7", features = ["custom_styling"] }
@@ -193,6 +195,7 @@ buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
+clap_complete = { workspace = true }
 chrono = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
@@ -261,9 +264,9 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
-jsonschema = "0.35"
+jsonschema = "0.37"
 mime = "0.3"
-mockall = "0.13"
+mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.18"
@@ -274,6 +277,7 @@ speculoos = { workspace = true }
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "0.3", features = ["async_closure"] }
+which = { workspace = true }
 
 # For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.

@@ -1,0 +1,11 @@
+[package]
+name = "regressions"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-graphql = "*"
+async-graphql-axum = "*"
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
+axum = { version = "0.8.1" }
+trycmd = "0.15"

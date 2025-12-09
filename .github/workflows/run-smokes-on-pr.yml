@@ -19,7 +19,7 @@ jobs:
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
     steps:
       - name: "Checkout rover repo"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: "Get latest Router version"
         id: "router-versions"
         working-directory: ".github/scripts"

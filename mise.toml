@@ -14,7 +14,7 @@ run = "cargo +nightly fmt --all -- --check"
 run = "cargo clippy --locked --workspace --all-features --all-targets"
 
 [tasks.test]
-run = "cargo test --locked --workspace"
+run = "cargo test --locked --workspace --exclude regressions"
 
 [tasks.install_npm]
 run = "bash .mise/scripts/install_npm.sh"

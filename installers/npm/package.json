@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.36.2",
+  "version": "0.37.0",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -44,6 +44,6 @@
     "axios-mock-adapter": "2.1.0",
     "jest": "30.2.0",
     "jest-junit": "16.0.0",
-    "prettier": "3.6.2"
+    "prettier": "3.7.4"
   }
 }

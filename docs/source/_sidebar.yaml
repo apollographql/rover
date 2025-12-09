@@ -23,6 +23,8 @@ items:
         href: ./commands/api-key
       - label: cloud
         href: ./commands/cloud    
+      - label: completion
+        href: ./commands/completion
       - label: config
         href: ./commands/config
       - label: connector

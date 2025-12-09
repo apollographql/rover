@@ -20,7 +20,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v0.36.2 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.37.0 | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
@@ -43,7 +43,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v0.36.2' | iex
+iwr 'https://rover.apollo.dev/win/v0.37.0' | iex
 ```
 
 #### Installing from a binary mirror using the bash and PowerShell scripts
@@ -134,6 +134,10 @@ There are a few additional installation methods maintained by the community:
 
 1. [Homebrew](https://formulae.brew.sh/formula/rover#default)
 2. [Nix](https://search.nixos.org/packages?channel=unstable&show=rover&from=0&size=50&sort=relevance&type=packages&query=rover)
+
+## Next steps
+
+After installing Rover, you can set up shell completion for bash or zsh to enable tab completion for Rover commands. See the [completion command documentation](./commands/completion) for instructions.
 
 ## Connecting to GraphOS
 

@@ -9,8 +9,8 @@ use crate::{
     RoverError, RoverOutput, RoverResult,
     client::{
         discovery::{DiscoveryOptions, discover_files},
-        extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     },
+    command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     options::{OptionalGraphRefOpt, ProfileOpt},
     rover_client::operations::graph::validate_operations,
     rover_client::operations::graph::validate_operations::{

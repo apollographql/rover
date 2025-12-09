@@ -10,10 +10,10 @@ jobs:
     name: Cargo Deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@9dc7d5dd454262207dea3ab5a06a3df6afc8ff26 # v3.4.1
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
       - run: mise run cargo-deny
 
   fmt:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - name: Install nightly@nightly toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - name: Install stable@stable toolchain
       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
       with:
@@ -50,10 +50,10 @@ jobs:
         package_manager: [npm, npm_global, pnpm]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@9dc7d5dd454262207dea3ab5a06a3df6afc8ff26 # v3.4.1
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
       - run: mise run install_${{matrix.package_manager}}
 
   test:
@@ -62,10 +62,10 @@ jobs:
         runner: [ubuntu-latest, macos-15, windows-2025]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@9dc7d5dd454262207dea3ab5a06a3df6afc8ff26 # v3.4.1
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
       - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
         with:
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
@@ -79,10 +79,10 @@ jobs:
   test_minimal_glibc:
     name: Test with minimal glibc versions
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.24.0
 
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
         persist-credentials: false
         ref: ${{ github.head_ref || github.ref_name }}
@@ -95,6 +95,6 @@ jobs:
         git log --oneline -1
         git symbolic-ref HEAD || echo "Detached HEAD detected"
     - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
-    - uses: jdx/mise-action@9dc7d5dd454262207dea3ab5a06a3df6afc8ff26 # v3.4.1
+    - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
     - run: mise run test
     - run: mise run check-glibc

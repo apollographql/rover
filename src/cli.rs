@@ -194,6 +194,7 @@ impl Rover {
         match &self.command {
             Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Cloud(command) => command.run(self.get_client_config()?).await,
+            Command::Completion(command) => command.run(),
             Command::Config(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
@@ -400,6 +401,9 @@ pub enum Command {
 
     #[cfg(feature = "composition-js")]
     Connector(command::Connector),
+
+    /// Generate shell completion scripts
+    Completion(command::Completion),
 
     /// Configuration profile commands
     Config(command::Config),
