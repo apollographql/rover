@@ -1,11 +1,11 @@
-use crate::operations::graph::validate_operations::validate_operations_query;
+use crate::operations::graph::validate_operations::runner::validate_operations_query;
 use crate::shared::GitContext;
 use crate::shared::GraphRef;
 use serde::{Deserialize, Serialize};
 
 type QueryVariables = validate_operations_query::Variables;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ValidateOperationsInput {
     pub graph_ref: GraphRef,
     pub operations: Vec<OperationDocument>,
@@ -21,13 +21,13 @@ pub struct OperationDocument {
 impl From<ValidateOperationsInput> for QueryVariables {
     fn from(input: ValidateOperationsInput) -> Self {
         Self {
-            id: input.graph_ref.name,
-            tag: input.graph_ref.variant,
+            graph_id: input.graph_ref.name,
+            variant: input.graph_ref.variant,
             operations: input
                 .operations
                 .into_iter()
                 .map(|op| validate_operations_query::OperationDocumentInput {
-                    name: op.name,
+                    name: Some(op.name),
                     body: op.body,
                 })
                 .collect(),
@@ -50,13 +50,15 @@ pub struct ValidationResult {
     pub description: String,
 }
 
-impl From<validate_operations_query::ValidateOperationsQueryServiceValidateOperationsValidationResults> for ValidationResult {
-    fn from(result: validate_operations_query::ValidateOperationsQueryServiceValidateOperationsValidationResults) -> Self {
+impl From<validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults>
+    for ValidationResult
+{
+    fn from(result: validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults) -> Self {
         Self {
-            operation_name: result.operation.and_then(|o| o.name).unwrap_or_default(),
-            r#type: result.r#type,
-            code: result.code,
-            description: result.description.unwrap_or_default(),
+            operation_name: result.operation.name.unwrap_or_default(),
+            r#type: format!("{:?}", result.type_),
+            code: Some(format!("{:?}", result.code)),
+            description: result.description,
         }
     }
 }

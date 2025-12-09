@@ -1,11 +1,15 @@
-mutation ValidateOperations(
-  $id: ID!
-  $tag: String!
+mutation ValidateOperationsQuery(
+  $graphId: ID!
+  $variant: String!
   $operations: [OperationDocumentInput!]!
   $gitContext: GitContextInput
 ) {
-  service(id: $id) {
-    validateOperations(tag: $tag, operations: $operations, gitContext: $gitContext) {
+  graph(id: $graphId) {
+    validateOperations(
+      tag: $variant
+      operations: $operations
+      gitContext: $gitContext
+    ) {
       validationResults {
         type
         code
