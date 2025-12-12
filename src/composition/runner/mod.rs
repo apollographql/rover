@@ -197,12 +197,6 @@ where
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {
-        let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher else {
-            tracing::warn!(
-                "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
-            );
-            return tokio_stream::empty().boxed();
-        };
         tracing::info!("Watching subgraphs for changes...");
         let (tx, rx) = broadcast::channel(100);
 
@@ -252,7 +246,16 @@ where
             None,
         );
 
-        supergraph_config_watcher.run(tx);
+        // Only run the supergraph config watcher if a config file was provided.
+        // When using --graph-ref without a local supergraph config, we still need
+        // composition to work, but we won't watch for config file changes.
+        if let Some(supergraph_config_watcher) = self.state.supergraph_config_watcher {
+            supergraph_config_watcher.run(tx);
+        } else {
+            tracing::warn!(
+                "No supergraph config detected, changes to subgraph configurations will not be applied automatically"
+            );
+        }
 
         composition_messages.boxed()
     }
