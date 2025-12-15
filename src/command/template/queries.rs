@@ -4,10 +4,9 @@ pub mod list_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "ListTemplatesForLanguage";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
@@ -95,10 +94,9 @@ pub mod get_template_by_id {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplateById";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
@@ -139,10 +137,9 @@ pub mod get_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplatesForLanguage";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
