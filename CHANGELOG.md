@@ -18,6 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.37.1] - 2025-12-16
+
+## 🐛 Fixes
+
+- **Allow rover dev --graph-ref to work without a local supergraph config - @DaleSeo, PR #2924**
+- **Handle InvalidGraphRef error gracefully instead of panicking - @DaleSeo, PR #2927**
+
 # [0.37.0] - 2025-12-01
 
 ## 🚀 Features
@@ -27,7 +34,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🐛 Fixes
 
 - **Remove conditional header in VSCode file from MCP template processing - @gocamille, PR #2757**
-- **Auto-configure MCP server endpoint with router's custom path- @naomijub, PR #2869**
+- **Auto-configure MCP server endpoint with router's custom path- @DaleSeo, PR #2869**
 
 ## 📚 Documentation
 

@@ -273,6 +273,21 @@ input ApiKeyResourceInput {
   subgraphs: [SubgraphIdentifierInput!]
 }
 
+"""The payload from adding a tag to a graph artifact."""
+type AssignTagToGraphArtifactPayload {
+  """Any errors encountered while adding the tag."""
+  errors: [Error!]!
+
+  """The graph artifact where the tag was added."""
+  graphArtifact: GraphArtifact
+
+  """The tag that was added."""
+  tag: GraphArtifactTag
+}
+
+"""The possible result of adding a tag to a graph artifact."""
+union AssignTagToGraphArtifactResult = AssignTagToGraphArtifactPayload | BadInputError | GraphArtifactDigestInvalidError | GraphArtifactNotFoundError | GraphArtifactTagInvalidError | GraphArtifactTagVariantAssignError | GraphArtifactTaggingLimitError | GraphArtifactTotalTagsLimitError | GraphNotFoundError | OperationInProgressError
+
 type AuditLogExport {
   """The list of actors to filter the audit export"""
   actors: [Identity!]
@@ -312,6 +327,12 @@ enum AuditStatus {
   FAILED
   IN_PROGRESS
   QUEUED
+}
+
+"""The error returned when the required inputs are not passed"""
+type BadInputError implements Error {
+  """The error message"""
+  message: String!
 }
 
 """
@@ -2170,6 +2191,12 @@ type GraphArtifactContent {
   build: Build
 }
 
+"""The error returned when a graph artifact digest is invalid."""
+type GraphArtifactDigestInvalidError implements Error {
+  """The error message"""
+  message: String!
+}
+
 """An edge containing a Graph Artifact node and cursor for pagination"""
 type GraphArtifactEdge {
   """
@@ -2186,12 +2213,30 @@ type GraphArtifactError {
   message: String!
 }
 
+"""
+The ways a graph artifact can be identified.
+Only one of these options should be provided.
+"""
+input GraphArtifactInput {
+  """The specific graph artifact digest (SHA)."""
+  digest: String
+
+  """The graph artifact ID."""
+  id: ID
+}
+
 """The location of the graph artifact within the registry itself"""
 type GraphArtifactLocation {
   """
   The full URI that can be used to interact with the graph artifact within the registry itself
   """
   uri: String!
+}
+
+"""The error returned when a graph artifact was not found"""
+type GraphArtifactNotFoundError implements Error {
+  """The error message"""
+  message: String!
 }
 
 """The status of a Graph Artifact"""
@@ -2257,6 +2302,14 @@ type GraphArtifactTagEdge {
   node: GraphArtifactTag!
 }
 
+"""
+The error returned when the number of tags assigned to a single graph artifact will exceed the limit.
+"""
+type GraphArtifactTaggingLimitError implements Error {
+  """The error message"""
+  message: String!
+}
+
 """A paginated connection for Graph Artifact Tags history"""
 type GraphArtifactTagHistoryConnection {
   """
@@ -2303,6 +2356,12 @@ type GraphArtifactTagHistoryEntry {
   tag: GraphArtifactTag!
 }
 
+"""The error returned when a graph artifact tag name is invalid."""
+type GraphArtifactTagInvalidError implements Error {
+  """The error message"""
+  message: String!
+}
+
 """The repository and tag names for a Graph Variant"""
 type GraphArtifactTagLocation {
   """The repository the tag is associated with"""
@@ -2310,6 +2369,24 @@ type GraphArtifactTagLocation {
 
   """The name of the tag"""
   tag: String!
+}
+
+"""
+The error returned when a variant graph artifact tag is attempted to be re-assigned.
+Variant graph artifact tags are automatically created and assigned and represent the "latest" for a variant's graph artifact.
+They cannot be re-assigned.
+"""
+type GraphArtifactTagVariantAssignError implements Error {
+  """The error message"""
+  message: String!
+}
+
+"""
+The error returned when the total number of tags created for a graph will exceed the limit.
+"""
+type GraphArtifactTotalTagsLimitError implements Error {
+  """The error message"""
+  message: String!
 }
 
 """The timing details for the build step of a launch."""
@@ -2323,6 +2400,12 @@ union GraphCreationResult = GraphCreationError | Graph
 A union of all containers that can comprise the components of a Studio graph
 """
 union GraphImplementors = GraphVariantSubgraphs
+
+"""The error returned when a graph is not found."""
+type GraphNotFoundError implements Error {
+  """The error message"""
+  message: String!
+}
 
 """Represents an API key that's used to authenticate an Apollo principal."""
 type GraphOsKey implements ApiKey {
@@ -3609,6 +3692,13 @@ input MultiSubgraphCheckAsyncInput {
 """GraphQL mutations"""
 type Mutation {
   """
+  Add a tag to a specific graph artifact.
+  - If the tag does not already exist, it will be created.
+  - If the tag already exists, it will be reassigned to the provided graph artifact.
+  """
+  assignGraphArtifactTag(artifact: GraphArtifactInput!, graphID: String!, tag: String!): AssignTagToGraphArtifactResult!
+
+  """
   Provides access to mutation fields for modifying a an organization with the provided ID.
   """
   organization(id: ID!): OrganizationMutation
@@ -3890,6 +3980,22 @@ type OperationCollectionPermissions {
 
 union OperationCollectionResult = NotFoundError | OperationCollection | PermissionError | ValidationError
 
+type OperationDocument {
+  """Operation document body"""
+  body: String!
+
+  """Operation name"""
+  name: String
+}
+
+input OperationDocumentInput {
+  """Operation document body"""
+  body: String!
+
+  """Operation name"""
+  name: String
+}
+
 """Saved headers on a saved operation."""
 type OperationHeader {
   """The header's name."""
@@ -3913,6 +4019,14 @@ type OperationInfoFilter {
 
 input OperationInfoFilterInput {
   id: String!
+}
+
+"""
+The error returned when another operation updating this tag is running.
+"""
+type OperationInProgressError implements Error {
+  """The error message"""
+  message: String!
 }
 
 """
@@ -6202,6 +6316,7 @@ type GraphMutation {
   Creates a proposal variant from a source variant and a name, description. See the documentation for proposal creation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
   """
   createProposal(input: CreateProposalInput!): CreateProposalResult!
+  validateOperations(operations: [OperationDocumentInput!]!, tag: String = "current", gitContext: GitContextInput): ValidateOperationsResult!
 
   """
   Publish a schema to this variant, either via a document or an introspection query result.
@@ -7042,6 +7157,7 @@ type User implements Identity {
 
   """Returns a list of all active user API keys for the user."""
   apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
+  email: String
 
   """A list of the user's memberships in Apollo Studio organizations."""
   memberships: [UserMembership!]!
@@ -7119,10 +7235,44 @@ enum UserPermission {
   PERSISTED_QUERY_PUBLISHER
 }
 
+type ValidateOperationsResult {
+  validationResults: [ValidationResult!]!
+}
+
 """An error that occurs when an operation contains invalid user input."""
 type ValidationError implements Error {
   """The error's details."""
   message: String!
+}
+
+enum ValidationErrorCode {
+  NON_PARSEABLE_DOCUMENT
+  INVALID_OPERATION
+  DEPRECATED_FIELD
+}
+
+enum ValidationErrorType {
+  FAILURE
+  WARNING
+  INVALID
+}
+
+"""
+Represents a single validation error, with information relating to the error
+and its respective operation
+"""
+type ValidationResult {
+  """The type of validation error thrown - warning, failure, or invalid."""
+  type: ValidationErrorType!
+
+  """The validation result's error code"""
+  code: ValidationErrorCode!
+
+  """Description of the validation error"""
+  description: String!
+
+  """The operation related to this validation result"""
+  operation: OperationDocument!
 }
 
 """
