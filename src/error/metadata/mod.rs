@@ -248,9 +248,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E027),
                 ),
                 RoverClientError::AdhocError { .. } => (None, None),
-                RoverClientError::InvalidGraphRef => {
-                    unreachable!("Graph ref parse errors should be caught via clap")
-                }
+                RoverClientError::InvalidGraphRef => (
+                    Some(RoverErrorSuggestion::CheckGraphNameAndAuth),
+                    Some(RoverErrorCode::E010),
+                ),
                 RoverClientError::InvalidValidationPeriodDuration(_)
                 | RoverClientError::ValidationPeriodTooGranular => {
                     unreachable!("Validation period parse errors should be caught via clap")
