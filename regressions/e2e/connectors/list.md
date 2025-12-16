@@ -5,8 +5,8 @@
 ```console
 $ rover connector --elv2-license accept list --schema fixtures/body.graphql
 merging supergraph schema files
-downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/x86_64-unknown-linux-gnu/latest-2
-the 'supergraph' plugin was successfully installed to /home/runner/.rover/bin/supergraph-v2.12.1
+downloading the 'supergraph' plugin from [..]
+the 'supergraph' plugin was successfully installed to [..]
 {
   "connectors": [
     {
