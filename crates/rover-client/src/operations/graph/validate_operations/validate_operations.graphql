@@ -1,0 +1,23 @@
+mutation ValidateOperationsQuery(
+  $graphId: ID!
+  $variant: String!
+  $operations: [OperationDocumentInput!]!
+  $gitContext: GitContextInput
+) {
+  graph(id: $graphId) {
+    validateOperations(
+      tag: $variant
+      operations: $operations
+      gitContext: $gitContext
+    ) {
+      validationResults {
+        type
+        code
+        description
+        operation {
+          name
+        }
+      }
+    }
+  }
+}

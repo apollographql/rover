@@ -1,0 +1,54 @@
+---
+title: "Client commands"
+sidebar_title: "client"
+---
+
+# rover client
+
+Commands for working with client operations.
+
+## `rover client extract`
+
+Extract GraphQL documents from supported source files (TypeScript/TSX, Swift, Kotlin) into `.graphql` artifacts.
+
+Example:
+
+```bash
+rover client extract --include src/ --include ios/ --include android/ --out-dir graphql/
+```
+
+Key flags:
+
+- `--include <PATH>`: files or directories to scan (default: project root)
+- `--exclude <PATH>`: skip paths
+- `--language <LANG>`: limit to `ts`, `swift`, or `kotlin`
+- `--out-dir <DIR>`: where to write `.graphql` files (default: `graphql/`)
+- `--overwrite`: allow replacing existing `.graphql` files
+
+Notes:
+
+- Only supported extensions are scanned; non-GraphQL source parsing is handled by tree-sitter.
+- Interpolated strings are skipped with warnings.
+- Stable filenames preserve source-relative paths; conflicts append `.generated` when overwrite is off.
+
+## `rover client check`
+
+Validate operations in `.graphql` files against a graph in GraphOS using the `validateOperations` API.
+
+Example:
+
+```bash
+APOLLO_KEY=... rover client check my-graph@current --include graphql/
+```
+
+Key flags:
+
+- `GRAPH_REF` positional: required graph ref (e.g., `graph@current`)
+- `--include <PATH>`: where to look for `.graphql` files (default: project root)
+- `--exclude <PATH>`: skip paths
+
+Behavior:
+
+- Only `.graphql` files are read (no source extraction). Syntax errors cause a non-zero exit.
+- Remote `validateOperations` mutation is the source of truth; results are mapped back to file/line/column where possible.
+- Outputs support `--format json` with a `client_check` payload containing validation results and failures.

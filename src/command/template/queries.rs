@@ -4,10 +4,9 @@ pub mod list_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "ListTemplatesForLanguage";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
@@ -30,7 +29,7 @@ pub mod list_templates_for_language {
         Other(String),
     }
     impl ::serde::Serialize for Language {
-        fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        fn serialize<S: ::serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
             ser.serialize_str(match *self {
                 Language::C_SHARP => "C_SHARP",
                 Language::GO => "GO",
@@ -61,16 +60,20 @@ pub mod list_templates_for_language {
         }
     }
     #[derive(Serialize)]
+    #[serde(crate = ":: serde")]
     pub struct Variables {
         pub language: Option<Language>,
     }
     impl Variables {}
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct ResponseData {
         pub templates: Vec<ListTemplatesForLanguageTemplates>,
     }
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct ListTemplatesForLanguageTemplates {
+        #[serde(deserialize_with = "graphql_client::serde_with::deserialize_id")]
         pub id: ID,
         pub name: String,
         pub description: String,
@@ -82,7 +85,7 @@ pub mod list_templates_for_language {
 impl graphql_client::GraphQLQuery for ListTemplatesForLanguage {
     type Variables = list_templates_for_language::Variables;
     type ResponseData = list_templates_for_language::ResponseData;
-    fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
+    fn build_query(variables: Self::Variables) -> graphql_client::QueryBody<Self::Variables> {
         graphql_client::QueryBody {
             variables,
             query: list_templates_for_language::QUERY,
@@ -95,10 +98,9 @@ pub mod get_template_by_id {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplateById";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
@@ -109,15 +111,18 @@ pub mod get_template_by_id {
     type ID = String;
     type Url = crate::command::template::custom_scalars::Url;
     #[derive(Serialize)]
+    #[serde(crate = ":: serde")]
     pub struct Variables {
         pub id: ID,
     }
     impl Variables {}
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct ResponseData {
         pub template: Option<GetTemplateByIdTemplate>,
     }
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct GetTemplateByIdTemplate {
         #[serde(rename = "downloadUrl")]
         pub download_url: Url,
@@ -126,7 +131,7 @@ pub mod get_template_by_id {
 impl graphql_client::GraphQLQuery for GetTemplateById {
     type Variables = get_template_by_id::Variables;
     type ResponseData = get_template_by_id::ResponseData;
-    fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
+    fn build_query(variables: Self::Variables) -> graphql_client::QueryBody<Self::Variables> {
         graphql_client::QueryBody {
             variables,
             query: get_template_by_id::QUERY,
@@ -139,10 +144,9 @@ pub mod get_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplatesForLanguage";
-    pub const QUERY: &str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}";
-    use serde::{Deserialize, Serialize};
-
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
     use super::*;
+    use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
     type Boolean = bool;
     #[allow(dead_code)]
@@ -165,7 +169,7 @@ pub mod get_templates_for_language {
         Other(String),
     }
     impl ::serde::Serialize for Language {
-        fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        fn serialize<S: ::serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
             ser.serialize_str(match *self {
                 Language::C_SHARP => "C_SHARP",
                 Language::GO => "GO",
@@ -196,16 +200,20 @@ pub mod get_templates_for_language {
         }
     }
     #[derive(Serialize)]
+    #[serde(crate = ":: serde")]
     pub struct Variables {
         pub language: Option<Language>,
     }
     impl Variables {}
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct ResponseData {
         pub templates: Vec<GetTemplatesForLanguageTemplates>,
     }
     #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    #[serde(crate = ":: serde")]
     pub struct GetTemplatesForLanguageTemplates {
+        #[serde(deserialize_with = "graphql_client::serde_with::deserialize_id")]
         pub id: ID,
         pub name: String,
         #[serde(rename = "downloadUrl")]
@@ -215,7 +223,7 @@ pub mod get_templates_for_language {
 impl graphql_client::GraphQLQuery for GetTemplatesForLanguage {
     type Variables = get_templates_for_language::Variables;
     type ResponseData = get_templates_for_language::ResponseData;
-    fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
+    fn build_query(variables: Self::Variables) -> graphql_client::QueryBody<Self::Variables> {
         graphql_client::QueryBody {
             variables,
             query: get_templates_for_language::QUERY,

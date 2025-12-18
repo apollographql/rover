@@ -19,5 +19,8 @@ pub mod delete;
 /// "graph lint" command execution
 pub mod lint;
 
+/// "graph validate operations" execution
+pub mod validate_operations;
+
 /// internal module for getting info about variants
 pub(crate) mod variant;
