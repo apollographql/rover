@@ -152,18 +152,6 @@ pub fn display_project_created_message(
     println!("{message}");
 }
 
-pub fn display_use_template_message() {
-    println!();
-    println!(
-        "To add a new subgraph to an existing graph, use `{}`.",
-        Style::Command.paint("rover template")
-    );
-    println!(
-        "To learn more about templates, run `{}`",
-        Style::Command.paint("rover docs open template")
-    );
-}
-
 /// Print categorized MCP file listing
 pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
     // Categorize files for MCP-specific display

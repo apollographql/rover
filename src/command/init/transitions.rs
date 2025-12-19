@@ -118,9 +118,7 @@ impl Welcome {
 
     pub fn select_project_type(
         self,
-        options: &ProjectTypeOpt,
         override_install_path: &Option<PathBuf>,
-        _template_options: &ProjectTemplateOpt,
     ) -> RoverResult<ProjectTypeSelected> {
         display_welcome_message();
 
@@ -145,17 +143,12 @@ impl Welcome {
                     )));
         }
 
-        let project_type = match options.get_project_type() {
-            Some(ptype) => ptype,
-            None => options.prompt_project_type()?,
-        };
-
         Ok(ProjectTypeSelected {
-            project_type,
+            project_type: ProjectType::CreateNew,
             output_path,
         })
     }
-}
+}   
 
 /// PROMPT UX:
 /// =========
