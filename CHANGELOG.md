@@ -18,6 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.37.2] - 2025-12-19
+
+## 🐛 Fixes
+
+- **Use native roots with rustls for HTTP requests - @dotdat PR #2936**
+- **Replaces the hardcoded plugin URL and installation path with trycmd wildcards - @DaleSeo, PR #2931**
+
 # [0.37.1] - 2025-12-16
 
 ## 🐛 Fixes

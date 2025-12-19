@@ -247,6 +247,11 @@ interface ApiKey {
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
 
+  """
+  The timestamp when the API key was last used for authentication, if available.
+  """
+  lastUsed: Timestamp
+
   """The value of the API key. **This is a secret credential!**"""
   token: String!
 }
@@ -2120,6 +2125,11 @@ type GraphApiKey implements ApiKey {
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
 
+  """
+  The timestamp when the API key was last used for authentication, if available.
+  """
+  lastUsed: Timestamp
+
   """The permission level assigned to the API key upon creation."""
   role: UserPermission!
 
@@ -2423,6 +2433,11 @@ type GraphOsKey implements ApiKey {
 
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
+
+  """
+  The timestamp when the API key was last used for authentication, if available.
+  """
+  lastUsed: Timestamp
 
   """
   Permissions associated with this API key, defining what actions it can perform.
@@ -7173,6 +7188,11 @@ type UserApiKey implements ApiKey {
 
   """The API key's name, for distinguishing it from other keys."""
   keyName: String
+
+  """
+  The timestamp when the API key was last used for authentication, if available.
+  """
+  lastUsed: Timestamp
 
   """The value of the API key. **This is a secret credential!**"""
   token: String!
