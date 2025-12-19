@@ -30,7 +30,7 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "rustls-tls",
+    "rustls-tls-native-roots",
     "socks",
 ] }
 rover-graphql = { workspace = true }
@@ -55,7 +55,7 @@ serde_json = { workspace = true }
 reqwest = { workspace = true, features = [
     "json",
     "blocking",
-    "rustls-tls",
+    "rustls-tls-native-roots",
 ] }
 
 [dev-dependencies]
