@@ -185,9 +185,7 @@ impl Init {
         // Branch to MCP flow BEFORE directory validation
         if self.project_template.mcp {
             // Create ProjectTypeSelected state for MCP flow (bypasses directory check)
-            let project_type = self
-                .project_type
-                .get_project_type();
+            let project_type = self.project_type.get_project_type();
 
             let current_dir = env::current_dir()?;
             let output_path = Utf8PathBuf::from_path_buf(self.path.clone().unwrap_or(current_dir))
@@ -203,8 +201,7 @@ impl Init {
                 .await;
         }
 
-        let project_type_selected =
-            welcome.select_project_type( &self.path)?;
+        let project_type_selected = welcome.select_project_type(&self.path)?;
 
         // Handle new project creation flow
         let use_case_selected = match project_type_selected
@@ -282,9 +279,7 @@ impl Init {
                             let welcome = UserAuthenticated::new()
                                 .check_authentication(&client_config, &self.profile)
                                 .await?;
-                            welcome.select_project_type(
-                                &self.path,
-                            )?;
+                            welcome.select_project_type(&self.path)?;
                             return Ok(RoverOutput::EmptySuccess);
                         }
                         _ => {

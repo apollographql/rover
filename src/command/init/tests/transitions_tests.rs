@@ -415,13 +415,13 @@ async fn test_graph_id_confirmed_preview_for_graphql_template() {
 fn test_project_type_dialog() {
     let options = ProjectTypeOpt::default();
 
-    assert_eq!(options.get_project_type(), ProjectType::CreateNew);
+    assert_eq!(options.get_project_type(), Some(ProjectType::CreateNew));
 
     let options_with_value = ProjectTypeOpt {
         project_type: Some(ProjectType::CreateNew),
     };
     assert_eq!(
         options_with_value.get_project_type(),
-        ProjectType::CreateNew
+        Some(ProjectType::CreateNew)
     );
 }

@@ -54,28 +54,6 @@ mod tests {
         assert_eq!(result, None);
     }
 
-    #[test]
-    fn test_handle_project_type_selection_with_valid_selection() {
-        let instance = ProjectTypeOpt { project_type: None };
-
-        let project_types = <ProjectType as ValueEnum>::value_variants();
-        let result = instance.handle_project_type_selection(project_types, Some(0));
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ProjectType::CreateNew);
-    }
-
-    #[test]
-    fn test_handle_project_type_selection_with_invalid_selection() {
-        let instance = ProjectTypeOpt { project_type: None };
-
-        let project_types = <ProjectType as ValueEnum>::value_variants();
-        let result = instance.handle_project_type_selection(project_types, None);
-
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().message(), "No project type selected");
-    }
-
     // Display trait implementation tests
 
     #[test]

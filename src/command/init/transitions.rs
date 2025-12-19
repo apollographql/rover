@@ -148,7 +148,7 @@ impl Welcome {
             output_path,
         })
     }
-}   
+}
 
 /// PROMPT UX:
 /// =========
