@@ -34,8 +34,9 @@ impl Display for ProjectType {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::ValueEnum;
+
+    use super::*;
 
     #[test]
     fn test_get_project_type_with_preset_value() {
