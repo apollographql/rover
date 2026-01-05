@@ -1,4 +1,4 @@
-use clap::{Parser, arg};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use crate::command::init::template_fetcher::TemplateId;

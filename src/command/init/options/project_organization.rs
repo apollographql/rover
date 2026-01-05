@@ -1,7 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use anyhow::anyhow;
-use clap::{Parser, arg};
+use clap::Parser;
 use dialoguer::{Select, console::Term};
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
