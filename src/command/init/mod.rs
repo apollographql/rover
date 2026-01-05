@@ -175,7 +175,6 @@ impl Init {
         use std::env;
 
         use camino::Utf8PathBuf;
-        use helpers::display_use_template_message;
 
         use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
 
@@ -186,17 +185,14 @@ impl Init {
         // Branch to MCP flow BEFORE directory validation
         if self.project_template.mcp {
             // Create ProjectTypeSelected state for MCP flow (bypasses directory check)
-            let project_type = self
-                .project_type
-                .get_project_type()
-                .unwrap_or(ProjectType::CreateNew); // Default to CreateNew for MCP
+            let project_type = self.project_type.get_project_type();
 
             let current_dir = env::current_dir()?;
             let output_path = Utf8PathBuf::from_path_buf(self.path.clone().unwrap_or(current_dir))
                 .map_err(|_| anyhow::anyhow!("Failed to parse directory"))?;
 
             let project_type_selected = ProjectTypeSelected {
-                project_type,
+                project_type: project_type.unwrap_or(ProjectType::CreateNew),
                 output_path,
             };
 
@@ -205,14 +201,7 @@ impl Init {
                 .await;
         }
 
-        let project_type_selected =
-            welcome.select_project_type(&self.project_type, &self.path, &self.project_template)?;
-
-        // Early return for AddSubgraph case
-        if project_type_selected.project_type == ProjectType::AddSubgraph {
-            display_use_template_message();
-            return Ok(RoverOutput::EmptySuccess);
-        }
+        let project_type_selected = welcome.select_project_type(&self.path)?;
 
         // Handle new project creation flow
         let use_case_selected = match project_type_selected
@@ -290,11 +279,7 @@ impl Init {
                             let welcome = UserAuthenticated::new()
                                 .check_authentication(&client_config, &self.profile)
                                 .await?;
-                            welcome.select_project_type(
-                                &self.project_type,
-                                &self.path,
-                                &self.project_template,
-                            )?;
+                            welcome.select_project_type(&self.path)?;
                             return Ok(RoverOutput::EmptySuccess);
                         }
                         _ => {

@@ -1,44 +1,17 @@
 use std::fmt::{self, Display};
 
-use anyhow::anyhow;
-use clap::{Parser, ValueEnum};
-use dialoguer::{Select, console::Term};
-use rover_std::Style;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
-
-use crate::{RoverError, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
 pub struct ProjectTypeOpt {
     #[arg(long = "project-type", short = 't', value_enum)]
-    pub project_type: Option<ProjectType>,
+    pub project_type: Option<crate::command::init::options::ProjectType>,
 }
 
 impl ProjectTypeOpt {
     pub fn get_project_type(&self) -> Option<ProjectType> {
         self.project_type.clone()
-    }
-
-    pub fn prompt_project_type(&self) -> RoverResult<ProjectType> {
-        let project_types = <ProjectType as ValueEnum>::value_variants();
-        let selection = Select::new()
-            .with_prompt(Style::Prompt.paint("? Select option"))
-            .items(project_types)
-            .default(0)
-            .interact_on_opt(&Term::stderr())?;
-
-        self.handle_project_type_selection(project_types, selection)
-    }
-
-    fn handle_project_type_selection(
-        &self,
-        project_types: &[ProjectType],
-        selection: Option<usize>,
-    ) -> RoverResult<ProjectType> {
-        match selection {
-            Some(index) => Ok(project_types[index].clone()),
-            None => Err(RoverError::new(anyhow!("No project type selected"))),
-        }
     }
 }
 
@@ -61,6 +34,8 @@ impl Display for ProjectType {
 
 #[cfg(test)]
 mod tests {
+    use clap::ValueEnum;
+
     use super::*;
 
     #[test]
@@ -78,28 +53,6 @@ mod tests {
         let instance = ProjectTypeOpt { project_type: None };
         let result = instance.get_project_type();
         assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_handle_project_type_selection_with_valid_selection() {
-        let instance = ProjectTypeOpt { project_type: None };
-
-        let project_types = <ProjectType as ValueEnum>::value_variants();
-        let result = instance.handle_project_type_selection(project_types, Some(0));
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ProjectType::CreateNew);
-    }
-
-    #[test]
-    fn test_handle_project_type_selection_with_invalid_selection() {
-        let instance = ProjectTypeOpt { project_type: None };
-
-        let project_types = <ProjectType as ValueEnum>::value_variants();
-        let result = instance.handle_project_type_selection(project_types, None);
-
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().message(), "No project type selected");
     }
 
     // Display trait implementation tests
