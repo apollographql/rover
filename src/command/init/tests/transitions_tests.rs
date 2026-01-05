@@ -288,7 +288,7 @@ async fn test_graph_id_confirmed_preview_for_connectors() {
         project_type: ProjectType::CreateNew,
         organization: "test-org".parse::<OrganizationId>().unwrap(),
         use_case: ProjectUseCase::Connectors,
-        project_name: "test-graph".parse::<ProjectName>().unwrap(),
+        project_name: "test-graph".parse().unwrap(),
         graph_id: "test-graph-id".parse::<GraphId>().unwrap(),
         selected_template: SelectedTemplateState {
             template: Template {
@@ -314,7 +314,7 @@ async fn test_graph_id_confirmed_preview_for_connectors() {
             project_type: graph_id_confirmed.project_type.clone(),
             organization: graph_id_confirmed.organization.clone(),
             use_case: graph_id_confirmed.use_case.clone(),
-            project_name: graph_id_confirmed.project_name.clone(),
+            project_name: graph_id_confirmed.project_name,
             graph_id: graph_id_confirmed.graph_id.clone(),
         };
 
@@ -415,7 +415,7 @@ async fn test_graph_id_confirmed_preview_for_graphql_template() {
 fn test_project_type_dialog() {
     let options = ProjectTypeOpt::default();
 
-    assert_eq!(options.get_project_type(), Some(ProjectType::CreateNew));
+    assert_eq!(options.get_project_type(), None);
 
     let options_with_value = ProjectTypeOpt {
         project_type: Some(ProjectType::CreateNew),
