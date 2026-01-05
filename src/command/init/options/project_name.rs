@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use clap::{Parser, arg};
+use clap::Parser;
 use dialoguer::Input;
 use rover_std::Style;
 use serde::{Deserialize, Serialize};
