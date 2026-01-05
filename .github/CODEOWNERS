@@ -1,9 +1,9 @@
-* @apollographql/graph-dev
-crates/rover-client @apollographql/team-growth @apollographql/graph-dev
-Cargo.lock @apollographql/team-growth @apollographql/graph-dev
-docs @apollographql/docs @apollographql/graph-dev
-src/command/init @apollographql/team-growth @apollographql/graph-dev
-src/command/tests @apollographql/team-growth @apollographql/graph-dev
-src/options @apollographql/team-growth @apollographql/graph-dev
-src/command/connector @apollographql/graph-dev
-src/command/lsp @apollographql/graph-dev
+* @apollographql/rover
+crates/rover-client @apollographql/team-growth @apollographql/rover
+Cargo.lock @apollographql/team-growth @apollographql/rover
+docs @apollographql/docs @apollographql/rover
+src/command/init @apollographql/team-growth @apollographql/rover
+src/command/tests @apollographql/team-growth @apollographql/rover
+src/options @apollographql/team-growth @apollographql/rover
+src/command/connector @apollographql/rover
+src/command/lsp @apollographql/rover
