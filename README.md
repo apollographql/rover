@@ -209,7 +209,10 @@ If you'd like to call `rover` from any directory on your machine, you can run `n
 
 Note: Unfortunately if you've installed `npm` without a version manager such as `nvm`, you may have trouble with global installs. If you encounter an `EACCES` permission-related error while trying to install globally, DO NOT run the install command with `sudo`. [This support page](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) has information that should help to resolve this issue.
 
-#### Without curl
+#### Homebrew
+While we recommend using one of the other installation methods above, we do have a homebrew recipe `brew install rover`. The code for this recipe is in the [homebrew-core repo](https://github.com/Homebrew/homebrew-core/blob/master/Formula/r/rover.rb).
+
+#### Manual binary download
 
 You can also [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
