@@ -90,7 +90,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         name: "Checkout rover repo"
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         name: "Download artifacts built in previous stages"
       - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         name: "Set permissions on artifacts correctly"
