@@ -172,7 +172,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
-zip = "6"
+zip = "7"
 
 ### rover specific dependencies
 [dependencies]
