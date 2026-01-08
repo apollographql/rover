@@ -57,9 +57,9 @@ mod tests {
     use serial_test::serial;
     use speculoos::prelude::*;
 
+    use super::get_home_dir_path;
     #[cfg(not(windows))]
     use super::Installer;
-    use super::get_home_dir_path;
 
     #[cfg(not(windows))]
     #[test]
