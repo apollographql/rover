@@ -451,10 +451,15 @@ mod test {
         installer
             .write_bin_to_fs()
             .expect("Failed to copy executable to target location");
+        let binary_name_with_extension = if cfg!(windows) {
+            format!("{}.exe", binary_name)
+        } else {
+            binary_name.to_string()
+        };
         let expected_bin_path = override_path
             .join(format!(".{}", binary_name))
             .join("bin")
-            .join(binary_name);
+            .join(binary_name_with_extension);
         let bin_contents = std::fs::read_to_string(expected_bin_path)
             .expect("Unable to read from target location");
         assert_that!(bin_contents).is_equal_to("test contents".to_string());
@@ -532,7 +537,7 @@ mod test {
         let plugin_name = "my-plugin";
         let plugin_version = "v1.0.0";
         let install_subpath = format!(".{}", binary_name);
-        let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}"));
+        let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}."));
         let bin_path = if cfg!(windows) {
             bin_path.with_extension(env::consts::EXE_EXTENSION)
         } else {
@@ -563,8 +568,9 @@ mod test {
         plugin_tempfile.write_all("contents".as_bytes()).unwrap();
         plugin_tempfile.flush().unwrap();
         let mut builder = tar::Builder::new(Vec::new());
+        let binary_path = if cfg!(windows) { "dist.exe" } else { "dist" };
         builder
-            .append_path_with_name(plugin_tempfile.path(), "dist/test")
+            .append_path_with_name(plugin_tempfile.path(), format!("dist/{}", binary_path))
             .unwrap();
         let tar_bytes = builder.into_inner().unwrap();
         let mut gzip_encoder =
@@ -616,7 +622,7 @@ mod test {
         let plugin_name = "my-plugin";
         let plugin_version = "v1.0.0";
         let install_subpath = format!(".{}", binary_name);
-        let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}"));
+        let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}."));
         let bin_path = if cfg!(windows) {
             bin_path.with_extension(env::consts::EXE_EXTENSION)
         } else {
