@@ -51,7 +51,6 @@ mod tests {
 
     #[cfg(not(windows))]
     use assert_fs::TempDir;
-    #[cfg(not(windows))]
     use camino::Utf8PathBuf;
     #[cfg(not(windows))]
     use serial_test::serial;
