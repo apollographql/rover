@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-camino = { workspace = true }
+camino = { workspace = true, features = ["path_add_extension"] }
 directories-next = { workspace = true }
 flate2 = { workspace = true }
 rover-std = { workspace = true }
