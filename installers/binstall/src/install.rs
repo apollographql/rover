@@ -306,9 +306,8 @@ mod test {
     use sealed_test::prelude::*;
     use speculoos::prelude::*;
 
-    use crate::InstallerError;
-
     use super::Installer;
+    use crate::InstallerError;
 
     #[fixture]
     fn home_dir() -> Utf8PathBuf {
