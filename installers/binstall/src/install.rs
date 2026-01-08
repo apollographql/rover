@@ -569,7 +569,7 @@ mod test {
         plugin_tempfile.write_all("contents".as_bytes()).unwrap();
         plugin_tempfile.flush().unwrap();
         let mut builder = tar::Builder::new(Vec::new());
-        let binary_path = if cfg!(windows) { "dist.exe" } else { "dist" };
+        let binary_path = if cfg!(windows) { "test.exe" } else { "test" };
         builder
             .append_path_with_name(plugin_tempfile.path(), format!("dist/{}", binary_path))
             .unwrap();
@@ -625,7 +625,7 @@ mod test {
         let install_subpath = format!(".{}", binary_name);
         let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}"));
         let bin_path = if cfg!(windows) {
-            bin_path.with_add_extension(env::consts::EXE_EXTENSION)
+            bin_path.with_added_extension(env::consts::EXE_EXTENSION)
         } else {
             bin_path
         };
