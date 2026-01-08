@@ -17,11 +17,6 @@ pub fn test_install() {
     let executable_location_utf =
         Utf8PathBuf::from_path_buf(executable_location.path().to_path_buf())
             .expect("Unable to convert to Utf8PathBuf");
-    let executable_location_utf = if cfg!(windows) {
-        executable_location_utf.with_added_extension(env::consts::EXE_EXTENSION)
-    } else {
-        executable_location_utf
-    };
     let install_dir = tempfile::tempdir().expect("Unable to create temporary directory");
     let install_dir = Utf8PathBuf::from_path_buf(install_dir.path().to_path_buf())
         .expect("Unable to convert to Utf8PathBuf");
@@ -116,9 +111,14 @@ fn gzipped_plugin_tarball(contents: &str, plugin_name: &str) -> Vec<u8> {
     let mut plugin_tempfile = tempfile::NamedTempFile::new().unwrap();
     plugin_tempfile.write_all(contents.as_bytes()).unwrap();
     plugin_tempfile.flush().unwrap();
+    let plugin_subpath = if cfg!(windows) {
+        format!("{}.{}", env::consts::EXE_EXTENSION)
+    } else {
+        plugin_name.to_string()
+    };
     let mut builder = tar::Builder::new(Vec::new());
     builder
-        .append_path_with_name(plugin_tempfile.path(), format!("dist/{}", plugin_name))
+        .append_path_with_name(plugin_tempfile.path(), format!("dist/{}", plugin_subpath))
         .unwrap();
     let tar_bytes = builder.into_inner().unwrap();
     let mut gzip_encoder =
