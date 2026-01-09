@@ -112,7 +112,7 @@ fn gzipped_plugin_tarball(contents: &str, plugin_name: &str) -> Vec<u8> {
     plugin_tempfile.write_all(contents.as_bytes()).unwrap();
     plugin_tempfile.flush().unwrap();
     let plugin_subpath = if cfg!(windows) {
-        format!("{}.{}", env::consts::EXE_EXTENSION)
+        format!("{}.{}", plugin_name, env::consts::EXE_EXTENSION)
     } else {
         plugin_name.to_string()
     };
