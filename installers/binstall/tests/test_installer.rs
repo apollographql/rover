@@ -64,7 +64,7 @@ pub async fn test_install_plugin() {
     let install_subpath = format!(".{}", plugin_name);
     let bin_path = Utf8PathBuf::from(format!("{plugin_name}-{plugin_version}"));
     let bin_path = if cfg!(windows) {
-        bin_path.with_extension(std::env::consts::EXE_EXTENSION)
+        bin_path.with_added_extension(std::env::consts::EXE_EXTENSION)
     } else {
         bin_path
     };
