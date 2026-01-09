@@ -51,11 +51,12 @@ mod tests {
 
     #[cfg(not(windows))]
     use assert_fs::TempDir;
-    #[cfg(not(windows))]
     use camino::Utf8PathBuf;
     #[cfg(not(windows))]
     use serial_test::serial;
+    use speculoos::prelude::*;
 
+    use super::get_home_dir_path;
     #[cfg(not(windows))]
     use super::Installer;
 
@@ -76,5 +77,43 @@ mod tests {
         .unwrap();
 
         assert!(install_path.to_string().contains(&base_dir.to_string()));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn test_get_home_dir_path() {
+        let home_dir_path = get_home_dir_path();
+        let env_home_dir = std::env::home_dir();
+        match env_home_dir {
+            Some(home_dir) => {
+                let home_dir = Utf8PathBuf::from_path_buf(home_dir)
+                    .expect("Unable to convert PathBuf to Utf8PathBuf");
+                assert_that!(home_dir_path).is_ok().is_equal_to(home_dir);
+            }
+            None => {
+                assert_that!(home_dir_path)
+                    .is_err()
+                    .matches(|err| matches!(err, crate::InstallerError::NoHomeUnix));
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_get_home_dir_path() {
+        let home_dir_path = get_home_dir_path();
+        let env_home_dir = std::env::home_dir();
+        match env_home_dir {
+            Some(home_dir) => {
+                let home_dir = Utf8PathBuf::from_path_buf(home_dir)
+                    .expect("Unable to convert PathBuf to Utf8PathBuf");
+                assert_that!(home_dir_path).is_ok().is_equal_to(home_dir);
+            }
+            None => {
+                assert_that!(home_dir_path)
+                    .is_err()
+                    .matches(|err| matches!(err, crate::InstallerError::NoHomeWindows));
+            }
+        }
     }
 }

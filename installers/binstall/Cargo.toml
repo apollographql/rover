@@ -12,7 +12,7 @@ camino = { workspace = true }
 directories-next = { workspace = true }
 flate2 = { workspace = true }
 rover-std = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "rustls-tls-native-roots", "socks"] }
+reqwest = { workspace = true, features = ["blocking", "brotli", "gzip", "rustls-tls-native-roots", "socks"] }
 thiserror = { workspace = true }
 tar = { workspace = true }
 tempfile = {  workspace = true }
@@ -27,4 +27,11 @@ winreg = "0.55"
 
 [dev-dependencies]
 assert_fs = { workspace = true }
+httpmock = { workspace = true }
+predicates = { workspace = true }
+rstest = { workspace = true }
+sealed_test = { workspace = true }
 serial_test = { workspace = true }
+speculoos = { workspace = true }
+tokio = { workspace = true }
+tar = { workspace = true }

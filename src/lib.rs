@@ -4,6 +4,7 @@ pub mod command;
 pub mod composition;
 mod error;
 mod options;
+mod plugin;
 mod subtask;
 pub mod utils;
 mod watch;
