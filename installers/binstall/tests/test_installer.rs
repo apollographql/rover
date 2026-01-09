@@ -28,6 +28,11 @@ pub fn test_install() {
     };
     installer.install().unwrap();
     let expected_install_path = install_dir.join(".test").join("bin").join("test");
+    let expected_install_path = if cfg!(windows) {
+        expected_install_path.with_added_extension(env::consts::EXE_EXTENSION)
+    } else {
+        expected_install_path
+    };
     let contents = fs::read_to_string(expected_install_path);
     assert_that!(contents)
         .is_ok()
