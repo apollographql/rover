@@ -1,7 +1,7 @@
 [tools]
 lychee = "0.22.0"
 node = "24"
-"cargo:cargo-deny" = "0.18"
+"cargo:cargo-deny" = "0.19"
 
 [tasks.check]
 description = "Run the same checks as CI"
