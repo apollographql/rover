@@ -73,12 +73,6 @@ pub async fn test_install_plugin() {
         .join("bin")
         .join(bin_path);
 
-    let expected_bin_path = if cfg!(windows) {
-        expected_bin_path.with_added_extension(env::consts::EXE_EXTENSION)
-    } else {
-        expected_bin_path
-    };
-
     let executable_location = tempfile::tempdir().unwrap();
     let executable_location = Utf8PathBuf::from_path_buf(executable_location.path().to_path_buf())
         .expect("Unable to convert to Utf8PathBuf");
