@@ -21,8 +21,9 @@ use tracing::info;
 use tracing_test::traced_test;
 
 use crate::e2e::{
-    RetailSupergraph, SingleMutableSubgraph, find_matching_log_line, introspection_log_line_prefix,
-    run_single_mutable_subgraph, run_subgraphs_retail_supergraph, test_artifacts_directory,
+    RunningRetailSupergraph, SingleMutableSubgraph, find_matching_log_line,
+    introspection_log_line_prefix, run_single_mutable_subgraph, run_subgraphs_retail_supergraph,
+    test_artifacts_directory,
 };
 
 #[rstest]
@@ -30,11 +31,12 @@ use crate::e2e::{
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_graph_introspect(
-    run_subgraphs_retail_supergraph: &RetailSupergraph,
+    run_subgraphs_retail_supergraph: &RunningRetailSupergraph,
     test_artifacts_directory: PathBuf,
 ) {
     // Extract the inventory URL from the supergraph.yaml
     let url = run_subgraphs_retail_supergraph
+        .retail_supergraph
         .get_subgraph_urls()
         .into_iter()
         .find(|url| url.contains("inventory"))

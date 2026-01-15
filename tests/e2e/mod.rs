@@ -10,7 +10,7 @@ use std::{
 use anyhow::Error;
 use camino::Utf8PathBuf;
 use dircpy::CopyBuilder;
-use duct::cmd;
+use itertools::Itertools;
 use portpicker::pick_unused_port;
 use regex::Regex;
 use reqwest::Client;
@@ -18,9 +18,11 @@ use rover::utils::template::download_template;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
+use subgraph_mock::state::{Config, State};
 use tempfile::TempDir;
 use tokio::{
-    process::{Child, Command},
+    runtime::Runtime,
+    task::{AbortHandle, JoinHandle},
     time::timeout,
 };
 use tracing::{info, warn};
@@ -47,9 +49,28 @@ pub struct RetailSupergraph {
     working_dir: TempDir,
 }
 
+pub struct RunningRetailSupergraph {
+    pub retail_supergraph: &'static RetailSupergraph,
+    subgraph_handles: Vec<AbortHandle>,
+}
+
+impl Drop for RunningRetailSupergraph {
+    fn drop(&mut self) {
+        for handle in &self.subgraph_handles {
+            handle.abort();
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct ReducedSubgraphConfig {
     routing_url: String,
+    schema: ReducedSchemaLocation,
+}
+
+#[derive(Debug, Deserialize)]
+struct ReducedSchemaLocation {
+    file: PathBuf,
 }
 
 impl RetailSupergraph {
@@ -95,58 +116,107 @@ fn clone_retail_supergraph_repo() -> TempDir {
 
 #[fixture]
 #[once]
+/// Tokio runtime that will outlive any given test execution, so that background tasks such as the subgraph
+/// mocks can persist across them.
+///
+/// This isn't needed if all tests are passing, but any failing test will terminate
+/// the test process' tokio runtime (due to test failures panicking their thread),
+/// which then cascades to every other test that expects these tasks to still be running failing as well.
+fn background_runtime() -> Runtime {
+    Runtime::new().expect("Task runtime for subgraphs should be created")
+}
+
+#[fixture]
+#[once]
 fn run_subgraphs_retail_supergraph(
     retail_supergraph: &'static RetailSupergraph,
-) -> &'static RetailSupergraph {
+    background_runtime: &'static Runtime,
+) -> RunningRetailSupergraph {
     println!("Kicking off subgraphs");
 
-    // Although the retail supergraph package.json has a `dev:subgraphs` script, windows can't
-    // recognize the `NODE_ENV=dev` preprended variable; so, we have to remake that command in a
-    // way that windows can understand
-    Command::new("npx")
-        .env("NODE_ENV", "dev")
-        .args(["nodemon", "index.js"])
-        .current_dir(&retail_supergraph.working_dir)
-        .spawn()
-        .expect("Could not spawn subgraph process");
+    let subgraph_configs = &retail_supergraph.retail_supergraph_config.subgraphs;
 
-    println!("Finding subgraph URLs");
-    let subgraph_urls = retail_supergraph.get_subgraph_urls();
+    let default_mock_config = {
+        let mut default = Config::default();
+        // Don't generate null/0-length values so our tests can make assertions on the shape of responses
+        default.response_generation.null_ratio = None;
+        default.response_generation.array.min_length = 1;
+        default
+    };
+
+    let subgraph_handles: Vec<_> = subgraph_configs
+        .values()
+        .map(|subgraph_config| {
+            let port = subgraph_config
+                .routing_url
+                .split(":")
+                .last()
+                .and_then(|substr| substr.split("/").next())
+                .and_then(|port| port.parse().ok())
+                .expect("failed to extract the port from the routing URL");
+
+            background_runtime
+                .spawn(subgraph_mock::mock_server_loop(
+                    port,
+                    State::new(
+                        default_mock_config.clone(),
+                        retail_supergraph
+                            .working_dir
+                            .path()
+                            .join(&subgraph_config.schema.file),
+                    )
+                    .expect("Failed to parse retail subgraph schema"),
+                ))
+                .abort_handle()
+        })
+        .collect();
 
     println!("Testing subgraph connectivity");
-    for subgraph_url in subgraph_urls {
+    for subgraph_config in subgraph_configs.values() {
         tokio::task::block_in_place(|| {
             let client = Client::new();
             let handle = tokio::runtime::Handle::current();
             handle.block_on(test_graphql_connection(
                 &client,
-                &subgraph_url,
+                &subgraph_config.routing_url,
                 GRAPHQL_TIMEOUT_DURATION,
             ))
         })
         .expect("Could not execute connectivity check");
     }
-    retail_supergraph
+    RunningRetailSupergraph {
+        retail_supergraph,
+        subgraph_handles,
+    }
 }
 
 #[fixture]
 #[once]
 fn retail_supergraph() -> RetailSupergraph {
     let working_dir = clone_retail_supergraph_repo();
-    // Jump into that temporary folder and run npm commands to kick off subgraphs
-    info!("Installing subgraph dependencies");
-    cmd!("npm", "install")
-        .dir(working_dir.path())
-        .run()
-        .expect("Could not install subgraph dependencies");
 
     let supergraph_yaml_path = working_dir.path().join("supergraph-config-dev.yaml");
-
-    let content = std::fs::read_to_string(supergraph_yaml_path)
+    let content = std::fs::read_to_string(&supergraph_yaml_path)
         .expect("Could not read supergraph schema file");
+
+    // Rewrite the subgraph URLs to have each subgraph running on a different port
+    let base_port = 4001; // as defined in supergraph-config-dev.yaml
+    let base_port_stringified = base_port.to_string();
+
+    let contents = content.split(&base_port_stringified);
+    let subgraph_count = contents.clone().count() as u16 - 1;
+    let ports: Vec<u16> = (base_port..(base_port + subgraph_count)).collect();
+
+    let content: String = contents
+        .map(ToOwned::to_owned)
+        .interleave(ports.iter().map(ToString::to_string))
+        .collect();
 
     let retail_supergraph_config: RetailSupergraphConfig =
         serde_yaml::from_str(&content).expect("Could not parse supergraph schema file");
+
+    std::fs::write(supergraph_yaml_path, content)
+        .expect("Could not rewrite supergraph schema file");
 
     RetailSupergraph {
         retail_supergraph_config,
@@ -158,8 +228,13 @@ struct SingleMutableSubgraph {
     subgraph_url: String,
     directory: TempDir,
     schema_file_name: String,
-    #[allow(dead_code)]
-    task_handle: Child,
+    task_handle: JoinHandle<Result<(), Error>>,
+}
+
+impl Drop for SingleMutableSubgraph {
+    fn drop(&mut self) {
+        self.task_handle.abort();
+    }
 }
 
 #[fixture]
@@ -171,23 +246,14 @@ async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> Singl
         .run()
         .expect("Could not perform copy");
 
-    info!("Installing subgraph dependencies");
-    cmd!("npm", "run", "clean")
-        .dir(target.path())
-        .run()
-        .expect("Could not clean directory");
-    cmd!("npm", "install")
-        .dir(target.path())
-        .run()
-        .expect("Could not install subgraph dependencies");
     let port = pick_unused_port().expect("No free ports");
     let subgraph_url = format!("http://localhost:{port}");
-    let task_handle = Command::new("npm")
-        .args(["run", "start", "--", &port.to_string()])
-        .current_dir(target.path())
-        .kill_on_drop(true)
-        .spawn()
-        .expect("Could not spawn subgraph process");
+    let task_handle = tokio::spawn(subgraph_mock::mock_server_loop(
+        port,
+        State::default(target.path().join("pandas.graphql"))
+            .expect("Failed to parse pandas.graphql"),
+    ));
+
     info!("Testing subgraph connectivity");
     let client = Client::new();
     test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)

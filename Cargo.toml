@@ -253,6 +253,7 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
+json-matcher = "0.1"
 jsonschema = "0.38"
 mime = "0.3"
 mockall = "0.14"
@@ -263,6 +264,7 @@ reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
+subgraph-mock = "0.1"
 tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "0.3", features = ["async_closure"] }
