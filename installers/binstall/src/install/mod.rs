@@ -1,13 +1,20 @@
 use std::{
     env,
-    io::{self, IsTerminal, Write},
+    io::{self, IsTerminal},
 };
 
+use bytes::Bytes;
 use camino::Utf8PathBuf;
+use download::FileDownloadService;
+use http::Request;
+use rover_http::{BodyExt, Full};
 use rover_std::Fs;
+use tower::{Service, ServiceExt};
 use url::Url;
 
 use crate::InstallerError;
+
+pub mod download;
 
 pub struct Installer {
     /// The name of the binary to install
@@ -51,7 +58,7 @@ impl Installer {
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::Client,
+        file_download_service: FileDownloadService,
         is_latest: bool,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
         let version = self
@@ -72,7 +79,7 @@ impl Installer {
         }
 
         let plugin_bin_path = self
-            .extract_plugin_tarball(plugin_name, plugin_tarball_url, client)
+            .extract_plugin_tarball(plugin_name, plugin_tarball_url, file_download_service)
             .await?;
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
 
@@ -248,26 +255,30 @@ impl Installer {
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::Client,
+        file_download_service: FileDownloadService,
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.keep())?;
-        let tarball_path = download_dir_path.join(format!("{plugin_name}.tar.gz"));
-        let mut f = std::fs::File::create(&tarball_path)?;
-        let response_bytes = client
-            .get(plugin_tarball_url)
-            .header(reqwest::header::USER_AGENT, "rover-client")
-            .header(reqwest::header::ACCEPT, "application/octet-stream")
-            .send()
-            .await?
-            .error_for_status()?
-            .bytes()
-            .await?;
-        f.write_all(&response_bytes[..])?;
-        f.sync_all()?;
-        let f = std::fs::File::open(&tarball_path)?;
-        let tar = flate2::read::GzDecoder::new(f);
-        let mut archive = tar::Archive::new(tar);
+        let http_request = Request::builder()
+            .method(http::Method::GET)
+            .uri(plugin_tarball_url)
+            .body(Full::new(Bytes::default()))
+            .map_err(|err| anyhow::anyhow!(err))?;
+        let mut file_download_service = file_download_service.into_inner();
+        let file_download_service = file_download_service
+            .ready()
+            .await
+            .map_err(|err| anyhow::anyhow!(err))?;
+        let response = file_download_service
+            .call(http_request)
+            .await
+            .map_err(|err| anyhow::anyhow!(err))?;
+        let body_bytes = response
+            .collect()
+            .await
+            .map_err(InstallerError::FileDownloadError)?
+            .to_bytes();
+        let mut archive = tar::Archive::new(&body_bytes[..]);
         archive.unpack(&download_dir_path)?;
         let path = download_dir_path.join("dist").join(format!(
             "{}{}",
@@ -299,15 +310,20 @@ mod test {
         time::Duration,
     };
 
+    use bytes::Bytes;
     use camino::Utf8PathBuf;
+    use futures::future;
+    use http::{HeaderValue, Response, Uri, header::CONTENT_ENCODING};
     use httpmock::prelude::*;
     use reqwest::header::{ACCEPT, USER_AGENT};
+    use rover_http::{Full, HttpServiceError, test::MockHttpService};
+    use rover_tower::{expect_poll_ready, test::MockCloneService};
     use rstest::{fixture, rstest};
     use sealed_test::prelude::*;
     use speculoos::prelude::*;
 
     use super::Installer;
-    use crate::InstallerError;
+    use crate::{InstallerError, download::FileDownloadService};
 
     #[fixture]
     fn home_dir() -> Utf8PathBuf {
@@ -579,24 +595,41 @@ mod test {
         gzip_encoder.write_all(&tar_bytes).unwrap();
         let gzipped_tar = gzip_encoder.finish().unwrap();
 
-        let server = MockServer::start();
-        let address = server.address();
-        let _mock = server.mock(|when, then| {
-            when.method(Method::GET)
-                .path(format!("/{}", binary_name))
-                .header(USER_AGENT.as_str(), "rover-client")
-                .header(ACCEPT.as_str(), "application/octet-stream");
-            then.status(200).body(&gzipped_tar[..]);
-        });
-        let tarball_url = format!("http://{}/{}", address, binary_name);
-        let client = reqwest::Client::builder()
-            .gzip(true)
-            .brotli(true)
-            .timeout(Duration::from_secs(1))
-            .build()
-            .unwrap();
+        let tarball_url = format!("http://example.com/{}", binary_name);
+        let mut mock_http_service = MockHttpService::new();
+        expect_poll_ready!(mock_http_service);
+        mock_http_service
+            .expect_call()
+            .times(1)
+            .withf({
+                let tarball_url = tarball_url.clone();
+                move |req| {
+                    let headers = req.headers();
+                    let headers_match = headers.get(USER_AGENT)
+                        == Some(&HeaderValue::from_static("rover-client"))
+                        && headers.get(ACCEPT)
+                            == Some(&HeaderValue::from_static("application/octet-stream"));
+                    headers_match
+                        && req.method() == &Method::GET
+                        && req.uri() == &Uri::try_from(&tarball_url).unwrap()
+                }
+            })
+            .returning(move |_| {
+                future::ready(
+                    Response::builder()
+                        .status(200)
+                        .header(CONTENT_ENCODING, "gzip")
+                        .body(Full::new(Bytes::from(gzipped_tar.clone())))
+                        .map_err(HttpServiceError::from),
+                )
+            });
+        let service = FileDownloadService::builder()
+            .http_service(MockCloneService::new(mock_http_service))
+            .max_elapsed_duration(Duration::from_secs(5))
+            .timeout_duration(Duration::from_secs(1))
+            .build();
         let result = installer
-            .extract_plugin_tarball(binary_name, &tarball_url, &client)
+            .extract_plugin_tarball(binary_name, &tarball_url, service)
             .await;
         let plugin_path = assert_that!(result).is_ok().subject.clone();
         let mut contents = String::new();

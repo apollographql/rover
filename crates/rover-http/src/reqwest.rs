@@ -2,12 +2,13 @@ use std::{pin::Pin, time::Duration};
 
 use buildstructor::buildstructor;
 use futures::Future;
+use http_body_util::Full;
 use reqwest::ClientBuilder;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{
-    body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
-    HttpServiceError, HttpServiceFactory,
+    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError,
+    HttpServiceFactory, body::body_to_bytes,
 };
 
 /// Constructs [`HttpService`]s
@@ -103,7 +104,7 @@ impl Service<HttpRequest> for ReqwestService {
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
-            Ok(resp.map(|_| bytes))
+            Ok(resp.map(|_| Full::new(bytes)))
         };
         Box::pin(fut)
     }
