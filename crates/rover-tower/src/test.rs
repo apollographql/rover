@@ -29,7 +29,7 @@ macro_rules! mock_service {
 
 use std::{pin::Pin, sync::Arc};
 
-use futures::{Future, lock::Mutex};
+use futures::{lock::Mutex, Future};
 pub use mock_service;
 
 #[macro_export]

@@ -313,17 +313,17 @@ mod test {
     use bytes::Bytes;
     use camino::Utf8PathBuf;
     use futures::future;
-    use http::{HeaderValue, Response, Uri, header::CONTENT_ENCODING};
+    use http::{header::CONTENT_ENCODING, HeaderValue, Response, Uri};
     use httpmock::prelude::*;
     use reqwest::header::{ACCEPT, USER_AGENT};
-    use rover_http::{Full, HttpServiceError, test::MockHttpService};
+    use rover_http::{test::MockHttpService, Full, HttpServiceError};
     use rover_tower::{expect_poll_ready, test::MockCloneService};
     use rstest::{fixture, rstest};
     use sealed_test::prelude::*;
     use speculoos::prelude::*;
 
     use super::Installer;
-    use crate::{InstallerError, download::FileDownloadService};
+    use crate::{download::FileDownloadService, InstallerError};
 
     #[fixture]
     fn home_dir() -> Utf8PathBuf {
