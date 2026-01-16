@@ -2,6 +2,7 @@ use std::io;
 
 use rover_std::RoverStdError;
 use thiserror::Error;
+use tower::BoxError;
 
 /// InstallerError is the type of Error that occurred while installing.
 #[derive(Error, Debug)]
@@ -44,4 +45,7 @@ pub enum InstallerError {
 
     #[error(transparent)]
     RoverStdError(#[from] RoverStdError),
+
+    #[error(transparent)]
+    FileDownloadError(BoxError),
 }
