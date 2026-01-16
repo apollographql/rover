@@ -1,14 +1,14 @@
 use std::{env, fs, io::Write, time::Duration};
 
-use binstall::{Installer, download::FileDownloadService};
+use binstall::{download::FileDownloadService, Installer};
 use camino::Utf8PathBuf;
 use http::header::CONTENT_ENCODING;
 use httpmock::prelude::*;
 use reqwest::{
-    ClientBuilder,
     header::{ACCEPT, USER_AGENT},
+    ClientBuilder,
 };
-use rover_http::{ReqwestService, test::MockHttpService};
+use rover_http::{test::MockHttpService, ReqwestService};
 use rover_tower::test::MockCloneService;
 use speculoos::prelude::*;
 

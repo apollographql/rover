@@ -27,8 +27,8 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
 // should not mess with it.
 fn get_windows_path_var() -> Result<Option<String>, InstallerError> {
     use winreg::{
-        RegKey,
         enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE},
+        RegKey,
     };
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
@@ -99,11 +99,11 @@ fn apply_new_path(new_path: &str) -> Result<(), InstallerError> {
 
     use winapi::{
         shared::minwindef::*,
-        um::winuser::{HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutA, WM_SETTINGCHANGE},
+        um::winuser::{SendMessageTimeoutA, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE},
     };
     use winreg::{
+        enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE},
         RegKey, RegValue,
-        enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE, RegType},
     };
 
     let root = RegKey::predef(HKEY_CURRENT_USER);

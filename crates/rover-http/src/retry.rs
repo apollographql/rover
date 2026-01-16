@@ -8,12 +8,12 @@ use std::{
 use http::StatusCode;
 use tap::TapFallible;
 use tower::{
-    BoxError,
     retry::{
-        Policy,
         backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
+        Policy,
     },
     util::rng::HasherRng,
+    BoxError,
 };
 
 use super::HttpServiceError;

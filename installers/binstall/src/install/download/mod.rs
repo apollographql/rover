@@ -5,10 +5,10 @@ use bytes::Bytes;
 use http::Response;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use rover_http::{
-    Full, HttpRequest, HttpResponse, extend_headers::ExtendHeadersLayer, retry::RetryPolicy,
+    extend_headers::ExtendHeadersLayer, retry::RetryPolicy, Full, HttpRequest, HttpResponse,
 };
 use tower::{
-    BoxError, Service, ServiceBuilder, retry::RetryLayer, timeout::TimeoutLayer, util::BoxService,
+    retry::RetryLayer, timeout::TimeoutLayer, util::BoxService, BoxError, Service, ServiceBuilder,
 };
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
 
