@@ -20,7 +20,10 @@ use super::{
     config::{ReadRouterConfigError, RouterAddress, RunRouterConfig, remote::RemoteRouterConfig},
     hot_reload::{HotReloadEvent, HotReloadWatcher, RouterUpdateEvent},
     install::{InstallRouter, InstallRouterError},
-    watchers::router_config::RouterConfigWatcher,
+    watchers::{
+        dot_env::{DotEnvEvent, DotEnvReload, DotEnvWatcher},
+        router_config::RouterConfigWatcher,
+    },
 };
 use crate::{
     RoverError,
@@ -380,7 +383,7 @@ impl RunRouter<state::Watch> {
     {
         tracing::info!("Watching for subgraph changes");
         let (router_config_updates, config_watcher_subtask) =
-            if let Some(config_path) = self.state.config_path {
+            if let Some(config_path) = self.state.config_path.clone() {
                 let config_watcher = RouterConfigWatcher::new(FileWatcher::new(config_path));
                 let (events, subtask): (UnboundedReceiverStream<RouterUpdateEvent>, _) =
                     Subtask::new(config_watcher);
@@ -388,6 +391,16 @@ impl RunRouter<state::Watch> {
             } else {
                 (None, None)
             };
+
+        let (dot_env_updates, dot_env_watcher_subtask) = if dotenvy::dotenv().is_ok() {
+            tracing::info!("Watching for .env changes");
+            let dot_env_watcher = DotEnvWatcher::new();
+            let (events, subtask): (UnboundedReceiverStream<DotEnvEvent>, _) =
+                Subtask::new(dot_env_watcher);
+            (Some(events), Some(subtask))
+        } else {
+            (None, None)
+        };
 
         let composition_messages =
             tokio_stream::StreamExt::filter_map(composition_messages, |event| match event {
@@ -421,11 +434,33 @@ impl RunRouter<state::Watch> {
 
         let (hot_reload_events, hot_reload_subtask): (UnboundedReceiverStream<HotReloadEvent>, _) =
             Subtask::new(hot_reload_watcher);
-        let router_config_updates = router_config_updates
-            .map(move |stream| stream.boxed())
-            .unwrap_or_else(|| stream::empty().boxed());
-        let router_updates =
-            tokio_stream::StreamExt::merge(router_config_updates, composition_messages);
+
+        let mut streams: Vec<_> = vec![];
+        streams.push(composition_messages.boxed());
+
+        if let Some(stream) = router_config_updates {
+            streams.push(stream.boxed());
+        }
+
+        if let (Some(dot_env_event_stream), Some(config_path)) =
+            (dot_env_updates, self.state.config_path.clone())
+        {
+            // Emit RouterUpdateEvent::ConfigChanged for each .env change
+            let dot_env_reload = DotEnvReload {
+                router_config_path: config_path,
+            };
+            let (router_config_updates, dot_env_reload_subtask): (
+                UnboundedReceiverStream<RouterUpdateEvent>,
+                _,
+            ) = Subtask::new(dot_env_reload);
+            dot_env_reload_subtask.run(
+                dot_env_event_stream.boxed(),
+                Some(self.state.cancellation_token.clone()),
+            );
+            streams.push(router_config_updates.boxed());
+        }
+
+        let router_updates = stream::select_all(streams).boxed();
 
         SubtaskRunStream::run(
             hot_reload_subtask,
@@ -434,6 +469,9 @@ impl RunRouter<state::Watch> {
         );
 
         if let Some(subtask) = config_watcher_subtask {
+            subtask.run(Some(self.state.cancellation_token.clone()))
+        }
+        if let Some(subtask) = dot_env_watcher_subtask {
             subtask.run(Some(self.state.cancellation_token.clone()))
         }
 
