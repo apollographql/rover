@@ -4,11 +4,11 @@ use buildstructor::buildstructor;
 use futures::Future;
 use http_body_util::Full;
 use reqwest::ClientBuilder;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{
-    body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
-    HttpServiceError, HttpServiceFactory,
+    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError,
+    HttpServiceFactory, body::body_to_bytes,
 };
 
 /// Constructs [`HttpService`]s
@@ -70,7 +70,7 @@ impl From<reqwest::Error> for HttpServiceError {
         } else if value.is_connect() {
             HttpServiceError::Connect(value.into())
         } else if value.is_timeout() {
-            HttpServiceError::TimedOut(value.into())
+            HttpServiceError::TimedOut
         } else {
             HttpServiceError::Unexpected(value.into())
         }

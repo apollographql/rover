@@ -172,6 +172,7 @@ mod tests {
             });
             then.status(200)
                 .header("Content-Type", "application/octet-stream")
+                .header("Content-Encoding", "gzip")
                 .body(&finished_archive_bytes);
         });
         let binary = temp_env::async_with_vars(

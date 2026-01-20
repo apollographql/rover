@@ -19,6 +19,7 @@ mod reqwest;
 pub mod retry;
 #[cfg(any(test, feature = "test"))]
 pub mod test;
+pub mod timeout;
 
 pub use error::HttpServiceError;
 pub use reqwest::{ReqwestService, ReqwestServiceFactory};
@@ -26,7 +27,7 @@ pub use reqwest::{ReqwestService, ReqwestServiceFactory};
 /// Ease-of-use synonym for the request type this crate operates on
 pub type HttpRequest = http::Request<Full<Bytes>>;
 /// Ease-of-use synonym for the response type this crate operates on
-pub type HttpResponse = http::Response<Full<Bytes>>;
+pub type HttpResponse<T = Full<Bytes>> = http::Response<T>;
 /// Ease-of-use synonym for the [`Service`] type this crate provides
 pub type HttpService = BoxCloneService<HttpRequest, HttpResponse, HttpServiceError>;
 
@@ -53,7 +54,7 @@ pub struct HttpServiceConfig {
 impl From<Box<dyn std::error::Error + Send + Sync>> for HttpServiceError {
     fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
         match err.downcast::<Elapsed>() {
-            Ok(err) => HttpServiceError::TimedOut(err),
+            Ok(_) => HttpServiceError::TimedOut,
             Err(err) => match err.downcast::<HttpServiceError>() {
                 Ok(err) => *err,
                 Err(err) => HttpServiceError::Unexpected(err),

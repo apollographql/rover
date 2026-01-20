@@ -12,13 +12,13 @@
 
 //! Provides GraphQL Middleware for HTTP Services
 
-use std::{fmt, future::Future, pin::Pin, str::FromStr};
+use std::{convert::Infallible, fmt, future::Future, pin::Pin, str::FromStr};
 
 use bytes::Bytes;
 use graphql_client::GraphQLQuery;
-use http::{uri::InvalidUri, HeaderValue, Method, StatusCode, Uri};
+use http::{HeaderValue, Method, StatusCode, Uri, uri::InvalidUri};
 use http_body_util::Full;
-use rover_http::{HttpRequest, HttpResponse};
+use rover_http::{BodyExt, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 use tower::{Layer, Service};
 use url::Url;
@@ -89,7 +89,9 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
         friendly_errors_detail: Vec<String>,
     },
     /// The request failed to present credentials that authorize for the current request.
-    #[error("Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring].")]
+    #[error(
+        "Invalid credentials provided. See \"Authenticating with GraphOS\" [https://www.apollographql.com/docs/rover/configuring]."
+    )]
     InvalidCredentials(),
     /// Data serialization error
     #[error("Serialization error")]
@@ -113,6 +115,9 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     /// Errors that occur as a result of the underlying [`HttpService`] failing
     #[error("Upstream service error: {:?}", .0)]
     UpstreamService(#[from] Box<dyn std::error::Error + Send + Sync>),
+    /// This shouldn't ever happen
+    #[error(transparent)]
+    Infallible(#[from] Infallible),
 }
 
 /// Wrapper around [`GraphQLQuery::Variables`]
@@ -238,13 +243,14 @@ where
                 .call(req)
                 .await
                 .map_err(|err| GraphQLServiceError::UpstreamService(Box::new(err)))?;
-            let body = resp.body();
+            let status_code = resp.status();
+            let body = resp.into_body().collect().await?.to_bytes();
             let graphql_response: graphql_client::Response<Q::ResponseData> =
-                serde_json::from_slice(body).map_err(|err| {
+                serde_json::from_slice(&body[..]).map_err(|err| {
                     GraphQLServiceError::Deserialization {
                         error: err,
                         data: body.clone(),
-                        status_code: resp.status(),
+                        status_code,
                     }
                 })?;
 
@@ -287,7 +293,7 @@ mod tests {
     use bytes::Bytes;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::{body::body_to_bytes, HttpRequest, HttpResponse, HttpServiceError};
+    use rover_http::{HttpRequest, HttpResponse, HttpServiceError, body::body_to_bytes};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;

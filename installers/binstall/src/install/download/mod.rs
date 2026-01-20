@@ -2,14 +2,12 @@ use std::time::Duration;
 
 use bon::bon;
 use bytes::Bytes;
-use http::Response;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use rover_http::{
-    extend_headers::ExtendHeadersLayer, retry::RetryPolicy, Full, HttpRequest, HttpResponse,
+    Full, HttpRequest, HttpResponse, HttpServiceError, extend_headers::ExtendHeadersLayer,
+    retry::RetryPolicy, timeout::TimeoutLayer,
 };
-use tower::{
-    retry::RetryLayer, timeout::TimeoutLayer, util::BoxService, BoxError, Service, ServiceBuilder,
-};
+use tower::{Service, ServiceBuilder, retry::RetryLayer, util::BoxService};
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
 
 const DEFAULT_ELAPSED_DURATION_SECONDS: u64 = 600;
@@ -18,7 +16,7 @@ const ROVER_CLIENT_HEADER: HeaderValue = HeaderValue::from_static("rover-client"
 const OCTET_STREAM_HEADER: HeaderValue = HeaderValue::from_static("application/octet-stream");
 
 pub struct FileDownloadService {
-    inner: BoxService<HttpRequest, http::Response<DecompressionBody<Full<Bytes>>>, BoxError>,
+    inner: BoxService<HttpRequest, HttpResponse<DecompressionBody<Full<Bytes>>>, HttpServiceError>,
 }
 
 #[bon]
@@ -31,7 +29,7 @@ impl FileDownloadService {
     ) -> FileDownloadService
     where
         S1: Service<HttpRequest, Response = HttpResponse> + Clone + Send + 'static,
-        S1::Error: std::error::Error + Send + Sync,
+        S1::Error: Into<HttpServiceError>,
         S1::Future: Send + 'static,
     {
         let service = ServiceBuilder::new()
@@ -51,7 +49,8 @@ impl FileDownloadService {
 
     pub fn into_inner(
         self,
-    ) -> BoxService<HttpRequest, Response<DecompressionBody<Full<Bytes>>>, BoxError> {
+    ) -> BoxService<HttpRequest, HttpResponse<DecompressionBody<Full<Bytes>>>, HttpServiceError>
+    {
         self.inner
     }
 }

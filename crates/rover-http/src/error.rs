@@ -26,7 +26,7 @@ pub enum HttpServiceError {
     Closed(Box<dyn std::error::Error + Send + Sync + 'static>),
     /// Request timed out
     #[error("Request timed out")]
-    TimedOut(Box<dyn std::error::Error + Send + Sync + 'static>),
+    TimedOut,
     /// Error decoding the request/response body
     #[error("Decode error")]
     Decode(Box<dyn std::error::Error + Send + Sync + 'static>),
@@ -48,7 +48,7 @@ impl HttpServiceError {
     }
     /// The error is caused by a timeout
     pub const fn is_timeout(&self) -> bool {
-        matches!(self, HttpServiceError::TimedOut(_))
+        matches!(self, HttpServiceError::TimedOut)
     }
     /// The error is related to decoding the response
     pub const fn is_decode(&self) -> bool {

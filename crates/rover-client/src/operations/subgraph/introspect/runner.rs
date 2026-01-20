@@ -1,11 +1,11 @@
 use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Client;
 use rover_graphql::GraphQLLayer;
-use rover_http::{extend_headers::ExtendHeadersLayer, retry::RetryPolicy, ReqwestService};
-use tower::{retry::RetryLayer, Service, ServiceBuilder, ServiceExt};
+use rover_http::{ReqwestService, extend_headers::ExtendHeadersLayer, retry::RetryPolicy};
+use tower::{Service, ServiceBuilder, ServiceExt, retry::RetryLayer};
 
 use super::SubgraphIntrospect;
-use crate::{operations::subgraph::introspect::types::*, RoverClientError};
+use crate::{RoverClientError, operations::subgraph::introspect::types::*};
 
 pub async fn run(
     input: SubgraphIntrospectInput,
@@ -31,16 +31,12 @@ pub async fn run(
         );
     }
 
-    let http_service_stack = ServiceBuilder::new()
-        .boxed_clone()
-        .option_layer(retry_layer)
-        .layer(ExtendHeadersLayer::new(header_map))
-        .service(http_service);
-
     let mut service = ServiceBuilder::new()
         .layer_fn(SubgraphIntrospect::new)
         .layer(GraphQLLayer::new(input.endpoint.clone()))
-        .service(http_service_stack);
+        .option_layer(retry_layer)
+        .layer(ExtendHeadersLayer::new(header_map))
+        .service(http_service);
 
     let service = service.ready().await?;
     let resp = service.call(()).await?;

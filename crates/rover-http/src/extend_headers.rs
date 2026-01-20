@@ -17,7 +17,7 @@ impl ExtendHeadersLayer {
     }
 }
 
-impl<S> Layer<S> for ExtendHeadersLayer {
+impl<S: Clone> Layer<S> for ExtendHeadersLayer {
     type Service = ExtendHeaders<S>;
     fn layer(&self, inner: S) -> Self::Service {
         ExtendHeaders {
@@ -28,12 +28,13 @@ impl<S> Layer<S> for ExtendHeadersLayer {
 }
 
 /// Middleware that adds headers to HTTP requests
-pub struct ExtendHeaders<S> {
+#[derive(Clone)]
+pub struct ExtendHeaders<S: Clone> {
     headers: HeaderMap,
     inner: S,
 }
 
-impl<S> ExtendHeaders<S> {
+impl<S: Clone> ExtendHeaders<S> {
     /// Constructs a new [`ExtendHeaders`]
     pub const fn new(headers: HeaderMap, inner: S) -> ExtendHeaders<S> {
         ExtendHeaders { headers, inner }
@@ -42,7 +43,7 @@ impl<S> ExtendHeaders<S> {
 
 impl<Req, S> Service<http::Request<Req>> for ExtendHeaders<S>
 where
-    S: Service<http::Request<Req>>,
+    S: Service<http::Request<Req>> + Clone,
 {
     type Response = S::Response;
     type Error = S::Error;
