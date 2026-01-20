@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c53b9236f0b3370f31520f8b142f141256d839c6 # v3.6.0
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3.6.1
       - run: mise run cargo-deny
 
   fmt:
@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c53b9236f0b3370f31520f8b142f141256d839c6 # v3.6.0
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3.6.1
       - run: mise run install_${{matrix.package_manager}}
 
   test:
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c53b9236f0b3370f31520f8b142f141256d839c6 # v3.6.0
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3.6.1
       - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
         with:
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
@@ -95,6 +95,6 @@ jobs:
         git log --oneline -1
         git symbolic-ref HEAD || echo "Detached HEAD detected"
     - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
-    - uses: jdx/mise-action@c53b9236f0b3370f31520f8b142f141256d839c6 # v3.6.0
+    - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3.6.1
     - run: mise run test
     - run: mise run check-glibc
