@@ -8,9 +8,10 @@ use std::{
 use http::StatusCode;
 use tap::TapFallible;
 use tower::{
+    BoxError,
     retry::{
-        backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
         Policy,
+        backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
     },
     util::rng::HasherRng,
 };
@@ -51,21 +52,29 @@ impl RetryPolicy {
     }
 }
 
-impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
+impl Policy<HttpRequest, HttpResponse, BoxError> for RetryPolicy {
     type Future = tokio::time::Sleep;
     fn retry(
         &mut self,
         _: &mut HttpRequest,
-        result: &mut Result<HttpResponse, HttpServiceError>,
+        result: &mut Result<HttpResponse, BoxError>,
     ) -> Option<Self::Future> {
         if self.can_retry() {
             match result {
-                Err(HttpServiceError::TimedOut(_))
-                | Err(HttpServiceError::Connect(_))
-                | Err(HttpServiceError::Body(_))
-                | Err(HttpServiceError::Decode(_))
-                | Err(HttpServiceError::Closed(_)) => Some(self.backoff.next_backoff()),
-                Err(_) => None,
+                Err(err) => {
+                    if let Some(http_err) = err.downcast_ref::<HttpServiceError>() {
+                        match http_err {
+                            HttpServiceError::TimedOut(_)
+                            | HttpServiceError::Connect(_)
+                            | HttpServiceError::Body(_)
+                            | HttpServiceError::Decode(_)
+                            | HttpServiceError::Closed(_) => Some(self.backoff.next_backoff()),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
                 Ok(resp) => {
                     let status = resp.status();
                     if status.is_client_error()

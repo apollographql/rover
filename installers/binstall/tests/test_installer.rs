@@ -1,9 +1,15 @@
 use std::{env, fs, io::Write, time::Duration};
 
-use binstall::Installer;
+use binstall::{Installer, download::FileDownloadService};
 use camino::Utf8PathBuf;
+use http::header::CONTENT_ENCODING;
 use httpmock::prelude::*;
-use reqwest::header::{ACCEPT, USER_AGENT};
+use reqwest::{
+    ClientBuilder,
+    header::{ACCEPT, USER_AGENT},
+};
+use rover_http::{ReqwestService, test::MockHttpService};
+use rover_tower::test::MockCloneService;
 use speculoos::prelude::*;
 
 #[test]
@@ -57,7 +63,9 @@ pub async fn test_install_plugin() {
             .header(USER_AGENT.as_str(), "rover-client")
             .header(ACCEPT.as_str(), "application/octet-stream");
         let gzipped_tar = gzipped_plugin_tarball(plugin_contents, plugin_name);
-        then.status(200).body(&gzipped_tar[..]);
+        then.status(200)
+            .header(CONTENT_ENCODING.as_str(), "gzip")
+            .body(&gzipped_tar[..]);
     });
     let _version_mock = server.mock(|when, then| {
         when.method(Method::HEAD).path(format!("/{}", plugin_name));
@@ -89,15 +97,18 @@ pub async fn test_install_plugin() {
         override_install_path: Some(override_path),
     };
 
-    let client = reqwest::Client::builder()
-        .gzip(true)
-        .brotli(true)
-        .timeout(Duration::from_secs(1))
+    let http_service = ReqwestService::builder()
+        .client(reqwest::Client::new())
         .build()
         .unwrap();
+    let service = FileDownloadService::builder()
+        .http_service(http_service)
+        .max_elapsed_duration(Duration::from_secs(5))
+        .timeout_duration(Duration::from_secs(1))
+        .build();
 
     let result = installer
-        .install_plugin(plugin_name, &tarball_url, &client, true)
+        .install_plugin(plugin_name, &tarball_url, service, true)
         .await;
 
     assert_that!(result)
