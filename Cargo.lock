@@ -1647,11 +1647,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
-<<<<<<< HEAD
- "windows-sys 0.59.0",
-=======
  "windows-sys 0.61.2",
->>>>>>> 0d117bb1 (Add retry to installers)
 ]
 
 [[package]]
