@@ -5,11 +5,11 @@ use std::{
 
 use bytes::Bytes;
 use camino::Utf8PathBuf;
-use download::FileDownloadService;
+use download::{gz_decode::GzDecodeLayer, FileDownloadService};
 use http::Request;
-use rover_http::{BodyExt, Full};
+use rover_http::Full;
 use rover_std::Fs;
-use tower::{Service, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt};
 use url::Url;
 
 use crate::InstallerError;
@@ -264,20 +264,18 @@ impl Installer {
             .uri(plugin_tarball_url)
             .body(Full::new(Bytes::default()))
             .map_err(|err| anyhow::anyhow!(err))?;
-        let mut file_download_service = file_download_service.into_inner();
+        let mut file_download_service = ServiceBuilder::new()
+            .boxed()
+            .layer(GzDecodeLayer::default())
+            .service(file_download_service.into_inner());
         let file_download_service = file_download_service
             .ready()
             .await
             .map_err(|err| anyhow::anyhow!(err))?;
-        let response = file_download_service
+        let body_bytes = file_download_service
             .call(http_request)
             .await
             .map_err(|err| anyhow::anyhow!(err))?;
-        let body_bytes = response
-            .collect()
-            .await
-            .map_err(InstallerError::FileDownloadError)?
-            .to_bytes();
         let mut archive = tar::Archive::new(&body_bytes[..]);
         archive.unpack(&download_dir_path)?;
         let path = download_dir_path.join("dist").join(format!(
@@ -313,7 +311,7 @@ mod test {
     use bytes::Bytes;
     use camino::Utf8PathBuf;
     use futures::future;
-    use http::{header::CONTENT_ENCODING, HeaderValue, Response, Uri};
+    use http::{HeaderValue, Response, Uri};
     use httpmock::prelude::*;
     use reqwest::header::{ACCEPT, USER_AGENT};
     use rover_http::{test::MockHttpService, Full, HttpServiceError};
@@ -618,7 +616,6 @@ mod test {
                 future::ready(
                     Response::builder()
                         .status(200)
-                        .header(CONTENT_ENCODING, "gzip")
                         .body(Full::new(Bytes::from(gzipped_tar.clone())))
                         .map_err(HttpServiceError::from),
                 )

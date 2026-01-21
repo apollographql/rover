@@ -14,7 +14,6 @@ use tracing_test::traced_test;
 #[case::installs_supergraph_at_latest(Vec::from(["install", "--plugin", "supergraph@latest-2", "--client-timeout", "120"]), "supergraph-")]
 #[case::installs_router_at_pinned_version(Vec::from(["install", "--plugin", "router@=1.0.0", "--client-timeout", "120"]), "router-v1.0.0")]
 #[case::installs_router_at_latest(Vec::from(["install", "--plugin", "router@latest", "--client-timeout", "120"]), "router-")]
-#[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_name: &str) {

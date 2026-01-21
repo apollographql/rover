@@ -2,7 +2,6 @@ use std::{env, fs, io::Write, time::Duration};
 
 use binstall::{download::FileDownloadService, Installer};
 use camino::Utf8PathBuf;
-use http::header::CONTENT_ENCODING;
 use httpmock::prelude::*;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use rover_http::ReqwestService;
@@ -59,9 +58,7 @@ pub async fn test_install_plugin() {
             .header(USER_AGENT.as_str(), "rover-client")
             .header(ACCEPT.as_str(), "application/octet-stream");
         let gzipped_tar = gzipped_plugin_tarball(plugin_contents, plugin_name);
-        then.status(200)
-            .header(CONTENT_ENCODING.as_str(), "gzip")
-            .body(&gzipped_tar[..]);
+        then.status(200).body(&gzipped_tar[..]);
     });
     let _version_mock = server.mock(|when, then| {
         when.method(Method::HEAD).path(format!("/{}", plugin_name));

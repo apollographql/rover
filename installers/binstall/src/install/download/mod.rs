@@ -10,6 +10,8 @@ use rover_http::{
 use tower::{retry::RetryLayer, util::BoxService, Service, ServiceBuilder};
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
 
+pub mod gz_decode;
+
 const DEFAULT_ELAPSED_DURATION_SECONDS: u64 = 600;
 const DEFAULT_TIMEOUT_DURATION_SECONDS: u64 = 60;
 const ROVER_CLIENT_HEADER: HeaderValue = HeaderValue::from_static("rover-client");
@@ -34,7 +36,7 @@ impl FileDownloadService {
     {
         let service = ServiceBuilder::new()
             .boxed()
-            .layer(DecompressionLayer::default())
+            .layer(DecompressionLayer::default()) // explicit stand-in for reqwest's brotli/gzip decompression options
             .layer(file_download_layer())
             .layer(RetryLayer::new(RetryPolicy::new(
                 max_elapsed_duration
