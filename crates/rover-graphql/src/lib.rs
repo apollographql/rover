@@ -293,7 +293,7 @@ mod tests {
     use bytes::Bytes;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::{body::body_to_bytes, HttpRequest, HttpResponse, HttpServiceError};
+    use rover_http::{body::body_to_bytes, Full, HttpRequest, HttpResponse, HttpServiceError};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
@@ -367,7 +367,9 @@ mod tests {
                 extensions: None,
             };
             let mock_http_response = http::Response::builder()
-                .body(Bytes::from(serde_json::to_vec(&graphql_response).unwrap()))
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
                 .unwrap();
             send_response.send_response(mock_http_response);
         });
@@ -425,7 +427,9 @@ mod tests {
                     extensions: None,
                 };
             let mock_http_response = http::Response::builder()
-                .body(Bytes::from(serde_json::to_vec(&graphql_response).unwrap()))
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
                 .unwrap();
             send_response.send_response(mock_http_response);
         });
@@ -485,7 +489,7 @@ mod tests {
             let response = "something went wrong";
             let mock_http_response = http::Response::builder()
                 .status(expected_status_code)
-                .body(Bytes::from(response.as_bytes()))
+                .body(Full::new(Bytes::from(response.as_bytes())))
                 .unwrap();
             send_response.send_response(mock_http_response);
         });
