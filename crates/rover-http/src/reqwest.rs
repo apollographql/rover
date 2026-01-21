@@ -4,11 +4,11 @@ use buildstructor::buildstructor;
 use futures::Future;
 use http_body_util::Full;
 use reqwest::ClientBuilder;
-use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
+use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
 use crate::{
-    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError,
-    HttpServiceFactory, body::body_to_bytes,
+    body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
+    HttpServiceError, HttpServiceFactory,
 };
 
 /// Constructs [`HttpService`]s
