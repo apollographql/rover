@@ -4528,6 +4528,7 @@ dependencies = [
  "rover-studio",
  "rstest",
  "schemars",
+ "sealed_test",
  "semver",
  "serde",
  "serde_json",

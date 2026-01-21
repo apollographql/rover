@@ -5,6 +5,7 @@ use assert_fs::TempDir;
 use camino::Utf8PathBuf;
 use regex::Regex;
 use rstest::{fixture, rstest};
+use sealed_test::prelude::*;
 use serde_json::Value;
 use speculoos::{assert_that, asserting, boolean::BooleanAssertions};
 use tracing_test::traced_test;
@@ -16,6 +17,7 @@ use tracing_test::traced_test;
 #[case::installs_router_at_latest(Vec::from(["install", "--plugin", "router@latest", "--client-timeout", "120"]), "router-")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_name: &str) {
     // GIVEN
     //   - an install command for the supergraph binary that forces replacement; sometimes this
@@ -64,9 +66,9 @@ fn temp_dir() -> Utf8PathBuf {
 #[rstest]
 #[case::force_installs_supergraph(Vec::from(["install", "--force", "--plugin", "supergraph@=2.8.0", "--log", "debug"]), "supergraph", "supergraph-v2.8.0")]
 #[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router",  "router-v1.0.0")]
-#[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin_with_force_opt(
     #[case] args: Vec<&str>,
     #[case] binary: &str,
@@ -137,9 +139,9 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 #[case::router_latest_1("router", "latest-1")]
 #[case::supergraph_latest_0("supergraph", "latest-0")]
 #[case::supergraph_latest_2("supergraph", "latest-2")]
-#[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")], files = ["latest_plugin_versions.json"])]
 async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     #[case] binary_name: &str,
     #[case] config_version_name: &str,

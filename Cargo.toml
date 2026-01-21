@@ -267,6 +267,7 @@ predicates = { workspace = true }
 rand_regex = "0.18"
 reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }
 rstest = { workspace = true }
+sealed_test = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tower-test = { workspace = true }
