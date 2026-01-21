@@ -9,8 +9,8 @@ use http::StatusCode;
 use tap::TapFallible;
 use tower::{
     retry::{
-        Policy,
         backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
+        Policy,
     },
     util::rng::HasherRng,
 };

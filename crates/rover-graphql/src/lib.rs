@@ -16,7 +16,7 @@ use std::{convert::Infallible, fmt, future::Future, pin::Pin, str::FromStr};
 
 use bytes::Bytes;
 use graphql_client::GraphQLQuery;
-use http::{HeaderValue, Method, StatusCode, Uri, uri::InvalidUri};
+use http::{uri::InvalidUri, HeaderValue, Method, StatusCode, Uri};
 use http_body_util::Full;
 use rover_http::{BodyExt, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
@@ -293,7 +293,7 @@ mod tests {
     use bytes::Bytes;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::{HttpRequest, HttpResponse, HttpServiceError, body::body_to_bytes};
+    use rover_http::{body::body_to_bytes, HttpRequest, HttpResponse, HttpServiceError};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;

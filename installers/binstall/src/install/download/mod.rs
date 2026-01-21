@@ -4,10 +4,10 @@ use bon::bon;
 use bytes::Bytes;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use rover_http::{
-    Full, HttpRequest, HttpResponse, HttpServiceError, extend_headers::ExtendHeadersLayer,
-    retry::RetryPolicy, timeout::TimeoutLayer,
+    extend_headers::ExtendHeadersLayer, retry::RetryPolicy, timeout::TimeoutLayer, Full,
+    HttpRequest, HttpResponse, HttpServiceError,
 };
-use tower::{Service, ServiceBuilder, retry::RetryLayer, util::BoxService};
+use tower::{retry::RetryLayer, util::BoxService, Service, ServiceBuilder};
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
 
 const DEFAULT_ELAPSED_DURATION_SECONDS: u64 = 600;
