@@ -4,11 +4,11 @@ use buildstructor::buildstructor;
 use futures::Future;
 use http_body_util::Full;
 use reqwest::ClientBuilder;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{
-    body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
-    HttpServiceError, HttpServiceFactory,
+    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError,
+    HttpServiceFactory, body::body_to_bytes,
 };
 
 /// Constructs [`HttpService`]s
@@ -123,7 +123,7 @@ mod tests {
     use anyhow::Result;
     use bytes::Bytes;
     use http::HeaderValue;
-    use http_body_util::Full;
+    use http_body_util::{BodyExt, Full};
     use httpmock::{Method, MockServer};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
@@ -197,14 +197,15 @@ mod tests {
         if request_length.is_some() {
             assert_that!(resp)
                 .is_err()
-                .matches(|err| matches!(err, HttpServiceError::TimedOut(_)));
+                .matches(|err| matches!(err, HttpServiceError::TimedOut));
         } else {
             let resp = resp?;
             assert_that!(resp.headers().get("x-resp-header"))
                 .is_some()
                 .is_equal_to(&HeaderValue::from_static("x-resp-value"));
 
-            assert_that!(resp.body()).is_equal_to(&Bytes::from("def".as_bytes()));
+            let body_bytes = resp.body().clone().collect().await.unwrap().to_bytes();
+            assert_that!(body_bytes).is_equal_to(Bytes::from("def".as_bytes()));
         }
 
         Ok(())
