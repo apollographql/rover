@@ -1,5 +1,5 @@
 pub use mockall as mockall_;
-pub use paste as paste_;
+pub use pastey as paste_;
 
 #[macro_export]
 macro_rules! mock_service {
