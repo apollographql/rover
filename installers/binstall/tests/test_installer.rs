@@ -1,6 +1,6 @@
 use std::{env, fs, io::Write, time::Duration};
 
-use binstall::{Installer, download::FileDownloadService};
+use binstall::{download::FileDownloadService, Installer};
 use camino::Utf8PathBuf;
 use http::header::CONTENT_ENCODING;
 use httpmock::prelude::*;
