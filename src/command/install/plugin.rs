@@ -57,7 +57,7 @@ impl Plugin {
 
     fn get_arch_for_env(&self, os: &str, arch: &str) -> RoverResult<String> {
         let mut no_prebuilt_binaries = RoverError::new(anyhow!(
-            "Your current architecture does not support installation of this plugin."
+            "Your current architecture (os: {os}, arch: {arch}) does not support installation of this plugin."
         ));
         // Sorry, no musl support for composition or the router
         if cfg!(target_env = "musl") {

@@ -180,7 +180,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         .any(|f| {
             f.file_name()
                 .to_str()
-                .expect("failed to convert directroy filename to str")
+                .expect("failed to convert directory filename to str")
                 .contains(&downloaded_binary_name)
         });
 
