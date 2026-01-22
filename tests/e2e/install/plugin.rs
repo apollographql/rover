@@ -10,7 +10,6 @@ use serde_json::Value;
 use speculoos::{assert_that, asserting, boolean::BooleanAssertions};
 use tracing_test::traced_test;
 
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[rstest]
 #[case::installs_supergraph_at_pinned_version(Vec::from(["install", "--plugin", "supergraph@=2.8.0", "--client-timeout", "120"]), "supergraph-v2.8.0")]
 #[case::installs_supergraph_at_latest(Vec::from(["install", "--plugin", "supergraph@latest-2", "--client-timeout", "120"]), "supergraph-")]
@@ -64,7 +63,6 @@ fn temp_dir() -> Utf8PathBuf {
     Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap()
 }
 
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[rstest]
 #[case::force_installs_supergraph(Vec::from(["install", "--force", "--plugin", "supergraph@=2.8.0", "--log", "debug"]), "supergraph", "supergraph-v2.8.0")]
 #[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router",  "router-v1.0.0")]
@@ -137,7 +135,6 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     assert_that!(re.is_match(stderr)).is_true();
 }
 
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[rstest]
 #[case::router_latest_1("router", "latest-1")]
 #[case::supergraph_latest_0("supergraph", "latest-0")]
