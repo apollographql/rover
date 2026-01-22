@@ -154,7 +154,7 @@ mod tests {
                     && request.uri().path().starts_with("/tar/supergraph/")
             });
             then.status(302)
-                .header("Location", format!("{mock_server_endpoint}/supergraph/"))
+                .header("Location", format!("{mock_server_endpoint}/supergraph/"));
         });
 
         let enc = GzEncoder::new(Vec::new(), Compression::default());
