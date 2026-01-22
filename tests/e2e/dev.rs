@@ -1,4 +1,8 @@
-use std::{env, process::Command, time::Duration};
+use std::{
+    env,
+    process::{Command, Stdio},
+    time::Duration,
+};
 
 use assert_cmd::cargo;
 use json_matcher::{
@@ -10,6 +14,7 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use rstest::*;
 use serde_json::{Value, json};
 use speculoos::assert_that;
+use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing::error;
 use tracing_test::traced_test;
@@ -208,4 +213,124 @@ async fn e2e_test_rover_dev(
     })
     .await
     .expect("Failed to run query before timeout hit");
+}
+
+/// Test for issue #2751: Router config env var double expansion bug
+///
+/// When router.yaml contains `${env.VAR}` and VAR's value contains a `$`,
+/// rover should NOT expand the env var - the router handles expansion itself.
+#[ignore]
+#[tokio::test]
+#[traced_test]
+async fn e2e_test_router_config_env_var_with_dollar_sign() {
+    let temp_dir = TempDir::new().expect("Could not create temp directory");
+    let temp_path = temp_dir.path();
+
+    let schema = r#"
+extend schema @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
+type Query {
+    hello: String
+}
+"#;
+    std::fs::write(temp_path.join("schema.graphql"), schema)
+        .expect("Could not write schema.graphql");
+
+    // Supergraph config
+    std::fs::write(
+        temp_path.join("supergraph.yaml"),
+        r#"
+federation_version: =2.4.7
+subgraphs:
+  api:
+    routing_url: http://localhost:4001
+    schema:
+      file: schema.graphql
+"#,
+    )
+    .expect("Could not write supergraph.yaml");
+
+    let port = pick_unused_port().expect("No ports free");
+    let health_port = pick_unused_port().expect("No ports free for health check");
+
+    // Router config with env var reference - the key part of this test
+    std::fs::write(
+        temp_path.join("router.yaml"),
+        format!(
+            r#"
+health_check:
+  listen: 127.0.0.1:{health_port}
+telemetry:
+  exporters:
+    tracing:
+      common:
+        service_name: ${{env.SERVICE_NAME}}
+"#
+        ),
+    )
+    .expect("Could not write router.yaml");
+
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "dev",
+        "--supergraph-config",
+        "supergraph.yaml",
+        "--router-config",
+        "router.yaml",
+        "--supergraph-port",
+        &port.to_string(),
+        "--elv2-license",
+        "accept",
+    ]);
+    cmd.current_dir(temp_path);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    cmd.env("SERVICE_NAME", "my$service"); // $ in value triggers the bug
+    if let Ok(v) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", v);
+    }
+    if let Ok(v) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", v);
+    }
+    if let Ok(v) = env::var("APOLLO_ROVER_DEV_MCP_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", v);
+    }
+
+    let mut child = cmd.spawn().expect("Failed to spawn rover dev");
+
+    // Wait for the router to start and verify it's healthy by making a request
+    let client = Client::new();
+    let router_url = format!("http://localhost:{port}");
+    let router_started = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if client.get(&router_url).send().await.is_ok() {
+                return true;
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+
+    // Ignore kill() result - process may have already exited on its own
+    let _ = child.kill();
+    let output = child.wait_with_output().expect("Failed to get output");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Assert no double expansion error messages (negative check)
+    assert!(
+        !combined.contains("could not expand variable")
+            && !combined.contains("no valid configuration was supplied"),
+        "Double expansion bug (issue #2751): {combined}"
+    );
+
+    // Assert router started successfully (positive check)
+    assert!(
+        router_started,
+        "Router failed to start. Output:\n{combined}"
+    );
 }
