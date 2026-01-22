@@ -31,16 +31,12 @@ pub async fn run(
         );
     }
 
-    let http_service_stack = ServiceBuilder::new()
-        .boxed_clone()
-        .option_layer(retry_layer)
-        .layer(ExtendHeadersLayer::new(header_map))
-        .service(http_service);
-
     let mut service = ServiceBuilder::new()
         .layer_fn(SubgraphIntrospect::new)
         .layer(GraphQLLayer::new(input.endpoint.clone()))
-        .service(http_service_stack);
+        .option_layer(retry_layer)
+        .layer(ExtendHeadersLayer::new(header_map))
+        .service(http_service);
 
     let service = service.ready().await?;
     let resp = service.call(()).await?;

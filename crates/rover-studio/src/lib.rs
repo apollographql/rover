@@ -205,7 +205,7 @@ mod tests {
             }
             let resp = http::Response::builder()
                 .status(StatusCode::CREATED)
-                .body(Bytes::default())
+                .body(Full::new(Bytes::default()))
                 .unwrap();
             send_response.send_response(resp);
         });

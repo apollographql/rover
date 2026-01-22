@@ -28,7 +28,7 @@ mod install;
 mod system;
 
 pub use error::InstallerError;
-pub use install::Installer;
+pub use install::{download, Installer};
 #[cfg(not(windows))]
 pub(crate) use system::unix;
 #[cfg(windows)]

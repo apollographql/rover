@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use http::StatusCode;
+use http_body_util::Full;
 
 /// Errors occuring from the use of an [`HttpService`]
 #[derive(thiserror::Error, Debug)]
@@ -11,7 +12,7 @@ pub enum HttpServiceError {
         /// The [`StatusCode`] returned by the response
         status_code: StatusCode,
         /// The [`Response`] that generated the [`StatusCode`], for potentially further handling
-        response: http::Response<Bytes>,
+        response: http::Response<Full<Bytes>>,
     },
     /// Errors that may occur from the [`http`] crate. This is generally relegated to
     /// parsing of things like [`Uri`]s or header names/values
@@ -25,7 +26,7 @@ pub enum HttpServiceError {
     Closed(Box<dyn std::error::Error + Send + Sync + 'static>),
     /// Request timed out
     #[error("Request timed out")]
-    TimedOut(Box<dyn std::error::Error + Send + Sync + 'static>),
+    TimedOut,
     /// Error decoding the request/response body
     #[error("Decode error")]
     Decode(Box<dyn std::error::Error + Send + Sync + 'static>),
@@ -47,7 +48,7 @@ impl HttpServiceError {
     }
     /// The error is caused by a timeout
     pub const fn is_timeout(&self) -> bool {
-        matches!(self, HttpServiceError::TimedOut(_))
+        matches!(self, HttpServiceError::TimedOut)
     }
     /// The error is related to decoding the response
     pub const fn is_decode(&self) -> bool {
