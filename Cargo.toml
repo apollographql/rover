@@ -30,6 +30,7 @@ members = [
     "xtask",
     "crates/houston",
     "crates/robot-panic",
+    "crates/rover-tower",
     "crates/rover-http",
     "crates/rover-graphql",
     "crates/rover-studio",
@@ -70,6 +71,7 @@ rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
+rover-tower = { path = "./crates/rover-tower" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
@@ -95,6 +97,7 @@ backtrace = "0.3"
 backon = { version = "1.4", features = ["std", "tokio-sleep"] }
 base64 = "0.22"
 billboard = "0.2"
+bon = "3.8.2"
 buildstructor = "0.6"
 bytes = "1"
 cargo_metadata = "0.23"
@@ -126,10 +129,12 @@ indoc = "2"
 itertools = "0.14"
 lazycell = "1"
 lazy_static = "1"
-notify = { version = "8" }
+mockall = "0.11.1"
+notify = "8"
 opener = "0.8"
 os_info = "3"
 os_type = "2"
+pastey = "0.2.1"
 predicates = "3"
 pretty_assertions = "1"
 rand = "0.9"
@@ -158,12 +163,13 @@ tap = "1"
 tar = "0.4"
 termimad = "0.34"
 tempfile = "3"
-tokio = { version = "1", features = ["signal"] }
+tokio = { version = "1", features = ["signal", "io-std"] }
 tokio-stream = "0.1"
 tokio-test = "0.4"
 tokio-util = "0.7"
 toml = "0.9"
-tower = { version = "0.5", features = ["make", "retry", "timeout"] }
+tower = { version = "0.5.3", features = ["make", "retry", "timeout"] }
+tower-http = "0.6.8"
 tower-test = "0.4"
 tracing = "0.1"
 tracing-core = "0.1"
@@ -262,6 +268,7 @@ predicates = { workspace = true }
 rand_regex = "0.18"
 reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }
 rstest = { workspace = true }
+sealed_test = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 subgraph-mock = "0.1"

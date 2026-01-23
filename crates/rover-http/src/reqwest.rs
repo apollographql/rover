@@ -2,6 +2,7 @@ use std::{pin::Pin, time::Duration};
 
 use buildstructor::buildstructor;
 use futures::Future;
+use http_body_util::Full;
 use reqwest::ClientBuilder;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
@@ -69,7 +70,7 @@ impl From<reqwest::Error> for HttpServiceError {
         } else if value.is_connect() {
             HttpServiceError::Connect(value.into())
         } else if value.is_timeout() {
-            HttpServiceError::TimedOut(value.into())
+            HttpServiceError::TimedOut
         } else {
             HttpServiceError::Unexpected(value.into())
         }
@@ -103,7 +104,7 @@ impl Service<HttpRequest> for ReqwestService {
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
-            Ok(resp.map(|_| bytes))
+            Ok(resp.map(|_| Full::new(bytes)))
         };
         Box::pin(fut)
     }
@@ -122,7 +123,7 @@ mod tests {
     use anyhow::Result;
     use bytes::Bytes;
     use http::HeaderValue;
-    use http_body_util::Full;
+    use http_body_util::{BodyExt, Full};
     use httpmock::{Method, MockServer};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
@@ -196,14 +197,15 @@ mod tests {
         if request_length.is_some() {
             assert_that!(resp)
                 .is_err()
-                .matches(|err| matches!(err, HttpServiceError::TimedOut(_)));
+                .matches(|err| matches!(err, HttpServiceError::TimedOut));
         } else {
             let resp = resp?;
             assert_that!(resp.headers().get("x-resp-header"))
                 .is_some()
                 .is_equal_to(&HeaderValue::from_static("x-resp-value"));
 
-            assert_that!(resp.body()).is_equal_to(&Bytes::from("def".as_bytes()));
+            let body_bytes = resp.body().clone().collect().await.unwrap().to_bytes();
+            assert_that!(body_bytes).is_equal_to(Bytes::from("def".as_bytes()));
         }
 
         Ok(())

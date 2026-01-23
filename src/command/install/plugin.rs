@@ -2,7 +2,7 @@ use std::{env::consts, str::FromStr};
 
 use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
-use binstall::Installer;
+use binstall::{Installer, download::FileDownloadService};
 use camino::Utf8PathBuf;
 use rover_std::{Fs, sanitize_url};
 use semver::Version;
@@ -57,7 +57,7 @@ impl Plugin {
 
     fn get_arch_for_env(&self, os: &str, arch: &str) -> RoverResult<String> {
         let mut no_prebuilt_binaries = RoverError::new(anyhow!(
-            "Your current architecture does not support installation of this plugin."
+            "Your current architecture (os: {os}, arch: {arch}) does not support installation of this plugin."
         ));
         // Sorry, no musl support for composition or the router
         if cfg!(target_env = "musl") {
@@ -415,12 +415,15 @@ impl PluginInstaller {
         } else {
             eprintln!("downloading the '{plugin_name}' plugin");
         }
+        let file_download_service = FileDownloadService::builder()
+            .http_service(self.client_config.service()?)
+            .build();
         Ok(self
             .installer
             .install_plugin(
                 &plugin_name,
                 &plugin_tarball_url,
-                &self.client_config.get_reqwest_client()?,
+                file_download_service,
                 is_latest,
             )
             .await?)

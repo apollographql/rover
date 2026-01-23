@@ -60,7 +60,7 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
     ) -> Option<Self::Future> {
         if self.can_retry() {
             match result {
-                Err(HttpServiceError::TimedOut(_))
+                Err(HttpServiceError::TimedOut)
                 | Err(HttpServiceError::Connect(_))
                 | Err(HttpServiceError::Body(_))
                 | Err(HttpServiceError::Decode(_))

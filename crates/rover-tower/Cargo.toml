@@ -1,0 +1,17 @@
+[package]
+name = "rover-tower"
+version = "0.0.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2021"
+
+publish = false
+
+[features]
+test = ["mockall", "pastey"]
+
+[dependencies]
+futures = { workspace = true }
+mockall = { workspace = true, optional = true }
+pastey = { workspace = true, optional = true }
+tower = { workspace = true }
+

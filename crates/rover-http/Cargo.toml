@@ -5,6 +5,9 @@ edition = "2021"
 
 publish = false
 
+[features]
+test = ["mockall"]
+
 [dependencies]
 buildstructor = { workspace = true }
 bytes = "1.8.0"
@@ -13,6 +16,7 @@ futures = { workspace = true }
 http = { workspace = true }
 http-body = { workspace = true }
 http-body-util = { workspace = true }
+mockall = { workspace = true, optional = true }
 reqwest = { workspace = true, features = [
     "blocking",
     "brotli",
@@ -21,8 +25,9 @@ reqwest = { workspace = true, features = [
     "rustls-tls-native-roots",
     "socks",
 ] }
+rover-tower = { workspace = true, features = ["test"] }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 tower = { workspace = true }
 tap = { workspace = true }
 tracing = { workspace = true }
