@@ -99,7 +99,8 @@ impl Service<HttpRequest> for ReqwestService {
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
             let body = reqwest::Body::from(bytes);
             let req = req.map(move |_| body);
-            let req = reqwest::Request::try_from(req)?;
+            let req =
+                reqwest::Request::try_from(req).inspect_err(|err| tracing::debug!("{:?}", err))?;
             let mut resp = http::Response::from(client.call(req).await?);
             let bytes = body_to_bytes(&mut resp)
                 .await
