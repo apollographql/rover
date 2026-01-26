@@ -71,6 +71,8 @@ impl From<reqwest::Error> for HttpServiceError {
             HttpServiceError::Connect(value.into())
         } else if value.is_timeout() {
             HttpServiceError::TimedOut
+        } else if value.is_request() {
+            HttpServiceError::Request(value.into())
         } else {
             HttpServiceError::Unexpected(value.into())
         }

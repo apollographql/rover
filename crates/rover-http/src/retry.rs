@@ -64,6 +64,7 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
                 | Err(HttpServiceError::Connect(_))
                 | Err(HttpServiceError::Body(_))
                 | Err(HttpServiceError::Decode(_))
+                | Err(HttpServiceError::Request(_))
                 | Err(HttpServiceError::Closed(_)) => Some(self.backoff.next_backoff()),
                 Err(_) => None,
                 Ok(resp) => {
