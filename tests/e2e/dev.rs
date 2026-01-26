@@ -296,7 +296,7 @@ telemetry:
         cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", v);
     }
 
-    let mut child = cmd.spawn().expect("Failed to spawn rover dev");
+    let child = cmd.spawn().expect("Failed to spawn rover dev");
 
     // Wait for the router to start and verify it's healthy by making a request
     let client = Client::new();
@@ -312,8 +312,21 @@ telemetry:
     .await
     .unwrap_or(false);
 
-    // Ignore kill() result - process may have already exited on its own
-    let _ = child.kill();
+    // On Unix, send SIGTERM so rover can gracefully shut down the router
+    // On Windows, use taskkill /T to kill the entire process tree
+    #[cfg(unix)]
+    {
+        let _ = Command::new("kill")
+            .args(["-TERM", &child.id().to_string()])
+            .output();
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &child.id().to_string()])
+            .output();
+    }
+
     let output = child.wait_with_output().expect("Failed to get output");
     let combined = format!(
         "{}{}",
