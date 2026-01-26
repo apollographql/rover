@@ -65,7 +65,6 @@ impl ReqwestService {
 
 impl From<reqwest::Error> for HttpServiceError {
     fn from(value: reqwest::Error) -> Self {
-        eprintln!("{:?}", value);
         if value.is_body() {
             HttpServiceError::Body(value.into())
         } else if value.is_connect() {
