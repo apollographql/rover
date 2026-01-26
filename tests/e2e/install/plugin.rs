@@ -7,7 +7,7 @@ use regex::Regex;
 use rstest::{fixture, rstest};
 use sealed_test::prelude::*;
 use serde_json::Value;
-use speculoos::{assert_that, asserting, boolean::BooleanAssertions};
+use speculoos::prelude::*;
 use tracing_test::traced_test;
 
 #[rstest]
@@ -90,8 +90,8 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
-    let re = Regex::new(&format!("the '{binary}' plugin was successfully installed")).unwrap();
-    assert_that(&re.is_match(stderr)).is_true();
+    eprintln!("{}", stderr);
+    assert_that!(stderr).contains(format!("the '{binary}' plugin was successfully installed"));
 
     let installed = bin_path
         .read_dir()
