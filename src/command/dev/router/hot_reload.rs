@@ -1,19 +1,12 @@
-use std::fmt::{Display, Formatter};
-
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_std::{debugln, errln, infoln};
-use serde_yaml::{Mapping, Value};
 use tap::TapFallible;
 use tokio_util::sync::CancellationToken;
 
-use super::config::{RouterAddress, RouterConfig, parser::RouterConfigParser};
-use crate::{
-    RoverError,
-    subtask::SubtaskHandleStream,
-    utils::{effect::write_file::WriteFile, expansion::expand},
-};
+use super::config::RouterConfig;
+use crate::{subtask::SubtaskHandleStream, utils::effect::write_file::WriteFile};
 
 pub enum RouterUpdateEvent {
     SchemaChanged { schema: String },
@@ -26,111 +19,11 @@ pub enum HotReloadEvent {
     SchemaWritten(#[allow(unused)] Result<(), Box<dyn std::error::Error + Send>>),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum HotReloadError {
-    #[error("Failed to parse the config")]
-    Config {
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Could not expand YAML")]
-    Expansion { err: RoverError },
-}
-
-#[derive(Builder, Debug, Copy, Clone)]
-pub struct HotReloadConfigOverrides {
-    pub address: RouterAddress,
-}
-
 #[derive(Builder)]
 pub struct HotReloadWatcher<WriteF> {
     config: Utf8PathBuf,
     schema: Utf8PathBuf,
     write_file_impl: WriteF,
-    overrides: HotReloadConfigOverrides,
-}
-
-#[derive(Debug)]
-pub struct HotReloadConfig {
-    content: String,
-}
-
-impl HotReloadConfig {
-    pub fn new(
-        content: String,
-        overrides: Option<HotReloadConfigOverrides>,
-    ) -> Result<Self, HotReloadError> {
-        match overrides {
-            Some(overrides) => {
-                let mut config = serde_yaml::from_str::<Value>(&content)
-                    .map_err(|e| HotReloadError::Config { err: e.into() })?;
-                config = match expand(config) {
-                    Ok(config) => Ok(config),
-                    Err(err) => Err(HotReloadError::Expansion { err }),
-                }?;
-
-                // The config's address reflects the precedence logic (CLI override before config before
-                // env before default), so we rely on whatever it gives us when passing it overrides
-                let processed_address = RouterConfigParser::new(&config, overrides.address)
-                    .address()
-                    .map_err(|err| HotReloadError::Config { err: err.into() })?
-                    .to_string();
-
-                let mut listen_mapping = Mapping::new();
-                listen_mapping.insert(
-                    Value::String("listen".into()),
-                    Value::String(processed_address.clone()),
-                );
-
-                let config = match config {
-                    Value::Mapping(mut config_mapping) => {
-                        match config_mapping.get_mut("supergraph") {
-                            Some(Value::Mapping(supergraph_mapping)) => {
-                                // If it does exist then we can just overwrite the existing value
-                                // of listen with what we've worked out
-                                supergraph_mapping.insert(
-                                    Value::String("listen".into()),
-                                    Value::String(processed_address),
-                                );
-                            }
-                            _ => {
-                                // If it doesn't exist then we need to build the mapping, and give it the
-                                // only key we're interested in, which is listen.
-                                config_mapping.insert(
-                                    Value::String("supergraph".into()),
-                                    Value::Mapping(listen_mapping),
-                                );
-                            }
-                        }
-                        config_mapping
-                    }
-                    // If config's not a mapping, then we don't have any config at all, so we
-                    // need to build the simplest thing we can, which is just a mapping from
-                    // supergraph to listen to the value we've computed
-                    _ => {
-                        let mut result = Mapping::new();
-                        result.insert(
-                            Value::String("supergraph".into()),
-                            Value::Mapping(listen_mapping),
-                        );
-                        result
-                    }
-                };
-
-                let config = serde_yaml::to_string(&config)
-                    .map_err(|err| HotReloadError::Config { err: err.into() })?;
-
-                Ok(Self { content: config })
-            }
-            None => Ok(Self { content }),
-        }
-    }
-}
-
-impl Display for HotReloadConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let config = &self.content;
-        write!(f, "{config}")
-    }
 }
 
 impl<WriteF> SubtaskHandleStream for HotReloadWatcher<WriteF>
@@ -179,32 +72,10 @@ where
                                 }
                             }
                             RouterUpdateEvent::ConfigChanged { config } => {
-                                let hot_reload_config = match HotReloadConfig::new(
-                                    config.inner().to_string(),
-                                    Some(self.overrides),
-                                ) {
-                                    Ok(config) => config,
-                                    Err(err) => {
-                                        let error_message =
-                                            format!("Router config failed to update. {}", &err);
-                                        let message =
-                                            HotReloadEvent::ConfigWritten(Err(Box::new(err)));
-                                        let _ = sender.send(message).tap_err(|err| {
-                                            tracing::error!(
-                                                "Unable to send message. Error: {:?}",
-                                                err
-                                            )
-                                        });
-                                        errln!("{}", error_message);
-                                        break;
-                                    }
-                                };
+                                let raw_config = config.inner();
 
                                 match write_file_impl
-                                    .write_file(
-                                        &self.config,
-                                        hot_reload_config.to_string().as_bytes(),
-                                    )
+                                    .write_file(&self.config, raw_config.as_bytes())
                                     .await
                                 {
                                     Ok(_) => {
@@ -216,7 +87,7 @@ where
                                             )
                                         });
                                         infoln!("Router config updated.");
-                                        debugln!("{}", hot_reload_config);
+                                        debugln!("{}", raw_config);
                                     }
                                     Err(err) => {
                                         let error_message =
@@ -237,174 +108,6 @@ where
                     }
                 })
                 .await;
-        });
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use rstest::{fixture, rstest};
-    use speculoos::prelude::*;
-
-    use super::*;
-    use crate::command::dev::router::config::{RouterHost, RouterPort};
-
-    #[fixture]
-    fn router_config() -> &'static str {
-        indoc::indoc! { r#"
-supergraph:
-  listen: 127.0.0.1:4000
-telemetry:
-  instrumentation:
-    spans:
-      mode: spec_compliant
-health_check:
-  enabled: true
-headers:
-  all:
-    request:
-      - propagate:
-          matching: .*
-"#
-        }
-    }
-
-    #[fixture]
-    fn router_config_no_supergraph() -> &'static str {
-        indoc::indoc! { r#"
-telemetry:
-  instrumentation:
-    spans:
-      mode: spec_compliant
-health_check:
-  enabled: true
-headers:
-  all:
-    request:
-      - propagate:
-          matching: .*
-"#
-        }
-    }
-
-    #[fixture]
-    fn router_config_no_listen() -> &'static str {
-        indoc::indoc! { r#"
-supergraph:
-  generate_query_fragments: false
-telemetry:
-  instrumentation:
-    spans:
-      mode: spec_compliant
-health_check:
-  enabled: true
-headers:
-  all:
-    request:
-      - propagate:
-          matching: .*
-"#
-        }
-    }
-
-    // NB: serde_yaml formats what we give it; below represents the above, with an address override
-    // applied and having been passed through serde_yaml (notice 15 lines down, where the
-    // indendation differs between the two yamls)
-    #[fixture]
-    fn router_config_expectation() -> &'static str {
-        indoc::indoc! { r#"
-supergraph:
-  listen: 127.0.0.1:8888
-telemetry:
-  instrumentation:
-    spans:
-      mode: spec_compliant
-health_check:
-  enabled: true
-headers:
-  all:
-    request:
-    - propagate:
-        matching: .*
-"#
-        }
-    }
-
-    #[rstest]
-    fn overrides_apply(router_config: &'static str, router_config_expectation: &'static str) {
-        let address = RouterAddress::new(
-            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
-            Some(RouterPort::CliOption(8888)),
-        );
-        let overrides = HotReloadConfigOverrides::new(address);
-        let hot_reload_config = HotReloadConfig::new(router_config.to_string(), Some(overrides));
-        assert_that!(hot_reload_config).is_ok().matches(|config| {
-            println!("{config}");
-            println!("{router_config_expectation}");
-
-            config.to_string() == router_config_expectation
-        });
-    }
-
-    #[rstest]
-    fn supergraph_stanza_not_required(router_config_no_supergraph: &'static str) {
-        let address = RouterAddress::new(
-            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
-            Some(RouterPort::CliOption(8888)),
-        );
-        let overrides = HotReloadConfigOverrides::new(address);
-        let hot_reload_config =
-            HotReloadConfig::new(router_config_no_supergraph.to_string(), Some(overrides));
-        assert_that!(hot_reload_config).is_ok().matches(|config| {
-            let value: Value = serde_yaml::from_str(&config.content).unwrap();
-            println!("{config}");
-            value.get("supergraph").unwrap().get("listen").unwrap() == "127.0.0.1:8888"
-        });
-    }
-
-    #[rstest]
-    fn listen_key_not_required(router_config_no_listen: &'static str) {
-        let address = RouterAddress::new(
-            Some(RouterHost::CliOption("127.0.0.1".parse().unwrap())),
-            Some(RouterPort::CliOption(8888)),
-        );
-        let overrides = HotReloadConfigOverrides::new(address);
-        let hot_reload_config =
-            HotReloadConfig::new(router_config_no_listen.to_string(), Some(overrides));
-        assert_that!(hot_reload_config).is_ok().matches(|config| {
-            let value: Value = serde_yaml::from_str(&config.content).unwrap();
-            println!("{config}");
-            value
-                .get("supergraph")
-                .unwrap()
-                .get("listen")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                == "127.0.0.1:8888"
-                && !value
-                    .get("supergraph")
-                    .unwrap()
-                    .get("generate_query_fragments")
-                    .unwrap()
-                    .as_bool()
-                    .unwrap()
-        });
-    }
-
-    #[rstest]
-    fn default_state_no_config() {
-        let address = RouterAddress::new(
-            Some(RouterHost::Default("127.0.0.1".parse().unwrap())),
-            Some(RouterPort::Default(4000)),
-        );
-        let overrides = HotReloadConfigOverrides::new(address);
-        let hot_reload_config = HotReloadConfig::new("".into(), Some(overrides));
-        assert_that!(hot_reload_config).is_ok().matches(|config| {
-            let value: Value = serde_yaml::from_str(&config.content).unwrap();
-            println!("{config}");
-            value.get("supergraph").unwrap().get("listen").unwrap() == "127.0.0.1:4000"
         });
     }
 }

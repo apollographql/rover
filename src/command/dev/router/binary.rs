@@ -22,9 +22,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
-use super::hot_reload::HotReloadError;
 use crate::{
-    RoverError,
     command::dev::router::config::{RouterAddress, RouterHost, RouterPort},
     subtask::SubtaskHandleUnit,
     utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
@@ -136,23 +134,8 @@ pub enum RunRouterBinaryError {
         path: Utf8PathBuf,
         err: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Failed to parse config: {}.", .err)]
-    Config {
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Failed to expand config: {}.", .err)]
-    Expansion { err: RoverError },
     #[error("Router Binary exited")]
     BinaryExited(io::Result<ExitStatus>),
-}
-
-impl From<HotReloadError> for RunRouterBinaryError {
-    fn from(value: HotReloadError) -> Self {
-        match value {
-            HotReloadError::Config { err } => Self::Config { err },
-            HotReloadError::Expansion { err } => Self::Expansion { err },
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -177,6 +160,7 @@ pub struct RunRouterBinary<Spawn: Send> {
     spawn: Spawn,
     log_level: Option<Level>,
     env: HashMap<String, String>,
+    listen_address: RouterAddress,
 }
 
 impl<Spawn> SubtaskHandleUnit for RunRouterBinary<Spawn>
@@ -203,6 +187,8 @@ where
                 "--log".to_string(),
                 self.log_level.unwrap_or(Level::INFO).to_string(),
                 "--dev".to_string(),
+                "--listen".to_string(),
+                self.listen_address.to_string(),
             ];
 
             let child = spawn
