@@ -90,7 +90,6 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
-    eprintln!("{}", stderr);
     assert_that!(stderr).contains(format!("the '{binary}' plugin was successfully installed"));
 
     let installed = bin_path

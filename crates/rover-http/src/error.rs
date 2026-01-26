@@ -40,7 +40,7 @@ pub enum HttpServiceError {
     #[error("Request error: {}.", .0)]
     Request(Box<dyn std::error::Error + Send + Sync + 'static>),
     /// An unexpected error
-    #[error("Unexpected HTTP error. {:?}", .0)]
+    #[error("Unexpected HTTP error. {}", .0)]
     Unexpected(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
