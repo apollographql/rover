@@ -37,7 +37,7 @@ pub enum HttpServiceError {
     #[error("Connect error")]
     Connect(Box<dyn std::error::Error + Send + Sync + 'static>),
     /// An unexpected error
-    #[error("Unexpected HTTP error")]
+    #[error("Unexpected HTTP error. {}", .0)]
     Unexpected(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
