@@ -312,12 +312,12 @@ telemetry:
     .await
     .unwrap_or(false);
 
-    // On Unix, send SIGTERM so rover can gracefully shut down the router
-    // On Windows, use taskkill /T to kill the entire process tree
+    // On Unix, send SIGINT so Rover can gracefully shut down the router (rover handles ctrl_c/SIGINT)
+    // On Windows, use taskkill /T to kill the entire process tree since there's no SIGINT equivalent
     #[cfg(unix)]
     {
         let _ = Command::new("kill")
-            .args(["-TERM", &child.id().to_string()])
+            .args(["-INT", &child.id().to_string()])
             .output();
     }
     #[cfg(windows)]
