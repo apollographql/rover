@@ -13,6 +13,7 @@ use portpicker::pick_unused_port;
 use reqwest::{Client, header::CONTENT_TYPE};
 use rstest::*;
 use serde_json::{Value, json};
+use serial_test::serial;
 use speculoos::assert_that;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -185,6 +186,7 @@ impl JsonMatcher for AnyLengthArray {
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[serial]
 async fn e2e_test_rover_dev(
     #[from(run_rover_dev)] router_url: &str,
     #[case] query: String,
@@ -222,6 +224,7 @@ async fn e2e_test_rover_dev(
 #[ignore]
 #[tokio::test]
 #[traced_test]
+#[serial]
 async fn e2e_test_router_config_env_var_with_dollar_sign() {
     let temp_dir = TempDir::new().expect("Could not create temp directory");
     let temp_path = temp_dir.path();
