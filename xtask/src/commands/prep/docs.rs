@@ -76,7 +76,8 @@ impl DocsRunner {
         // Don't include the first header and the empty newline after it.
         let source_content = source_content_with_header
             .splitn(3, '\n')
-            .collect::<Vec<&str>>()[2];
+            .nth(2)
+            .expect("first header should be present");
         self.replace_content_after_token("<!-- CONTRIBUTING -->", source_content, &destination_path)
     }
 
