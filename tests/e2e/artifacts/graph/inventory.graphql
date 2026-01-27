@@ -1,6 +1,9 @@
-scalar link__Import
-scalar federation__FieldSet
 scalar _Any
+scalar FieldSet
+scalar link__Import
+scalar federation__ContextFieldValue
+scalar federation__Scope
+scalar federation__Policy
 type Variant {
   id: ID!
   "Checks the warehouse API for inventory information."
@@ -14,7 +17,7 @@ type Inventory {
   inventory: Int
 }
 type _Service {
-  sdl: String
+  sdl: String!
 }
 type Query {
   _entities(representations: [_Any!]!): [_Entity]!
@@ -22,25 +25,27 @@ type Query {
 }
 union _Entity = Variant
 enum link__Purpose {
-  "`SECURITY` features provide metadata necessary to securely resolve fields."
   SECURITY
-  "`EXECUTION` features provide metadata necessary for operation execution."
   EXECUTION
 }
-directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) on SCHEMA
-directive @key(fields: federation__FieldSet!, resolvable: Boolean = true) on OBJECT | INTERFACE
-directive @federation__requires(fields: federation__FieldSet!) on FIELD_DEFINITION
-directive @federation__provides(fields: federation__FieldSet!) on FIELD_DEFINITION
-directive @federation__external(reason: String) on OBJECT | FIELD_DEFINITION
-directive @federation__tag(name: String!) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
-directive @federation__extends on OBJECT | INTERFACE
-directive @federation__shareable on OBJECT | FIELD_DEFINITION
-directive @federation__inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
-directive @federation__override(from: String!) on FIELD_DEFINITION
 "Exposes a URL that specifies the behavior of this scalar."
 directive @specifiedBy(
-  "The URL that specifies the behavior of this scalar."
-  url: String!
-) on SCALAR
-"Indicates exactly one field must be supplied and this field must not be `null`."
-directive @oneOf on INPUT_OBJECT
+    "The URL that specifies the behavior of this scalar."
+    url: String!
+  ) on SCALAR
+directive @external on OBJECT | FIELD_DEFINITION
+directive @requires(fields: FieldSet!) on FIELD_DEFINITION
+directive @provides(fields: FieldSet!) on FIELD_DEFINITION
+directive @key(fields: FieldSet!, resolvable: Boolean = true) on OBJECT | INTERFACE
+directive @link(url: String!, as: String, for: link__Purpose, import: [link__Import]) on SCHEMA
+directive @shareable on OBJECT | FIELD_DEFINITION
+directive @inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+directive @tag(name: String!) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+directive @override(from: String!) on FIELD_DEFINITION
+directive @composeDirective(name: String!) on SCHEMA
+directive @interfaceObject on OBJECT
+directive @authenticated on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+directive @requiresScopes(scopes: [[federation__Scope!]!]!) on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+directive @policy(policies: [[federation__Policy!]!]!) on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+directive @context(name: String!) on INTERFACE | OBJECT | UNION
+directive @fromContext(field: federation__ContextFieldValue) on ARGUMENT_DEFINITION
