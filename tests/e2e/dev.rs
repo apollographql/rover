@@ -14,7 +14,7 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use rstest::*;
 use serde_json::{Value, json};
 use serial_test::serial;
-use speculoos::assert_that;
+use speculoos::{assert_that, result::ResultAssertions, string::StrAssertions};
 use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing::error;
@@ -301,22 +301,14 @@ telemetry:
 
     let child = cmd.spawn().expect("Failed to spawn rover dev");
 
-    // Wait for the router to start and verify it's healthy by making a request
+    // Wait for the router to start and make a request
     let client = Client::new();
     let router_url = format!("http://localhost:{port}");
-    let router_started = tokio::time::timeout(Duration::from_secs(30), async {
-        loop {
-            tokio::time::sleep(Duration::from_millis(500)).await;
-            if client.get(&router_url).send().await.is_ok() {
-                return true;
-            }
-        }
-    })
-    .await
-    .unwrap_or(false);
+    let graphql_result = test_graphql_connection(&client, &router_url, ROVER_DEV_TIMEOUT).await;
 
     // On Unix, send SIGINT so Rover can gracefully shut down the router (rover handles ctrl_c/SIGINT)
-    // On Windows, use taskkill /T to kill the entire process tree since there's no SIGINT equivalent
+    // On Windows, use taskkill /T to kill the entire process tree since child.kill() only kills
+    // rover, not the router subprocess, causing wait_with_output() to hang
     #[cfg(unix)]
     {
         let _ = Command::new("kill")
@@ -336,17 +328,10 @@ telemetry:
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+    // Assert no double expansion error messages
+    assert_that(&combined).does_not_contain("could not expand variable");
+    assert_that(&combined).does_not_contain("no valid configuration was supplied");
 
-    // Assert no double expansion error messages (negative check)
-    assert!(
-        !combined.contains("could not expand variable")
-            && !combined.contains("no valid configuration was supplied"),
-        "Double expansion bug (issue #2751): {combined}"
-    );
-
-    // Assert router started successfully (positive check)
-    assert!(
-        router_started,
-        "Router failed to start. Output:\n{combined}"
-    );
+    // Assert router started successfully and responded to GraphQL introspection
+    assert_that(&graphql_result).is_ok();
 }
