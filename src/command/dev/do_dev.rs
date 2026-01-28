@@ -21,7 +21,6 @@ use crate::{
             router::{
                 binary::RunRouterBinaryError,
                 config::{RouterAddress, RouterHost, RouterPort},
-                hot_reload::HotReloadConfigOverrides,
                 run::RunRouter,
             },
         },
@@ -262,15 +261,11 @@ impl Dev {
             .await;
         // This RouterAddress has some logic figuring out _which_ of the potentially multiple
         // address options we should use (eg, CLI, config, env var, or default). It will be used in
-        // the overrides for the temporary config we set for hot-reloading the router, but also as
-        // a message to the user for where to find their router
+        // the cli arguments for the router, but also as a message to the user for
+        // where to find their router
         let router_address = *run_router.state.config.address();
         // Extract the router's listen path from the config to construct the full endpoint URL for MCP
         let router_url_path = run_router.state.config.listen_path();
-        let hot_reload_overrides = HotReloadConfigOverrides::builder()
-            .address(router_address)
-            .build();
-
         infoln!(
             "Attempting to start router at {}.",
             router_address.pretty_string()
@@ -289,7 +284,7 @@ impl Dev {
                 log_level,
             )
             .await?
-            .watch_for_changes(write_file_impl, composition_messages, hot_reload_overrides)
+            .watch_for_changes(write_file_impl, composition_messages)
             .await;
 
         if let Some(ref config) = self.opts.mcp.config {

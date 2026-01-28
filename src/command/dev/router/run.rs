@@ -27,10 +27,7 @@ use super::{
 };
 use crate::{
     RoverError,
-    command::dev::router::{
-        hot_reload::{HotReloadConfig, HotReloadConfigOverrides},
-        watchers::file::FileWatcher,
-    },
+    command::dev::router::watchers::file::FileWatcher,
     composition::{CompositionError, events::CompositionEvent},
     options::{DEFAULT_PROFILE, LicenseAccepter, ProfileOpt},
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
@@ -178,22 +175,13 @@ impl RunRouter<state::Run> {
             hot_reload_config_path
         );
 
-        let hot_reload_config = HotReloadConfig::new(
-            self.state.config.raw_config(),
-            Some(
-                HotReloadConfigOverrides::builder()
-                    .address(*self.state.config.address())
-                    .build(),
-            ),
-        )
-        .map_err(RunRouterBinaryError::from)?
-        .to_string();
+        let raw_config = self.state.config.raw_config();
 
         write_file
             .call(
                 WriteFileRequest::builder()
                     .path(hot_reload_config_path.clone())
-                    .contents(Vec::from(hot_reload_config.to_string()))
+                    .contents(raw_config.into_bytes())
                     .build(),
             )
             .await
@@ -221,12 +209,14 @@ impl RunRouter<state::Run> {
             })?;
 
         let env = self.auth_env(profile, home_override, api_key_override);
+        let listen_address = *self.state.config.address();
         let run_router_binary = RunRouterBinary::builder()
             .router_binary(self.state.binary.clone())
             .config_path(hot_reload_config_path.clone())
             .supergraph_schema_path(hot_reload_schema_path.clone())
             .env(env.clone())
             .and_log_level(log_level)
+            .listen_address(listen_address)
             .spawn(spawn)
             .build();
 
@@ -376,7 +366,6 @@ impl RunRouter<state::Watch> {
         self,
         write_file_impl: WriteF,
         composition_messages: BoxStream<'static, CompositionEvent>,
-        hot_reload_overrides: HotReloadConfigOverrides,
     ) -> RunRouter<state::Abort>
     where
         WriteF: WriteFile + Send + Clone + 'static,
@@ -428,7 +417,6 @@ impl RunRouter<state::Watch> {
         let hot_reload_watcher = HotReloadWatcher::builder()
             .config(self.state.hot_reload_config_path)
             .schema(self.state.hot_reload_schema_path.clone())
-            .overrides(hot_reload_overrides)
             .write_file_impl(write_file_impl)
             .build();
 
