@@ -1,9 +1,2 @@
 * @apollographql/rover
-crates/rover-client @apollographql/team-growth @apollographql/rover
-Cargo.lock @apollographql/team-growth @apollographql/rover
 docs @apollographql/docs @apollographql/rover
-src/command/init @apollographql/team-growth @apollographql/rover
-src/command/tests @apollographql/team-growth @apollographql/rover
-src/options @apollographql/team-growth @apollographql/rover
-src/command/connector @apollographql/rover
-src/command/lsp @apollographql/rover
