@@ -260,7 +260,7 @@ graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.38"
+jsonschema = "0.40"
 mime = "0.3"
 mockall = "0.14"
 portpicker = "0.1"
