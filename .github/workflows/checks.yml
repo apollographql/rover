@@ -79,7 +79,7 @@ jobs:
   test_minimal_glibc:
     name: Test with minimal glibc versions
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.26.0
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.28.0
 
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
