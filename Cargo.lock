@@ -708,6 +708,7 @@ dependencies = [
  "rover-std",
  "rover-tower",
  "rstest",
+ "rustls",
  "sealed_test",
  "serial_test",
  "speculoos",

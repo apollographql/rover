@@ -324,6 +324,14 @@ mod test {
     use crate::{download::FileDownloadService, InstallerError};
 
     #[fixture]
+    #[once]
+    fn install_crypto_provider() {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("Failed to install rustls crypto provider");
+    }
+
+    #[fixture]
     fn home_dir() -> Utf8PathBuf {
         let home_dir = std::env::home_dir().expect("No home_dir");
         Utf8PathBuf::from_path_buf(home_dir).expect("Unable to convert home_dir to Utf8PathBuf")
@@ -485,6 +493,7 @@ mod test {
     async fn test_get_plugin_version_latest_with_valid_version(
         binary_name: &str,
         installer: Installer,
+        _install_crypto_provider: (),
     ) {
         let server = MockServer::start();
         let address = server.address();
@@ -505,6 +514,7 @@ mod test {
     async fn test_get_plugin_version_latest_with_invalid_version(
         binary_name: &str,
         installer: Installer,
+        _install_crypto_provider: (),
     ) {
         let server = MockServer::start();
         let address = server.address();
