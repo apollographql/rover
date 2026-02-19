@@ -18,7 +18,7 @@ http = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-tower = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "brotli", "gzip", "rustls", "socks"] }
+reqwest = { workspace = true, features = ["blocking", "brotli", "gzip", "rustls-no-provider", "socks"] }
 thiserror = { workspace = true }
 tar = { workspace = true }
 tempfile = {  workspace = true }
