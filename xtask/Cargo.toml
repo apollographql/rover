@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 tar = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "rustls-no-provider", "json"] }
+rustls = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 shell-candy = { workspace = true }

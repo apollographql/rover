@@ -131,6 +131,10 @@ impl Rover {
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
 
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("Failed to install rustls crypto provider");
+
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
             // if successful, report the usage data in the background

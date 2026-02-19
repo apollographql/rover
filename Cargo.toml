@@ -140,6 +140,7 @@ rand = "0.9"
 regex = "1"
 reqwest = { version = "0.13", default-features = false }
 rstest = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 schemars = "1"
 sealed_test = "1.1.0"
 semver = "1"
@@ -216,6 +217,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
+rustls = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
