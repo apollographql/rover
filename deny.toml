@@ -48,6 +48,7 @@ allow = [
     "ISC",
     "MIT",
     "MPL-2.0",
+    "OpenSSL",
     "Unicode-3.0",
     "Zlib"
 ]
@@ -108,4 +109,4 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 
 [sources.allow-org]
 # 1 or more github.com organizations to allow git sources for
-github = ["open-telemetry", "apollographql", "tokio-rs"]
+github = []
