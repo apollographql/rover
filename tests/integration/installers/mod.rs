@@ -58,6 +58,11 @@ fn latest_plugins_are_valid_versions() {
     use reqwest::{Url, blocking::Client};
     use semver::Version;
     use serde_json::Value;
+
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     // first, parse ./latest_plugin_versions.json to JSON
     let latest_json: Value = serde_json::from_str(include_str!("../../../latest_plugin_versions.json")).expect("could not read latest_plugin_versions.json from the root of the repo, which is needed to supply latest versions to `rover supergraph compsoe`.");
     let supergraph = latest_json["supergraph"]
