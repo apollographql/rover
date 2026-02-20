@@ -128,9 +128,19 @@ fn background_runtime() -> Runtime {
 
 #[fixture]
 #[once]
+/// Configures Ring as the crypto provider for test executions
+fn install_crypto_provider() {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+}
+
+#[fixture]
+#[once]
 fn run_subgraphs_retail_supergraph(
     retail_supergraph: &'static RetailSupergraph,
     background_runtime: &'static Runtime,
+    _install_crypto_provider: (),
 ) -> RunningRetailSupergraph {
     println!("Kicking off subgraphs");
 
@@ -192,7 +202,7 @@ fn run_subgraphs_retail_supergraph(
 
 #[fixture]
 #[once]
-fn retail_supergraph() -> RetailSupergraph {
+fn retail_supergraph(_install_crypto_provider: ()) -> RetailSupergraph {
     let working_dir = clone_retail_supergraph_repo();
 
     let supergraph_yaml_path = working_dir.path().join("supergraph-config-dev.yaml");
@@ -238,7 +248,10 @@ impl Drop for SingleMutableSubgraph {
 }
 
 #[fixture]
-async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> SingleMutableSubgraph {
+async fn run_single_mutable_subgraph(
+    test_artifacts_directory: PathBuf,
+    _install_crypto_provider: (),
+) -> SingleMutableSubgraph {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
     CopyBuilder::new(test_artifacts_directory.join("pandas"), &target)
