@@ -9,7 +9,6 @@ publish = false
 test = ["mockall"]
 
 [dependencies]
-ctor = "0.6.3"
 buildstructor = { workspace = true }
 bytes = "1.8.0"
 derive-getters = { workspace = true }
@@ -23,10 +22,9 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "rustls-no-provider",
+    "rustls",
     "socks",
 ] }
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
 rover-tower = { workspace = true, features = ["test"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }

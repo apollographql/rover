@@ -265,7 +265,7 @@ mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.18"
-reqwest = { workspace = true, features = ["rustls-no-provider"] }
+reqwest = { workspace = true, features = ["rustls"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
 serial_test = { workspace = true }
