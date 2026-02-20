@@ -77,6 +77,14 @@ mod test {
 
     #[fixture]
     #[once]
+    pub fn install_crypto_provider() {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("Failed to install rustls crypto provider");
+    }
+
+    #[fixture]
+    #[once]
     fn query() -> &'static str {
         SUBGRAPH_INTROSPECTION_QUERY
     }
@@ -84,7 +92,10 @@ mod test {
     #[rstest]
     #[timeout(Duration::from_secs(1))]
     #[tokio::test]
-    async fn test_introspect_subgraph_success(query: &str) -> Result<()> {
+    async fn test_introspect_subgraph_success(
+        query: &str,
+        _install_crypto_provider: (),
+    ) -> Result<()> {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             let expected_body = json!({
