@@ -129,7 +129,7 @@ fn background_runtime() -> Runtime {
 #[fixture]
 #[once]
 /// Configures Ring as the crypto provider for test executions
-fn install_crypto_provider() {
+pub fn install_crypto_provider() {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
