@@ -38,10 +38,6 @@ pub enum Command {
 
 impl Xtask {
     pub async fn run(&self) -> Result<()> {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .expect("Failed to install rustls crypto provider");
-
         match &self.command {
             Command::Dist(command) => command.run(),
             Command::Prep(command) => command.run().await,

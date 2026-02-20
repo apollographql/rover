@@ -4,6 +4,18 @@
 
 use std::{fmt::Debug, str::Utf8Error, time::Duration};
 
+/// Install ring as the default rustls crypto provider. This runs automatically
+/// as a global constructor in every binary that links rover-http (directly or
+/// transitively).
+#[ctor::ctor]
+fn install_ring_crypto_provider() {
+    // .ok() because the provider may already be installed, and that's the only
+    // case that causes this to error
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .ok();
+}
+
 use buildstructor::Builder;
 use bytes::Bytes;
 use derive_getters::Getters;

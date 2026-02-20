@@ -40,7 +40,6 @@ predicates = { workspace = true }
 rover-http = { workspace = true, features = ["test"] }
 rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
-rustls = { workspace = true }
 sealed_test = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }

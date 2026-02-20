@@ -5,16 +5,7 @@ use camino::Utf8PathBuf;
 use httpmock::prelude::*;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use rover_http::ReqwestService;
-use rstest::{fixture, rstest};
 use speculoos::prelude::*;
-
-#[fixture]
-#[once]
-fn install_crypto_provider() {
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("Failed to install rustls crypto provider");
-}
 
 #[test]
 pub fn test_install() {
@@ -49,9 +40,8 @@ pub fn test_install() {
         .is_equal_to("my plugin contents".to_string());
 }
 
-#[rstest]
 #[tokio::test]
-pub async fn test_install_plugin(_install_crypto_provider: ()) {
+pub async fn test_install_plugin() {
     let plugin_name = "my_plugin";
     let plugin_version = "v1.0.0";
     let plugin_contents = "my_plugin_contents";

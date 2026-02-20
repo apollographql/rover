@@ -108,7 +108,7 @@ mod tests {
     use houston::Config;
     use http::Method;
     use httpmock::MockServer;
-    use rstest::{fixture, rstest};
+    use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
     use tracing_test::traced_test;
@@ -123,19 +123,11 @@ mod tests {
         },
     };
 
-    #[fixture]
-    #[once]
-    fn install_crypto_provider() {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .expect("Failed to install rustls crypto provider");
-    }
-
     #[traced_test]
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
-    async fn test_install(_install_crypto_provider: ()) -> Result<()> {
+    async fn test_install() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
         let license_accepter = LicenseAccepter {

@@ -21,8 +21,8 @@ use tracing::error;
 use tracing_test::traced_test;
 
 use super::{
-    GRAPHQL_TIMEOUT_DURATION, RunningRetailSupergraph, install_crypto_provider,
-    run_subgraphs_retail_supergraph, test_graphql_connection,
+    GRAPHQL_TIMEOUT_DURATION, RunningRetailSupergraph, run_subgraphs_retail_supergraph,
+    test_graphql_connection,
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
@@ -224,9 +224,8 @@ async fn e2e_test_rover_dev(
 #[ignore]
 #[tokio::test]
 #[traced_test]
-#[rstest]
 #[serial]
-async fn e2e_test_router_config_env_var_with_dollar_sign(_install_crypto_provider: ()) {
+async fn e2e_test_router_config_env_var_with_dollar_sign() {
     let temp_dir = TempDir::new().expect("Could not create temp directory");
     let temp_path = temp_dir.path();
 
