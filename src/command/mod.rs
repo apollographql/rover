@@ -5,6 +5,7 @@ mod config;
 #[cfg(feature = "composition-js")]
 pub mod connector;
 mod contract;
+mod describe;
 mod dev;
 mod docs;
 mod explain;
@@ -18,6 +19,7 @@ mod lsp;
 pub(crate) mod output;
 mod persisted_queries;
 mod readme;
+mod search;
 pub(crate) mod subgraph;
 #[cfg(feature = "composition-js")]
 pub(crate) mod supergraph;
@@ -31,6 +33,7 @@ pub use config::Config;
 #[cfg(feature = "composition-js")]
 pub use connector::Connector;
 pub use contract::Contract;
+pub use describe::Describe;
 pub use dev::Dev;
 pub use docs::Docs;
 pub use explain::Explain;
@@ -44,6 +47,7 @@ pub use lsp::Lsp;
 pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;
+pub use search::Search;
 pub use subgraph::Subgraph;
 #[cfg(feature = "composition-js")]
 pub use supergraph::Supergraph;

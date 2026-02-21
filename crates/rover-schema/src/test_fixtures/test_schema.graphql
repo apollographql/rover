@@ -1,0 +1,210 @@
+"""The root query type"""
+type Query {
+  """Get a user by ID"""
+  user(id: ID!): User
+  """Get a post by ID"""
+  post(id: ID!): Post
+  """List all categories"""
+  categories: [Category!]!
+  """Search for content"""
+  search(query: String!, types: [SearchType!]!, limit: Int): SearchResults
+  """Get the currently authenticated viewer"""
+  viewer: Viewer
+}
+
+type Mutation {
+  """Create a new post"""
+  createPost(input: CreatePostInput!): CreatePostPayload
+  """Update notification preferences"""
+  updatePreferences(input: UpdatePreferencesInput): UpdatePreferencesPayload
+  """Delete a comment"""
+  deleteComment(id: ID!): DeleteCommentPayload
+}
+
+"""A registered user"""
+type User implements Node & Profile {
+  id: ID!
+  name: String!
+  """The user's email address"""
+  email: String!
+  """Posts authored by this user"""
+  posts(limit: Int, offset: Int): PostConnection
+  bio: String
+  avatarUrl: String
+  createdAt: String!
+  legacyId: String @deprecated(reason: "Use id instead")
+}
+
+"""A content post"""
+type Post implements Node & Timestamped {
+  id: ID!
+  title: String!
+  """The body content"""
+  body: String!
+  """The author of this post"""
+  author: User!
+  comments: CommentConnection!
+  category: Category!
+  tags: [Tag!]!
+  publishedAt: String
+  createdAt: String!
+  updatedAt: String!
+  viewCount: Int!
+  """The post's popularity score (0-100)"""
+  score: Int!
+  slug: String!
+  oldSlug: String @deprecated(reason: "Use slug instead")
+}
+
+"""A comment on a post"""
+type Comment implements Node & Timestamped {
+  id: ID!
+  body: String!
+  author: User!
+  post: Post!
+  createdAt: String!
+  updatedAt: String!
+  parentComment: Comment
+}
+
+"""A content category"""
+type Category implements Node {
+  id: ID!
+  name: String!
+  description: String
+  posts: PostConnection!
+  parent: Category
+}
+
+"""A tag applied to posts"""
+type Tag {
+  name: String!
+  postCount: Int!
+}
+
+"""The authenticated viewer"""
+type Viewer implements Profile {
+  id: ID!
+  name: String!
+  email: String!
+  """Notification preferences"""
+  preferences: Preferences
+  feed: PostConnection
+}
+
+type Preferences {
+  emailNotifications: Boolean!
+  digestFrequency: DigestFrequency!
+}
+
+type PostConnection {
+  edges: [PostEdge!]
+  pageInfo: PageInfo!
+}
+
+type PostEdge {
+  node: Post!
+}
+
+type CommentConnection {
+  edges: [CommentEdge!]
+  pageInfo: PageInfo!
+}
+
+type CommentEdge {
+  node: Comment!
+  cursor: String!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  total: Int
+}
+
+type SearchResults {
+  posts: [Post!]
+  users: [User!]
+  categories: [Category!]
+}
+
+type CreatePostPayload {
+  post: Post
+}
+
+type UpdatePreferencesPayload {
+  preferences: Preferences
+}
+
+type DeleteCommentPayload {
+  success: Boolean!
+}
+
+# Interfaces
+
+"""An entity with a stable ID"""
+interface Node {
+  id: ID!
+}
+
+"""An entity with timestamps"""
+interface Timestamped {
+  createdAt: String!
+  updatedAt: String!
+}
+
+"""A user profile"""
+interface Profile {
+  id: ID!
+  name: String!
+}
+
+# Enums
+
+"""Content search types"""
+enum SearchType {
+  POST
+  USER
+  CATEGORY
+}
+
+"""Email digest frequency"""
+enum DigestFrequency {
+  DAILY
+  WEEKLY
+  NEVER
+}
+
+enum SortOrder {
+  NEWEST
+  OLDEST
+  TOP
+  RELEVANCE @deprecated(reason: "Use TOP instead")
+}
+
+# Inputs
+
+input CreatePostInput {
+  """The post title"""
+  title: String!
+  """The post body"""
+  body: String!
+  """Category ID"""
+  categoryId: ID!
+  """Optional tags"""
+  tags: [String!]
+}
+
+input UpdatePreferencesInput {
+  emailNotifications: Boolean
+  digestFrequency: DigestFrequency
+}
+
+# Union
+
+union ContentItem = Post | Comment
+
+# Custom scalars
+
+scalar DateTime
+scalar URL

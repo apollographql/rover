@@ -1,0 +1,75 @@
+---
+title: Rover search Command
+subtitle: Search your graph schema by keyword
+description: Use the rover search command to find types, fields, and operations in your GraphQL schema by keyword.
+---
+
+import AuthNotice from '../../shared/auth-notice.mdx';
+
+## Overview
+
+The `rover search` command finds schema elements by keyword. Search matches against type names, field names, argument names, and descriptions. Each result includes a complete path from a Query or Mutation root, with all intermediate types.
+
+<AuthNotice />
+
+## Usage
+
+```bash
+rover search <GRAPH_REF> <TERMS> [OPTIONS]
+```
+
+## Examples
+
+### Basic search
+
+```bash
+rover search my-graph@my-variant "search terms"
+```
+
+Returns matching paths with all intermediate types expanded, so you have enough context to write a query from a single search result.
+
+### Limiting results
+
+```bash
+rover search my-graph@my-variant "search terms" --limit 3
+```
+
+## Options
+
+| Option | Description |
+|---|---|
+| `-l, --limit <N>` | Maximum number of result paths (default: 5) |
+| `--include-deprecated` | Include deprecated fields in results |
+| `--sdl` | Output raw SDL instead of structured description |
+| `--compact` | Output token-efficient compact notation |
+| `--no-cache` | Skip the local schema cache |
+| `--profile <NAME>` | Name of configuration profile to use |
+
+## Output formats
+
+By default, `rover search` outputs human-readable results with full paths from Query/Mutation roots. Three alternatives are available:
+
+- **`--sdl`**: Raw SDL for matched types
+- **`--compact`**: Token-efficient notation
+- **`--format json`** (global): Structured JSON output
+
+When output is piped (stdout is not a TTY), compact format is auto-selected.
+
+```bash
+# Auto-compacts when piped
+rover search my-graph@my-variant "search terms" | cat
+```
+
+## How search works
+
+Search uses full-text indexing with:
+
+- **camelCase splitting**: `PostConnection` is searchable as "post connection"
+- **English stemming**: "creating" matches "create" and "created"
+- **BM25 scoring**: Results ranked by relevance across names and descriptions
+
+Each result includes a BFS-discovered shortest path from Query or Mutation roots, with intermediate types expanded at depth 1.
+
+## Schema source
+
+By default, `rover search` fetches the schema from GraphOS using your `APOLLO_KEY`. The schema is cached locally for 5 minutes.
