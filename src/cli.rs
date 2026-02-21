@@ -203,6 +203,7 @@ impl Rover {
                     .await
             }
             Command::Contract(command) => command.run(self.get_client_config()?).await,
+            Command::Describe(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
                     .run(
@@ -257,6 +258,7 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
+            Command::Search(command) => command.run(self.get_client_config()?).await,
             Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
@@ -402,6 +404,9 @@ pub enum Command {
     /// Contract configuration commands
     Contract(command::Contract),
 
+    /// Describe a graph's schema by type or field
+    Describe(command::Describe),
+
     /// Run a supergraph locally to develop and test subgraph changes
     ///
     /// ⚠️ Do not run this command in production!
@@ -423,6 +428,9 @@ pub enum Command {
 
     /// Readme commands
     Readme(command::Readme),
+
+    /// Search a graph's schema by keyword
+    Search(command::Search),
 
     /// Subgraph schema commands
     Subgraph(command::Subgraph),
