@@ -1,5 +1,4 @@
 use clap::Parser;
-use rover_client::operations::graph::fetch::{self, GraphFetchInput};
 use rover_client::shared::GraphRef;
 use rover_schema::{
     ParsedSchema,
@@ -9,8 +8,7 @@ use rover_schema::{
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult,
-    options::ProfileOpt,
+    RoverOutput, RoverResult, command::schema_cache, options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
 
@@ -21,11 +19,9 @@ use crate::{
 /// complete paths from Query/Mutation roots with all intermediate types.
 ///
 /// Piped output defaults to --compact.
-#[command(
-    after_help = "EXAMPLES:\n    \
+#[command(after_help = "EXAMPLES:\n    \
         rover search my-graph@my-variant \"search terms\"\n    \
-        rover search my-graph@my-variant \"create post\""
-)]
+        rover search my-graph@my-variant \"create post\"")]
 pub struct Search {
     /// <NAME>@<VARIANT> of graph in Apollo Studio.
     /// @<VARIANT> may be left off, defaulting to @current
@@ -54,26 +50,27 @@ pub struct Search {
     #[arg(long = "compact")]
     compact: bool,
 
+    /// Skip reading from the local schema cache (still writes to cache)
+    #[arg(long = "no-cache")]
+    no_cache: bool,
+
     #[clap(flatten)]
     profile: ProfileOpt,
 }
 
 impl Search {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        // Fetch SDL
-        let client = client_config.get_authenticated_client(&self.profile)?;
-        let fetch_response = fetch::run(
-            GraphFetchInput {
-                graph_ref: self.graph_ref.clone(),
-            },
-            &client,
+        // Fetch SDL (with caching)
+        let sdl_string = schema_cache::fetch_sdl_cached(
+            &self.graph_ref,
+            &self.profile,
+            &client_config,
+            self.no_cache,
         )
         .await?;
-        let sdl_string = fetch_response.sdl.contents;
 
         // Parse
-        let parsed = ParsedSchema::parse(&sdl_string)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let parsed = ParsedSchema::parse(&sdl_string).map_err(|e| anyhow::anyhow!("{}", e))?;
         let schema = parsed.inner();
 
         // Search
@@ -94,9 +91,6 @@ impl Search {
             }
         };
 
-        Ok(RoverOutput::SearchResponse {
-            content,
-            json_data,
-        })
+        Ok(RoverOutput::SearchResponse { content, json_data })
     }
 }

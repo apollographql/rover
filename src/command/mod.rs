@@ -19,6 +19,7 @@ mod lsp;
 pub(crate) mod output;
 mod persisted_queries;
 mod readme;
+pub(crate) mod schema_cache;
 mod search;
 pub(crate) mod subgraph;
 #[cfg(feature = "composition-js")]

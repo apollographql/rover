@@ -144,10 +144,7 @@ fn format_type_detail(detail: &TypeDetail) -> String {
     out.push(']');
 
     if !detail.implements.is_empty() {
-        out.push_str(&format!(
-            " implements {}",
-            detail.implements.join(" & ")
-        ));
+        out.push_str(&format!(" implements {}", detail.implements.join(" & ")));
     }
 
     out.push('\n');
@@ -466,9 +463,7 @@ fn write_item_line(
     out.push('\n');
 
     // Deprecated reason on next line, visually attached with ↳
-    if is_deprecated
-        && let Some(reason) = dep_reason
-    {
+    if is_deprecated && let Some(reason) = dep_reason {
         for _ in 0..indent + 2 {
             out.push(' ');
         }
@@ -525,8 +520,7 @@ fn truncate_list(items: &[&str], max: usize) -> String {
     if items.len() <= max {
         items.join(", ")
     } else {
-        let shown: Vec<&str> = items[..max].to_vec();
-        format!("{}, ...", shown.join(", "))
+        format!("{}, ...", items[..max].join(", "))
     }
 }
 
@@ -534,8 +528,7 @@ fn truncate_list_owned(items: &[String], max: usize) -> String {
     if items.len() <= max {
         items.join(" ")
     } else {
-        let shown: Vec<&str> = items[..max].iter().map(|s| s.as_str()).collect();
-        format!("{} ...", shown.join(" "))
+        format!("{} ...", items[..max].join(" "))
     }
 }
 
@@ -646,8 +639,7 @@ mod tests {
         for line in output.lines() {
             let trimmed = line.trim_start();
             // Only check field lines: must have ":" before "›" (name: Type pattern)
-            if let (Some(colon_pos), Some(sep_pos)) =
-                (trimmed.find(':'), trimmed.find('\u{203a}'))
+            if let (Some(colon_pos), Some(sep_pos)) = (trimmed.find(':'), trimmed.find('\u{203a}'))
             {
                 if colon_pos < sep_pos {
                     let abs_sep = line.find('\u{203a}').unwrap();

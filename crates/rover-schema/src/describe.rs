@@ -3,7 +3,7 @@ use apollo_compiler::{
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
 
-use crate::{coordinate::SchemaCoordinate, error::SchemaError, root_paths};
+use crate::{coordinate::SchemaCoordinate, error::SchemaError, root_paths, util::unwrap_type_name};
 
 /// Result of describing a schema at different levels of detail.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -157,10 +157,7 @@ pub fn overview(schema: &Schema, graph_ref: &str) -> SchemaOverview {
                 let dc = count_deprecated_fields_obj(obj);
                 total_fields += fc;
                 total_deprecated += dc;
-                if name_str != "Query"
-                    && name_str != "Mutation"
-                    && name_str != "Subscription"
-                {
+                if name_str != "Query" && name_str != "Mutation" && name_str != "Subscription" {
                     objects.push(name_str);
                 }
             }
@@ -249,8 +246,11 @@ pub fn type_detail(
     match ty {
         ExtendedType::Object(obj) => {
             let description = obj.description.as_ref().map(|d| d.to_string());
-            let implements: Vec<String> =
-                obj.implements_interfaces.iter().map(|i| i.to_string()).collect();
+            let implements: Vec<String> = obj
+                .implements_interfaces
+                .iter()
+                .map(|i| i.to_string())
+                .collect();
             let all_fields: Vec<FieldInfo> = obj
                 .fields
                 .iter()
@@ -261,7 +261,10 @@ pub fn type_detail(
             let fields = if include_deprecated {
                 all_fields
             } else {
-                all_fields.into_iter().filter(|f| !f.is_deprecated).collect()
+                all_fields
+                    .into_iter()
+                    .filter(|f| !f.is_deprecated)
+                    .collect()
             };
             let expanded = if depth > 0 {
                 expand_referenced_types(schema, &fields, depth, include_deprecated)
@@ -284,8 +287,11 @@ pub fn type_detail(
         }
         ExtendedType::Interface(iface) => {
             let description = iface.description.as_ref().map(|d| d.to_string());
-            let implements: Vec<String> =
-                iface.implements_interfaces.iter().map(|i| i.to_string()).collect();
+            let implements: Vec<String> = iface
+                .implements_interfaces
+                .iter()
+                .map(|i| i.to_string())
+                .collect();
             let all_fields: Vec<FieldInfo> = iface
                 .fields
                 .iter()
@@ -296,7 +302,10 @@ pub fn type_detail(
             let fields = if include_deprecated {
                 all_fields
             } else {
-                all_fields.into_iter().filter(|f| !f.is_deprecated).collect()
+                all_fields
+                    .into_iter()
+                    .filter(|f| !f.is_deprecated)
+                    .collect()
             };
             // Find implementing types
             let implementors = find_implementors(schema, type_name);
@@ -413,10 +422,7 @@ pub fn type_detail(
 }
 
 /// Generate detailed info for a specific field.
-pub fn field_detail(
-    schema: &Schema,
-    coord: &SchemaCoordinate,
-) -> Result<FieldDetail, SchemaError> {
+pub fn field_detail(schema: &Schema, coord: &SchemaCoordinate) -> Result<FieldDetail, SchemaError> {
     let (type_name, field_name) = match coord {
         SchemaCoordinate::Field {
             type_name,
@@ -425,7 +431,7 @@ pub fn field_detail(
         _ => {
             return Err(SchemaError::InvalidCoordinate(
                 "field_detail requires a Type.field coordinate".into(),
-            ))
+            ));
         }
     };
 
@@ -465,12 +471,6 @@ pub fn field_detail(
         .iter()
         .map(|p| format!("{} \u{2192} {}.{}", p.format_via(), type_name, field_name))
         .collect();
-    // If the type is a root type itself, the via is just Type.field
-    if via.is_empty()
-        && (type_name == "Query" || type_name == "Mutation" || type_name == "Subscription")
-    {
-        // Root types don't need a via path
-    }
 
     // Expand input types used as arguments
     let mut input_expansions = Vec::new();
@@ -560,31 +560,20 @@ fn get_root_fields(schema: &Schema, root_name: &str) -> Vec<FieldSummary> {
 }
 
 fn count_root_types(schema: &Schema) -> usize {
-    let mut count = 0;
-    if schema.types.contains_key("Query") {
-        count += 1;
-    }
-    if schema.types.contains_key("Mutation") {
-        count += 1;
-    }
-    if schema.types.contains_key("Subscription") {
-        count += 1;
-    }
-    count
+    ["Query", "Mutation", "Subscription"]
+        .into_iter()
+        .filter(|name| schema.types.contains_key(*name))
+        .count()
 }
 
-fn count_deprecated_fields_obj(
-    obj: &apollo_compiler::schema::ObjectType,
-) -> usize {
+fn count_deprecated_fields_obj(obj: &apollo_compiler::schema::ObjectType) -> usize {
     obj.fields
         .values()
         .filter(|f| is_deprecated_directive(&f.directives))
         .count()
 }
 
-fn count_deprecated_fields_iface(
-    iface: &apollo_compiler::schema::InterfaceType,
-) -> usize {
+fn count_deprecated_fields_iface(iface: &apollo_compiler::schema::InterfaceType) -> usize {
     iface
         .fields
         .values()
@@ -608,13 +597,6 @@ fn find_implementors(schema: &Schema, interface_name: &str) -> Vec<String> {
     implementors
 }
 
-fn unwrap_type_name(type_str: &str) -> String {
-    type_str
-        .replace(['[', ']', '!'], "")
-        .trim()
-        .to_string()
-}
-
 pub fn expand_single_type(
     schema: &Schema,
     type_name: &str,
@@ -629,8 +611,11 @@ pub fn expand_single_type(
                 .filter(|(_, f)| include_deprecated || !is_deprecated_directive(&f.directives))
                 .map(|(name, field)| field_to_info(name.as_str(), field))
                 .collect();
-            let implements: Vec<String> =
-                obj.implements_interfaces.iter().map(|i| i.to_string()).collect();
+            let implements: Vec<String> = obj
+                .implements_interfaces
+                .iter()
+                .map(|i| i.to_string())
+                .collect();
             Some(ExpandedType {
                 name: type_name.to_string(),
                 kind: TypeKind::Object,
@@ -890,9 +875,16 @@ mod tests {
         let with = type_detail(&schema, "SortOrder", true, 0).unwrap();
         assert_eq!(with.enum_values.len(), 4);
         assert_eq!(with.deprecated_count, 1);
-        let deprecated_val = with.enum_values.iter().find(|v| v.name == "RELEVANCE").unwrap();
+        let deprecated_val = with
+            .enum_values
+            .iter()
+            .find(|v| v.name == "RELEVANCE")
+            .unwrap();
         assert!(deprecated_val.is_deprecated);
-        assert_eq!(deprecated_val.deprecation_reason.as_deref(), Some("Use TOP instead"));
+        assert_eq!(
+            deprecated_val.deprecation_reason.as_deref(),
+            Some("Use TOP instead")
+        );
 
         let without = type_detail(&schema, "SortOrder", false, 0).unwrap();
         assert_eq!(without.enum_values.len(), 3);
@@ -908,6 +900,11 @@ mod tests {
         };
         let detail = field_detail(&schema, &coord).unwrap();
         assert!(!detail.input_expansions.is_empty());
-        assert!(detail.input_expansions.iter().any(|t| t.name == "CreatePostInput"));
+        assert!(
+            detail
+                .input_expansions
+                .iter()
+                .any(|t| t.name == "CreatePostInput")
+        );
     }
 }

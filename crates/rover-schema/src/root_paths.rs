@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use apollo_compiler::{Schema, schema::ExtendedType};
+use itertools::Itertools;
+
+use crate::util::unwrap_type_name;
 
 /// A path from a root type (Query/Mutation) to a target type through field references.
 #[derive(Debug, Clone)]
@@ -21,7 +24,6 @@ impl RootPath {
         self.segments
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
-            .collect::<Vec<_>>()
             .join(" \u{203a} ")
     }
 
@@ -29,18 +31,15 @@ impl RootPath {
         self.segments
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
-            .collect::<Vec<_>>()
             .join("\u{2192}")
     }
 
     pub fn format_path_header(&self, target_type: &str) -> String {
-        let mut parts: Vec<String> = self
-            .segments
+        self.segments
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
-            .collect();
-        parts.push(target_type.to_string());
-        parts.join(" \u{2192} ")
+            .chain(std::iter::once(target_type.to_string()))
+            .join(" \u{2192} ")
     }
 }
 
@@ -90,20 +89,20 @@ fn bfs_to_type(schema: &Schema, start: &str, target: &str) -> Option<RootPath> {
     while !queue.is_empty() && depth < MAX_DEPTH {
         let level_size = queue.len();
         for _ in 0..level_size {
-            let current = queue.pop_front().unwrap();
+            let Some(current) = queue.pop_front() else {
+                break;
+            };
 
             if let Some(fields) = get_object_fields(schema, &current) {
                 for (field_name, return_type) in fields {
                     let type_name = unwrap_type_name(&return_type);
                     if type_name == target {
-                        parent_map
-                            .insert(type_name, (current.clone(), field_name));
+                        parent_map.insert(type_name, (current.clone(), field_name));
                         return Some(reconstruct_path(&parent_map, start, target));
                     }
                     if !visited.contains(&type_name) {
                         visited.insert(type_name.clone());
-                        parent_map
-                            .insert(type_name.clone(), (current.clone(), field_name));
+                        parent_map.insert(type_name.clone(), (current.clone(), field_name));
                         queue.push_back(type_name);
                     }
                 }
@@ -159,14 +158,6 @@ fn get_object_fields(schema: &Schema, type_name: &str) -> Option<Vec<(String, St
     }
 }
 
-/// Extract the named type from a type reference (strip [], !)
-fn unwrap_type_name(type_str: &str) -> String {
-    type_str
-        .replace(['[', ']', '!'], "")
-        .trim()
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,13 +168,6 @@ mod tests {
             Ok(s) => s,
             Err(e) => e.partial,
         }
-    }
-
-    #[test]
-    fn unwrap_type_name_strips_wrappers() {
-        assert_eq!(unwrap_type_name("[String!]!"), "String");
-        assert_eq!(unwrap_type_name("Post"), "Post");
-        assert_eq!(unwrap_type_name("[User!]"), "User");
     }
 
     #[test]
@@ -225,8 +209,14 @@ mod tests {
     fn format_via_produces_readable_output() {
         let path = RootPath {
             segments: vec![
-                PathSegment { type_name: "Query".into(), field_name: "user".into() },
-                PathSegment { type_name: "User".into(), field_name: "posts".into() },
+                PathSegment {
+                    type_name: "Query".into(),
+                    field_name: "user".into(),
+                },
+                PathSegment {
+                    type_name: "User".into(),
+                    field_name: "posts".into(),
+                },
             ],
         };
         let via = path.format_via();

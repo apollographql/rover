@@ -100,9 +100,6 @@ mod tests {
 
     #[test]
     fn prepare_for_index_works() {
-        assert_eq!(
-            prepare_for_index("CreatePostInput"),
-            "create post input"
-        );
+        assert_eq!(prepare_for_index("CreatePostInput"), "create post input");
     }
 }

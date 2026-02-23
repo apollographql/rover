@@ -47,14 +47,11 @@ impl SchemaIndex {
         let schema = schema_builder.build();
 
         let index = Index::create_in_ram(schema);
-        let mut writer: IndexWriter = index
-            .writer(15_000_000)
-            .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+        let mut writer: IndexWriter = index.writer(15_000_000)?;
 
         for elem in &elements {
             let mut doc = TantivyDocument::new();
 
-            // Index the name with camelCase splitting
             let name_text = match &elem.field_name {
                 Some(field) => format!(
                     "{} {}",
@@ -70,10 +67,7 @@ impl SchemaIndex {
             }
 
             doc.add_text(type_name_field, &elem.type_name);
-            doc.add_text(
-                field_name_field,
-                elem.field_name.as_deref().unwrap_or(""),
-            );
+            doc.add_text(field_name_field, elem.field_name.as_deref().unwrap_or(""));
             doc.add_text(
                 element_type_field,
                 match elem.element_type {
@@ -84,14 +78,10 @@ impl SchemaIndex {
                 },
             );
 
-            writer
-                .add_document(doc)
-                .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+            writer.add_document(doc)?;
         }
 
-        writer
-            .commit()
-            .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+        writer.commit()?;
 
         Ok(Self {
             index,
@@ -105,30 +95,22 @@ impl SchemaIndex {
 
     /// Search the index, returning matched elements ranked by relevance.
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<IndexedElement>, SchemaError> {
-        let reader = self
-            .index
-            .reader()
-            .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+        let reader = self.index.reader()?;
         let searcher = reader.searcher();
 
         let query_parser =
             QueryParser::for_index(&self.index, vec![self.name_field, self.description_field]);
 
-        // Prepare query with camelCase splitting
         let prepared_query = prepare_for_index(query);
         let parsed_query = query_parser
             .parse_query(&prepared_query)
-            .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+            .map_err(|e| SchemaError::SearchError(e.into()))?;
 
-        let top_docs = searcher
-            .search(&parsed_query, &TopDocs::with_limit(limit))
-            .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+        let top_docs = searcher.search(&parsed_query, &TopDocs::with_limit(limit))?;
 
         let mut results = Vec::new();
         for (_score, doc_address) in top_docs {
-            let doc: TantivyDocument = searcher
-                .doc(doc_address)
-                .map_err(|e| SchemaError::SearchError(e.to_string()))?;
+            let doc: TantivyDocument = searcher.doc(doc_address)?;
 
             let type_name = doc
                 .get_first(self.type_name_field)
@@ -138,8 +120,13 @@ impl SchemaIndex {
             let field_name = doc
                 .get_first(self.field_name_field)
                 .and_then(|v| v.as_str())
-                .map(|s: &str| if s.is_empty() { None } else { Some(s.to_string()) })
-                .unwrap_or(None);
+                .and_then(|s| {
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                });
             let element_type_str = doc
                 .get_first(self.element_type_field)
                 .and_then(|v| v.as_str())

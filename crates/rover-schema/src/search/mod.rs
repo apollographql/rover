@@ -51,8 +51,7 @@ pub fn search(
                 }
                 seen_paths.insert(path_header.clone());
 
-                let types =
-                    build_result_types(schema, &[], target_type, include_deprecated);
+                let types = build_result_types(schema, &[], target_type, include_deprecated);
                 results.push(SearchResult {
                     path_header,
                     types,
@@ -80,8 +79,7 @@ pub fn search(
             }
             seen_paths.insert(path_header.clone());
 
-            let types =
-                build_result_types(schema, &path.segments, target_type, include_deprecated);
+            let types = build_result_types(schema, &path.segments, target_type, include_deprecated);
             results.push(SearchResult {
                 path_header,
                 types,
@@ -240,7 +238,8 @@ fn build_result_types(
             continue;
         }
         seen.insert(seg.type_name.clone());
-        if let Some(expanded) = describe::expand_single_type(schema, &seg.type_name, include_deprecated)
+        if let Some(expanded) =
+            describe::expand_single_type(schema, &seg.type_name, include_deprecated)
         {
             types.push(expanded);
         }

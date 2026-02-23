@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, SchemaOverview, TypeDetail, TypeKind,
 };
@@ -25,20 +27,20 @@ fn format_overview_compact(ov: &SchemaOverview) -> String {
     out.push('\n');
 
     if !ov.query_fields.is_empty() {
-        let fields: Vec<String> = ov
+        let fields = ov
             .query_fields
             .iter()
             .map(|f| format!("{}:{}", f.name, abbreviate_type(&f.return_type)))
-            .collect();
-        out.push_str(&format!("Q:{}\n", fields.join(",")));
+            .join(",");
+        out.push_str(&format!("Q:{fields}\n"));
     }
     if !ov.mutation_fields.is_empty() {
-        let fields: Vec<String> = ov
+        let fields = ov
             .mutation_fields
             .iter()
             .map(|f| format!("{}:{}", f.name, abbreviate_type(&f.return_type)))
-            .collect();
-        out.push_str(&format!("M:{}\n", fields.join(",")));
+            .join(",");
+        out.push_str(&format!("M:{fields}\n"));
     }
 
     out.trim_end().to_string()
@@ -64,32 +66,34 @@ fn format_type_detail_compact(detail: &TypeDetail) -> String {
     // Fields
     if !detail.fields.is_empty() {
         out.push(':');
-        let field_strs: Vec<String> = detail
-            .fields
-            .iter()
-            .map(|f| {
-                let prefix = if f.is_deprecated { "~" } else { "" };
-                format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
-            })
-            .collect();
-        out.push_str(&field_strs.join(","));
+        out.push_str(
+            &detail
+                .fields
+                .iter()
+                .map(|f| {
+                    let prefix = if f.is_deprecated { "~" } else { "" };
+                    format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
+                })
+                .join(","),
+        );
     }
 
     // Enum values
     if !detail.enum_values.is_empty() {
         out.push(':');
-        let vals: Vec<String> = detail
-            .enum_values
-            .iter()
-            .map(|v| {
-                if v.is_deprecated {
-                    format!("~{}", v.name)
-                } else {
-                    v.name.clone()
-                }
-            })
-            .collect();
-        out.push_str(&vals.join(","));
+        out.push_str(
+            &detail
+                .enum_values
+                .iter()
+                .map(|v| {
+                    if v.is_deprecated {
+                        format!("~{}", v.name)
+                    } else {
+                        v.name.clone()
+                    }
+                })
+                .join(","),
+        );
     }
 
     out.push('\n');
@@ -106,16 +110,16 @@ fn format_field_detail_compact(detail: &FieldDetail) -> String {
     let mut out = String::new();
 
     // Field line
+    let args = detail
+        .args
+        .iter()
+        .map(|a| format!("{}:{}", a.name, abbreviate_type(&a.arg_type)))
+        .join(",");
     out.push_str(&format!(
         "{}.{}({}):{}",
         detail.type_name,
         detail.field_name,
-        detail
-            .args
-            .iter()
-            .map(|a| format!("{}:{}", a.name, abbreviate_type(&a.arg_type)))
-            .collect::<Vec<_>>()
-            .join(","),
+        args,
         abbreviate_type(&detail.return_type)
     ));
     out.push('\n');
@@ -168,31 +172,33 @@ fn format_expanded_compact(out: &mut String, expanded: &ExpandedType) {
 
     if !expanded.fields.is_empty() {
         out.push(':');
-        let field_strs: Vec<String> = expanded
-            .fields
-            .iter()
-            .map(|f| {
-                let prefix = if f.is_deprecated { "~" } else { "" };
-                format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
-            })
-            .collect();
-        out.push_str(&field_strs.join(","));
+        out.push_str(
+            &expanded
+                .fields
+                .iter()
+                .map(|f| {
+                    let prefix = if f.is_deprecated { "~" } else { "" };
+                    format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
+                })
+                .join(","),
+        );
     }
 
     if !expanded.enum_values.is_empty() {
         out.push(':');
-        let vals: Vec<String> = expanded
-            .enum_values
-            .iter()
-            .map(|v| {
-                if v.is_deprecated {
-                    format!("~{}", v.name)
-                } else {
-                    v.name.clone()
-                }
-            })
-            .collect();
-        out.push_str(&vals.join(","));
+        out.push_str(
+            &expanded
+                .enum_values
+                .iter()
+                .map(|v| {
+                    if v.is_deprecated {
+                        format!("~{}", v.name)
+                    } else {
+                        v.name.clone()
+                    }
+                })
+                .join(","),
+        );
     }
 
     out.push('\n');
@@ -210,13 +216,22 @@ const fn kind_prefix(kind: TypeKind) -> &'static str {
 }
 
 /// Abbreviate common scalar types for compact output.
+///
+/// Only replaces the base type name when it exactly matches a built-in scalar,
+/// preserving wrappers like `[` `]` `!`.
 pub fn abbreviate_type(type_str: &str) -> String {
-    type_str
-        .replace("String", "s")
-        .replace("Int", "i")
-        .replace("Float", "f")
-        .replace("Boolean", "b")
-        .replace("ID", "d")
+    // Strip wrappers to find the base type name
+    let base = type_str.replace(['[', ']', '!'], "");
+    let abbrev = match base.as_str() {
+        "String" => "s",
+        "Int" => "i",
+        "Float" => "f",
+        "Boolean" => "b",
+        "ID" => "d",
+        _ => return type_str.to_string(),
+    };
+    // Re-apply the original wrappers around the abbreviation
+    type_str.replacen(&base, abbrev, 1)
 }
 
 #[cfg(test)]
@@ -238,6 +253,19 @@ mod tests {
     fn abbreviate_preserves_custom_types() {
         assert_eq!(abbreviate_type("Post!"), "Post!");
         assert_eq!(abbreviate_type("[User!]!"), "[User!]!");
+    }
+
+    #[test]
+    fn abbreviate_preserves_types_containing_scalar_substrings() {
+        assert_eq!(abbreviate_type("PrintSettings!"), "PrintSettings!");
+        assert_eq!(
+            abbreviate_type("[IntegrationPoint!]!"),
+            "[IntegrationPoint!]!"
+        );
+        assert_eq!(abbreviate_type("FloatRange"), "FloatRange");
+        assert_eq!(abbreviate_type("BooleanExpression!"), "BooleanExpression!");
+        assert_eq!(abbreviate_type("StringFilter"), "StringFilter");
+        assert_eq!(abbreviate_type("ValidID!"), "ValidID!");
     }
 
     #[test]
