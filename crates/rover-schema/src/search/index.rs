@@ -148,3 +148,110 @@ impl SchemaIndex {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_element(
+        element_type: ElementType,
+        type_name: &str,
+        field_name: Option<&str>,
+        description: Option<&str>,
+    ) -> IndexedElement {
+        IndexedElement {
+            element_type,
+            type_name: type_name.to_string(),
+            field_name: field_name.map(|s| s.to_string()),
+            description: description.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn build_and_search_by_name() {
+        let elements = vec![
+            make_element(ElementType::Type, "User", None, None),
+            make_element(ElementType::Type, "Post", None, None),
+        ];
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("user", 10).unwrap();
+        assert!(
+            results.iter().any(|r| r.type_name == "User"),
+            "should find User by name"
+        );
+    }
+
+    #[test]
+    fn search_by_description() {
+        let elements = vec![
+            make_element(
+                ElementType::Type,
+                "User",
+                None,
+                Some("A registered user of the platform"),
+            ),
+            make_element(ElementType::Type, "Post", None, Some("A blog post")),
+        ];
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("registered", 10).unwrap();
+        assert!(
+            results.iter().any(|r| r.type_name == "User"),
+            "should find User via description"
+        );
+    }
+
+    #[test]
+    fn search_respects_limit() {
+        let elements: Vec<IndexedElement> = (0..10)
+            .map(|i| make_element(ElementType::Type, &format!("Item{i}"), None, Some("common")))
+            .collect();
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("common", 2).unwrap();
+        assert!(results.len() <= 2, "should respect limit=2");
+    }
+
+    #[test]
+    fn search_empty_results() {
+        let elements = vec![make_element(ElementType::Type, "User", None, None)];
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("nonexistent", 10).unwrap();
+        assert!(results.is_empty(), "should return empty for no matches");
+    }
+
+    #[test]
+    fn element_type_round_trip() {
+        let elements = vec![
+            make_element(ElementType::Type, "User", None, None),
+            make_element(ElementType::Field, "User", Some("email"), None),
+            make_element(ElementType::Argument, "Query", Some("id"), None),
+            make_element(ElementType::EnumValue, "Status", Some("ACTIVE"), None),
+        ];
+        let index = SchemaIndex::build(elements).unwrap();
+
+        let results = index.search("user", 10).unwrap();
+        let types: Vec<ElementType> = results.iter().map(|r| r.element_type).collect();
+        assert!(types.contains(&ElementType::Type) || types.contains(&ElementType::Field));
+
+        // Verify enum_value round-trips
+        let results = index.search("active", 10).unwrap();
+        assert!(
+            results
+                .iter()
+                .any(|r| r.element_type == ElementType::EnumValue)
+        );
+    }
+
+    #[test]
+    fn field_name_stored_correctly() {
+        let elements = vec![make_element(
+            ElementType::Field,
+            "User",
+            Some("email"),
+            None,
+        )];
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("email", 10).unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].field_name.as_deref(), Some("email"));
+    }
+}
