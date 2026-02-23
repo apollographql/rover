@@ -5,9 +5,8 @@ use tantivy::{
     schema::{self as tantivy_schema, STORED, TEXT, Value},
 };
 
-use crate::error::SchemaError;
-
 use super::tokenizer::prepare_for_index;
+use crate::error::SchemaError;
 
 /// Schema element stored in the search index.
 #[derive(Debug, Clone)]

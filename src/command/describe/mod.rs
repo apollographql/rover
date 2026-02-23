@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use clap::Parser;
 use rover_client::shared::GraphRef;
 use rover_schema::{
@@ -5,7 +7,6 @@ use rover_schema::{
     format::{self, OutputFormat, compact, description, sdl},
 };
 use serde::Serialize;
-use std::str::FromStr;
 
 use crate::{
     RoverOutput, RoverResult, command::schema_cache, options::ProfileOpt,

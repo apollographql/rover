@@ -27,6 +27,9 @@ ignore = [
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
     "RUSTSEC-2024-0320",
+    # `instant` is unmaintained (replaced by `web-time`), pulled in transitively by `tantivy`.
+    # No security risk — `instant` is only used for timing on non-wasm targets.
+    "RUSTSEC-2024-0384",
 ]
 
 # This section is considered when running `cargo deny check licenses`

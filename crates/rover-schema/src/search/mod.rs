@@ -3,13 +3,12 @@ pub mod tokenizer;
 
 use apollo_compiler::{Schema, schema::ExtendedType};
 
+use self::index::{ElementType, IndexedElement, SchemaIndex};
 use crate::{
     describe::{self, ExpandedType},
     error::SchemaError,
     root_paths,
 };
-
-use self::index::{ElementType, IndexedElement, SchemaIndex};
 
 /// A single search result: a path from root to match with expanded types.
 #[derive(Debug, Clone, serde::Serialize)]

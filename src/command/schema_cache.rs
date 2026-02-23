@@ -2,11 +2,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result as AnyResult;
 use camino::{Utf8Path, Utf8PathBuf};
-use serde::{Deserialize, Serialize};
-
-use rover_client::operations::graph::fetch::{self, GraphFetchInput};
-use rover_client::shared::GraphRef;
+use rover_client::{
+    operations::graph::fetch::{self, GraphFetchInput},
+    shared::GraphRef,
+};
 use rover_std::Fs;
+use serde::{Deserialize, Serialize};
 
 use crate::{RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
@@ -32,9 +33,7 @@ pub async fn fetch_sdl_cached(
     let cache_dir = cache_dir_for(client_config);
     let cache_file = cache_file_for(&cache_dir, graph_ref);
 
-    if !no_cache
-        && let Some(sdl) = read_cache(&cache_file)
-    {
+    if !no_cache && let Some(sdl) = read_cache(&cache_file) {
         return Ok(sdl);
     }
 
