@@ -393,4 +393,49 @@ mod tests {
         let results = search(&schema, "post", 1, false).unwrap();
         assert!(results.len() <= 1, "should respect limit=1");
     }
+
+    /// End-to-end: parse SDL → search → extract SDL for matched types.
+    /// Exercises the full pipeline that `search --sdl` uses.
+    #[test]
+    fn search_sdl_end_to_end() {
+        use crate::format::sdl::extract_type_sdl;
+
+        let sdl_string = include_str!("../test_fixtures/test_schema.graphql");
+        let parsed = crate::ParsedSchema::parse(sdl_string);
+        let schema = parsed.inner();
+
+        let results = search(schema, "post", 5, false).unwrap();
+        assert!(!results.is_empty(), "should have search results");
+
+        // Replicate the search --sdl output logic
+        let mut seen = std::collections::HashSet::new();
+        let mut sdl_blocks = Vec::new();
+        for result in &results {
+            for expanded in &result.types {
+                if seen.insert(&expanded.name) {
+                    sdl_blocks.push(extract_type_sdl(&expanded.name, sdl_string));
+                }
+            }
+        }
+        let output = sdl_blocks.join("\n\n");
+
+        // Should contain actual SDL definitions, not "not found" messages
+        assert!(
+            !output.contains("# Type '"),
+            "should not have not-found markers: {output}"
+        );
+        // Should contain the Post type definition
+        assert!(
+            output.contains("type Post"),
+            "should include Post SDL: {output}"
+        );
+        // Should contain at least one other type from the path (e.g. Query)
+        assert!(
+            output.contains("type Query"),
+            "should include Query SDL from the path: {output}"
+        );
+        // Each type should appear only once
+        let post_count = output.matches("type Post").count();
+        assert_eq!(post_count, 1, "Post should appear exactly once");
+    }
 }
