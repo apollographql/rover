@@ -70,7 +70,7 @@ impl Search {
         .await?;
 
         // Parse
-        let parsed = ParsedSchema::parse(&sdl_string).map_err(|e| anyhow::anyhow!("{}", e))?;
+        let parsed = ParsedSchema::parse(&sdl_string);
         let schema = parsed.inner();
 
         // Search

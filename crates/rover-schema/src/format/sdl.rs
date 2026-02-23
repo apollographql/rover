@@ -76,10 +76,30 @@ fn find_type_end(sdl: &str, start: usize) -> Option<usize> {
         }
     }
 
-    // For types with body: find the matching closing brace
+    // For types with body: find the matching closing brace,
+    // skipping over triple-quoted (""") string literals.
     if let Some(open) = rest.find('{') {
         let mut depth = 0;
-        for (i, ch) in rest[open..].char_indices() {
+        let body = &rest[open..];
+        let mut chars = body.char_indices().peekable();
+        while let Some((i, ch)) = chars.next() {
+            if ch == '"' {
+                // Check for triple-quote start
+                if body[i..].starts_with("\"\"\"") {
+                    // Skip the opening """
+                    chars.next();
+                    chars.next();
+                    // Consume until closing """
+                    while let Some((j, _)) = chars.next() {
+                        if body[j..].starts_with("\"\"\"") {
+                            chars.next();
+                            chars.next();
+                            break;
+                        }
+                    }
+                    continue;
+                }
+            }
             match ch {
                 '{' => depth += 1,
                 '}' => {
@@ -238,6 +258,20 @@ enum DigestFrequency {
             "should find exact 'type Post', not 'type PostEdge': {result}"
         );
         assert!(!result.contains("PostEdge"), "must not match PostEdge");
+    }
+
+    #[test]
+    fn braces_inside_description_do_not_break_extraction() {
+        let sdl = "type Foo {\n  \"\"\"\n  Example: { bar: 1 }\n  \"\"\"\n  field: String!\n}\n\ntype Bar {\n  id: ID!\n}\n";
+        let result = extract_type_sdl("Foo", sdl);
+        assert!(
+            result.contains("field: String!"),
+            "should include Foo's field: {result}"
+        );
+        assert!(
+            !result.contains("type Bar"),
+            "should not bleed into Bar: {result}"
+        );
     }
 
     #[test]
