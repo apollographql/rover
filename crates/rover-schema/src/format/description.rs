@@ -534,9 +534,10 @@ fn truncate_list_owned(items: &[String], max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    use apollo_compiler::Schema;
+
     use super::*;
     use crate::describe;
-    use apollo_compiler::Schema;
 
     fn test_schema() -> Schema {
         let sdl = include_str!("../test_fixtures/test_schema.graphql");
@@ -640,16 +641,15 @@ mod tests {
             let trimmed = line.trim_start();
             // Only check field lines: must have ":" before "›" (name: Type pattern)
             if let (Some(colon_pos), Some(sep_pos)) = (trimmed.find(':'), trimmed.find('\u{203a}'))
+                && colon_pos < sep_pos
             {
-                if colon_pos < sep_pos {
-                    let abs_sep = line.find('\u{203a}').unwrap();
-                    let before_sep = &line[..abs_sep];
-                    assert!(
-                        before_sep.ends_with("  "),
-                        "should have at least 2-space gap before ›: {:?}",
-                        line
-                    );
-                }
+                let abs_sep = line.find('\u{203a}').unwrap();
+                let before_sep = &line[..abs_sep];
+                assert!(
+                    before_sep.ends_with("  "),
+                    "should have at least 2-space gap before ›: {:?}",
+                    line
+                );
             }
         }
     }
