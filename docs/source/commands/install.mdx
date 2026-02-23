@@ -1,0 +1,78 @@
+---
+title: Rover install Command
+subtitle: Install Rover or official plugins
+description: Use the rover install command to reinstall Rover or to download and install officially supported plugins such as the supergraph binary, Router, and Apollo MCP Server.
+---
+
+The `rover install` command does two things: it can reinstall or upgrade the Rover binary itself (as used by the [install scripts](../getting-started) under the hood), or it can download and install officially supported plugins that Rover uses for composition and local development.
+
+## Installing Rover
+
+When you run `rover install` without the `--plugin` option, it reinstalls or upgrades the Rover binary in place. The same behavior is used by the curl (Linux/macOS) and PowerShell (Windows) install scripts when you run them.
+
+```bash
+rover install
+```
+
+If Rover is already installed at the same location, you will be prompted to confirm overwriting. To overwrite without prompting (for example in CI), use `--force`:
+
+```bash
+rover install --force
+```
+
+For first-time installation of Rover, use the instructions in [Installing Rover](../getting-started) instead.
+
+## Installing plugins
+
+Use `--plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [rover dev](./dev) and supergraph composition.
+
+### Supported plugins
+
+| Plugin | Description | Version format | Example |
+| ------ | ----------- | -------------- | ------- |
+| `supergraph` | Federation supergraph composition binary | `latest-0`, `latest-2`, or exact `=X.Y.Z` | `supergraph@=2.8.0`, `supergraph@latest-2` |
+| `router` | Apollo Router (1.x) | `latest` or exact `vX.Y.Z` (1.0.0 ≤ version &lt; 2.0.0) | `router@v1.0.0`, `router@latest` |
+| `apollo-mcp-server` | Apollo MCP Server | `latest` or exact `vX.Y.Z` | `apollo-mcp-server@latest` |
+
+### Examples
+
+Install the latest supergraph plugin for Federation 2:
+
+```bash
+rover install --plugin supergraph@latest-2
+```
+
+Install a pinned version of the Router:
+
+```bash
+rover install --plugin router@v1.0.0
+```
+
+Install the Apollo MCP Server (used with `rover dev` for MCP):
+
+```bash
+rover install --plugin apollo-mcp-server@latest
+```
+
+Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). When required, you can pass the flag non-interactively (e.g. in CI):
+
+```bash
+rover install --plugin supergraph@latest-2 --elv2-license accept
+```
+
+Or set the environment variable:
+
+```bash
+export APOLLO_ELV2_LICENSE=accept
+rover install --plugin router@latest
+```
+
+### Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-f`, `--force` | Overwrite any existing binary or plugin without prompting for confirmation. |
+| `--plugin <PLUGIN>` | Download and install an officially supported plugin. Value must be in the form `name@version` (e.g. `supergraph@latest-2`). |
+| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting. Expected value: `accept`. Can also be set via the `APOLLO_ELV2_LICENSE` environment variable. |
+
+Other common Rover options (e.g. `--log`, `--format`, `--client-timeout`) also apply. Run `rover install --help` for the full list.
