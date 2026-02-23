@@ -1,17 +1,14 @@
 use clap::Parser;
-use rover_client::operations::graph::fetch::{self, GraphFetchInput};
 use rover_client::shared::GraphRef;
 use rover_schema::{
-    ParsedSchema, SchemaCoordinate,
-    describe,
+    ParsedSchema, SchemaCoordinate, describe,
     format::{self, OutputFormat, compact, description, sdl},
 };
 use serde::Serialize;
 use std::str::FromStr;
 
 use crate::{
-    RoverOutput, RoverResult,
-    options::ProfileOpt,
+    RoverOutput, RoverResult, command::schema_cache, options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
 
@@ -22,14 +19,12 @@ use crate::{
 /// overview, then zoom into individual types and fields.
 ///
 /// Piped output defaults to --compact.
-#[command(
-    after_help = "EXAMPLES:\n    \
+#[command(after_help = "EXAMPLES:\n    \
         rover describe my-graph@my-variant\n    \
         rover describe my-graph@my-variant:Post\n    \
         rover describe my-graph@my-variant:Post --depth 1\n    \
         rover describe my-graph@my-variant:User.posts\n    \
-        rover describe my-graph@my-variant:Post --sdl"
-)]
+        rover describe my-graph@my-variant:Post --sdl")]
 pub struct Describe {
     /// <NAME>@<VARIANT>[:<COORDINATE>]
     ///
@@ -56,6 +51,10 @@ pub struct Describe {
     #[arg(long = "compact")]
     compact: bool,
 
+    /// Skip reading from the local schema cache (still writes to cache)
+    #[arg(long = "no-cache")]
+    no_cache: bool,
+
     #[clap(flatten)]
     profile: ProfileOpt,
 }
@@ -64,12 +63,17 @@ impl Describe {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let (graph_ref, coordinate) = parse_graph_ref_and_coordinate(&self.graph_ref_and_coord)?;
 
-        // Fetch SDL
-        let sdl_string = fetch_sdl(&graph_ref, &self.profile, &client_config).await?;
+        // Fetch SDL (with caching)
+        let sdl_string = schema_cache::fetch_sdl_cached(
+            &graph_ref,
+            &self.profile,
+            &client_config,
+            self.no_cache,
+        )
+        .await?;
 
         // Parse
-        let parsed = ParsedSchema::parse(&sdl_string)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let parsed = ParsedSchema::parse(&sdl_string).map_err(|e| anyhow::anyhow!("{}", e))?;
         let schema = parsed.inner();
 
         // Determine output format
@@ -77,7 +81,7 @@ impl Describe {
 
         // If --sdl, output filtered SDL
         if output_format == OutputFormat::Sdl {
-            let sdl_output = sdl::filtered_sdl(schema, coordinate.as_ref(), &sdl_string);
+            let sdl_output = sdl::filtered_sdl(coordinate.as_ref(), &sdl_string);
             return Ok(RoverOutput::DescribeResponse {
                 content: sdl_output,
                 json_data: serde_json::Value::Null,
@@ -91,13 +95,14 @@ impl Describe {
                 describe::DescribeResult::Overview(overview)
             }
             Some(SchemaCoordinate::Type(type_name)) => {
-                let detail = describe::type_detail(schema, type_name, self.include_deprecated, self.depth)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                let detail =
+                    describe::type_detail(schema, type_name, self.include_deprecated, self.depth)
+                        .map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::TypeDetail(detail)
             }
             Some(coord @ SchemaCoordinate::Field { .. }) => {
-                let detail = describe::field_detail(schema, coord)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                let detail =
+                    describe::field_detail(schema, coord).map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::FieldDetail(detail)
             }
         };
@@ -110,10 +115,7 @@ impl Describe {
             OutputFormat::Sdl => unreachable!(),
         };
 
-        Ok(RoverOutput::DescribeResponse {
-            content,
-            json_data,
-        })
+        Ok(RoverOutput::DescribeResponse { content, json_data })
     }
 }
 
@@ -145,15 +147,14 @@ fn parse_graph_ref_and_coordinate(
         if let Some(split_pos) = coord_split {
             let graph_ref_str = &input[..split_pos];
             let coord_str = &input[split_pos + 1..];
-            let graph_ref = GraphRef::from_str(graph_ref_str)
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
-            let coordinate = SchemaCoordinate::parse(coord_str)
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            let graph_ref =
+                GraphRef::from_str(graph_ref_str).map_err(|e| anyhow::anyhow!("{}", e))?;
+            let coordinate =
+                SchemaCoordinate::parse(coord_str).map_err(|e| anyhow::anyhow!("{}", e))?;
             Ok((graph_ref, Some(coordinate)))
         } else {
             // No coordinate — entire string is the graph ref
-            let graph_ref = GraphRef::from_str(input)
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            let graph_ref = GraphRef::from_str(input).map_err(|e| anyhow::anyhow!("{}", e))?;
             Ok((graph_ref, None))
         }
     } else {
@@ -163,34 +164,17 @@ fn parse_graph_ref_and_coordinate(
             if remaining.starts_with(|c: char| c.is_ascii_uppercase()) {
                 let graph_ref_str = &input[..colon_pos];
                 let coord_str = remaining;
-                let graph_ref = GraphRef::from_str(graph_ref_str)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
-                let coordinate = SchemaCoordinate::parse(coord_str)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                let graph_ref =
+                    GraphRef::from_str(graph_ref_str).map_err(|e| anyhow::anyhow!("{}", e))?;
+                let coordinate =
+                    SchemaCoordinate::parse(coord_str).map_err(|e| anyhow::anyhow!("{}", e))?;
                 return Ok((graph_ref, Some(coordinate)));
             }
         }
         // No coordinate — entire string is the graph ref (gets default variant)
-        let graph_ref = GraphRef::from_str(input)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let graph_ref = GraphRef::from_str(input).map_err(|e| anyhow::anyhow!("{}", e))?;
         Ok((graph_ref, None))
     }
-}
-
-async fn fetch_sdl(
-    graph_ref: &GraphRef,
-    profile: &ProfileOpt,
-    client_config: &StudioClientConfig,
-) -> RoverResult<String> {
-    let client = client_config.get_authenticated_client(profile)?;
-    let fetch_response = fetch::run(
-        GraphFetchInput {
-            graph_ref: graph_ref.clone(),
-        },
-        &client,
-    )
-    .await?;
-    Ok(fetch_response.sdl.contents)
 }
 
 #[cfg(test)]
@@ -238,8 +222,7 @@ mod tests {
 
     #[test]
     fn parse_graph_ref_no_variant_with_type() {
-        let (graph_ref, coord) =
-            parse_graph_ref_and_coordinate("my-graph:Post").unwrap();
+        let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph:Post").unwrap();
         assert_eq!(graph_ref.name, "my-graph");
         assert_eq!(graph_ref.variant, "current");
         assert_eq!(coord, Some(SchemaCoordinate::Type("Post".into())));
@@ -247,8 +230,7 @@ mod tests {
 
     #[test]
     fn parse_graph_ref_no_variant_with_field() {
-        let (graph_ref, coord) =
-            parse_graph_ref_and_coordinate("my-graph:User.posts").unwrap();
+        let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph:User.posts").unwrap();
         assert_eq!(graph_ref.name, "my-graph");
         assert_eq!(graph_ref.variant, "current");
         assert_eq!(

@@ -6,7 +6,10 @@ pub enum SchemaCoordinate {
     /// Just a type name, e.g. "Post"
     Type(String),
     /// A type and field, e.g. "User.posts"
-    Field { type_name: String, field_name: String },
+    Field {
+        type_name: String,
+        field_name: String,
+    },
 }
 
 impl SchemaCoordinate {

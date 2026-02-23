@@ -16,5 +16,5 @@ pub enum SchemaError {
 
     #[cfg(feature = "search")]
     #[error("Search index error: {0}")]
-    SearchError(String),
+    SearchError(#[from] tantivy::TantivyError),
 }
