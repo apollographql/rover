@@ -5,6 +5,7 @@ use crate::describe::{
 use crate::search::SearchResult;
 
 const MAX_WIDTH: usize = 100;
+const DEPRECATED_MARKER: char = '\u{26a0}';
 
 /// Format a DescribeResult as human-readable description text.
 pub fn format_describe(result: &DescribeResult) -> String {
@@ -253,9 +254,9 @@ fn format_field_detail(detail: &FieldDetail) -> String {
     // Deprecation
     if detail.is_deprecated {
         if let Some(reason) = &detail.deprecation_reason {
-            out.push_str(&format!("  \u{26a0}\u{fe0f} DEPRECATED: {}\n", reason));
+            out.push_str(&format!("  {DEPRECATED_MARKER} DEPRECATED: {}\n", reason));
         } else {
-            out.push_str("  \u{26a0}\u{fe0f} DEPRECATED\n");
+            out.push_str(&format!("  {DEPRECATED_MARKER} DEPRECATED\n"));
         }
     }
 
@@ -422,7 +423,7 @@ fn write_item_line(
     // Write indent with optional deprecation gutter marker
     if is_deprecated {
         if indent <= 2 {
-            out.push('\u{26a0}');
+            out.push(DEPRECATED_MARKER);
             for _ in 1..indent {
                 out.push(' ');
             }
@@ -430,7 +431,7 @@ fn write_item_line(
             for _ in 0..indent.saturating_sub(2) {
                 out.push(' ');
             }
-            out.push('\u{26a0}');
+            out.push(DEPRECATED_MARKER);
             out.push(' ');
         }
     } else {

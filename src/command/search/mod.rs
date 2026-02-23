@@ -2,7 +2,7 @@ use clap::Parser;
 use rover_client::shared::GraphRef;
 use rover_schema::{
     ParsedSchema,
-    format::{self, OutputFormat, compact, description},
+    format::{self, OutputFormat, compact, description, sdl},
     search,
 };
 use serde::Serialize;
@@ -85,9 +85,16 @@ impl Search {
             OutputFormat::Description => description::format_search(&results, &self.terms),
             OutputFormat::Compact => compact::format_search_compact(&results),
             OutputFormat::Sdl => {
-                // For search with --sdl, we'd need to extract SDL for all matched types
-                // For now, fall back to description format
-                description::format_search(&results, &self.terms)
+                let mut seen = std::collections::HashSet::new();
+                let mut sdl_blocks = Vec::new();
+                for result in &results {
+                    for expanded in &result.types {
+                        if seen.insert(&expanded.name) {
+                            sdl_blocks.push(sdl::extract_type_sdl(&expanded.name, &sdl_string));
+                        }
+                    }
+                }
+                sdl_blocks.join("\n\n")
             }
         };
 

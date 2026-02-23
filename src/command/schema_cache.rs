@@ -89,3 +89,76 @@ fn now_epoch_secs() -> u64 {
         .expect("system clock before UNIX epoch")
         .as_secs()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_cache_dir() -> Utf8PathBuf {
+        let dir = std::env::temp_dir().join(format!("rover-cache-test-{}", std::process::id()));
+        Utf8PathBuf::try_from(dir).expect("temp dir should be valid UTF-8")
+    }
+
+    fn cleanup(dir: &Utf8Path) {
+        let _ = std::fs::remove_dir_all(dir.as_std_path());
+    }
+
+    #[test]
+    fn cache_file_for_correct_path() {
+        let dir = Utf8PathBuf::from("/tmp/cache");
+        let graph_ref = GraphRef {
+            name: "my-graph".to_string(),
+            variant: "prod".to_string(),
+        };
+        let path = cache_file_for(&dir, &graph_ref);
+        assert_eq!(path, Utf8PathBuf::from("/tmp/cache/my-graph@prod.json"));
+    }
+
+    #[test]
+    fn read_cache_missing_file() {
+        let result = read_cache(Utf8Path::new("/tmp/nonexistent-rover-cache-file.json"));
+        assert!(result.is_none(), "missing file should return None");
+    }
+
+    #[test]
+    fn read_cache_expired_ttl() {
+        let dir = temp_cache_dir().join("expired");
+        let _ = std::fs::create_dir_all(dir.as_std_path());
+        let file = dir.join("test.json");
+
+        let entry = CacheEntry {
+            sdl: "type Query { hello: String }".to_string(),
+            cached_at_epoch_secs: 0, // epoch = definitely expired
+        };
+        std::fs::write(file.as_std_path(), serde_json::to_string(&entry).unwrap()).unwrap();
+
+        let result = read_cache(&file);
+        assert!(result.is_none(), "expired cache should return None");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn read_cache_valid_cache() {
+        let dir = temp_cache_dir().join("valid");
+        let file = dir.join("test.json");
+
+        write_cache(&dir, &file, "type Query { hi: String }").unwrap();
+
+        let result = read_cache(&file);
+        assert_eq!(result, Some("type Query { hi: String }".to_string()));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn read_cache_malformed_json() {
+        let dir = temp_cache_dir().join("malformed");
+        let _ = std::fs::create_dir_all(dir.as_std_path());
+        let file = dir.join("test.json");
+
+        std::fs::write(file.as_std_path(), "not valid json!!!").unwrap();
+
+        let result = read_cache(&file);
+        assert!(result.is_none(), "malformed JSON should return None");
+        cleanup(&dir);
+    }
+}

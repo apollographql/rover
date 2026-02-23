@@ -254,3 +254,143 @@ fn build_result_types(
 
     types
 }
+
+#[cfg(test)]
+mod tests {
+    use apollo_compiler::Schema;
+
+    use super::*;
+    use crate::search::index::ElementType;
+
+    fn test_schema() -> Schema {
+        let sdl = include_str!("../test_fixtures/test_schema.graphql");
+        match Schema::parse(sdl, "test.graphql") {
+            Ok(s) => s,
+            Err(e) => e.partial,
+        }
+    }
+
+    #[test]
+    fn search_finds_type_by_name() {
+        let schema = test_schema();
+        let results = search(&schema, "post", 5, false).unwrap();
+        assert!(
+            results.iter().any(|r| r.matched_type == "Post"),
+            "should find Post type: {results:?}"
+        );
+    }
+
+    #[test]
+    fn search_finds_by_field_name() {
+        let schema = test_schema();
+        let results = search(&schema, "email", 5, false).unwrap();
+        assert!(
+            results
+                .iter()
+                .any(|r| r.matched_type == "User" || r.matched_field.as_deref() == Some("email")),
+            "should find User/email: {results:?}"
+        );
+    }
+
+    #[test]
+    fn extract_elements_filters_builtins() {
+        let schema = test_schema();
+        let elements = extract_elements(&schema, false);
+        let builtin_names = ["String", "Int", "Float", "Boolean", "ID"];
+        for elem in &elements {
+            assert!(
+                !builtin_names.contains(&elem.type_name.as_str()),
+                "should not contain builtin scalar: {}",
+                elem.type_name
+            );
+            assert!(
+                !elem.type_name.starts_with("__"),
+                "should not contain introspection type: {}",
+                elem.type_name
+            );
+        }
+    }
+
+    #[test]
+    fn extract_elements_includes_all_kinds() {
+        let schema = test_schema();
+        let elements = extract_elements(&schema, false);
+        let types: Vec<ElementType> = elements.iter().map(|e| e.element_type).collect();
+        assert!(
+            types.contains(&ElementType::Type),
+            "should have Type elements"
+        );
+        assert!(
+            types.contains(&ElementType::Field),
+            "should have Field elements"
+        );
+        assert!(
+            types.contains(&ElementType::EnumValue),
+            "should have EnumValue elements"
+        );
+    }
+
+    #[test]
+    fn extract_elements_deprecated_filtering() {
+        let schema = test_schema();
+
+        // Without deprecated: should not include oldSlug or legacyId
+        let elements = extract_elements(&schema, false);
+        let field_names: Vec<&str> = elements
+            .iter()
+            .filter_map(|e| e.field_name.as_deref())
+            .collect();
+        assert!(
+            !field_names.contains(&"oldSlug"),
+            "should exclude deprecated oldSlug"
+        );
+        assert!(
+            !field_names.contains(&"legacyId"),
+            "should exclude deprecated legacyId"
+        );
+
+        // With deprecated: should include them
+        let elements = extract_elements(&schema, true);
+        let field_names: Vec<&str> = elements
+            .iter()
+            .filter_map(|e| e.field_name.as_deref())
+            .collect();
+        assert!(
+            field_names.contains(&"oldSlug"),
+            "should include deprecated oldSlug"
+        );
+        assert!(
+            field_names.contains(&"legacyId"),
+            "should include deprecated legacyId"
+        );
+    }
+
+    #[test]
+    fn is_root_type_works() {
+        let schema = test_schema();
+        assert!(is_root_type(&schema, "Query"));
+        assert!(is_root_type(&schema, "Mutation"));
+        assert!(!is_root_type(&schema, "Post"));
+        assert!(!is_root_type(&schema, "User"));
+    }
+
+    #[test]
+    fn search_deduplicates_paths() {
+        let schema = test_schema();
+        let results = search(&schema, "post", 10, false).unwrap();
+        let headers: Vec<&str> = results.iter().map(|r| r.path_header.as_str()).collect();
+        let unique: std::collections::HashSet<&&str> = headers.iter().collect();
+        assert_eq!(
+            headers.len(),
+            unique.len(),
+            "should have no duplicate path_header values"
+        );
+    }
+
+    #[test]
+    fn search_respects_limit() {
+        let schema = test_schema();
+        let results = search(&schema, "post", 1, false).unwrap();
+        assert!(results.len() <= 1, "should respect limit=1");
+    }
+}
