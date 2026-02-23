@@ -39,6 +39,8 @@ items:
         href: ./commands/graphs
       - label: init
         href: ./commands/init
+      - label: install
+        href: ./commands/install
       - label: license
         href: ./commands/license
       - label: persisted-queries

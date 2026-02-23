@@ -1,0 +1,96 @@
+---
+title: The Rover install Command
+subtitle: Install Rover or its officially supported plugins
+description: Use the rover install command to install or update Rover itself, or to install officially supported plugins like the supergraph composition function and Apollo Router.
+---
+
+The `rover install` command installs or updates Rover itself, or installs an officially supported plugin.
+
+## Install or update Rover
+
+Run `rover install` to install Rover or update an existing installation:
+
+```bash
+rover install
+```
+
+If Rover is already installed, you'll be prompted to confirm before overwriting the existing binary. To bypass this prompt (for example, in CI), pass the `--force` flag:
+
+```bash
+rover install --force
+```
+
+## Install a plugin
+
+Use `rover install --plugin` to download and install an officially supported plugin from GitHub releases.
+
+Supported plugins:
+
+- `supergraph` — the composition function used by `rover supergraph compose`
+- `router` — the [Apollo Router](/router/) binary used by `rover dev`
+- `apollo-mcp-server` — the [Apollo MCP Server](https://github.com/apollographql/apollo-mcp-server)
+
+### Install the supergraph plugin
+
+```bash
+rover install --plugin supergraph@latest-2
+```
+
+You can specify an exact version instead of `latest-2`:
+
+```bash
+rover install --plugin supergraph@v2.0.0
+```
+
+For Federation 1, use `latest-0`:
+
+```bash
+rover install --plugin supergraph@latest-0
+```
+
+### Install the Router plugin
+
+The Router plugin is licensed under the [Elastic License v2 (ELv2)](https://www.elastic.co/licensing/elastic-license). You must accept this license before installing:
+
+```bash
+rover install --plugin router@latest --elv2-license=accept
+```
+
+To accept the license non-interactively (for example, in CI), set the `APOLLO_ELV2_LICENSE` environment variable:
+
+```bash
+APOLLO_ELV2_LICENSE=accept rover install --plugin router@latest
+```
+
+### Install the MCP Server plugin
+
+The MCP Server plugin is also licensed under ELv2:
+
+```bash
+rover install --plugin apollo-mcp-server@latest --elv2-license=accept
+```
+
+## Options
+
+<table>
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`--force` / `-f`</td>
+      <td>Overwrite any existing binary without prompting for confirmation.</td>
+    </tr>
+    <tr>
+      <td>`--plugin <PLUGIN>`</td>
+      <td>Download and install an officially supported plugin. Supported values: `supergraph@<version>`, `router@<version>`, `apollo-mcp-server@<version>`.</td>
+    </tr>
+    <tr>
+      <td>`--elv2-license <ELV2_LICENSE>`</td>
+      <td>Accept the ELv2 license required by the Router and MCP Server plugins. Pass `accept` to accept non-interactively.</td>
+    </tr>
+  </tbody>
+</table>
