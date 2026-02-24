@@ -3,9 +3,9 @@ use crate::coordinate::SchemaCoordinate;
 /// Extract filtered SDL for a coordinate from the full schema SDL.
 /// Returns SDL containing just the targeted type (and for fields, just the parent type).
 pub fn filtered_sdl(coord: Option<&SchemaCoordinate>, sdl: &str) -> String {
-    match coord {
+    match coord.and_then(|c| c.type_name()) {
         None => sdl.to_string(),
-        Some(coord) => extract_type_sdl(coord.type_name(), sdl),
+        Some(type_name) => extract_type_sdl(type_name, sdl),
     }
 }
 

@@ -106,6 +106,11 @@ impl Describe {
                     describe::field_detail(schema, coord).map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::FieldDetail(detail)
             }
+            Some(other) => {
+                return Err(
+                    anyhow::anyhow!("unsupported coordinate for describe: '{other}'").into(),
+                );
+            }
         };
 
         let json_data = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
