@@ -17,6 +17,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tantivy = { workspace = true, optional = true }
+heck = { workspace = true }
 itertools = { workspace = true }
 
 [dev-dependencies]

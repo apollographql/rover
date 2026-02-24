@@ -5,49 +5,12 @@
 /// - `HTMLParser` → `["html", "parser"]`
 /// - `PostConnection` → `["post", "connection"]`
 pub fn split_camel_case(s: &str) -> Vec<String> {
-    let mut words = Vec::new();
-    let mut current = String::new();
-    let chars: Vec<char> = s.chars().collect();
-
-    for i in 0..chars.len() {
-        let c = chars[i];
-        if c.is_uppercase() {
-            if !current.is_empty() {
-                // If previous was lowercase, split here: "get|U" → word break before U
-                if i > 0 && chars[i - 1].is_lowercase() {
-                    words.push(current.to_lowercase());
-                    current = String::new();
-                }
-                // If this is an uppercase char followed by lowercase, and we're in an
-                // uppercase run, split before this char: "HTM|L|Parser" → "HTML" + "Parser"
-                // The current accumulated uppercase run should stay together with this char
-                // only if the NEXT char (after this one) is lowercase.
-                else if i + 1 < chars.len()
-                    && chars[i + 1].is_lowercase()
-                    && current.chars().all(|ch| ch.is_uppercase())
-                    && !current.is_empty()
-                {
-                    // Everything accumulated so far is one word
-                    words.push(current.to_lowercase());
-                    current = String::new();
-                }
-            }
-            current.push(c);
-        } else if c == '_' || c == '-' {
-            if !current.is_empty() {
-                words.push(current.to_lowercase());
-                current = String::new();
-            }
-        } else {
-            current.push(c);
-        }
-    }
-
-    if !current.is_empty() {
-        words.push(current.to_lowercase());
-    }
-
-    words
+    use heck::ToSnakeCase;
+    s.to_snake_case()
+        .split('_')
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_string())
+        .collect()
 }
 
 /// Prepare text for indexing: split camelCase, join with spaces.
