@@ -1,5 +1,6 @@
 use itertools::Itertools;
 
+use super::{DASH, HOOK_ARROW};
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, SchemaOverview, TypeDetail, TypeKind,
 };
@@ -136,7 +137,7 @@ fn format_field_detail_compact(detail: &FieldDetail) -> String {
 
     // Via path
     if !detail.via.is_empty() {
-        out.push_str(&format!("\u{21b3} {}\n", detail.via[0]));
+        out.push_str(&format!("{HOOK_ARROW} {}\n", detail.via[0]));
     }
 
     out.trim_end().to_string()
@@ -149,7 +150,7 @@ pub fn format_search_compact(results: &[SearchResult]) -> String {
 
     for result in results {
         out.push_str(&format!(
-            "\u{2500}\u{2500} {} \u{2500}\u{2500}\n",
+            "{DASH}{DASH} {} {DASH}{DASH}\n",
             result.path_header
         ));
         for expanded in &result.types {

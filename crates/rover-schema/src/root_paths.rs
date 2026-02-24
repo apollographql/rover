@@ -3,7 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use apollo_compiler::{Schema, schema::ExtendedType};
 use itertools::Itertools;
 
-use crate::util::unwrap_type_name;
+use crate::{
+    format::{ARROW, SEPARATOR},
+    util::unwrap_type_name,
+};
 
 /// A path from a root type (Query/Mutation) to a target type through field references.
 #[derive(Debug, Clone)]
@@ -24,14 +27,14 @@ impl RootPath {
         self.segments
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
-            .join(" \u{203a} ")
+            .join(&format!(" {SEPARATOR} "))
     }
 
     pub fn format_compact(&self) -> String {
         self.segments
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
-            .join("\u{2192}")
+            .join(&format!("{ARROW}"))
     }
 
     pub fn format_path_header(&self, target_type: &str) -> String {
@@ -39,7 +42,7 @@ impl RootPath {
             .iter()
             .map(|seg| format!("{}.{}", seg.type_name, seg.field_name))
             .chain(std::iter::once(target_type.to_string()))
-            .join(" \u{2192} ")
+            .join(&format!(" {ARROW} "))
     }
 }
 
