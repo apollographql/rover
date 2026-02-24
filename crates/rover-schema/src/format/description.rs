@@ -1,3 +1,4 @@
+use super::{ARROW, DASH, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, FieldInfo, SchemaOverview, TypeDetail, TypeKind,
 };
@@ -5,7 +6,6 @@ use crate::describe::{
 use crate::search::SearchResult;
 
 const MAX_WIDTH: usize = 100;
-const DEPRECATED_MARKER: char = '\u{26a0}';
 
 /// Format a DescribeResult as human-readable description text.
 pub fn format_describe(result: &DescribeResult) -> String {
@@ -34,7 +34,7 @@ fn format_overview(ov: &SchemaOverview) -> String {
         let names: Vec<&str> = ov.query_fields.iter().map(|f| f.name.as_str()).collect();
         let preview = truncate_list(&names, 6);
         out.push_str(&format!(
-            "  Query      \u{203a} {} fields ({})\n",
+            "  Query      {SEPARATOR} {} fields ({})\n",
             ov.query_fields.len(),
             preview
         ));
@@ -45,7 +45,7 @@ fn format_overview(ov: &SchemaOverview) -> String {
         let names: Vec<&str> = ov.mutation_fields.iter().map(|f| f.name.as_str()).collect();
         let preview = truncate_list(&names, 6);
         out.push_str(&format!(
-            "  Mutation   \u{203a} {} fields ({})\n",
+            "  Mutation   {SEPARATOR} {} fields ({})\n",
             ov.mutation_fields.len(),
             preview
         ));
@@ -152,7 +152,7 @@ fn format_type_detail(detail: &TypeDetail) -> String {
 
     // Description
     if let Some(desc) = &detail.description {
-        out.push_str(&format!("  \u{203a} {}\n", desc));
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
 
         // Blank line after description before fields/values
         if !detail.fields.is_empty()
@@ -188,7 +188,7 @@ fn format_type_detail(detail: &TypeDetail) -> String {
         if detail.kind == TypeKind::Interface {
             // For interfaces, show implementing types
             out.push_str(&format!(
-                "  \u{203a} implemented by {}\n",
+                "  {SEPARATOR} implemented by {}\n",
                 detail.union_members.join(", ")
             ));
         } else {
@@ -229,7 +229,7 @@ fn format_field_detail(detail: &FieldDetail) -> String {
 
     // Header
     out.push_str(&format!(
-        "FIELD {}.{} \u{2192} {}",
+        "FIELD {}.{} {ARROW} {}",
         detail.type_name, detail.field_name, detail.return_type
     ));
     if detail.arg_count > 0 {
@@ -243,7 +243,7 @@ fn format_field_detail(detail: &FieldDetail) -> String {
 
     // Description
     if let Some(desc) = &detail.description {
-        out.push_str(&format!("  \u{203a} {}\n", desc));
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
     }
 
     // Via paths
@@ -311,7 +311,7 @@ pub fn format_search(results: &[SearchResult], query: &str) -> String {
 
     for result in results {
         out.push_str(&format!(
-            "\n\u{2500}\u{2500} {} \u{2500}\u{2500}\n\n",
+            "\n{DASH}{DASH} {} {DASH}{DASH}\n\n",
             result.path_header
         ));
 
@@ -319,7 +319,7 @@ pub fn format_search(results: &[SearchResult], query: &str) -> String {
             out.push_str(&format!("  {}", expanded.name));
             if !expanded.union_members.is_empty() && expanded.kind == TypeKind::Interface {
                 out.push_str(&format!(
-                    " (interface \u{2192} {})",
+                    " (interface {ARROW} {})",
                     expanded.union_members.join(", ")
                 ));
             }
@@ -454,7 +454,8 @@ fn write_item_line(
         for _ in 0..pad {
             out.push(' ');
         }
-        out.push_str("\u{203a} ");
+        out.push(SEPARATOR);
+        out.push(' ');
 
         let desc_start = indent + name_len + pad + 2; // +2 for "› "
         let avail = MAX_WIDTH.saturating_sub(desc_start);
@@ -468,7 +469,8 @@ fn write_item_line(
         for _ in 0..indent + 2 {
             out.push(' ');
         }
-        out.push_str("\u{21b3} Deprecated: ");
+        out.push(HOOK_ARROW);
+        out.push_str(" Deprecated: ");
         out.push_str(reason);
         out.push('\n');
     }
@@ -498,10 +500,10 @@ fn write_field_items(out: &mut String, fields: &[FieldInfo], indent: usize) {
 }
 
 fn format_expanded_type(out: &mut String, expanded: &ExpandedType) {
-    out.push_str(&format!("  \u{2508} {}", expanded.name));
+    out.push_str(&format!("  {DOTTED} {}", expanded.name));
     if expanded.kind == TypeKind::Interface && !expanded.union_members.is_empty() {
         out.push_str(&format!(
-            " (interface \u{2192} {})",
+            " (interface {ARROW} {})",
             expanded.union_members.join(", ")
         ));
     }
@@ -554,9 +556,9 @@ mod tests {
         let detail = describe::type_detail(&schema, "Post", true, 0).unwrap();
         let output = format_type_detail(&detail);
         // ⚠ gutter marker on the field line
-        assert!(output.contains("\u{26a0}"));
+        assert!(output.contains(DEPRECATED_MARKER));
         // Reason on the next line
-        assert!(output.contains("\u{21b3} Deprecated: Use slug instead"));
+        assert!(output.contains(&format!("{HOOK_ARROW} Deprecated: Use slug instead")));
     }
 
     #[test]
@@ -564,7 +566,7 @@ mod tests {
         let mut out = String::new();
         write_item_line(&mut out, "oldField: String", None, true, None, 2, 20);
         assert!(
-            out.starts_with("\u{26a0}"),
+            out.starts_with(DEPRECATED_MARKER),
             "should start with ⚠ gutter marker"
         );
         assert!(
@@ -579,8 +581,8 @@ mod tests {
         let detail = describe::type_detail(&schema, "SortOrder", true, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(output.contains("RELEVANCE"));
-        assert!(output.contains("\u{26a0}"));
-        assert!(output.contains("\u{21b3} Deprecated: Use TOP instead"));
+        assert!(output.contains(DEPRECATED_MARKER));
+        assert!(output.contains(&format!("{HOOK_ARROW} Deprecated: Use TOP instead")));
     }
 
     #[test]
@@ -628,7 +630,7 @@ mod tests {
         let output = format_type_detail(&detail);
         // The expanded User type should show the deprecated marker
         assert!(output.contains("legacyId"));
-        assert!(output.contains("\u{21b3} Deprecated: Use id instead"));
+        assert!(output.contains(&format!("{HOOK_ARROW} Deprecated: Use id instead")));
     }
 
     #[test]
@@ -641,10 +643,10 @@ mod tests {
         for line in output.lines() {
             let trimmed = line.trim_start();
             // Only check field lines: must have ":" before "›" (name: Type pattern)
-            if let (Some(colon_pos), Some(sep_pos)) = (trimmed.find(':'), trimmed.find('\u{203a}'))
+            if let (Some(colon_pos), Some(sep_pos)) = (trimmed.find(':'), trimmed.find(SEPARATOR))
                 && colon_pos < sep_pos
             {
-                let abs_sep = line.find('\u{203a}').unwrap();
+                let abs_sep = line.find(SEPARATOR).unwrap();
                 let before_sep = &line[..abs_sep];
                 assert!(
                     before_sep.ends_with("  "),
@@ -726,7 +728,7 @@ mod tests {
         let mut out = String::new();
         write_item_line(&mut out, "field: Type", None, true, None, 2, 16);
         // Should start with ⚠ (replacing first indent space) + 1 space
-        assert!(out.starts_with("\u{26a0} field: Type"));
+        assert!(out.starts_with(&format!("{DEPRECATED_MARKER} field: Type")));
     }
 
     #[test]
@@ -742,7 +744,7 @@ mod tests {
             16,
         );
         // Should start with 2 spaces + ⚠ + space
-        assert!(out.starts_with("  \u{26a0} field: Type"));
-        assert!(out.contains("\u{21b3} Deprecated: old field"));
+        assert!(out.starts_with(&format!("  {DEPRECATED_MARKER} field: Type")));
+        assert!(out.contains(&format!("{HOOK_ARROW} Deprecated: old field")));
     }
 }

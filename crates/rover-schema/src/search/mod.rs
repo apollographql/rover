@@ -7,6 +7,7 @@ use self::index::{ElementType, IndexedElement, SchemaIndex};
 use crate::{
     describe::{self, ExpandedType},
     error::SchemaError,
+    format::ARROW,
     root_paths,
 };
 
@@ -64,7 +65,7 @@ pub fn search(
         for path in &paths {
             let path_header = if let Some(field) = &matched.field_name {
                 format!(
-                    "{} \u{2192} {}.{}",
+                    "{} {ARROW} {}.{}",
                     path.format_path_header(target_type),
                     target_type,
                     field
