@@ -4950,6 +4950,7 @@ name = "rover-schema"
 version = "0.0.0"
 dependencies = [
  "apollo-compiler",
+ "heck",
  "itertools 0.14.0",
  "pretty_assertions",
  "serde",
