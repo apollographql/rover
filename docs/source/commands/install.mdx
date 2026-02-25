@@ -6,18 +6,18 @@ description: Use the rover install command to reinstall Rover or to download and
 
 The `rover install` command enables you to:
 
-- re-install or upgrade the Rover binary
+- reinstall or upgrade the Rover binary
 - install officially supported plugins that Rover uses for composition and local development
 
 ## Install Rover
 
-When you run `rover install` without the `--plugin` option, it re-installs or upgrades the Rover binary. The same behavior is used by the `curl` [(Linux/macOS)](/rover/getting-started#linux--macos-installer) and PowerShell [(Windows)](/rover/getting-started#windows-powershell-installer) install scripts.
+When you run `rover install` without the `--plugin` option, it reinstalls or upgrades the Rover binary. The [`curl` (Linux and macOS)](/rover/getting-started#linux--macos-installer) and [PowerShell (Windows)](/rover/getting-started#windows-powershell-installer) install scripts use the same behavior.
 
 ```bash
 rover install
 ```
 
-If Rover is already installed at the same location, you will be prompted to confirm overwriting. To overwrite without prompting (for example in CI), use `--force`:
+If Rover is already installed at the same location, Rover prompts you to confirm overwriting. To overwrite without prompting (for example, when using this command in a CI environment), use `--force`:
 
 ```bash
 rover install --force
@@ -59,9 +59,9 @@ rover install --plugin apollo-mcp-server@latest
 
 ### Accept the ELv2 license
 
-Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). You will see a prompt asking you to accept the license before continuing.
+Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). Rover prompts you to accept the license before continuing.
 
-To accept the license without a follow-up prompt, use the `--elv2-license accept` flag. This is useful when using this command in a CI environment.
+To accept the license without prompting, use the `--elv2-license accept` flag. This is useful when using this command in a CI environment.
 
 ```bash
 rover install --plugin supergraph@latest-2 --elv2-license accept
@@ -79,7 +79,7 @@ rover install --plugin router@latest
 | Option | Description |
 | ------ | ----------- |
 | `-f`, `--force` | Overwrite any existing binary or plugin without prompting for confirmation. |
-| `--plugin <PLUGIN>` | Download and install an officially supported plugin. Value must be in the form `name@version` (e.g. `supergraph@latest-2`). |
-| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting. Expected value: `accept`. Can also be set via the `APOLLO_ELV2_LICENSE` environment variable. |
+| `--plugin <PLUGIN>` | Download and install an officially supported plugin. |
+| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting. Expected value: `accept`. Can also be set using the `APOLLO_ELV2_LICENSE` environment variable. |
 
 Other common Rover options (e.g. `--log`, `--format`, `--client-timeout`) also apply. Run `rover install --help` for the full list.
