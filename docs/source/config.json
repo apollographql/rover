@@ -1,1 +1,41 @@
-{"title":"Rover CLI","algoliaFilters":["docset:rover",["docset:federation","docset:graphos"]],"sidebar":{"Overview":"/","Install":"/getting-started","Configure":"/configuring","Proxy Configuration":"/proxy","CI/CD":"/ci-cd","Conventions":"/conventions","Privacy and Data Collection":"/privacy","Contributing":"/contributing","Error Codes":"/errors","Commands":{"cloud":"/commands/cloud","config":"/commands/config","contract":"/commands/contracts","dev":"/commands/dev","explain":"/commands/explain","install":"/commands/install","graph":"/commands/graphs","license":"/commands/license","persisted-queries":"/commands/persisted-queries","readme":"/commands/readmes","subgraph":"/commands/subgraphs","supergraph":"/commands/supergraphs","template":"/commands/template"},"The Apollo CLI (deprecated)":{"Installation":"/apollo-cli","Validating Client Operations":"/validating-client-operations","Moving to Rover":"/migration"}}}
+{
+  "title": "Rover CLI",
+  "algoliaFilters": [
+    "docset:rover",
+    [
+      "docset:federation",
+      "docset:graphos"
+    ]
+  ],
+  "sidebar": {
+    "Overview": "/",
+    "Install": "/getting-started",
+    "Configure": "/configuring",
+    "Proxy Configuration": "/proxy",
+    "CI/CD": "/ci-cd",
+    "Conventions": "/conventions",
+    "Privacy and Data Collection": "/privacy",
+    "Contributing": "/contributing",
+    "Error Codes": "/errors",
+    "Commands": {
+      "cloud": "/commands/cloud",
+      "config": "/commands/config",
+      "contract": "/commands/contracts",
+      "dev": "/commands/dev",
+      "explain": "/commands/explain",
+      "install": "/commands/install",
+      "graph": "/commands/graphs",
+      "license": "/commands/license",
+      "persisted-queries": "/commands/persisted-queries",
+      "readme": "/commands/readmes",
+      "subgraph": "/commands/subgraphs",
+      "supergraph": "/commands/supergraphs",
+      "template": "/commands/template"
+    },
+    "The Apollo CLI (deprecated)": {
+      "Installation": "/apollo-cli",
+      "Validating Client Operations": "/validating-client-operations",
+      "Moving to Rover": "/migration"
+    }
+  }
+}
