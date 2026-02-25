@@ -9,7 +9,7 @@ The `rover install` command enables you to:
 - re-install or upgrade the Rover binary
 - install officially supported plugins that Rover uses for composition and local development
 
-## Installing Rover
+## Install Rover
 
 When you run `rover install` without the `--plugin` option, it re-installs or upgrades the Rover binary. The same behavior is used by the `curl` [(Linux/macOS)](/rover/getting-started#linux--macos-installer) and PowerShell [(Windows)](/rover/getting-started#windows-powershell-installer) install scripts.
 
@@ -25,7 +25,7 @@ rover install --force
 
 To install Rover for the first time, [use the official installation methods](/rover/getting-started#installation-methods).
 
-## Installing plugins
+## Install plugins
 
 Use `rover install --plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [rover dev](/rover/commands/dev) and supergraph composition.
 
@@ -57,7 +57,8 @@ Install the Apollo MCP Server (used with `rover dev` for MCP):
 rover install --plugin apollo-mcp-server@latest
 ```
 
-Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). When required, you can pass the flag non-interactively (e.g. in CI):
+### Accept the ELv2 license
+
 
 ```bash
 rover install --plugin supergraph@latest-2 --elv2-license accept
