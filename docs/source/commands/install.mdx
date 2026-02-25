@@ -6,8 +6,8 @@ description: Use the rover install command to reinstall Rover or to download and
 
 The `rover install` command enables you to:
 
-- reinstall or upgrade the Rover binary
-- install officially supported plugins that Rover uses for composition and local development
+- Reinstall or upgrade the Rover binary
+- Install officially supported plugins that Rover uses for composition and local development
 
 ## Install Rover
 
@@ -27,7 +27,7 @@ To install Rover for the first time, [use the official installation methods](/ro
 
 ## Install plugins
 
-Use `rover install --plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [rover dev](/rover/commands/dev) and supergraph composition.
+Use `rover install --plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [`rover dev`](/rover/commands/dev) and supergraph composition.
 
 ### Supported plugins
 
@@ -67,7 +67,7 @@ To accept the license without prompting, use the `--elv2-license accept` flag. T
 rover install --plugin supergraph@latest-2 --elv2-license accept
 ```
 
-You can also set the environment variable `APOLLO_ELV2_LICENSE=accept` to accept the license.
+You can also set the environment variable `APOLLO_ELV2_LICENSE=accept` to accept the license automatically.
 
 ```bash
 export APOLLO_ELV2_LICENSE=accept
