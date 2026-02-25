@@ -59,12 +59,15 @@ rover install --plugin apollo-mcp-server@latest
 
 ### Accept the ELv2 license
 
+Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). You will see a prompt asking you to accept the license before continuing.
+
+To accept the license without a follow-up prompt, use the `--elv2-license accept` flag. This is useful when using this command in a CI environment.
 
 ```bash
 rover install --plugin supergraph@latest-2 --elv2-license accept
 ```
 
-Or set the environment variable:
+You can also set the environment variable `APOLLO_ELV2_LICENSE=accept` to accept the license.
 
 ```bash
 export APOLLO_ELV2_LICENSE=accept
