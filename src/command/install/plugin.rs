@@ -530,7 +530,9 @@ mod tests {
         fn valid_plugin_parses(#[case] input: &str) {
             let plugin = Plugin::from_str(input).expect("should parse");
             match input {
-                s if s.starts_with("supergraph@") => assert!(matches!(plugin, Plugin::Supergraph(_))),
+                s if s.starts_with("supergraph@") => {
+                    assert!(matches!(plugin, Plugin::Supergraph(_)))
+                }
                 s if s.starts_with("router@") => {
                     assert!(matches!(plugin, Plugin::Router(_)));
                     if s.contains("2") && !s.contains("1.0") {
@@ -541,7 +543,9 @@ mod tests {
                         }
                     }
                 }
-                s if s.starts_with("apollo-mcp-server@") => assert!(matches!(plugin, Plugin::McpServer(_))),
+                s if s.starts_with("apollo-mcp-server@") => {
+                    assert!(matches!(plugin, Plugin::McpServer(_)))
+                }
                 _ => {}
             }
         }
@@ -556,7 +560,10 @@ mod tests {
         #[test]
         fn case_insensitivity_plugin_name() {
             let p = Plugin::from_str("Supergraph@latest-2").expect("should parse");
-            assert!(matches!(p, Plugin::Supergraph(FederationVersion::LatestFedTwo)));
+            assert!(matches!(
+                p,
+                Plugin::Supergraph(FederationVersion::LatestFedTwo)
+            ));
         }
 
         #[rstest::rstest]
