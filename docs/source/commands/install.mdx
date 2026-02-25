@@ -8,7 +8,7 @@ The `rover install` command does two things: it can reinstall or upgrade the Rov
 
 ## Installing Rover
 
-When you run `rover install` without the `--plugin` option, it reinstalls or upgrades the Rover binary in place. The same behavior is used by the curl (Linux/macOS) and PowerShell (Windows) install scripts when you run them.
+When you run `rover install` without the `--plugin` option, it re-installs or upgrades the Rover binary. The same behavior is used by the `curl` [(Linux/macOS)](/rover/getting-started#linux--macos-installer) and PowerShell [(Windows)](/rover/getting-started#windows-powershell-installer) install scripts.
 
 ```bash
 rover install
@@ -20,11 +20,11 @@ If Rover is already installed at the same location, you will be prompted to conf
 rover install --force
 ```
 
-For first-time installation of Rover, use the instructions in [Installing Rover](../getting-started) instead.
+To install Rover for the first time, [use the official installation methods](/rover/getting-started#installation-methods).
 
 ## Installing plugins
 
-Use `--plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [rover dev](./dev) and supergraph composition.
+Use `rover install --plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [rover dev](/rover/commands/dev) and supergraph composition.
 
 ### Supported plugins
 
