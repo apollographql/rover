@@ -182,12 +182,12 @@ impl FromStr for Plugin {
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', or an exact version (>= 1.0.0 & < 2.0.0) preceded with a 'v'", &plugin_version)
+                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", &plugin_version)
                 })?;
                 Ok(Plugin::Router(router_version))
             } else if plugin_name == "apollo-mcp-server" {
                 let mcp_version = mcp::Version::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'apollo-mcp-server' plugin. Must be 'latest' or an exact version preceded with a 'v'", &plugin_version)
+                    || format!("Invalid version '{}' for 'apollo-mcp-server' plugin. Must be 'latest' or an exact version preceded with 'v' or '=' (e.g. v1.0.0 or =1.0.0).", &plugin_version)
                 })?;
                 Ok(Plugin::McpServer(mcp_version))
             } else {
@@ -504,7 +504,89 @@ fn find_installed_plugin(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr as _;
+
+    use speculoos::prelude::*;
+
     use super::*;
+
+    mod plugin_from_str {
+        use super::*;
+
+        #[rstest::rstest]
+        // Valid supergraph (FederationVersion from apollo-federation-types accepts latest-0, latest-2, =X.Y.Z)
+        #[case::supergraph_latest_0("supergraph@latest-0")]
+        #[case::supergraph_latest_2("supergraph@latest-2")]
+        #[case::supergraph_exact_fed2("supergraph@=2.8.0")]
+        // Valid router (RouterVersion accepts "1", "2", "latest", or =X.Y.Z for exact; 1.x and 2.x)
+        #[case::router_latest("router@latest")]
+        #[case::router_1("router@1")]
+        #[case::router_2("router@2")]
+        #[case::router_equals_1("router@=1.0.0")]
+        // Valid apollo-mcp-server
+        #[case::mcp_latest("apollo-mcp-server@latest")]
+        #[case::mcp_v("apollo-mcp-server@v1.0.0")]
+        #[case::mcp_equals("apollo-mcp-server@=1.0.0")]
+        fn valid_plugin_parses(#[case] input: &str) {
+            let plugin = Plugin::from_str(input).expect("should parse");
+            match input {
+                s if s.starts_with("supergraph@") => assert!(matches!(plugin, Plugin::Supergraph(_))),
+                s if s.starts_with("router@") => {
+                    assert!(matches!(plugin, Plugin::Router(_)));
+                    if s.contains("2") && !s.contains("1.0") {
+                        match &plugin {
+                            Plugin::Router(RouterVersion::LatestTwo) => {}
+                            Plugin::Router(RouterVersion::Exact(v)) => assert_eq!(v.major, 2),
+                            _ => panic!("expected router 2.x variant"),
+                        }
+                    }
+                }
+                s if s.starts_with("apollo-mcp-server@") => assert!(matches!(plugin, Plugin::McpServer(_))),
+                _ => {}
+            }
+        }
+
+        #[test]
+        fn router_2x_parses_as_expected() {
+            // apollo-federation-types accepts "2" for latest router 2.x (RouterVersion::LatestTwo)
+            let p2 = Plugin::from_str("router@2").expect("should parse");
+            assert!(matches!(p2, Plugin::Router(RouterVersion::LatestTwo)));
+        }
+
+        #[test]
+        fn case_insensitivity_plugin_name() {
+            let p = Plugin::from_str("Supergraph@latest-2").expect("should parse");
+            assert!(matches!(p, Plugin::Supergraph(FederationVersion::LatestFedTwo)));
+        }
+
+        #[rstest::rstest]
+        #[case::missing_at("supergraph")]
+        #[case::missing_at_version("supergraph2.8.0")]
+        fn invalid_malformed_plugin(#[case] input: &str) {
+            let err = Plugin::from_str(input).unwrap_err();
+            assert_that!(err.to_string()).contains("name");
+            assert_that!(err.to_string()).contains("version");
+        }
+
+        #[test]
+        fn invalid_plugin_name() {
+            let err = Plugin::from_str("badname@1.0.0").unwrap_err();
+            assert_that!(err.to_string()).contains("Invalid plugin name");
+            assert_that!(err.to_string()).contains("apollo-mcp-server");
+            assert_that!(err.to_string()).contains("supergraph");
+            assert_that!(err.to_string()).contains("router");
+        }
+
+        #[rstest::rstest]
+        #[case::supergraph_no_equals("supergraph@2.8.0")]
+        #[case::supergraph_latest_plain("supergraph@latest")]
+        #[case::router_no_prefix("router@1.0.0")]
+        #[case::mcp_no_prefix("apollo-mcp-server@1.0.0")]
+        fn invalid_version_per_plugin(#[case] input: &str) {
+            let err = Plugin::from_str(input).unwrap_err();
+            assert_that!(err.to_string()).is_not_equal_to("Invalid plugin name".to_string());
+        }
+    }
 
     #[rstest::rstest]
     // #### macOS, x86_64 ####
