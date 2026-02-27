@@ -62,7 +62,7 @@ impl SchemaIndex {
             doc.add_text(name_field, &name_text);
 
             if let Some(desc) = &elem.description {
-                doc.add_text(description_field, desc);
+                doc.add_text(description_field, prepare_for_index(desc));
             }
 
             doc.add_text(type_name_field, &elem.type_name);
@@ -197,6 +197,22 @@ mod tests {
         assert!(
             results.iter().any(|r| r.type_name == "User"),
             "should find User via description"
+        );
+    }
+
+    #[test]
+    fn search_camel_case_in_description() {
+        let elements = vec![make_element(
+            ElementType::Type,
+            "Mutation",
+            None,
+            Some("Use createPost to make a new post"),
+        )];
+        let index = SchemaIndex::build(elements).unwrap();
+        let results = index.search("create", 10).unwrap();
+        assert!(
+            results.iter().any(|r| r.type_name == "Mutation"),
+            "should match camelCase identifier in description"
         );
     }
 

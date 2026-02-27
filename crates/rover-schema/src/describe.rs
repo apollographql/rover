@@ -3,7 +3,10 @@ use apollo_compiler::{
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
 
-use crate::{coordinate::SchemaCoordinate, error::SchemaError, root_paths, util::unwrap_type_name};
+use crate::{
+    coordinate::SchemaCoordinate, error::SchemaError, format::ARROW, root_paths,
+    util::unwrap_type_name,
+};
 
 /// Result of describing a schema at different levels of detail.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -256,21 +259,8 @@ pub fn type_detail(
                 .iter()
                 .map(|(name, field)| field_to_info(name.as_str(), field))
                 .collect();
-            let deprecated_count = all_fields.iter().filter(|f| f.is_deprecated).count();
-            let field_count = all_fields.len();
-            let fields = if include_deprecated {
-                all_fields
-            } else {
-                all_fields
-                    .into_iter()
-                    .filter(|f| !f.is_deprecated)
-                    .collect()
-            };
-            let expanded = if depth > 0 {
-                expand_referenced_types(schema, &fields, depth, include_deprecated)
-            } else {
-                Vec::new()
-            };
+            let (fields, field_count, deprecated_count, expanded_types) =
+                process_fields(schema, all_fields, include_deprecated, depth);
             Ok(TypeDetail {
                 name: type_name.to_string(),
                 kind: TypeKind::Object,
@@ -282,7 +272,7 @@ pub fn type_detail(
                 enum_values: Vec::new(),
                 union_members: Vec::new(),
                 via,
-                expanded_types: expanded,
+                expanded_types,
             })
         }
         ExtendedType::Interface(iface) => {
@@ -297,23 +287,9 @@ pub fn type_detail(
                 .iter()
                 .map(|(name, field)| field_to_info(name.as_str(), field))
                 .collect();
-            let deprecated_count = all_fields.iter().filter(|f| f.is_deprecated).count();
-            let field_count = all_fields.len();
-            let fields = if include_deprecated {
-                all_fields
-            } else {
-                all_fields
-                    .into_iter()
-                    .filter(|f| !f.is_deprecated)
-                    .collect()
-            };
-            // Find implementing types
+            let (fields, field_count, deprecated_count, expanded_types) =
+                process_fields(schema, all_fields, include_deprecated, depth);
             let implementors = find_implementors(schema, type_name);
-            let expanded = if depth > 0 {
-                expand_referenced_types(schema, &fields, depth, include_deprecated)
-            } else {
-                Vec::new()
-            };
             Ok(TypeDetail {
                 name: type_name.to_string(),
                 kind: TypeKind::Interface,
@@ -325,7 +301,7 @@ pub fn type_detail(
                 enum_values: Vec::new(),
                 union_members: implementors,
                 via,
-                expanded_types: expanded,
+                expanded_types,
             })
         }
         ExtendedType::InputObject(inp) => {
@@ -469,7 +445,7 @@ pub fn field_detail(schema: &Schema, coord: &SchemaCoordinate) -> Result<FieldDe
     let via_paths = root_paths::find_root_paths(schema, type_name);
     let via: Vec<String> = via_paths
         .iter()
-        .map(|p| format!("{} \u{2192} {}.{}", p.format_via(), type_name, field_name))
+        .map(|p| format!("{} {ARROW} {}.{}", p.format_via(), type_name, field_name))
         .collect();
 
     // Expand input types used as arguments
@@ -503,6 +479,31 @@ pub fn field_detail(schema: &Schema, coord: &SchemaCoordinate) -> Result<FieldDe
 }
 
 // Helper functions
+
+/// Process field list: count deprecated, filter if needed, expand referenced types.
+fn process_fields(
+    schema: &Schema,
+    all_fields: Vec<FieldInfo>,
+    include_deprecated: bool,
+    depth: usize,
+) -> (Vec<FieldInfo>, usize, usize, Vec<ExpandedType>) {
+    let deprecated_count = all_fields.iter().filter(|f| f.is_deprecated).count();
+    let field_count = all_fields.len();
+    let fields = if include_deprecated {
+        all_fields
+    } else {
+        all_fields
+            .into_iter()
+            .filter(|f| !f.is_deprecated)
+            .collect()
+    };
+    let expanded_types = if depth > 0 {
+        expand_referenced_types(schema, &fields, depth, include_deprecated)
+    } else {
+        Vec::new()
+    };
+    (fields, field_count, deprecated_count, expanded_types)
+}
 
 fn field_to_info(name: &str, field: &FieldDefinition) -> FieldInfo {
     FieldInfo {
@@ -616,14 +617,13 @@ pub fn expand_single_type(
                 .iter()
                 .map(|i| i.to_string())
                 .collect();
-            Some(ExpandedType {
-                name: type_name.to_string(),
-                kind: TypeKind::Object,
+            Some(expand_fielded_type(
+                schema,
+                type_name,
+                TypeKind::Object,
                 fields,
-                enum_values: Vec::new(),
-                union_members: Vec::new(),
                 implements,
-            })
+            ))
         }
         ExtendedType::Interface(iface) => {
             let fields: Vec<FieldInfo> = iface
@@ -632,15 +632,13 @@ pub fn expand_single_type(
                 .filter(|(_, f)| include_deprecated || !is_deprecated_directive(&f.directives))
                 .map(|(name, field)| field_to_info(name.as_str(), field))
                 .collect();
-            let implementors = find_implementors(schema, type_name);
-            Some(ExpandedType {
-                name: type_name.to_string(),
-                kind: TypeKind::Interface,
+            Some(expand_fielded_type(
+                schema,
+                type_name,
+                TypeKind::Interface,
                 fields,
-                enum_values: Vec::new(),
-                union_members: implementors,
-                implements: Vec::new(),
-            })
+                Vec::new(),
+            ))
         }
         ExtendedType::InputObject(inp) => {
             let fields: Vec<FieldInfo> = inp
@@ -690,6 +688,29 @@ pub fn expand_single_type(
             })
         }
         ExtendedType::Scalar(_) => None,
+    }
+}
+
+/// Shared logic for expanding Object and Interface types.
+fn expand_fielded_type(
+    schema: &Schema,
+    type_name: &str,
+    kind: TypeKind,
+    fields: Vec<FieldInfo>,
+    implements: Vec<String>,
+) -> ExpandedType {
+    let union_members = if kind == TypeKind::Interface {
+        find_implementors(schema, type_name)
+    } else {
+        Vec::new()
+    };
+    ExpandedType {
+        name: type_name.to_string(),
+        kind,
+        fields,
+        enum_values: Vec::new(),
+        union_members,
+        implements,
     }
 }
 
