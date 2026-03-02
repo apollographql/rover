@@ -116,7 +116,7 @@ flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.20", default-features = false }
-graphql_client = "0.15"
+graphql_client = "0.16"
 heck = "0.5"
 humantime = "2"
 http = "1"
