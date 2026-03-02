@@ -1,0 +1,27 @@
+[package]
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+description = "Schema analysis and exploration for the Rover CLI"
+edition = "2024"
+name = "rover-schema"
+version = "0.0.0"
+
+publish = false
+
+[features]
+default = ["search"]
+search = ["tantivy"]
+
+[dependencies]
+apollo-compiler = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tantivy = { workspace = true, optional = true }
+heck = { workspace = true }
+itertools = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lints]
+workspace = true
