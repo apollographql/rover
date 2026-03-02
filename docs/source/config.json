@@ -23,6 +23,7 @@
       "contract": "/commands/contracts",
       "dev": "/commands/dev",
       "explain": "/commands/explain",
+      "install": "/commands/install",
       "graph": "/commands/graphs",
       "license": "/commands/license",
       "persisted-queries": "/commands/persisted-queries",
