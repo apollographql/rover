@@ -22,7 +22,7 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "rustls-tls-native-roots",
+    "rustls",
     "socks",
 ] }
 rover-tower = { workspace = true, features = ["test"] }
