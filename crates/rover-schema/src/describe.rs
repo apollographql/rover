@@ -1,12 +1,10 @@
 use apollo_compiler::{
     Schema,
+    coordinate::SchemaCoordinate,
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
 
-use crate::{
-    coordinate::SchemaCoordinate, error::SchemaError, format::ARROW, root_paths,
-    util::unwrap_type_name,
-};
+use crate::{error::SchemaError, format::ARROW, root_paths, util::unwrap_type_name};
 
 /// Result of describing a schema at different levels of detail.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -338,6 +336,7 @@ pub fn type_detail(
                     deprecation_reason: get_deprecation_reason(&val.directives),
                 })
                 .collect();
+            let total_count = all_values.len();
             let deprecated_count = all_values.iter().filter(|v| v.is_deprecated).count();
             let values = if include_deprecated {
                 all_values
@@ -351,7 +350,7 @@ pub fn type_detail(
                 name: type_name.to_string(),
                 kind: TypeKind::Enum,
                 description,
-                field_count: values.len(),
+                field_count: total_count,
                 deprecated_count,
                 implements: Vec::new(),
                 fields: Vec::new(),
@@ -400,10 +399,7 @@ pub fn type_detail(
 /// Generate detailed info for a specific field.
 pub fn field_detail(schema: &Schema, coord: &SchemaCoordinate) -> Result<FieldDetail, SchemaError> {
     let (type_name, field_name) = match coord {
-        SchemaCoordinate::Field {
-            type_name,
-            field_name,
-        } => (type_name.as_str(), field_name.as_str()),
+        SchemaCoordinate::TypeAttribute(tac) => (tac.ty.as_str(), tac.attribute.as_str()),
         _ => {
             return Err(SchemaError::InvalidCoordinate(
                 "field_detail requires a Type.field coordinate".into(),
@@ -857,10 +853,7 @@ mod tests {
     #[test]
     fn field_detail_with_args() {
         let schema = test_schema();
-        let coord = SchemaCoordinate::Field {
-            type_name: "User".into(),
-            field_name: "posts".into(),
-        };
+        let coord: SchemaCoordinate = "User.posts".parse().unwrap();
         let detail = field_detail(&schema, &coord).unwrap();
         assert_eq!(detail.type_name, "User");
         assert_eq!(detail.field_name, "posts");
@@ -870,10 +863,7 @@ mod tests {
     #[test]
     fn field_detail_not_found() {
         let schema = test_schema();
-        let coord = SchemaCoordinate::Field {
-            type_name: "Post".into(),
-            field_name: "nonExistent".into(),
-        };
+        let coord: SchemaCoordinate = "Post.nonExistent".parse().unwrap();
         let result = field_detail(&schema, &coord);
         assert!(result.is_err());
     }
@@ -881,10 +871,7 @@ mod tests {
     #[test]
     fn field_detail_deprecated() {
         let schema = test_schema();
-        let coord = SchemaCoordinate::Field {
-            type_name: "Post".into(),
-            field_name: "oldSlug".into(),
-        };
+        let coord: SchemaCoordinate = "Post.oldSlug".parse().unwrap();
         let detail = field_detail(&schema, &coord).unwrap();
         assert!(detail.is_deprecated);
         assert!(detail.deprecation_reason.is_some());
@@ -915,10 +902,7 @@ mod tests {
     #[test]
     fn field_detail_expands_input_types() {
         let schema = test_schema();
-        let coord = SchemaCoordinate::Field {
-            type_name: "Mutation".into(),
-            field_name: "createPost".into(),
-        };
+        let coord: SchemaCoordinate = "Mutation.createPost".parse().unwrap();
         let detail = field_detail(&schema, &coord).unwrap();
         assert!(!detail.input_expansions.is_empty());
         assert!(

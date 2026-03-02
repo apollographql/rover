@@ -1,9 +1,15 @@
-use crate::coordinate::SchemaCoordinate;
+use apollo_compiler::coordinate::SchemaCoordinate;
 
 /// Extract filtered SDL for a coordinate from the full schema SDL.
 /// Returns SDL containing just the targeted type (and for fields, just the parent type).
 pub fn filtered_sdl(coord: Option<&SchemaCoordinate>, sdl: &str) -> String {
-    match coord.and_then(|c| c.type_name()) {
+    let type_name = coord.and_then(|c| match c {
+        SchemaCoordinate::Type(tc) => Some(tc.ty.as_str()),
+        SchemaCoordinate::TypeAttribute(tac) => Some(tac.ty.as_str()),
+        SchemaCoordinate::FieldArgument(fac) => Some(fac.ty.as_str()),
+        SchemaCoordinate::Directive(_) | SchemaCoordinate::DirectiveArgument(_) => None,
+    });
+    match type_name {
         None => sdl.to_string(),
         Some(type_name) => extract_type_sdl(type_name, sdl),
     }

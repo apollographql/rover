@@ -95,13 +95,17 @@ impl Describe {
                 let overview = describe::overview(schema, &graph_ref.to_string());
                 describe::DescribeResult::Overview(overview)
             }
-            Some(SchemaCoordinate::Type(type_name)) => {
-                let detail =
-                    describe::type_detail(schema, type_name, self.include_deprecated, self.depth)
-                        .map_err(|e| anyhow::anyhow!("{}", e))?;
+            Some(SchemaCoordinate::Type(tc)) => {
+                let detail = describe::type_detail(
+                    schema,
+                    tc.ty.as_str(),
+                    self.include_deprecated,
+                    self.depth,
+                )
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::TypeDetail(detail)
             }
-            Some(coord @ SchemaCoordinate::Field { .. }) => {
+            Some(coord @ SchemaCoordinate::TypeAttribute(_)) => {
                 let detail =
                     describe::field_detail(schema, coord).map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::FieldDetail(detail)
@@ -155,8 +159,9 @@ fn parse_graph_ref_and_coordinate(
             let coord_str = &input[split_pos + 1..];
             let graph_ref =
                 GraphRef::from_str(graph_ref_str).map_err(|e| anyhow::anyhow!("{}", e))?;
-            let coordinate =
-                SchemaCoordinate::parse(coord_str).map_err(|e| anyhow::anyhow!("{}", e))?;
+            let coordinate = coord_str
+                .parse::<SchemaCoordinate>()
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
             Ok((graph_ref, Some(coordinate)))
         } else {
             // No coordinate — entire string is the graph ref
@@ -172,8 +177,9 @@ fn parse_graph_ref_and_coordinate(
                 let coord_str = remaining;
                 let graph_ref =
                     GraphRef::from_str(graph_ref_str).map_err(|e| anyhow::anyhow!("{}", e))?;
-                let coordinate =
-                    SchemaCoordinate::parse(coord_str).map_err(|e| anyhow::anyhow!("{}", e))?;
+                let coordinate = coord_str
+                    .parse::<SchemaCoordinate>()
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
                 return Ok((graph_ref, Some(coordinate)));
             }
         }
@@ -200,7 +206,7 @@ mod tests {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph@current:Post").unwrap();
         assert_eq!(graph_ref.name, "my-graph");
         assert_eq!(graph_ref.variant, "current");
-        assert_eq!(coord, Some(SchemaCoordinate::Type("Post".into())));
+        assert_eq!(coord, Some("Post".parse::<SchemaCoordinate>().unwrap()));
     }
 
     #[test]
@@ -211,10 +217,7 @@ mod tests {
         assert_eq!(graph_ref.variant, "current");
         assert_eq!(
             coord,
-            Some(SchemaCoordinate::Field {
-                type_name: "User".into(),
-                field_name: "posts".into()
-            })
+            Some("User.posts".parse::<SchemaCoordinate>().unwrap())
         );
     }
 
@@ -231,7 +234,7 @@ mod tests {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph:Post").unwrap();
         assert_eq!(graph_ref.name, "my-graph");
         assert_eq!(graph_ref.variant, "current");
-        assert_eq!(coord, Some(SchemaCoordinate::Type("Post".into())));
+        assert_eq!(coord, Some("Post".parse::<SchemaCoordinate>().unwrap()));
     }
 
     #[test]
@@ -241,10 +244,7 @@ mod tests {
         assert_eq!(graph_ref.variant, "current");
         assert_eq!(
             coord,
-            Some(SchemaCoordinate::Field {
-                type_name: "User".into(),
-                field_name: "posts".into()
-            })
+            Some("User.posts".parse::<SchemaCoordinate>().unwrap())
         );
     }
 }

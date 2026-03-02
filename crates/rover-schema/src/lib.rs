@@ -1,4 +1,3 @@
-pub mod coordinate;
 pub mod describe;
 pub mod error;
 pub mod format;
@@ -9,7 +8,7 @@ pub mod search;
 pub(crate) mod util;
 
 // Re-export main public types
-pub use coordinate::SchemaCoordinate;
+pub use apollo_compiler::coordinate::SchemaCoordinate;
 pub use describe::{DescribeResult, FieldDetail, SchemaOverview, TypeDetail};
 pub use error::SchemaError;
 pub use format::OutputFormat;

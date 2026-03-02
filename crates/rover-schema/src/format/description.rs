@@ -123,13 +123,7 @@ fn format_type_detail(detail: &TypeDetail) -> String {
 
     match detail.kind {
         TypeKind::Enum => {
-            let value_count = detail.enum_values.len()
-                + if detail.deprecated_count > 0 {
-                    detail.deprecated_count
-                } else {
-                    0
-                };
-            out.push_str(&format!(" [{} values", value_count));
+            out.push_str(&format!(" [{} values", detail.field_count));
         }
         TypeKind::Union => {
             out.push_str(&format!(" [{} members", detail.union_members.len()));
