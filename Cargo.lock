@@ -180,7 +180,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a66f8eefe0ed21932dcc31eeca614cc8337bdc9ec7d4b2fb200b2a1539ba5c92"
 dependencies = [
  "ahash 0.8.12",
- "apollo-parser 0.8.4",
+ "apollo-parser 0.8.5",
  "ariadne 0.5.1",
  "futures",
  "indexmap 2.13.0",
@@ -267,7 +267,7 @@ checksum = "2f51b3195b80b17e8d720906f3865b32fff80a93b80145d000ab788e168e2370"
 dependencies = [
  "apollo-compiler",
  "apollo-federation-types",
- "apollo-parser 0.8.4",
+ "apollo-parser 0.8.5",
  "debounced",
  "futures",
  "indexmap 2.13.0",
@@ -298,13 +298,13 @@ dependencies = [
 
 [[package]]
 name = "apollo-parser"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f05cbc7da3c2e3bb2f86e985aad5f72571d2e2cd26faf8caa7782131576f84"
+checksum = "947e21ff51879f8a40d7519dfe619268de2afba4042a8a43878276de3cb910f0"
 dependencies = [
  "memchr",
  "rowan 0.16.1",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4585,7 +4585,7 @@ dependencies = [
  "anyhow",
  "apollo-federation-types",
  "apollo-language-server",
- "apollo-parser 0.8.4",
+ "apollo-parser 0.8.5",
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
@@ -4681,7 +4681,7 @@ dependencies = [
  "anyhow",
  "apollo-encoder",
  "apollo-federation-types",
- "apollo-parser 0.8.4",
+ "apollo-parser 0.8.5",
  "ariadne 0.6.0",
  "backon",
  "buildstructor",
