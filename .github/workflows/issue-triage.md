@@ -1,10 +1,13 @@
 ---
 name: Issue Triage
 description: Triage new issues by labeling and requesting missing details.
+
 on:
+  workflow_dispatch:
   issues:
     types: [opened]
   roles: all
+
 permissions:
   issues: read
   actions: read

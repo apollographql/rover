@@ -23,7 +23,7 @@
 #
 # Triage new issues by labeling and requesting missing details.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"841b26a050d8ef2b0779d977c479a391bef191ea5274fa0ac17e4c5630a8e5ad","compiler_version":"v0.53.4"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bbb0d6a2e4a51713fff1f122f89804b799b831df1fd50bcb51c3f0ee3d130fd5","compiler_version":"v0.53.4"}
 
 name: "Issue Triage"
 "on":
@@ -31,6 +31,7 @@ name: "Issue Triage"
     types:
     - opened
   # roles: all # Roles processed as role check in pre-activation job
+  workflow_dispatch:
 
 permissions: {}
 
