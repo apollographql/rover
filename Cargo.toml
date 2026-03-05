@@ -82,9 +82,8 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "0.15.8", features = ["json_schema"] }
-
-apollo-language-server = { version = "0.5.0", default-features = false, features = ["tokio"] }
+apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
+apollo-language-server = { version = "0.6.0", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -129,7 +128,7 @@ indoc = "2"
 itertools = "0.14"
 lazycell = "1"
 lazy_static = "1"
-mockall = "0.11.1"
+mockall = "0.14.0"
 notify = "8"
 opener = "0.8"
 os_info = "3"
