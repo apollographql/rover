@@ -4,13 +4,11 @@ description: Triage new issues by labeling and requesting missing details.
 on:
   issues:
     types: [opened]
-  slash_command:
-    name: agent
-    events: [issue_comment]
+  roles: all
 permissions:
   issues: read
   actions: read
-roles: all
+  
 network:
   allowed:
     - "api.github.com"
