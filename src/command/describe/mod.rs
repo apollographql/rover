@@ -9,8 +9,8 @@ use rover_schema::{
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult, command::schema_cache, options::ProfileOpt,
-    utils::client::StudioClientConfig,
+    RoverOutput, RoverResult, cli::RoverOutputFormatKind, command::schema_cache,
+    options::ProfileOpt, utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -25,7 +25,7 @@ use crate::{
         rover describe my-graph@my-variant:Post\n    \
         rover describe my-graph@my-variant:Post --depth 1\n    \
         rover describe my-graph@my-variant:User.posts\n    \
-        rover describe my-graph@my-variant:Post --sdl")]
+        rover describe my-graph@my-variant:Post --format sdl")]
 pub struct Describe {
     /// <NAME>@<VARIANT>[:<COORDINATE>]
     ///
@@ -44,14 +44,6 @@ pub struct Describe {
     #[arg(long = "include-deprecated")]
     include_deprecated: bool,
 
-    /// Output raw SDL
-    #[arg(long = "sdl")]
-    sdl: bool,
-
-    /// Output token-efficient compact notation
-    #[arg(long = "compact")]
-    compact: bool,
-
     /// Skip reading from the local schema cache (still writes to cache)
     #[arg(long = "no-cache")]
     no_cache: bool,
@@ -61,7 +53,11 @@ pub struct Describe {
 }
 
 impl Describe {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        format_kind: RoverOutputFormatKind,
+    ) -> RoverResult<RoverOutput> {
         let (graph_ref, coordinate) = parse_graph_ref_and_coordinate(&self.graph_ref_and_coord)?;
 
         // Fetch SDL (with caching)
@@ -78,9 +74,20 @@ impl Describe {
         let schema = parsed.inner();
 
         // Determine output format
-        let output_format = format::select_format(self.sdl, self.compact, false);
+        let output_format = match format_kind {
+            RoverOutputFormatKind::Sdl => OutputFormat::Sdl,
+            RoverOutputFormatKind::Compact => OutputFormat::Compact,
+            RoverOutputFormatKind::Json => OutputFormat::Description,
+            RoverOutputFormatKind::Plain => {
+                if format::is_tty() {
+                    OutputFormat::Description
+                } else {
+                    OutputFormat::Compact
+                }
+            }
+        };
 
-        // If --sdl, output filtered SDL
+        // If --format sdl, output filtered SDL
         if output_format == OutputFormat::Sdl {
             let sdl_output = sdl::filtered_sdl(coordinate.as_ref(), &sdl_string);
             return Ok(RoverOutput::DescribeResponse {
