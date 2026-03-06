@@ -22,7 +22,9 @@ impl RoverPrinter for RoverOutput {
     fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
         // Format the RoverOutput as either plain text or JSON.
         let output = match output_opts.format_kind {
-            RoverOutputFormatKind::Plain => self.get_stdout(),
+            RoverOutputFormatKind::Plain
+            | RoverOutputFormatKind::Compact
+            | RoverOutputFormatKind::Sdl => self.get_stdout(),
             RoverOutputFormatKind::Json => Ok(Some(JsonOutput::from(self.clone()).to_string())),
         };
 
@@ -58,7 +60,9 @@ impl RoverPrinter for RoverOutput {
 impl RoverPrinter for RoverError {
     fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
         match output_opts.format_kind {
-            RoverOutputFormatKind::Plain => self.print(),
+            RoverOutputFormatKind::Plain
+            | RoverOutputFormatKind::Compact
+            | RoverOutputFormatKind::Sdl => self.print(),
             RoverOutputFormatKind::Json => {
                 let json = JsonOutput::from(self);
                 match &output_opts.output_file {

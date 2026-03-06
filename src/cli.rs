@@ -203,6 +203,11 @@ impl Rover {
                     .await
             }
             Command::Contract(command) => command.run(self.get_client_config()?).await,
+            Command::Describe(command) => {
+                command
+                    .run(self.get_client_config()?, self.output_opts.format_kind)
+                    .await
+            }
             Command::Dev(command) => {
                 command
                     .run(
@@ -402,6 +407,9 @@ pub enum Command {
     /// Contract configuration commands
     Contract(command::Contract),
 
+    /// Describe a graph's schema by type or field
+    Describe(command::Describe),
+
     /// Run a supergraph locally to develop and test subgraph changes
     ///
     /// ⚠️ Do not run this command in production!
@@ -462,6 +470,8 @@ pub enum RoverOutputFormatKind {
     #[default]
     Plain,
     Json,
+    Compact,
+    Sdl,
 }
 
 impl Display for RoverOutputFormatKind {
@@ -469,6 +479,8 @@ impl Display for RoverOutputFormatKind {
         match self {
             RoverOutputFormatKind::Plain => write!(f, "plain"),
             RoverOutputFormatKind::Json => write!(f, "json"),
+            RoverOutputFormatKind::Compact => write!(f, "compact"),
+            RoverOutputFormatKind::Sdl => write!(f, "sdl"),
         }
     }
 }
