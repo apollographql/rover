@@ -113,6 +113,10 @@ pub enum RoverOutput {
         graph_id: String,
         jwt: String,
     },
+    DescribeResponse {
+        content: String,
+        json_data: serde_json::Value,
+    },
     EmptySuccess,
     CloudConfigFetchResponse {
         config: String,
@@ -525,6 +529,7 @@ impl RoverOutput {
                 stderrln!("Success!")?;
                 Some(jwt.to_string())
             }
+            RoverOutput::DescribeResponse { content, .. } => Some(content.clone()),
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
@@ -676,6 +681,7 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
+            RoverOutput::DescribeResponse { json_data, .. } => json_data.clone(),
             RoverOutput::EmptySuccess => json!(null),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
@@ -814,6 +820,7 @@ impl RoverOutput {
             RoverOutput::Introspection(_) => Some("Introspection Response"),
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
+            RoverOutput::DescribeResponse { .. } => None,
             _ => None,
         }
     }

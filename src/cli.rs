@@ -203,6 +203,7 @@ impl Rover {
                     .await
             }
             Command::Contract(command) => command.run(self.get_client_config()?).await,
+            Command::Describe(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
                     .run(
@@ -401,6 +402,9 @@ pub enum Command {
 
     /// Contract configuration commands
     Contract(command::Contract),
+
+    /// Describe a graph's schema by type or field
+    Describe(command::Describe),
 
     /// Run a supergraph locally to develop and test subgraph changes
     ///
