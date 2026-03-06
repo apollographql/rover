@@ -13,4 +13,8 @@ pub enum SchemaError {
 
     #[error("Invalid coordinate: {0}")]
     InvalidCoordinate(String),
+
+    #[cfg(feature = "search")]
+    #[error("Search index error: {0}")]
+    SearchError(#[from] tantivy::TantivyError),
 }

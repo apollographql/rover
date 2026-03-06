@@ -1,9 +1,12 @@
 use itertools::Itertools;
 
-use super::HOOK_ARROW;
+use super::{DASH, HOOK_ARROW};
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, SchemaOverview, TypeDetail, TypeKind,
 };
+#[cfg(feature = "search")]
+use crate::search::SearchResult;
+
 /// Format a DescribeResult in compact (token-efficient) notation.
 pub fn format_describe_compact(result: &DescribeResult) -> String {
     match result {
@@ -135,6 +138,25 @@ fn format_field_detail_compact(detail: &FieldDetail) -> String {
     // Via path
     if !detail.via.is_empty() {
         out.push_str(&format!("{HOOK_ARROW} {}\n", detail.via[0]));
+    }
+
+    out.trim_end().to_string()
+}
+
+/// Format search results in compact notation.
+#[cfg(feature = "search")]
+pub fn format_search_compact(results: &[SearchResult]) -> String {
+    let mut out = String::new();
+
+    for result in results {
+        out.push_str(&format!(
+            "{DASH}{DASH} {} {DASH}{DASH}\n",
+            result.path_header
+        ));
+        for expanded in &result.types {
+            format_expanded_compact(&mut out, expanded);
+        }
+        out.push('\n');
     }
 
     out.trim_end().to_string()

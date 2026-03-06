@@ -1,7 +1,10 @@
-use super::{ARROW, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
+use super::{ARROW, DASH, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, FieldInfo, SchemaOverview, TypeDetail, TypeKind,
 };
+#[cfg(feature = "search")]
+use crate::search::SearchResult;
+
 const MAX_WIDTH: usize = 100;
 
 /// Format a DescribeResult as human-readable description text.
@@ -283,6 +286,45 @@ fn format_field_detail(detail: &FieldDetail) -> String {
     if let Some(ret) = &detail.return_expansion {
         out.push_str(&format!("\n  returns {}:\n", ret.name));
         write_field_items(&mut out, &ret.fields, 4);
+    }
+
+    out.trim_end().to_string()
+}
+
+/// Format a search result in description format.
+#[cfg(feature = "search")]
+pub fn format_search(results: &[SearchResult], query: &str) -> String {
+    let mut out = String::new();
+
+    out.push_str(&format!(
+        "SEARCH \"{}\" [{} path{}]\n",
+        query,
+        results.len(),
+        if results.len() == 1 { "" } else { "s" }
+    ));
+
+    for result in results {
+        out.push_str(&format!(
+            "\n{DASH}{DASH} {} {DASH}{DASH}\n\n",
+            result.path_header
+        ));
+
+        for expanded in &result.types {
+            out.push_str(&format!("  {}", expanded.name));
+            if !expanded.union_members.is_empty() && expanded.kind == TypeKind::Interface {
+                out.push_str(&format!(
+                    " (interface {ARROW} {})",
+                    expanded.union_members.join(", ")
+                ));
+            }
+            if !expanded.fields.is_empty() {
+                out.push_str(&format!(" [{} fields]", expanded.fields.len()));
+            }
+            out.push('\n');
+
+            write_field_items(&mut out, &expanded.fields, 4);
+            out.push('\n');
+        }
     }
 
     out.trim_end().to_string()
