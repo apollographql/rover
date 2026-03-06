@@ -20,6 +20,7 @@ pub(crate) mod output;
 mod persisted_queries;
 mod readme;
 pub(crate) mod schema_cache;
+mod search;
 pub(crate) mod subgraph;
 #[cfg(feature = "composition-js")]
 pub(crate) mod supergraph;
@@ -47,6 +48,7 @@ pub use lsp::Lsp;
 pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;
+pub use search::Search;
 pub use subgraph::Subgraph;
 #[cfg(feature = "composition-js")]
 pub use supergraph::Supergraph;

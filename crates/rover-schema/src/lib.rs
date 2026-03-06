@@ -3,6 +3,8 @@ pub mod error;
 pub mod format;
 pub mod parsed_schema;
 pub mod root_paths;
+#[cfg(feature = "search")]
+pub mod search;
 pub(crate) mod util;
 
 // Re-export main public types

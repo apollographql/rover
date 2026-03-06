@@ -262,6 +262,7 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
+            Command::Search(command) => command.run(self.get_client_config()?).await,
             Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
@@ -431,6 +432,9 @@ pub enum Command {
 
     /// Readme commands
     Readme(command::Readme),
+
+    /// Search a graph's schema by keyword
+    Search(command::Search),
 
     /// Subgraph schema commands
     Subgraph(command::Subgraph),
