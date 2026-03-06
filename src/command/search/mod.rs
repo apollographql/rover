@@ -8,8 +8,8 @@ use rover_schema::{
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult, command::schema_cache, options::ProfileOpt,
-    utils::client::StudioClientConfig,
+    RoverOutput, RoverResult, cli::RoverOutputFormatKind, command::schema_cache,
+    options::ProfileOpt, utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -42,14 +42,6 @@ pub struct Search {
     #[arg(long = "include-deprecated")]
     include_deprecated: bool,
 
-    /// Output raw SDL
-    #[arg(long = "sdl")]
-    sdl: bool,
-
-    /// Output token-efficient compact notation
-    #[arg(long = "compact")]
-    compact: bool,
-
     /// Skip reading from the local schema cache (still writes to cache)
     #[arg(long = "no-cache")]
     no_cache: bool,
@@ -59,7 +51,11 @@ pub struct Search {
 }
 
 impl Search {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        format_kind: RoverOutputFormatKind,
+    ) -> RoverResult<RoverOutput> {
         // Fetch SDL (with caching)
         let sdl_string = schema_cache::fetch_sdl_cached(
             &self.graph_ref,
@@ -80,7 +76,18 @@ impl Search {
         let json_data = serde_json::to_value(&results).unwrap_or(serde_json::Value::Null);
 
         // Format
-        let output_format = format::select_format(self.sdl, self.compact, false);
+        let output_format = match format_kind {
+            RoverOutputFormatKind::Sdl => OutputFormat::Sdl,
+            RoverOutputFormatKind::Compact => OutputFormat::Compact,
+            RoverOutputFormatKind::Json => OutputFormat::Description,
+            RoverOutputFormatKind::Plain => {
+                if format::is_tty() {
+                    OutputFormat::Description
+                } else {
+                    OutputFormat::Compact
+                }
+            }
+        };
         let content = match output_format {
             OutputFormat::Description => description::format_search(&results, &self.terms),
             OutputFormat::Compact => compact::format_search_compact(&results),
