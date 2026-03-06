@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::{DASH, HOOK_ARROW};
+use super::HOOK_ARROW;
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, SchemaOverview, TypeDetail, TypeKind,
 };

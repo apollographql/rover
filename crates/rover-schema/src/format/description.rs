@@ -1,4 +1,4 @@
-use super::{ARROW, DASH, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
+use super::{ARROW, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
 use crate::describe::{
     DescribeResult, ExpandedType, FieldDetail, FieldInfo, SchemaOverview, TypeDetail, TypeKind,
 };
