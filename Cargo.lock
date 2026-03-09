@@ -4635,6 +4635,7 @@ dependencies = [
  "rover-client",
  "rover-graphql",
  "rover-http",
+ "rover-schema",
  "rover-std",
  "rover-studio",
  "rstest",
@@ -4768,6 +4769,19 @@ dependencies = [
  "tokio",
  "tower 0.5.3",
  "tracing",
+]
+
+[[package]]
+name = "rover-schema"
+version = "0.0.0"
+dependencies = [
+ "apollo-compiler",
+ "heck",
+ "itertools 0.14.0",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
