@@ -81,7 +81,7 @@ RUN echo "Building {{PROJECT_NAME}}"
     // Test the template placeholder processing
     let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref =
-        GraphRef::new("my-test-graph".to_string(), Some("current".to_string())).unwrap();
+        GraphRef::new("my-test-graph", Some("current")).unwrap();
 
     // Process .env.template content
     let env_content = r#"APOLLO_KEY={{APOLLO_KEY}}
@@ -202,7 +202,7 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
 
     let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref =
-        GraphRef::new("my-test-graph".to_string(), Some("current".to_string())).unwrap();
+        GraphRef::new("my-test-graph", Some("current")).unwrap();
 
     // Simulate the file processing logic from create_project()
     let mut processed_files = HashMap::new();

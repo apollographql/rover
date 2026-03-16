@@ -108,7 +108,7 @@ mod tests {
     }
 
     fn mock_input() -> SubgraphRoutingUrlInput {
-        let graph_ref = GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap();
+        let graph_ref = GraphRef::new("mygraph", Some("current")).unwrap();
 
         let subgraph_name = "products".to_string();
 

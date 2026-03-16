@@ -70,7 +70,7 @@ mod tests {
     use super::*;
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap()
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
     #[test]
