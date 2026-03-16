@@ -21,10 +21,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
 
     let _project_name = "test_project";
     let apollo_key = "service:test-graph:abc123"; // gitleaks:allow
-    let graph_ref = rover_client::shared::GraphRef {
-        name: "test-graph".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = rover_studio::types::GraphRef::from_str("test-graph@current").unwrap();
 
     // Test new state-based approach (should now use unified helper)
     let mcp_creation_confirmed = MCPCreationConfirmed {
@@ -131,10 +128,7 @@ fn test_unified_helper_directly() {
     let test_content =
         "PROJECT={{PROJECT_NAME}} KEY={{APOLLO_KEY}} TAG={{DOCKER_TAG}} ID=${GRAPH_ID}";
 
-    let graph_ref = rover_client::shared::GraphRef {
-        name: "my-graph".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = rover_studio::types::GraphRef::from_str("my-graph@current").unwrap();
 
     let ctx = crate::command::init::helpers::MCPTemplateContext {
         project_name: "my_project",

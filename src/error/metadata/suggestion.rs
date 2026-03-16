@@ -4,7 +4,7 @@ use std::{
 };
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use rover_std::Style;
 use serde::Serialize;
 
@@ -156,11 +156,11 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
-                if let Some(maybe_variant) = did_you_mean(&graph_ref.variant, valid_variants).pop()  {
-                    format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
+                if let Some(maybe_variant) = did_you_mean(graph_ref.variant(), valid_variants).pop()  {
+                    format!("Did you mean \"{}@{}\"?", graph_ref.name(), maybe_variant)
                 } else {
                     let num_valid_variants = valid_variants.len();
-                    let color_graph_name = Style::Link.paint(&graph_ref.name);
+                    let color_graph_name = Style::Link.paint(graph_ref.name());
                     match num_valid_variants {
                         0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Style::Command.paint("`rover graph publish`"), Style::Command.paint("`rover subgraph publish`")),
                         1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Style::Link.paint(&valid_variants[0])),
@@ -254,7 +254,7 @@ impl Display for RoverErrorSuggestion {
                 Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
             }
             LinkPersistedQueryList { graph_ref, frontend_url_root } => {
-                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)
+                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name())
             }
             CreateOrFindValidPersistedQueryList { graph_id, frontend_url_root } => {
                 format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {frontend_url_root}/graph/{graph_id}/persisted-queries")

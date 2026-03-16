@@ -10,8 +10,8 @@ use rover_client::{
     operations::subgraph::fetch_all::{
         SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse,
     },
-    shared::GraphRef,
 };
+use rover_studio::types::GraphRef;
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;
 use tower::{Service, ServiceBuilder};

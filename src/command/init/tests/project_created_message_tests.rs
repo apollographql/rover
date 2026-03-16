@@ -1,7 +1,7 @@
 use std::string::String;
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use crate::command::init::helpers::{generate_project_created_message, get_command};
 

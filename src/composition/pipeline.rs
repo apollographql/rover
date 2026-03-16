@@ -9,7 +9,7 @@ use apollo_federation_types::config::{
     FederationVersion, FederationVersion::LatestFedTwo, SubgraphConfig,
 };
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use rover_http::HttpService;
 use rover_std::warnln;
 use tempfile::tempdir;

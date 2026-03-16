@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use crate::command::init::{states::*, template_fetcher::*};
 
@@ -46,10 +46,7 @@ fn test_mcp_success_includes_base_template_commands() {
             Utf8PathBuf::from(".env"),
         ],
         api_key: "service:my-test-graph:abc123".to_string(), // gitleaks:allow
-        graph_ref: GraphRef {
-            name: "my-test-graph".to_string(),
-            variant: "current".to_string(),
-        },
+        graph_ref: GraphRef::new("my-test-graph".to_string(), Some("current".to_string())).unwrap(),
         template: base_template,
     };
 
@@ -103,10 +100,7 @@ fn test_mcp_success_with_no_commands() {
             Utf8PathBuf::from(".env"),
         ],
         api_key: "service:minimal-graph:xyz789".to_string(), // gitleaks:allow
-        graph_ref: GraphRef {
-            name: "minimal-graph".to_string(),
-            variant: "current".to_string(),
-        },
+        graph_ref: GraphRef::new("minimal-graph".to_string(), Some("current".to_string())).unwrap(),
         template: base_template,
     };
 
@@ -149,10 +143,7 @@ fn test_mcp_success_with_empty_commands() {
         },
         artifacts: vec![Utf8PathBuf::from("claude_desktop_config.json")],
         api_key: "service:empty-cmd-graph:def456".to_string(), // gitleaks:allow
-        graph_ref: GraphRef {
-            name: "empty-cmd-graph".to_string(),
-            variant: "current".to_string(),
-        },
+        graph_ref: GraphRef::new("empty-cmd-graph".to_string(), Some("current".to_string())).unwrap(),
         template: base_template,
     };
 
@@ -210,10 +201,7 @@ fn test_mcp_success_commands_filtering() {
             Utf8PathBuf::from("package.json"),
         ],
         api_key: "service:mixed-graph:ghi789".to_string(), // gitleaks:allow
-        graph_ref: GraphRef {
-            name: "mixed-graph".to_string(),
-            variant: "current".to_string(),
-        },
+        graph_ref: GraphRef::new("mixed-graph".to_string(), Some("current".to_string())).unwrap(),
         template: base_template,
     };
 

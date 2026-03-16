@@ -5,7 +5,7 @@ use std::{pin::Pin, sync::Arc};
 use apollo_federation_types::config::SchemaSource;
 use buildstructor::Builder;
 use futures::Future;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use tower::{Service, ServiceExt};
 
 use super::FullyResolvedSubgraph;

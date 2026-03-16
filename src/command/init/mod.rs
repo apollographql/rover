@@ -585,13 +585,11 @@ impl Init {
         use anyhow::anyhow;
         // Query GraphOS for user's organizations and their graphs
         use rover_client::operations::init::{list_graphs, memberships};
-        use rover_client::{
-            operations::{
-                subgraph::list::{self as list_subgraphs, SubgraphListInput},
-                supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput},
-            },
-            shared::GraphRef,
+        use rover_client::operations::{
+            subgraph::list::{self as list_subgraphs, SubgraphListInput},
+            supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput},
         };
+        use rover_studio::types::GraphRef;
         use rover_std::{Style, hyperlink};
 
         use crate::command::init::authentication::{
@@ -1254,7 +1252,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         client_config: &StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
-        use rover_client::shared::GraphRef;
+        use rover_studio::types::GraphRef;
 
         use crate::command::init::{
             options::{ProjectType, ProjectUseCase},
@@ -1426,9 +1424,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("${PROJECT_NAME}", project_name)
                 .replace("${DOCKER_TAG}", &docker_tag)
                 .replace("${GRAPH_REF}", &graph_ref.to_string())
-                .replace("${GRAPH_ID}", &graph_ref.name)
+                .replace("${GRAPH_ID}", graph_ref.name())
                 .replace("${GRAPH_NAME}", project_name)
-                .replace("${VARIANT_NAME}", &graph_ref.variant)
+                .replace("${VARIANT_NAME}", graph_ref.variant())
                 .replace("${ORGANIZATION_NAME}", "YOUR_ORGANIZATION")
                 .replace("${APOLLO_GRAPH_REF}", &graph_ref.to_string())
                 .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
@@ -1449,9 +1447,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 .replace("{{PROJECT_NAME}}", project_name)
                 .replace("{{DOCKER_TAG}}", &docker_tag)
                 .replace("{{GRAPH_REF}}", &graph_ref.to_string())
-                .replace("{{GRAPH_ID}}", &graph_ref.name)
+                .replace("{{GRAPH_ID}}", graph_ref.name())
                 .replace("{{GRAPH_NAME}}", project_name)
-                .replace("{{VARIANT_NAME}}", &graph_ref.variant)
+                .replace("{{VARIANT_NAME}}", graph_ref.variant())
                 .replace("{{ORGANIZATION_NAME}}", "YOUR_ORGANIZATION") // Placeholder since org structure is complex
                 .replace("{{APOLLO_GRAPH_REF}}", &graph_ref.to_string())
                 .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())

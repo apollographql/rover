@@ -248,7 +248,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E027),
                 ),
                 RoverClientError::AdhocError { .. } => (None, None),
-                RoverClientError::InvalidGraphRef => (
+                RoverClientError::InvalidGraphRef(_) => (
                     Some(RoverErrorSuggestion::CheckGraphNameAndAuth),
                     Some(RoverErrorCode::E010),
                 ),
