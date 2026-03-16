@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, str::FromStr};
+use std::{fmt, str::FromStr};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -11,29 +11,37 @@ use serde::{Deserialize, Serialize};
 pub struct InvalidGraphRef;
 
 /// Represents a GraphOS GraphRef
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq, derive_getters::Getters)]
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GraphRef {
-    name: Cow<'static, str>,
-    variant: Cow<'static, str>,
+    name: String,
+    variant: String,
 }
 
 impl GraphRef {
     /// Creates a new GraphRef from graph_id and variant
     pub fn new(
-        graph_id: impl Into<Cow<'static, str>>,
-        variant: Option<impl Into<Cow<'static, str>>>,
+        graph_id: impl Into<String>,
+        variant: Option<impl Into<String>>,
     ) -> Result<Self, InvalidGraphRef> {
         let graph_id = graph_id.into();
         let s = match variant {
             Some(v) => format!("{}@{}", graph_id, v.into()),
-            None => graph_id.into_owned(),
+            None => graph_id,
         };
         Self::from_str(&s)
     }
 
     /// Consumes the GraphRef and returns `(name, variant)` as owned Strings.
     pub fn into_parts(self) -> (String, String) {
-        (self.name.into_owned(), self.variant.into_owned())
+        (self.name, self.variant)
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn variant(&self) -> &String {
+        &self.variant
     }
 }
 
@@ -46,6 +54,9 @@ impl fmt::Display for GraphRef {
 impl FromStr for GraphRef {
     type Err = InvalidGraphRef;
 
+    /// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING
+    /// WILL HAPPEN IN THE BACKEND TO KEEP EVERYTHING CONSISTENT. THIS IS AN
+    /// INCOMPLETE PLACEHOLDER, AND MAY NOT COVER EVERY SINGLE VALID USE CASE
     fn from_str(graph_id: &str) -> Result<Self, Self::Err> {
         let pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$").unwrap();
         let variant_pattern = Regex::new(r"^([a-zA-Z][a-zA-Z0-9_-]{0,63})@(.{0,63})$").unwrap();
@@ -55,16 +66,14 @@ impl FromStr for GraphRef {
 
         if valid_graph_name_only {
             Ok(GraphRef {
-                name: Cow::Owned(graph_id.to_string()),
-                variant: Cow::Borrowed("current"),
+                name: graph_id.to_string(),
+                variant: "current".to_string(),
             })
         } else if valid_graph_with_variant {
             let matches = variant_pattern.captures(graph_id).unwrap();
-            let name = matches.get(1).unwrap().as_str();
-            let variant = matches.get(2).unwrap().as_str();
             Ok(GraphRef {
-                name: Cow::Owned(name.to_string()),
-                variant: Cow::Owned(variant.to_string()),
+                name: matches.get(1).unwrap().as_str().to_string(),
+                variant: matches.get(2).unwrap().as_str().to_string(),
             })
         } else {
             Err(InvalidGraphRef)
@@ -123,9 +132,7 @@ mod tests {
 
     #[test]
     fn new_accepts_owned_string() {
-        let name = "mygraph".to_string();
-        let variant = "prod".to_string();
-        let g = GraphRef::new(name, Some(variant)).unwrap();
+        let g = GraphRef::new("mygraph".to_string(), Some("prod".to_string())).unwrap();
         assert_eq!(g.name(), "mygraph");
         assert_eq!(g.variant(), "prod");
     }

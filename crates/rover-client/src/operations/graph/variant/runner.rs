@@ -1,7 +1,7 @@
 use graphql_client::*;
 
 use crate::{
-    blocking::StudioClient, operations::graph::variant::VariantListInput, RoverClientError,
+    RoverClientError, blocking::StudioClient, operations::graph::variant::VariantListInput,
 };
 
 #[derive(GraphQLQuery)]
@@ -31,10 +31,7 @@ pub async fn run(input: VariantListInput, client: &StudioClient) -> Result<(), R
         valid_variants.push(variant.name)
     }
 
-    if !valid_variants
-        .iter()
-        .any(|v| v.as_str() == graph_ref.variant().as_ref())
-    {
+    if !valid_variants.contains(graph_ref.variant()) {
         Err(RoverClientError::NoSchemaForVariant {
             graph_ref,
             valid_variants,
