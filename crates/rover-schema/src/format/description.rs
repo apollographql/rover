@@ -1,6 +1,9 @@
+use apollo_compiler::Name;
+
 use super::{ARROW, DEPRECATED_MARKER, DOTTED, HOOK_ARROW, SEPARATOR};
 use crate::describe::{
-    DescribeResult, ExpandedType, FieldDetail, FieldInfo, SchemaOverview, TypeDetail, TypeKind,
+    DescribeResult, EnumDetail, ExpandedType, FieldDetail, FieldInfo, InputDetail,
+    InterfaceDetail, ObjectDetail, ScalarDetail, SchemaOverview, TypeDetail, TypeKind, UnionDetail,
 };
 
 const MAX_WIDTH: usize = 100;
@@ -20,7 +23,7 @@ fn format_overview(ov: &SchemaOverview) -> String {
     // Header line
     out.push_str(&format!(
         "SCHEMA {} [{} types, {} fields",
-        ov.graph_ref, ov.total_types, ov.total_fields
+        ov.schema_source, ov.total_types, ov.total_fields
     ));
     if ov.total_deprecated > 0 {
         out.push_str(&format!(", {} deprecated", ov.total_deprecated));
@@ -29,7 +32,7 @@ fn format_overview(ov: &SchemaOverview) -> String {
 
     // Query fields
     if !ov.query_fields.is_empty() {
-        let names: Vec<&str> = ov.query_fields.iter().map(|f| f.name.as_str()).collect();
+        let names: Vec<&str> = ov.query_fields.iter().map(|f| f.name().as_str()).collect();
         let preview = truncate_list(&names, 6);
         out.push_str(&format!(
             "  Query      {SEPARATOR} {} fields ({})\n",
@@ -40,7 +43,11 @@ fn format_overview(ov: &SchemaOverview) -> String {
 
     // Mutation fields
     if !ov.mutation_fields.is_empty() {
-        let names: Vec<&str> = ov.mutation_fields.iter().map(|f| f.name.as_str()).collect();
+        let names: Vec<&str> = ov
+            .mutation_fields
+            .iter()
+            .map(|f| f.name().as_str())
+            .collect();
         let preview = truncate_list(&names, 6);
         out.push_str(&format!(
             "  Mutation   {SEPARATOR} {} fields ({})\n",
@@ -105,64 +112,117 @@ fn format_overview(ov: &SchemaOverview) -> String {
 }
 
 fn format_type_detail(detail: &TypeDetail) -> String {
-    let mut out = String::new();
-
-    // Header
-    let kind_label = match detail.kind {
-        TypeKind::Object => "TYPE",
-        TypeKind::Interface => "INTERFACE",
-        TypeKind::Input => "INPUT",
-        TypeKind::Enum => "ENUM",
-        TypeKind::Union => "UNION",
-        TypeKind::Scalar => "SCALAR",
-    };
-
-    out.push_str(&format!("{} {}", kind_label, detail.name));
-
-    match detail.kind {
-        TypeKind::Enum => {
-            out.push_str(&format!(" [{} values", detail.field_count));
-        }
-        TypeKind::Union => {
-            out.push_str(&format!(" [{} members", detail.union_members.len()));
-        }
-        _ => {
-            out.push_str(&format!(" [{} fields", detail.field_count));
-        }
+    match detail {
+        TypeDetail::Object(obj) => format_object_detail(obj),
+        TypeDetail::Interface(iface) => format_interface_detail(iface),
+        TypeDetail::Input(inp) => format_input_detail(inp),
+        TypeDetail::Enum(e) => format_enum_detail(e),
+        TypeDetail::Union(u) => format_union_detail(u),
+        TypeDetail::Scalar(s) => format_scalar_detail(s),
     }
+}
 
-    if detail.deprecated_count > 0 {
-        out.push_str(&format!(", {} deprecated", detail.deprecated_count));
+fn format_object_detail(obj: &ObjectDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("TYPE {}", obj.name));
+    out.push_str(&format!(" [{} fields", obj.fields.field_count()));
+    if obj.fields.deprecated_count > 0 {
+        out.push_str(&format!(", {} deprecated", obj.fields.deprecated_count));
     }
     out.push(']');
-
-    if !detail.implements.is_empty() {
-        out.push_str(&format!(" implements {}", detail.implements.join(" & ")));
+    if !obj.implements.is_empty() {
+        out.push_str(&format!(" implements {}", obj.implements.join(" & ")));
     }
-
     out.push('\n');
-
-    // Description
-    if let Some(desc) = &detail.description {
+    if let Some(desc) = &obj.description {
         out.push_str(&format!("  {SEPARATOR} {}\n", desc));
-
-        // Blank line after description before fields/values
-        if !detail.fields.is_empty()
-            || !detail.enum_values.is_empty()
-            || !detail.union_members.is_empty()
-        {
+        if !obj.fields.fields().is_empty() {
             out.push('\n');
         }
     }
+    write_field_items(&mut out, obj.fields.fields(), 2);
+    if obj.fields.deprecated_count > 0 && !obj.fields.fields().iter().any(|f| f.is_deprecated) {
+        out.push_str(&format!(
+            "\n  Use --include-deprecated to show {} hidden deprecated fields.\n",
+            obj.fields.deprecated_count
+        ));
+    }
+    for expanded in &obj.fields.expanded_types {
+        out.push('\n');
+        format_expanded_type(&mut out, expanded);
+    }
+    out.trim_end().to_string()
+}
 
-    // Fields
-    write_field_items(&mut out, &detail.fields, 2);
+fn format_interface_detail(iface: &InterfaceDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("INTERFACE {}", iface.name));
+    out.push_str(&format!(" [{} fields", iface.fields.field_count()));
+    if iface.fields.deprecated_count > 0 {
+        out.push_str(&format!(", {} deprecated", iface.fields.deprecated_count));
+    }
+    out.push(']');
+    if !iface.implements.is_empty() {
+        out.push_str(&format!(" implements {}", iface.implements.join(" & ")));
+    }
+    out.push('\n');
+    if let Some(desc) = &iface.description {
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
+        if !iface.fields.fields().is_empty() || !iface.implementors.is_empty() {
+            out.push('\n');
+        }
+    }
+    write_field_items(&mut out, iface.fields.fields(), 2);
+    if !iface.implementors.is_empty() {
+        out.push_str(&format!(
+            "  {SEPARATOR} implemented by {}\n",
+            iface.implementors.join(", ")
+        ));
+    }
+    if iface.fields.deprecated_count > 0 && !iface.fields.fields().iter().any(|f| f.is_deprecated) {
+        out.push_str(&format!(
+            "\n  Use --include-deprecated to show {} hidden deprecated fields.\n",
+            iface.fields.deprecated_count
+        ));
+    }
+    for expanded in &iface.fields.expanded_types {
+        out.push('\n');
+        format_expanded_type(&mut out, expanded);
+    }
+    out.trim_end().to_string()
+}
 
-    // Enum values
-    if !detail.enum_values.is_empty() {
-        let cols: Vec<String> = detail.enum_values.iter().map(|v| v.name.clone()).collect();
+fn format_input_detail(inp: &InputDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("INPUT {} [{} fields]\n", inp.name, inp.fields.field_count));
+    if let Some(desc) = &inp.description {
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
+        if !inp.fields.fields().is_empty() {
+            out.push('\n');
+        }
+    }
+    write_field_items(&mut out, inp.fields.fields(), 2);
+    out.trim_end().to_string()
+}
+
+fn format_enum_detail(e: &EnumDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("ENUM {}", e.name));
+    out.push_str(&format!(" [{} values", e.value_count));
+    if e.deprecated_count > 0 {
+        out.push_str(&format!(", {} deprecated", e.deprecated_count));
+    }
+    out.push_str("]\n");
+    if let Some(desc) = &e.description {
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
+        if !e.values.is_empty() {
+            out.push('\n');
+        }
+    }
+    if !e.values.is_empty() {
+        let cols: Vec<String> = e.values.iter().map(|v| v.name.to_string()).collect();
         let col_width = compute_col_width(&cols, 2);
-        for (i, val) in detail.enum_values.iter().enumerate() {
+        for (i, val) in e.values.iter().enumerate() {
             write_item_line(
                 &mut out,
                 &cols[i],
@@ -174,45 +234,36 @@ fn format_type_detail(detail: &TypeDetail) -> String {
             );
         }
     }
+    if e.deprecated_count > 0 && !e.values.iter().any(|v| v.is_deprecated) {
+        out.push_str(&format!(
+            "\n  Use --include-deprecated to show {} hidden deprecated values.\n",
+            e.deprecated_count
+        ));
+    }
+    out.trim_end().to_string()
+}
 
-    // Union members
-    if !detail.union_members.is_empty() {
-        if detail.kind == TypeKind::Interface {
-            // For interfaces, show implementing types
-            out.push_str(&format!(
-                "  {SEPARATOR} implemented by {}\n",
-                detail.union_members.join(", ")
-            ));
-        } else {
-            out.push_str(&format!("  = {}\n", detail.union_members.join(" | ")));
+fn format_union_detail(u: &UnionDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("UNION {} [{} members]\n", u.name, u.members.len()));
+    if let Some(desc) = &u.description {
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
+        if !u.members.is_empty() {
+            out.push('\n');
         }
     }
-
-    // Hint when deprecated fields/values are hidden
-    if detail.deprecated_count > 0 {
-        let showing_deprecated = match detail.kind {
-            TypeKind::Enum => detail.enum_values.iter().any(|v| v.is_deprecated),
-            _ => detail.fields.iter().any(|f| f.is_deprecated),
-        };
-        if !showing_deprecated {
-            out.push_str(&format!(
-                "\n  Use --include-deprecated to show {} hidden deprecated {}.\n",
-                detail.deprecated_count,
-                if detail.kind == TypeKind::Enum {
-                    "values"
-                } else {
-                    "fields"
-                }
-            ));
-        }
+    if !u.members.is_empty() {
+        out.push_str(&format!("  = {}\n", u.members.join(" | ")));
     }
+    out.trim_end().to_string()
+}
 
-    // Expanded types (--depth)
-    for expanded in &detail.expanded_types {
-        out.push('\n');
-        format_expanded_type(&mut out, expanded);
+fn format_scalar_detail(s: &ScalarDetail) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("SCALAR {}\n", s.name));
+    if let Some(desc) = &s.description {
+        out.push_str(&format!("  {SEPARATOR} {}\n", desc));
     }
-
     out.trim_end().to_string()
 }
 
@@ -240,7 +291,7 @@ fn format_field_detail(detail: &FieldDetail) -> String {
 
     // Via paths
     for via in &detail.via {
-        out.push_str(&format!("  via {}\n", via));
+        out.push_str(&format!("  via {}\n", via.format_via()));
     }
 
     // Deprecation
@@ -480,7 +531,7 @@ fn truncate_list(items: &[&str], max: usize) -> String {
     }
 }
 
-fn truncate_list_owned(items: &[String], max: usize) -> String {
+fn truncate_list_owned(items: &[Name], max: usize) -> String {
     if items.len() <= max {
         items.join(" ")
     } else {
@@ -490,23 +541,18 @@ fn truncate_list_owned(items: &[String], max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use apollo_compiler::Schema;
-
     use super::*;
-    use crate::describe;
+    use crate::ParsedSchema;
 
-    fn test_schema() -> Schema {
+    fn test_schema() -> ParsedSchema {
         let sdl = include_str!("../test_fixtures/test_schema.graphql");
-        match Schema::parse(sdl, "test.graphql") {
-            Ok(s) => s,
-            Err(e) => e.partial,
-        }
+        ParsedSchema::parse(sdl)
     }
 
     #[test]
     fn deprecated_field_gutter_marker_with_reason() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "Post", true, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("Post").unwrap(), true, 0).unwrap();
         let output = format_type_detail(&detail);
         // ⚠ gutter marker on the field line
         assert!(output.contains(DEPRECATED_MARKER));
@@ -531,7 +577,7 @@ mod tests {
     #[test]
     fn deprecated_enum_value_marker() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "SortOrder", true, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("SortOrder").unwrap(), true, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(output.contains("RELEVANCE"));
         assert!(output.contains(DEPRECATED_MARKER));
@@ -541,7 +587,7 @@ mod tests {
     #[test]
     fn hidden_deprecated_hint_for_fields() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "Post", false, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("Post").unwrap(), false, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(output.contains("Use --include-deprecated to show"));
         assert!(output.contains("hidden deprecated fields"));
@@ -551,7 +597,7 @@ mod tests {
     #[test]
     fn hidden_deprecated_hint_for_enum_values() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "SortOrder", false, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("SortOrder").unwrap(), false, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(output.contains("Use --include-deprecated to show"));
         assert!(output.contains("hidden deprecated values"));
@@ -561,7 +607,7 @@ mod tests {
     #[test]
     fn no_hint_when_deprecated_included() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "Post", true, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("Post").unwrap(), true, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(!output.contains("Use --include-deprecated"));
         assert!(output.contains("oldSlug"));
@@ -570,7 +616,7 @@ mod tests {
     #[test]
     fn no_hint_when_no_deprecated() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "Category", true, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("Comment").unwrap(), false, 0).unwrap();
         let output = format_type_detail(&detail);
         assert!(!output.contains("Use --include-deprecated"));
     }
@@ -579,7 +625,7 @@ mod tests {
     fn expanded_type_deprecated_field_marker() {
         let schema = test_schema();
         // User has deprecated legacyId; expand via Post --depth 1
-        let detail = describe::type_detail(&schema, "Post", true, 1).unwrap();
+        let detail = schema.type_detail(&Name::new("Post").unwrap(), true, 1).unwrap();
         let output = format_type_detail(&detail);
         // The expanded User type should show the deprecated marker
         assert!(output.contains("legacyId"));
@@ -589,7 +635,7 @@ mod tests {
     #[test]
     fn column_alignment_consistent() {
         let schema = test_schema();
-        let detail = describe::type_detail(&schema, "Post", false, 0).unwrap();
+        let detail = schema.type_detail(&Name::new("Post").unwrap(), false, 0).unwrap();
         let output = format_type_detail(&detail);
         // Field lines (containing "name: Type") with descriptions should have
         // at least a 2-space gap before the › separator

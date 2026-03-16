@@ -2,12 +2,12 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::graph::publish::{
-        types::{ChangeSummary, FieldChanges, TypeChanges},
         GraphPublishInput, GraphPublishResponse,
+        types::{ChangeSummary, FieldChanges, TypeChanges},
     },
-    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

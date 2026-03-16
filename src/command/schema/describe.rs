@@ -4,13 +4,11 @@ use std::{
 };
 
 use clap::Parser;
-use rover_client::{
-    operations::{
-        graph::introspect::GraphIntrospect,
-        supergraph::fetch::{SupergraphFetch, SupergraphFetchInput, SupergraphFetchRequest},
-    },
-    shared::GraphRef,
+use rover_client::operations::{
+    graph::introspect::GraphIntrospect,
+    supergraph::fetch::{SupergraphFetch, SupergraphFetchRequest},
 };
+use rover_studio::types::GraphRef;
 use rover_graphql::GraphQLLayer;
 use rover_http::{
     HttpRequest, HttpResponse,
@@ -20,13 +18,48 @@ use rover_http::{
 use rover_schema::{
     ParsedSchema, SchemaCoordinate, describe,
     format::{OutputFormat, compact, description, is_tty, sdl},
+    parsed_schema::ExtendedType,
+    schema_source::SchemaSource,
 };
 use rover_std::Fs;
 use serde::Serialize;
+use serde_with::{DisplayFromStr, serde_as};
 use tower::{Service, ServiceBuilder, ServiceExt, retry::RetryLayer};
 use url::Url;
 
-use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{
+    RoverOutput, RoverResult, command::CliOutput, options::ProfileOpt,
+    utils::client::StudioClientConfig,
+};
+
+#[serde_as]
+#[derive(Serialize)]
+pub enum DescribeOutput {
+    Sdl {
+        #[serde_as(as = "Option<DisplayFromStr>")]
+        schema: Option<ExtendedType>,
+        #[serde_as(as = "Option<DisplayFromStr>")]
+        coordinate: Option<SchemaCoordinate>,
+    },
+}
+
+impl CliOutput for DescribeOutput {
+    fn text(&self) -> String {
+        match self {
+            Self::Sdl { schema, coordinate } => schema
+                .as_ref()
+                .map(|x| x.serialize().to_string())
+                .unwrap_or_else(|| match coordinate {
+                    Some(c) => format!("# Path '{}' not found in SDL", c),
+                    None => "# Schema not found".to_string(),
+                }),
+        }
+    }
+
+    fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "lowercase")]
@@ -62,8 +95,8 @@ pub struct Describe {
     #[serde(skip_serializing)]
     schema_source: SchemaSource,
 
-    #[arg(short = "p", long = "path", value_name = "SCHEMA_PATH", value_parse = clap::value_parser!(SchemaCoordinate))]
-    schema_path: Option<SchemaCoordinate>,
+    #[arg(short = "c", long = "coord", value_name = "SCHEMA_COORDINATE", value_parse = clap::value_parser!(SchemaCoordinate))]
+    schema_coordinate: Option<SchemaCoordinate>,
 
     /// Expand referenced types N levels deep
     #[arg(long = "depth", short = 'd', default_value_t = 0)]
@@ -91,38 +124,33 @@ impl Describe {
         let sdl_string = self.fetch_sdl(&client_config).await?;
         let output_format = self.output_format(is_tty());
 
-        // Parse
-        let parsed = ParsedSchema::parse(&sdl_string);
-        let schema = parsed.inner();
+        let schema = ParsedSchema::parse(&sdl_string);
 
         // If --sdl, output filtered SDL
-        if output_format == OutputFormat::Sdl {
-            let sdl_output = sdl::filtered_sdl(coordinate.as_ref(), &sdl_string);
-            return Ok(RoverOutput::DescribeResponse {
-                content: sdl_output,
-                json_data: serde_json::Value::Null,
-            });
+        if matches!(output_format, OutputFormat::Sdl) {
+            let filtered = schema.filter(self.schema_coordinate.as_ref());
+            return Ok(RoverOutput::CliOutput(DescribeOutput::Sdl {
+                schema: filtered.cloned(),
+                coordinate: self.schema_coordinate.clone(),
+            }));
         }
 
         // Generate describe result
-        let result = match &coordinate {
+        let result = match &self.schema_coordinate {
             None => {
-                let overview = describe::overview(schema, &graph_ref.to_string());
+                let overview = schema.overview(self.schema_source.clone());
                 describe::DescribeResult::Overview(overview)
             }
             Some(SchemaCoordinate::Type(tc)) => {
-                let detail = describe::type_detail(
-                    schema,
-                    tc.ty.as_str(),
-                    self.include_deprecated,
-                    self.depth,
-                )
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+                let detail = schema
+                    .type_detail(&tc.ty, self.include_deprecated, self.depth)
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::TypeDetail(detail)
             }
             Some(coord @ SchemaCoordinate::TypeAttribute(_)) => {
-                let detail =
-                    describe::field_detail(schema, coord).map_err(|e| anyhow::anyhow!("{}", e))?;
+                let detail = schema
+                    .field_detail(coord)
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
                 describe::DescribeResult::FieldDetail(detail)
             }
             Some(other) => {
@@ -140,7 +168,7 @@ impl Describe {
             OutputFormat::Sdl => unreachable!(),
         };
 
-        Ok(RoverOutput::DescribeResponse { content, json_data })
+        Ok(RoverOutput::SchemaDescribeResponse { content, json_data })
     }
 
     fn output_format(&self, is_tty: bool) -> OutputFormat {
@@ -200,46 +228,6 @@ impl Describe {
                 Ok(resp.schema_sdl)
             }
         }
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-#[error("Invalid schema source")]
-pub struct InvalidSchemaSource;
-
-#[derive(Debug, Clone)]
-pub enum SchemaSource {
-    GraphOS(GraphRef),
-    File(PathBuf),
-    Url(Url),
-}
-
-impl FromStr for SchemaSource {
-    type Err = InvalidSchemaSource;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        GraphRef::from_str(s)
-            .map(SchemaSource::GraphOS)
-            .map_err(|_| InvalidSchemaSource)
-            .or_else(|_| {
-                Url::parse(s)
-                    .map_err(|_| InvalidSchemaSource)
-                    .and_then(|url| {
-                        if matches!(url.scheme(), "http" | "https") {
-                            Ok(SchemaSource::Url(url))
-                        } else {
-                            Err(InvalidSchemaSource)
-                        }
-                    })
-            })
-            .or_else(|_| {
-                let path = Path::new(s);
-                if path.exists() {
-                    Ok(SchemaSource::File(path.to_path_buf()))
-                } else {
-                    Err(InvalidSchemaSource)
-                }
-            })
     }
 }
 

@@ -4754,12 +4754,19 @@ name = "rover-schema"
 version = "0.0.0"
 dependencies = [
  "apollo-compiler",
+ "bon",
+ "derive-getters",
  "heck",
  "itertools 0.14.0",
  "pretty_assertions",
+ "rover-studio",
+ "rstest",
  "serde",
  "serde_json",
+ "serde_with",
+ "speculoos",
  "thiserror 2.0.18",
+ "url",
 ]
 
 [[package]]

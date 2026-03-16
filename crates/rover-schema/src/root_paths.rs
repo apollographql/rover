@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use apollo_compiler::{Schema, schema::ExtendedType};
+use apollo_compiler::{Name, Schema, schema::ExtendedType};
 use itertools::Itertools;
 
 use crate::{
@@ -9,17 +9,17 @@ use crate::{
 };
 
 /// A path from a root type (Query/Mutation) to a target type through field references.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RootPath {
     /// Sequence of (type_name, field_name) pairs from root to target.
     /// The last element's type_name is the parent of the target.
     pub segments: Vec<PathSegment>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PathSegment {
-    pub type_name: String,
-    pub field_name: String,
+    pub type_name: Name,
+    pub field_name: Name,
 }
 
 impl RootPath {
@@ -128,8 +128,8 @@ fn reconstruct_path(
     while current != start {
         if let Some((parent_type, field_name)) = parent_map.get(&current) {
             segments.push(PathSegment {
-                type_name: parent_type.clone(),
-                field_name: field_name.clone(),
+                type_name: Name::new(parent_type).expect("valid GraphQL name"),
+                field_name: Name::new(field_name).expect("valid GraphQL name"),
             });
             current = parent_type.clone();
         } else {
@@ -213,12 +213,12 @@ mod tests {
         let path = RootPath {
             segments: vec![
                 PathSegment {
-                    type_name: "Query".into(),
-                    field_name: "user".into(),
+                    type_name: Name::new("Query").unwrap(),
+                    field_name: Name::new("user").unwrap(),
                 },
                 PathSegment {
-                    type_name: "User".into(),
-                    field_name: "posts".into(),
+                    type_name: Name::new("User").unwrap(),
+                    field_name: Name::new("posts").unwrap(),
                 },
             ],
         };

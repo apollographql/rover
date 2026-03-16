@@ -4,12 +4,13 @@ use apollo_federation_types::rover::BuildError;
 use futures::future::TryFutureExt;
 use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use rover_studio::types::GraphRef;
 use rover_tower::ResponseFuture;
 use tower::Service;
 
 use crate::{
-    shared::{FetchResponse, GraphRef, Sdl, SdlType},
     RoverClientError,
+    shared::{FetchResponse, Sdl, SdlType},
 };
 
 // I'm not sure where this should live long-term
@@ -82,8 +83,8 @@ where
 
     fn call(&mut self, req: SupergraphFetchRequest) -> Self::Future {
         let variables = supergraph_fetch_query::Variables {
-            graph_id: req.graph_ref.name.clone(),
-            variant: req.graph_ref.variant.clone(),
+            graph_id: req.graph_ref.graph_id().to_string(),
+            variant: req.graph_ref.variant().to_string(),
         };
         let graphql_request = GraphQLRequest::new(variables);
         let fut = self
@@ -136,7 +137,7 @@ pub(crate) fn get_supergraph_sdl_from_response_data(
             .map(|v| v.name)
             .collect::<Vec<_>>();
 
-        if !valid_variants.contains(&graph_ref.variant) {
+        if !valid_variants.contains(graph_ref.variant()) {
             Err(RoverClientError::NoSchemaForVariant {
                 graph_ref,
                 valid_variants,
@@ -162,10 +163,7 @@ mod tests {
 
     #[fixture]
     fn graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap()
     }
 
     #[rstest]

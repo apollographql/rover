@@ -2,7 +2,8 @@ use itertools::Itertools;
 
 use super::HOOK_ARROW;
 use crate::describe::{
-    DescribeResult, ExpandedType, FieldDetail, SchemaOverview, TypeDetail, TypeKind,
+    DescribeResult, EnumDetail, ExpandedType, FieldDetail, InputDetail, InterfaceDetail,
+    ObjectDetail, ScalarDetail, SchemaOverview, TypeDetail, TypeKind, UnionDetail,
 };
 
 /// Format a DescribeResult in compact (token-efficient) notation.
@@ -18,7 +19,7 @@ fn format_overview_compact(ov: &SchemaOverview) -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "S:{}:{}t,{}f",
-        ov.graph_ref, ov.total_types, ov.total_fields
+        ov.schema_source, ov.total_types, ov.total_fields
     ));
     if ov.total_deprecated > 0 {
         out.push_str(&format!(",{}d", ov.total_deprecated));
@@ -29,7 +30,7 @@ fn format_overview_compact(ov: &SchemaOverview) -> String {
         let fields = ov
             .query_fields
             .iter()
-            .map(|f| format!("{}:{}", f.name, abbreviate_type(&f.return_type)))
+            .map(|f| format!("{}:{}", f.name(), abbreviate_type(f.return_type())))
             .join(",");
         out.push_str(&format!("Q:{fields}\n"));
     }
@@ -37,7 +38,7 @@ fn format_overview_compact(ov: &SchemaOverview) -> String {
         let fields = ov
             .mutation_fields
             .iter()
-            .map(|f| format!("{}:{}", f.name, abbreviate_type(&f.return_type)))
+            .map(|f| format!("{}:{}", f.name(), abbreviate_type(f.return_type())))
             .join(",");
         out.push_str(&format!("M:{fields}\n"));
     }
@@ -46,28 +47,24 @@ fn format_overview_compact(ov: &SchemaOverview) -> String {
 }
 
 fn format_type_detail_compact(detail: &TypeDetail) -> String {
+    match detail {
+        TypeDetail::Object(obj) => format_object_compact(obj),
+        TypeDetail::Interface(iface) => format_interface_compact(iface),
+        TypeDetail::Input(inp) => format_input_compact(inp),
+        TypeDetail::Enum(e) => format_enum_compact(e),
+        TypeDetail::Union(u) => format_union_compact(u),
+        TypeDetail::Scalar(s) => format_scalar_compact(s),
+    }
+}
+
+fn format_object_compact(obj: &ObjectDetail) -> String {
     let mut out = String::new();
-
-    let prefix = kind_prefix(detail.kind);
-    out.push_str(prefix);
-    out.push_str(&detail.name);
-
-    // For interfaces, show implementing types
-    if detail.kind == TypeKind::Interface && !detail.union_members.is_empty() {
-        out.push_str(&format!("<{}>", detail.union_members.join(",")));
-    }
-
-    // For unions, show member types
-    if detail.kind == TypeKind::Union && !detail.union_members.is_empty() {
-        out.push_str(&format!("<{}>", detail.union_members.join(",")));
-    }
-
-    // Fields
-    if !detail.fields.is_empty() {
+    out.push_str("T:");
+    out.push_str(&obj.name);
+    if !obj.fields.fields().is_empty() {
         out.push(':');
         out.push_str(
-            &detail
-                .fields
+            &obj.fields.fields()
                 .iter()
                 .map(|f| {
                     let prefix = if f.is_deprecated { "~" } else { "" };
@@ -76,33 +73,96 @@ fn format_type_detail_compact(detail: &TypeDetail) -> String {
                 .join(","),
         );
     }
+    out.push('\n');
+    for expanded in &obj.fields.expanded_types {
+        format_expanded_compact(&mut out, expanded);
+    }
+    out.trim_end().to_string()
+}
 
-    // Enum values
-    if !detail.enum_values.is_empty() {
+fn format_interface_compact(iface: &InterfaceDetail) -> String {
+    let mut out = String::new();
+    out.push_str("F:");
+    out.push_str(&iface.name);
+    if !iface.implementors.is_empty() {
+        out.push_str(&format!("<{}>", iface.implementors.join(",")));
+    }
+    if !iface.fields.fields().is_empty() {
         out.push(':');
         out.push_str(
-            &detail
-                .enum_values
+            &iface
+                .fields.fields()
+                .iter()
+                .map(|f| {
+                    let prefix = if f.is_deprecated { "~" } else { "" };
+                    format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
+                })
+                .join(","),
+        );
+    }
+    out.push('\n');
+    for expanded in &iface.fields.expanded_types {
+        format_expanded_compact(&mut out, expanded);
+    }
+    out.trim_end().to_string()
+}
+
+fn format_input_compact(inp: &InputDetail) -> String {
+    let mut out = String::new();
+    out.push_str("I:");
+    out.push_str(&inp.name);
+    if !inp.fields.fields().is_empty() {
+        out.push(':');
+        out.push_str(
+            &inp.fields.fields()
+                .iter()
+                .map(|f| {
+                    let prefix = if f.is_deprecated { "~" } else { "" };
+                    format!("{}{}:{}", prefix, f.name, abbreviate_type(&f.return_type))
+                })
+                .join(","),
+        );
+    }
+    out.push('\n');
+    out.trim_end().to_string()
+}
+
+fn format_enum_compact(e: &EnumDetail) -> String {
+    let mut out = String::new();
+    out.push_str("E:");
+    out.push_str(&e.name);
+    if !e.values.is_empty() {
+        out.push(':');
+        out.push_str(
+            &e.values
                 .iter()
                 .map(|v| {
                     if v.is_deprecated {
                         format!("~{}", v.name)
                     } else {
-                        v.name.clone()
+                        v.name.to_string()
                     }
                 })
                 .join(","),
         );
     }
-
     out.push('\n');
-
-    // Expanded types
-    for expanded in &detail.expanded_types {
-        format_expanded_compact(&mut out, expanded);
-    }
-
     out.trim_end().to_string()
+}
+
+fn format_union_compact(u: &UnionDetail) -> String {
+    let mut out = String::new();
+    out.push_str("U:");
+    out.push_str(&u.name);
+    if !u.members.is_empty() {
+        out.push_str(&format!("<{}>", u.members.join(",")));
+    }
+    out.push('\n');
+    out.trim_end().to_string()
+}
+
+fn format_scalar_compact(s: &ScalarDetail) -> String {
+    format!("S:{}", s.name)
 }
 
 fn format_field_detail_compact(detail: &FieldDetail) -> String {
@@ -135,7 +195,7 @@ fn format_field_detail_compact(detail: &FieldDetail) -> String {
 
     // Via path
     if !detail.via.is_empty() {
-        out.push_str(&format!("{HOOK_ARROW} {}\n", detail.via[0]));
+        out.push_str(&format!("{HOOK_ARROW} {}\n", detail.via[0].format_compact()));
     }
 
     out.trim_end().to_string()
@@ -174,7 +234,7 @@ fn format_expanded_compact(out: &mut String, expanded: &ExpandedType) {
                     if v.is_deprecated {
                         format!("~{}", v.name)
                     } else {
-                        v.name.clone()
+                        v.name.to_string()
                     }
                 })
                 .join(","),
@@ -259,69 +319,64 @@ mod tests {
 
     #[test]
     fn deprecated_field_tilde_prefix() {
-        let detail = TypeDetail {
-            name: "Post".into(),
-            kind: TypeKind::Object,
+        use apollo_compiler::Name;
+        let detail = TypeDetail::Object(ObjectDetail {
+            name: Name::new("Post").unwrap(),
             description: None,
-            field_count: 2,
-            deprecated_count: 1,
             implements: Vec::new(),
-            fields: vec![
-                crate::describe::FieldInfo {
-                    name: "title".into(),
-                    return_type: "String!".into(),
-                    description: None,
-                    is_deprecated: false,
-                    deprecation_reason: None,
-                    arg_count: 0,
-                },
-                crate::describe::FieldInfo {
-                    name: "oldSlug".into(),
-                    return_type: "String".into(),
-                    description: None,
-                    is_deprecated: true,
-                    deprecation_reason: Some("Use slug instead".into()),
-                    arg_count: 0,
-                },
-            ],
-            enum_values: Vec::new(),
-            union_members: Vec::new(),
+            fields: crate::describe::ExtendedFieldsDetail::new(
+                crate::describe::FieldsDetail::new(vec![
+                    crate::describe::FieldInfo {
+                        name: Name::new("title").unwrap(),
+                        return_type: Name::new("String").unwrap(),
+                        description: None,
+                        is_deprecated: false,
+                        deprecation_reason: None,
+                        arg_count: 0,
+                    },
+                    crate::describe::FieldInfo {
+                        name: Name::new("oldSlug").unwrap(),
+                        return_type: Name::new("String").unwrap(),
+                        description: None,
+                        is_deprecated: true,
+                        deprecation_reason: Some("Use slug instead".into()),
+                        arg_count: 0,
+                    },
+                ], 2),
+                1,
+                Vec::new(),
+            ),
             via: Vec::new(),
-            expanded_types: Vec::new(),
-        };
+        });
         let output = format_type_detail_compact(&detail);
-        assert!(output.contains("title:s!"));
+        assert!(output.contains("title:s"));
         assert!(output.contains("~oldSlug:s"));
     }
 
     #[test]
     fn deprecated_enum_value_tilde_prefix() {
-        let detail = TypeDetail {
-            name: "SortOrder".into(),
-            kind: TypeKind::Enum,
+        use apollo_compiler::Name;
+        let detail = TypeDetail::Enum(EnumDetail {
+            name: Name::new("SortOrder").unwrap(),
             description: None,
-            field_count: 4,
-            deprecated_count: 1,
-            implements: Vec::new(),
-            fields: Vec::new(),
-            enum_values: vec![
+            values: vec![
                 crate::describe::EnumValueInfo {
-                    name: "NEWEST".into(),
+                    name: Name::new("NEWEST").unwrap(),
                     description: None,
                     is_deprecated: false,
                     deprecation_reason: None,
                 },
                 crate::describe::EnumValueInfo {
-                    name: "RELEVANCE".into(),
+                    name: Name::new("RELEVANCE").unwrap(),
                     description: None,
                     is_deprecated: true,
                     deprecation_reason: Some("Use TOP instead".into()),
                 },
             ],
-            union_members: Vec::new(),
+            value_count: 4,
+            deprecated_count: 1,
             via: Vec::new(),
-            expanded_types: Vec::new(),
-        };
+        });
         let output = format_type_detail_compact(&detail);
         assert!(output.contains("NEWEST"));
         assert!(output.contains("~RELEVANCE"));
@@ -329,21 +384,22 @@ mod tests {
 
     #[test]
     fn expanded_deprecated_field_tilde_prefix() {
+        use apollo_compiler::Name;
         let expanded = ExpandedType {
-            name: "User".into(),
+            name: Name::new("User").unwrap(),
             kind: TypeKind::Object,
             fields: vec![
                 crate::describe::FieldInfo {
-                    name: "id".into(),
-                    return_type: "ID!".into(),
+                    name: Name::new("id").unwrap(),
+                    return_type: Name::new("ID").unwrap(),
                     description: None,
                     is_deprecated: false,
                     deprecation_reason: None,
                     arg_count: 0,
                 },
                 crate::describe::FieldInfo {
-                    name: "legacyId".into(),
-                    return_type: "String".into(),
+                    name: Name::new("legacyId").unwrap(),
+                    return_type: Name::new("String").unwrap(),
                     description: None,
                     is_deprecated: true,
                     deprecation_reason: None,
@@ -356,7 +412,7 @@ mod tests {
         };
         let mut out = String::new();
         format_expanded_compact(&mut out, &expanded);
-        assert!(out.contains("id:d!"));
+        assert!(out.contains("id:d"));
         assert!(out.contains("~legacyId:s"));
     }
 }

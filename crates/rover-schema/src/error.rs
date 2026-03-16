@@ -1,16 +1,15 @@
+use apollo_compiler::Name;
+use apollo_compiler::coordinate::SchemaCoordinate;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SchemaError {
-    #[error("Failed to parse schema: {0}")]
-    ParseError(String),
-
     #[error("Type not found: {0}")]
-    TypeNotFound(String),
+    TypeNotFound(Name),
 
     #[error("Field '{field}' not found on type '{type_name}'")]
-    FieldNotFound { type_name: String, field: String },
+    FieldNotFound { type_name: Name, field: Name },
 
     #[error("Invalid coordinate: {0}")]
-    InvalidCoordinate(String),
+    InvalidCoordinate(SchemaCoordinate),
 }
