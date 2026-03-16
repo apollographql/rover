@@ -456,8 +456,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref =
-        GraphRef::new("test-graph-id", Some("current")).unwrap();
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process the .env.template file
     // Use unified template processing instead of removed method
@@ -550,8 +549,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref =
-        GraphRef::new("test-graph-id", Some("current")).unwrap();
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process the .env.template file
     // Use unified template processing instead of removed method
@@ -634,8 +632,7 @@ fn test_mcp_env_no_file_processing() {
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref =
-        GraphRef::new("test-graph-id", Some("current")).unwrap();
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process should succeed even with no .env.template file
     // Test that template processing works (no actual file processing needed for this test)
@@ -726,9 +723,7 @@ fn test_mcp_creation_confirmed_has_complete_interface() {
     // 3. Verify MCP-specific interface exists (compilation test)
     // The fact that this compiles proves the interface exists and follows type safety
     let api_key = "test-key";
-    let graph_ref =
-        rover_studio::types::GraphRef::new("test", Some("current"))
-            .unwrap();
+    let graph_ref = rover_studio::types::GraphRef::new("test", Some("current")).unwrap();
 
     // This line verifies that MCPCreationConfirmed has the MCP-specific method
     // (will fail compilation if method doesn't exist or has wrong signature)
