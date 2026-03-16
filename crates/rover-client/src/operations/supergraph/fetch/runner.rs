@@ -3,10 +3,10 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::supergraph::fetch::SupergraphFetchInput,
     shared::{FetchResponse, Sdl, SdlType},
-    RoverClientError,
 };
 
 // I'm not sure where this should live long-term
@@ -213,9 +213,6 @@ mod tests {
     }
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap()
     }
 }
