@@ -23,8 +23,9 @@ pub struct CheckWorkflowInput {
 
 impl From<CheckWorkflowInput> for QueryVariables {
     fn from(input: CheckWorkflowInput) -> Self {
+        let (name, _variant) = input.graph_ref.dissolve();
         Self {
-            graph_id: input.graph_ref.name().to_string(),
+            graph_id: name.into_owned(),
             workflow_id: input.workflow_id,
         }
     }

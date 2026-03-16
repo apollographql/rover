@@ -44,9 +44,10 @@ pub struct SubgraphPublishResponse {
 
 impl From<SubgraphPublishInput> for MutationVariables {
     fn from(publish_input: SubgraphPublishInput) -> Self {
+        let (name, variant) = publish_input.graph_ref.dissolve();
         Self {
-            graph_id: publish_input.graph_ref.name().to_string(),
-            variant: publish_input.graph_ref.variant().to_string(),
+            graph_id: name.into_owned(),
+            variant: variant.into_owned(),
             subgraph: publish_input.subgraph,
             url: publish_input.url,
             schema: SchemaInput {

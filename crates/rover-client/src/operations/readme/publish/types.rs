@@ -13,9 +13,10 @@ pub struct ReadmePublishInput {
 
 impl From<ReadmePublishInput> for QueryVariables {
     fn from(input: ReadmePublishInput) -> Self {
+        let (name, variant) = input.graph_ref.dissolve();
         Self {
-            graph_id: input.graph_ref.name().to_string(),
-            variant: input.graph_ref.variant().to_string(),
+            graph_id: name.into_owned(),
+            variant: variant.into_owned(),
             readme: input.readme,
         }
     }

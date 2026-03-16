@@ -21,12 +21,13 @@ pub struct CheckSchemaAsyncInput {
 
 impl From<CheckSchemaAsyncInput> for MutationVariables {
     fn from(input: CheckSchemaAsyncInput) -> Self {
-        let graph_ref = input.graph_ref.clone();
+        let graph_ref_str = input.graph_ref.to_string();
+        let (name, variant) = input.graph_ref.dissolve();
         Self {
-            graph_id: input.graph_ref.name().to_string(),
-            name: input.graph_ref.variant().to_string(),
+            graph_id: name.into_owned(),
+            name: variant.into_owned(),
             input: MutationInput {
-                graph_ref: Some(graph_ref.to_string()),
+                graph_ref: Some(graph_ref_str),
                 proposed_schema_document: Some(input.proposed_schema),
                 git_context: input.git_context.into(),
                 config: input.config.into(),

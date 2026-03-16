@@ -85,7 +85,7 @@ impl Publish {
         let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {
                 let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client).await?;
-                (graph_ref.name().clone(), persisted_query_list.id, persisted_query_list.name)
+                (graph_ref.name().to_string(), persisted_query_list.id, persisted_query_list.name)
             },
             (None, Some(graph_id), Some(list_id)) => {
                 let list_name = name::run(PersistedQueryListNameInput { graph_id: graph_id.clone(), list_id: list_id.clone() }, &client).await?.name;

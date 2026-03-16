@@ -31,9 +31,10 @@ pub struct SubgraphDeleteResponse {
 
 impl From<SubgraphDeleteInput> for MutationVariables {
     fn from(input: SubgraphDeleteInput) -> Self {
+        let (name, variant) = input.graph_ref.dissolve();
         Self {
-            graph_id: input.graph_ref.name().to_string(),
-            variant: input.graph_ref.variant().to_string(),
+            graph_id: name.into_owned(),
+            variant: variant.into_owned(),
             subgraph: input.subgraph,
             dry_run: input.dry_run,
         }

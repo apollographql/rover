@@ -25,8 +25,9 @@ pub struct LintSubgraphMutationInput {
 
 impl From<LintSubgraphMutationInput> for LintQueryVariables {
     fn from(input: LintSubgraphMutationInput) -> Self {
+        let (name, _variant) = input.graph_ref.dissolve();
         Self {
-            graph_id: input.graph_ref.name().to_string(),
+            graph_id: name.into_owned(),
             sdl: input.proposed_schema,
             base_sdl: input.base_schema,
         }

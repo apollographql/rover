@@ -77,7 +77,7 @@ fn get_supergraph_sdl_from_response_data(
             valid_variants.push(variant.name)
         }
 
-        if !valid_variants.contains(graph_ref.variant()) {
+        if !valid_variants.iter().any(|v| v.as_str() == graph_ref.variant().as_ref()) {
             Err(RoverClientError::NoSchemaForVariant {
                 graph_ref,
                 valid_variants,
