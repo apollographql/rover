@@ -24,6 +24,7 @@ use rover_client::{
         CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
     },
 };
+use rover_schema::parsed_schema::ExtendedType;
 use rover_std::Style;
 use rover_studio::types::GraphRef;
 use serde_json::{Value, json};
@@ -53,14 +54,8 @@ pub trait CliOutput: Debug + Send {
     /// Human-readable, multi-line description format (default for TTY).
     fn text(&self) -> String;
 
-    /// Token-efficient compact notation (default when piped).
-    /// Defaults to [`text`](Self::text) if not overridden.
-    fn compact(&self) -> String {
-        self.text()
-    }
-
     /// Structured JSON output.
-    fn json(&self) -> serde_json::Value;
+    fn json(&self) -> Result<serde_json::Value, serde_json::Error>;
 }
 
 /// RoverOutput defines all of the different types of data that are printed
@@ -131,10 +126,6 @@ pub enum RoverOutput {
     LicenseResponse {
         graph_id: String,
         jwt: String,
-    },
-    DescribeResponse {
-        content: String,
-        json_data: serde_json::Value,
     },
     EmptySuccess,
     CloudConfigFetchResponse {
@@ -551,7 +542,6 @@ impl RoverOutput {
                 stderrln!("Success!")?;
                 Some(jwt.to_string())
             }
-            RoverOutput::DescribeResponse { content, .. } => Some(content.clone()),
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
@@ -704,7 +694,7 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
-            RoverOutput::DescribeResponse { json_data, .. } => json_data.clone(),
+            RoverOutput::SchemaDescribeResponse { json_data, .. } => json_data.clone(),
             RoverOutput::EmptySuccess => json!(null),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
@@ -844,7 +834,7 @@ impl RoverOutput {
             RoverOutput::Introspection(_) => Some("Introspection Response"),
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
-            RoverOutput::DescribeResponse { .. } => None,
+            RoverOutput::SchemaDescribeResponse { .. } => None,
             _ => None,
         }
     }
