@@ -1,7 +1,6 @@
-use crate::{
-    operations::persisted_queries::resolve::runner::resolve_persisted_query_list_query,
-    shared::GraphRef,
-};
+use rover_studio::types::GraphRef;
+
+use crate::operations::persisted_queries::resolve::runner::resolve_persisted_query_list_query;
 
 type QueryVariables = resolve_persisted_query_list_query::Variables;
 
@@ -13,8 +12,8 @@ pub struct ResolvePersistedQueryListInput {
 impl From<ResolvePersistedQueryListInput> for QueryVariables {
     fn from(input: ResolvePersistedQueryListInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            variant: input.graph_ref.variant().to_string(),
         }
     }
 }

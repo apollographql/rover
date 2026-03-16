@@ -1,4 +1,6 @@
-use crate::{operations::graph::delete::runner::graph_delete_mutation, shared::GraphRef};
+use rover_studio::types::GraphRef;
+
+use crate::operations::graph::delete::runner::graph_delete_mutation;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GraphDeleteInput {
@@ -9,8 +11,8 @@ type MutationVariables = graph_delete_mutation::Variables;
 impl From<GraphDeleteInput> for MutationVariables {
     fn from(input: GraphDeleteInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            variant: input.graph_ref.variant().to_string(),
         }
     }
 }

@@ -1,8 +1,8 @@
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
-    blocking::StudioClient, operations::config::is_federated::IsFederatedInput, shared::GraphRef,
-    RoverClientError,
+    RoverClientError, blocking::StudioClient, operations::config::is_federated::IsFederatedInput,
 };
 
 #[derive(GraphQLQuery)]

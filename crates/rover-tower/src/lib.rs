@@ -6,7 +6,7 @@ pub mod service;
 #[cfg(any(test, feature = "test"))]
 pub mod test;
 
-pub type ResponseFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
+pub type ResponseFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 #[macro_export]
 macro_rules! default_poll_ready {

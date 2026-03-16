@@ -1,4 +1,4 @@
-use crate::{operations::subgraph::list::runner::subgraph_list_query, shared::GraphRef};
+use crate::operations::subgraph::list::runner::subgraph_list_query;
 
 pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryGraphVariantSubgraphs;
 pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;
@@ -6,6 +6,7 @@ pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;
 type QueryVariables = subgraph_list_query::Variables;
 
 use chrono::{DateTime, Local, Utc};
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -16,8 +17,8 @@ pub struct SubgraphListInput {
 impl From<SubgraphListInput> for QueryVariables {
     fn from(input: SubgraphListInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            variant: input.graph_ref.variant().to_string(),
         }
     }
 }

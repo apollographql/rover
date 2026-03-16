@@ -1,7 +1,8 @@
 use graphql_client::*;
+use rover_studio::types::InvalidGraphRef;
 
 use super::types::*;
-use crate::{blocking::StudioClient, RoverClientError};
+use crate::{RoverClientError, blocking::StudioClient};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -49,7 +50,7 @@ fn get_routing_url_from_response_data(
                     })
                 }
             }
-            _ => Err(RoverClientError::InvalidGraphRef),
+            _ => Err(RoverClientError::InvalidGraphRef(InvalidGraphRef)),
         }
     } else {
         Err(RoverClientError::GraphNotFound {
@@ -60,10 +61,10 @@ fn get_routing_url_from_response_data(
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     #[test]
     fn get_routing_url_from_response_data_works() {
@@ -99,18 +100,17 @@ mod tests {
         let data: SubgraphRoutingUrlResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_routing_url_from_response_data(mock_input(), data);
 
-        assert!(output
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("You cannot publish a new subgraph without specifying a routing URL."));
+        assert!(
+            output
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("You cannot publish a new subgraph without specifying a routing URL.")
+        );
     }
 
     fn mock_input() -> SubgraphRoutingUrlInput {
-        let graph_ref = GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        };
+        let graph_ref = GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap();
 
         let subgraph_name = "products".to_string();
 

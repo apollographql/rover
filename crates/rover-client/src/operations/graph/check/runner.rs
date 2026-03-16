@@ -1,6 +1,8 @@
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::graph::check::{
         runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{
@@ -9,8 +11,7 @@ use crate::{
         },
         types::{CheckSchemaAsyncInput, MutationResponseData},
     },
-    shared::{CheckRequestSuccessResult, GraphRef},
-    RoverClientError,
+    shared::CheckRequestSuccessResult,
 };
 
 #[derive(GraphQLQuery)]

@@ -1,6 +1,8 @@
+use rover_studio::types::GraphRef;
+
 use crate::{
     operations::graph::check::runner::graph_check_mutation,
-    shared::{CheckConfig, GitContext, GraphRef},
+    shared::{CheckConfig, GitContext},
 };
 
 type MutationInput = graph_check_mutation::CheckSchemaAsyncInput;
@@ -21,8 +23,8 @@ impl From<CheckSchemaAsyncInput> for MutationVariables {
     fn from(input: CheckSchemaAsyncInput) -> Self {
         let graph_ref = input.graph_ref.clone();
         Self {
-            graph_id: input.graph_ref.name,
-            name: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            name: input.graph_ref.variant().to_string(),
             input: MutationInput {
                 graph_ref: Some(graph_ref.to_string()),
                 proposed_schema_document: Some(input.proposed_schema),

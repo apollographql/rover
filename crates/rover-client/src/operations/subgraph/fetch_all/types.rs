@@ -1,8 +1,7 @@
 use apollo_federation_types::config::FederationVersion;
 use buildstructor::Builder;
 use derive_getters::Getters;
-
-use crate::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphFetchAllInput {

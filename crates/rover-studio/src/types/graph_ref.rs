@@ -3,17 +3,24 @@ use std::{fmt, str::FromStr};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::RoverClientError;
+/// Error resulting from the invalid construction of a GraphRef
+#[derive(thiserror::Error, Debug)]
+#[error(
+    "Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."
+)]
+pub struct InvalidGraphRef;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+/// Represents a GraphOS GraphRef
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq, derive_getters::Getters)]
 pub struct GraphRef {
-    pub name: String,
-    pub variant: String,
+    name: String,
+    variant: String,
 }
 
 impl GraphRef {
-    pub fn new(name: String, variant: Option<String>) -> Result<Self, RoverClientError> {
-        let mut s = name;
+    /// Creates a new GraphRef from graph_id and variant
+    pub fn new(graph_id: String, variant: Option<String>) -> Result<Self, InvalidGraphRef> {
+        let mut s = graph_id;
         if let Some(variant) = variant {
             s.push('@');
             s.push_str(&variant);
@@ -29,7 +36,7 @@ impl fmt::Display for GraphRef {
 }
 
 impl FromStr for GraphRef {
-    type Err = RoverClientError;
+    type Err = InvalidGraphRef;
 
     /// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING
     /// WILL HAPPEN IN THE BACKEND TO KEEP EVERYTHING CONSISTENT. THIS IS AN
@@ -55,7 +62,7 @@ impl FromStr for GraphRef {
                 variant: variant.to_string(),
             })
         } else {
-            Err(RoverClientError::InvalidGraphRef)
+            Err(InvalidGraphRef)
         }
     }
 }
@@ -69,20 +76,26 @@ mod tests {
     #[test]
     fn from_str_works() {
         assert!(GraphRef::from_str("engine#%^").is_err());
-        assert!(GraphRef::from_str(
-            "1234567890123456789012345678901234567890123456789012345678901234567890"
-        )
-        .is_err());
+        assert!(
+            GraphRef::from_str(
+                "1234567890123456789012345678901234567890123456789012345678901234567890"
+            )
+            .is_err()
+        );
         assert!(GraphRef::from_str("1boi").is_err());
         assert!(GraphRef::from_str("_eng").is_err());
-        assert!(GraphRef::from_str(
-            "engine@1234567890123456789012345678901234567890123456789012345678901234567890"
-        )
-        .is_err());
-        assert!(GraphRef::from_str(
-            "engine1234567890123456789012345678901234567890123456789012345678901234567890@prod"
-        )
-        .is_err());
+        assert!(
+            GraphRef::from_str(
+                "engine@1234567890123456789012345678901234567890123456789012345678901234567890"
+            )
+            .is_err()
+        );
+        assert!(
+            GraphRef::from_str(
+                "engine1234567890123456789012345678901234567890123456789012345678901234567890@prod"
+            )
+            .is_err()
+        );
 
         assert_eq!(
             GraphRef::from_str("engine@okay").unwrap(),

@@ -1,7 +1,8 @@
 use std::fmt::{Debug, Display, Formatter, Result};
 
+use rover_studio::types::GraphRef;
+
 use super::runner::lint_subgraph_mutation;
-use crate::shared::GraphRef;
 
 pub(crate) type LintQueryVariables = lint_subgraph_mutation::Variables;
 pub(crate) type LintResponseData = lint_subgraph_mutation::ResponseData;
@@ -25,7 +26,7 @@ pub struct LintSubgraphMutationInput {
 impl From<LintSubgraphMutationInput> for LintQueryVariables {
     fn from(input: LintSubgraphMutationInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
+            graph_id: input.graph_ref.name().to_string(),
             sdl: input.proposed_schema,
             base_sdl: input.base_schema,
         }

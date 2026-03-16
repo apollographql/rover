@@ -1,4 +1,6 @@
-use crate::{operations::graph::variant::runner::variant_list_query, shared::GraphRef};
+use rover_studio::types::GraphRef;
+
+use crate::operations::graph::variant::runner::variant_list_query;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct VariantListInput {
@@ -9,7 +11,7 @@ type MutationVariables = variant_list_query::Variables;
 impl From<VariantListInput> for MutationVariables {
     fn from(input: VariantListInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
+            graph_id: input.graph_ref.name().to_string(),
         }
     }
 }

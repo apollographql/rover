@@ -1,17 +1,14 @@
-use crate::{operations::supergraph::fetch::runner::supergraph_fetch_query, shared::GraphRef};
+use rover_studio::types::GraphRef;
 
-type QueryVariables = supergraph_fetch_query::Variables;
+use super::service::SupergraphFetchRequest;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SupergraphFetchInput {
     pub graph_ref: GraphRef,
 }
 
-impl From<SupergraphFetchInput> for QueryVariables {
+impl From<SupergraphFetchInput> for SupergraphFetchRequest {
     fn from(input: SupergraphFetchInput) -> Self {
-        Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
-        }
+        Self::from(input.graph_ref)
     }
 }

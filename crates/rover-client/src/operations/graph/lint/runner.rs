@@ -1,16 +1,17 @@
 use std::fmt;
 
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::graph::{
         fetch,
         fetch::GraphFetchInput,
         lint::types::{LintGraphInput, LintGraphMutationInput, LintResponseData},
     },
-    shared::{Diagnostic, GraphRef, LintResponse},
-    RoverClientError,
+    shared::{Diagnostic, LintResponse},
 };
 
 #[derive(GraphQLQuery)]

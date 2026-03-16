@@ -1,8 +1,10 @@
 use std::fmt;
 
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::{
         config::is_federated::{self, IsFederatedInput},
@@ -12,8 +14,7 @@ use crate::{
             lint::types::{LintResponseData, LintSubgraphInput, LintSubgraphMutationInput},
         },
     },
-    shared::{Diagnostic, GraphRef, LintResponse},
-    RoverClientError,
+    shared::{Diagnostic, LintResponse},
 };
 
 #[derive(GraphQLQuery)]

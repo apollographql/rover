@@ -1,7 +1,8 @@
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use super::types::{CloudConfigFetchInput, CloudConfigFetchResponse};
-use crate::{blocking::StudioClient, shared::GraphRef, RoverClientError};
+use crate::{RoverClientError, blocking::StudioClient};
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -50,16 +51,13 @@ fn build_response(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph".to_string(), Some("current".to_string())).unwrap()
     }
 
     #[test]

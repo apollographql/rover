@@ -1,5 +1,6 @@
+use rover_studio::types::GraphRef;
+
 use super::runner::subgraph_routing_url_query;
-use crate::shared::GraphRef;
 
 pub(crate) type SubgraphRoutingUrlResponseData = subgraph_routing_url_query::ResponseData;
 pub(crate) type SubgraphRoutingUrlGraphVariant =

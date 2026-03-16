@@ -1,10 +1,9 @@
-use crate::{
-    operations::cloud::config::{
-        fetch::cloud_config_fetch_query,
-        update::cloud_config_update_query,
-        validate::cloud_config_validate_query::{self, RouterConfigInput},
-    },
-    shared::GraphRef,
+use rover_studio::types::GraphRef;
+
+use crate::operations::cloud::config::{
+    fetch::cloud_config_fetch_query,
+    update::cloud_config_update_query,
+    validate::cloud_config_validate_query::{self, RouterConfigInput},
 };
 
 type FetchQueryVariables = cloud_config_fetch_query::Variables;
@@ -19,8 +18,8 @@ pub struct CloudConfigFetchInput {
 impl From<CloudConfigFetchInput> for FetchQueryVariables {
     fn from(input: CloudConfigFetchInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            variant: input.graph_ref.variant().to_string(),
         }
     }
 }
@@ -40,8 +39,8 @@ pub struct CloudConfigInput {
 impl From<CloudConfigInput> for UpdateQueryVariables {
     fn from(input: CloudConfigInput) -> Self {
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id: input.graph_ref.name().to_string(),
+            variant: input.graph_ref.variant().to_string(),
             config: input.config,
         }
     }
