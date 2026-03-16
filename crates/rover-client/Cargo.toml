@@ -45,7 +45,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
-regex = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
 url = { workspace = true }
 
