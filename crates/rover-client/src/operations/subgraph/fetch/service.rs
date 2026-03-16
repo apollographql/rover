@@ -7,8 +7,8 @@ use rover_studio::types::{GraphRef, InvalidGraphRef};
 use tower::Service;
 
 use crate::{
-    RoverClientError,
     shared::{FetchResponse, Sdl, SdlType},
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

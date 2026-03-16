@@ -2,7 +2,7 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use super::types::{CloudConfigFetchInput, CloudConfigFetchResponse};
-use crate::{RoverClientError, blocking::StudioClient};
+use crate::{blocking::StudioClient, RoverClientError};
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

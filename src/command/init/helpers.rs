@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
-use rover_studio::types::GraphRef;
 use rover_std::{Style, hyperlink};
+use rover_studio::types::GraphRef;
 
 use crate::{
     RoverResult,

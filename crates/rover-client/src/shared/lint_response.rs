@@ -6,7 +6,7 @@ use std::{
 use ariadne::{Color, ColorGenerator, Label, Report, ReportKind, Source};
 use rover_std::is_no_color_set;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 /// Convert UTF-8 byte offsets to unicode scalar value offsets as in the `str::chars()` iterator.
 struct OffsetMapper {

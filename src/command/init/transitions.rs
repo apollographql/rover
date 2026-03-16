@@ -7,8 +7,8 @@ use rover_client::{
     RoverClientError,
     operations::init::{create_graph::*, memberships},
 };
-use rover_studio::types::GraphRef;
 use rover_std::{Spinner, Style, errln};
+use rover_studio::types::GraphRef;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
@@ -461,8 +461,11 @@ impl CreationConfirmed {
         let artifacts = self.selected_template.list_files()?;
 
         let subgraphs = supergraph.generate_subgraphs()?;
-        let graph_ref = GraphRef::new(create_graph_response.id.clone(), Some(DEFAULT_VARIANT.to_string()))
-            .expect("graph ref should be valid");
+        let graph_ref = GraphRef::new(
+            create_graph_response.id.clone(),
+            Some(DEFAULT_VARIANT.to_string()),
+        )
+        .expect("graph ref should be valid");
 
         // Publish subgraphs to Studio (including connector schemas for MCP projects)
         publish_subgraphs(&client, &self.output_path, &graph_ref, subgraphs).await?;
@@ -1126,8 +1129,11 @@ impl MCPCreationConfirmed {
         )
         .await?;
 
-        let graph_ref = GraphRef::new(create_graph_response.id.clone(), Some(DEFAULT_VARIANT.to_string()))
-            .expect("graph ref should be valid");
+        let graph_ref = GraphRef::new(
+            create_graph_response.id.clone(),
+            Some(DEFAULT_VARIANT.to_string()),
+        )
+        .expect("graph ref should be valid");
 
         // Process ALL template placeholders in merged files (including add-MCP files)
         let mut processed_files = HashMap::new();

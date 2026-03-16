@@ -21,12 +21,11 @@ use rover_client::{
         },
     },
     shared::{
-        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse,
-        SdlType,
+        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
     },
 };
-use rover_studio::types::GraphRef;
 use rover_std::Style;
+use rover_studio::types::GraphRef;
 use serde_json::{Value, json};
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
@@ -397,7 +396,9 @@ impl RoverOutput {
                 }
                 Some(format!(
                     "{}\n View full details at {}/graph/{}/service-list",
-                    table, details.root_url, details.graph_ref.name()
+                    table,
+                    details.root_url,
+                    details.graph_ref.name()
                 ))
             }
             RoverOutput::TemplateList(templates) => {
@@ -947,8 +948,7 @@ mod tests {
                 },
             ],
             root_url: "https://studio.apollographql.com/".to_string(),
-            graph_ref: GraphRef::new("graph".to_string(), Some("current".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("graph".to_string(), Some("current".to_string())).unwrap(),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphList(mock_subgraph_list_response).into();
         let expected_json = json!(
@@ -990,8 +990,7 @@ mod tests {
             delete_response: mock_subgraph_delete,
             subgraph: "subgraph".to_string(),
             dry_run: false,
-            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string())).unwrap(),
         }
         .into();
         let expected_json = json!(
@@ -1030,8 +1029,7 @@ mod tests {
             delete_response: mock_subgraph_delete,
             subgraph: "subgraph".to_string(),
             dry_run: true,
-            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string())).unwrap(),
         }
         .into();
         let expected_json = json!(
@@ -1493,8 +1491,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             },
         };
         let actual_json: JsonOutput = RoverOutput::GraphPublishResponse {
-            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap(),
             publish_response: mock_publish_response,
         }
         .into();
@@ -1534,8 +1531,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             ),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
-            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
         }
@@ -1584,8 +1580,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             launch_cli_copy: None,
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
-            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("name".to_string(), Some("current".to_string())).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
         }
@@ -1640,8 +1635,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             launch_cli_copy: None,
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
-            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string()))
-                .unwrap(),
+            graph_ref: GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
         }

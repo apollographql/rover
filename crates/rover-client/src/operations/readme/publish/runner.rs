@@ -3,7 +3,7 @@ use rover_studio::types::GraphRef;
 
 use super::types::*;
 use crate::{
-    RoverClientError, blocking::StudioClient, operations::readme::publish::ReadmePublishInput,
+    blocking::StudioClient, operations::readme::publish::ReadmePublishInput, RoverClientError,
 };
 
 type Timestamp = String;

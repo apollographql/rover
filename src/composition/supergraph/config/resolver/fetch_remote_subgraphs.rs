@@ -11,9 +11,9 @@ use rover_client::{
         SubgraphFetchAll, SubgraphFetchAllRequest, SubgraphFetchAllResponse,
     },
 };
-use rover_studio::types::GraphRef;
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::HttpService;
+use rover_studio::types::GraphRef;
 use tower::{Service, ServiceBuilder};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};

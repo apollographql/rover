@@ -4,8 +4,8 @@ use std::{
 };
 
 use camino::Utf8PathBuf;
-use rover_studio::types::GraphRef;
 use rover_std::Style;
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 use crate::utils::env::RoverEnvKey;

@@ -3,19 +3,19 @@ use std::{str::FromStr, time::Duration};
 use graphql_client::GraphQLQuery;
 use houston::{Credential, CredentialOrigin};
 use reqwest::{
-    Client as ReqwestClient,
     header::{HeaderMap, HeaderValue},
+    Client as ReqwestClient,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::{HttpService, ReqwestService, retry::RetryPolicy};
+use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
 use rover_studio::service::{HttpStudioServiceError, HttpStudioServiceLayer};
-use tower::{ServiceBuilder, ServiceExt, retry::RetryLayer, util::BoxCloneServiceLayer};
+use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
 use url::Url;
 
 use crate::{
-    RoverClientError,
-    blocking::{CLIENT_NAME, GraphQLClient},
+    blocking::{GraphQLClient, CLIENT_NAME},
     error::EndpointKind,
+    RoverClientError,
 };
 
 #[derive(thiserror::Error, Debug)]

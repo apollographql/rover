@@ -1,7 +1,7 @@
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
-use crate::{RoverClientError, blocking::StudioClient, operations::contract::describe::types::*};
+use crate::{blocking::StudioClient, operations::contract::describe::types::*, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

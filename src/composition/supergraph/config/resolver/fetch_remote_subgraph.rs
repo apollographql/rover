@@ -10,8 +10,8 @@ use rover_client::{
     operations::subgraph::fetch::{SubgraphFetch, SubgraphFetchRequest},
     shared::{FetchResponse, SdlType},
 };
-use rover_studio::types::GraphRef;
 use rover_graphql::GraphQLLayer;
+use rover_studio::types::GraphRef;
 use tower::{Service, ServiceBuilder, ServiceExt, util::BoxCloneService};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};

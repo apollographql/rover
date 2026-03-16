@@ -143,7 +143,8 @@ fn test_mcp_success_with_empty_commands() {
         },
         artifacts: vec![Utf8PathBuf::from("claude_desktop_config.json")],
         api_key: "service:empty-cmd-graph:def456".to_string(), // gitleaks:allow
-        graph_ref: GraphRef::new("empty-cmd-graph".to_string(), Some("current".to_string())).unwrap(),
+        graph_ref: GraphRef::new("empty-cmd-graph".to_string(), Some("current".to_string()))
+            .unwrap(),
         template: base_template,
     };
 

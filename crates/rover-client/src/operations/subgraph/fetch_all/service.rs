@@ -6,7 +6,7 @@ use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_studio::types::{GraphRef, InvalidGraphRef};
 use tower::Service;
 
-use super::{SubgraphFetchAllResponse, types::Subgraph};
+use super::{types::Subgraph, SubgraphFetchAllResponse};
 use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
@@ -256,7 +256,7 @@ mod tests {
     use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
     use semver::Version;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
 
     use super::*;
 

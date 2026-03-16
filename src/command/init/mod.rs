@@ -589,8 +589,8 @@ impl Init {
             subgraph::list::{self as list_subgraphs, SubgraphListInput},
             supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput},
         };
-        use rover_studio::types::GraphRef;
         use rover_std::{Style, hyperlink};
+        use rover_studio::types::GraphRef;
 
         use crate::command::init::authentication::{
             AuthenticationError, auth_error_to_rover_error,

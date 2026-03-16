@@ -4,7 +4,6 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
-    RoverClientError,
     blocking::StudioClient,
     operations::graph::{
         fetch,
@@ -12,6 +11,7 @@ use crate::{
         lint::types::{LintGraphInput, LintGraphMutationInput, LintResponseData},
     },
     shared::{Diagnostic, LintResponse},
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

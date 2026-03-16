@@ -1,7 +1,7 @@
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
-use crate::{RoverClientError, blocking::StudioClient, operations::subgraph::list::types::*};
+use crate::{blocking::StudioClient, operations::subgraph::list::types::*, RoverClientError};
 
 type Timestamp = String;
 
