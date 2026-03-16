@@ -21,10 +21,10 @@ pub struct ContractPublishInput {
 
 impl From<ContractPublishInput> for MutationVariables {
     fn from(input: ContractPublishInput) -> Self {
-        let (name, variant) = input.graph_ref.dissolve();
+        let (name, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
-            variant: variant.into_owned(),
+            graph_id: name,
+            variant: variant,
             source_variant: input.source_variant,
             include: input.include_tags,
             exclude: input.exclude_tags,

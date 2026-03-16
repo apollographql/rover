@@ -11,16 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct InvalidGraphRef;
 
 /// Represents a GraphOS GraphRef
-#[derive(
-    Debug,
-    Deserialize,
-    Serialize,
-    Clone,
-    Eq,
-    PartialEq,
-    derive_getters::Getters,
-    derive_getters::Dissolve,
-)]
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq, derive_getters::Getters)]
 pub struct GraphRef {
     name: Cow<'static, str>,
     variant: Cow<'static, str>,
@@ -39,6 +30,11 @@ impl GraphRef {
         };
         Self::from_str(&s)
     }
+
+    /// Consumes the GraphRef and returns `(name, variant)` as owned Strings.
+    pub fn into_parts(self) -> (String, String) {
+        (self.name.into_owned(), self.variant.into_owned())
+    }
 }
 
 impl fmt::Display for GraphRef {
@@ -50,6 +46,9 @@ impl fmt::Display for GraphRef {
 impl FromStr for GraphRef {
     type Err = InvalidGraphRef;
 
+    /// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING
+    /// WILL HAPPEN IN THE BACKEND TO KEEP EVERYTHING CONSISTENT. THIS IS AN
+    /// INCOMPLETE PLACEHOLDER, AND MAY NOT COVER EVERY SINGLE VALID USE CASE
     fn from_str(graph_id: &str) -> Result<Self, Self::Err> {
         let pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$").unwrap();
         let variant_pattern = Regex::new(r"^([a-zA-Z][a-zA-Z0-9_-]{0,63})@(.{0,63})$").unwrap();

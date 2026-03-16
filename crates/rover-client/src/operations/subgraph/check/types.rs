@@ -23,10 +23,10 @@ pub struct SubgraphCheckAsyncInput {
 impl From<SubgraphCheckAsyncInput> for MutationVariables {
     fn from(input: SubgraphCheckAsyncInput) -> Self {
         let graph_ref_str = input.graph_ref.to_string();
-        let (name, variant) = input.graph_ref.dissolve();
+        let (name, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
-            name: variant.into_owned(),
+            graph_id: name,
+            name: variant,
             input: MutationInput {
                 graph_ref: Some(graph_ref_str),
                 proposed_schema: input.proposed_schema,

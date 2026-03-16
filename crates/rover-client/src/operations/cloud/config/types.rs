@@ -17,10 +17,10 @@ pub struct CloudConfigFetchInput {
 
 impl From<CloudConfigFetchInput> for FetchQueryVariables {
     fn from(input: CloudConfigFetchInput) -> Self {
-        let (name, variant) = input.graph_ref.dissolve();
+        let (name, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
-            variant: variant.into_owned(),
+            graph_id: name,
+            variant: variant,
         }
     }
 }
@@ -39,10 +39,10 @@ pub struct CloudConfigInput {
 
 impl From<CloudConfigInput> for UpdateQueryVariables {
     fn from(input: CloudConfigInput) -> Self {
-        let (name, variant) = input.graph_ref.dissolve();
+        let (name, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
-            variant: variant.into_owned(),
+            graph_id: name,
+            variant: variant,
             config: input.config,
         }
     }

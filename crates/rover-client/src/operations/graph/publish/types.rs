@@ -15,10 +15,10 @@ pub struct GraphPublishInput {
 type MutationVariables = graph_publish_mutation::Variables;
 impl From<GraphPublishInput> for MutationVariables {
     fn from(input: GraphPublishInput) -> Self {
-        let (name, variant) = input.graph_ref.dissolve();
+        let (name, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
-            variant: variant.into_owned(),
+            graph_id: name,
+            variant: variant,
             proposed_schema: input.proposed_schema,
             git_context: input.git_context.into(),
         }

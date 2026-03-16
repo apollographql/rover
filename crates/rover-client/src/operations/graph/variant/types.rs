@@ -10,9 +10,9 @@ pub struct VariantListInput {
 type MutationVariables = variant_list_query::Variables;
 impl From<VariantListInput> for MutationVariables {
     fn from(input: VariantListInput) -> Self {
-        let (name, _variant) = input.graph_ref.dissolve();
+        let (name, _variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name.into_owned(),
+            graph_id: name,
         }
     }
 }
