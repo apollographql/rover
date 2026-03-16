@@ -3,6 +3,7 @@ use rover_studio::types::GraphRef;
 
 use super::types::{CloudConfigInput, CloudConfigResponse};
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::cloud::config::validate::cloud_config_validate_query::{
         CloudConfigValidateQueryVariant::GraphVariant,
@@ -10,7 +11,6 @@ use crate::{
             CloudValidationSuccess, InternalServerError, InvalidInputErrors,
         },
     },
-    RoverClientError,
 };
 
 #[derive(GraphQLQuery, Debug)]

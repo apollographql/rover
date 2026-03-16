@@ -2,10 +2,10 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::graph::fetch::GraphFetchInput,
     shared::{FetchResponse, Sdl, SdlType},
-    RoverClientError,
 };
 
 // I'm not sure where this should live long-term

@@ -1,7 +1,7 @@
 use graphql_client::*;
 
 use crate::{
-    blocking::StudioClient, operations::graph::variant::VariantListInput, RoverClientError,
+    RoverClientError, blocking::StudioClient, operations::graph::variant::VariantListInput,
 };
 
 #[derive(GraphQLQuery)]

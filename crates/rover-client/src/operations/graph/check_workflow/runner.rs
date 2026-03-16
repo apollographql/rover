@@ -13,13 +13,13 @@ use self::graph_check_workflow_query::{
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
 };
 use crate::{
+    RoverClientError,
     blocking::StudioClient,
     operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
     shared::{
         CheckWorkflowResponse, CustomCheckResponse, Diagnostic, LintCheckResponse,
         OperationCheckResponse, SchemaChange, Violation,
     },
-    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

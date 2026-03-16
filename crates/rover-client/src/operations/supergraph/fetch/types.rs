@@ -1,5 +1,6 @@
-use super::service::SupergraphFetchRequest;
 use rover_studio::types::GraphRef;
+
+use super::service::SupergraphFetchRequest;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SupergraphFetchInput {
