@@ -5,7 +5,7 @@ use crate::RoverError;
 
 use rover_client::operations::subgraph::fetch;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use std::str::FromStr;
 

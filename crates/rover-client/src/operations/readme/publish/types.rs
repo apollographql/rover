@@ -1,4 +1,6 @@
-use crate::{operations::readme::publish::runner::readme_publish_mutation, shared::GraphRef};
+use rover_studio::types::GraphRef;
+
+use crate::operations::readme::publish::runner::readme_publish_mutation;
 
 type QueryVariables = readme_publish_mutation::Variables;
 type Timestamp = String;
@@ -11,9 +13,10 @@ pub struct ReadmePublishInput {
 
 impl From<ReadmePublishInput> for QueryVariables {
     fn from(input: ReadmePublishInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id,
+            variant,
             readme: input.readme,
         }
     }

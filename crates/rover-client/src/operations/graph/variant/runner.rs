@@ -31,7 +31,7 @@ pub async fn run(input: VariantListInput, client: &StudioClient) -> Result<(), R
         valid_variants.push(variant.name)
     }
 
-    if !valid_variants.contains(&graph_ref.variant) {
+    if !valid_variants.contains(graph_ref.variant()) {
         Err(RoverClientError::NoSchemaForVariant {
             graph_ref,
             valid_variants,

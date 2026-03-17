@@ -3,10 +3,12 @@ use std::{
     fmt::{Debug, Display, Formatter, Result},
 };
 
+use rover_studio::types::GraphRef;
+
 use self::graph_check_workflow_query::CheckWorkflowTaskStatus;
 use crate::{
     operations::graph::check_workflow::runner::graph_check_workflow_query,
-    shared::{ChangeSeverity, CheckTaskStatus, GraphRef},
+    shared::{ChangeSeverity, CheckTaskStatus},
 };
 
 type QueryVariables = graph_check_workflow_query::Variables;
@@ -21,8 +23,9 @@ pub struct CheckWorkflowInput {
 
 impl From<CheckWorkflowInput> for QueryVariables {
     fn from(input: CheckWorkflowInput) -> Self {
+        let (graph_id, _variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: input.graph_ref.name,
+            graph_id,
             workflow_id: input.workflow_id,
         }
     }

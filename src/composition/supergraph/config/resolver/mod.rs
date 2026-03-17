@@ -19,7 +19,7 @@ use apollo_federation_types::config::{ConfigError, SchemaSource, SubgraphConfig}
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use tower::{MakeService, Service, ServiceExt};
 use tracing::warn;
 use url::Url;

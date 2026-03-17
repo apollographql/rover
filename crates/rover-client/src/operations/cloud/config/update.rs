@@ -3,11 +3,11 @@ use cloud_config_update_query::{
     CloudConfigUpdateQueryGraphVariantUpsertRouterConfigOnRouterUpsertFailure as OnRouterUpsertFailure,
 };
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
     blocking::StudioClient,
     operations::cloud::config::types::{CloudConfigInput, CloudConfigResponse},
-    shared::GraphRef,
     RoverClientError,
 };
 
@@ -64,16 +64,13 @@ fn build_response(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
     #[test]

@@ -1,4 +1,6 @@
-use crate::{operations::config::is_federated::runner::is_federated_graph, shared::GraphRef};
+use rover_studio::types::GraphRef;
+
+use crate::operations::config::is_federated::runner::is_federated_graph;
 
 type QueryVariables = is_federated_graph::Variables;
 
@@ -9,9 +11,7 @@ pub struct IsFederatedInput {
 
 impl From<IsFederatedInput> for QueryVariables {
     fn from(input: IsFederatedInput) -> Self {
-        Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
-        }
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self { graph_id, variant }
     }
 }

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use crate::command::init::{graph_id::validation::GraphId, options::*, states::*};
 
@@ -80,10 +80,7 @@ RUN echo "Building {{PROJECT_NAME}}"
 
     // Test the template placeholder processing
     let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
-    let test_graph_ref = GraphRef {
-        name: "my-test-graph".to_string(),
-        variant: "current".to_string(),
-    };
+    let test_graph_ref = GraphRef::new("my-test-graph", Some("current")).unwrap();
 
     // Process .env.template content
     let env_content = r#"APOLLO_KEY={{APOLLO_KEY}}
@@ -203,10 +200,7 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
     };
 
     let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
-    let test_graph_ref = GraphRef {
-        name: "my-test-graph".to_string(),
-        variant: "current".to_string(),
-    };
+    let test_graph_ref = GraphRef::new("my-test-graph", Some("current")).unwrap();
 
     // Simulate the file processing logic from create_project()
     let mut processed_files = HashMap::new();

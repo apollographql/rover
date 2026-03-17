@@ -1,7 +1,7 @@
 use std::string::String;
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use crate::command::init::helpers::{generate_project_created_message, get_command};
 
@@ -37,7 +37,7 @@ fn test_display_project_created_message_with_single_command() {
         Utf8PathBuf::from("supergraph.yaml"),
         Utf8PathBuf::from("GETTING_STARTED.md"),
     ];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = &["npm ci"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
@@ -74,7 +74,7 @@ fn test_display_project_created_message_with_single_command() {
 fn test_display_project_created_message_with_multiple_commands() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = &["npm install", "npm run build", "npm start"];
     let commands = Some(commands.iter().map(|&s| s.to_string()).collect::<Vec<_>>());
@@ -107,7 +107,7 @@ fn test_display_project_created_message_with_multiple_commands() {
 fn test_display_project_created_message_with_empty_command_array() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = Some(Vec::new());
     let start_point_file = "GETTING_STARTED.md".to_string();
@@ -134,7 +134,7 @@ fn test_display_project_created_message_with_empty_command_array() {
 fn test_display_project_created_message_without_command() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "GETTING_STARTED.md".to_string();
@@ -168,7 +168,7 @@ fn test_display_project_created_message_without_command() {
 fn test_display_project_created_message_with_empty_artifacts() {
     let project_name = "my-graph".to_string();
     let artifacts: Vec<Utf8PathBuf> = vec![];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "GETTING_STARTED.md".to_string();
@@ -201,7 +201,7 @@ fn test_display_project_created_message_with_empty_artifacts() {
 fn test_display_project_created_message_with_custom_start_point() {
     let project_name = "my-graph".to_string();
     let artifacts = vec![Utf8PathBuf::from("supergraph.yaml")];
-    let graph_ref = GraphRef::new("my-graph".to_string(), Some("main".to_string())).unwrap();
+    let graph_ref = GraphRef::new("my-graph", Some("main")).unwrap();
     let api_key = "test-api-key".to_string();
     let commands = None;
     let start_point_file = "readme.md".to_string();

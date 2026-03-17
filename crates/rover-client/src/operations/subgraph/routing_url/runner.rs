@@ -1,4 +1,5 @@
 use graphql_client::*;
+use rover_studio::types::InvalidGraphRef;
 
 use super::types::*;
 use crate::{blocking::StudioClient, RoverClientError};
@@ -49,7 +50,7 @@ fn get_routing_url_from_response_data(
                     })
                 }
             }
-            _ => Err(RoverClientError::InvalidGraphRef),
+            _ => Err(RoverClientError::InvalidGraphRef(InvalidGraphRef)),
         }
     } else {
         Err(RoverClientError::GraphNotFound {
@@ -60,10 +61,10 @@ fn get_routing_url_from_response_data(
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     #[test]
     fn get_routing_url_from_response_data_works() {
@@ -107,10 +108,7 @@ mod tests {
     }
 
     fn mock_input() -> SubgraphRoutingUrlInput {
-        let graph_ref = GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        };
+        let graph_ref = GraphRef::new("mygraph", Some("current")).unwrap();
 
         let subgraph_name = "products".to_string();
 

@@ -1,4 +1,6 @@
-use crate::{operations::graph::fetch::runner::graph_fetch_query, shared::GraphRef};
+use rover_studio::types::GraphRef;
+
+use crate::operations::graph::fetch::runner::graph_fetch_query;
 
 type QueryVariables = graph_fetch_query::Variables;
 
@@ -9,9 +11,7 @@ pub struct GraphFetchInput {
 
 impl From<GraphFetchInput> for QueryVariables {
     fn from(input: GraphFetchInput) -> Self {
-        Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
-        }
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self { graph_id, variant }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{operations::contract::publish::runner::contract_publish_mutation, shared::GraphRef};
+use crate::operations::contract::publish::runner::contract_publish_mutation;
 
 pub(crate) type MutationContractVariantUpsertResult =
     contract_publish_mutation::ContractPublishMutationGraphUpsertContractVariant;
@@ -6,6 +6,7 @@ pub(crate) type MutationResponseData = contract_publish_mutation::ResponseData;
 
 type MutationVariables = contract_publish_mutation::Variables;
 
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -20,9 +21,10 @@ pub struct ContractPublishInput {
 
 impl From<ContractPublishInput> for MutationVariables {
     fn from(input: ContractPublishInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id,
+            variant,
             source_variant: input.source_variant,
             include: input.include_tags,
             exclude: input.exclude_tags,

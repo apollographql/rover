@@ -1,5 +1,6 @@
 use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use super::types::*;
 use crate::{
@@ -8,7 +9,6 @@ use crate::{
         config::is_federated::{self, IsFederatedInput},
         graph::{variant, variant::VariantListInput},
     },
-    shared::GraphRef,
     RoverClientError,
 };
 

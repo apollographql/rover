@@ -8,10 +8,13 @@ publish = false
 [dependencies]
 bytes = { workspace = true }
 buildstructor = { workspace = true }
+derive-getters = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 houston = { workspace = true }
 rover-http = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
 tower = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

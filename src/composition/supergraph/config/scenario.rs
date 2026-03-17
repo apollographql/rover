@@ -4,7 +4,7 @@ use anyhow::Result;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
 use rand::Rng;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use rstest::fixture;
 use uuid::Uuid;
 

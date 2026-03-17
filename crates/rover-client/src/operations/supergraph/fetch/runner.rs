@@ -1,10 +1,11 @@
 use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
     blocking::StudioClient,
     operations::supergraph::fetch::SupergraphFetchInput,
-    shared::{FetchResponse, GraphRef, Sdl, SdlType},
+    shared::{FetchResponse, Sdl, SdlType},
     RoverClientError,
 };
 
@@ -76,7 +77,7 @@ fn get_supergraph_sdl_from_response_data(
             valid_variants.push(variant.name)
         }
 
-        if !valid_variants.contains(&graph_ref.variant) {
+        if !valid_variants.contains(&graph_ref.variant().to_string()) {
             Err(RoverClientError::NoSchemaForVariant {
                 graph_ref,
                 valid_variants,
@@ -212,9 +213,6 @@ mod tests {
     }
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 }

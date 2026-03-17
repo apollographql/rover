@@ -3,10 +3,11 @@ use std::{fmt, future::Future, pin::Pin};
 use buildstructor::Builder;
 use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use rover_studio::types::{GraphRef, InvalidGraphRef};
 use tower::Service;
 
 use crate::{
-    shared::{FetchResponse, GraphRef, Sdl, SdlType},
+    shared::{FetchResponse, Sdl, SdlType},
     RoverClientError,
 };
 
@@ -146,7 +147,7 @@ fn get_subgraph_from_response_data(
                     })
                 }
             }
-            _ => Err(RoverClientError::InvalidGraphRef),
+            _ => Err(RoverClientError::InvalidGraphRef(InvalidGraphRef)),
         }
     } else {
         Err(RoverClientError::GraphNotFound { graph_ref })
@@ -155,11 +156,11 @@ fn get_subgraph_from_response_data(
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     #[rstest]
     fn get_services_from_response_data_works(subgraph_name: String, graph_ref: GraphRef) {
@@ -226,10 +227,7 @@ mod tests {
 
     #[fixture]
     fn graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
     #[fixture]

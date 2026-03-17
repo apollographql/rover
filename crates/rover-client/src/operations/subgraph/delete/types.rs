@@ -1,9 +1,10 @@
-use crate::{operations::subgraph::delete::runner::subgraph_delete_mutation, shared::GraphRef};
+use crate::operations::subgraph::delete::runner::subgraph_delete_mutation;
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
 
 use apollo_federation_types::rover::BuildErrors;
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 #[cfg(test)]
@@ -30,9 +31,10 @@ pub struct SubgraphDeleteResponse {
 
 impl From<SubgraphDeleteInput> for MutationVariables {
     fn from(input: SubgraphDeleteInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id,
+            variant,
             subgraph: input.subgraph,
             dry_run: input.dry_run,
         }

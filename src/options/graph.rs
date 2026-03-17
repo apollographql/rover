@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
