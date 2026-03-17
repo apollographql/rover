@@ -35,6 +35,8 @@ items:
         href: ./commands/dev
       - label: explain
         href: ./commands/explain
+      - label: install
+        href: ./commands/install
       - label: graph
         href: ./commands/graphs
       - label: init

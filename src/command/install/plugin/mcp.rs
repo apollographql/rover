@@ -58,3 +58,65 @@ impl FromStr for Version {
             .map_err(|_| PluginError::InvalidVersionFormat(format!("Specified version `{s}` is not supported. You can specify 'latest' or a fully qualified version prefixed with an '=', like: =1.0.0")))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr as _;
+
+    use super::*;
+
+    #[test]
+    fn valid_latest() {
+        let v = Version::from_str("latest").expect("should parse");
+        assert!(matches!(v, Version::Latest));
+    }
+
+    #[test]
+    fn valid_equals_prefix() {
+        let v = Version::from_str("=1.0.0").expect("should parse");
+        match &v {
+            Version::Exact(semver) => {
+                assert_eq!(semver.major, 1);
+                assert_eq!(semver.minor, 0);
+                assert_eq!(semver.patch, 0);
+            }
+            Version::Latest => panic!("expected Exact"),
+        }
+    }
+
+    #[test]
+    fn valid_v_prefix() {
+        let v = Version::from_str("v1.0.0").expect("should parse");
+        match &v {
+            Version::Exact(semver) => {
+                assert_eq!(semver.major, 1);
+                assert_eq!(semver.minor, 0);
+                assert_eq!(semver.patch, 0);
+            }
+            Version::Latest => panic!("expected Exact"),
+        }
+    }
+
+    #[test]
+    fn invalid_no_prefix() {
+        let err = Version::from_str("1.0.0").unwrap_err();
+        match err {
+            PluginError::InvalidVersionFormat(msg) => {
+                assert!(msg.contains("not supported"));
+                assert!(msg.contains("latest") || msg.contains("="));
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_bad_semver_after_prefix() {
+        let err = Version::from_str("v1.0").unwrap_err();
+        match err {
+            PluginError::InvalidVersionFormat(msg) => assert!(msg.contains("not supported")),
+        }
+        let err = Version::from_str("=foo").unwrap_err();
+        match err {
+            PluginError::InvalidVersionFormat(msg) => assert!(msg.contains("not supported")),
+        }
+    }
+}
