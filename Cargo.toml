@@ -116,7 +116,7 @@ flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.20", default-features = false }
-graphql_client = "0.15"
+graphql_client = "0.16"
 heck = "0.5"
 humantime = "2"
 http = "1"
@@ -136,7 +136,7 @@ os_type = "2"
 pastey = "0.2.1"
 predicates = "3"
 pretty_assertions = "1"
-rand = "0.9"
+rand = "0.10"
 regex = "1"
 reqwest = { version = "0.13", default-features = false }
 rstest = "0.26"
@@ -259,12 +259,12 @@ graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.40"
+jsonschema = "0.45"
 mime = "0.3"
 mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
-rand_regex = "0.18"
+rand_regex = "0.19"
 reqwest = { workspace = true, features = ["rustls"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }

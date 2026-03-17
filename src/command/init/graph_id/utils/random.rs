@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 pub trait RandomStringGenerator {
     fn generate_string(&mut self, length: usize) -> String;
 }
