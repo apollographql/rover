@@ -11,10 +11,7 @@ pub struct IsFederatedInput {
 
 impl From<IsFederatedInput> for QueryVariables {
     fn from(input: IsFederatedInput) -> Self {
-        let (name, variant) = input.graph_ref.into_parts();
-        Self {
-            graph_id: name,
-            variant: variant,
-        }
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self { graph_id, variant }
     }
 }

@@ -12,11 +12,8 @@ pub struct ReadmeFetchInput {
 
 impl From<ReadmeFetchInput> for QueryVariables {
     fn from(input: ReadmeFetchInput) -> Self {
-        let (name, variant) = input.graph_ref.into_parts();
-        Self {
-            graph_id: name,
-            variant: variant,
-        }
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self { graph_id, variant }
     }
 }
 

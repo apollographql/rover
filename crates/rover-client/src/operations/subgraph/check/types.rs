@@ -23,9 +23,9 @@ pub struct SubgraphCheckAsyncInput {
 impl From<SubgraphCheckAsyncInput> for MutationVariables {
     fn from(input: SubgraphCheckAsyncInput) -> Self {
         let graph_ref_str = input.graph_ref.to_string();
-        let (name, variant) = input.graph_ref.into_parts();
+        let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: name,
+            graph_id,
             name: variant,
             input: MutationInput {
                 graph_ref: Some(graph_ref_str),

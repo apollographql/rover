@@ -81,7 +81,7 @@ pub enum RoverClientError {
 
     /// The Studio API could not find a variant for a graph
     #[error(
-        "The graph registry does not contain variant '{}' for graph '{}'", graph_ref.variant(), graph_ref.name()
+        "The graph registry does not contain variant '{}' for graph '{}'", graph_ref.variant(), graph_ref.graph_id()
     )]
     NoSchemaForVariant {
         /// The graph ref.

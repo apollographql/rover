@@ -197,7 +197,7 @@ fn get_check_response_from_data(
     // Note that graph IDs and variants don't need percent-encoding due to their regex restrictions.
     let default_target_url = format!(
         "https://studio.apollographql.com/graph/{}/variant/{}/checks/variant",
-        graph_ref.name(),
+        graph_ref.graph_id(),
         graph_ref.variant()
     );
 

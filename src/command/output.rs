@@ -197,7 +197,7 @@ impl RoverOutput {
                 variant_config = Style::Link.paint(format!(
                     "{}/graph/{}/settings/variant?variant={}",
                     describe_response.root_url,
-                    describe_response.graph_ref.name(),
+                    describe_response.graph_ref.graph_id(),
                     describe_response.graph_ref.variant(),
                 ))
             )),
@@ -398,7 +398,7 @@ impl RoverOutput {
                     "{}\n View full details at {}/graph/{}/service-list",
                     table,
                     details.root_url,
-                    details.graph_ref.name()
+                    details.graph_ref.graph_id()
                 ))
             }
             RoverOutput::TemplateList(templates) => {

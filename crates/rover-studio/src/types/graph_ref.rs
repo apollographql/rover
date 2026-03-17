@@ -13,7 +13,7 @@ pub struct InvalidGraphRef;
 /// Represents a GraphOS GraphRef
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GraphRef {
-    name: String,
+    graph_id: String,
     variant: String,
 }
 
@@ -31,13 +31,13 @@ impl GraphRef {
         Self::from_str(&s)
     }
 
-    /// Consumes the GraphRef and returns `(name, variant)` as owned Strings.
+    /// Consumes the GraphRef and returns `(graph_id, variant)` as owned Strings.
     pub fn into_parts(self) -> (String, String) {
-        (self.name, self.variant)
+        (self.graph_id, self.variant)
     }
 
-    pub fn name(&self) -> &String {
-        &self.name
+    pub fn graph_id(&self) -> &String {
+        &self.graph_id
     }
 
     pub fn variant(&self) -> &String {
@@ -47,7 +47,7 @@ impl GraphRef {
 
 impl fmt::Display for GraphRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}@{}", self.name, self.variant)
+        write!(f, "{}@{}", self.graph_id, self.variant)
     }
 }
 
@@ -66,13 +66,13 @@ impl FromStr for GraphRef {
 
         if valid_graph_name_only {
             Ok(GraphRef {
-                name: graph_id.to_string(),
+                graph_id: graph_id.to_string(),
                 variant: "current".to_string(),
             })
         } else if valid_graph_with_variant {
             let matches = variant_pattern.captures(graph_id).unwrap();
             Ok(GraphRef {
-                name: matches.get(1).unwrap().as_str().to_string(),
+                graph_id: matches.get(1).unwrap().as_str().to_string(),
                 variant: matches.get(2).unwrap().as_str().to_string(),
             })
         } else {
@@ -126,14 +126,14 @@ mod tests {
     #[test]
     fn new_accepts_static_str() {
         let g = GraphRef::new("mygraph", Some("current")).unwrap();
-        assert_eq!(g.name(), "mygraph");
+        assert_eq!(g.graph_id(), "mygraph");
         assert_eq!(g.variant(), "current");
     }
 
     #[test]
     fn new_accepts_owned_string() {
         let g = GraphRef::new("mygraph".to_string(), Some("prod".to_string())).unwrap();
-        assert_eq!(g.name(), "mygraph");
+        assert_eq!(g.graph_id(), "mygraph");
         assert_eq!(g.variant(), "prod");
     }
 }
