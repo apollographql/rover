@@ -13,5 +13,4 @@ pub enum SchemaError {
 
     #[error("Invalid coordinate: {0}")]
     InvalidCoordinate(String),
-
 }
