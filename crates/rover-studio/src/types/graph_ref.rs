@@ -37,12 +37,12 @@ impl GraphRef {
     }
 
     /// Accessor for the graph_id part of the GraphRef
-    pub fn graph_id(&self) -> &String {
+    pub const fn graph_id(&self) -> &String {
         &self.graph_id
     }
 
     /// Accessor for the variant part of the GraphRef
-    pub fn variant(&self) -> &String {
+    pub const fn variant(&self) -> &String {
         &self.variant
     }
 }
