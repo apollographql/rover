@@ -646,10 +646,6 @@ mod test {
             ..installer
         };
 
-        let mut plugin_bin = tempfile::NamedTempFile::new().unwrap();
-        plugin_bin.write_all("contents".as_bytes()).unwrap();
-        plugin_bin.flush().unwrap();
-
         let plugin_name = "my-plugin";
         let plugin_version = "v1.0.0";
         let install_subpath = format!(".{}", binary_name);
@@ -664,8 +660,19 @@ mod test {
             .join("bin")
             .join(bin_path);
 
-        let plugin_bin_path = Utf8PathBuf::from_path_buf(plugin_bin.path().to_path_buf())
+        // Create the plugin binary inside a tempdir/dist/ structure to match
+        // what extract_plugin_tarball produces. write_plugin_bin_to_fs cleans up
+        // by calling remove_dir_all on the grandparent of the binary path —
+        // a flat /tmp/ file would make that resolve to "/", destroying the filesystem
+        // in environments that don't protect root (like our musl tests).
+        let plugin_tempdir = tempfile::tempdir().unwrap();
+        let dist_dir = plugin_tempdir.path().join("dist");
+        std::fs::create_dir_all(&dist_dir).unwrap();
+        let plugin_bin_file = dist_dir.join(plugin_name);
+        std::fs::write(&plugin_bin_file, "contents").unwrap();
+        let plugin_bin_path = Utf8PathBuf::from_path_buf(plugin_bin_file)
             .expect("Unable to convert PathBuf to Utf8PathBuf");
+
         let result =
             installer.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, plugin_version);
         assert_that!(result).is_ok();
