@@ -38,7 +38,7 @@ use super::{
 use crate::{
     RoverError,
     cli::Rover,
-    composition::supergraph::config::SupergraphConfigYaml,
+    config::SupergraphConfigYaml,
     utils::{effect::read_stdin::ReadStdin, expansion::expand, parsers::FileDescriptorType},
 };
 
@@ -478,7 +478,6 @@ mod tests {
     };
     use crate::{
         composition::supergraph::config::{
-            SupergraphConfigYaml,
             error::ResolveSubgraphError,
             full::{
                 FullyResolvedSubgraph,
@@ -488,6 +487,7 @@ mod tests {
             },
             scenario::*,
         },
+        config::SupergraphConfigYaml,
         utils::{
             effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
             parsers::FileDescriptorType,

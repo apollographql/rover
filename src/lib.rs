@@ -2,6 +2,7 @@ pub mod cli;
 pub mod command;
 #[cfg(feature = "composition-js")]
 pub mod composition;
+mod config;
 mod error;
 mod options;
 mod plugin;

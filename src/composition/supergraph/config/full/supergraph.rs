@@ -9,12 +9,16 @@ use tower::{Service, ServiceExt};
 use tracing::debug;
 
 use super::FullyResolvedSubgraph;
-use crate::composition::supergraph::config::{
-    SupergraphConfigYaml,
-    error::ResolveSubgraphError,
-    full::introspect::ResolveIntrospectSubgraphFactory,
-    resolver::{ResolveSupergraphConfigError, fetch_remote_subgraph::FetchRemoteSubgraphFactory},
-    unresolved::{UnresolvedSubgraph, UnresolvedSupergraphConfig},
+use crate::{
+    composition::supergraph::config::{
+        error::ResolveSubgraphError,
+        full::introspect::ResolveIntrospectSubgraphFactory,
+        resolver::{
+            ResolveSupergraphConfigError, fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+        },
+        unresolved::{UnresolvedSubgraph, UnresolvedSupergraphConfig},
+    },
+    config::SupergraphConfigYaml,
 };
 
 /// Represents a [`SupergraphConfigYaml`] that has a known [`FederationVersion`] and
