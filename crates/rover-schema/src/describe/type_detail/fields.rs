@@ -4,9 +4,8 @@ use apollo_compiler::{
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
 
-use crate::{ParsedSchema, SchemaError, root_paths};
 use crate::describe::deprecated::IsDeprecated;
-
+use crate::{ParsedSchema, SchemaError, root_paths};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumValueInfo {
@@ -108,10 +107,7 @@ impl FieldInfo {
         }
     }
 
-    pub(super) fn from_input_value_definition(
-        name: Name,
-        field: &InputValueDefinition,
-    ) -> Self {
+    pub(super) fn from_input_value_definition(name: Name, field: &InputValueDefinition) -> Self {
         Self {
             name,
             return_type: field.ty.inner_named_type().clone(),
@@ -302,14 +298,21 @@ impl ParsedSchema {
         let mut result = Vec::new();
 
         for field in fields {
-            if self.inner().types.get(field.return_type.as_str()).map_or(true, |ty| ty.is_built_in()) {
+            if self
+                .inner()
+                .types
+                .get(field.return_type.as_str())
+                .map_or(true, |ty| ty.is_built_in())
+            {
                 continue;
             }
             if seen.contains(&field.return_type) {
                 continue;
             }
             seen.insert(field.return_type.clone());
-            if let Some(expanded) = self.expand_single_type(field.return_type.as_str(), include_deprecated) {
+            if let Some(expanded) =
+                self.expand_single_type(field.return_type.as_str(), include_deprecated)
+            {
                 result.push(expanded);
             }
         }
@@ -336,12 +339,7 @@ impl ParsedSchema {
                     .iter()
                     .map(|i| i.name.clone())
                     .collect();
-                Some(self.expand_fielded_type(
-                    name.clone(),
-                    TypeKind::Object,
-                    fields,
-                    implements,
-                ))
+                Some(self.expand_fielded_type(name.clone(), TypeKind::Object, fields, implements))
             }
             ExtendedType::Interface(iface) => {
                 let fields: Vec<FieldInfo> = iface
