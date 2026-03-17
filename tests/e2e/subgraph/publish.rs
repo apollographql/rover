@@ -1,7 +1,7 @@
 use std::{path::PathBuf, process::Command, str::from_utf8};
 
 use assert_cmd::cargo;
-use rand::Rng;
+use rand::RngExt;
 use rstest::rstest;
 use serde::Deserialize;
 use speculoos::{assert_that, iter::ContainingIntoIterAssertions};
