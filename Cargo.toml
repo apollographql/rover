@@ -136,7 +136,7 @@ os_type = "2"
 pastey = "0.2.1"
 predicates = "3"
 pretty_assertions = "1"
-rand = "0.9"
+rand = "0.10"
 regex = "1"
 reqwest = { version = "0.13", default-features = false }
 rstest = "0.26"
@@ -264,7 +264,7 @@ mime = "0.3"
 mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
-rand_regex = "0.18"
+rand_regex = "0.19"
 reqwest = { workspace = true, features = ["rustls"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
