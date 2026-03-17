@@ -1,16 +1,43 @@
-use std::str::FromStr;
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use clap::Parser;
+use rover_client::{
+    operations::{
+        graph::introspect::GraphIntrospect,
+        supergraph::fetch::{SupergraphFetch, SupergraphFetchInput, SupergraphFetchRequest},
+    },
+    shared::GraphRef,
+};
+use rover_graphql::GraphQLLayer;
+use rover_http::{
+    HttpRequest, HttpResponse,
+    retry::RetryPolicy,
+    timeout::{Timeout, TimeoutLayer},
+};
 use rover_schema::{
     ParsedSchema, SchemaCoordinate, describe,
-    format::{self, OutputFormat, compact, description, sdl},
+    format::{OutputFormat, compact, description, is_tty, sdl},
 };
-use rover_studio::types::GraphRef;
+use rover_std::Fs;
 use serde::Serialize;
-
-use rover_client::operations::graph::fetch::{self, GraphFetchInput};
+use tower::{Service, ServiceBuilder, ServiceExt, retry::RetryLayer};
+use url::Url;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum ViewMode {
+    /// Human-readable description (default for TTY)
+    Description,
+    /// Token-efficient compact notation (default for piped output)
+    Compact,
+    /// Raw SDL
+    Sdl,
+}
 
 #[derive(Debug, Serialize, Parser)]
 /// Describe a graph's schema by type or field
@@ -18,22 +45,25 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::Studio
 /// Displays a structured description of your graph's schema. Start with an
 /// overview, then zoom into individual types and fields.
 ///
-/// Piped output defaults to --compact.
+/// Piped output defaults to --view compact.
 #[command(after_help = "EXAMPLES:\n    \
-        rover describe my-graph@my-variant\n    \
-        rover describe my-graph@my-variant:Post\n    \
-        rover describe my-graph@my-variant:Post --depth 1\n    \
-        rover describe my-graph@my-variant:User.posts\n    \
-        rover describe my-graph@my-variant:Post --sdl")]
+        rover describe <SCHEMA_SOURCE>\n    \
+        rover describe <SCHEMA_SOURCE> --path Post\n    \
+        rover describe <SCHEMA_SOURCE> --path Post --depth 1\n    \
+        rover describe <SCHEMA_SOURCE> --path User.posts\n    \
+        rover describe <SCHEMA_SOURCE> --path Post --view sdl")]
 pub struct Describe {
     /// <NAME>@<VARIANT>[:<COORDINATE>]
     ///
     /// graph@variant            Schema overview
     /// graph@variant:Type       Describe a type
     /// graph@variant:Type.field Describe a field
-    #[arg(value_name = "GRAPH_REF")]
+    #[arg(value_name = "SCHEMA_SOURCE", value_parser = clap::value_parser!(SchemaSource))]
     #[serde(skip_serializing)]
-    graph_ref_and_coord: String,
+    schema_source: SchemaSource,
+
+    #[arg(short = "p", long = "path", value_name = "SCHEMA_PATH", value_parse = clap::value_parser!(SchemaCoordinate))]
+    schema_path: Option<SchemaCoordinate>,
 
     /// Expand referenced types N levels deep
     #[arg(long = "depth", short = 'd', default_value_t = 0)]
@@ -43,38 +73,27 @@ pub struct Describe {
     #[arg(long = "include-deprecated")]
     include_deprecated: bool,
 
-    /// Output raw SDL
-    #[arg(long = "sdl")]
-    sdl: bool,
-
-    /// Output token-efficient compact notation
-    #[arg(long = "compact")]
-    compact: bool,
+    /// Select output view: description (default TTY), compact (default piped), or sdl
+    #[arg(long = "view", short = 'v', value_name = "VIEW")]
+    view: Option<ViewMode>,
 
     #[clap(flatten)]
     profile: ProfileOpt,
 }
 
 impl Describe {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let (graph_ref, coordinate) = parse_graph_ref_and_coordinate(&self.graph_ref_and_coord)?;
-
-        let client = client_config.get_authenticated_client(&self.profile)?;
-        let resp = fetch::run(
-            GraphFetchInput {
-                graph_ref: graph_ref.clone(),
-            },
-            &client,
-        )
-        .await?;
-        let sdl_string = resp.sdl.contents;
+    pub async fn run<S>(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput>
+    where
+        S: Service<HttpRequest, Response = HttpResponse>,
+        S::Error: std::error::Error + Send + 'static,
+        S::Future: Send,
+    {
+        let sdl_string = self.fetch_sdl(&client_config).await?;
+        let output_format = self.output_format(is_tty());
 
         // Parse
         let parsed = ParsedSchema::parse(&sdl_string);
         let schema = parsed.inner();
-
-        // Determine output format
-        let output_format = format::select_format(self.sdl, self.compact, false);
 
         // If --sdl, output filtered SDL
         if output_format == OutputFormat::Sdl {
@@ -122,6 +141,105 @@ impl Describe {
         };
 
         Ok(RoverOutput::DescribeResponse { content, json_data })
+    }
+
+    fn output_format(&self, is_tty: bool) -> OutputFormat {
+        match self.view {
+            Some(ViewMode::Sdl) => OutputFormat::Sdl,
+            Some(ViewMode::Compact) => OutputFormat::Compact,
+            Some(ViewMode::Description) => OutputFormat::Description,
+            None => {
+                if is_tty {
+                    OutputFormat::Description
+                } else {
+                    OutputFormat::Compact
+                }
+            }
+        }
+    }
+
+    async fn fetch_sdl(&self, client_config: &StudioClientConfig) -> RoverResult<String> {
+        match &self.schema_source {
+            SchemaSource::GraphOS(graph_ref) => {
+                let http_service = client_config.authenticated_service(&self.profile)?;
+                let client_timeout = client_config.client_timeout().get_duration();
+                let graphql_service = ServiceBuilder::new()
+                    .layer(GraphQLLayer::default())
+                    .layer(RetryLayer::new(RetryPolicy::new(client_timeout * 5)))
+                    .layer(TimeoutLayer::new(client_timeout))
+                    .service(http_service);
+                let mut fetch = SupergraphFetch::new(graphql_service);
+                let resp = fetch
+                    .ready()
+                    .await
+                    .map_err(|e| anyhow::Error::from(e))?
+                    .call(SupergraphFetchRequest::new(graph_ref.clone()))
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                Ok(resp.sdl.contents)
+            }
+            SchemaSource::File(path) => {
+                let utf8_path = camino::Utf8PathBuf::try_from(path.clone()).map_err(|p| {
+                    anyhow::anyhow!("path '{}' contains invalid UTF-8", p.display())
+                })?;
+                Ok(Fs::read_file(utf8_path)?)
+            }
+            SchemaSource::Url(url) => {
+                let http_service = client_config.service()?;
+                let mut service = ServiceBuilder::new()
+                    .layer_fn(GraphIntrospect::new)
+                    .layer(GraphQLLayer::new(url.clone()))
+                    .service(http_service);
+                let resp = service
+                    .ready()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))?
+                    .call(())
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                Ok(resp.schema_sdl)
+            }
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("Invalid schema source")]
+pub struct InvalidSchemaSource;
+
+#[derive(Debug, Clone)]
+pub enum SchemaSource {
+    GraphOS(GraphRef),
+    File(PathBuf),
+    Url(Url),
+}
+
+impl FromStr for SchemaSource {
+    type Err = InvalidSchemaSource;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        GraphRef::from_str(s)
+            .map(SchemaSource::GraphOS)
+            .map_err(|_| InvalidSchemaSource)
+            .or_else(|_| {
+                Url::parse(s)
+                    .map_err(|_| InvalidSchemaSource)
+                    .and_then(|url| {
+                        if matches!(url.scheme(), "http" | "https") {
+                            Ok(SchemaSource::Url(url))
+                        } else {
+                            Err(InvalidSchemaSource)
+                        }
+                    })
+            })
+            .or_else(|_| {
+                let path = Path::new(s);
+                if path.exists() {
+                    Ok(SchemaSource::File(path.to_path_buf()))
+                } else {
+                    Err(InvalidSchemaSource)
+                }
+            })
     }
 }
 
