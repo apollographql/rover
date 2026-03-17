@@ -11,7 +11,17 @@ use serde::{Deserialize, Serialize};
 pub struct InvalidGraphRef;
 
 /// Represents a GraphOS GraphRef
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    Eq,
+    PartialEq,
+    derive_getters::Getters,
+    derive_getters::Dissolve,
+)]
+#[dissolve(rename = "into_parts")]
 pub struct GraphRef {
     graph_id: String,
     variant: String,
@@ -29,21 +39,6 @@ impl GraphRef {
             None => graph_id,
         };
         Self::from_str(&s)
-    }
-
-    /// Consumes the GraphRef and returns `(graph_id, variant)` as owned Strings.
-    pub fn into_parts(self) -> (String, String) {
-        (self.graph_id, self.variant)
-    }
-
-    /// Accessor for the graph_id part of the GraphRef
-    pub const fn graph_id(&self) -> &String {
-        &self.graph_id
-    }
-
-    /// Accessor for the variant part of the GraphRef
-    pub const fn variant(&self) -> &String {
-        &self.variant
     }
 }
 
