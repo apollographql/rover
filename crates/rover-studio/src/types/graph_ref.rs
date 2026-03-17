@@ -36,10 +36,12 @@ impl GraphRef {
         (self.graph_id, self.variant)
     }
 
+    /// Accessor for the graph_id part of the GraphRef
     pub fn graph_id(&self) -> &String {
         &self.graph_id
     }
 
+    /// Accessor for the variant part of the GraphRef
     pub fn variant(&self) -> &String {
         &self.variant
     }
@@ -90,20 +92,26 @@ mod tests {
     #[test]
     fn from_str_works() {
         assert!(GraphRef::from_str("engine#%^").is_err());
-        assert!(GraphRef::from_str(
-            "1234567890123456789012345678901234567890123456789012345678901234567890"
-        )
-        .is_err());
+        assert!(
+            GraphRef::from_str(
+                "1234567890123456789012345678901234567890123456789012345678901234567890"
+            )
+            .is_err()
+        );
         assert!(GraphRef::from_str("1boi").is_err());
         assert!(GraphRef::from_str("_eng").is_err());
-        assert!(GraphRef::from_str(
-            "engine@1234567890123456789012345678901234567890123456789012345678901234567890"
-        )
-        .is_err());
-        assert!(GraphRef::from_str(
-            "engine1234567890123456789012345678901234567890123456789012345678901234567890@prod"
-        )
-        .is_err());
+        assert!(
+            GraphRef::from_str(
+                "engine@1234567890123456789012345678901234567890123456789012345678901234567890"
+            )
+            .is_err()
+        );
+        assert!(
+            GraphRef::from_str(
+                "engine1234567890123456789012345678901234567890123456789012345678901234567890@prod"
+            )
+            .is_err()
+        );
 
         assert_eq!(
             GraphRef::from_str("engine@okay").unwrap(),
