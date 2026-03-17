@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
 use clap::Parser;
-use rover_client::shared::GraphRef;
 use rover_schema::{
     ParsedSchema, SchemaCoordinate, describe,
     format::{self, OutputFormat, compact, description, sdl},
 };
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};
@@ -60,7 +60,13 @@ impl Describe {
         let (graph_ref, coordinate) = parse_graph_ref_and_coordinate(&self.graph_ref_and_coord)?;
 
         let client = client_config.get_authenticated_client(&self.profile)?;
-        let resp = fetch::run(GraphFetchInput { graph_ref: graph_ref.clone() }, &client).await?;
+        let resp = fetch::run(
+            GraphFetchInput {
+                graph_ref: graph_ref.clone(),
+            },
+            &client,
+        )
+        .await?;
         let sdl_string = resp.sdl.contents;
 
         // Parse
@@ -186,16 +192,16 @@ mod tests {
     #[test]
     fn parse_graph_ref_only() {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph@current").unwrap();
-        assert_eq!(graph_ref.name, "my-graph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "my-graph");
+        assert_eq!(graph_ref.variant(), "current");
         assert!(coord.is_none());
     }
 
     #[test]
     fn parse_graph_ref_with_type() {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph@current:Post").unwrap();
-        assert_eq!(graph_ref.name, "my-graph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "my-graph");
+        assert_eq!(graph_ref.variant(), "current");
         assert_eq!(coord, Some("Post".parse::<SchemaCoordinate>().unwrap()));
     }
 
@@ -203,8 +209,8 @@ mod tests {
     fn parse_graph_ref_with_field() {
         let (graph_ref, coord) =
             parse_graph_ref_and_coordinate("my-graph@current:User.posts").unwrap();
-        assert_eq!(graph_ref.name, "my-graph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "my-graph");
+        assert_eq!(graph_ref.variant(), "current");
         assert_eq!(
             coord,
             Some("User.posts".parse::<SchemaCoordinate>().unwrap())
@@ -214,24 +220,24 @@ mod tests {
     #[test]
     fn parse_graph_ref_no_variant() {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("mygraph").unwrap();
-        assert_eq!(graph_ref.name, "mygraph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "mygraph");
+        assert_eq!(graph_ref.variant(), "current");
         assert!(coord.is_none());
     }
 
     #[test]
     fn parse_graph_ref_no_variant_with_type() {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph:Post").unwrap();
-        assert_eq!(graph_ref.name, "my-graph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "my-graph");
+        assert_eq!(graph_ref.variant(), "current");
         assert_eq!(coord, Some("Post".parse::<SchemaCoordinate>().unwrap()));
     }
 
     #[test]
     fn parse_graph_ref_no_variant_with_field() {
         let (graph_ref, coord) = parse_graph_ref_and_coordinate("my-graph:User.posts").unwrap();
-        assert_eq!(graph_ref.name, "my-graph");
-        assert_eq!(graph_ref.variant, "current");
+        assert_eq!(graph_ref.graph_id(), "my-graph");
+        assert_eq!(graph_ref.variant(), "current");
         assert_eq!(
             coord,
             Some("User.posts".parse::<SchemaCoordinate>().unwrap())
