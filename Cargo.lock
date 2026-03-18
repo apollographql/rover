@@ -256,7 +256,7 @@ dependencies = [
  "serde_json",
  "serde_json_bytes",
  "shape",
- "strum",
+ "strum 0.27.2",
  "strum_macros 0.27.2",
  "thiserror 2.0.18",
  "time",
@@ -474,7 +474,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "strum",
+ "strum 0.27.2",
  "syn 2.0.117",
  "thiserror 2.0.18",
 ]
@@ -4664,7 +4664,7 @@ dependencies = [
  "speculoos",
  "sputnik",
  "strsim",
- "strum",
+ "strum 0.28.0",
  "strum_macros 0.28.0",
  "subgraph-mock",
  "tap",
@@ -5673,6 +5673,12 @@ checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
  "strum_macros 0.27.2",
 ]
+
+[[package]]
+name = "strum"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
 
 [[package]]
 name = "strum_macros"
