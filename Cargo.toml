@@ -166,7 +166,7 @@ tokio = { version = "1", features = ["signal", "io-std"] }
 tokio-stream = "0.1"
 tokio-test = "0.4"
 tokio-util = "0.7"
-toml = "0.9"
+toml = "1.0"
 tower = { version = "0.5.3", features = ["make", "retry", "timeout"] }
 tower-http = "0.6.8"
 tower-test = "0.4"
