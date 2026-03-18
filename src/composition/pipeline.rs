@@ -35,9 +35,9 @@ use super::{
 };
 use crate::{
     composition::supergraph::config::{
-        SupergraphConfigYaml, full::FullyResolvedSupergraphConfig,
-        lazy::LazilyResolvedSupergraphConfig,
+        full::FullyResolvedSupergraphConfig, lazy::LazilyResolvedSupergraphConfig,
     },
+    config::SupergraphConfigYaml,
     options::LicenseAccepter,
     utils::{
         client::StudioClientConfig,

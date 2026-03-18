@@ -7,8 +7,11 @@ use futures::{StreamExt, stream};
 use itertools::Itertools;
 
 use super::LazilyResolvedSubgraph;
-use crate::composition::supergraph::config::{
-    SupergraphConfigYaml, error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
+use crate::{
+    composition::supergraph::config::{
+        error::ResolveSubgraphError, unresolved::UnresolvedSupergraphConfig,
+    },
+    config::SupergraphConfigYaml,
 };
 
 /// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have

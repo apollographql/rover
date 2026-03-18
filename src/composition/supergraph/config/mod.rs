@@ -10,6 +10,3 @@ pub mod resolver;
 #[cfg(test)]
 pub(crate) mod scenario;
 pub mod unresolved;
-mod yaml;
-
-pub(crate) use yaml::SupergraphConfigYaml;

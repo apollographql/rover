@@ -21,8 +21,8 @@ use crate::{
         supergraph::{
             binary::SupergraphBinary,
             config::{
-                SupergraphConfigYaml, error::ResolveSubgraphError,
-                full::FullyResolvedSupergraphConfig, resolver::ResolveSupergraphConfigError,
+                error::ResolveSubgraphError, full::FullyResolvedSupergraphConfig,
+                resolver::ResolveSupergraphConfigError,
             },
             install::{InstallSupergraph, InstallSupergraphError},
         },
@@ -31,6 +31,7 @@ use crate::{
             subgraphs::SubgraphEvent,
         },
     },
+    config::SupergraphConfigYaml,
     subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, install::InstallBinary, write_file::WriteFile},
 };
