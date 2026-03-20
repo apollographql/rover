@@ -1,5 +1,6 @@
 use apollo_compiler::{
     Name, Schema,
+    ast::Type as AstType,
     coordinate::SchemaCoordinate,
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
@@ -23,7 +24,7 @@ pub struct ArgInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum TypeKind {
     Object,
     Input,
@@ -33,22 +34,17 @@ pub enum TypeKind {
     Scalar,
 }
 
-impl TypeKind {
-    pub const fn label(&self) -> &'static str {
-        match self {
+impl std::fmt::Display for TypeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             TypeKind::Object => "object",
             TypeKind::Input => "input",
             TypeKind::Enum => "enum",
             TypeKind::Interface => "interface",
             TypeKind::Union => "union",
             TypeKind::Scalar => "scalar",
-        }
-    }
-}
-
-impl std::fmt::Display for TypeKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.label())
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -65,7 +61,7 @@ pub struct ExpandedType {
 #[derive(Debug, Clone, serde::Serialize, bon::Builder, derive_getters::Getters)]
 pub struct FieldSummary {
     name: Name,
-    return_type: String,
+    return_type: AstType,
 }
 
 impl FieldSummary {
@@ -75,7 +71,7 @@ impl FieldSummary {
                 .iter()
                 .map(|(name, field)| FieldSummary {
                     name: name.clone(),
-                    return_type: field.ty.to_string(),
+                    return_type: field.ty.clone(),
                 })
                 .collect()
         } else {
@@ -122,7 +118,7 @@ impl FieldInfo {
 pub struct FieldDetail {
     pub type_name: Name,
     pub field_name: Name,
-    pub return_type: String,
+    pub return_type: AstType,
     pub description: Option<String>,
     pub arg_count: usize,
     pub args: Vec<ArgInfo>,
@@ -209,7 +205,7 @@ impl ParsedSchema {
             field: field_name.clone(),
         })?;
 
-        let return_type = field.ty.to_string();
+        let return_type = field.ty.clone();
         let description = field.description.as_ref().map(|d| d.to_string());
         let is_deprecated = field.is_deprecated();
         let deprecation_reason = field.deprecation_reason();
