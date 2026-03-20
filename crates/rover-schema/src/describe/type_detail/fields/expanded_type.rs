@@ -20,11 +20,19 @@ pub struct ExpandedType {
 }
 
 impl ParsedSchema {
-    pub fn expand_single_type(&self, type_name: &str, include_deprecated: bool) -> Option<ExpandedType> {
+    pub fn expand_single_type(
+        &self,
+        type_name: &str,
+        include_deprecated: bool,
+    ) -> Option<ExpandedType> {
         let (name, ty) = self.inner().types.get_key_value(type_name)?;
         match ty {
-            ExtendedType::Object(obj) => Some(self.expand_object(name.clone(), obj, include_deprecated)),
-            ExtendedType::Interface(iface) => Some(self.expand_interface(name.clone(), iface, include_deprecated)),
+            ExtendedType::Object(obj) => {
+                Some(self.expand_object(name.clone(), obj, include_deprecated))
+            }
+            ExtendedType::Interface(iface) => {
+                Some(self.expand_interface(name.clone(), iface, include_deprecated))
+            }
             ExtendedType::InputObject(inp) => Some(self.expand_input(name.clone(), inp)),
             ExtendedType::Enum(e) => Some(self.expand_enum(name.clone(), e, include_deprecated)),
             ExtendedType::Union(u) => Some(self.expand_union(name.clone(), u)),
@@ -32,7 +40,12 @@ impl ParsedSchema {
         }
     }
 
-    fn expand_object(&self, name: Name, obj: &ObjectType, include_deprecated: bool) -> ExpandedType {
+    fn expand_object(
+        &self,
+        name: Name,
+        obj: &ObjectType,
+        include_deprecated: bool,
+    ) -> ExpandedType {
         let fields: Vec<FieldInfo> = obj
             .fields
             .iter()
@@ -44,17 +57,22 @@ impl ParsedSchema {
             .iter()
             .map(|i| i.name.clone())
             .collect();
-        self.expand_fielded_type(name, TypeKind::Object, fields, implements)
+        self.expand_field_type(name, TypeKind::Object, fields, implements)
     }
 
-    fn expand_interface(&self, name: Name, iface: &InterfaceType, include_deprecated: bool) -> ExpandedType {
+    fn expand_interface(
+        &self,
+        name: Name,
+        iface: &InterfaceType,
+        include_deprecated: bool,
+    ) -> ExpandedType {
         let fields: Vec<FieldInfo> = iface
             .fields
             .iter()
             .filter(|(_, f)| include_deprecated || !f.is_deprecated())
             .map(|(n, field)| FieldInfo::from_field_definition(n.clone(), field))
             .collect();
-        self.expand_fielded_type(name, TypeKind::Interface, fields, Vec::new())
+        self.expand_field_type(name, TypeKind::Interface, fields, Vec::new())
     }
 
     fn expand_input(&self, name: Name, inp: &InputObjectType) -> ExpandedType {
@@ -108,7 +126,7 @@ impl ParsedSchema {
     }
 
     /// Shared logic for expanding Object and Interface types.
-    pub(super) fn expand_fielded_type(
+    pub(super) fn expand_field_type(
         &self,
         name: Name,
         kind: TypeKind,
@@ -120,6 +138,13 @@ impl ParsedSchema {
         } else {
             Vec::new()
         };
-        ExpandedType { name, kind, fields, enum_values: Vec::new(), union_members, implements }
+        ExpandedType {
+            name,
+            kind,
+            fields,
+            enum_values: Vec::new(),
+            union_members,
+            implements,
+        }
     }
 }
