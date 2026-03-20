@@ -44,14 +44,14 @@ impl<'a> SchemaOverviewDisplay<'a> {
         table.set_header(["Type", "#", "Fields"]);
 
         if !ov.query_fields.is_empty() {
-            let names = ov.query_fields.iter().map(|f| f.name().as_str()).join("\n");
+            let names = ov.query_fields.iter().map(|f| f.name.as_str()).join("\n");
             table.add_row(["Query", &ov.query_fields.len().to_string(), &names]);
         }
         if !ov.mutation_fields.is_empty() {
             let names = ov
                 .mutation_fields
                 .iter()
-                .map(|f| f.name().as_str())
+                .map(|f| f.name.as_str())
                 .join("\n");
             table.add_row(["Mutation", &ov.mutation_fields.len().to_string(), &names]);
         }
