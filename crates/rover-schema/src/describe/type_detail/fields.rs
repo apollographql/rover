@@ -7,7 +7,7 @@ use apollo_compiler::{
 
 use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_paths};
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct EnumValueInfo {
     pub name: Name,
     pub description: Option<String>,
@@ -15,7 +15,7 @@ pub struct EnumValueInfo {
     pub deprecation_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct ArgInfo {
     pub name: Name,
     pub arg_type: Name,
@@ -48,7 +48,7 @@ impl std::fmt::Display for TypeKind {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct ExpandedType {
     pub name: Name,
     pub kind: TypeKind,
@@ -80,7 +80,7 @@ impl FieldSummary {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct FieldInfo {
     pub name: Name,
     pub return_type: Name,

@@ -204,146 +204,186 @@ impl ParsedSchema {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
     use super::*;
     use crate::ParsedSchema;
 
-    fn test_schema() -> ParsedSchema {
+    #[fixture]
+    fn schema() -> ParsedSchema {
         let sdl = include_str!("../../test_fixtures/test_schema.graphql");
         ParsedSchema::parse(sdl)
     }
 
-    #[test]
-    fn type_detail_object() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_object(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("Post").unwrap(), true, 0)
             .unwrap();
         let TypeDetail::Object(obj) = detail else {
             panic!("expected Object variant")
         };
-        assert_eq!(obj.name, "Post");
-        assert!(obj.fields.field_count() > 0);
-        assert!(!obj.implements.is_empty()); // Post implements Node & Timestamped
+        assert_that!(obj.name).is_equal_to(Name::new("Post").unwrap());
+        assert_that!(obj.fields.field_count()).is_equal_to(14);
+        assert_that!(obj.implements).is_equal_to(vec![
+            Name::new("Node").unwrap(),
+            Name::new("Timestamped").unwrap(),
+        ]);
     }
 
-    #[test]
-    fn type_detail_enum() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_enum(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("DigestFrequency").unwrap(), true, 0)
             .unwrap();
         let TypeDetail::Enum(e) = detail else {
             panic!("expected Enum variant")
         };
-        assert_eq!(e.values.len(), 3); // DAILY, WEEKLY, NEVER
+        assert_that!(e.values).is_equal_to(vec![
+            EnumValueInfo {
+                name: Name::new("DAILY").unwrap(),
+                description: None,
+                is_deprecated: false,
+                deprecation_reason: None,
+            },
+            EnumValueInfo {
+                name: Name::new("WEEKLY").unwrap(),
+                description: None,
+                is_deprecated: false,
+                deprecation_reason: None,
+            },
+            EnumValueInfo {
+                name: Name::new("NEVER").unwrap(),
+                description: None,
+                is_deprecated: false,
+                deprecation_reason: None,
+            },
+        ]);
     }
 
-    #[test]
-    fn type_detail_interface() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_interface(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("Timestamped").unwrap(), true, 0)
             .unwrap();
         let TypeDetail::Interface(iface) = detail else {
             panic!("expected Interface variant")
         };
-        assert!(iface.implementors.iter().any(|n| n == "Post"));
-        assert!(iface.implementors.iter().any(|n| n == "Comment"));
+        assert_that!(iface.implementors).contains(&Name::new("Post").unwrap());
+        assert_that!(iface.implementors).contains(&Name::new("Comment").unwrap());
     }
 
-    #[test]
-    fn type_detail_input() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_input(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("CreatePostInput").unwrap(), true, 0)
             .unwrap();
         let TypeDetail::Input(inp) = detail else {
             panic!("expected Input variant")
         };
-        assert!(inp.fields.fields().iter().any(|f| f.name == "title"));
+        assert_that!(inp.fields.fields().to_vec()).contains(&FieldInfo {
+            name: Name::new("title").unwrap(),
+            return_type: Name::new("String").unwrap(),
+            description: Some("The post title".to_string()),
+            is_deprecated: false,
+            deprecation_reason: None,
+            arg_count: 0,
+        });
+        assert_that!(inp.fields.fields().to_vec()).contains(&FieldInfo {
+            name: Name::new("categoryId").unwrap(),
+            return_type: Name::new("ID").unwrap(),
+            description: Some("Category ID".to_string()),
+            is_deprecated: false,
+            deprecation_reason: None,
+            arg_count: 0,
+        });
     }
 
-    #[test]
-    fn type_detail_union() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_union(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("ContentItem").unwrap(), true, 0)
             .unwrap();
         let TypeDetail::Union(u) = detail else {
             panic!("expected Union variant")
         };
-        assert!(u.members.iter().any(|n| n == "Post"));
-        assert!(u.members.iter().any(|n| n == "Comment"));
+        assert_that!(u.members).contains(&Name::new("Post").unwrap());
+        assert_that!(u.members).contains(&Name::new("Comment").unwrap());
     }
 
-    #[test]
-    fn type_detail_not_found() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_not_found(schema: ParsedSchema) {
         let result = schema.type_detail(&Name::new("NonExistent").unwrap(), true, 0);
-        assert!(result.is_err());
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, SchemaError::TypeNotFound(n) if n.as_str() == "NonExistent"));
     }
 
-    #[test]
-    fn type_detail_with_depth_expands_referenced_types() {
-        let schema = test_schema();
+    #[rstest]
+    fn type_detail_with_depth_expands_referenced_types(schema: ParsedSchema) {
         let detail = schema
             .type_detail(&Name::new("Post").unwrap(), true, 1)
             .unwrap();
         let TypeDetail::Object(obj) = detail else {
             panic!("expected Object variant")
         };
-        assert!(!obj.fields.expanded_types.is_empty());
-        assert!(obj.fields.expanded_types.iter().any(|t| t.name == "User"));
+        assert_that!(obj.fields.expanded_types).is_not_empty();
+        assert_that!(obj.fields.expanded_types).matching_contains(|t| t.name == "User");
     }
 
-    #[test]
-    fn type_detail_deprecated_fields_filtered() {
-        let schema = test_schema();
-        let with_deprecated = schema
-            .type_detail(&Name::new("User").unwrap(), true, 0)
-            .unwrap();
-        let without_deprecated = schema
-            .type_detail(&Name::new("User").unwrap(), false, 0)
-            .unwrap();
-        let TypeDetail::Object(with_obj) = with_deprecated else {
-            panic!()
+    #[rstest]
+    fn type_detail_deprecated_fields_filtered(schema: ParsedSchema) {
+        let with_obj = match schema.type_detail(&Name::new("User").unwrap(), true, 0).unwrap() {
+            TypeDetail::Object(o) => o,
+            _ => panic!("expected Object variant"),
         };
-        let TypeDetail::Object(without_obj) = without_deprecated else {
-            panic!()
+        let without_obj =
+            match schema.type_detail(&Name::new("User").unwrap(), false, 0).unwrap() {
+                TypeDetail::Object(o) => o,
+                _ => panic!("expected Object variant"),
+            };
+        let legacy_id = FieldInfo {
+            name: Name::new("legacyId").unwrap(),
+            return_type: Name::new("String").unwrap(),
+            description: None,
+            is_deprecated: true,
+            deprecation_reason: Some("Use id instead".to_string()),
+            arg_count: 0,
         };
-        assert!(with_obj.fields.fields().len() > without_obj.fields.fields().len());
-        assert!(with_obj.fields.deprecated_count > 0);
+        assert_that!(with_obj.fields.fields().to_vec()).contains(&legacy_id);
+        assert_that!(without_obj.fields.fields().to_vec()).does_not_contain(&legacy_id);
+        assert_that!(with_obj.fields.deprecated_count).is_equal_to(1);
     }
 
-    #[test]
-    fn type_detail_enum_deprecated_values() {
-        let schema = test_schema();
-        let with = schema
+    #[rstest]
+    fn type_detail_enum_deprecated_values(schema: ParsedSchema) {
+        let relevance = EnumValueInfo {
+            name: Name::new("RELEVANCE").unwrap(),
+            description: None,
+            is_deprecated: true,
+            deprecation_reason: Some("Use TOP instead".to_string()),
+        };
+
+        let with_e = match schema
             .type_detail(&Name::new("SortOrder").unwrap(), true, 0)
-            .unwrap();
-        let TypeDetail::Enum(with_e) = with else {
-            panic!()
+            .unwrap()
+        {
+            TypeDetail::Enum(e) => e,
+            _ => panic!("expected Enum variant"),
         };
-        assert_eq!(with_e.values.len(), 4);
-        assert_eq!(with_e.deprecated_count, 1);
-        let deprecated_val = with_e
-            .values
-            .iter()
-            .find(|v| v.name == "RELEVANCE")
-            .unwrap();
-        assert!(deprecated_val.is_deprecated);
-        assert_eq!(
-            deprecated_val.deprecation_reason.as_deref(),
-            Some("Use TOP instead")
-        );
+        assert_that!(with_e.values).has_length(4);
+        assert_that!(with_e.deprecated_count).is_equal_to(1);
+        assert_that!(with_e.values).contains(&relevance);
 
-        let without = schema
+        let without_e = match schema
             .type_detail(&Name::new("SortOrder").unwrap(), false, 0)
-            .unwrap();
-        let TypeDetail::Enum(without_e) = without else {
-            panic!()
+            .unwrap()
+        {
+            TypeDetail::Enum(e) => e,
+            _ => panic!("expected Enum variant"),
         };
-        assert_eq!(without_e.values.len(), 3);
-        assert!(!without_e.values.iter().any(|v| v.name == "RELEVANCE"));
+        assert_that!(without_e.values).has_length(3);
+        assert_that!(without_e.values).does_not_contain(&relevance);
     }
 }
