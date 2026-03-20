@@ -24,7 +24,6 @@ use rover_client::{
         CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
     },
 };
-use rover_schema::parsed_schema::ExtendedType;
 use rover_std::Style;
 use rover_studio::types::GraphRef;
 use serde_json::{Value, json};
@@ -694,7 +693,6 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
-            RoverOutput::SchemaDescribeResponse { json_data, .. } => json_data.clone(),
             RoverOutput::EmptySuccess => json!(null),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
@@ -751,7 +749,9 @@ impl RoverOutput {
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
-            RoverOutput::CliOutput(cli_output) => cli_output.json(),
+            RoverOutput::CliOutput(cli_output) => {
+                cli_output.json().unwrap_or(serde_json::Value::Null)
+            }
         }
     }
 
@@ -834,7 +834,6 @@ impl RoverOutput {
             RoverOutput::Introspection(_) => Some("Introspection Response"),
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
-            RoverOutput::SchemaDescribeResponse { .. } => None,
             _ => None,
         }
     }
