@@ -116,6 +116,15 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
             let mut table = Table::new();
             table.load_preset(presets::ASCII_FULL);
             table.set_header(["Field", "Type"]);
+            if !exp.implements.is_empty() {
+                let implements = exp
+                    .implements
+                    .iter()
+                    .map(|n| n.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                table.add_row(["implements", &implements]);
+            }
             for field in &exp.fields {
                 table.add_row([field.name.as_str(), field.return_type.as_str()]);
             }
