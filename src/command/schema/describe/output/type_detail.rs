@@ -15,12 +15,12 @@ pub struct TypeDetailDisplay<'a> {
 impl<'a> TypeDetailDisplay<'a> {
     pub fn display(&self) -> String {
         match self.detail {
-            TypeDetail::Object(obj) => ObjectDetailDisplay { detail: obj }.display(),
-            TypeDetail::Interface(iface) => InterfaceDetailDisplay { detail: iface }.display(),
-            TypeDetail::Input(inp) => InputDetailDisplay { detail: inp }.display(),
-            TypeDetail::Enum(e) => EnumDetailDisplay { detail: e }.display(),
-            TypeDetail::Union(u) => UnionDetailDisplay { detail: u }.display(),
-            TypeDetail::Scalar(s) => ScalarDetailDisplay { detail: s }.display(),
+            TypeDetail::Object(detail) => ObjectDetailDisplay { detail }.display(),
+            TypeDetail::Interface(detail) => InterfaceDetailDisplay { detail }.display(),
+            TypeDetail::Input(detail) => InputDetailDisplay { detail }.display(),
+            TypeDetail::Enum(detail) => EnumDetailDisplay { detail }.display(),
+            TypeDetail::Union(detail) => UnionDetailDisplay { detail }.display(),
+            TypeDetail::Scalar(detail) => ScalarDetailDisplay { detail }.display(),
         }
     }
 }
