@@ -58,10 +58,10 @@ pub struct ExpandedType {
     pub implements: Vec<Name>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, bon::Builder, derive_getters::Getters)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldSummary {
-    name: Name,
-    return_type: AstType,
+    pub name: Name,
+    pub return_type: AstType,
 }
 
 impl FieldSummary {
