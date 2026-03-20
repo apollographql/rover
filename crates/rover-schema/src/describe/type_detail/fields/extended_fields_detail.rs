@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::ParsedSchema;
 
 use super::expanded_type::ExpandedType;
@@ -57,25 +59,12 @@ impl ParsedSchema {
         if depth == 0 {
             return Vec::new();
         }
-        let mut seen = std::collections::HashSet::new();
-        let mut result = Vec::new();
-        for field in fields {
-            if self
-                .inner()
-                .types
-                .get(field.return_type.as_str())
-                .map_or(true, |ty| ty.is_built_in())
-            {
-                continue;
-            }
-            if seen.contains(&field.return_type) {
-                continue;
-            }
-            seen.insert(field.return_type.clone());
-            if let Some(expanded) = self.expand_single_type(field.return_type.as_str(), include_deprecated) {
-                result.push(expanded);
-            }
-        }
-        result
+        let schema = self.inner();
+        fields
+            .iter()
+            .filter(|f| schema.types.get(f.return_type.as_str()).map_or(false, |ty| !ty.is_built_in()))
+            .unique_by(|f| &f.return_type)
+            .filter_map(|f| self.expand_single_type(f.return_type.as_str(), include_deprecated))
+            .collect()
     }
 }
