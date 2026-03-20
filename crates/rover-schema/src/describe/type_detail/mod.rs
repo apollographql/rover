@@ -45,21 +45,24 @@ impl ParsedSchema {
             .ok_or_else(|| SchemaError::TypeNotFound(type_name.clone()))?;
 
         match ty {
-            ExtendedType::Object(obj) => Ok(TypeDetail::Object(
-                self.build_object_detail(type_name, obj, include_deprecated, depth),
-            )),
+            ExtendedType::Object(obj) => Ok(TypeDetail::Object(self.build_object_detail(
+                type_name,
+                obj,
+                include_deprecated,
+                depth,
+            ))),
             ExtendedType::Interface(iface) => Ok(TypeDetail::Interface(
                 self.build_interface_detail(type_name, iface, include_deprecated, depth),
             )),
             ExtendedType::InputObject(inp) => {
                 Ok(TypeDetail::Input(self.build_input_detail(type_name, inp)))
             }
-            ExtendedType::Enum(e) => Ok(TypeDetail::Enum(
-                self.build_enum_detail(type_name, e, include_deprecated),
-            )),
-            ExtendedType::Union(u) => {
-                Ok(TypeDetail::Union(self.build_union_detail(type_name, u)))
-            }
+            ExtendedType::Enum(e) => Ok(TypeDetail::Enum(self.build_enum_detail(
+                type_name,
+                e,
+                include_deprecated,
+            ))),
+            ExtendedType::Union(u) => Ok(TypeDetail::Union(self.build_union_detail(type_name, u))),
             ExtendedType::Scalar(s) => {
                 Ok(TypeDetail::Scalar(self.build_scalar_detail(type_name, s)))
             }

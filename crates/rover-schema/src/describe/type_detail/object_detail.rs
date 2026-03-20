@@ -35,6 +35,12 @@ impl ParsedSchema {
             .collect();
         let fields = self.extended_fields_detail(all_fields, include_deprecated, depth);
         let via = self.find_root_paths(type_name);
-        ObjectDetail { name: type_name.clone(), description, implements, fields, via }
+        ObjectDetail {
+            name: type_name.clone(),
+            description,
+            implements,
+            fields,
+            via,
+        }
     }
 }

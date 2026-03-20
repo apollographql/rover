@@ -1,4 +1,8 @@
-use apollo_compiler::{Name, ast::Type as AstType, coordinate::SchemaCoordinate, schema::ExtendedType};
+use apollo_compiler::{
+    Name,
+    ast::Type as AstType,
+    coordinate::{SchemaLookupError, TypeAttributeCoordinate},
+};
 
 use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_paths::RootPath};
 
@@ -22,30 +26,20 @@ pub struct FieldDetail {
 }
 
 impl ParsedSchema {
-    pub fn field_detail(&self, coord: &SchemaCoordinate) -> Result<FieldDetail, SchemaError> {
-        let (type_name, field_name) = match coord {
-            SchemaCoordinate::TypeAttribute(tac) => (tac.ty.clone(), tac.attribute.clone()),
-            _ => {
-                return Err(SchemaError::InvalidCoordinate(coord.clone()));
-            }
-        };
-
-        let ty = self
-            .inner()
-            .types
-            .get(type_name.as_str())
-            .ok_or_else(|| SchemaError::TypeNotFound(type_name.clone()))?;
-
-        let field = match ty {
-            ExtendedType::Object(obj) => obj.fields.get(field_name.as_str()),
-            ExtendedType::Interface(iface) => iface.fields.get(field_name.as_str()),
-            _ => None,
-        }
-        .ok_or_else(|| SchemaError::FieldNotFound {
-            type_name: type_name.clone(),
-            field: field_name.clone(),
+    pub fn field_detail(
+        &self,
+        coord: &TypeAttributeCoordinate,
+    ) -> Result<FieldDetail, SchemaError> {
+        let field = coord.lookup_field(self.inner()).map_err(|e| match e {
+            SchemaLookupError::MissingType(name) => SchemaError::TypeNotFound(name.clone()),
+            _ => SchemaError::FieldNotFound {
+                type_name: coord.ty.clone(),
+                field: coord.attribute.clone(),
+            },
         })?;
 
+        let type_name = coord.ty.clone();
+        let field_name = coord.attribute.clone();
         let return_type = field.ty.clone();
         let description = field.description.as_ref().map(|d| d.to_string());
         let is_deprecated = field.is_deprecated();
@@ -64,14 +58,11 @@ impl ParsedSchema {
 
         let via = self.find_root_paths(&type_name);
 
-        let mut input_expansions = Vec::new();
-        for arg in &args {
-            if let Some(expanded) = self.expand_single_type(arg.arg_type.as_str(), true)
-                && expanded.kind == TypeKind::Input
-            {
-                input_expansions.push(expanded);
-            }
-        }
+        let input_expansions = args
+            .iter()
+            .filter_map(|arg| self.expand_single_type(arg.arg_type.as_str(), true))
+            .filter(|expanded| expanded.kind == TypeKind::Input)
+            .collect();
 
         let return_expansion = self.expand_single_type(field.ty.inner_named_type().as_str(), true);
 

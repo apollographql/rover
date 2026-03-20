@@ -9,6 +9,6 @@ pub enum SchemaError {
     #[error("Field '{field}' not found on type '{type_name}'")]
     FieldNotFound { type_name: Name, field: Name },
 
-    #[error("Invalid coordinate: {0}")]
-    InvalidCoordinate(SchemaCoordinate),
+    #[error("Unsupported coordinate: {0}")]
+    UnsupportedCoordinate(SchemaCoordinate),
 }

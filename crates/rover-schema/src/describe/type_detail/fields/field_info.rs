@@ -1,4 +1,7 @@
-use apollo_compiler::{Name, schema::{FieldDefinition, InputValueDefinition}};
+use apollo_compiler::{
+    Name,
+    schema::{FieldDefinition, InputValueDefinition},
+};
 
 use crate::describe::deprecated::IsDeprecated;
 

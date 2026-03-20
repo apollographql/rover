@@ -38,9 +38,19 @@ impl ParsedSchema {
         let values = if include_deprecated {
             all_values
         } else {
-            all_values.into_iter().filter(|v| !v.is_deprecated).collect()
+            all_values
+                .into_iter()
+                .filter(|v| !v.is_deprecated)
+                .collect()
         };
         let via = self.find_root_paths(type_name);
-        EnumDetail { name: type_name.clone(), description, values, value_count, deprecated_count, via }
+        EnumDetail {
+            name: type_name.clone(),
+            description,
+            values,
+            value_count,
+            deprecated_count,
+            via,
+        }
     }
 }

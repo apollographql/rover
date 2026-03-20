@@ -16,6 +16,14 @@ pub struct InterfaceDetail {
 }
 
 impl ParsedSchema {
+    pub fn find_implementors(&self, interface_name: &Name) -> Vec<Name> {
+        self.inner()
+            .implementers_map()
+            .get(interface_name)
+            .map(|imp| imp.objects.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
     pub(super) fn build_interface_detail(
         &self,
         type_name: &Name,
@@ -37,6 +45,13 @@ impl ParsedSchema {
         let fields = self.extended_fields_detail(all_fields, include_deprecated, depth);
         let implementors = self.find_implementors(type_name);
         let via = self.find_root_paths(type_name);
-        InterfaceDetail { name: type_name.clone(), description, implements, fields, implementors, via }
+        InterfaceDetail {
+            name: type_name.clone(),
+            description,
+            implements,
+            fields,
+            implementors,
+            via,
+        }
     }
 }

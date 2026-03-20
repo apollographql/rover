@@ -15,6 +15,11 @@ impl ParsedSchema {
         let description = u.description.as_ref().map(|d| d.to_string());
         let members = u.members.iter().map(|m| m.name.clone()).collect();
         let via = self.find_root_paths(type_name);
-        UnionDetail { name: type_name.clone(), description, members, via }
+        UnionDetail {
+            name: type_name.clone(),
+            description,
+            members,
+            via,
+        }
     }
 }
