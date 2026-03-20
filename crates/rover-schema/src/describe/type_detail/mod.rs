@@ -1,67 +1,24 @@
+mod enum_detail;
 mod fields;
+mod input_detail;
+mod interface_detail;
+mod object_detail;
+mod scalar_detail;
+mod union_detail;
+
 use apollo_compiler::{Name, schema::ExtendedType};
+pub use enum_detail::EnumDetail;
 pub use fields::{
     ArgInfo, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
     FieldSummary, FieldsDetail, TypeKind,
 };
+pub use input_detail::InputDetail;
+pub use interface_detail::InterfaceDetail;
+pub use object_detail::ObjectDetail;
+pub use scalar_detail::ScalarDetail;
+pub use union_detail::UnionDetail;
 
-use super::deprecated::IsDeprecated;
-use crate::{ParsedSchema, error::SchemaError, root_paths};
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ObjectDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    pub implements: Vec<Name>,
-    #[serde(flatten)]
-    pub fields: ExtendedFieldsDetail,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct InterfaceDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    pub implements: Vec<Name>,
-    #[serde(flatten)]
-    pub fields: ExtendedFieldsDetail,
-    pub implementors: Vec<Name>,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct InputDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    #[serde(flatten)]
-    pub fields: FieldsDetail,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct EnumDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    pub values: Vec<EnumValueInfo>,
-    pub value_count: usize,
-    pub deprecated_count: usize,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct UnionDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    pub members: Vec<Name>,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ScalarDetail {
-    pub name: Name,
-    pub description: Option<String>,
-    pub via: Vec<crate::root_paths::RootPath>,
-}
+use crate::{ParsedSchema, error::SchemaError};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -87,116 +44,24 @@ impl ParsedSchema {
             .get(type_name)
             .ok_or_else(|| SchemaError::TypeNotFound(type_name.clone()))?;
 
-        let via = self.find_root_paths(type_name);
-
         match ty {
-            ExtendedType::Object(obj) => {
-                let description = obj.description.as_ref().map(|d| d.to_string());
-                let implements: Vec<Name> = obj
-                    .implements_interfaces
-                    .iter()
-                    .map(|i| i.name.clone())
-                    .collect();
-                let all_fields: Vec<FieldInfo> = obj
-                    .fields
-                    .iter()
-                    .map(|(n, field)| FieldInfo::from_field_definition(n.clone(), field))
-                    .collect();
-                let fields = self.extended_fields_detail(all_fields, include_deprecated, depth);
-                Ok(TypeDetail::Object(ObjectDetail {
-                    name: type_name.clone(),
-                    description,
-                    implements,
-                    fields,
-                    via,
-                }))
-            }
-            ExtendedType::Interface(iface) => {
-                let description = iface.description.as_ref().map(|d| d.to_string());
-                let implements: Vec<Name> = iface
-                    .implements_interfaces
-                    .iter()
-                    .map(|i| i.name.clone())
-                    .collect();
-                let all_fields: Vec<FieldInfo> = iface
-                    .fields
-                    .iter()
-                    .map(|(n, field)| FieldInfo::from_field_definition(n.clone(), field))
-                    .collect();
-                let fields = self.extended_fields_detail(all_fields, include_deprecated, depth);
-                let implementors = self.find_implementors(type_name);
-                Ok(TypeDetail::Interface(InterfaceDetail {
-                    name: type_name.clone(),
-                    description,
-                    implements,
-                    fields,
-                    implementors,
-                    via,
-                }))
-            }
+            ExtendedType::Object(obj) => Ok(TypeDetail::Object(
+                self.build_object_detail(type_name, obj, include_deprecated, depth),
+            )),
+            ExtendedType::Interface(iface) => Ok(TypeDetail::Interface(
+                self.build_interface_detail(type_name, iface, include_deprecated, depth),
+            )),
             ExtendedType::InputObject(inp) => {
-                let description = inp.description.as_ref().map(|d| d.to_string());
-                let fields: Vec<FieldInfo> = inp
-                    .fields
-                    .iter()
-                    .map(|(n, field)| FieldInfo::from_input_value_definition(n.clone(), field))
-                    .collect();
-                let field_count = fields.len();
-                Ok(TypeDetail::Input(InputDetail {
-                    name: type_name.clone(),
-                    description,
-                    fields: FieldsDetail::new(fields, field_count),
-                    via,
-                }))
+                Ok(TypeDetail::Input(self.build_input_detail(type_name, inp)))
             }
-            ExtendedType::Enum(e) => {
-                let description = e.description.as_ref().map(|d| d.to_string());
-                let all_values: Vec<EnumValueInfo> = e
-                    .values
-                    .iter()
-                    .map(|(n, val)| EnumValueInfo {
-                        name: n.clone(),
-                        description: val.description.as_ref().map(|d| d.to_string()),
-                        is_deprecated: val.is_deprecated(),
-                        deprecation_reason: val.deprecation_reason(),
-                    })
-                    .collect();
-                let value_count = all_values.len();
-                let deprecated_count = all_values.iter().filter(|v| v.is_deprecated).count();
-                let values = if include_deprecated {
-                    all_values
-                } else {
-                    all_values
-                        .into_iter()
-                        .filter(|v| !v.is_deprecated)
-                        .collect()
-                };
-                Ok(TypeDetail::Enum(EnumDetail {
-                    name: type_name.clone(),
-                    description,
-                    values,
-                    value_count,
-                    deprecated_count,
-                    via,
-                }))
-            }
+            ExtendedType::Enum(e) => Ok(TypeDetail::Enum(
+                self.build_enum_detail(type_name, e, include_deprecated),
+            )),
             ExtendedType::Union(u) => {
-                let description = u.description.as_ref().map(|d| d.to_string());
-                let members: Vec<Name> = u.members.iter().map(|m| m.name.clone()).collect();
-                Ok(TypeDetail::Union(UnionDetail {
-                    name: type_name.clone(),
-                    description,
-                    members,
-                    via,
-                }))
+                Ok(TypeDetail::Union(self.build_union_detail(type_name, u)))
             }
             ExtendedType::Scalar(s) => {
-                let description = s.description.as_ref().map(|d| d.to_string());
-                Ok(TypeDetail::Scalar(ScalarDetail {
-                    name: type_name.clone(),
-                    description,
-                    via,
-                }))
+                Ok(TypeDetail::Scalar(self.build_scalar_detail(type_name, s)))
             }
         }
     }
