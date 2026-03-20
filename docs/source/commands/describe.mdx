@@ -1,0 +1,89 @@
+---
+title: Rover describe Command
+subtitle: Explore your graph schema by type or field
+description: Use the rover describe command to view schema overviews, type details, and field details from GraphOS or a running endpoint.
+---
+
+import AuthNotice from '../../shared/auth-notice.mdx';
+
+## Overview
+
+The `rover describe` command provides structured descriptions of your graph's schema. Start with a full schema overview, then zoom into individual types and fields.
+
+<AuthNotice />
+
+## Usage
+
+```bash
+rover describe <GRAPH_REF>[:<COORDINATE>] [OPTIONS]
+```
+
+| Form | What you get |
+|---|---|
+| `graph@variant` | Schema overview |
+| `graph@variant:Type` | Type description |
+| `graph@variant:Type.field` | Field description and return type |
+
+## Examples
+
+### Schema overview
+
+```bash
+rover describe my-graph@my-variant
+```
+
+This displays the full schema summary including type counts, Query and Mutation fields, and all user-defined types grouped by kind.
+
+### Type description
+
+```bash
+rover describe my-graph@my-variant:Post
+```
+
+Shows the type's fields, descriptions, interfaces it implements, and the shortest path to reach it from Query or Mutation.
+
+### Field description
+
+```bash
+rover describe my-graph@my-variant:User.posts
+```
+
+Shows the field's arguments, input type expansion, and return type expansion — everything you need to write a query using this field.
+
+### Depth expansion
+
+```bash
+rover describe my-graph@my-variant:Post --depth 1
+```
+
+The `--depth` flag expands referenced types by N levels, showing their fields inline. This lets you explore the type graph without viewing the entire schema.
+
+## Options
+
+| Option | Description |
+|---|---|
+| `-d, --depth <N>` | Expand referenced types N levels deep (default: 0) |
+| `--include-deprecated` | Show deprecated fields and types |
+| `--sdl` | Output raw SDL instead of structured description |
+| `--compact` | Output token-efficient compact notation |
+| `--no-cache` | Skip the local schema cache |
+| `--profile <NAME>` | Name of configuration profile to use |
+
+## Output formats
+
+By default, `rover describe` outputs a structured human-readable description. Three alternatives are available:
+
+- **`--sdl`**: Raw SDL, filtered to just the coordinate you asked for
+- **`--compact`**: Token-efficient notation (~40% fewer tokens than SDL)
+- **`--format json`** (global): Structured JSON output
+
+When output is piped (stdout is not a TTY), compact format is auto-selected unless `--sdl` or `--format json` is specified.
+
+```bash
+# Auto-compacts when piped
+rover describe my-graph@my-variant:Post | cat
+```
+
+## Schema source
+
+By default, `rover describe` fetches the schema from GraphOS using your `APOLLO_KEY`. The schema is cached locally for 5 minutes.

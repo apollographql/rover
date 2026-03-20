@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    fmt::Write,
+    fmt::{Debug, Write},
     io::{self, IsTerminal},
 };
 
@@ -44,6 +44,19 @@ use crate::{
     utils::table,
 };
 
+/// Trait for command output types that can render themselves in multiple formats.
+///
+/// Implement this on concrete output structs returned by commands. The CLI
+/// dispatches to the appropriate method based on the user's `--format` flag
+/// and whether stdout is a TTY.
+pub trait CliOutput: Debug + Send {
+    /// Human-readable, multi-line description format (default for TTY).
+    fn text(&self) -> String;
+
+    /// Structured JSON output.
+    fn json(&self) -> Result<serde_json::Value, serde_json::Error>;
+}
+
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
@@ -52,7 +65,7 @@ use crate::{
 /// Not all commands will output machine readable information, and those should
 /// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub enum RoverOutput {
     ConfigWhoAmIOutput {
         api_key: String,
@@ -145,6 +158,7 @@ pub enum RoverOutput {
         old_name: Option<String>,
         new_name: String,
     },
+    CliOutput(Box<dyn CliOutput>),
 }
 
 impl RoverOutput {
@@ -580,6 +594,7 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
 
@@ -734,6 +749,9 @@ impl RoverOutput {
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
+            RoverOutput::CliOutput(cli_output) => {
+                cli_output.json().unwrap_or(serde_json::Value::Null)
+            }
         }
     }
 
@@ -861,7 +879,7 @@ mod tests {
             "slug_two",
             ShortlinkInfo::new("description_two", "r", "slug_two"),
         );
-        let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
+        let actual_json = JsonOutput::from(&RoverOutput::DocsList(mock_shortlinks));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -893,7 +911,7 @@ mod tests {
                 },
             },
         };
-        let actual_json: JsonOutput = RoverOutput::FetchResponse(mock_fetch_response).into();
+        let actual_json = JsonOutput::from(&RoverOutput::FetchResponse(mock_fetch_response));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -911,7 +929,7 @@ mod tests {
     #[test]
     fn core_schema_json() {
         let mock_core_schema = "core schema contents".to_string();
-        let actual_json: JsonOutput = RoverOutput::SupergraphSchema(mock_core_schema).into();
+        let actual_json = JsonOutput::from(&RoverOutput::SupergraphSchema(mock_core_schema));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -950,7 +968,7 @@ mod tests {
             root_url: "https://studio.apollographql.com/".to_string(),
             graph_ref: GraphRef::new("graph", Some("current")).unwrap(),
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphList(mock_subgraph_list_response).into();
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphList(mock_subgraph_list_response));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -986,13 +1004,12 @@ mod tests {
             supergraph_was_updated: true,
             build_errors: BuildErrors::new(),
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphDeleteResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphDeleteResponse {
             delete_response: mock_subgraph_delete,
             subgraph: "subgraph".to_string(),
             dry_run: false,
             graph_ref: GraphRef::new("name", Some("current")).unwrap(),
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1025,13 +1042,12 @@ mod tests {
             ]
             .into(),
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphDeleteResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphDeleteResponse {
             delete_response: mock_subgraph_delete,
             subgraph: "subgraph".to_string(),
             dry_run: true,
             graph_ref: GraphRef::new("name", Some("current")).unwrap(),
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1082,8 +1098,11 @@ mod tests {
                 None,
             ),
         ]);
-        let actual_json: JsonOutput =
-            RoverError::new(RoverClientError::NoSupergraphBuilds { graph_ref, source }).into();
+        let actual_json =
+            JsonOutput::from(&RoverError::new(RoverClientError::NoSupergraphBuilds {
+                graph_ref,
+                source,
+            }));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1180,8 +1199,8 @@ mod tests {
             maybe_downstream_response: None,
         };
 
-        let actual_json: JsonOutput =
-            RoverOutput::CheckWorkflowResponse(mock_check_response).into();
+        let actual_json =
+            JsonOutput::from(&RoverOutput::CheckWorkflowResponse(mock_check_response));
         let expected_json = json!(
         {
             "json_version": "2",
@@ -1383,11 +1402,11 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_downstream_response: None,
         };
 
-        let actual_json: JsonOutput = RoverError::new(RoverClientError::CheckWorkflowFailure {
-            graph_ref,
-            check_response: Box::new(check_response),
-        })
-        .into();
+        let actual_json =
+            JsonOutput::from(&RoverError::new(RoverClientError::CheckWorkflowFailure {
+                graph_ref,
+                check_response: Box::new(check_response),
+            }));
         let expected_json = json!(
         {
             "json_version": "2",
@@ -1490,11 +1509,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 },
             },
         };
-        let actual_json: JsonOutput = RoverOutput::GraphPublishResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::GraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
             publish_response: mock_publish_response,
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1530,12 +1548,11 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
             ),
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1579,12 +1596,11 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             launch_url: None,
             launch_cli_copy: None,
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("name", Some("current")).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1634,12 +1650,11 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             launch_url: None,
             launch_cli_copy: None,
         };
-        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
-        }
-        .into();
+        });
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1660,7 +1675,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
     #[test]
     fn profiles_json() {
         let mock_profiles = vec!["default".to_string(), "staging".to_string()];
-        let actual_json: JsonOutput = RoverOutput::Profiles(mock_profiles).into();
+        let actual_json = JsonOutput::from(&RoverOutput::Profiles(mock_profiles));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1678,10 +1693,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn introspection_json() {
-        let actual_json: JsonOutput = RoverOutput::Introspection(
+        let actual_json = JsonOutput::from(&RoverOutput::Introspection(
             "i cant believe its not a real introspection response".to_string(),
-        )
-        .into();
+        ));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1696,11 +1710,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn error_explanation_json() {
-        let actual_json: JsonOutput = RoverOutput::ErrorExplanation(
+        let actual_json = JsonOutput::from(&RoverOutput::ErrorExplanation(
             "this error occurs when stuff is real complicated... I wouldn't worry about it"
                 .to_string(),
-        )
-        .into();
+        ));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1717,7 +1730,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn empty_success_json() {
-        let actual_json: JsonOutput = RoverOutput::EmptySuccess.into();
+        let actual_json = JsonOutput::from(&RoverOutput::EmptySuccess);
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1731,7 +1744,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn base_error_message_json() {
-        let actual_json: JsonOutput = RoverError::new(anyhow!("Some random error")).into();
+        let actual_json = JsonOutput::from(&RoverError::new(anyhow!("Some random error")));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1748,11 +1761,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn coded_error_message_json() {
-        let actual_json: JsonOutput = RoverError::new(RoverClientError::NoSubgraphInGraph {
+        let actual_json = JsonOutput::from(&RoverError::new(RoverClientError::NoSubgraphInGraph {
             invalid_subgraph: "invalid_subgraph".to_string(),
             valid_subgraphs: Vec::new(),
-        })
-        .into();
+        }));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1783,11 +1795,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 None,
             ),
         ]);
-        let actual_json: JsonOutput = RoverError::from(RoverClientError::BuildErrors {
+        let actual_json = JsonOutput::from(&RoverError::from(RoverClientError::BuildErrors {
             source,
             num_subgraphs: 2,
-        })
-        .into();
+        }));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1822,7 +1833,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
     #[test]
     fn lint_response_json() {
-        let actual_json: JsonOutput = RoverError::new(RoverClientError::LintFailures {
+        let actual_json = JsonOutput::from(&RoverError::new(RoverClientError::LintFailures {
             lint_response: LintResponse {
                 diagnostics: [Diagnostic {
                     rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
@@ -1837,8 +1848,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 file_name: "/tmp/schema.graphql".to_string(),
                 proposed_schema: "type Query { Hello: String }".to_string(),
             },
-        })
-        .into();
+        }));
 
         let expected_json = json!(
             {
@@ -1897,8 +1907,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             revision,
             operation_counts,
         };
-        let actual_json: JsonOutput =
-            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueriesPublishResponse(
+            mock_publish_response,
+        ));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1954,8 +1965,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             unchanged: false,
             operation_counts,
         };
-        let actual_json: JsonOutput =
-            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueriesPublishResponse(
+            mock_publish_response,
+        ));
         let expected_json = json!(
         {
             "json_version": "1",
@@ -1989,7 +2001,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             jwt: "jwt_token".to_string(),
         };
 
-        let actual_json: JsonOutput = license_response.into();
+        let actual_json = JsonOutput::from(&license_response);
         let expected_json = json!(
         {
             "json_version": "1",
