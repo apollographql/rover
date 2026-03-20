@@ -30,6 +30,7 @@ members = [
     "xtask",
     "crates/houston",
     "crates/robot-panic",
+    "crates/rover-schema",
     "crates/rover-tower",
     "crates/rover-http",
     "crates/rover-graphql",
@@ -71,6 +72,7 @@ rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
+rover-schema = { path = "./crates/rover-schema" }
 rover-tower = { path = "./crates/rover-tower" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
@@ -78,6 +80,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
+apollo-compiler = "1"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
@@ -219,6 +222,7 @@ robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-schema = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
 schemars = { workspace = true }
