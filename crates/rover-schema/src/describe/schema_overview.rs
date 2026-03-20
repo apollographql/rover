@@ -1,11 +1,10 @@
 use apollo_compiler::{Name, schema::ExtendedType};
 
-use crate::ParsedSchema;
-
 use super::{
     deprecated::{DeprecatedFields, DeprecatedValues},
     type_detail::FieldSummary,
 };
+use crate::ParsedSchema;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SchemaOverview {
@@ -117,10 +116,11 @@ impl ParsedSchema {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::ParsedSchema;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
+
+    use super::*;
+    use crate::ParsedSchema;
 
     #[fixture]
     fn test_schema() -> ParsedSchema {
@@ -148,10 +148,7 @@ mod tests {
     #[case::float(Name::new("Float").unwrap())]
     #[case::boolean(Name::new("Boolean").unwrap())]
     #[case::id(Name::new("ID").unwrap())]
-    fn overview_excludes_builtin_scalars(
-        test_schema: ParsedSchema,
-        #[case] scalar: Name,
-    ) {
+    fn overview_excludes_builtin_scalars(test_schema: ParsedSchema, #[case] scalar: Name) {
         let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         assert_that!(schema_overview.scalars).does_not_contain(&scalar);
     }
@@ -164,10 +161,7 @@ mod tests {
     #[case::enum_value(Name::new("__EnumValue").unwrap())]
     #[case::directive(Name::new("__Directive").unwrap())]
     #[case::directive_location(Name::new("__DirectiveLocation").unwrap())]
-    fn overview_excludes_introspection_types(
-        test_schema: ParsedSchema,
-        #[case] type_name: Name,
-    ) {
+    fn overview_excludes_introspection_types(test_schema: ParsedSchema, #[case] type_name: Name) {
         let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         let all_names: Vec<&Name> = schema_overview
             .objects

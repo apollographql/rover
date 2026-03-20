@@ -3,15 +3,14 @@ mod schema_overview;
 mod sdl;
 mod type_detail;
 
-pub use sdl::filtered_sdl;
-
 use field_detail::FieldDetailDisplay;
 use rover_schema::{FieldDetail, SchemaOverview, TypeDetail};
+use schema_overview::SchemaOverviewDisplay;
+pub use sdl::filtered_sdl;
 use serde::Serialize;
 use type_detail::TypeDetailDisplay;
 
 use crate::command::CliOutput;
-use schema_overview::SchemaOverviewDisplay;
 
 #[derive(Debug, Serialize)]
 pub enum DescribeOutput {

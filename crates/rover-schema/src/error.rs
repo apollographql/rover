@@ -1,5 +1,4 @@
-use apollo_compiler::Name;
-use apollo_compiler::coordinate::SchemaCoordinate;
+use apollo_compiler::{Name, coordinate::SchemaCoordinate};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

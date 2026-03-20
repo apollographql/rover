@@ -1,12 +1,11 @@
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
+use super::service::GraphIntrospectQuery;
 use crate::{
     blocking::GraphQLClient,
     error::{EndpointKind, RoverClientError},
     operations::graph::introspect::types::*,
 };
-
-use super::service::GraphIntrospectQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format

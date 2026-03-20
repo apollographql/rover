@@ -1,14 +1,13 @@
 pub mod deprecated;
 pub mod schema_overview;
 pub mod type_detail;
+use apollo_compiler::Name;
 pub use schema_overview::SchemaOverview;
 pub use type_detail::{
     ArgInfo, EnumDetail, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
     FieldSummary, FieldsDetail, InputDetail, InterfaceDetail, ObjectDetail, ScalarDetail,
     TypeDetail, TypeKind, UnionDetail,
 };
-
-use apollo_compiler::Name;
 
 impl crate::ParsedSchema {
     pub fn find_implementors(&self, interface_name: &Name) -> Vec<Name> {

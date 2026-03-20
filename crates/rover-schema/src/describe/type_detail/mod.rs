@@ -1,14 +1,12 @@
 mod fields;
+use apollo_compiler::{Name, schema::ExtendedType};
 pub use fields::{
     ArgInfo, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
     FieldSummary, FieldsDetail, TypeKind,
 };
 
-use apollo_compiler::{Name, schema::ExtendedType};
-
-use crate::{ParsedSchema, error::SchemaError, root_paths};
-
 use super::deprecated::IsDeprecated;
+use crate::{ParsedSchema, error::SchemaError, root_paths};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ObjectDetail {

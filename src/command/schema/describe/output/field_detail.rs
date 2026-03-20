@@ -1,7 +1,9 @@
 use comfy_table::{Table, presets};
 use itertools::Itertools;
-use rover_schema::describe::type_detail::{ExpandedType, FieldDetail, TypeKind};
-use rover_schema::root_paths::RootPath;
+use rover_schema::{
+    describe::type_detail::{ExpandedType, FieldDetail, TypeKind},
+    root_paths::RootPath,
+};
 
 pub struct FieldDetailDisplay<'a> {
     detail: &'a FieldDetail,
@@ -71,7 +73,10 @@ impl<'a> FieldDetailDisplay<'a> {
     fn return_type(&self) -> Option<String> {
         let ret = self.detail.return_expansion.as_ref()?;
         let table = expanded_type_table(ret)?;
-        Some(format!("Return type: {} ({})\n{}", ret.name, ret.kind, table))
+        Some(format!(
+            "Return type: {} ({})\n{}",
+            ret.name, ret.kind, table
+        ))
     }
 
     fn input_types(&self) -> Option<String> {
@@ -155,16 +160,17 @@ fn via_section(via: &[RootPath]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use apollo_compiler::coordinate::SchemaCoordinate;
-    use rstest::{fixture, rstest};
     use rover_schema::ParsedSchema;
+    use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
     use super::FieldDetailDisplay;
 
     #[fixture]
     fn schema() -> ParsedSchema {
-        let sdl =
-            include_str!("../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql");
+        let sdl = include_str!(
+            "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
+        );
         ParsedSchema::parse(sdl)
     }
 
