@@ -13,13 +13,13 @@ const ARROW: &str = "->";
 pub struct RootPath {
     /// Sequence of (type_name, field_name) pairs from root to target.
     /// The last element's type_name is the parent of the target.
-    pub segments: Vec<PathSegment>,
+    pub(crate) segments: Vec<PathSegment>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct PathSegment {
-    pub type_name: Name,
-    pub field_name: Name,
+pub(crate) struct PathSegment {
+    pub(crate) type_name: Name,
+    pub(crate) field_name: Name,
 }
 
 impl RootPath {
