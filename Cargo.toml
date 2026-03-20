@@ -223,6 +223,7 @@ robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-schema = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
 schemars = { workspace = true }

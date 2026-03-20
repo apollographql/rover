@@ -5,6 +5,7 @@ mod config;
 #[cfg(feature = "composition-js")]
 pub mod connector;
 mod contract;
+mod schema;
 mod dev;
 mod docs;
 mod explain;
@@ -30,6 +31,7 @@ pub use config::Config;
 #[cfg(feature = "composition-js")]
 pub use connector::Connector;
 pub use contract::Contract;
+pub use schema::Schema;
 pub use dev::Dev;
 pub use docs::Docs;
 pub use explain::Explain;
@@ -40,7 +42,7 @@ pub use install::Install;
 pub use license::License;
 #[cfg(feature = "composition-js")]
 pub use lsp::Lsp;
-pub use output::RoverOutput;
+pub use output::{CliOutput, RoverOutput};
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;
 pub use subgraph::Subgraph;

@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    fmt::Write,
+    fmt::{Debug, Write},
     io::{self, IsTerminal},
 };
 
@@ -44,6 +44,25 @@ use crate::{
     utils::table,
 };
 
+/// Trait for command output types that can render themselves in multiple formats.
+///
+/// Implement this on concrete output structs returned by commands. The CLI
+/// dispatches to the appropriate method based on the user's `--format` flag
+/// and whether stdout is a TTY.
+pub trait CliOutput: Debug + Send {
+    /// Human-readable, multi-line description format (default for TTY).
+    fn text(&self) -> String;
+
+    /// Token-efficient compact notation (default when piped).
+    /// Defaults to [`text`](Self::text) if not overridden.
+    fn compact(&self) -> String {
+        self.text()
+    }
+
+    /// Structured JSON output.
+    fn json(&self) -> serde_json::Value;
+}
+
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
@@ -52,7 +71,7 @@ use crate::{
 /// Not all commands will output machine readable information, and those should
 /// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub enum RoverOutput {
     ConfigWhoAmIOutput {
         api_key: String,
@@ -113,6 +132,10 @@ pub enum RoverOutput {
         graph_id: String,
         jwt: String,
     },
+    DescribeResponse {
+        content: String,
+        json_data: serde_json::Value,
+    },
     EmptySuccess,
     CloudConfigFetchResponse {
         config: String,
@@ -145,6 +168,7 @@ pub enum RoverOutput {
         old_name: Option<String>,
         new_name: String,
     },
+    CliOutput(Box<dyn CliOutput>),
 }
 
 impl RoverOutput {
@@ -527,6 +551,7 @@ impl RoverOutput {
                 stderrln!("Success!")?;
                 Some(jwt.to_string())
             }
+            RoverOutput::DescribeResponse { content, .. } => Some(content.clone()),
             RoverOutput::EmptySuccess => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
@@ -580,6 +605,7 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
 
@@ -678,6 +704,7 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
+            RoverOutput::DescribeResponse { json_data, .. } => json_data.clone(),
             RoverOutput::EmptySuccess => json!(null),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
@@ -734,6 +761,7 @@ impl RoverOutput {
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
             }
+            RoverOutput::CliOutput(cli_output) => cli_output.json(),
         }
     }
 
@@ -816,6 +844,7 @@ impl RoverOutput {
             RoverOutput::Introspection(_) => Some("Introspection Response"),
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
+            RoverOutput::DescribeResponse { .. } => None,
             _ => None,
         }
     }
