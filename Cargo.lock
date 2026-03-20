@@ -4749,6 +4749,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rover-schema"
+version = "0.0.0"
+dependencies = [
+ "apollo-compiler",
+ "itertools 0.14.0",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "speculoos",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "rover-std"
 version = "0.1.0"
 dependencies = [
