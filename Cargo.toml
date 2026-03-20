@@ -188,6 +188,7 @@ zip = "8"
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
 async-trait = { workspace = true }
+apollo-compiler = { workspace = true }
 apollo-language-server = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
@@ -254,6 +255,7 @@ url = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true }
 
 [dev-dependencies]
+apollo-compiler = { workspace = true }
 assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3"

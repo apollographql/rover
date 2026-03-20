@@ -1,6 +1,6 @@
 use apollo_compiler::{Name, schema::ExtendedType};
 
-use crate::{ParsedSchema, schema_source::SchemaSource};
+use crate::ParsedSchema;
 
 use super::{
     deprecated::{DeprecatedFields, DeprecatedValues},
@@ -9,7 +9,7 @@ use super::{
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SchemaOverview {
-    pub schema_source: SchemaSource,
+    pub schema_source: String,
     pub total_types: usize,
     pub total_fields: usize,
     pub total_deprecated: usize,
@@ -25,7 +25,7 @@ pub struct SchemaOverview {
 
 impl ParsedSchema {
     /// Generate a schema overview.
-    pub fn overview(&self, schema_source: SchemaSource) -> SchemaOverview {
+    pub fn overview(&self, schema_source: String) -> SchemaOverview {
         let schema = self.inner();
         let mut total_fields = 0usize;
         let mut total_deprecated = 0usize;
@@ -117,8 +117,6 @@ impl ParsedSchema {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
-
     use super::*;
     use crate::ParsedSchema;
     use rstest::{fixture, rstest};
@@ -130,16 +128,9 @@ mod tests {
         ParsedSchema::parse(sdl)
     }
 
-    #[fixture]
-    fn schema_path() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/test_fixtures/test_schema.graphql")
-            .to_path_buf()
-    }
-
     #[rstest]
-    fn overview_type_counts(test_schema: ParsedSchema, schema_path: PathBuf) {
-        let schema_overview = test_schema.overview(SchemaSource::File(schema_path));
+    fn overview_type_counts(test_schema: ParsedSchema) {
+        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         assert_that!(schema_overview.total_types).is_equal_to(29);
         assert_that!(schema_overview.total_fields).is_equal_to(86);
         assert_that!(schema_overview.total_deprecated).is_equal_to(3);
@@ -159,10 +150,9 @@ mod tests {
     #[case::id(Name::new("ID").unwrap())]
     fn overview_excludes_builtin_scalars(
         test_schema: ParsedSchema,
-        schema_path: PathBuf,
         #[case] scalar: Name,
     ) {
-        let schema_overview = test_schema.overview(SchemaSource::File(schema_path));
+        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         assert_that!(schema_overview.scalars).does_not_contain(&scalar);
     }
 
@@ -176,10 +166,9 @@ mod tests {
     #[case::directive_location(Name::new("__DirectiveLocation").unwrap())]
     fn overview_excludes_introspection_types(
         test_schema: ParsedSchema,
-        schema_path: PathBuf,
         #[case] type_name: Name,
     ) {
-        let schema_overview = test_schema.overview(SchemaSource::File(schema_path));
+        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         let all_names: Vec<&Name> = schema_overview
             .objects
             .iter()
@@ -197,10 +186,9 @@ mod tests {
     #[case::mutation(Name::new("Mutation").unwrap())]
     fn overview_excludes_root_types_from_objects(
         test_schema: ParsedSchema,
-        schema_path: PathBuf,
         #[case] root_type: Name,
     ) {
-        let schema_overview = test_schema.overview(SchemaSource::File(schema_path));
+        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         assert_that!(schema_overview.objects).does_not_contain(&root_type);
     }
 }

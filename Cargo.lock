@@ -4560,6 +4560,7 @@ name = "rover"
 version = "0.37.2"
 dependencies = [
  "anyhow",
+ "apollo-compiler",
  "apollo-federation-types",
  "apollo-language-server",
  "apollo-parser 0.8.5",

@@ -10,15 +10,6 @@ pub use type_detail::{
 
 use apollo_compiler::Name;
 
-/// Result of describing a schema at different levels of detail.
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
-pub enum DescribeResult {
-    Overview(SchemaOverview),
-    TypeDetail(TypeDetail),
-    FieldDetail(FieldDetail),
-}
-
 impl crate::ParsedSchema {
     pub fn find_implementors(&self, interface_name: &Name) -> Vec<Name> {
         self.inner()

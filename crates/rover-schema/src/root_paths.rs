@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use apollo_compiler::{Name, Schema, schema::ExtendedType};
 use itertools::Itertools;
 
-use crate::{
-    format::{ARROW, SEPARATOR},
-    util::unwrap_type_name,
-};
+use crate::util::unwrap_type_name;
+
+const SEPARATOR: &str = "|";
+const ARROW: &str = "->";
 
 /// A path from a root type (Query/Mutation) to a target type through field references.
 #[derive(Debug, Clone, serde::Serialize)]
