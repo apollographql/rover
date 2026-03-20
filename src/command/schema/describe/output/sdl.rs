@@ -1,5 +1,4 @@
-use apollo_compiler::Schema;
-use apollo_compiler::coordinate::SchemaCoordinate;
+use apollo_compiler::{Schema, coordinate::SchemaCoordinate};
 
 /// Returns SDL for the schema, optionally filtered to the type referenced by `coord`.
 ///

@@ -9,7 +9,6 @@ use serde_json::Value;
 use speculoos::prelude::*;
 use tempfile::NamedTempFile;
 
-
 /// A small but representative schema used for file-based tests.
 const TEST_SDL: &str = r#"
 type Query {
@@ -145,7 +144,14 @@ fn file_type_detail_shows_deprecated_field_with_reason() {
     let file = schema_file();
     let path = file.path().to_str().unwrap();
 
-    let output = rover(&["schema", "describe", path, "--coord", "Post", "--include-deprecated"]);
+    let output = rover(&[
+        "schema",
+        "describe",
+        path,
+        "--coord",
+        "Post",
+        "--include-deprecated",
+    ]);
 
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -275,7 +281,9 @@ fn file_view_sdl_with_coord_outputs_filtered_sdl() {
     let file = schema_file();
     let path = file.path().to_str().unwrap();
 
-    let output = rover(&["schema", "describe", path, "--coord", "User", "--view", "sdl"]);
+    let output = rover(&[
+        "schema", "describe", path, "--coord", "User", "--view", "sdl",
+    ]);
 
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -301,7 +309,9 @@ fn file_format_json_with_coord_outputs_valid_json() {
     let file = schema_file();
     let path = file.path().to_str().unwrap();
 
-    let output = rover(&["schema", "describe", path, "--coord", "Post", "--format", "json"]);
+    let output = rover(&[
+        "schema", "describe", path, "--coord", "Post", "--format", "json",
+    ]);
 
     assert!(output.status.success());
     let parsed: Result<Value, _> = serde_json::from_slice(&output.stdout);
@@ -320,7 +330,11 @@ fn file_nonexistent_coord_exits_nonzero() {
 
 #[rstest]
 fn nonexistent_file_exits_nonzero() {
-    let output = rover(&["schema", "describe", "/tmp/this_file_does_not_exist_rover.graphql"]);
+    let output = rover(&[
+        "schema",
+        "describe",
+        "/tmp/this_file_does_not_exist_rover.graphql",
+    ]);
     assert!(!output.status.success());
 }
 
@@ -349,10 +363,7 @@ fn rover_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output 
 
 #[rstest]
 fn stdin_overview_contains_schema_header() {
-    let output = rover_with_stdin(
-        &["schema", "describe", "--view", "description"],
-        TEST_SDL,
-    );
+    let output = rover_with_stdin(&["schema", "describe", "--view", "description"], TEST_SDL);
 
     assert!(output.status.success(), "command failed: {:?}", output);
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -374,10 +385,7 @@ fn stdin_dash_arg_reads_from_stdin() {
 
 #[rstest]
 fn stdin_type_detail_with_coord() {
-    let output = rover_with_stdin(
-        &["schema", "describe", "--coord", "User"],
-        TEST_SDL,
-    );
+    let output = rover_with_stdin(&["schema", "describe", "--coord", "User"], TEST_SDL);
 
     assert!(output.status.success(), "command failed: {:?}", output);
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -386,10 +394,7 @@ fn stdin_type_detail_with_coord() {
 
 #[rstest]
 fn stdin_format_json_outputs_valid_json() {
-    let output = rover_with_stdin(
-        &["schema", "describe", "--format", "json"],
-        TEST_SDL,
-    );
+    let output = rover_with_stdin(&["schema", "describe", "--format", "json"], TEST_SDL);
 
     assert!(output.status.success(), "command failed: {:?}", output);
     let parsed: Result<Value, _> = serde_json::from_slice(&output.stdout);

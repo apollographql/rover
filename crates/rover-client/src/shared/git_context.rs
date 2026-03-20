@@ -1,7 +1,7 @@
 use std::{env, panic};
 
-use git_url_parse::GitUrl;
 use git2::{Reference, Repository};
+use git_url_parse::GitUrl;
 use serde::Serialize;
 use url::form_urlencoded;
 

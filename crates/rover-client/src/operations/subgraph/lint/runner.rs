@@ -4,7 +4,6 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
-    RoverClientError,
     blocking::StudioClient,
     operations::{
         config::is_federated::{self, IsFederatedInput},
@@ -15,6 +14,7 @@ use crate::{
         },
     },
     shared::{Diagnostic, LintResponse},
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

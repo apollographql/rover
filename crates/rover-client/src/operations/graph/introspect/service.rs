@@ -6,8 +6,7 @@ use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::ResponseFuture;
 use tower::Service;
 
-use super::Schema;
-use super::types::GraphIntrospectResponse;
+use super::{types::GraphIntrospectResponse, Schema};
 use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
