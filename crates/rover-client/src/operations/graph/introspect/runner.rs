@@ -1,11 +1,25 @@
+use std::convert::{Into, TryFrom};
+
+use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use super::service::GraphIntrospectQuery;
 use crate::{
     blocking::GraphQLClient,
     error::{EndpointKind, RoverClientError},
-    operations::graph::introspect::types::*,
+    operations::graph::introspect::{types::*, Schema},
 };
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/graph/introspect/introspect_query.graphql",
+    schema_path = "src/operations/graph/introspect/introspect_schema.graphql",
+    response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+/// This struct is used to generate the module containing `Variables` and
+/// `ResponseData` structs.
+/// Snake case of this name is the mod name. i.e. graph_introspect_query
+pub(crate) struct GraphIntrospectQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
@@ -36,5 +50,16 @@ pub async fn run(
             .await
     }?;
 
-    super::service::build_response(response_data).map_err(RoverClientError::from)
+    build_response(response_data)
+}
+
+fn build_response(
+    response: QueryResponseData,
+) -> Result<GraphIntrospectResponse, RoverClientError> {
+    match Schema::try_from(response) {
+        Ok(schema) => Ok(GraphIntrospectResponse {
+            schema_sdl: schema.encode(),
+        }),
+        Err(msg) => Err(RoverClientError::IntrospectionError { msg: msg.into() }),
+    }
 }

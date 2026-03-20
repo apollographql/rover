@@ -12,7 +12,7 @@ use apollo_encoder::{
 };
 use serde::Deserialize;
 
-use crate::operations::graph::introspect::service::graph_introspect_query;
+use crate::operations::graph::introspect::runner::graph_introspect_query;
 
 type FullTypeField = graph_introspect_query::FullTypeFields;
 type FullTypeInputField = graph_introspect_query::FullTypeInputFields;
