@@ -14,7 +14,11 @@ pub struct InputDetail {
 }
 
 impl ParsedSchema {
-    pub(super) fn build_input_detail(&self, type_name: &Name, inp: &InputObjectType) -> InputDetail {
+    pub(super) fn build_input_detail(
+        &self,
+        type_name: &Name,
+        inp: &InputObjectType,
+    ) -> InputDetail {
         let description = inp.description.as_ref().map(|d| d.to_string());
         let fields: Vec<FieldInfo> = inp
             .fields
@@ -23,6 +27,11 @@ impl ParsedSchema {
             .collect();
         let field_count = fields.len();
         let via = self.find_root_paths(type_name);
-        InputDetail { name: type_name.clone(), description, fields: FieldsDetail::new(fields, field_count), via }
+        InputDetail {
+            name: type_name.clone(),
+            description,
+            fields: FieldsDetail::new(fields, field_count),
+            via,
+        }
     }
 }

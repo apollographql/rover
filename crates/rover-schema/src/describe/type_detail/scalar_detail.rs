@@ -13,6 +13,10 @@ impl ParsedSchema {
     pub(super) fn build_scalar_detail(&self, type_name: &Name, s: &ScalarType) -> ScalarDetail {
         let description = s.description.as_ref().map(|d| d.to_string());
         let via = self.find_root_paths(type_name);
-        ScalarDetail { name: type_name.clone(), description, via }
+        ScalarDetail {
+            name: type_name.clone(),
+            description,
+            via,
+        }
     }
 }

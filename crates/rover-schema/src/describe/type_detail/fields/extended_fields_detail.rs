@@ -15,8 +15,16 @@ pub struct ExtendedFieldsDetail {
 }
 
 impl ExtendedFieldsDetail {
-    pub fn new(fields: FieldsDetail, deprecated_count: usize, expanded_types: Vec<ExpandedType>) -> Self {
-        Self { fields, deprecated_count, expanded_types }
+    pub fn new(
+        fields: FieldsDetail,
+        deprecated_count: usize,
+        expanded_types: Vec<ExpandedType>,
+    ) -> Self {
+        Self {
+            fields,
+            deprecated_count,
+            expanded_types,
+        }
     }
 
     pub fn fields(&self) -> &[FieldInfo] {
@@ -40,14 +48,21 @@ impl ParsedSchema {
         let fields = if include_deprecated {
             all_fields
         } else {
-            all_fields.into_iter().filter(|f| !f.is_deprecated).collect()
+            all_fields
+                .into_iter()
+                .filter(|f| !f.is_deprecated)
+                .collect()
         };
         let expanded_types = if depth > 0 {
             self.expand_referenced_types(&fields, depth, include_deprecated)
         } else {
             Vec::new()
         };
-        ExtendedFieldsDetail::new(FieldsDetail::new(fields, field_count), deprecated_count, expanded_types)
+        ExtendedFieldsDetail::new(
+            FieldsDetail::new(fields, field_count),
+            deprecated_count,
+            expanded_types,
+        )
     }
 
     fn expand_referenced_types(
@@ -62,7 +77,12 @@ impl ParsedSchema {
         let schema = self.inner();
         fields
             .iter()
-            .filter(|f| schema.types.get(f.return_type.as_str()).map_or(false, |ty| !ty.is_built_in()))
+            .filter(|f| {
+                schema
+                    .types
+                    .get(f.return_type.as_str())
+                    .map_or(false, |ty| !ty.is_built_in())
+            })
             .unique_by(|f| &f.return_type)
             .filter_map(|f| self.expand_single_type(f.return_type.as_str(), include_deprecated))
             .collect()
