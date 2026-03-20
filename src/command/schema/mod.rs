@@ -19,9 +19,9 @@ pub enum Command {
 }
 
 impl Schema {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Describe(command) => command.run(client_config).await,
+            Command::Describe(command) => command.run().await,
         }
     }
 }
