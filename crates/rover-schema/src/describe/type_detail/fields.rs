@@ -55,7 +55,7 @@ pub struct ExpandedType {
     pub fields: Vec<FieldInfo>,
     pub enum_values: Vec<EnumValueInfo>,
     pub union_members: Vec<Name>,
-    pub implements: Vec<Name>,
+    pub(crate) implements: Vec<Name>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, bon::Builder, derive_getters::Getters)]
