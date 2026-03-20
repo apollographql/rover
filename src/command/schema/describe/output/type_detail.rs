@@ -1,10 +1,12 @@
 use comfy_table::{Table, presets};
 use itertools::Itertools;
-use rover_schema::describe::type_detail::{
-    EnumDetail, ExtendedFieldsDetail, FieldInfo, InputDetail, InterfaceDetail, ObjectDetail,
-    ScalarDetail, TypeDetail, UnionDetail,
+use rover_schema::{
+    describe::type_detail::{
+        EnumDetail, ExtendedFieldsDetail, FieldInfo, InputDetail, InterfaceDetail, ObjectDetail,
+        ScalarDetail, TypeDetail, UnionDetail,
+    },
+    root_paths::RootPath,
 };
-use rover_schema::root_paths::RootPath;
 
 pub struct TypeDetailDisplay<'a> {
     detail: &'a TypeDetail,

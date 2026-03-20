@@ -4,8 +4,7 @@ use apollo_compiler::{
     schema::{ExtendedType, FieldDefinition, InputValueDefinition},
 };
 
-use crate::describe::deprecated::IsDeprecated;
-use crate::{ParsedSchema, SchemaError, root_paths};
+use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_paths};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumValueInfo {

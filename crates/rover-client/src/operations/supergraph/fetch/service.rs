@@ -9,8 +9,8 @@ use rover_tower::ResponseFuture;
 use tower::Service;
 
 use crate::{
-    RoverClientError,
     shared::{FetchResponse, Sdl, SdlType},
+    RoverClientError,
 };
 
 // I'm not sure where this should live long-term

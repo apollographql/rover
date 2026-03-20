@@ -6,9 +6,9 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use crate::{
-    RoverClientError,
     blocking::StudioClient,
     operations::cloud::config::types::{CloudConfigInput, CloudConfigResponse},
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery, Debug)]

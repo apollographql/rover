@@ -17,7 +17,6 @@ use self::subgraph_check_workflow_query::{
 };
 use super::types::*;
 use crate::{
-    RoverClientError,
     blocking::StudioClient,
     operations::subgraph::check_workflow::types::QueryResponseData,
     shared::{
@@ -25,6 +24,7 @@ use crate::{
         LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
         ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
     },
+    RoverClientError,
 };
 
 #[derive(GraphQLQuery)]

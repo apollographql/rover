@@ -4,7 +4,7 @@ use super::{
     service::{SupergraphFetch, SupergraphFetchRequest},
     types::*,
 };
-use crate::{RoverClientError, blocking::StudioClient, shared::FetchResponse};
+use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
 
 /// Fetches a core schema from apollo studio
 pub async fn run(

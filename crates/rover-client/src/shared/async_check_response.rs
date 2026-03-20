@@ -1,5 +1,5 @@
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 /// CheckRequestSuccessResult is the return type of the
 /// `graph` and `subgraph` async check operations

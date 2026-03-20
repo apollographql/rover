@@ -3,12 +3,12 @@ use std::{
     str::FromStr,
 };
 
-use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center, Table, presets::UTF8_FULL};
-use rover_std::{Style, hyperlink};
+use comfy_table::{presets::UTF8_FULL, Attribute::Bold, Cell, CellAlignment::Center, Table};
+use rover_std::{hyperlink, Style};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
-use crate::{RoverClientError, shared::lint_response::Diagnostic};
+use crate::{shared::lint_response::Diagnostic, RoverClientError};
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowResponse {
