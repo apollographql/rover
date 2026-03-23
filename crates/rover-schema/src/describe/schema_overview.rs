@@ -6,19 +6,32 @@ use super::{
 };
 use crate::ParsedSchema;
 
+/// High-level statistics and type inventory for a GraphQL schema.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SchemaOverview {
+    /// The SDL source location or identifier that was parsed.
     pub schema_source: String,
+    /// Total number of user-defined types (excluding built-ins).
     pub total_types: usize,
+    /// Total number of fields across all objects, interfaces, inputs, and root types.
     pub total_fields: usize,
+    /// Number of deprecated fields and enum values across the schema.
     pub total_deprecated: usize,
+    /// Fields exposed on the `Query` root type.
     pub query_fields: Vec<FieldSummary>,
+    /// Fields exposed on the `Mutation` root type.
     pub mutation_fields: Vec<FieldSummary>,
+    /// Names of all user-defined object types (root types excluded).
     pub objects: Vec<Name>,
+    /// Names of all input object types.
     pub inputs: Vec<Name>,
+    /// Names of all enum types.
     pub enums: Vec<Name>,
+    /// Names of all interface types.
     pub interfaces: Vec<Name>,
+    /// Names of all union types.
     pub unions: Vec<Name>,
+    /// Names of all custom scalar types.
     pub scalars: Vec<Name>,
 }
 

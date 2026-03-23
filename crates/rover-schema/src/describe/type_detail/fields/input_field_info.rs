@@ -2,12 +2,18 @@ use apollo_compiler::{Name, schema::InputValueDefinition};
 
 use crate::describe::deprecated::IsDeprecated;
 
+/// Metadata for a single field within an input object type.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct InputFieldInfo {
+    /// The input field name.
     pub name: Name,
+    /// The inner named type of the field.
     pub field_type: Name,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// Whether this field is marked `@deprecated`.
     pub is_deprecated: bool,
+    /// The reason given for deprecation, if any.
     pub deprecation_reason: Option<String>,
 }
 

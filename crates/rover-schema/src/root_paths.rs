@@ -42,8 +42,8 @@ impl Hash for SchemaPathNode {
     }
 }
 
-/// Find the shortest path(s) from Query/Mutation/Subscription roots to a target type.
 impl ParsedSchema {
+    /// Find the shortest path(s) from Query/Mutation/Subscription roots to a target type.
     pub fn find_root_paths(&self, target_type: &Name) -> Vec<RootPath> {
         let schema = &self.inner();
         [

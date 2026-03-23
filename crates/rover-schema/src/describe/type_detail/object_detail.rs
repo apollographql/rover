@@ -3,13 +3,19 @@ use apollo_compiler::{Name, schema::ObjectType};
 use super::fields::{ExtendedFieldsDetail, FieldInfo};
 use crate::{ParsedSchema, root_paths::RootPath};
 
+/// Detailed view of a GraphQL object type.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ObjectDetail {
+    /// The type name.
     pub name: Name,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// Interfaces this object implements.
     pub implements: Vec<Name>,
+    /// Fields defined on this type, including deprecation and expansion info.
     #[serde(flatten)]
     pub fields: ExtendedFieldsDetail,
+    /// Root paths from Query/Mutation to this type.
     pub via: Vec<RootPath>,
 }
 

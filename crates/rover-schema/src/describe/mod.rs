@@ -1,5 +1,8 @@
+/// Deprecated field/value detection helpers.
 pub mod deprecated;
+/// High-level schema overview stats.
 pub mod schema_overview;
+/// Per-type detail views.
 pub mod type_detail;
 use apollo_compiler::coordinate::SchemaCoordinate;
 pub use schema_overview::SchemaOverview;
@@ -11,15 +14,23 @@ pub use type_detail::{
 
 use crate::error::SchemaError;
 
+/// The result of a `describe` operation, which varies by the coordinate provided.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(untagged)]
 pub enum DescribeOutput {
+    /// A high-level summary of the entire schema.
     Overview(SchemaOverview),
+    /// Detail for a specific named type.
     Type(TypeDetail),
+    /// Detail for a specific field on a type.
     Field(FieldDetail),
 }
 
 impl crate::ParsedSchema {
+    /// Describe the schema or a specific coordinate within it.
+    ///
+    /// Pass `None` for `coord` to get a full schema overview. Pass a type or
+    /// field coordinate to get detail for that specific item.
     pub fn describe(
         &self,
         coord: Option<&SchemaCoordinate>,

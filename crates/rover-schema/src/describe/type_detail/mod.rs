@@ -20,18 +20,26 @@ pub use union_detail::UnionDetail;
 
 use crate::{ParsedSchema, error::SchemaError};
 
+/// Detailed information about a specific named type in the schema.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TypeDetail {
+    /// An object type.
     Object(ObjectDetail),
+    /// An interface type.
     Interface(InterfaceDetail),
+    /// An input object type.
     Input(InputDetail),
+    /// An enum type.
     Enum(EnumDetail),
+    /// A union type.
     Union(UnionDetail),
+    /// A scalar type.
     Scalar(ScalarDetail),
 }
 
 impl ParsedSchema {
+    /// Return detail for the named type, or an error if it does not exist.
     pub fn type_detail(
         &self,
         type_name: &Name,

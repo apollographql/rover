@@ -2,10 +2,14 @@ use apollo_compiler::{Name, schema::ScalarType};
 
 use crate::{ParsedSchema, root_paths::RootPath};
 
+/// Detailed view of a GraphQL scalar type.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ScalarDetail {
+    /// The scalar type name.
     pub name: Name,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// Root paths from Query/Mutation to this type.
     pub via: Vec<RootPath>,
 }
 

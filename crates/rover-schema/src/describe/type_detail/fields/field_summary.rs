@@ -1,8 +1,11 @@
 use apollo_compiler::{Name, Schema, ast::Type as AstType, schema::ExtendedType};
 
+/// A lightweight summary of a field used in schema overview root-type listings.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldSummary {
+    /// The field name.
     pub name: Name,
+    /// The full return type.
     pub return_type: AstType,
 }
 

@@ -17,7 +17,7 @@ impl ParsedSchema {
         Self { schema }
     }
 
-    pub const fn inner(&self) -> &Schema {
+    pub(crate) const fn inner(&self) -> &Schema {
         &self.schema
     }
 

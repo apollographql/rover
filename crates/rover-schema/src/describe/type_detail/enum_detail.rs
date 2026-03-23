@@ -3,13 +3,20 @@ use apollo_compiler::{Name, schema::EnumType};
 use super::fields::EnumValueInfo;
 use crate::{ParsedSchema, describe::deprecated::IsDeprecated, root_paths::RootPath};
 
+/// Detailed view of a GraphQL enum type.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumDetail {
+    /// The enum type name.
     pub name: Name,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// The enum values (filtered by `include_deprecated` when built).
     pub values: Vec<EnumValueInfo>,
+    /// Total number of enum values including deprecated ones.
     pub value_count: usize,
+    /// Number of deprecated enum values.
     pub deprecated_count: usize,
+    /// Root paths from Query/Mutation to this type.
     pub via: Vec<RootPath>,
 }
 

@@ -7,22 +7,35 @@ use apollo_compiler::{
 use super::{arg_info::ArgInfo, expanded_type::ExpandedType};
 use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_paths::RootPath};
 
+/// Detailed information about a single field on a type.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldDetail {
+    /// The name of the type that owns this field.
     pub type_name: Name,
+    /// The field name.
     pub field_name: Name,
+    /// The full return type.
     pub return_type: AstType,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// Number of arguments this field accepts.
     pub arg_count: usize,
+    /// Metadata for each argument.
     pub args: Vec<ArgInfo>,
+    /// Root paths from Query/Mutation to the owning type.
     pub via: Vec<RootPath>,
+    /// Expansions of any input types used by the field's arguments.
     pub input_expansions: Vec<ExpandedType>,
+    /// Expansion of the field's return type, if it is a non-scalar.
     pub return_expansion: Option<ExpandedType>,
+    /// Whether this field is marked `@deprecated`.
     pub is_deprecated: bool,
+    /// The reason given for deprecation, if any.
     pub deprecation_reason: Option<String>,
 }
 
 impl ParsedSchema {
+    /// Return detail for the field identified by `coord`, or an error if not found.
     pub fn field_detail(
         &self,
         coord: &TypeAttributeCoordinate,

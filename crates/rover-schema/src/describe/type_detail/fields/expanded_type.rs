@@ -8,36 +8,57 @@ use super::{
 };
 use crate::{ParsedSchema, describe::deprecated::IsDeprecated};
 
+/// An inline expansion of a referenced type, used to provide context alongside field listings.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ExpandedType {
+    /// An expanded object type with its fields and interface relationships.
     Object {
+        /// The type name.
         name: Name,
+        /// Fields on this object.
         fields: Vec<FieldInfo>,
+        /// Interfaces this object implements.
         implements: Vec<Name>,
+        /// Object types that implement this type.
         implementors: Vec<Name>,
     },
+    /// An expanded interface type with its fields and implementors.
     Interface {
+        /// The type name.
         name: Name,
+        /// Fields declared on this interface.
         fields: Vec<FieldInfo>,
+        /// Interfaces this interface extends.
         implements: Vec<Name>,
+        /// Object types that implement this interface.
         implementors: Vec<Name>,
     },
+    /// An expanded input object type with its input fields.
     Input {
+        /// The type name.
         name: Name,
+        /// Input fields defined on this type.
         fields: Vec<InputFieldInfo>,
     },
+    /// An expanded enum type with its values.
     Enum {
+        /// The type name.
         name: Name,
+        /// The enum values.
         values: Vec<EnumValueInfo>,
     },
+    /// An expanded union type with its member types.
     Union {
+        /// The type name.
         name: Name,
+        /// The object types that are members of this union.
         members: Vec<Name>,
     },
 }
 
 impl ExpandedType {
+    /// Returns the type name regardless of variant.
     pub const fn name(&self) -> &Name {
         match self {
             ExpandedType::Object { name, .. }
@@ -50,6 +71,7 @@ impl ExpandedType {
 }
 
 impl ParsedSchema {
+    /// Expand the named type into an [`ExpandedType`], or `None` if it is a scalar or not found.
     pub fn expand_single_type(
         &self,
         type_name: &str,

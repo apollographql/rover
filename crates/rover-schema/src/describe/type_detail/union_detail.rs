@@ -2,11 +2,16 @@ use apollo_compiler::{Name, schema::UnionType};
 
 use crate::{ParsedSchema, root_paths::RootPath};
 
+/// Detailed view of a GraphQL union type.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct UnionDetail {
+    /// The union type name.
     pub name: Name,
+    /// Optional description from the schema SDL.
     pub description: Option<String>,
+    /// The object types that are members of this union.
     pub members: Vec<Name>,
+    /// Root paths from Query/Mutation to this type.
     pub via: Vec<RootPath>,
 }
 

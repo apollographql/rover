@@ -3,15 +3,19 @@ use itertools::Itertools;
 use super::{expanded_type::ExpandedType, field_info::FieldInfo, fields_detail::FieldsDetail};
 use crate::ParsedSchema;
 
+/// Field listing for an object or interface, augmented with deprecation counts and type expansions.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ExtendedFieldsDetail {
     #[serde(flatten)]
     fields: FieldsDetail,
+    /// Number of deprecated fields (always computed from all fields, regardless of filter).
     pub deprecated_count: usize,
+    /// Inline expansions of types referenced by the visible fields, up to the requested depth.
     pub expanded_types: Vec<ExpandedType>,
 }
 
 impl ExtendedFieldsDetail {
+    /// Construct an `ExtendedFieldsDetail` from its parts.
     pub const fn new(
         fields: FieldsDetail,
         deprecated_count: usize,
@@ -24,10 +28,12 @@ impl ExtendedFieldsDetail {
         }
     }
 
+    /// Returns the visible fields (deprecated fields excluded when the filter was applied).
     pub fn fields(&self) -> &[FieldInfo] {
         self.fields.fields()
     }
 
+    /// Returns the total field count including deprecated fields.
     pub const fn field_count(&self) -> usize {
         self.fields.field_count
     }
