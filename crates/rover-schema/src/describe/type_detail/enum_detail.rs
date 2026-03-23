@@ -1,9 +1,7 @@
 use apollo_compiler::{Name, schema::EnumType};
 
-use crate::{ParsedSchema, root_paths::RootPath};
-
 use super::fields::EnumValueInfo;
-use crate::describe::deprecated::IsDeprecated;
+use crate::{ParsedSchema, describe::deprecated::IsDeprecated, root_paths::RootPath};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumDetail {

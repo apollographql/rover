@@ -23,5 +23,4 @@ impl FieldInfo {
             arg_count: field.arguments.len(),
         }
     }
-
 }

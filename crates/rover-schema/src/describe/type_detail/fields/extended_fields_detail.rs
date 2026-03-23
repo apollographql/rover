@@ -1,10 +1,7 @@
 use itertools::Itertools;
 
+use super::{expanded_type::ExpandedType, field_info::FieldInfo, fields_detail::FieldsDetail};
 use crate::ParsedSchema;
-
-use super::expanded_type::ExpandedType;
-use super::field_info::FieldInfo;
-use super::fields_detail::FieldsDetail;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ExtendedFieldsDetail {

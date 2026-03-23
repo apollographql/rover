@@ -1,8 +1,7 @@
 use apollo_compiler::{Name, schema::InputObjectType};
 
-use crate::{ParsedSchema, root_paths::RootPath};
-
 use super::fields::InputFieldInfo;
+use crate::{ParsedSchema, root_paths::RootPath};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct InputDetail {

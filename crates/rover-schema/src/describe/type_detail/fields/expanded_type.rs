@@ -3,11 +3,10 @@ use apollo_compiler::{
     schema::{EnumType, ExtendedType, InputObjectType, InterfaceType, ObjectType, UnionType},
 };
 
+use super::{
+    enum_value_info::EnumValueInfo, field_info::FieldInfo, input_field_info::InputFieldInfo,
+};
 use crate::{ParsedSchema, describe::deprecated::IsDeprecated};
-
-use super::enum_value_info::EnumValueInfo;
-use super::field_info::FieldInfo;
-use super::input_field_info::InputFieldInfo;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -88,7 +87,12 @@ impl ParsedSchema {
             .iter()
             .map(|i| i.name.clone())
             .collect();
-        ExpandedType::Object { name, fields, implements, implementors: Vec::new() }
+        ExpandedType::Object {
+            name,
+            fields,
+            implements,
+            implementors: Vec::new(),
+        }
     }
 
     fn expand_interface(
@@ -109,7 +113,12 @@ impl ParsedSchema {
             .map(|i| i.name.clone())
             .collect();
         let implementors = self.find_implementors(&name);
-        ExpandedType::Interface { name, fields, implements, implementors }
+        ExpandedType::Interface {
+            name,
+            fields,
+            implements,
+            implementors,
+        }
     }
 
     fn expand_input(&self, name: Name, inp: &InputObjectType) -> ExpandedType {

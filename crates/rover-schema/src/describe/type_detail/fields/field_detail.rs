@@ -4,10 +4,8 @@ use apollo_compiler::{
     coordinate::{SchemaLookupError, TypeAttributeCoordinate},
 };
 
+use super::{arg_info::ArgInfo, expanded_type::ExpandedType};
 use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_paths::RootPath};
-
-use super::arg_info::ArgInfo;
-use super::expanded_type::ExpandedType;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldDetail {

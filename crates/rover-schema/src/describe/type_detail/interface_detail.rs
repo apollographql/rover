@@ -1,8 +1,7 @@
 use apollo_compiler::{Name, schema::InterfaceType};
 
-use crate::{ParsedSchema, root_paths::RootPath};
-
 use super::fields::{ExtendedFieldsDetail, FieldInfo};
+use crate::{ParsedSchema, root_paths::RootPath};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct InterfaceDetail {
