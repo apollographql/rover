@@ -138,8 +138,8 @@ mod tests {
         let TypeDetail::Interface(iface) = detail else {
             panic!("expected Interface variant")
         };
-        assert_that!(iface.implementors).contains(&Name::new("Post").unwrap());
-        assert_that!(iface.implementors).contains(&Name::new("Comment").unwrap());
+        assert_that!(iface.implementors).contains(Name::new("Post").unwrap());
+        assert_that!(iface.implementors).contains(Name::new("Comment").unwrap());
     }
 
     #[rstest]
@@ -150,14 +150,14 @@ mod tests {
         let TypeDetail::Input(inp) = detail else {
             panic!("expected Input variant")
         };
-        assert_that!(inp.fields).contains(&InputFieldInfo {
+        assert_that!(inp.fields).contains(InputFieldInfo {
             name: Name::new("title").unwrap(),
             field_type: Name::new("String").unwrap(),
             description: Some("The post title".to_string()),
             is_deprecated: false,
             deprecation_reason: None,
         });
-        assert_that!(inp.fields).contains(&InputFieldInfo {
+        assert_that!(inp.fields).contains(InputFieldInfo {
             name: Name::new("categoryId").unwrap(),
             field_type: Name::new("ID").unwrap(),
             description: Some("Category ID".to_string()),
@@ -174,8 +174,8 @@ mod tests {
         let TypeDetail::Union(u) = detail else {
             panic!("expected Union variant")
         };
-        assert_that!(u.members).contains(&Name::new("Post").unwrap());
-        assert_that!(u.members).contains(&Name::new("Comment").unwrap());
+        assert_that!(u.members).contains(Name::new("Post").unwrap());
+        assert_that!(u.members).contains(Name::new("Comment").unwrap());
     }
 
     #[rstest]
