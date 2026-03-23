@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 apollo-compiler = { workspace = true }
 itertools = { workspace = true }
+pathfinding = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 

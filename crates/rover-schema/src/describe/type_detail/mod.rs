@@ -87,7 +87,7 @@ impl ParsedSchema {
             .get(type_name)
             .ok_or_else(|| SchemaError::TypeNotFound(type_name.clone()))?;
 
-        let via = root_paths::find_root_paths(schema, type_name.as_str());
+        let via = self.find_root_paths(type_name);
 
         match ty {
             ExtendedType::Object(obj) => {
@@ -334,15 +334,20 @@ mod tests {
 
     #[rstest]
     fn type_detail_deprecated_fields_filtered(schema: ParsedSchema) {
-        let with_obj = match schema.type_detail(&Name::new("User").unwrap(), true, 0).unwrap() {
+        let with_obj = match schema
+            .type_detail(&Name::new("User").unwrap(), true, 0)
+            .unwrap()
+        {
             TypeDetail::Object(o) => o,
             _ => panic!("expected Object variant"),
         };
-        let without_obj =
-            match schema.type_detail(&Name::new("User").unwrap(), false, 0).unwrap() {
-                TypeDetail::Object(o) => o,
-                _ => panic!("expected Object variant"),
-            };
+        let without_obj = match schema
+            .type_detail(&Name::new("User").unwrap(), false, 0)
+            .unwrap()
+        {
+            TypeDetail::Object(o) => o,
+            _ => panic!("expected Object variant"),
+        };
         let legacy_id = FieldInfo {
             name: Name::new("legacyId").unwrap(),
             return_type: Name::new("String").unwrap(),

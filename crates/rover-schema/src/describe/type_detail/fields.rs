@@ -221,7 +221,7 @@ impl ParsedSchema {
             })
             .collect();
 
-        let via = root_paths::find_root_paths(self.inner(), type_name.as_str());
+        let via = self.find_root_paths(&type_name);
 
         // Expand input types used as arguments
         let mut input_expansions = Vec::new();
