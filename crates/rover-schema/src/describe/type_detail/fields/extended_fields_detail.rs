@@ -12,7 +12,7 @@ pub struct ExtendedFieldsDetail {
 }
 
 impl ExtendedFieldsDetail {
-    pub fn new(
+    pub const fn new(
         fields: FieldsDetail,
         deprecated_count: usize,
         expanded_types: Vec<ExpandedType>,
@@ -28,7 +28,7 @@ impl ExtendedFieldsDetail {
         self.fields.fields()
     }
 
-    pub fn field_count(&self) -> usize {
+    pub const fn field_count(&self) -> usize {
         self.fields.field_count
     }
 }
@@ -78,7 +78,7 @@ impl ParsedSchema {
                 schema
                     .types
                     .get(f.return_type.as_str())
-                    .map_or(false, |ty| !ty.is_built_in())
+                    .is_some_and(|ty| !ty.is_built_in())
             })
             .unique_by(|f| &f.return_type)
             .filter_map(|f| self.expand_single_type(f.return_type.as_str(), include_deprecated))

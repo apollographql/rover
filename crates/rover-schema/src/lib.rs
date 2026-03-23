@@ -2,8 +2,6 @@ pub mod describe;
 pub mod error;
 pub mod parsed_schema;
 pub mod root_paths;
-pub(crate) mod util;
-
 // Re-export main public types
 pub use apollo_compiler::coordinate::SchemaCoordinate;
 pub use describe::{

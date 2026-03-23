@@ -7,7 +7,7 @@ pub struct FieldsDetail {
 }
 
 impl FieldsDetail {
-    pub fn new(fields: Vec<FieldInfo>, field_count: usize) -> Self {
+    pub const fn new(fields: Vec<FieldInfo>, field_count: usize) -> Self {
         Self {
             fields,
             field_count,

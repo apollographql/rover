@@ -38,7 +38,7 @@ pub enum ExpandedType {
 }
 
 impl ExpandedType {
-    pub fn name(&self) -> &Name {
+    pub const fn name(&self) -> &Name {
         match self {
             ExpandedType::Object { name, .. }
             | ExpandedType::Interface { name, .. }
