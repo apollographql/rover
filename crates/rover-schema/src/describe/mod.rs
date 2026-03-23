@@ -5,8 +5,8 @@ use apollo_compiler::coordinate::SchemaCoordinate;
 pub use schema_overview::SchemaOverview;
 pub use type_detail::{
     ArgInfo, EnumDetail, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
-    FieldSummary, FieldsDetail, InputDetail, InterfaceDetail, ObjectDetail, ScalarDetail,
-    TypeDetail, TypeKind, UnionDetail,
+    FieldSummary, FieldsDetail, InputDetail, InputFieldInfo, InterfaceDetail, ObjectDetail,
+    ScalarDetail, TypeDetail, UnionDetail,
 };
 
 use crate::error::SchemaError;
@@ -93,6 +93,6 @@ mod tests {
         let detail = test_schema.field_detail(&coord);
         let detail = assert_that!(detail).is_ok().subject;
         assert_that!(detail.input_expansions).is_not_empty();
-        assert_that!(detail.input_expansions).matching_contains(|t| t.name == "CreatePostInput");
+        assert_that!(detail.input_expansions).matching_contains(|t| t.name() == "CreatePostInput");
     }
 }

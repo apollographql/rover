@@ -7,16 +7,47 @@ use crate::{ParsedSchema, describe::deprecated::IsDeprecated};
 
 use super::enum_value_info::EnumValueInfo;
 use super::field_info::FieldInfo;
-use super::type_kind::TypeKind;
+use super::input_field_info::InputFieldInfo;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-pub struct ExpandedType {
-    pub name: Name,
-    pub kind: TypeKind,
-    pub fields: Vec<FieldInfo>,
-    pub enum_values: Vec<EnumValueInfo>,
-    pub union_members: Vec<Name>,
-    pub implements: Vec<Name>,
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ExpandedType {
+    Object {
+        name: Name,
+        fields: Vec<FieldInfo>,
+        implements: Vec<Name>,
+        implementors: Vec<Name>,
+    },
+    Interface {
+        name: Name,
+        fields: Vec<FieldInfo>,
+        implements: Vec<Name>,
+        implementors: Vec<Name>,
+    },
+    Input {
+        name: Name,
+        fields: Vec<InputFieldInfo>,
+    },
+    Enum {
+        name: Name,
+        values: Vec<EnumValueInfo>,
+    },
+    Union {
+        name: Name,
+        members: Vec<Name>,
+    },
+}
+
+impl ExpandedType {
+    pub fn name(&self) -> &Name {
+        match self {
+            ExpandedType::Object { name, .. }
+            | ExpandedType::Interface { name, .. }
+            | ExpandedType::Input { name, .. }
+            | ExpandedType::Enum { name, .. }
+            | ExpandedType::Union { name, .. } => name,
+        }
+    }
 }
 
 impl ParsedSchema {
@@ -46,18 +77,18 @@ impl ParsedSchema {
         obj: &ObjectType,
         include_deprecated: bool,
     ) -> ExpandedType {
-        let fields: Vec<FieldInfo> = obj
+        let fields = obj
             .fields
             .iter()
             .filter(|(_, f)| include_deprecated || !f.is_deprecated())
             .map(|(n, field)| FieldInfo::from_field_definition(n.clone(), field))
             .collect();
-        let implements: Vec<Name> = obj
+        let implements = obj
             .implements_interfaces
             .iter()
             .map(|i| i.name.clone())
             .collect();
-        self.expand_field_type(name, TypeKind::Object, fields, implements)
+        ExpandedType::Object { name, fields, implements, implementors: Vec::new() }
     }
 
     fn expand_interface(
@@ -66,33 +97,32 @@ impl ParsedSchema {
         iface: &InterfaceType,
         include_deprecated: bool,
     ) -> ExpandedType {
-        let fields: Vec<FieldInfo> = iface
+        let fields = iface
             .fields
             .iter()
             .filter(|(_, f)| include_deprecated || !f.is_deprecated())
             .map(|(n, field)| FieldInfo::from_field_definition(n.clone(), field))
             .collect();
-        self.expand_field_type(name, TypeKind::Interface, fields, Vec::new())
+        let implements = iface
+            .implements_interfaces
+            .iter()
+            .map(|i| i.name.clone())
+            .collect();
+        let implementors = self.find_implementors(&name);
+        ExpandedType::Interface { name, fields, implements, implementors }
     }
 
     fn expand_input(&self, name: Name, inp: &InputObjectType) -> ExpandedType {
-        let fields: Vec<FieldInfo> = inp
+        let fields = inp
             .fields
             .iter()
-            .map(|(n, field)| FieldInfo::from_input_value_definition(n.clone(), field))
+            .map(|(n, field)| InputFieldInfo::from_input_value_definition(n.clone(), field))
             .collect();
-        ExpandedType {
-            name,
-            kind: TypeKind::Input,
-            fields,
-            enum_values: Vec::new(),
-            union_members: Vec::new(),
-            implements: Vec::new(),
-        }
+        ExpandedType::Input { name, fields }
     }
 
     fn expand_enum(&self, name: Name, e: &EnumType, include_deprecated: bool) -> ExpandedType {
-        let values: Vec<EnumValueInfo> = e
+        let values = e
             .values
             .iter()
             .filter(|(_, v)| include_deprecated || !v.is_deprecated())
@@ -103,48 +133,11 @@ impl ParsedSchema {
                 deprecation_reason: val.deprecation_reason(),
             })
             .collect();
-        ExpandedType {
-            name,
-            kind: TypeKind::Enum,
-            fields: Vec::new(),
-            enum_values: values,
-            union_members: Vec::new(),
-            implements: Vec::new(),
-        }
+        ExpandedType::Enum { name, values }
     }
 
     fn expand_union(&self, name: Name, u: &UnionType) -> ExpandedType {
-        let members: Vec<Name> = u.members.iter().map(|m| m.name.clone()).collect();
-        ExpandedType {
-            name,
-            kind: TypeKind::Union,
-            fields: Vec::new(),
-            enum_values: Vec::new(),
-            union_members: members,
-            implements: Vec::new(),
-        }
-    }
-
-    /// Shared logic for expanding Object and Interface types.
-    pub(super) fn expand_field_type(
-        &self,
-        name: Name,
-        kind: TypeKind,
-        fields: Vec<FieldInfo>,
-        implements: Vec<Name>,
-    ) -> ExpandedType {
-        let union_members = if kind == TypeKind::Interface {
-            self.find_implementors(&name)
-        } else {
-            Vec::new()
-        };
-        ExpandedType {
-            name,
-            kind,
-            fields,
-            enum_values: Vec::new(),
-            union_members,
-            implements,
-        }
+        let members = u.members.iter().map(|m| m.name.clone()).collect();
+        ExpandedType::Union { name, members }
     }
 }

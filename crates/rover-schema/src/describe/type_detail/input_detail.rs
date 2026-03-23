@@ -2,14 +2,14 @@ use apollo_compiler::{Name, schema::InputObjectType};
 
 use crate::{ParsedSchema, root_paths::RootPath};
 
-use super::fields::{FieldInfo, FieldsDetail};
+use super::fields::InputFieldInfo;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct InputDetail {
     pub name: Name,
     pub description: Option<String>,
-    #[serde(flatten)]
-    pub fields: FieldsDetail,
+    pub field_count: usize,
+    pub fields: Vec<InputFieldInfo>,
     pub via: Vec<RootPath>,
 }
 
@@ -20,17 +20,17 @@ impl ParsedSchema {
         inp: &InputObjectType,
     ) -> InputDetail {
         let description = inp.description.as_ref().map(|d| d.to_string());
-        let fields: Vec<FieldInfo> = inp
+        let fields: Vec<InputFieldInfo> = inp
             .fields
             .iter()
-            .map(|(n, field)| FieldInfo::from_input_value_definition(n.clone(), field))
+            .map(|(n, field)| InputFieldInfo::from_input_value_definition(n.clone(), field))
             .collect();
-        let field_count = fields.len();
         let via = self.find_root_paths(type_name);
         InputDetail {
             name: type_name.clone(),
             description,
-            fields: FieldsDetail::new(fields, field_count),
+            field_count: fields.len(),
+            fields,
             via,
         }
     }

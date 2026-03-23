@@ -8,7 +8,6 @@ use crate::{ParsedSchema, SchemaError, describe::deprecated::IsDeprecated, root_
 
 use super::arg_info::ArgInfo;
 use super::expanded_type::ExpandedType;
-use super::type_kind::TypeKind;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldDetail {
@@ -61,7 +60,7 @@ impl ParsedSchema {
         let input_expansions = args
             .iter()
             .filter_map(|arg| self.expand_single_type(arg.arg_type.as_str(), true))
-            .filter(|expanded| expanded.kind == TypeKind::Input)
+            .filter(|expanded| matches!(expanded, ExpandedType::Input { .. }))
             .collect();
 
         let return_expansion = self.expand_single_type(field.ty.inner_named_type().as_str(), true);

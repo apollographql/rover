@@ -8,7 +8,8 @@ pub(crate) mod util;
 pub use apollo_compiler::coordinate::SchemaCoordinate;
 pub use describe::{
     DescribeOutput, EnumDetail, ExtendedFieldsDetail, FieldDetail, FieldsDetail, InputDetail,
-    InterfaceDetail, ObjectDetail, ScalarDetail, SchemaOverview, TypeDetail, UnionDetail,
+    InputFieldInfo, InterfaceDetail, ObjectDetail, ScalarDetail, SchemaOverview, TypeDetail,
+    UnionDetail,
 };
 pub use error::SchemaError;
 pub use parsed_schema::ParsedSchema;

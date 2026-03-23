@@ -10,7 +10,7 @@ use apollo_compiler::{Name, schema::ExtendedType};
 pub use enum_detail::EnumDetail;
 pub use fields::{
     ArgInfo, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
-    FieldSummary, FieldsDetail, TypeKind,
+    FieldSummary, FieldsDetail, InputFieldInfo,
 };
 pub use input_detail::InputDetail;
 pub use interface_detail::InterfaceDetail;
@@ -150,21 +150,19 @@ mod tests {
         let TypeDetail::Input(inp) = detail else {
             panic!("expected Input variant")
         };
-        assert_that!(inp.fields.fields().to_vec()).contains(&FieldInfo {
+        assert_that!(inp.fields).contains(&InputFieldInfo {
             name: Name::new("title").unwrap(),
-            return_type: Name::new("String").unwrap(),
+            field_type: Name::new("String").unwrap(),
             description: Some("The post title".to_string()),
             is_deprecated: false,
             deprecation_reason: None,
-            arg_count: 0,
         });
-        assert_that!(inp.fields.fields().to_vec()).contains(&FieldInfo {
+        assert_that!(inp.fields).contains(&InputFieldInfo {
             name: Name::new("categoryId").unwrap(),
-            return_type: Name::new("ID").unwrap(),
+            field_type: Name::new("ID").unwrap(),
             description: Some("Category ID".to_string()),
             is_deprecated: false,
             deprecation_reason: None,
-            arg_count: 0,
         });
     }
 
@@ -197,7 +195,7 @@ mod tests {
             panic!("expected Object variant")
         };
         assert_that!(obj.fields.expanded_types).is_not_empty();
-        assert_that!(obj.fields.expanded_types).matching_contains(|t| t.name == "User");
+        assert_that!(obj.fields.expanded_types).matching_contains(|t| t.name() == "User");
     }
 
     #[rstest]
