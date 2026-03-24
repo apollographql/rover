@@ -105,6 +105,7 @@ fn path_to_root_path(path: Vec<SchemaPathNode>) -> RootPath {
 
 #[cfg(test)]
 mod tests {
+    use apollo_compiler::name;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
@@ -119,7 +120,7 @@ mod tests {
 
     #[rstest]
     fn finds_direct_path_from_query(schema: ParsedSchema) {
-        let paths = schema.find_root_paths(&Name::new("Post").unwrap());
+        let paths = schema.find_root_paths(&name!("Post"));
         assert_that!(paths).is_not_empty();
         let has_direct = paths.iter().any(|p| {
             p.segments.len() == 1
@@ -131,7 +132,7 @@ mod tests {
 
     #[rstest]
     fn finds_path_to_nested_type(schema: ParsedSchema) {
-        let paths = schema.find_root_paths(&Name::new("Preferences").unwrap());
+        let paths = schema.find_root_paths(&name!("Preferences"));
         assert_that!(paths).has_length(2);
 
         let query_path = paths
@@ -139,11 +140,11 @@ mod tests {
             .find(|p| p.segments[0].type_name == "Query")
             .unwrap();
         assert_that!(query_path.segments).has_length(2);
-        assert_that!(query_path.segments[0].type_name).is_equal_to(Name::new("Query").unwrap());
-        assert_that!(query_path.segments[0].field_name).is_equal_to(Name::new("viewer").unwrap());
-        assert_that!(query_path.segments[1].type_name).is_equal_to(Name::new("Viewer").unwrap());
+        assert_that!(query_path.segments[0].type_name).is_equal_to(name!("Query"));
+        assert_that!(query_path.segments[0].field_name).is_equal_to(name!("viewer"));
+        assert_that!(query_path.segments[1].type_name).is_equal_to(name!("Viewer"));
         assert_that!(query_path.segments[1].field_name)
-            .is_equal_to(Name::new("preferences").unwrap());
+            .is_equal_to(name!("preferences"));
 
         let mutation_path = paths
             .iter()
@@ -151,24 +152,24 @@ mod tests {
             .unwrap();
         assert_that!(mutation_path.segments).has_length(2);
         assert_that!(mutation_path.segments[0].type_name)
-            .is_equal_to(Name::new("Mutation").unwrap());
+            .is_equal_to(name!("Mutation"));
         assert_that!(mutation_path.segments[0].field_name)
-            .is_equal_to(Name::new("updatePreferences").unwrap());
+            .is_equal_to(name!("updatePreferences"));
         assert_that!(mutation_path.segments[1].type_name)
-            .is_equal_to(Name::new("UpdatePreferencesPayload").unwrap());
+            .is_equal_to(name!("UpdatePreferencesPayload"));
         assert_that!(mutation_path.segments[1].field_name)
-            .is_equal_to(Name::new("preferences").unwrap());
+            .is_equal_to(name!("preferences"));
     }
 
     #[rstest]
     fn no_path_for_root_type(schema: ParsedSchema) {
-        let paths = schema.find_root_paths(&Name::new("Query").unwrap());
+        let paths = schema.find_root_paths(&name!("Query"));
         assert_that!(paths).is_empty();
     }
 
     #[rstest]
     fn no_path_for_unreachable_scalar(schema: ParsedSchema) {
-        let paths = schema.find_root_paths(&Name::new("URL").unwrap());
+        let paths = schema.find_root_paths(&name!("URL"));
         assert_that!(paths).is_empty();
     }
 }

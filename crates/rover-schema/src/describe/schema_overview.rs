@@ -129,6 +129,7 @@ impl ParsedSchema {
 
 #[cfg(test)]
 mod tests {
+    use apollo_compiler::name;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
@@ -156,24 +157,24 @@ mod tests {
     }
 
     #[rstest]
-    #[case::string(Name::new("String").unwrap())]
-    #[case::int(Name::new("Int").unwrap())]
-    #[case::float(Name::new("Float").unwrap())]
-    #[case::boolean(Name::new("Boolean").unwrap())]
-    #[case::id(Name::new("ID").unwrap())]
+    #[case::string(name!("String"))]
+    #[case::int(name!("Int"))]
+    #[case::float(name!("Float"))]
+    #[case::boolean(name!("Boolean"))]
+    #[case::id(name!("ID"))]
     fn overview_excludes_builtin_scalars(test_schema: ParsedSchema, #[case] scalar: Name) {
         let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         assert_that!(schema_overview.scalars).does_not_contain(&scalar);
     }
 
     #[rstest]
-    #[case::schema(Name::new("__Schema").unwrap())]
-    #[case::type_(Name::new("__Type").unwrap())]
-    #[case::field(Name::new("__Field").unwrap())]
-    #[case::input_value(Name::new("__InputValue").unwrap())]
-    #[case::enum_value(Name::new("__EnumValue").unwrap())]
-    #[case::directive(Name::new("__Directive").unwrap())]
-    #[case::directive_location(Name::new("__DirectiveLocation").unwrap())]
+    #[case::schema(name!("__Schema"))]
+    #[case::type_(name!("__Type"))]
+    #[case::field(name!("__Field"))]
+    #[case::input_value(name!("__InputValue"))]
+    #[case::enum_value(name!("__EnumValue"))]
+    #[case::directive(name!("__Directive"))]
+    #[case::directive_location(name!("__DirectiveLocation"))]
     fn overview_excludes_introspection_types(test_schema: ParsedSchema, #[case] type_name: Name) {
         let schema_overview = test_schema.overview("test_schema.graphql".to_string());
         let all_names: Vec<&Name> = schema_overview
@@ -189,8 +190,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case::query(Name::new("Query").unwrap())]
-    #[case::mutation(Name::new("Mutation").unwrap())]
+    #[case::query(name!("Query"))]
+    #[case::mutation(name!("Mutation"))]
     fn overview_excludes_root_types_from_objects(
         test_schema: ParsedSchema,
         #[case] root_type: Name,

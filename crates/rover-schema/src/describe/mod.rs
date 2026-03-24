@@ -54,7 +54,7 @@ impl crate::ParsedSchema {
 
 #[cfg(test)]
 mod tests {
-    use apollo_compiler::coordinate::TypeAttributeCoordinate;
+    use apollo_compiler::coord;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
@@ -68,7 +68,7 @@ mod tests {
 
     #[rstest]
     fn field_detail_with_args(test_schema: ParsedSchema) {
-        let coord: TypeAttributeCoordinate = "User.posts".parse().unwrap();
+        let coord = coord!(User.posts);
         let detail = test_schema.field_detail(&coord);
         let detail = assert_that!(detail).is_ok().subject;
         assert_that!(detail.type_name.as_str()).is_equal_to("User");
@@ -78,7 +78,7 @@ mod tests {
 
     #[rstest]
     fn field_detail_not_found(test_schema: ParsedSchema) {
-        let coord: TypeAttributeCoordinate = "Post.nonExistent".parse().unwrap();
+        let coord = coord!(Post.nonExistent);
         assert_that!(test_schema.field_detail(&coord))
             .is_err()
             .matches(|e| {
@@ -89,7 +89,7 @@ mod tests {
 
     #[rstest]
     fn field_detail_deprecated(test_schema: ParsedSchema) {
-        let coord: TypeAttributeCoordinate = "Post.oldSlug".parse().unwrap();
+        let coord = coord!(Post.oldSlug);
         let detail = test_schema.field_detail(&coord);
         let detail = assert_that!(detail).is_ok().subject;
         assert_that!(detail.is_deprecated).is_true();
@@ -100,7 +100,7 @@ mod tests {
 
     #[rstest]
     fn field_detail_expands_input_types(test_schema: ParsedSchema) {
-        let coord: TypeAttributeCoordinate = "Mutation.createPost".parse().unwrap();
+        let coord = coord!(Mutation.createPost);
         let detail = test_schema.field_detail(&coord);
         let detail = assert_that!(detail).is_ok().subject;
         assert_that!(detail.input_expansions).is_not_empty();
