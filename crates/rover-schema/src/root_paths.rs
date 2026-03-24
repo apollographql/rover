@@ -109,13 +109,12 @@ mod tests {
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
-    use super::*;
     use crate::ParsedSchema;
 
     #[fixture]
     fn schema() -> ParsedSchema {
         let sdl = include_str!("test_fixtures/test_schema.graphql");
-        ParsedSchema::parse(sdl)
+        ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
     #[rstest]

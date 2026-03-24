@@ -34,12 +34,11 @@ impl crate::ParsedSchema {
     pub fn describe(
         &self,
         coord: Option<&SchemaCoordinate>,
-        schema_source: String,
         include_deprecated: bool,
         depth: usize,
     ) -> Result<DescribeOutput, SchemaError> {
         match coord {
-            None => Ok(DescribeOutput::Overview(self.overview(schema_source))),
+            None => Ok(DescribeOutput::Overview(self.overview())),
             Some(SchemaCoordinate::Type(tc)) => self
                 .type_detail(&tc.ty, include_deprecated, depth)
                 .map(DescribeOutput::Type),
@@ -63,7 +62,7 @@ mod tests {
     #[fixture]
     fn test_schema() -> ParsedSchema {
         let sdl = include_str!("../test_fixtures/test_schema.graphql");
-        ParsedSchema::parse(sdl)
+        ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
     #[rstest]

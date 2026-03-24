@@ -37,8 +37,12 @@ pub struct SchemaOverview {
 
 impl ParsedSchema {
     /// Generate a schema overview.
-    pub fn overview(&self, schema_source: String) -> SchemaOverview {
+    pub fn overview(&self) -> SchemaOverview {
         let schema = self.inner();
+        let schema_source = self
+            .source_path()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
         let mut total_fields = 0usize;
         let mut total_deprecated = 0usize;
         let mut objects = Vec::new();
@@ -139,12 +143,12 @@ mod tests {
     #[fixture]
     fn test_schema() -> ParsedSchema {
         let sdl = include_str!("../test_fixtures/test_schema.graphql");
-        ParsedSchema::parse(sdl)
+        ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
     #[rstest]
     fn overview_type_counts(test_schema: ParsedSchema) {
-        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
+        let schema_overview = test_schema.overview();
         assert_that!(schema_overview.total_types).is_equal_to(29);
         assert_that!(schema_overview.total_fields).is_equal_to(86);
         assert_that!(schema_overview.total_deprecated).is_equal_to(3);
@@ -163,7 +167,7 @@ mod tests {
     #[case::boolean(name!("Boolean"))]
     #[case::id(name!("ID"))]
     fn overview_excludes_builtin_scalars(test_schema: ParsedSchema, #[case] scalar: Name) {
-        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
+        let schema_overview = test_schema.overview();
         assert_that!(schema_overview.scalars).does_not_contain(&scalar);
     }
 
@@ -176,7 +180,7 @@ mod tests {
     #[case::directive(name!("__Directive"))]
     #[case::directive_location(name!("__DirectiveLocation"))]
     fn overview_excludes_introspection_types(test_schema: ParsedSchema, #[case] type_name: Name) {
-        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
+        let schema_overview = test_schema.overview();
         let all_names: Vec<&Name> = schema_overview
             .objects
             .iter()
@@ -196,7 +200,7 @@ mod tests {
         test_schema: ParsedSchema,
         #[case] root_type: Name,
     ) {
-        let schema_overview = test_schema.overview("test_schema.graphql".to_string());
+        let schema_overview = test_schema.overview();
         assert_that!(schema_overview.objects).does_not_contain(&root_type);
     }
 }
