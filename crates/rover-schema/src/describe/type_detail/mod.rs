@@ -95,18 +95,13 @@ mod tests {
 
     #[rstest]
     fn type_detail_object(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&name!("Post"), true, 0)
-            .unwrap();
+        let detail = schema.type_detail(&name!("Post"), true, 0).unwrap();
         let TypeDetail::Object(obj) = detail else {
             panic!("expected Object variant")
         };
         assert_that!(obj.name).is_equal_to(name!("Post"));
         assert_that!(obj.fields.field_count()).is_equal_to(14);
-        assert_that!(obj.implements).is_equal_to(vec![
-            name!("Node"),
-            name!("Timestamped"),
-        ]);
+        assert_that!(obj.implements).is_equal_to(vec![name!("Node"), name!("Timestamped")]);
     }
 
     #[rstest]
@@ -141,9 +136,7 @@ mod tests {
 
     #[rstest]
     fn type_detail_interface(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&name!("Timestamped"), true, 0)
-            .unwrap();
+        let detail = schema.type_detail(&name!("Timestamped"), true, 0).unwrap();
         let TypeDetail::Interface(iface) = detail else {
             panic!("expected Interface variant")
         };
@@ -177,9 +170,7 @@ mod tests {
 
     #[rstest]
     fn type_detail_union(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&name!("ContentItem"), true, 0)
-            .unwrap();
+        let detail = schema.type_detail(&name!("ContentItem"), true, 0).unwrap();
         let TypeDetail::Union(u) = detail else {
             panic!("expected Union variant")
         };
@@ -197,9 +188,7 @@ mod tests {
 
     #[rstest]
     fn type_detail_with_depth_expands_referenced_types(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&name!("Post"), true, 1)
-            .unwrap();
+        let detail = schema.type_detail(&name!("Post"), true, 1).unwrap();
         let TypeDetail::Object(obj) = detail else {
             panic!("expected Object variant")
         };
@@ -209,17 +198,11 @@ mod tests {
 
     #[rstest]
     fn type_detail_deprecated_fields_filtered(schema: ParsedSchema) {
-        let with_obj = match schema
-            .type_detail(&name!("User"), true, 0)
-            .unwrap()
-        {
+        let with_obj = match schema.type_detail(&name!("User"), true, 0).unwrap() {
             TypeDetail::Object(o) => o,
             _ => panic!("expected Object variant"),
         };
-        let without_obj = match schema
-            .type_detail(&name!("User"), false, 0)
-            .unwrap()
-        {
+        let without_obj = match schema.type_detail(&name!("User"), false, 0).unwrap() {
             TypeDetail::Object(o) => o,
             _ => panic!("expected Object variant"),
         };
@@ -245,10 +228,7 @@ mod tests {
             deprecation_reason: Some("Use TOP instead".to_string()),
         };
 
-        let with_e = match schema
-            .type_detail(&name!("SortOrder"), true, 0)
-            .unwrap()
-        {
+        let with_e = match schema.type_detail(&name!("SortOrder"), true, 0).unwrap() {
             TypeDetail::Enum(e) => e,
             _ => panic!("expected Enum variant"),
         };
@@ -256,10 +236,7 @@ mod tests {
         assert_that!(with_e.deprecated_count).is_equal_to(1);
         assert_that!(with_e.values).contains(&relevance);
 
-        let without_e = match schema
-            .type_detail(&name!("SortOrder"), false, 0)
-            .unwrap()
-        {
+        let without_e = match schema.type_detail(&name!("SortOrder"), false, 0).unwrap() {
             TypeDetail::Enum(e) => e,
             _ => panic!("expected Enum variant"),
         };

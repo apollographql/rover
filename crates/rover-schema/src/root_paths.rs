@@ -143,22 +143,18 @@ mod tests {
         assert_that!(query_path.segments[0].type_name).is_equal_to(name!("Query"));
         assert_that!(query_path.segments[0].field_name).is_equal_to(name!("viewer"));
         assert_that!(query_path.segments[1].type_name).is_equal_to(name!("Viewer"));
-        assert_that!(query_path.segments[1].field_name)
-            .is_equal_to(name!("preferences"));
+        assert_that!(query_path.segments[1].field_name).is_equal_to(name!("preferences"));
 
         let mutation_path = paths
             .iter()
             .find(|p| p.segments[0].type_name == "Mutation")
             .unwrap();
         assert_that!(mutation_path.segments).has_length(2);
-        assert_that!(mutation_path.segments[0].type_name)
-            .is_equal_to(name!("Mutation"));
-        assert_that!(mutation_path.segments[0].field_name)
-            .is_equal_to(name!("updatePreferences"));
+        assert_that!(mutation_path.segments[0].type_name).is_equal_to(name!("Mutation"));
+        assert_that!(mutation_path.segments[0].field_name).is_equal_to(name!("updatePreferences"));
         assert_that!(mutation_path.segments[1].type_name)
             .is_equal_to(name!("UpdatePreferencesPayload"));
-        assert_that!(mutation_path.segments[1].field_name)
-            .is_equal_to(name!("preferences"));
+        assert_that!(mutation_path.segments[1].field_name).is_equal_to(name!("preferences"));
     }
 
     #[rstest]
