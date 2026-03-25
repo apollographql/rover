@@ -1,12 +1,10 @@
 mod field_detail;
 mod schema_overview;
-mod sdl;
 mod type_detail;
 
 use field_detail::FieldDetailDisplay;
 use rover_schema::{FieldDetail, SchemaOverview, TypeDetail};
 use schema_overview::SchemaOverviewDisplay;
-pub use sdl::filtered_sdl;
 use serde::Serialize;
 use type_detail::TypeDetailDisplay;
 
@@ -32,6 +30,16 @@ impl CliOutput for DescribeOutput {
 
     fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
         serde_json::to_value(self)
+    }
+}
+
+impl From<rover_schema::describe::DescribeOutput> for DescribeOutput {
+    fn from(output: rover_schema::describe::DescribeOutput) -> Self {
+        match output {
+            rover_schema::describe::DescribeOutput::Overview(o) => Self::Overview(o),
+            rover_schema::describe::DescribeOutput::Type(t) => Self::Type(t),
+            rover_schema::describe::DescribeOutput::Field(f) => Self::Field(f),
+        }
     }
 }
 
