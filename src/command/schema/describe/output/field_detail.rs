@@ -1,7 +1,7 @@
 use comfy_table::{Table, presets};
 use itertools::Itertools;
 use rover_schema::{
-    describe::type_detail::{ExpandedType, FieldDetail, TypeKind},
+    describe::type_detail::{ExpandedType, FieldDetail},
     root_paths::RootPath,
 };
 
@@ -75,7 +75,9 @@ impl<'a> FieldDetailDisplay<'a> {
         let table = expanded_type_table(ret)?;
         Some(format!(
             "Return type: {} ({})\n{}",
-            ret.name, ret.kind, table
+            ret.name(),
+            expanded_type_kind(ret),
+            table
         ))
     }
 
@@ -89,7 +91,8 @@ impl<'a> FieldDetailDisplay<'a> {
             .input_expansions
             .iter()
             .filter_map(|exp| {
-                expanded_type_table(exp).map(|t| format!("{} ({})\n{}", exp.name, exp.kind, t))
+                expanded_type_table(exp)
+                    .map(|t| format!("{} ({})\n{}", exp.name(), expanded_type_kind(exp), t))
             })
             .collect();
 
@@ -107,62 +110,94 @@ impl<'a> From<&'a FieldDetail> for FieldDetailDisplay<'a> {
     }
 }
 
+fn expanded_type_kind(exp: &ExpandedType) -> &'static str {
+    match exp {
+        ExpandedType::Object { .. } => "object",
+        ExpandedType::Interface { .. } => "interface",
+        ExpandedType::Input { .. } => "input",
+        ExpandedType::Enum { .. } => "enum",
+        ExpandedType::Union { .. } => "union",
+    }
+}
+
 fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
-    match exp.kind {
-        TypeKind::Object | TypeKind::Interface | TypeKind::Input => {
-            if exp.fields.is_empty() {
+    match exp {
+        ExpandedType::Object { fields, implements, .. }
+        | ExpandedType::Interface { fields, implements, .. } => {
+            if fields.is_empty() {
                 return None;
             }
             let mut table = Table::new();
             table.load_preset(presets::ASCII_FULL);
             table.set_header(["Field", "Type"]);
-            if !exp.implements.is_empty() {
-                let implements = exp
-                    .implements
-                    .iter()
-                    .map(|n| n.as_str())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                table.add_row(["[implements]", &implements]);
+            if !implements.is_empty() {
+                let impl_str = implements.iter().map(|n| n.as_str()).collect::<Vec<_>>().join("\n");
+                table.add_row(["[implements]", &impl_str]);
             }
-            for field in &exp.fields {
+            for field in fields {
                 table.add_row([field.name.as_str(), field.return_type.as_str()]);
             }
             Some(table)
         }
-        TypeKind::Enum => {
-            if exp.enum_values.is_empty() {
+        ExpandedType::Input { fields, .. } => {
+            if fields.is_empty() {
+                return None;
+            }
+            let mut table = Table::new();
+            table.load_preset(presets::ASCII_FULL);
+            table.set_header(["Field", "Type"]);
+            for field in fields {
+                table.add_row([field.name.as_str(), field.field_type.as_str()]);
+            }
+            Some(table)
+        }
+        ExpandedType::Enum { values, .. } => {
+            if values.is_empty() {
                 return None;
             }
             let mut table = Table::new();
             table.load_preset(presets::ASCII_FULL);
             table.set_header(["Value"]);
-            for val in &exp.enum_values {
+            for val in values {
                 table.add_row([val.name.as_str()]);
             }
             Some(table)
         }
-        TypeKind::Union => {
-            if exp.union_members.is_empty() {
+        ExpandedType::Union { members, .. } => {
+            if members.is_empty() {
                 return None;
             }
             let mut table = Table::new();
             table.load_preset(presets::ASCII_FULL);
             table.set_header(["Member"]);
-            for member in &exp.union_members {
+            for member in members {
                 table.add_row([member.as_str()]);
             }
             Some(table)
         }
-        TypeKind::Scalar => None,
     }
+}
+
+fn format_root_path(path: &RootPath) -> String {
+    let val = serde_json::to_value(path).unwrap_or_default();
+    let segs = val["segments"].as_array().cloned().unwrap_or_default();
+    segs.iter()
+        .map(|s| {
+            format!(
+                "{}.{}",
+                s["type_name"].as_str().unwrap_or("?"),
+                s["field_name"].as_str().unwrap_or("?"),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" -> ")
 }
 
 fn via_section(via: &[RootPath]) -> Option<String> {
     if via.is_empty() {
         return None;
     }
-    let paths = via.iter().map(|p| p.format_via()).join(", ");
+    let paths = via.iter().map(format_root_path).join(", ");
     Some(format!("Available via: {}", paths))
 }
 
@@ -180,12 +215,15 @@ mod tests {
         let sdl = include_str!(
             "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
         );
-        ParsedSchema::parse(sdl)
+        ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
     fn display(schema: &ParsedSchema, coord: &str) -> String {
         let coord: SchemaCoordinate = coord.parse().unwrap();
-        let detail = schema.field_detail(&coord).unwrap();
+        let SchemaCoordinate::TypeAttribute(ref tac) = coord else {
+            panic!("expected a field coordinate");
+        };
+        let detail = schema.field_detail(tac).unwrap();
         FieldDetailDisplay::from(&detail).display()
     }
 

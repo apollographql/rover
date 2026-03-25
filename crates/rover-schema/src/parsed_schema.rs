@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use apollo_compiler::Schema;
+use apollo_compiler::{Schema, coordinate::SchemaCoordinate};
 pub use apollo_compiler::schema::ExtendedType;
 
 /// Wrapper around apollo_compiler::Schema providing convenient accessors.
@@ -30,5 +30,29 @@ impl ParsedSchema {
 
     pub(crate) const fn inner(&self) -> &Schema {
         &self.schema
+    }
+
+    /// Returns SDL for the schema filtered to the type referenced by `coord`, or `None` if the
+    /// coordinate is unsupported or the type is not found. Returns the full schema SDL when
+    /// `coord` is `None`.
+    pub fn filtered_sdl(&self, coord: Option<&SchemaCoordinate>) -> Option<String> {
+        let schema = self.inner();
+        let Some(coord) = coord else {
+            return Some(schema.serialize().to_string());
+        };
+
+        let type_name = match coord {
+            SchemaCoordinate::Type(tc) => &tc.ty,
+            SchemaCoordinate::TypeAttribute(tac) => &tac.ty,
+            SchemaCoordinate::FieldArgument(fac) => &fac.ty,
+            SchemaCoordinate::Directive(_) | SchemaCoordinate::DirectiveArgument(_) => {
+                return None;
+            }
+        };
+
+        schema
+            .types
+            .get(type_name)
+            .map(|ty| ty.serialize().to_string())
     }
 }

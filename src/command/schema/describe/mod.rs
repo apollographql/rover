@@ -12,7 +12,6 @@ use crate::{RoverOutput, RoverResult};
 
 mod output;
 pub use output::DescribeOutput;
-use output::filtered_sdl;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OutputFormat {
@@ -71,33 +70,31 @@ impl Describe {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
         let (sdl_string, source_label) = self.read_sdl()?;
         let output_format = self.output_format();
-        let schema = ParsedSchema::parse(&sdl_string);
+        let schema = ParsedSchema::parse(&sdl_string, &source_label);
 
         if matches!(output_format, OutputFormat::Sdl) {
-            let sdl = filtered_sdl(self.schema_coordinate.as_ref(), schema.inner());
+            let sdl = schema
+                .filtered_sdl(self.schema_coordinate.as_ref())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "unsupported coordinate for SDL view: '{}'",
+                        self.schema_coordinate
+                            .as_ref()
+                            .map(|c| c.to_string())
+                            .unwrap_or_default()
+                    )
+                })?;
             return Ok(RoverOutput::CliOutput(Box::new(DescribeOutput::Sdl(sdl))));
         }
 
-        let output = match &self.schema_coordinate {
-            None => DescribeOutput::Overview(schema.overview(source_label)),
-            Some(SchemaCoordinate::Type(tc)) => {
-                let detail = schema
-                    .type_detail(&tc.ty, self.include_deprecated, self.depth)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
-                DescribeOutput::Type(detail)
-            }
-            Some(coord @ SchemaCoordinate::TypeAttribute(_)) => {
-                let detail = schema
-                    .field_detail(coord)
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
-                DescribeOutput::Field(detail)
-            }
-            Some(other) => {
-                return Err(
-                    anyhow::anyhow!("unsupported coordinate for describe: '{other}'").into(),
-                );
-            }
-        };
+        let output = schema
+            .describe(
+                self.schema_coordinate.as_ref(),
+                self.include_deprecated,
+                self.depth,
+            )
+            .map(DescribeOutput::from)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         Ok(RoverOutput::CliOutput(Box::new(output)))
     }

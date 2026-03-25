@@ -2,8 +2,8 @@ use comfy_table::{Table, presets};
 use itertools::Itertools;
 use rover_schema::{
     describe::type_detail::{
-        EnumDetail, ExtendedFieldsDetail, FieldInfo, InputDetail, InterfaceDetail, ObjectDetail,
-        ScalarDetail, TypeDetail, UnionDetail,
+        EnumDetail, ExtendedFieldsDetail, FieldInfo, InputDetail, InputFieldInfo, InterfaceDetail,
+        ObjectDetail, ScalarDetail, TypeDetail, UnionDetail,
     },
     root_paths::RootPath,
 };
@@ -179,11 +179,11 @@ impl<'a> InputDetailDisplay<'a> {
     }
 
     fn summary(&self) -> String {
-        format!("{} fields", self.detail.fields.field_count)
+        format!("{} fields", self.detail.field_count)
     }
 
     fn fields(&self) -> String {
-        format!("Fields\n{}", fields_table(self.detail.fields.fields()))
+        format!("Fields\n{}", input_fields_table(&self.detail.fields))
     }
 
     fn via(&self) -> Option<String> {
@@ -345,11 +345,48 @@ fn fields_table(fields: &[FieldInfo]) -> Table {
     table
 }
 
+fn input_fields_table(fields: &[InputFieldInfo]) -> Table {
+    let mut table = Table::new();
+    table.load_preset(presets::ASCII_FULL);
+    table.set_header(["Field", "Type", "Description"]);
+
+    for field in fields {
+        let desc = match (
+            &field.description,
+            field.is_deprecated,
+            &field.deprecation_reason,
+        ) {
+            (_, true, Some(reason)) => format!("(deprecated: {})", reason),
+            (_, true, None) => "(deprecated)".to_string(),
+            (Some(d), false, _) => d.clone(),
+            (None, false, _) => String::new(),
+        };
+        table.add_row([field.name.as_str(), field.field_type.as_str(), &desc]);
+    }
+
+    table
+}
+
+fn format_root_path(path: &RootPath) -> String {
+    let val = serde_json::to_value(path).unwrap_or_default();
+    let segs = val["segments"].as_array().cloned().unwrap_or_default();
+    segs.iter()
+        .map(|s| {
+            format!(
+                "{}.{}",
+                s["type_name"].as_str().unwrap_or("?"),
+                s["field_name"].as_str().unwrap_or("?"),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" -> ")
+}
+
 fn via_section(via: &[RootPath]) -> Option<String> {
     if via.is_empty() {
         return None;
     }
-    let paths = via.iter().map(|p| p.format_via()).join(", ");
+    let paths = via.iter().map(format_root_path).join(", ");
     Some(format!("Available via: {}", paths))
 }
 
@@ -367,7 +404,7 @@ mod tests {
         let sdl = include_str!(
             "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
         );
-        ParsedSchema::parse(sdl)
+        ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
     fn display(schema: &ParsedSchema, type_name: &str, include_deprecated: bool) -> String {

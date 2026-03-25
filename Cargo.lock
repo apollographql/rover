@@ -4665,6 +4665,7 @@ dependencies = [
  "rover-client",
  "rover-graphql",
  "rover-http",
+ "rover-schema",
  "rover-std",
  "rover-studio",
  "rstest",
