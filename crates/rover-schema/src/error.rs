@@ -17,6 +17,30 @@ pub enum SchemaError {
         field: Name,
     },
 
+    /// The requested argument does not exist on the given field.
+    #[error("Argument '{argument}' not found on field '{type_name}.{field}'")]
+    FieldArgNotFound {
+        /// The type name.
+        type_name: Name,
+        /// The field name.
+        field: Name,
+        /// The argument name that was not found.
+        argument: Name,
+    },
+
+    /// The requested directive does not exist in the schema.
+    #[error("Directive not found: @{0}")]
+    DirectiveNotFound(Name),
+
+    /// The requested argument does not exist on the given directive.
+    #[error("Argument '{argument}' not found on directive '@{directive}'")]
+    DirectiveArgNotFound {
+        /// The directive name.
+        directive: Name,
+        /// The argument name that was not found.
+        argument: Name,
+    },
+
     /// The schema coordinate kind is not supported by this operation.
     #[error("Unsupported coordinate: {0}")]
     UnsupportedCoordinate(SchemaCoordinate),
