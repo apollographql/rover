@@ -1,9 +1,6 @@
 use apollo_compiler::{Name, ast::DirectiveDefinition};
 
-use crate::{
-    ParsedSchema, SchemaError,
-    describe::type_detail::ArgInfo,
-};
+use crate::{ParsedSchema, SchemaError, describe::type_detail::ArgInfo};
 
 /// Detailed view of a GraphQL directive definition.
 #[derive(Debug, Clone, serde::Serialize)]

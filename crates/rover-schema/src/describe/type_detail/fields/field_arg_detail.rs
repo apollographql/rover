@@ -30,9 +30,7 @@ impl ParsedSchema {
         coord: &FieldArgumentCoordinate,
     ) -> Result<FieldArgDetail, SchemaError> {
         let arg = coord.lookup(self.inner()).map_err(|e| match e {
-            SchemaLookupError::MissingType(_) => {
-                SchemaError::TypeNotFound(coord.ty.clone())
-            }
+            SchemaLookupError::MissingType(_) => SchemaError::TypeNotFound(coord.ty.clone()),
             SchemaLookupError::MissingAttribute(_)
             | SchemaLookupError::InvalidArgumentAttribute(_) => SchemaError::FieldNotFound {
                 type_name: coord.ty.clone(),

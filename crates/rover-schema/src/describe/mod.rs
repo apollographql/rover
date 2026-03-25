@@ -54,9 +54,9 @@ impl crate::ParsedSchema {
             Some(SchemaCoordinate::TypeAttribute(tac)) => {
                 self.field_detail(tac).map(DescribeOutput::Field)
             }
-            Some(SchemaCoordinate::FieldArgument(fac)) => self
-                .field_arg_detail(fac)
-                .map(DescribeOutput::FieldArg),
+            Some(SchemaCoordinate::FieldArgument(fac)) => {
+                self.field_arg_detail(fac).map(DescribeOutput::FieldArg)
+            }
             Some(SchemaCoordinate::Directive(dc)) => self
                 .directive_detail(&dc.directive)
                 .map(DescribeOutput::Directive),
