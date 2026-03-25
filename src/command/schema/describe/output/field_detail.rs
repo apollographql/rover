@@ -122,8 +122,12 @@ fn expanded_type_kind(exp: &ExpandedType) -> &'static str {
 
 fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
     match exp {
-        ExpandedType::Object { fields, implements, .. }
-        | ExpandedType::Interface { fields, implements, .. } => {
+        ExpandedType::Object {
+            fields, implements, ..
+        }
+        | ExpandedType::Interface {
+            fields, implements, ..
+        } => {
             if fields.is_empty() {
                 return None;
             }
@@ -131,7 +135,11 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
             table.load_preset(presets::ASCII_FULL);
             table.set_header(["Field", "Type"]);
             if !implements.is_empty() {
-                let impl_str = implements.iter().map(|n| n.as_str()).collect::<Vec<_>>().join("\n");
+                let impl_str = implements
+                    .iter()
+                    .map(|n| n.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 table.add_row(["[implements]", &impl_str]);
             }
             for field in fields {

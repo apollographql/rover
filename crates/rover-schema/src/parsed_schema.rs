@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use apollo_compiler::{Schema, coordinate::SchemaCoordinate};
 pub use apollo_compiler::schema::ExtendedType;
+use apollo_compiler::{Schema, coordinate::SchemaCoordinate};
 
 /// Wrapper around apollo_compiler::Schema providing convenient accessors.
 pub struct ParsedSchema {
