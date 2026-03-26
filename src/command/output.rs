@@ -145,6 +145,11 @@ pub enum RoverOutput {
         old_name: Option<String>,
         new_name: String,
     },
+    ClientExtractResponse {
+        summary: crate::client::extract::ExtractionSummary,
+        files: Vec<crate::client::extract::MaterializedFile>,
+        skipped: Vec<(camino::Utf8PathBuf, usize, crate::client::extract::SkipReason)>,
+    },
 }
 
 impl RoverOutput {
@@ -580,6 +585,34 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::ClientExtractResponse {
+                summary,
+                files,
+                skipped,
+            } => {
+                stderrln!(
+                    "Processed {} source files; {} contained GraphQL.",
+                    summary.source_files_processed,
+                    summary.source_files_with_graphql
+                )?;
+                if !files.is_empty() {
+                    stderrln!(
+                        "Wrote {} documents to {}",
+                        summary.documents_extracted,
+                        summary.out_dir
+                    )?;
+                }
+                if !skipped.is_empty() {
+                    stderrln!("Skipped {} documents:", summary.documents_skipped)?;
+                    for (file, line, reason) in skipped {
+                        stderrln!("  {}:{} {:?}", file, line, reason)?;
+                    }
+                }
+                Some(format!(
+                    "Output directory: {}\nDocuments extracted: {}\nDocuments skipped: {}",
+                    summary.out_dir, summary.documents_extracted, summary.documents_skipped
+                ))
+            }
         })
     }
 
@@ -733,6 +766,37 @@ impl RoverOutput {
                 new_name,
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
+            }
+            RoverOutput::ClientExtractResponse {
+                summary,
+                files,
+                skipped,
+            } => {
+                json!({
+                    "client_extract": {
+                        "out_dir": summary.out_dir,
+                        "source_files_processed": summary.source_files_processed,
+                        "source_files_with_graphql": summary.source_files_with_graphql,
+                        "documents_extracted": summary.documents_extracted,
+                        "documents_skipped": summary.documents_skipped,
+                        "files": files
+                            .iter()
+                            .map(|f| json!({
+                                "source": f.source,
+                                "target": f.target,
+                                "documents": f.documents
+                            }))
+                            .collect::<Vec<_>>(),
+                        "skipped": skipped
+                            .iter()
+                            .map(|(source, line, reason)| json!({
+                                "source": source,
+                                "line": line,
+                                "reason": format!("{reason:?}"),
+                            }))
+                            .collect::<Vec<_>>(),
+                    }
+                })
             }
         }
     }
