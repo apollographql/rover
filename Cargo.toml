@@ -84,6 +84,12 @@ apollo-compiler = "1"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
+# tree-sitter grammars for extraction
+tree-sitter = "0.22"
+tree-sitter-typescript = "0.21"
+tree-sitter-swift = "0.7"
+tree-sitter-kotlin = "0.3"
+
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
 apollo-language-server = { version = "0.7.0", default-features = false, features = ["tokio"] }
@@ -252,6 +258,10 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-swift = { workspace = true }
+tree-sitter-kotlin = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

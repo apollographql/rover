@@ -8,6 +8,7 @@ mod contract;
 mod dev;
 mod docs;
 mod explain;
+mod client;
 mod graph;
 mod info;
 pub(crate) mod init;
@@ -29,6 +30,7 @@ pub use completion::Completion;
 pub use config::Config;
 #[cfg(feature = "composition-js")]
 pub use connector::Connector;
+pub use client::Client;
 pub use contract::Contract;
 pub use dev::Dev;
 pub use docs::Docs;

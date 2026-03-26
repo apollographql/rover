@@ -37,6 +37,8 @@ items:
         href: ./commands/explain
       - label: graph
         href: ./commands/graphs
+      - label: client
+        href: ./commands/client
       - label: init
         href: ./commands/init
       - label: license
