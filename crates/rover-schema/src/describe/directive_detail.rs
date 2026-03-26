@@ -74,6 +74,27 @@ impl ParsedSchema {
         })
     }
 }
+fn build_directive_detail(name: Name, def: &DirectiveDefinition) -> DirectiveDetail {
+    let description = def.description.as_ref().map(|d| d.to_string());
+    let args = def
+        .arguments
+        .iter()
+        .map(|arg| ArgInfo {
+            name: arg.name.clone(),
+            arg_type: arg.ty.inner_named_type().clone(),
+            description: arg.description.as_ref().map(|d| d.to_string()),
+            default_value: arg.default_value.as_ref().map(|v| v.to_string()),
+        })
+        .collect();
+    let locations = def.locations.iter().map(|l| l.to_string()).collect();
+    DirectiveDetail {
+        name,
+        description,
+        args,
+        locations,
+        repeatable: def.repeatable,
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -171,27 +192,5 @@ mod tests {
         assert_that!(err)
             .is_err()
             .matches(|e| matches!(e, SchemaError::DirectiveArgNotFound { .. }));
-    }
-}
-
-fn build_directive_detail(name: Name, def: &DirectiveDefinition) -> DirectiveDetail {
-    let description = def.description.as_ref().map(|d| d.to_string());
-    let args = def
-        .arguments
-        .iter()
-        .map(|arg| ArgInfo {
-            name: arg.name.clone(),
-            arg_type: arg.ty.inner_named_type().clone(),
-            description: arg.description.as_ref().map(|d| d.to_string()),
-            default_value: arg.default_value.as_ref().map(|v| v.to_string()),
-        })
-        .collect();
-    let locations = def.locations.iter().map(|l| l.to_string()).collect();
-    DirectiveDetail {
-        name,
-        description,
-        args,
-        locations,
-        repeatable: def.repeatable,
     }
 }
