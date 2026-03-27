@@ -11,6 +11,16 @@ fn client_extract_help_works() {
 }
 
 #[test]
+fn client_check_help_works() {
+    let mut cmd = Command::cargo_bin("rover").unwrap();
+    cmd.arg("client")
+        .arg("check")
+        .arg("--help")
+        .assert()
+        .success();
+}
+
+#[test]
 fn client_extract_writes_graphql_files() {
     let temp = tempfile::tempdir().unwrap();
     let project_root = temp.path();

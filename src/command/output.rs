@@ -150,6 +150,9 @@ pub enum RoverOutput {
         files: Vec<crate::client::extract::MaterializedFile>,
         skipped: Vec<(camino::Utf8PathBuf, usize, crate::client::extract::SkipReason)>,
     },
+    ClientCheckResponse {
+        summary: crate::command::client::check::ClientCheckSummary,
+    },
 }
 
 impl RoverOutput {
@@ -585,6 +588,47 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::ClientCheckResponse { summary } => {
+                stderrln!(
+                    "Validated {} operations ({} files scanned)",
+                    summary.operations_sent,
+                    summary.files_scanned
+                )?;
+                for result in &summary.validation_results {
+                    let loc = match (&result.file, result.line, result.column) {
+                        (Some(file), Some(line), Some(col)) => format!("{file}:{line}:{col}"),
+                        (Some(file), Some(line), None) => format!("{file}:{line}"),
+                        (Some(file), None, None) => file.to_string(),
+                        _ => String::new(),
+                    };
+                    let styled_desc = match result.r#type.as_str() {
+                        "FAILURE" => Style::Failure.paint(&result.description),
+                        "INVALID" => Style::WarningHeading.paint(&result.description),
+                        _ => Style::Pending.paint(&result.description),
+                    };
+                    let mut message = format!("{} {}", result.r#type, styled_desc);
+                    if !loc.is_empty() {
+                        message = format!("{loc} {message}");
+                    }
+                    stderrln!("{}", message)?;
+                }
+                if !summary.failures.is_empty() {
+                    stderrln!("Local parse errors:")?;
+                    for failure in &summary.failures {
+                        stderrln!("  {}: {}", failure.file, failure.message)?;
+                    }
+                }
+                Some(format!(
+                    "graph_ref: {}\noperations_sent: {}\nvalidation_results: {}\nlocal_failures: {}",
+                    summary
+                        .graph_ref
+                        .clone()
+                        .unwrap_or_else(|| "unspecified".into()),
+                    summary.operations_sent,
+                    summary.validation_results.len(),
+                    summary.failures.len()
+                ))
+            }
             RoverOutput::ClientExtractResponse {
                 summary,
                 files,
@@ -766,6 +810,34 @@ impl RoverOutput {
                 new_name,
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
+            }
+            RoverOutput::ClientCheckResponse { summary } => {
+                json!({
+                    "client_check": {
+                        "graph_ref": summary.graph_ref,
+                        "files_scanned": summary.files_scanned,
+                        "operations_sent": summary.operations_sent,
+                        "failures": summary.failures
+                            .iter()
+                            .map(|f| json!({
+                                "file": f.file,
+                                "message": f.message
+                            }))
+                            .collect::<Vec<_>>(),
+                        "validation_results": summary.validation_results
+                            .iter()
+                            .map(|r| json!({
+                                "operation_name": r.operation_name,
+                                "type": r.r#type,
+                                "code": r.code,
+                                "description": r.description,
+                                "file": r.file,
+                                "line": r.line,
+                                "column": r.column,
+                            }))
+                            .collect::<Vec<_>>(),
+                    }
+                })
             }
             RoverOutput::ClientExtractResponse {
                 summary,
