@@ -15,15 +15,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{RoverError, RoverOutput, RoverResult, cli::RoverOutputFormatKind};
 
 pub trait RoverPrinter {
-    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()>;
+    fn write_or_print(&self, output_opts: &OutputOpts) -> RoverResult<()>;
 }
 
 impl RoverPrinter for RoverOutput {
-    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
+    fn write_or_print(&self, output_opts: &OutputOpts) -> RoverResult<()> {
         // Format the RoverOutput as either plain text or JSON.
         let output = match output_opts.format_kind {
             RoverOutputFormatKind::Plain => self.get_stdout(),
-            RoverOutputFormatKind::Json => Ok(Some(JsonOutput::from(self.clone()).to_string())),
+            RoverOutputFormatKind::Json => Ok(Some(JsonOutput::from(self).to_string())),
         };
 
         // Print the RoverOutput to file or stdout.
@@ -56,7 +56,7 @@ impl RoverPrinter for RoverOutput {
 }
 
 impl RoverPrinter for RoverError {
-    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
+    fn write_or_print(&self, output_opts: &OutputOpts) -> RoverResult<()> {
         match output_opts.format_kind {
             RoverOutputFormatKind::Plain => self.print(),
             RoverOutputFormatKind::Json => {
@@ -161,16 +161,16 @@ impl fmt::Display for JsonOutput {
     }
 }
 
-impl From<RoverError> for JsonOutput {
-    fn from(error: RoverError) -> Self {
+impl From<&RoverError> for JsonOutput {
+    fn from(error: &RoverError) -> Self {
         let data_json = error.get_internal_data_json();
         let error_json = error.get_internal_error_json();
         JsonOutput::failure(data_json, error_json, error.get_json_version())
     }
 }
 
-impl From<RoverOutput> for JsonOutput {
-    fn from(output: RoverOutput) -> Self {
+impl From<&RoverOutput> for JsonOutput {
+    fn from(output: &RoverOutput) -> Self {
         let data = output.get_internal_data_json();
         let error = output.get_internal_error_json();
         JsonOutput::success(data, error, output.get_json_version())

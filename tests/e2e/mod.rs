@@ -33,6 +33,7 @@ mod graph;
 mod init;
 mod install;
 mod options;
+mod schema;
 mod subgraph;
 mod supergraph;
 
