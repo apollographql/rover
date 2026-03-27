@@ -9,8 +9,8 @@ mod union_detail;
 use apollo_compiler::{Name, schema::ExtendedType};
 pub use enum_detail::EnumDetail;
 pub use fields::{
-    ArgInfo, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
-    FieldSummary, FieldsDetail, InputFieldInfo,
+    ArgInfo, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldArgDetail, FieldDetail,
+    FieldInfo, FieldSummary, FieldsDetail, InputFieldInfo,
 };
 pub use input_detail::InputDetail;
 pub use interface_detail::InterfaceDetail;

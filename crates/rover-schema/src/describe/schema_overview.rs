@@ -149,13 +149,13 @@ mod tests {
     #[rstest]
     fn overview_type_counts(test_schema: ParsedSchema) {
         let schema_overview = test_schema.overview();
-        assert_that!(schema_overview.total_types).is_equal_to(29);
+        assert_that!(schema_overview.total_types).is_equal_to(30);
         assert_that!(schema_overview.total_fields).is_equal_to(86);
         assert_that!(schema_overview.total_deprecated).is_equal_to(3);
         assert_that!(schema_overview.query_fields).has_length(5);
         assert_that!(schema_overview.mutation_fields).has_length(3);
         assert_that!(schema_overview.objects).has_length(16);
-        assert_that!(schema_overview.enums).has_length(3);
+        assert_that!(schema_overview.enums).has_length(4);
         assert_that!(schema_overview.interfaces).has_length(3);
         assert_that!(schema_overview.inputs).has_length(2);
     }

@@ -28,7 +28,11 @@ type User implements Node & Profile {
   """The user's email address"""
   email: String!
   """Posts authored by this user"""
-  posts(limit: Int, offset: Int): PostConnection
+  posts(
+    """Maximum number of posts to return"""
+    limit: Int = 20
+    offset: Int
+  ): PostConnection
   bio: String
   avatarUrl: String
   createdAt: String!
@@ -208,3 +212,17 @@ union ContentItem = Post | Comment
 
 scalar DateTime
 scalar URL
+
+# Custom directives
+
+"""Marks a field or object as requiring a minimum role"""
+directive @auth(
+  """The minimum role required to access this field"""
+  requires: Role = USER
+) on FIELD_DEFINITION | OBJECT
+
+enum Role {
+  ADMIN
+  USER
+  GUEST
+}

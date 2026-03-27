@@ -1,15 +1,18 @@
 /// Deprecated field/value detection helpers.
 pub mod deprecated;
+/// Directive definition detail views.
+pub mod directive_detail;
 /// High-level schema overview stats.
 pub mod schema_overview;
 /// Per-type detail views.
 pub mod type_detail;
 use apollo_compiler::coordinate::SchemaCoordinate;
+pub use directive_detail::{DirectiveArgDetail, DirectiveDetail};
 pub use schema_overview::SchemaOverview;
 pub use type_detail::{
-    ArgInfo, EnumDetail, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldDetail, FieldInfo,
-    FieldSummary, FieldsDetail, InputDetail, InputFieldInfo, InterfaceDetail, ObjectDetail,
-    ScalarDetail, TypeDetail, UnionDetail,
+    ArgInfo, EnumDetail, EnumValueInfo, ExpandedType, ExtendedFieldsDetail, FieldArgDetail,
+    FieldDetail, FieldInfo, FieldSummary, FieldsDetail, InputDetail, InputFieldInfo,
+    InterfaceDetail, ObjectDetail, ScalarDetail, TypeDetail, UnionDetail,
 };
 
 use crate::error::SchemaError;
@@ -24,13 +27,19 @@ pub enum DescribeOutput {
     Type(TypeDetail),
     /// Detail for a specific field on a type.
     Field(FieldDetail),
+    /// Detail for a directive definition.
+    Directive(DirectiveDetail),
+    /// Detail for a single argument on a directive definition.
+    DirectiveArg(DirectiveArgDetail),
+    /// Detail for a single argument on a type's field.
+    FieldArg(FieldArgDetail),
 }
 
 impl crate::ParsedSchema {
     /// Describe the schema or a specific coordinate within it.
     ///
-    /// Pass `None` for `coord` to get a full schema overview. Pass a type or
-    /// field coordinate to get detail for that specific item.
+    /// Pass `None` for `coord` to get a full schema overview. Pass a type,
+    /// field, or directive coordinate to get detail for that specific item.
     pub fn describe(
         &self,
         coord: Option<&SchemaCoordinate>,
@@ -45,8 +54,15 @@ impl crate::ParsedSchema {
             Some(SchemaCoordinate::TypeAttribute(tac)) => {
                 self.field_detail(tac).map(DescribeOutput::Field)
             }
-            // TODO: directives
-            Some(other) => Err(SchemaError::UnsupportedCoordinate(other.clone())),
+            Some(SchemaCoordinate::FieldArgument(fac)) => {
+                self.field_arg_detail(fac).map(DescribeOutput::FieldArg)
+            }
+            Some(SchemaCoordinate::Directive(dc)) => self
+                .directive_detail(&dc.directive)
+                .map(DescribeOutput::Directive),
+            Some(SchemaCoordinate::DirectiveArgument(dac)) => self
+                .directive_arg_detail(&dac.directive, &dac.argument)
+                .map(DescribeOutput::DirectiveArg),
         }
     }
 }
