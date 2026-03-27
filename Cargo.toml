@@ -80,7 +80,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-compiler = "1"
+apollo-compiler = "1.30"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
@@ -262,6 +262,7 @@ tree-sitter = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }
 tree-sitter-kotlin = { workspace = true }
+apollo-compiler = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
