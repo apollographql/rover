@@ -1,9 +1,14 @@
 use anyhow::anyhow;
-use apollo_parser::{Parser, cst};
+use apollo_parser::{Parser, cst, cst::CstNode};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser as ClapParser;
 use serde::Serialize;
 use std::collections::HashMap;
+
+use rover_client::operations::graph::validate_operations;
+use rover_client::operations::graph::validate_operations::{
+    OperationDocument, ValidateOperationsInput,
+};
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
@@ -12,10 +17,6 @@ use crate::{
     },
     command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     options::{OptionalGraphRefOpt, ProfileOpt},
-    rover_client::operations::graph::validate_operations,
-    rover_client::operations::graph::validate_operations::{
-        OperationDocument, ValidateOperationsInput,
-    },
     utils::client::StudioClientConfig,
 };
 
@@ -288,7 +289,7 @@ fn build_operation_input(
 async fn collect_extension_failures(
     client_config: &StudioClientConfig,
     profile: &ProfileOpt,
-    graph_ref: &rover_client::shared::GraphRef,
+    graph_ref: &rover_studio::types::GraphRef,
     extensions: &[ExtensionSnippet],
 ) -> Vec<ClientCheckFailure> {
     if extensions.is_empty() {
@@ -323,7 +324,7 @@ async fn collect_extension_failures(
     failures
         .into_iter()
         .map(|ext_failure| ClientCheckFailure {
-            file: ext_failure.file,
+            file: ext_failure.file.clone(),
             message: format_extension_failure(ext_failure),
         })
         .collect()
@@ -339,7 +340,7 @@ fn format_extension_failure(failure: ExtensionFailure) -> String {
 
 async fn validate_against_remote(
     client: &rover_client::blocking::StudioClient,
-    graph_ref: &rover_client::shared::GraphRef,
+    graph_ref: &rover_studio::types::GraphRef,
     operations: &[OperationInput],
     git_context: &rover_client::shared::GitContext,
 ) -> RoverResult<Vec<ClientValidationResult>> {
