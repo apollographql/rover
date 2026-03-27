@@ -33,6 +33,7 @@ pub struct ExtractedDocument {
 pub enum SkipReason {
     UnsupportedInterpolation,
     GraphQlSyntax(String),
+    FileReadError(String),
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]

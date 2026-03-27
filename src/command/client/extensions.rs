@@ -47,13 +47,13 @@ pub fn validate_extensions(
         .unwrap_or_else(|| base_file.clone());
 
     match Schema::parse_and_validate(combined, "schema.graphql") {
-        Ok(schema) => schema
+        Ok(_) => Vec::new(),
+        Err(errs) => errs
             .errors
             .iter()
             .map(|diag| {
                 let (line, column) = diag
-                    .location()
-                    .and_then(|loc| loc.line_column_range(&schema.sources))
+                    .line_column_range()
                     .map(|range| (Some(range.start.line), Some(range.start.column)))
                     .unwrap_or((None, None));
 
@@ -74,12 +74,6 @@ pub fn validate_extensions(
                 }
             })
             .collect(),
-        Err(errs) => vec![ExtensionFailure {
-            file: default_extension_file,
-            message: errs.to_string(),
-            line: None,
-            column: None,
-        }],
     }
 }
 
