@@ -436,7 +436,6 @@ pub enum Command {
     PersistedQueries(command::PersistedQueries),
 
     /// Installs Rover
-    #[command(hide = true)]
     Install(command::Install),
 
     /// Get system information
