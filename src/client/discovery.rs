@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
+
 use camino::{Utf8Path, Utf8PathBuf};
-use ignore::WalkBuilder;
+use globwalk::GlobWalkerBuilder;
 
 use crate::RoverResult;
 
@@ -29,15 +31,12 @@ impl Default for DiscoveryOptions {
     }
 }
 
-/// Discovers files under the provided roots that match the given predicate.
-pub fn discover_files<F>(
+/// Discovers files with the given extensions under the provided roots.
+pub fn discover_files(
     options: &DiscoveryOptions,
     default_root: &Utf8Path,
-    mut predicate: F,
-) -> RoverResult<Vec<Utf8PathBuf>>
-where
-    F: FnMut(&Utf8Path) -> bool,
-{
+    extensions: &[&str],
+) -> RoverResult<Vec<Utf8PathBuf>> {
     let roots: Vec<Utf8PathBuf> = if options.includes.is_empty() {
         vec![default_root.to_path_buf()]
     } else {
@@ -54,6 +53,14 @@ where
             .collect()
     };
 
+    let mut patterns: Vec<String> = extensions
+        .iter()
+        .map(|ext| format!("**/*.{ext}"))
+        .collect();
+    for dir in &options.ignore_dirs {
+        patterns.push(format!("!**/{dir}/**"));
+    }
+
     let excludes: Vec<Utf8PathBuf> = options
         .excludes
         .iter()
@@ -66,37 +73,29 @@ where
         })
         .collect();
 
-    let ignore_dirs = options.ignore_dirs.clone();
-
-    let mut builder = WalkBuilder::new(&roots[0]);
-    for root in &roots[1..] {
-        builder.add(root);
-    }
-    builder
-        .hidden(false)
-        .git_ignore(false)
-        .git_global(false)
-        .git_exclude(false)
-        .ignore(false)
-        .filter_entry(move |e| {
-            if e.file_type().map_or(false, |ft| ft.is_dir()) {
-                let name = e.file_name().to_string_lossy();
-                !ignore_dirs.iter().any(|d| d.as_str() == name.as_ref())
-            } else {
-                true
+    let mut results = BTreeSet::new();
+    for root in &roots {
+        // If the root is a file itself, check it directly.
+        if root.is_file() {
+            if extensions.iter().any(|ext| root.extension() == Some(ext))
+                && !excludes.iter().any(|ex| root.starts_with(ex))
+            {
+                results.insert(root.clone());
             }
-        });
-
-    let mut results = std::collections::BTreeSet::new();
-    for entry in builder.build().filter_map(|e| e.ok()) {
-        let Ok(path) = Utf8PathBuf::from_path_buf(entry.into_path()) else {
-            continue;
-        };
-        if excludes.iter().any(|ex| path.starts_with(ex)) {
             continue;
         }
-        if path.is_file() && predicate(&path) {
-            results.insert(path);
+
+        let walker = GlobWalkerBuilder::from_patterns(root, &patterns)
+            .follow_links(false)
+            .build()?;
+
+        for entry in walker.filter_map(|e| e.ok()) {
+            let Ok(path) = Utf8PathBuf::from_path_buf(entry.into_path()) else {
+                continue;
+            };
+            if !excludes.iter().any(|ex| path.starts_with(ex)) {
+                results.insert(path);
+            }
         }
     }
 
@@ -129,7 +128,7 @@ mod tests {
             ..Default::default()
         };
 
-        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql")).unwrap();
+        let files = discover_files(&options, &root, &["graphql"]).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], file_b);
     }
@@ -144,7 +143,7 @@ mod tests {
         fs::write(&nested, "query Ignore { x }").unwrap();
 
         let options = DiscoveryOptions::default();
-        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql")).unwrap();
+        let files = discover_files(&options, &root, &["graphql"]).unwrap();
         assert!(files.is_empty());
     }
 }

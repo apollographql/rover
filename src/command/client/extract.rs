@@ -88,7 +88,7 @@ impl Extract {
             self.language.iter().map(LanguageOpt::to_language).collect()
         };
 
-        let extensions: BTreeSet<&str> = enabled_languages
+        let extensions: Vec<&str> = enabled_languages
             .iter()
             .flat_map(|lang| match lang {
                 ExtractLanguage::TypeScript => vec!["ts", "tsx"],
@@ -97,11 +97,7 @@ impl Extract {
             })
             .collect();
 
-        let files = discover_files(&options, &root, |p| {
-            p.extension()
-                .map(|ext| extensions.contains(ext))
-                .unwrap_or(false)
-        })?;
+        let files = discover_files(&options, &root, &extensions)?;
 
         let mut summary = ExtractionSummary::default();
         summary.out_dir = out_dir.clone();

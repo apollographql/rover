@@ -96,7 +96,7 @@ impl Check {
             ..Default::default()
         };
 
-        let files = discover_files(&options, &root, |p| p.extension() == Some("graphql"))?;
+        let files = discover_files(&options, &root, &["graphql"])?;
 
         let mut failures = Vec::new();
         let mut operations = Vec::new();
