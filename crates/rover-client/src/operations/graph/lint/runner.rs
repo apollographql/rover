@@ -1,6 +1,7 @@
 use std::fmt;
 
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
     blocking::StudioClient,
@@ -9,7 +10,7 @@ use crate::{
         fetch::GraphFetchInput,
         lint::types::{LintGraphInput, LintGraphMutationInput, LintResponseData},
     },
-    shared::{Diagnostic, GraphRef, LintResponse},
+    shared::{Diagnostic, LintResponse},
     RoverClientError,
 };
 

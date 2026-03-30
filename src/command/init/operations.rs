@@ -9,8 +9,9 @@ use rover_client::{
         init::{build_pipeline_track, build_pipeline_track::*},
         subgraph::publish::*,
     },
-    shared::{GitContext, GraphRef},
+    shared::GitContext,
 };
+use rover_studio::types::GraphRef;
 use semver::Version;
 use thiserror::Error;
 
@@ -138,8 +139,8 @@ pub(crate) async fn update_variant_federation_version(
     federation_version: Option<String>,
 ) -> RoverResult<BuildPipelineTrackResponse> {
     let build_pipeline_track_input = BuildPipelineTrackInput {
-        graph_id: graph_ref.name.clone(),
-        variant_name: graph_ref.variant.clone(),
+        graph_id: graph_ref.graph_id().to_string(),
+        variant_name: graph_ref.variant().to_string(),
         version: federation_version
             .map(|v| map_federation_version_to_build_pipeline_track(&v))
             .transpose()?

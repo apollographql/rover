@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use self::graph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus,
@@ -15,7 +16,7 @@ use crate::{
     blocking::StudioClient,
     operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
     shared::{
-        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, GraphRef, LintCheckResponse,
+        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, LintCheckResponse,
         OperationCheckResponse, SchemaChange, Violation,
     },
     RoverClientError,
@@ -62,7 +63,9 @@ pub async fn run(
                 url = get_target_url_from_data(data);
             }
             Err(e) => {
-                eprintln!("error while checking status of check: {e}\nthis error may be transient... retrying");
+                eprintln!(
+                    "error while checking status of check: {e}\nthis error may be transient... retrying"
+                );
             }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
@@ -136,7 +139,8 @@ fn get_check_response_from_data(
     // Note that graph IDs and variants don't need percent-encoding due to their regex restrictions.
     let default_target_url = format!(
         "https://studio.apollographql.com/graph/{}/checks?variant={}",
-        graph_ref.name, graph_ref.variant
+        graph_ref.graph_id(),
+        graph_ref.variant()
     );
 
     let check_response = CheckWorkflowResponse {

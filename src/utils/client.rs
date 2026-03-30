@@ -7,7 +7,7 @@ use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
 use rover_http::{HttpService, ReqwestService};
-use rover_studio::HttpStudioServiceLayer;
+use rover_studio::service::HttpStudioServiceLayer;
 use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
 use url::Url;

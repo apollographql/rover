@@ -1,10 +1,8 @@
 use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
-use crate::{
-    blocking::StudioClient, operations::subgraph::delete::types::*, shared::GraphRef,
-    RoverClientError,
-};
+use crate::{blocking::StudioClient, operations::subgraph::delete::types::*, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -163,9 +161,6 @@ mod tests {
     }
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 }

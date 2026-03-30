@@ -7,7 +7,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use tower::ServiceExt;
 
 use crate::{

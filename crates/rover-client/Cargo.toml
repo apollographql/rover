@@ -17,6 +17,7 @@ buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}
 derive-getters = { workspace = true }
+futures = { workspace = true }
 git-url-parse = { workspace = true }
 git2 = { workspace = true }
 graphql_client = { workspace = true }
@@ -30,20 +31,20 @@ reqwest = { workspace = true, features = [
     "brotli",
     "gzip",
     "json",
-    "rustls-tls-native-roots",
+    "rustls",
     "socks",
 ] }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
+rover-tower = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
-regex = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
 url = { workspace = true }
 
@@ -55,7 +56,7 @@ serde_json = { workspace = true }
 reqwest = { workspace = true, features = [
     "json",
     "blocking",
-    "rustls-tls-native-roots",
+    "rustls",
 ] }
 
 [dev-dependencies]

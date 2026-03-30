@@ -1,11 +1,9 @@
 use derive_getters::Getters;
 use futures::TryFutureExt;
 use houston::{Config, Credential, HoustonProblem, Profile};
-use rover_client::{
-    operations::config::who_am_i::{Actor, WhoAmI, WhoAmIRequest},
-    shared::GraphRef,
-};
+use rover_client::operations::config::who_am_i::{Actor, WhoAmI, WhoAmIRequest};
 use rover_std::warnln;
+use rover_studio::types::GraphRef;
 use tower::{Service, ServiceExt};
 
 use crate::{options::ProfileOpt, utils::client::StudioClientConfig};

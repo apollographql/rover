@@ -1,9 +1,10 @@
-use crate::{operations::contract::describe::runner::contract_describe_query, shared::GraphRef};
+use crate::operations::contract::describe::runner::contract_describe_query;
 
 pub(crate) type QueryResponseData = contract_describe_query::ResponseData;
 
 type QueryVariables = contract_describe_query::Variables;
 
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -13,10 +14,8 @@ pub struct ContractDescribeInput {
 
 impl From<ContractDescribeInput> for QueryVariables {
     fn from(input: ContractDescribeInput) -> Self {
-        Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
-        }
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self { graph_id, variant }
     }
 }
 

@@ -7,7 +7,7 @@ use apollo_parser::{cst, Parser};
 use buildstructor::{buildstructor, Builder};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use rover_std::Fs;
 
 use crate::utils::effect::{

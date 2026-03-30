@@ -3,8 +3,8 @@ use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
 use anyhow::Result;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use camino::Utf8PathBuf;
-use rand::Rng;
-use rover_client::shared::GraphRef;
+use rand::RngExt;
+use rover_studio::types::GraphRef;
 use rstest::fixture;
 use uuid::Uuid;
 

@@ -21,7 +21,6 @@ use super::file::FileWatcher;
 use crate::{
     composition::{
         supergraph::config::{
-            SupergraphConfigYaml,
             error::ResolveSubgraphError,
             federation::FederationVersionResolver,
             full::{FullyResolvedSupergraphConfig, introspect::ResolveIntrospectSubgraphFactory},
@@ -31,6 +30,7 @@ use crate::{
         },
         watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError,
     },
+    config::SupergraphConfigYaml,
     utils::expansion::expand,
 };
 

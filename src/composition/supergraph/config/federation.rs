@@ -7,7 +7,7 @@ use apollo_federation_types::config::FederationVersion;
 use derive_getters::Getters;
 
 use super::full::FullyResolvedSubgraph;
-use crate::composition::supergraph::config::SupergraphConfigYaml;
+use crate::config::SupergraphConfigYaml;
 
 mod state {
     #[derive(Clone, Debug)]
@@ -153,8 +153,9 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::FederationVersionResolverFromSupergraphConfig;
-    use crate::composition::supergraph::config::{
-        SupergraphConfigYaml, full::FullyResolvedSubgraph, scenario::*,
+    use crate::{
+        composition::supergraph::config::{full::FullyResolvedSubgraph, scenario::*},
+        config::SupergraphConfigYaml,
     };
 
     /// Test showing that federation version is selected from the user-specified fed version

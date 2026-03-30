@@ -8,7 +8,7 @@ use reqwest::{
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
-use rover_studio::{HttpStudioServiceError, HttpStudioServiceLayer};
+use rover_studio::service::{HttpStudioServiceError, HttpStudioServiceLayer};
 use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
 use url::Url;
 

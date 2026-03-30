@@ -1,18 +1,24 @@
 ---
 name: Issue Triage
 description: Triage new issues by labeling and requesting missing details.
+
 on:
+  workflow_dispatch:
   issues:
     types: [opened]
+  roles: all
+
 permissions:
   issues: read
-roles: all
+  actions: read
+  
 network:
   allowed:
     - "api.github.com"
 tools:
   github:
-    toolsets: [issues, labels]
+    toolsets: [issues, labels, actions]
+  agentic-workflows: true
 safe-outputs:
   add-labels:
     allowed: ["bug 🐞", "feature 🎉", "question ❓", "docs 📝", "triage"]
@@ -31,6 +37,7 @@ You are a triage assistant for the apollographql/rover repository.
 - Ensure each new issue has exactly one type label: **bug 🐞**, **feature 🎉**, **question ❓**, or **docs 📝**.
 - Add the **triage** label if it is missing.
 - Request missing information when it is needed to proceed.
+- When triggered by `/agent agentic-workflows debug`, inspect recent workflow failures and provide a concise debugging summary comment.
 
 ## Triage process
 1. Read the triggering issue title, body, and existing labels.

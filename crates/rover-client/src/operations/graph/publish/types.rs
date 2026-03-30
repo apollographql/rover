@@ -1,11 +1,9 @@
 use std::fmt;
 
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
-use crate::{
-    operations::graph::publish::runner::graph_publish_mutation,
-    shared::{GitContext, GraphRef},
-};
+use crate::{operations::graph::publish::runner::graph_publish_mutation, shared::GitContext};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphPublishInput {
@@ -17,9 +15,10 @@ pub struct GraphPublishInput {
 type MutationVariables = graph_publish_mutation::Variables;
 impl From<GraphPublishInput> for MutationVariables {
     fn from(input: GraphPublishInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
-            graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
+            graph_id,
+            variant,
             proposed_schema: input.proposed_schema,
             git_context: input.git_context.into(),
         }

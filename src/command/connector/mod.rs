@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use camino::Utf8PathBuf;
 use clap::Parser;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use semver::Version;
 use serde::Serialize;
 

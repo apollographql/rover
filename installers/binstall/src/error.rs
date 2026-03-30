@@ -48,4 +48,8 @@ pub enum InstallerError {
 
     #[error(transparent)]
     FileDownloadError(BoxError),
+
+    #[cfg(windows)]
+    #[error(transparent)]
+    WindowsError(#[from] windows_result::Error),
 }

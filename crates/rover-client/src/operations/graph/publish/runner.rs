@@ -1,4 +1,5 @@
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use crate::{
     blocking::StudioClient,
@@ -6,7 +7,6 @@ use crate::{
         types::{ChangeSummary, FieldChanges, TypeChanges},
         GraphPublishInput, GraphPublishResponse,
     },
-    shared::GraphRef,
     RoverClientError,
 };
 
@@ -298,9 +298,6 @@ mod tests {
     }
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 }

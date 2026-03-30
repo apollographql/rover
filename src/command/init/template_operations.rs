@@ -15,7 +15,8 @@ use rover_std::{infoln, prompt::prompt_confirm_default_yes, successln};
 use crate::{
     RoverError, RoverResult,
     command::init::template_operations::PrintMode::{Confirmation, Normal},
-    composition::supergraph::config::{SupergraphConfigYaml, lazy::LazilyResolvedSubgraph},
+    composition::supergraph::config::lazy::LazilyResolvedSubgraph,
+    config::SupergraphConfigYaml,
 };
 
 pub struct TemplateOperations;

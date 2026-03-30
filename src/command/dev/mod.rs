@@ -16,7 +16,7 @@ use std::net::IpAddr;
 
 use clap::Parser;
 use derive_getters::Getters;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 use crate::{

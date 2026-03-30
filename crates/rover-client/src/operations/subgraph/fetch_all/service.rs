@@ -3,10 +3,11 @@ use std::{fmt, future::Future, pin::Pin, str::FromStr};
 use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
 use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use rover_studio::types::{GraphRef, InvalidGraphRef};
 use tower::Service;
 
 use super::{types::Subgraph, SubgraphFetchAllResponse};
-use crate::{shared::GraphRef, EndpointKind, RoverClientError};
+use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -119,7 +120,7 @@ fn get_subgraphs_from_response_data(
         Some(subgraph_fetch_all_query::SubgraphFetchAllQueryVariant::GraphVariant(variant)) => {
             extract_subgraphs_from_response(variant, graph_ref)
         }
-        _ => Err(RoverClientError::InvalidGraphRef),
+        _ => Err(RoverClientError::InvalidGraphRef(InvalidGraphRef)),
     }
 }
 fn extract_subgraphs_from_response(
@@ -252,12 +253,12 @@ impl From<subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSo
 #[cfg(test)]
 mod tests {
     use apollo_federation_types::config::FederationVersion;
+    use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
 
     use super::*;
-    use crate::shared::GraphRef;
 
     const SDL: &str =
         "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n";
@@ -387,9 +388,6 @@ mod tests {
 
     #[fixture]
     fn graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 }

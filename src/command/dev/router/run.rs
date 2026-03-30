@@ -7,8 +7,9 @@ use futures::{
     stream::{self, BoxStream},
 };
 use houston::{Config, Profile};
-use rover_client::{RoverClientError, shared::GraphRef};
+use rover_client::RoverClientError;
 use rover_std::{RoverStdError, debugln, errln, infoln, warnln};
+use rover_studio::types::GraphRef;
 use timber::Level;
 use tokio::{process::Child, time::sleep};
 use tokio_stream::wrappers::UnboundedReceiverStream;

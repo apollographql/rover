@@ -212,7 +212,6 @@ impl Rover {
                     )
                     .await
             }
-            #[cfg(feature = "composition-js")]
             Command::Supergraph(command) => {
                 command
                     .run(
@@ -412,7 +411,6 @@ pub enum Command {
     Dev(Box<command::Dev>),
 
     /// Supergraph schema commands
-    #[cfg(feature = "composition-js")]
     Supergraph(command::Supergraph),
 
     /// Graph API schema commands

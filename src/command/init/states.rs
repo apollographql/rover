@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use camino::Utf8PathBuf;
-use rover_client::shared::GraphRef;
+use rover_studio::types::GraphRef;
 
 use crate::command::init::{
     config::ProjectConfig,

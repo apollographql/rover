@@ -1,9 +1,9 @@
 use graphql_client::*;
+use rover_studio::types::GraphRef;
 
 use super::types::*;
 use crate::{
-    blocking::StudioClient, operations::readme::publish::ReadmePublishInput, shared::GraphRef,
-    RoverClientError,
+    blocking::StudioClient, operations::readme::publish::ReadmePublishInput, RoverClientError,
 };
 
 type Timestamp = String;
@@ -55,16 +55,13 @@ fn build_response(
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use serde_json::json;
 
     use super::*;
-    use crate::shared::GraphRef;
 
     fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
-        }
+        GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
     #[test]

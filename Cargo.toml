@@ -30,6 +30,7 @@ members = [
     "xtask",
     "crates/houston",
     "crates/robot-panic",
+    "crates/rover-schema",
     "crates/rover-tower",
     "crates/rover-http",
     "crates/rover-graphql",
@@ -71,6 +72,7 @@ rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
+rover-schema = { path = "./crates/rover-schema" }
 rover-tower = { path = "./crates/rover-tower" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
@@ -78,12 +80,13 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
+apollo-compiler = "1"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
-apollo-language-server = { version = "0.6.0", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.7.0", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -116,7 +119,7 @@ flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.20", default-features = false }
-graphql_client = "0.15"
+graphql_client = "0.16"
 heck = "0.5"
 humantime = "2"
 http = "1"
@@ -133,12 +136,13 @@ notify = "8"
 opener = "0.8"
 os_info = "3"
 os_type = "2"
+pathfinding = "4"
 pastey = "0.2.1"
 predicates = "3"
 pretty_assertions = "1"
-rand = "0.9"
+rand = "0.10"
 regex = "1"
-reqwest = { version = "0.12", default-features = false }
+reqwest = { version = "0.13", default-features = false }
 rstest = "0.26"
 schemars = "1"
 sealed_test = "1.1.0"
@@ -152,8 +156,8 @@ shell-candy = "0.4"
 speculoos = "0.13"
 strip-ansi-escapes = "0.2"
 strsim = "0.11"
-strum = "0.27"
-strum_macros = "0.27"
+strum = "0.28"
+strum_macros = "0.28"
 sha2 = "0.10"
 shellexpand = "3"
 termcolor = "1"
@@ -166,7 +170,7 @@ tokio = { version = "1", features = ["signal", "io-std"] }
 tokio-stream = "0.1"
 tokio-test = "0.4"
 tokio-util = "0.7"
-toml = "0.9"
+toml = "1.0"
 tower = { version = "0.5.3", features = ["make", "retry", "timeout"] }
 tower-http = "0.6.8"
 tower-test = "0.4"
@@ -178,7 +182,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
-zip = "7"
+zip = "8"
 
 ### rover specific dependencies
 [dependencies]
@@ -259,13 +263,13 @@ graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.40"
+jsonschema = "0.45"
 mime = "0.3"
 mockall = "0.14"
 portpicker = "0.1"
 predicates = { workspace = true }
-rand_regex = "0.18"
-reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }
+rand_regex = "0.19"
+reqwest = { workspace = true, features = ["rustls"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
 serial_test = { workspace = true }

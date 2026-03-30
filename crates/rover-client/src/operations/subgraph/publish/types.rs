@@ -1,5 +1,5 @@
 use super::runner::subgraph_publish_mutation;
-use crate::shared::{GitContext, GraphRef};
+use crate::shared::GitContext;
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
@@ -11,6 +11,7 @@ use apollo_federation_types::rover::BuildErrors;
 type SchemaInput = subgraph_publish_mutation::PartialSchemaInput;
 type GitContextInput = subgraph_publish_mutation::GitContextInput;
 
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -43,9 +44,10 @@ pub struct SubgraphPublishResponse {
 
 impl From<SubgraphPublishInput> for MutationVariables {
     fn from(publish_input: SubgraphPublishInput) -> Self {
+        let (graph_id, variant) = publish_input.graph_ref.into_parts();
         Self {
-            graph_id: publish_input.graph_ref.name,
-            variant: publish_input.graph_ref.variant,
+            graph_id,
+            variant,
             subgraph: publish_input.subgraph,
             url: publish_input.url,
             schema: SchemaInput {

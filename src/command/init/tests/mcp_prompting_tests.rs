@@ -401,7 +401,7 @@ fn test_mcp_creation_previewed_to_confirmed_conversion() {
 fn test_mcp_env_file_processing_with_template_vars() {
     use std::{collections::HashMap, fs};
 
-    use rover_client::shared::GraphRef;
+    use rover_studio::types::GraphRef;
     use tempfile::TempDir;
 
     use crate::command::init::{
@@ -456,10 +456,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref = GraphRef {
-        name: "test-graph-id".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process the .env.template file
     // Use unified template processing instead of removed method
@@ -497,7 +494,7 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
 fn test_mcp_env_file_processing() {
     use std::{collections::HashMap, fs};
 
-    use rover_client::shared::GraphRef;
+    use rover_studio::types::GraphRef;
     use tempfile::TempDir;
 
     use crate::command::init::{
@@ -552,10 +549,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref = GraphRef {
-        name: "test-graph-id".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process the .env.template file
     // Use unified template processing instead of removed method
@@ -593,7 +587,7 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 fn test_mcp_env_no_file_processing() {
     use std::collections::HashMap;
 
-    use rover_client::shared::GraphRef;
+    use rover_studio::types::GraphRef;
     use tempfile::TempDir;
 
     use crate::command::init::{
@@ -638,10 +632,7 @@ fn test_mcp_env_no_file_processing() {
 
     // Mock API key and graph ref
     let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
-    let graph_ref = GraphRef {
-        name: "test-graph-id".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process should succeed even with no .env.template file
     // Test that template processing works (no actual file processing needed for this test)
@@ -732,10 +723,7 @@ fn test_mcp_creation_confirmed_has_complete_interface() {
     // 3. Verify MCP-specific interface exists (compilation test)
     // The fact that this compiles proves the interface exists and follows type safety
     let api_key = "test-key";
-    let graph_ref = rover_client::shared::GraphRef {
-        name: "test".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = rover_studio::types::GraphRef::new("test", Some("current")).unwrap();
 
     // This line verifies that MCPCreationConfirmed has the MCP-specific method
     // (will fail compilation if method doesn't exist or has wrong signature)
@@ -754,7 +742,7 @@ fn test_mcp_creation_confirmed_env_processing_integration() {
     // Integration test to verify .env.template processing works within MCPCreationConfirmed
     use std::{collections::HashMap, fs};
 
-    use rover_client::shared::GraphRef;
+    use rover_studio::types::GraphRef;
     use tempfile::TempDir;
 
     use crate::command::init::{
@@ -806,10 +794,11 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
 
     // Test the MCP-specific env file processing
     let api_key = "service:integration-test-graph:test-api-key"; // gitleaks:allow
-    let graph_ref = GraphRef {
-        name: "integration-test-graph".to_string(),
-        variant: "current".to_string(),
-    };
+    let graph_ref = GraphRef::new(
+        "integration-test-graph".to_string(),
+        Some("current".to_string()),
+    )
+    .unwrap();
 
     // Process should succeed and rename .env.template to .env
     // Read the .env.template content and process it
