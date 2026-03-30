@@ -162,14 +162,20 @@ impl Session {
 
 /// returns sha256 digest of the directory the tool was executed from.
 fn get_cwd_hash(current_dir: &Utf8PathBuf) -> String {
-    format!("{:x}", Sha256::digest(current_dir.as_str().as_bytes()))
+    Sha256::digest(current_dir.as_str().as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// returns sha256 digest of the repository the tool was executed from.
 fn get_repo_hash() -> Option<String> {
-    GitContext::default()
-        .remote_url
-        .map(|remote_url| format!("{:x}", Sha256::digest(remote_url.as_bytes())))
+    GitContext::default().remote_url.map(|remote_url| {
+        Sha256::digest(remote_url.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
+    })
 }
 
 #[cfg(test)]
