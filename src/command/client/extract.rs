@@ -53,7 +53,7 @@ pub enum LanguageOpt {
 }
 
 impl LanguageOpt {
-    fn to_language(&self) -> ExtractLanguage {
+    const fn to_language(&self) -> ExtractLanguage {
         match self {
             LanguageOpt::Ts => ExtractLanguage::TypeScript,
             LanguageOpt::Swift => ExtractLanguage::Swift,
@@ -103,9 +103,11 @@ impl Extract {
                 .unwrap_or(false)
         })?;
 
-        let mut summary = ExtractionSummary::default();
-        summary.out_dir = out_dir.clone();
-        summary.source_files_processed = files.len();
+        let mut summary = ExtractionSummary {
+            out_dir: out_dir.clone(),
+            source_files_processed: files.len(),
+            ..Default::default()
+        };
 
         let mut materialized = Vec::new();
         let mut skipped = Vec::new();
@@ -189,11 +191,10 @@ fn relative_to_root(file: &Utf8Path, root: &Utf8Path) -> Utf8PathBuf {
     if let Ok(rel) = file.strip_prefix(root) {
         return rel.to_path_buf();
     }
-    if let (Ok(canon_file), Ok(canon_root)) = (file.canonicalize_utf8(), root.canonicalize_utf8()) {
-        if let Ok(rel) = canon_file.strip_prefix(&canon_root) {
+    if let (Ok(canon_file), Ok(canon_root)) = (file.canonicalize_utf8(), root.canonicalize_utf8())
+        && let Ok(rel) = canon_file.strip_prefix(&canon_root) {
             return rel.to_path_buf();
         }
-    }
     file.file_name()
         .map(Utf8PathBuf::from)
         .unwrap_or_else(|| file.to_path_buf())

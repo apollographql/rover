@@ -16,7 +16,7 @@ fn client_check_json_output_includes_validation_results() {
         Err(_) => return,
     };
     let addr = listener.local_addr().unwrap();
-    let response_body = r#"{"data": {"service": {"validateOperations": {"validationResults": [{"type":"FAILURE","code":"BAD","description":"nope","operation":{"name":"Hello"}}]}}}}""#;
+    let response_body = r#"{"data": {"graph": {"validateOperations": {"validationResults": [{"type":"FAILURE","code":"BAD","description":"nope","operation":{"name":"Hello"}}]}}}}"#;
     thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
             let mut _buf = [0u8; 1024];
@@ -55,7 +55,7 @@ fn client_check_json_output_includes_validation_results() {
     // Validation failure should exit non-zero now
     assert!(!output.status.success());
 
-    let stdout = output.stdout.clone();
+    let stdout = output.stdout;
 
     let json: Value = serde_json::from_slice(&stdout).unwrap();
     assert_eq!(

@@ -50,6 +50,7 @@ pub struct ClientCheckSummary {
     pub operations_sent: usize,
     pub failures: Vec<ClientCheckFailure>,
     pub validation_results: Vec<ClientValidationResult>,
+    pub has_errors: bool,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
@@ -166,28 +167,21 @@ impl Check {
             })
             .collect::<Vec<_>>();
 
+        let has_errors = mapped_results
+            .iter()
+            .any(|r| matches!(r.r#type.as_str(), "FAILURE" | "INVALID"))
+            || !failures.is_empty();
+
         let summary = ClientCheckSummary {
             graph_ref: Some(graph_ref.to_string()),
             files_scanned: operations.len(),
             operations_sent: operations.len(),
             failures,
             validation_results: mapped_results,
+            has_errors,
         };
 
-        // Fail if any remote validation result is a failure/invalid or there are local failures.
-        let has_errors = summary
-            .validation_results
-            .iter()
-            .any(|r| matches!(r.r#type.as_str(), "FAILURE" | "INVALID"))
-            || !summary.failures.is_empty();
-
-        if has_errors {
-            Err(RoverError::new(anyhow!(
-                "Client check failed for one or more operations"
-            )))
-        } else {
-            Ok(RoverOutput::ClientCheckResponse { summary })
-        }
+        Ok(RoverOutput::ClientCheckResponse { summary })
     }
 }
 
@@ -230,11 +224,10 @@ fn extract_operations(file: &Utf8Path, contents: &str) -> Result<ParsedFile, Str
 
     let mut operations = Vec::new();
     for definition in doc.definitions() {
-        if let cst::Definition::OperationDefinition(def) = definition {
-            if let Some(op) = build_operation_input(file, contents, def, &fragment_texts) {
+        if let cst::Definition::OperationDefinition(def) = definition
+            && let Some(op) = build_operation_input(file, contents, def, &fragment_texts) {
                 operations.push(op);
             }
-        }
     }
 
     Ok(ParsedFile {

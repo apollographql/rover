@@ -4,7 +4,7 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use super::types::{OperationDocument, ValidateOperationsInput, ValidationResult};
+use super::types::{ValidateOperationsInput, ValidationResult};
 use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
@@ -21,7 +21,7 @@ pub struct ValidateOperationsRequest {
 }
 
 impl ValidateOperationsRequest {
-    pub fn new(input: ValidateOperationsInput) -> Self {
+    pub const fn new(input: ValidateOperationsInput) -> Self {
         Self { input }
     }
 }
