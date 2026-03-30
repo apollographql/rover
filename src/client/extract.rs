@@ -33,7 +33,6 @@ pub struct ExtractedDocument {
 pub enum SkipReason {
     UnsupportedInterpolation,
     GraphQlSyntax(String),
-    FileReadError(String),
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
@@ -116,7 +115,7 @@ fn parse_tagged_template(
     let tag_node = node.child(0)?;
     let tag_text = tag_node.utf8_text(source.as_bytes()).ok()?;
     let template_node = find_template_child(node, "template_string")?;
-    extract_template_node(source, tag_text, &template_node, allowed_tags)
+    extract_template_node(source, &tag_text, &template_node, allowed_tags)
 }
 
 fn parse_call_expression(
@@ -129,7 +128,7 @@ fn parse_call_expression(
         .or_else(|| node.child(0))?;
     let func_text = func_node.utf8_text(source.as_bytes()).ok()?;
     let template_node = find_template_child(node, "template_string")?;
-    extract_template_node(source, func_text, &template_node, allowed_tags)
+    extract_template_node(source, &func_text, &template_node, allowed_tags)
 }
 
 fn find_template_child<'a>(
@@ -137,8 +136,12 @@ fn find_template_child<'a>(
     kind: &str,
 ) -> Option<tree_sitter::Node<'a>> {
     let mut cursor = node.walk();
-    node.children(&mut cursor)
-        .find(|&child| child.kind() == kind)
+    for child in node.children(&mut cursor) {
+        if child.kind() == kind {
+            return Some(child);
+        }
+    }
+    None
 }
 
 fn extract_template_node(
