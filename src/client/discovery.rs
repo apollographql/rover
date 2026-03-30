@@ -1,7 +1,5 @@
-use std::collections::BTreeSet;
-
 use camino::{Utf8Path, Utf8PathBuf};
-use rover_std::Fs;
+use ignore::WalkBuilder;
 
 use crate::RoverResult;
 
@@ -40,77 +38,69 @@ pub fn discover_files<F>(
 where
     F: FnMut(&Utf8Path) -> bool,
 {
-    let mut results = BTreeSet::new();
-    let mut queue: Vec<Utf8PathBuf> = if options.includes.is_empty() {
+    let roots: Vec<Utf8PathBuf> = if options.includes.is_empty() {
         vec![default_root.to_path_buf()]
     } else {
-        options.includes.clone()
+        options
+            .includes
+            .iter()
+            .map(|p| {
+                if p.is_absolute() {
+                    p.clone()
+                } else {
+                    default_root.join(p)
+                }
+            })
+            .collect()
     };
 
-    let excludes: BTreeSet<Utf8PathBuf> = options
+    let excludes: Vec<Utf8PathBuf> = options
         .excludes
         .iter()
-        .map(|path| absolutize(default_root, path))
-        .collect::<RoverResult<_>>()?;
+        .map(|p| {
+            if p.is_absolute() {
+                p.clone()
+            } else {
+                default_root.join(p)
+            }
+        })
+        .collect();
 
-    while let Some(path) = queue.pop() {
-        let abs_path = absolutize(default_root, &path)?;
-        if is_excluded(&abs_path, &excludes) {
+    let ignore_dirs = options.ignore_dirs.clone();
+
+    let mut builder = WalkBuilder::new(&roots[0]);
+    for root in &roots[1..] {
+        builder.add(root);
+    }
+    builder
+        .hidden(false)
+        .git_ignore(false)
+        .git_global(false)
+        .git_exclude(false)
+        .ignore(false)
+        .filter_entry(move |e| {
+            if e.file_type().map_or(false, |ft| ft.is_dir()) {
+                let name = e.file_name().to_string_lossy();
+                !ignore_dirs.iter().any(|d| d.as_str() == name.as_ref())
+            } else {
+                true
+            }
+        });
+
+    let mut results = std::collections::BTreeSet::new();
+    for entry in builder.build().filter_map(|e| e.ok()) {
+        let Ok(path) = Utf8PathBuf::from_path_buf(entry.into_path()) else {
+            continue;
+        };
+        if excludes.iter().any(|ex| path.starts_with(ex)) {
             continue;
         }
-
-        let metadata = Fs::metadata(&abs_path)?;
-        if metadata.is_dir() {
-            let dir_entries = match Fs::get_dir_entries(&abs_path) {
-                Ok(entries) => entries,
-                Err(_) => continue,
-            };
-            for entry in dir_entries.flatten() {
-                let file_type = match entry.file_type() {
-                    Ok(ft) => ft,
-                    Err(_) => continue,
-                };
-                let entry_path = entry.path().to_path_buf();
-                if is_excluded(&entry_path, &excludes) {
-                    continue;
-                }
-                if file_type.is_dir() {
-                    if should_ignore_dir(&entry_path, &options.ignore_dirs) {
-                        continue;
-                    }
-                    queue.push(entry_path);
-                } else if file_type.is_file() {
-                    if predicate(entry_path.as_path()) {
-                        results.insert(entry_path);
-                    }
-                }
-            }
-        } else if metadata.is_file() && predicate(abs_path.as_path()) {
-            results.insert(abs_path);
+        if path.is_file() && predicate(&path) {
+            results.insert(path);
         }
     }
 
     Ok(results.into_iter().collect())
-}
-
-fn absolutize(root: &Utf8Path, path: &Utf8Path) -> RoverResult<Utf8PathBuf> {
-    if path.is_absolute() {
-        Ok(path.to_path_buf())
-    } else {
-        Ok(root.join(path))
-    }
-}
-
-fn is_excluded(path: &Utf8Path, excludes: &BTreeSet<Utf8PathBuf>) -> bool {
-    excludes.iter().any(|exclude| path.starts_with(exclude))
-}
-
-fn should_ignore_dir(path: &Utf8Path, ignore_dirs: &[String]) -> bool {
-    if let Some(file_name) = path.file_name() {
-        ignore_dirs.iter().any(|ignored| ignored == file_name)
-    } else {
-        false
-    }
 }
 
 #[cfg(test)]
@@ -123,12 +113,12 @@ mod tests {
     fn discovers_files_with_include_and_exclude() {
         let temp = tempfile::tempdir().unwrap();
         let root = Utf8PathBuf::from_path_buf(temp.path().join("root")).unwrap();
-        Fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&root).unwrap();
 
         let file_a = root.join("a.graphql");
         let file_b = root.join("nested").join("b.graphql");
         let file_c = root.join("nested").join("ignore.graphql");
-        Fs::create_dir_all(file_b.parent().unwrap()).unwrap();
+        fs::create_dir_all(file_b.parent().unwrap()).unwrap();
         fs::write(&file_a, "query A { x }").unwrap();
         fs::write(&file_b, "query B { x }").unwrap();
         fs::write(&file_c, "query C { x }").unwrap();
@@ -150,8 +140,8 @@ mod tests {
         let root = Utf8PathBuf::from_path_buf(temp.path().join("root")).unwrap();
         let ignored = root.join("node_modules");
         let nested = ignored.join("c.graphql");
-        Fs::create_dir_all(ignored).unwrap();
-        std::fs::write(&nested, "query Ignore { x }").unwrap();
+        fs::create_dir_all(&ignored).unwrap();
+        fs::write(&nested, "query Ignore { x }").unwrap();
 
         let options = DiscoveryOptions::default();
         let files = discover_files(&options, &root, |p| p.extension() == Some("graphql")).unwrap();

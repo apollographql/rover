@@ -111,6 +111,7 @@ bytes = "1"
 cargo_metadata = "0.23"
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
+ignore = "0.4"
 clap = "4"
 clap_complete = "4"
 chrono = "0.4"
@@ -203,6 +204,7 @@ binstall = { workspace = true }
 buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
+ignore = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 clap_complete = { workspace = true }
 chrono = { workspace = true }
