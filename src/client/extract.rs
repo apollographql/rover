@@ -137,7 +137,8 @@ fn find_template_child<'a>(
     kind: &str,
 ) -> Option<tree_sitter::Node<'a>> {
     let mut cursor = node.walk();
-    node.children(&mut cursor).find(|&child| child.kind() == kind)
+    node.children(&mut cursor)
+        .find(|&child| child.kind() == kind)
 }
 
 fn extract_template_node(

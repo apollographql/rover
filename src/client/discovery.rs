@@ -79,10 +79,9 @@ where
                         continue;
                     }
                     queue.push(entry_path);
-                } else if file_type.is_file()
-                    && predicate(entry_path.as_path()) {
-                        results.insert(entry_path);
-                    }
+                } else if file_type.is_file() && predicate(entry_path.as_path()) {
+                    results.insert(entry_path);
+                }
             }
         } else if metadata.is_file() && predicate(abs_path.as_path()) {
             results.insert(abs_path);

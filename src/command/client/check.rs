@@ -225,9 +225,10 @@ fn extract_operations(file: &Utf8Path, contents: &str) -> Result<ParsedFile, Str
     let mut operations = Vec::new();
     for definition in doc.definitions() {
         if let cst::Definition::OperationDefinition(def) = definition
-            && let Some(op) = build_operation_input(file, contents, def, &fragment_texts) {
-                operations.push(op);
-            }
+            && let Some(op) = build_operation_input(file, contents, def, &fragment_texts)
+        {
+            operations.push(op);
+        }
     }
 
     Ok(ParsedFile {

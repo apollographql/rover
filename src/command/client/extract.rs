@@ -192,9 +192,10 @@ fn relative_to_root(file: &Utf8Path, root: &Utf8Path) -> Utf8PathBuf {
         return rel.to_path_buf();
     }
     if let (Ok(canon_file), Ok(canon_root)) = (file.canonicalize_utf8(), root.canonicalize_utf8())
-        && let Ok(rel) = canon_file.strip_prefix(&canon_root) {
-            return rel.to_path_buf();
-        }
+        && let Ok(rel) = canon_file.strip_prefix(&canon_root)
+    {
+        return rel.to_path_buf();
+    }
     file.file_name()
         .map(Utf8PathBuf::from)
         .unwrap_or_else(|| file.to_path_buf())
