@@ -148,7 +148,11 @@ pub enum RoverOutput {
     ClientExtractResponse {
         summary: crate::client::extract::ExtractionSummary,
         files: Vec<crate::client::extract::MaterializedFile>,
-        skipped: Vec<(camino::Utf8PathBuf, usize, crate::client::extract::SkipReason)>,
+        skipped: Vec<(
+            camino::Utf8PathBuf,
+            usize,
+            crate::client::extract::SkipReason,
+        )>,
     },
     ClientCheckResponse {
         summary: crate::command::client::check::ClientCheckSummary,

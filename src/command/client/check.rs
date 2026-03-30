@@ -1,20 +1,18 @@
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use apollo_parser::{Parser, cst, cst::CstNode};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser as ClapParser;
-use serde::Serialize;
-use std::collections::HashMap;
-
-use rover_client::operations::graph::validate_operations;
-use rover_client::operations::graph::validate_operations::{
-    OperationDocument, ValidateOperationsInput,
+use rover_client::operations::graph::{
+    validate_operations,
+    validate_operations::{OperationDocument, ValidateOperationsInput},
 };
+use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
-    client::{
-        discovery::{DiscoveryOptions, discover_files},
-    },
+    client::discovery::{DiscoveryOptions, discover_files},
     command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     options::{OptionalGraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,

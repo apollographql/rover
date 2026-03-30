@@ -1,7 +1,8 @@
+use std::fs;
+
 use assert_cmd::Command;
 use httpmock::{Method::POST, MockServer};
 use serial_test::serial;
-use std::fs;
 
 #[test]
 #[serial]

@@ -1,9 +1,12 @@
+use std::{
+    fs,
+    io::{Read, Write},
+    net::TcpListener,
+    thread,
+};
+
 use assert_cmd::Command;
 use serde_json::Value;
-use std::fs;
-use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::thread;
 
 #[test]
 fn client_check_json_output_includes_validation_results() {

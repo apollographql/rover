@@ -114,9 +114,8 @@ where
 }
 
 impl
-    From<
-        validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults,
-    > for ValidationResult
+    From<validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults>
+    for ValidationResult
 {
     fn from(
         result: validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults,
