@@ -235,106 +235,145 @@ mod tests {
         FieldDetailDisplay::from(&detail).display()
     }
 
-    // --- Header ---
-
     #[rstest]
-    fn header_contains_type_field_and_return_type(schema: ParsedSchema) {
-        let out = display(&schema, "Query.post");
-        assert_that!(out).starts_with("FIELD Query.post:");
-        assert_that!(out).contains("User");
-    }
-
-    // --- Deprecated ---
-
-    #[rstest]
-    fn deprecated_field_shows_notice_with_reason(schema: ParsedSchema) {
-        let out = display(&schema, "Post.oldSlug");
-        assert_that!(out).contains("DEPRECATED: Use slug instead");
-    }
-
-    #[rstest]
-    fn non_deprecated_field_has_no_deprecated_notice(schema: ParsedSchema) {
-        let out = display(&schema, "Post.title");
-        assert_that!(out).does_not_contain("DEPRECATED");
-    }
-
-    // --- Description ---
-
-    #[rstest]
-    fn field_description_shown_when_present(schema: ParsedSchema) {
-        let out = display(&schema, "Post.body");
-        assert_that!(out).contains("The body content");
-    }
-
-    // --- Args ---
-
-    #[rstest]
-    fn field_with_args_shows_args_section(schema: ParsedSchema) {
-        let out = display(&schema, "User.posts");
-        assert_that!(out).contains("args");
-        assert_that!(out).contains("Args");
-        assert_that!(out).contains("limit");
-        assert_that!(out).contains("offset");
-    }
-
-    #[rstest]
-    fn field_without_args_has_no_args_section(schema: ParsedSchema) {
-        let out = display(&schema, "Post.title");
-        assert_that!(out).does_not_contain("Args");
-    }
-
-    #[rstest]
-    fn args_table_shows_arg_types(schema: ParsedSchema) {
-        let out = display(&schema, "User.posts");
-        assert_that!(out).contains("Int");
-    }
-
-    // --- Via ---
-
-    #[rstest]
-    fn field_includes_via_section(schema: ParsedSchema) {
-        let out = display(&schema, "Post.title");
-        assert_that!(out).contains("Available via:");
-        assert_that!(out).contains("Query.post");
-    }
-
-    // --- Return type expansion ---
-
-    #[rstest]
-    fn return_type_expansion_shown_for_object_field(schema: ParsedSchema) {
-        let out = display(&schema, "Query.post");
-        assert_that!(out).contains("Return type:");
-        assert_that!(out).contains("User");
+    fn full_output_query_post(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Query.post")).is_equal_to(
+            "FIELD Query.post: Post\n\n\
+             Get a post by ID\n\n\
+             1 args\n\
+             Args\n\
+             +-----+------+-------+\n\
+             | Arg | Type | Notes |\n\
+             +====================+\n\
+             | id  | ID   |       |\n\
+             +-----+------+-------+\n\n\
+             Return type: Post (object)\n\
+             +--------------+-------------------+\n\
+             | Field        | Type              |\n\
+             +==================================+\n\
+             | [implements] | Node              |\n\
+             |              | Timestamped       |\n\
+             |--------------+-------------------|\n\
+             | id           | ID                |\n\
+             |--------------+-------------------|\n\
+             | title        | String            |\n\
+             |--------------+-------------------|\n\
+             | body         | String            |\n\
+             |--------------+-------------------|\n\
+             | author       | User              |\n\
+             |--------------+-------------------|\n\
+             | comments     | CommentConnection |\n\
+             |--------------+-------------------|\n\
+             | category     | Category          |\n\
+             |--------------+-------------------|\n\
+             | tags         | Tag               |\n\
+             |--------------+-------------------|\n\
+             | publishedAt  | String            |\n\
+             |--------------+-------------------|\n\
+             | createdAt    | String            |\n\
+             |--------------+-------------------|\n\
+             | updatedAt    | String            |\n\
+             |--------------+-------------------|\n\
+             | viewCount    | Int               |\n\
+             |--------------+-------------------|\n\
+             | score        | Int               |\n\
+             |--------------+-------------------|\n\
+             | slug         | String            |\n\
+             |--------------+-------------------|\n\
+             | oldSlug      | String            |\n\
+             +--------------+-------------------+"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn return_type_expansion_shows_fields(schema: ParsedSchema) {
-        let out = display(&schema, "Query.post");
-        // Return expansion for Post should include Post's fields
-        assert_that!(out).contains("title");
-        assert_that!(out).contains("body");
+    fn full_output_user_posts(schema: ParsedSchema) {
+        assert_that!(display(&schema, "User.posts")).is_equal_to(
+            "FIELD User.posts: PostConnection\n\n\
+             Posts authored by this user\n\n\
+             2 args\n\
+             Args\n\
+             +--------+------+-------------------------------------------------+\n\
+             | Arg    | Type | Notes                                           |\n\
+             +=================================================================+\n\
+             | limit  | Int  | Maximum number of posts to return (default: 20) |\n\
+             |--------+------+-------------------------------------------------|\n\
+             | offset | Int  |                                                 |\n\
+             +--------+------+-------------------------------------------------+\n\n\
+             Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post.author\n\n\
+             Return type: PostConnection (object)\n\
+             +----------+----------+\n\
+             | Field    | Type     |\n\
+             +=====================+\n\
+             | edges    | PostEdge |\n\
+             |----------+----------|\n\
+             | pageInfo | PageInfo |\n\
+             +----------+----------+"
+                .to_string(),
+        );
     }
 
-    // --- Input type expansion ---
-
     #[rstest]
-    fn input_type_expansion_shown_for_mutation_with_input_arg(schema: ParsedSchema) {
-        let out = display(&schema, "Mutation.createPost");
-        assert_that!(out).contains("Input types");
-        assert_that!(out).contains("CreatePostInput");
+    fn full_output_post_title(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Post.title")).is_equal_to(
+            "FIELD Post.title: String!\n\n\
+             Available via: Query.post, Mutation.createPost -> CreatePostPayload.post"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn input_type_expansion_shows_input_fields(schema: ParsedSchema) {
-        let out = display(&schema, "Mutation.createPost");
-        assert_that!(out).contains("title");
-        assert_that!(out).contains("body");
-        assert_that!(out).contains("categoryId");
+    fn full_output_post_body(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Post.body")).is_equal_to(
+            "FIELD Post.body: String!\n\n\
+             The body content\n\n\
+             Available via: Query.post, Mutation.createPost -> CreatePostPayload.post"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn field_without_input_args_has_no_input_types_section(schema: ParsedSchema) {
-        let out = display(&schema, "Query.post");
-        assert_that!(out).does_not_contain("Input types");
+    fn full_output_post_old_slug(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Post.oldSlug")).is_equal_to(
+            "FIELD Post.oldSlug: String\n\n\
+             DEPRECATED: Use slug instead\n\n\
+             Available via: Query.post, Mutation.createPost -> CreatePostPayload.post"
+                .to_string(),
+        );
+    }
+
+    #[rstest]
+    fn full_output_mutation_create_post(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Mutation.createPost")).is_equal_to(
+            "FIELD Mutation.createPost: CreatePostPayload\n\n\
+             Create a new post\n\n\
+             1 args\n\
+             Args\n\
+             +-------+-----------------+-------+\n\
+             | Arg   | Type            | Notes |\n\
+             +=================================+\n\
+             | input | CreatePostInput |       |\n\
+             +-------+-----------------+-------+\n\n\
+             Return type: CreatePostPayload (object)\n\
+             +-------+------+\n\
+             | Field | Type |\n\
+             +==============+\n\
+             | post  | Post |\n\
+             +-------+------+\n\n\
+             Input types\n\
+             CreatePostInput (input)\n\
+             +------------+--------+\n\
+             | Field      | Type   |\n\
+             +=====================+\n\
+             | title      | String |\n\
+             |------------+--------|\n\
+             | body       | String |\n\
+             |------------+--------|\n\
+             | categoryId | ID     |\n\
+             |------------+--------|\n\
+             | tags       | String |\n\
+             +------------+--------+"
+                .to_string(),
+        );
     }
 }

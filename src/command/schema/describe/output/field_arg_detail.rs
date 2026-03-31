@@ -38,3 +38,46 @@ impl<'a> From<&'a FieldArgDetail> for FieldArgDetailDisplay<'a> {
         FieldArgDetailDisplay { detail }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use apollo_compiler::coordinate::SchemaCoordinate;
+    use rover_schema::ParsedSchema;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::FieldArgDetailDisplay;
+
+    #[fixture]
+    fn schema() -> ParsedSchema {
+        let sdl = include_str!(
+            "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
+        );
+        ParsedSchema::parse(sdl, "test_schema.graphql")
+    }
+
+    fn display(schema: &ParsedSchema, coord: &str) -> String {
+        let coord: SchemaCoordinate = coord.parse().unwrap();
+        let SchemaCoordinate::FieldArgument(ref fac) = coord else {
+            panic!("expected a field argument coordinate");
+        };
+        let detail = schema.field_arg_detail(fac).unwrap();
+        FieldArgDetailDisplay::from(&detail).display()
+    }
+
+    #[rstest]
+    fn full_output_with_description_and_default(schema: ParsedSchema) {
+        assert_that!(display(&schema, "User.posts(limit:)")).is_equal_to(
+            "FIELD ARG User.posts(limit:): Int\n\n\
+             Maximum number of posts to return\n\n\
+             Default: 20"
+                .to_string(),
+        );
+    }
+
+    #[rstest]
+    fn full_output_without_description_or_default(schema: ParsedSchema) {
+        assert_that!(display(&schema, "User.posts(offset:)"))
+            .is_equal_to("FIELD ARG User.posts(offset:): Int".to_string());
+    }
+}

@@ -70,3 +70,46 @@ impl<'a> From<&'a DirectiveDetail> for DirectiveDetailDisplay<'a> {
         DirectiveDetailDisplay { detail }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use apollo_compiler::coordinate::SchemaCoordinate;
+    use rover_schema::ParsedSchema;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::DirectiveDetailDisplay;
+
+    #[fixture]
+    fn schema() -> ParsedSchema {
+        let sdl = include_str!(
+            "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
+        );
+        ParsedSchema::parse(sdl, "test_schema.graphql")
+    }
+
+    fn display(schema: &ParsedSchema, coord: &str) -> String {
+        let coord: SchemaCoordinate = coord.parse().unwrap();
+        let SchemaCoordinate::Directive(ref dc) = coord else {
+            panic!("expected a directive coordinate");
+        };
+        let detail = schema.directive_detail(&dc.directive).unwrap();
+        DirectiveDetailDisplay::from(&detail).display()
+    }
+
+    #[rstest]
+    fn full_output(schema: ParsedSchema) {
+        assert_that!(display(&schema, "@auth")).is_equal_to(
+            "DIRECTIVE @auth\n\n\
+             Marks a field or object as requiring a minimum role\n\n\
+             Locations: FIELD_DEFINITION, OBJECT\n\n\
+             Args\n\
+             +----------+------+----------------------------------------------------------------+\n\
+             | Arg      | Type | Notes                                                          |\n\
+             +==================================================================================+\n\
+             | requires | Role | The minimum role required to access this field (default: USER) |\n\
+             +----------+------+----------------------------------------------------------------+"
+                .to_string(),
+        );
+    }
+}

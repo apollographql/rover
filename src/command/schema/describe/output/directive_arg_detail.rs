@@ -38,3 +38,43 @@ impl<'a> From<&'a DirectiveArgDetail> for DirectiveArgDetailDisplay<'a> {
         DirectiveArgDetailDisplay { detail }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use apollo_compiler::coordinate::SchemaCoordinate;
+    use rover_schema::ParsedSchema;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::DirectiveArgDetailDisplay;
+
+    #[fixture]
+    fn schema() -> ParsedSchema {
+        let sdl = include_str!(
+            "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
+        );
+        ParsedSchema::parse(sdl, "test_schema.graphql")
+    }
+
+    fn display(schema: &ParsedSchema, coord: &str) -> String {
+        let coord: SchemaCoordinate = coord.parse().unwrap();
+        let SchemaCoordinate::DirectiveArgument(ref dac) = coord else {
+            panic!("expected a directive argument coordinate");
+        };
+        let detail = schema
+            .directive_arg_detail(&dac.directive, &dac.argument)
+            .unwrap();
+        DirectiveArgDetailDisplay::from(&detail).display()
+    }
+
+    #[rstest]
+    fn full_output(schema: ParsedSchema) {
+        let out = display(&schema, "@auth(requires:)");
+        assert_that!(out).is_equal_to(
+            "DIRECTIVE ARG @auth(requires:): Role\n\n\
+             The minimum role required to access this field\n\n\
+             Default: USER"
+                .to_string(),
+        );
+    }
+}

@@ -417,197 +417,264 @@ mod tests {
     // --- Object ---
 
     #[rstest]
-    fn object_starts_with_header(schema: ParsedSchema) {
-        assert_that!(display(&schema, "Post", true)).starts_with("TYPE Post (object)");
+    fn full_output_object_post(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Post", true)).is_equal_to(
+            "TYPE Post (object)\n\n\
+             A content post\n\n\
+             implements Node, Timestamped\n\n\
+             14 fields\n\
+             1 deprecated fields\n\n\
+             Fields\n\
+             +-------------+-------------------+-------------------------------------+\n\
+             | Field       | Type              | Description                         |\n\
+             +=======================================================================+\n\
+             | id          | ID                |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | title       | String            |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | body        | String            | The body content                    |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | author      | User              | The author of this post             |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | comments    | CommentConnection |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | category    | Category          |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | tags        | Tag               |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | publishedAt | String            |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | createdAt   | String            |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | updatedAt   | String            |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | viewCount   | Int               |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | score       | Int               | The post's popularity score (0-100) |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | slug        | String            |                                     |\n\
+             |-------------+-------------------+-------------------------------------|\n\
+             | oldSlug     | String            | (deprecated: Use slug instead)      |\n\
+             +-------------+-------------------+-------------------------------------+\n\n\
+             Available via: Query.post, Mutation.createPost -> CreatePostPayload.post"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn object_includes_implements_line(schema: ParsedSchema) {
-        let out = display(&schema, "Post", true);
-        assert_that!(out).contains("implements");
-        assert_that!(out).contains("Node");
-        assert_that!(out).contains("Timestamped");
+    fn full_output_object_user_with_deprecated(schema: ParsedSchema) {
+        assert_that!(display(&schema, "User", true)).is_equal_to(
+            "TYPE User (object)\n\n\
+             A registered user\n\n\
+             implements Node, Profile\n\n\
+             8 fields\n\
+             1 deprecated fields\n\n\
+             Fields\n\
+             +-----------+----------------+------------------------------+\n\
+             | Field     | Type           | Description                  |\n\
+             +===========================================================+\n\
+             | id        | ID             |                              |\n\
+             |-----------+----------------+------------------------------|\n\
+             | name      | String         |                              |\n\
+             |-----------+----------------+------------------------------|\n\
+             | email     | String         | The user's email address     |\n\
+             |-----------+----------------+------------------------------|\n\
+             | posts     | PostConnection | Posts authored by this user  |\n\
+             |-----------+----------------+------------------------------|\n\
+             | bio       | String         |                              |\n\
+             |-----------+----------------+------------------------------|\n\
+             | avatarUrl | String         |                              |\n\
+             |-----------+----------------+------------------------------|\n\
+             | createdAt | String         |                              |\n\
+             |-----------+----------------+------------------------------|\n\
+             | legacyId  | String         | (deprecated: Use id instead) |\n\
+             +-----------+----------------+------------------------------+\n\n\
+             Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post.author"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn object_no_implements_when_none(schema: ParsedSchema) {
-        // Tag has no implements clause
-        let out = display(&schema, "Tag", true);
-        assert_that!(out).does_not_contain("implements");
+    fn full_output_object_user_deprecated_excluded(schema: ParsedSchema) {
+        assert_that!(display(&schema, "User", false)).is_equal_to(
+            "TYPE User (object)\n\n\
+             A registered user\n\n\
+             implements Node, Profile\n\n\
+             8 fields\n\
+             1 deprecated fields\n\n\
+             Fields\n\
+             +-----------+----------------+-----------------------------+\n\
+             | Field     | Type           | Description                 |\n\
+             +==========================================================+\n\
+             | id        | ID             |                             |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | name      | String         |                             |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | email     | String         | The user's email address    |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | posts     | PostConnection | Posts authored by this user |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | bio       | String         |                             |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | avatarUrl | String         |                             |\n\
+             |-----------+----------------+-----------------------------|\n\
+             | createdAt | String         |                             |\n\
+             +-----------+----------------+-----------------------------+\n\n\
+             Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post.author"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn object_fields_table_contains_field_names(schema: ParsedSchema) {
-        let out = display(&schema, "Post", true);
-        assert_that!(out).contains("Fields");
-        assert_that!(out).contains("title");
-        assert_that!(out).contains("body");
-        assert_that!(out).contains("author");
-    }
-
-    #[rstest]
-    fn object_deprecated_field_shown_with_reason(schema: ParsedSchema) {
-        let out = display(&schema, "User", true);
-        assert_that!(out).contains("deprecated: Use id instead");
-    }
-
-    #[rstest]
-    fn object_deprecated_field_filtered_when_excluded(schema: ParsedSchema) {
-        let out = display(&schema, "User", false);
-        assert_that!(out).does_not_contain("legacyId");
-    }
-
-    #[rstest]
-    fn object_includes_via_section(schema: ParsedSchema) {
-        let out = display(&schema, "Post", true);
-        assert_that!(out).contains("Available via:");
-        assert_that!(out).contains("Query.post");
+    fn full_output_object_tag(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Tag", true)).is_equal_to(
+            "TYPE Tag (object)\n\n\
+             A tag applied to posts\n\n\
+             2 fields\n\
+             0 deprecated fields\n\n\
+             Fields\n\
+             +-----------+--------+-------------+\n\
+             | Field     | Type   | Description |\n\
+             +==================================+\n\
+             | name      | String |             |\n\
+             |-----------+--------+-------------|\n\
+             | postCount | Int    |             |\n\
+             +-----------+--------+-------------+\n\n\
+             Available via: Query.post -> Post.tags, Mutation.createPost -> CreatePostPayload.post -> Post.tags"
+                .to_string(),
+        );
     }
 
     // --- Interface ---
 
     #[rstest]
-    fn interface_starts_with_header(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("Timestamped").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).starts_with("TYPE Timestamped (interface)");
-    }
-
-    #[rstest]
-    fn interface_includes_implementors(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("Timestamped").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("Implemented by:");
-        assert_that!(out).contains("Post");
-        assert_that!(out).contains("Comment");
-    }
-
-    #[rstest]
-    fn interface_includes_fields(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("Timestamped").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("createdAt");
-        assert_that!(out).contains("updatedAt");
+    fn full_output_interface_timestamped(schema: ParsedSchema) {
+        assert_that!(display(&schema, "Timestamped", true)).is_equal_to(
+            "TYPE Timestamped (interface)\n\n\
+             An entity with timestamps\n\n\
+             2 fields\n\
+             0 deprecated fields\n\n\
+             Fields\n\
+             +-----------+--------+-------------+\n\
+             | Field     | Type   | Description |\n\
+             +==================================+\n\
+             | createdAt | String |             |\n\
+             |-----------+--------+-------------|\n\
+             | updatedAt | String |             |\n\
+             +-----------+--------+-------------+\n\n\
+             Implemented by: Post, Comment"
+                .to_string(),
+        );
     }
 
     // --- Input ---
 
     #[rstest]
-    fn input_starts_with_header(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("CreatePostInput").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).starts_with("TYPE CreatePostInput (input)");
-    }
-
-    #[rstest]
-    fn input_includes_fields(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("CreatePostInput").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("title");
-        assert_that!(out).contains("body");
-        assert_that!(out).contains("categoryId");
+    fn full_output_input_create_post(schema: ParsedSchema) {
+        assert_that!(display(&schema, "CreatePostInput", true)).is_equal_to(
+            "TYPE CreatePostInput (input)\n\n\
+             4 fields\n\n\
+             Fields\n\
+             +------------+--------+----------------+\n\
+             | Field      | Type   | Description    |\n\
+             +======================================+\n\
+             | title      | String | The post title |\n\
+             |------------+--------+----------------|\n\
+             | body       | String | The post body  |\n\
+             |------------+--------+----------------|\n\
+             | categoryId | ID     | Category ID    |\n\
+             |------------+--------+----------------|\n\
+             | tags       | String | Optional tags  |\n\
+             +------------+--------+----------------+"
+                .to_string(),
+        );
     }
 
     // --- Enum ---
 
     #[rstest]
-    fn enum_starts_with_header(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("DigestFrequency").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).starts_with("TYPE DigestFrequency (enum)");
+    fn full_output_enum_digest_frequency(schema: ParsedSchema) {
+        assert_that!(display(&schema, "DigestFrequency", true)).is_equal_to(
+            "TYPE DigestFrequency (enum)\n\n\
+             Email digest frequency\n\n\
+             3 values\n\n\
+             Values\n\
+             +--------+-------------+\n\
+             | Value  | Description |\n\
+             +======================+\n\
+             | DAILY  |             |\n\
+             |--------+-------------|\n\
+             | WEEKLY |             |\n\
+             |--------+-------------|\n\
+             | NEVER  |             |\n\
+             +--------+-------------+\n\n\
+             Available via: Query.viewer -> Viewer.preferences -> Preferences.digestFrequency, \
+             Mutation.updatePreferences -> UpdatePreferencesPayload.preferences -> Preferences.digestFrequency"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn enum_values_table_contains_values(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("DigestFrequency").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("Values");
-        assert_that!(out).contains("DAILY");
-        assert_that!(out).contains("WEEKLY");
-        assert_that!(out).contains("NEVER");
+    fn full_output_enum_sort_order_with_deprecated(schema: ParsedSchema) {
+        assert_that!(display(&schema, "SortOrder", true)).is_equal_to(
+            "TYPE SortOrder (enum)\n\n\
+             4 values\n\
+             1 deprecated values\n\n\
+             Values\n\
+             +-----------+-------------------------------+\n\
+             | Value     | Description                   |\n\
+             +===========================================+\n\
+             | NEWEST    |                               |\n\
+             |-----------+-------------------------------|\n\
+             | OLDEST    |                               |\n\
+             |-----------+-------------------------------|\n\
+             | TOP       |                               |\n\
+             |-----------+-------------------------------|\n\
+             | RELEVANCE | (deprecated: Use TOP instead) |\n\
+             +-----------+-------------------------------+"
+                .to_string(),
+        );
     }
 
     #[rstest]
-    fn enum_summary_shows_deprecated_count(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("SortOrder").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("deprecated");
-    }
-
-    #[rstest]
-    fn enum_deprecated_value_shows_reason(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("SortOrder").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("deprecated: Use TOP instead");
-    }
-
-    #[rstest]
-    fn enum_deprecated_value_filtered_when_excluded(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("SortOrder").unwrap(), false, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).does_not_contain("RELEVANCE");
+    fn full_output_enum_sort_order_deprecated_excluded(schema: ParsedSchema) {
+        assert_that!(display(&schema, "SortOrder", false)).is_equal_to(
+            "TYPE SortOrder (enum)\n\n\
+             4 values\n\
+             1 deprecated values\n\n\
+             Values\n\
+             +--------+-------------+\n\
+             | Value  | Description |\n\
+             +======================+\n\
+             | NEWEST |             |\n\
+             |--------+-------------|\n\
+             | OLDEST |             |\n\
+             |--------+-------------|\n\
+             | TOP    |             |\n\
+             +--------+-------------+"
+                .to_string(),
+        );
     }
 
     // --- Union ---
 
     #[rstest]
-    fn union_starts_with_header(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("ContentItem").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).starts_with("TYPE ContentItem (union)");
-    }
-
-    #[rstest]
-    fn union_includes_members(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("ContentItem").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).contains("Members:");
-        assert_that!(out).contains("Post");
-        assert_that!(out).contains("Comment");
+    fn full_output_union_content_item(schema: ParsedSchema) {
+        assert_that!(display(&schema, "ContentItem", true))
+            .is_equal_to("TYPE ContentItem (union)\n\nMembers: Post, Comment".to_string());
     }
 
     // --- Scalar ---
 
     #[rstest]
-    fn scalar_starts_with_header(schema: ParsedSchema) {
-        let detail = schema
-            .type_detail(&Name::new("DateTime").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).starts_with("TYPE DateTime (scalar)");
+    fn full_output_scalar_date_time(schema: ParsedSchema) {
+        assert_that!(display(&schema, "DateTime", true))
+            .is_equal_to("TYPE DateTime (scalar)".to_string());
     }
 
     #[rstest]
-    fn scalar_with_description(schema: ParsedSchema) {
-        // URL has no description in the fixture — verify output is just the header
-        let detail = schema
-            .type_detail(&Name::new("URL").unwrap(), true, 0)
-            .unwrap();
-        let out = TypeDetailDisplay::from(&detail).display();
-        assert_that!(out).is_equal_to("TYPE URL (scalar)".to_string());
+    fn full_output_scalar_url(schema: ParsedSchema) {
+        assert_that!(display(&schema, "URL", true))
+            .is_equal_to("TYPE URL (scalar)".to_string());
     }
 }
