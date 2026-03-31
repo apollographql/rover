@@ -22,7 +22,7 @@ enum OutputFormat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum ViewMode {
-    /// Human-readable description (default for TTY)
+    /// Human-readable description (default)
     Description,
     /// Raw SDL
     Sdl,
@@ -48,20 +48,30 @@ pub struct Describe {
     #[serde(skip_serializing)]
     file: Option<PathBuf>,
 
-    /// Schema coordinate to inspect (e.g. Post or User.posts)
+    /// Schema coordinate to inspect. Omit for a full schema overview.
+    ///
+    /// Accepted forms (apollo_compiler SchemaCoordinate syntax):
+    ///   Type                  — object, interface, enum, input, scalar, or union
+    ///   Type.field            — field on an object/interface, or value on an enum/input
+    ///   Type.field(arg:)      — argument on a field
+    ///   @directive            — directive definition
+    ///   @directive(arg:)      — argument on a directive
     #[arg(short = 'c', long = "coord", value_name = "SCHEMA_COORDINATE", value_parser = clap::value_parser!(SchemaCoordinate))]
     #[serde(skip)]
     schema_coordinate: Option<SchemaCoordinate>,
 
-    /// Expand referenced types N levels deep
+    /// Inline the definitions of referenced types in the output, up to N levels deep.
+    /// Only applies to type and field views; has no effect on the schema overview.
     #[arg(long = "depth", short = 'd', default_value_t = 0)]
     depth: usize,
 
-    /// Show deprecated fields and types
+    /// Show deprecated fields and values
     #[arg(long = "include-deprecated")]
     include_deprecated: bool,
 
-    /// Select output view: description (default TTY) or sdl
+    /// Select output view: description (default) or sdl.
+    /// sdl is not supported for directive coordinates (@directive, @directive(arg:)).
+    /// Append --format json to the parent command for machine-readable output.
     #[arg(long = "view", short = 'v', value_name = "VIEW")]
     view: Option<ViewMode>,
 }
