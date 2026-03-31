@@ -45,7 +45,6 @@ pub enum ViewMode {
 pub struct Describe {
     /// SDL file to read. Pass - or omit to read from stdin.
     #[arg(value_name = "FILE")]
-    #[serde(skip_serializing)]
     file: Option<PathBuf>,
 
     /// Schema coordinate to inspect. Omit for a full schema overview.
@@ -57,7 +56,7 @@ pub struct Describe {
     ///   @directive            — directive definition
     ///   @directive(arg:)      — argument on a directive
     #[arg(short = 'c', long = "coord", value_name = "SCHEMA_COORDINATE", value_parser = clap::value_parser!(SchemaCoordinate))]
-    #[serde(skip)]
+    #[serde(serialize_with = "serialize_coord")]
     schema_coordinate: Option<SchemaCoordinate>,
 
     /// Inline the definitions of referenced types in the output, up to N levels deep.
@@ -136,5 +135,15 @@ impl Describe {
         })?;
         let label = utf8_path.to_string();
         Ok((Fs::read_file(utf8_path)?, label))
+    }
+}
+
+fn serialize_coord<S>(coord: &Option<SchemaCoordinate>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match coord {
+        Some(c) => s.serialize_some(&c.to_string()),
+        None => s.serialize_none(),
     }
 }
