@@ -29,9 +29,9 @@ pub enum ViewMode {
 }
 
 #[derive(Debug, Serialize, Parser)]
-/// Describe a graph's schema by type or field
+/// Describe a GraphQL schema by type, field, or directive
 ///
-/// Displays a structured description of your graph's schema. Start with an
+/// Displays a structured description of a GraphQL schema. Start with an
 /// overview, then zoom into individual types and fields.
 ///
 /// Reads from a file or from stdin when no file is given (or when - is passed).
@@ -60,7 +60,7 @@ pub struct Describe {
     schema_coordinate: Option<SchemaCoordinate>,
 
     /// Inline the definitions of referenced types in the output, up to N levels deep.
-    /// Only applies to type and field views; has no effect on the schema overview.
+    /// Only applies to type and field descriptions; has no effect on the schema overview.
     #[arg(long = "depth", short = 'd', default_value_t = 0)]
     depth: usize,
 
@@ -69,7 +69,7 @@ pub struct Describe {
     include_deprecated: bool,
 
     /// Select output view: description (default) or sdl.
-    /// Append --format json to the parent command for machine-readable output.
+    /// Use the top-level --format json flag for machine-readable output.
     #[arg(long = "view", short = 'v', value_name = "VIEW")]
     view: Option<ViewMode>,
 }
