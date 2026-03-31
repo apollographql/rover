@@ -88,3 +88,93 @@ impl<'a> From<&'a SchemaOverview> for SchemaOverviewDisplay<'a> {
         SchemaOverviewDisplay { overview }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use rover_schema::ParsedSchema;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::SchemaOverviewDisplay;
+
+    #[fixture]
+    fn schema() -> ParsedSchema {
+        let sdl = include_str!(
+            "../../../../../crates/rover-schema/src/test_fixtures/test_schema.graphql"
+        );
+        ParsedSchema::parse(sdl, "test_schema.graphql")
+    }
+
+    fn display(schema: &ParsedSchema) -> String {
+        let overview = schema.overview();
+        SchemaOverviewDisplay::from(&overview).display()
+    }
+
+    #[rstest]
+    fn full_output(schema: ParsedSchema) {
+        assert_that!(display(&schema)).is_equal_to(
+            indoc! {"
+                SCHEMA test_schema.graphql
+
+                30 types
+                86 fields
+                3 deprecated fields
+
+                Operations
+                +----------+---+-------------------+
+                | Type     | # | Fields            |
+                +==================================+
+                | Query    | 5 | user              |
+                |          |   | post              |
+                |          |   | categories        |
+                |          |   | search            |
+                |          |   | viewer            |
+                |----------+---+-------------------|
+                | Mutation | 3 | createPost        |
+                |          |   | updatePreferences |
+                |          |   | deleteComment     |
+                +----------+---+-------------------+
+
+                Types
+                +------------+----+--------------------------+
+                | Kind       | #  | Names                    |
+                +============================================+
+                | objects    | 16 | Category                 |
+                |            |    | Comment                  |
+                |            |    | CommentConnection        |
+                |            |    | CommentEdge              |
+                |            |    | CreatePostPayload        |
+                |            |    | DeleteCommentPayload     |
+                |            |    | PageInfo                 |
+                |            |    | Post                     |
+                |            |    | PostConnection           |
+                |            |    | PostEdge                 |
+                |            |    | Preferences              |
+                |            |    | SearchResults            |
+                |            |    | Tag                      |
+                |            |    | UpdatePreferencesPayload |
+                |            |    | User                     |
+                |            |    | Viewer                   |
+                |------------+----+--------------------------|
+                | inputs     | 2  | CreatePostInput          |
+                |            |    | UpdatePreferencesInput   |
+                |------------+----+--------------------------|
+                | enums      | 4  | DigestFrequency          |
+                |            |    | Role                     |
+                |            |    | SearchType               |
+                |            |    | SortOrder                |
+                |------------+----+--------------------------|
+                | interfaces | 3  | Node                     |
+                |            |    | Profile                  |
+                |            |    | Timestamped              |
+                |------------+----+--------------------------|
+                | unions     | 1  | ContentItem              |
+                |------------+----+--------------------------|
+                | scalars    | 2  | DateTime                 |
+                |            |    | URL                      |
+                +------------+----+--------------------------+"}
+            .to_string(),
+        );
+    }
+}
