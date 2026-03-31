@@ -25,6 +25,15 @@ Pass `-` as `FILE` or omit it entirely to read from stdin.
 | `@directive` | Directive definition detail |
 | `@directive(arg:)` | Directive argument detail |
 
+## Options
+
+| Option | Description |
+|---|---|
+| `-c, --coord <SCHEMA_COORDINATE>` | Schema coordinate to inspect (e.g. `Post`, `User.posts`, `@auth`) |
+| `-d, --depth <N>` | Expand referenced types N levels deep (default: 0) |
+| `--include-deprecated` | Show deprecated fields and values |
+| `-v, --view <VIEW>` | Output view: `description` (default) or `sdl` |
+
 ## Examples
 
 ### Schema overview
@@ -33,11 +42,177 @@ Pass `-` as `FILE` or omit it entirely to read from stdin.
 rover schema describe schema.graphql
 ```
 
+```
+SCHEMA schema.graphql
+
+30 types
+86 fields
+3 deprecated fields
+
+Operations
++----------+---+-------------------+
+| Type     | # | Fields            |
++==================================+
+| Query    | 5 | user              |
+|          |   | post              |
+|          |   | categories        |
+|          |   | search            |
+|          |   | viewer            |
+|----------+---+-------------------|
+| Mutation | 3 | createPost        |
+|          |   | updatePreferences |
+|          |   | deleteComment     |
++----------+---+-------------------+
+
+Types
++------------+----+--------------------------+
+| Kind       | #  | Names                    |
++============================================+
+| objects    | 16 | Category                 |
+|            |    | Comment                  |
+|            |    | CommentConnection        |
+|            |    | CommentEdge              |
+|            |    | CreatePostPayload        |
+|            |    | DeleteCommentPayload     |
+|            |    | PageInfo                 |
+|            |    | Post                     |
+|            |    | PostConnection           |
+|            |    | PostEdge                 |
+|            |    | Preferences              |
+|            |    | SearchResults            |
+|            |    | Tag                      |
+|            |    | UpdatePreferencesPayload |
+|            |    | User                     |
+|            |    | Viewer                   |
+|------------+----+--------------------------|
+| inputs     | 2  | CreatePostInput          |
+|            |    | UpdatePreferencesInput   |
+|------------+----+--------------------------|
+| enums      | 4  | DigestFrequency          |
+|            |    | Role                     |
+|            |    | SearchType               |
+|            |    | SortOrder                |
+|------------+----+--------------------------|
+| interfaces | 3  | Node                     |
+|            |    | Profile                  |
+|            |    | Timestamped              |
+|------------+----+--------------------------|
+| unions     | 1  | ContentItem              |
+|------------+----+--------------------------|
+| scalars    | 2  | DateTime                 |
+|            |    | URL                      |
++------------+----+--------------------------+
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "Overview": {
+    "schema_source": "schema.graphql",
+    "total_types": 30,
+    "total_fields": 86,
+    "total_deprecated": 3,
+    "query_fields": [
+      { "name": "user", "return_type": { "Named": "User" } },
+      { "name": "post", "return_type": { "Named": "Post" } },
+      { "name": "categories", "return_type": { "NonNullList": { "NonNullNamed": "Category" } } },
+      { "name": "search", "return_type": { "Named": "SearchResults" } },
+      { "name": "viewer", "return_type": { "Named": "Viewer" } }
+    ],
+    "mutation_fields": [
+      { "name": "createPost", "return_type": { "Named": "CreatePostPayload" } },
+      { "name": "updatePreferences", "return_type": { "Named": "UpdatePreferencesPayload" } },
+      { "name": "deleteComment", "return_type": { "Named": "DeleteCommentPayload" } }
+    ],
+    "objects": ["Category", "Comment", "CommentConnection", "CommentEdge", "CreatePostPayload", "DeleteCommentPayload", "PageInfo", "Post", "PostConnection", "PostEdge", "Preferences", "SearchResults", "Tag", "UpdatePreferencesPayload", "User", "Viewer"],
+    "inputs": ["CreatePostInput", "UpdatePreferencesInput"],
+    "enums": ["DigestFrequency", "Role", "SearchType", "SortOrder"],
+    "interfaces": ["Node", "Profile", "Timestamped"],
+    "unions": ["ContentItem"],
+    "scalars": ["DateTime", "URL"]
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
+
 ### Type description
 
 ```bash
-rover schema describe schema.graphql --coord Post
+rover schema describe schema.graphql --coord User
 ```
+
+```
+TYPE User (object)
+
+A registered user
+
+implements Node, Profile
+
+8 fields
+1 deprecated fields
+
+Fields
++-----------+----------------+-----------------------------+
+| Field     | Type           | Description                 |
++==========================================================+
+| id        | ID             |                             |
+|-----------+----------------+-----------------------------|
+| name      | String         |                             |
+|-----------+----------------+-----------------------------|
+| email     | String         | The user's email address    |
+|-----------+----------------+-----------------------------|
+| posts     | PostConnection | Posts authored by this user |
+|-----------+----------------+-----------------------------|
+| bio       | String         |                             |
+|-----------+----------------+-----------------------------|
+| avatarUrl | String         |                             |
+|-----------+----------------+-----------------------------|
+| createdAt | String         |                             |
++-----------+----------------+-----------------------------+
+
+Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post.author
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "Type": {
+    "type": "object",
+    "name": "User",
+    "description": "A registered user",
+    "implements": ["Node", "Profile"],
+    "fields": [
+      { "name": "id", "return_type": "ID", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+      { "name": "name", "return_type": "String", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+      { "name": "email", "return_type": "String", "description": "The user's email address", "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+      { "name": "posts", "return_type": "PostConnection", "description": "Posts authored by this user", "is_deprecated": false, "deprecation_reason": null, "arg_count": 2 },
+      { "name": "bio", "return_type": "String", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+      { "name": "avatarUrl", "return_type": "String", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+      { "name": "createdAt", "return_type": "String", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 }
+    ],
+    "field_count": 8,
+    "deprecated_count": 1,
+    "expanded_types": [],
+    "via": [
+      { "segments": [{ "type_name": "Query", "field_name": "user" }] },
+      { "segments": [{ "type_name": "Mutation", "field_name": "createPost" }, { "type_name": "CreatePostPayload", "field_name": "post" }, { "type_name": "Post", "field_name": "author" }] }
+    ]
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
 
 ### Field description
 
@@ -45,11 +220,190 @@ rover schema describe schema.graphql --coord Post
 rover schema describe schema.graphql --coord User.posts
 ```
 
+```
+FIELD User.posts: PostConnection
+
+Posts authored by this user
+
+2 args
+Args
++--------+------+-------------------------------------------------+
+| Arg    | Type | Notes                                           |
++=================================================================+
+| limit  | Int  | Maximum number of posts to return (default: 20) |
+|--------+------+-------------------------------------------------|
+| offset | Int  |                                                 |
++--------+------+-------------------------------------------------+
+
+Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post.author
+
+Return type: PostConnection (object)
++----------+----------+
+| Field    | Type     |
++=====================+
+| edges    | PostEdge |
+|----------+----------|
+| pageInfo | PageInfo |
++----------+----------+
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "Field": {
+    "type_name": "User",
+    "field_name": "posts",
+    "return_type": { "Named": "PostConnection" },
+    "description": "Posts authored by this user",
+    "arg_count": 2,
+    "args": [
+      { "name": "limit", "arg_type": "Int", "description": "Maximum number of posts to return", "default_value": "20" },
+      { "name": "offset", "arg_type": "Int", "description": null, "default_value": null }
+    ],
+    "via": [
+      { "segments": [{ "type_name": "Query", "field_name": "user" }] },
+      { "segments": [{ "type_name": "Mutation", "field_name": "createPost" }, { "type_name": "CreatePostPayload", "field_name": "post" }, { "type_name": "Post", "field_name": "author" }] }
+    ],
+    "input_expansions": [],
+    "return_expansion": {
+      "kind": "object",
+      "name": "PostConnection",
+      "fields": [
+        { "name": "edges", "return_type": "PostEdge", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 },
+        { "name": "pageInfo", "return_type": "PageInfo", "description": null, "is_deprecated": false, "deprecation_reason": null, "arg_count": 0 }
+      ],
+      "implements": [],
+      "implementors": []
+    },
+    "is_deprecated": false,
+    "deprecation_reason": null
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
+
+### Field argument detail
+
+```bash
+rover schema describe schema.graphql --coord "User.posts(limit:)"
+```
+
+```
+FIELD ARG User.posts(limit:): Int
+
+Maximum number of posts to return
+
+Default: 20
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "FieldArg": {
+    "type_name": "User",
+    "field_name": "posts",
+    "arg_name": "limit",
+    "arg_type": { "Named": "Int" },
+    "description": "Maximum number of posts to return",
+    "default_value": "20"
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
+
 ### Directive description
 
 ```bash
 rover schema describe schema.graphql --coord "@auth"
 ```
+
+```
+DIRECTIVE @auth
+
+Marks a field or object as requiring a minimum role
+
+Locations: FIELD_DEFINITION, OBJECT
+
+Args
++----------+------+----------------------------------------------------------------+
+| Arg      | Type | Notes                                                          |
++==================================================================================+
+| requires | Role | The minimum role required to access this field (default: USER) |
++----------+------+----------------------------------------------------------------+
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "Directive": {
+    "name": "auth",
+    "description": "Marks a field or object as requiring a minimum role",
+    "args": [
+      {
+        "name": "requires",
+        "arg_type": "Role",
+        "description": "The minimum role required to access this field",
+        "default_value": "USER"
+      }
+    ],
+    "locations": ["FIELD_DEFINITION", "OBJECT"],
+    "repeatable": false
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
+
+### Directive argument detail
+
+```bash
+rover schema describe schema.graphql --coord "@auth(requires:)"
+```
+
+```
+DIRECTIVE ARG @auth(requires:): Role
+
+The minimum role required to access this field
+
+Default: USER
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "DirectiveArg": {
+    "directive_name": "auth",
+    "arg_name": "requires",
+    "arg_type": "Role",
+    "description": "The minimum role required to access this field",
+    "default_value": "USER"
+  },
+  "success": true
+}
+```
+
+</details>
+
+---
 
 ### SDL view
 
@@ -65,12 +419,3 @@ Returns the raw SDL for the requested type. The `--view sdl` flag is not support
 cat schema.graphql | rover schema describe --coord Post
 rover schema describe - --coord Post
 ```
-
-## Options
-
-| Option | Description |
-|---|---|
-| `-c, --coord <SCHEMA_COORDINATE>` | Schema coordinate to inspect (e.g. `Post`, `User.posts`, `@auth`) |
-| `-d, --depth <N>` | Expand referenced types N levels deep (default: 0) |
-| `--include-deprecated` | Show deprecated fields and values |
-| `-v, --view <VIEW>` | Output view: `description` (default) or `sdl` |
