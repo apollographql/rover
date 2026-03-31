@@ -32,34 +32,45 @@ impl ParsedSchema {
         &self.schema
     }
 
-    /// Returns SDL for the schema filtered to the type referenced by `coord`, or `None` if the
-    /// coordinate is unsupported or the type is not found. Returns the full schema SDL when
-    /// `coord` is `None`.
+    /// Returns SDL for the definition referenced by `coord`, or `None` if the type or directive
+    /// is not found. Directive coordinates (`@directive`, `@directive(arg:)`) return the directive
+    /// definition SDL. Type-based coordinates return the type SDL. Returns the full schema SDL
+    /// when `coord` is `None`.
     pub fn filtered_sdl(&self, coord: Option<&SchemaCoordinate>) -> Option<String> {
         let schema = self.inner();
         let Some(coord) = coord else {
             return Some(schema.serialize().to_string());
         };
 
-        let type_name = match coord {
-            SchemaCoordinate::Type(tc) => &tc.ty,
-            SchemaCoordinate::TypeAttribute(tac) => &tac.ty,
-            SchemaCoordinate::FieldArgument(fac) => &fac.ty,
-            SchemaCoordinate::Directive(_) | SchemaCoordinate::DirectiveArgument(_) => {
-                return None;
-            }
-        };
-
-        schema
-            .types
-            .get(type_name)
-            .map(|ty| ty.serialize().to_string())
+        match coord {
+            SchemaCoordinate::Directive(dc) => schema
+                .directive_definitions
+                .get(&dc.directive)
+                .map(|d| d.serialize().to_string()),
+            SchemaCoordinate::DirectiveArgument(dac) => schema
+                .directive_definitions
+                .get(&dac.directive)
+                .map(|d| d.serialize().to_string()),
+            SchemaCoordinate::Type(tc) => schema
+                .types
+                .get(&tc.ty)
+                .map(|ty| ty.serialize().to_string()),
+            SchemaCoordinate::TypeAttribute(tac) => schema
+                .types
+                .get(&tac.ty)
+                .map(|ty| ty.serialize().to_string()),
+            SchemaCoordinate::FieldArgument(fac) => schema
+                .types
+                .get(&fac.ty)
+                .map(|ty| ty.serialize().to_string()),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use apollo_compiler::coordinate::SchemaCoordinate;
+    use indoc::indoc;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
 
@@ -119,11 +130,25 @@ type User implements Node & Profile {
         assert_that!(filtered(&schema, Some(coord))).is_equal_to(Some(USER_SDL.to_string()));
     }
 
-    // --- Coordinates that return None ---
+    const AUTH_SDL: &str = indoc! {r#"
+        """Marks a field or object as requiring a minimum role"""
+        directive @auth(
+          """The minimum role required to access this field"""
+          requires: Role = USER,
+        ) on FIELD_DEFINITION | OBJECT"#};
+
+    // --- Directive coordinates return the directive SDL ---
 
     #[rstest]
     #[case("@auth")]
     #[case("@auth(requires:)")]
+    fn coord_returns_auth_sdl(schema: ParsedSchema, #[case] coord: &str) {
+        assert_that!(filtered(&schema, Some(coord))).is_equal_to(Some(AUTH_SDL.to_string()));
+    }
+
+    // --- Unknown coordinates return None ---
+
+    #[rstest]
     #[case("NonExistent")]
     fn coord_returns_none(schema: ParsedSchema, #[case] coord: &str) {
         assert_that!(filtered(&schema, Some(coord))).is_none();

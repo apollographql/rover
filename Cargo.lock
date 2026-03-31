@@ -4807,6 +4807,7 @@ name = "rover-schema"
 version = "0.0.0"
 dependencies = [
  "apollo-compiler",
+ "indoc",
  "itertools 0.14.0",
  "pathfinding",
  "pretty_assertions",

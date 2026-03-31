@@ -70,7 +70,6 @@ pub struct Describe {
     include_deprecated: bool,
 
     /// Select output view: description (default) or sdl.
-    /// sdl is not supported for directive coordinates (@directive, @directive(arg:)).
     /// Append --format json to the parent command for machine-readable output.
     #[arg(long = "view", short = 'v', value_name = "VIEW")]
     view: Option<ViewMode>,
@@ -87,7 +86,7 @@ impl Describe {
                 .filtered_sdl(self.schema_coordinate.as_ref())
                 .ok_or_else(|| {
                     anyhow::anyhow!(
-                        "unsupported coordinate for SDL view: '{}'",
+                        "coordinate '{}' not found in schema",
                         self.schema_coordinate
                             .as_ref()
                             .map(|c| c.to_string())
