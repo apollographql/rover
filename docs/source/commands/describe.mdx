@@ -1,89 +1,76 @@
 ---
-title: Rover describe Command
+title: Rover schema describe Command
 subtitle: Explore your graph schema by type or field
-description: Use the rover describe command to view schema overviews, type details, and field details from GraphOS or a running endpoint.
+description: Use the rover schema describe command to view schema overviews, type details, and field details from a local SDL file or stdin.
 ---
-
-import AuthNotice from '../../shared/auth-notice.mdx';
 
 ## Overview
 
-The `rover describe` command provides structured descriptions of your graph's schema. Start with a full schema overview, then zoom into individual types and fields.
-
-<AuthNotice />
+The `rover schema describe` command provides structured descriptions of a GraphQL schema. Read from a local SDL file or pipe from stdin. Start with a full schema overview, then zoom into individual types, fields, directives, and arguments using a schema coordinate.
 
 ## Usage
 
 ```bash
-rover describe <GRAPH_REF>[:<COORDINATE>] [OPTIONS]
+rover schema describe [FILE] [OPTIONS]
 ```
 
-| Form | What you get |
+Pass `-` as `FILE` or omit it entirely to read from stdin.
+
+| Coordinate (`--coord`) | What you get |
 |---|---|
-| `graph@variant` | Schema overview |
-| `graph@variant:Type` | Type description |
-| `graph@variant:Type.field` | Field description and return type |
+| _(none)_ | Schema overview |
+| `Type` | Type description |
+| `Type.field` | Field description and return type |
+| `Type.field(arg:)` | Field argument detail |
+| `@directive` | Directive definition detail |
+| `@directive(arg:)` | Directive argument detail |
 
 ## Examples
 
 ### Schema overview
 
 ```bash
-rover describe my-graph@my-variant
+rover schema describe schema.graphql
 ```
-
-This displays the full schema summary including type counts, Query and Mutation fields, and all user-defined types grouped by kind.
 
 ### Type description
 
 ```bash
-rover describe my-graph@my-variant:Post
+rover schema describe schema.graphql --coord Post
 ```
-
-Shows the type's fields, descriptions, interfaces it implements, and the shortest path to reach it from Query or Mutation.
 
 ### Field description
 
 ```bash
-rover describe my-graph@my-variant:User.posts
+rover schema describe schema.graphql --coord User.posts
 ```
 
-Shows the field's arguments, input type expansion, and return type expansion — everything you need to write a query using this field.
-
-### Depth expansion
+### Directive description
 
 ```bash
-rover describe my-graph@my-variant:Post --depth 1
+rover schema describe schema.graphql --coord "@auth"
 ```
 
-The `--depth` flag expands referenced types by N levels, showing their fields inline. This lets you explore the type graph without viewing the entire schema.
+### SDL view
+
+```bash
+rover schema describe schema.graphql --coord User --view sdl
+```
+
+Returns the raw SDL for the requested type. The `--view sdl` flag is not supported for directive coordinates.
+
+### Read from stdin
+
+```bash
+cat schema.graphql | rover schema describe --coord Post
+rover schema describe - --coord Post
+```
 
 ## Options
 
 | Option | Description |
 |---|---|
+| `-c, --coord <SCHEMA_COORDINATE>` | Schema coordinate to inspect (e.g. `Post`, `User.posts`, `@auth`) |
 | `-d, --depth <N>` | Expand referenced types N levels deep (default: 0) |
-| `--include-deprecated` | Show deprecated fields and types |
-| `--sdl` | Output raw SDL instead of structured description |
-| `--compact` | Output token-efficient compact notation |
-| `--no-cache` | Skip the local schema cache |
-| `--profile <NAME>` | Name of configuration profile to use |
-
-## Output formats
-
-By default, `rover describe` outputs a structured human-readable description. Three alternatives are available:
-
-- **`--sdl`**: Raw SDL, filtered to just the coordinate you asked for
-- **`--compact`**: Token-efficient notation (~40% fewer tokens than SDL)
-- **`--format json`** (global): Structured JSON output
-
-When output is piped (stdout is not a TTY), compact format is auto-selected unless `--sdl` or `--format json` is specified.
-
-```bash
-# Auto-compacts when piped
-rover describe my-graph@my-variant:Post | cat
-```
-
-## Schema source
-
-By default, `rover describe` fetches the schema from GraphOS using your `APOLLO_KEY`. The schema is cached locally for 5 minutes.
+| `--include-deprecated` | Show deprecated fields and values |
+| `-v, --view <VIEW>` | Output view: `description` (default) or `sdl` |
