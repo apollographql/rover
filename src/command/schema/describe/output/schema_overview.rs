@@ -25,12 +25,12 @@ impl<'a> SchemaOverviewDisplay<'a> {
 
     fn subheader(&self) -> String {
         let ov = self.overview;
-        let parts = vec![
+        [
             format!("{} types", ov.total_types),
             format!("{} fields", ov.total_fields),
             format!("{} deprecated fields", ov.total_deprecated),
-        ];
-        parts.join("\n")
+        ]
+        .join("\n")
     }
 
     fn operations(&self) -> Option<String> {

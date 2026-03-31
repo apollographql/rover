@@ -109,7 +109,7 @@ impl Describe {
         Ok(RoverOutput::CliOutput(Box::new(output)))
     }
 
-    fn output_format(&self) -> OutputFormat {
+    const fn output_format(&self) -> OutputFormat {
         match self.view {
             Some(ViewMode::Sdl) => OutputFormat::Sdl,
             Some(ViewMode::Description) | None => OutputFormat::Description,

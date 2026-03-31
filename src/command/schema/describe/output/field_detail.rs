@@ -110,7 +110,7 @@ impl<'a> From<&'a FieldDetail> for FieldDetailDisplay<'a> {
     }
 }
 
-fn expanded_type_kind(exp: &ExpandedType) -> &'static str {
+const fn expanded_type_kind(exp: &ExpandedType) -> &'static str {
     match exp {
         ExpandedType::Object { .. } => "object",
         ExpandedType::Interface { .. } => "interface",
