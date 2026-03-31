@@ -87,24 +87,25 @@ mod tests {
         schema.filtered_sdl(parsed_coord.as_ref())
     }
 
-    const USER_SDL: &str = r#""""A registered user"""
-type User implements Node & Profile {
-  id: ID!
-  name: String!
-  """The user's email address"""
-  email: String!
-  """Posts authored by this user"""
-  posts(
-    """Maximum number of posts to return"""
-    limit: Int = 20,
-    offset: Int,
-  ): PostConnection
-  bio: String
-  avatarUrl: String
-  createdAt: String!
-  legacyId: String @deprecated(reason: "Use id instead")
-}
-"#;
+    const USER_SDL: &str = indoc! {r#"
+        """A registered user"""
+        type User implements Node & Profile {
+          id: ID!
+          name: String!
+          """The user's email address"""
+          email: String!
+          """Posts authored by this user"""
+          posts(
+            """Maximum number of posts to return"""
+            limit: Int = 20,
+            offset: Int,
+          ): PostConnection
+          bio: String
+          avatarUrl: String
+          createdAt: String!
+          legacyId: String @deprecated(reason: "Use id instead")
+        }
+        "#};
 
     // --- No coordinate — full schema SDL ---
 
