@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 pub use apollo_compiler::schema::ExtendedType;
-use apollo_compiler::{Schema, coordinate::SchemaCoordinate};
+use apollo_compiler::{Schema, coordinate::SchemaCoordinate, parser::FileId};
 
 /// Wrapper around apollo_compiler::Schema providing convenient accessors.
 pub struct ParsedSchema {
@@ -19,13 +19,13 @@ impl ParsedSchema {
         Self { schema }
     }
 
-    /// Returns the path this schema was parsed from.
+    /// Returns the path this schema was parsed from, skipping the apollo built-in source.
     pub fn source_path(&self) -> Option<PathBuf> {
         self.schema
             .sources
-            .values()
-            .next()
-            .map(|s| s.path().to_path_buf())
+            .iter()
+            .find(|(id, _)| **id != FileId::BUILT_IN)
+            .map(|(_, s)| s.path().to_path_buf())
     }
 
     pub(crate) const fn inner(&self) -> &Schema {
@@ -116,8 +116,7 @@ type User implements Node & Profile {
     #[case("User.posts")]
     #[case("User.posts(limit:)")]
     fn coord_returns_user_sdl(schema: ParsedSchema, #[case] coord: &str) {
-        assert_that!(filtered(&schema, Some(coord)))
-            .is_equal_to(Some(USER_SDL.to_string()));
+        assert_that!(filtered(&schema, Some(coord))).is_equal_to(Some(USER_SDL.to_string()));
     }
 
     // --- Coordinates that return None ---

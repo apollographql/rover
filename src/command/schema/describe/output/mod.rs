@@ -9,7 +9,9 @@ use directive_arg_detail::DirectiveArgDetailDisplay;
 use directive_detail::DirectiveDetailDisplay;
 use field_arg_detail::FieldArgDetailDisplay;
 use field_detail::FieldDetailDisplay;
-use rover_schema::{DirectiveArgDetail, DirectiveDetail, FieldArgDetail, FieldDetail, SchemaOverview, TypeDetail};
+use rover_schema::{
+    DirectiveArgDetail, DirectiveDetail, FieldArgDetail, FieldDetail, SchemaOverview, TypeDetail,
+};
 use schema_overview::SchemaOverviewDisplay;
 use serde::Serialize;
 use type_detail::TypeDetailDisplay;

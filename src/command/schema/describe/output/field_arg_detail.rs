@@ -7,10 +7,14 @@ pub struct FieldArgDetailDisplay<'a> {
 
 impl<'a> FieldArgDetailDisplay<'a> {
     pub fn display(&self) -> String {
-        [Some(self.header()), self.description(), self.default_value()]
-            .into_iter()
-            .flatten()
-            .join("\n\n")
+        [
+            Some(self.header()),
+            self.description(),
+            self.default_value(),
+        ]
+        .into_iter()
+        .flatten()
+        .join("\n\n")
     }
 
     fn header(&self) -> String {

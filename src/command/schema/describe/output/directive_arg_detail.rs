@@ -7,10 +7,14 @@ pub struct DirectiveArgDetailDisplay<'a> {
 
 impl<'a> DirectiveArgDetailDisplay<'a> {
     pub fn display(&self) -> String {
-        [Some(self.header()), self.description(), self.default_value()]
-            .into_iter()
-            .flatten()
-            .join("\n\n")
+        [
+            Some(self.header()),
+            self.description(),
+            self.default_value(),
+        ]
+        .into_iter()
+        .flatten()
+        .join("\n\n")
     }
 
     fn header(&self) -> String {

@@ -674,7 +674,6 @@ mod tests {
 
     #[rstest]
     fn full_output_scalar_url(schema: ParsedSchema) {
-        assert_that!(display(&schema, "URL", true))
-            .is_equal_to("TYPE URL (scalar)".to_string());
+        assert_that!(display(&schema, "URL", true)).is_equal_to("TYPE URL (scalar)".to_string());
     }
 }
