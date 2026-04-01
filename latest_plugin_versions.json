@@ -10,7 +10,7 @@
     "repository": "https://github.com/apollographql/router",
     "versions": {
       "latest-1": "v1.61.13",
-      "latest-2": "v2.12.1"
+      "latest-2": "v2.13.0"
     }
   }
 }
