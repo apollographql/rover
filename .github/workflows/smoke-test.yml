@@ -111,7 +111,7 @@ jobs:
           sudo ln -s ${{ github.workspace }} /__w/rover/rover
           echo "Created symlink: /__w/rover/rover -> ${{ github.workspace }}"
           ls -la /__w/rover/
-      - uses: volta-cli/action@v4
+      - uses: volta-cli/action@v5
         name: "Install volta"
       - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
