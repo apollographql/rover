@@ -1,7 +1,6 @@
 "use strict";
 
 const axios = require("axios");
-const cTable = require("console.table");
 const libc = require("detect-libc");
 const os = require("os");
 const tar = require("tar");
@@ -96,9 +95,7 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
   }
 
   error(
-    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.\nYour system must be one of the following:\n\n${cTable.getTable(
-      supportedPlatforms
-    )}`
+    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.\nYour system must be one of the following:\n\n${supportedPlatforms.map(p => `  ${p.TYPE} ${p.ARCHITECTURE} (${p.RUST_TARGET})`).join("\n")}`
   );
 };
 
