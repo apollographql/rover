@@ -47,6 +47,8 @@ items:
         href: ./commands/persisted-queries
       - label: readme
         href: ./commands/readmes
+      - label: schema
+        href: ./commands/schema
       - label: subgraph
         href: ./commands/subgraphs
       - label: supergraph

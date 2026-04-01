@@ -1,0 +1,149 @@
+use std::{
+    io::{self, Read},
+    path::{Path, PathBuf},
+};
+
+use clap::Parser;
+use rover_schema::{ParsedSchema, SchemaCoordinate};
+use rover_std::Fs;
+use serde::Serialize;
+
+use crate::{RoverOutput, RoverResult};
+
+mod output;
+pub use output::DescribeOutput;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OutputFormat {
+    Description,
+    Sdl,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum ViewMode {
+    /// Human-readable description (default)
+    Description,
+    /// Raw SDL
+    Sdl,
+}
+
+#[derive(Debug, Serialize, Parser)]
+/// Describe a GraphQL schema by type, field, or directive
+///
+/// Displays a structured description of a GraphQL schema. Start with an
+/// overview, then zoom into individual types and fields.
+///
+/// Reads from a file or from stdin when no file is given (or when - is passed).
+#[command(after_help = "EXAMPLES:\n    \
+    rover schema describe schema.graphql\n    \
+    rover schema describe schema.graphql --coord Post\n    \
+    rover schema describe schema.graphql --coord User.posts\n    \
+    rover schema describe schema.graphql --coord Post --view sdl\n    \
+    cat schema.graphql | rover schema describe\n    \
+    rover schema describe -")]
+pub struct Describe {
+    /// SDL file to read. Pass - or omit to read from stdin.
+    #[arg(value_name = "FILE")]
+    file: Option<PathBuf>,
+
+    /// Schema coordinate to inspect. Omit for a full schema overview.
+    ///
+    /// Accepted forms (apollo_compiler SchemaCoordinate syntax):
+    ///   Type                  — object, interface, enum, input, scalar, or union
+    ///   Type.field            — field on an object/interface, or value on an enum/input
+    ///   Type.field(arg:)      — argument on a field
+    ///   @directive            — directive definition
+    ///   @directive(arg:)      — argument on a directive
+    #[arg(short = 'c', long = "coord", value_name = "SCHEMA_COORDINATE", value_parser = clap::value_parser!(SchemaCoordinate))]
+    #[serde(serialize_with = "serialize_coord")]
+    schema_coordinate: Option<SchemaCoordinate>,
+
+    /// Inline the definitions of referenced types in the output, up to N levels deep.
+    /// Only applies to type and field descriptions; has no effect on the schema overview.
+    #[arg(long = "depth", short = 'd', default_value_t = 0)]
+    depth: usize,
+
+    /// Show deprecated fields and values
+    #[arg(long = "include-deprecated")]
+    include_deprecated: bool,
+
+    /// Select output view: description (default) or sdl.
+    /// Use the top-level --format json flag for machine-readable output.
+    #[arg(long = "view", short = 'v', value_name = "VIEW")]
+    view: Option<ViewMode>,
+}
+
+impl Describe {
+    pub async fn run(&self) -> RoverResult<RoverOutput> {
+        let (sdl_string, source_label) = self.read_sdl()?;
+        let output_format = self.output_format();
+        let schema = ParsedSchema::parse(&sdl_string, &source_label);
+
+        if matches!(output_format, OutputFormat::Sdl) {
+            let sdl = schema
+                .filtered_sdl(self.schema_coordinate.as_ref())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "coordinate '{}' not found in schema",
+                        self.schema_coordinate
+                            .as_ref()
+                            .map(|c| c.to_string())
+                            .unwrap_or_default()
+                    )
+                })?;
+            return Ok(RoverOutput::CliOutput(Box::new(DescribeOutput::Sdl(sdl))));
+        }
+
+        let output = schema
+            .describe(
+                self.schema_coordinate.as_ref(),
+                self.include_deprecated,
+                self.depth,
+            )
+            .map(DescribeOutput::from)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        Ok(RoverOutput::CliOutput(Box::new(output)))
+    }
+
+    const fn output_format(&self) -> OutputFormat {
+        match self.view {
+            Some(ViewMode::Sdl) => OutputFormat::Sdl,
+            Some(ViewMode::Description) | None => OutputFormat::Description,
+        }
+    }
+
+    /// Returns `(sdl_contents, display_label)`.
+    fn read_sdl(&self) -> RoverResult<(String, String)> {
+        let use_stdin = match &self.file {
+            None => true,
+            Some(p) => p == Path::new("-"),
+        };
+
+        if use_stdin {
+            let mut sdl = String::new();
+            io::stdin()
+                .read_to_string(&mut sdl)
+                .map_err(|e| anyhow::anyhow!("failed to read from stdin: {}", e))?;
+            return Ok((sdl, "<stdin>".to_string()));
+        }
+
+        let path = self.file.as_ref().unwrap();
+        let utf8_path = camino::Utf8PathBuf::try_from(path.clone()).map_err(|p| {
+            anyhow::anyhow!("path '{}' contains invalid UTF-8", p.as_path().display())
+        })?;
+        let label = utf8_path.to_string();
+        Ok((Fs::read_file(utf8_path)?, label))
+    }
+}
+
+fn serialize_coord<S>(coord: &Option<SchemaCoordinate>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match coord {
+        Some(c) => s.serialize_some(&c.to_string()),
+        None => s.serialize_none(),
+    }
+}
