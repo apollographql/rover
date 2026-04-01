@@ -4699,6 +4699,7 @@ dependencies = [
  "async-trait",
  "billboard",
  "binstall",
+ "bon",
  "buildstructor",
  "calm_io",
  "camino",
@@ -4715,7 +4716,6 @@ dependencies = [
  "flate2",
  "futures",
  "git2",
- "globwalk",
  "graphql-schema-diff",
  "graphql_client",
  "heck",
@@ -4900,8 +4900,10 @@ name = "rover-std"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bon",
  "camino",
  "console 0.16.3",
+ "globwalk",
  "notify",
  "rstest",
  "speculoos",

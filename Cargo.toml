@@ -196,13 +196,14 @@ apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
+bon = { workspace = true }
 buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
-globwalk = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 clap_complete = { workspace = true }
 chrono = { workspace = true }
+comfy-table = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
@@ -255,8 +256,6 @@ tower-lsp = { version = "0.20" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-comfy-table = { workspace = true }
-apollo-compiler = { workspace = true }
 
 [dev-dependencies]
 apollo-compiler = { workspace = true }

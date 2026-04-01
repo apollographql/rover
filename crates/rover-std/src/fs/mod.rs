@@ -1,3 +1,6 @@
+pub mod file_search;
+pub use file_search::FileSearch;
+
 use std::{
     fs,
     fs::OpenOptions,

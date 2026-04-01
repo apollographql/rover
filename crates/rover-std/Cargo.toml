@@ -8,7 +8,9 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+bon = { workspace = true }
 camino = { workspace = true }
+globwalk = { workspace = true }
 console = { workspace = true }
 notify = { workspace = true }
 tap = { workspace = true }

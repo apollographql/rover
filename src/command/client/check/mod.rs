@@ -1,43 +1,64 @@
+mod parsed_file;
+
 use std::collections::HashMap;
 
-use anyhow::anyhow;
-use apollo_parser::{Parser, cst, cst::CstNode};
-use camino::{Utf8Path, Utf8PathBuf};
+use itertools::Itertools;
+
+use camino::Utf8PathBuf;
 use clap::Parser as ClapParser;
 use rover_client::operations::graph::{
     validate_operations,
     validate_operations::{OperationDocument, ValidateOperationsInput},
 };
+use rover_std::FileSearch;
 use serde::Serialize;
 
 use crate::{
-    RoverError, RoverOutput, RoverResult,
-    client::discovery::{DiscoveryOptions, discover_files},
+    RoverOutput, RoverResult,
     command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
     options::{OptionalGraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,
 };
+use parsed_file::ParsedFile;
+
+#[derive(Debug, thiserror::Error)]
+enum ClientCheckError {
+    #[error("Failed to parse {} .graphql file(s):\n{}", .parse_failures.len(), .parse_failures.iter().join("\n"))]
+    ParseFailures {
+        parse_failures: Vec<ClientCheckFailure>,
+    },
+    #[error("No .graphql operations found under the provided includes")]
+    NoOperations,
+    #[error("A graph ref is required for client check.")]
+    MissingGraphRef,
+    #[error("current directory is not utf-8")]
+    NonUtf8CurrentDir,
+}
 
 #[derive(Debug, Serialize, ClapParser)]
 pub struct Check {
     /// Graph reference to validate against (optional; defaults to env/config)
     #[clap(flatten)]
-    #[serde(skip_serializing)]
     graph: OptionalGraphRefOpt,
 
     #[clap(flatten)]
     profile: ProfileOpt,
 
-    /// Paths (dirs or files) to include.
-    #[arg(long = "include", value_name = "PATH", action = clap::ArgAction::Append)]
-    include: Vec<Utf8PathBuf>,
+    /// Glob patterns to include (e.g. `src/**/*.graphql`).
+    #[arg(long = "include", value_name = "PATTERN", action = clap::ArgAction::Append)]
+    include: Vec<String>,
 
-    /// Paths to exclude.
-    #[arg(long = "exclude", value_name = "PATH", action = clap::ArgAction::Append)]
-    exclude: Vec<Utf8PathBuf>,
+    /// Glob patterns to exclude (e.g. `**/__generated__/**`).
+    #[arg(long = "exclude", value_name = "PATTERN", action = clap::ArgAction::Append)]
+    exclude: Vec<String>,
+
+    /// Root directory to scan. Defaults to the current working directory.
+    #[arg(long = "root-dir", value_name = "DIR")]
+    root_dir: Option<Utf8PathBuf>,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Serialize, Clone, PartialEq, Eq)]
+#[error("{file}: {message}")]
 pub struct ClientCheckFailure {
     pub file: Utf8PathBuf,
     pub message: String,
@@ -64,21 +85,6 @@ pub struct ClientValidationResult {
     pub column: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
-struct OperationInput {
-    name: String,
-    body: String,
-    file: Utf8PathBuf,
-    line: usize,
-    column: usize,
-}
-
-#[derive(Debug, Clone)]
-struct ParsedFile {
-    operations: Vec<OperationInput>,
-    extensions: Vec<ExtensionSnippet>,
-}
-
 impl Check {
     pub async fn run(
         &self,
@@ -86,62 +92,60 @@ impl Check {
         git_context: rover_client::shared::GitContext,
         _format: crate::cli::RoverOutputFormatKind,
     ) -> RoverResult<RoverOutput> {
-        let root = std::env::current_dir()?;
-        let root = Utf8PathBuf::from_path_buf(root)
-            .map_err(|_| RoverError::new(anyhow!("current directory is not utf-8")))?;
-
-        let options = DiscoveryOptions {
-            includes: self.include.clone(),
-            excludes: self.exclude.clone(),
-            ..Default::default()
+        let root = match &self.root_dir {
+            Some(r) => r.clone(),
+            None => {
+                let cwd = std::env::current_dir()?;
+                Utf8PathBuf::from_path_buf(cwd)
+                    .map_err(|_| ClientCheckError::NonUtf8CurrentDir)?
+            }
         };
 
-        let files = discover_files(&options, &root, &["graphql"])?;
+        let search = FileSearch::builder()
+            .root(root)
+            .includes(self.include.clone())
+            .excludes(self.exclude.clone())
+            .build();
 
-        let mut failures = Vec::new();
-        let mut operations = Vec::new();
-        let mut parse_failures = Vec::new();
-        let mut extensions = Vec::new();
+        let files = search.find(&["graphql"])?;
 
-        for file in files {
-            match rover_std::Fs::read_file(&file) {
-                Ok(contents) => match extract_operations(&file, &contents) {
-                    Ok(parsed) => {
-                        operations.extend(parsed.operations);
-                        extensions.extend(parsed.extensions);
-                    }
-                    Err(msg) => parse_failures.push(ClientCheckFailure { file, message: msg }),
-                },
-                Err(err) => parse_failures.push(ClientCheckFailure {
-                    file,
-                    message: err.to_string(),
-                }),
-            }
-        }
+        let results: Vec<Result<ParsedFile, ClientCheckFailure>> = files
+            .into_iter()
+            .map(|file| {
+                rover_std::Fs::read_file(&file)
+                    .map_err(|e| ClientCheckFailure {
+                        file: file.clone(),
+                        message: e.to_string(),
+                    })
+                    .and_then(|contents| {
+                        ParsedFile::new(&file, &contents).map_err(|e| ClientCheckFailure {
+                            file: file.clone(),
+                            message: e.to_string(),
+                        })
+                    })
+            })
+            .collect();
+
+        let (parsed_files, parse_failures): (Vec<ParsedFile>, Vec<ClientCheckFailure>) =
+            results.into_iter().partition_result();
 
         if !parse_failures.is_empty() {
-            let detail = parse_failures
-                .iter()
-                .map(|f| format!("{}: {}", f.file, f.message))
-                .collect::<Vec<_>>()
-                .join("\n");
-            return Err(RoverError::new(anyhow!(format!(
-                "Failed to parse {} .graphql file(s):\n{}",
-                parse_failures.len(),
-                detail
-            ))));
+            return Err(ClientCheckError::ParseFailures { parse_failures })?;
         }
+
+        let operations: Vec<_> = parsed_files.iter().flat_map(|f| f.operations.iter().cloned()).collect();
+        let extensions: Vec<_> = parsed_files.iter().flat_map(|f| f.extensions.iter().cloned()).collect();
+        let mut failures = Vec::new();
 
         if operations.is_empty() {
-            return Err(RoverError::new(anyhow!(
-                "No .graphql operations found under the provided includes"
-            )));
+            Err(ClientCheckError::NoOperations)?;
         }
 
-        let graph_ref =
-            self.graph.graph_ref.clone().ok_or_else(|| {
-                RoverError::new(anyhow!("A graph ref is required for client check."))
-            })?;
+        let graph_ref = self
+            .graph
+            .graph_ref
+            .clone()
+            .ok_or(ClientCheckError::MissingGraphRef)?;
 
         let extension_failures =
             collect_extension_failures(&client_config, &self.profile, &graph_ref, &extensions)
@@ -183,99 +187,6 @@ impl Check {
 
         Ok(RoverOutput::ClientCheckResponse { summary })
     }
-}
-
-fn extract_operations(file: &Utf8Path, contents: &str) -> Result<ParsedFile, String> {
-    let parser = Parser::new(contents);
-    let tree = parser.parse();
-    let errors: Vec<_> = tree.errors().collect();
-    if !errors.is_empty() {
-        let msg = errors
-            .iter()
-            .map(|e| e.message().to_string())
-            .collect::<Vec<_>>()
-            .join("; ");
-        return Err(msg);
-    }
-
-    let doc = tree.document();
-    let mut extensions = Vec::new();
-    let mut fragment_texts = Vec::new();
-    for definition in doc.definitions() {
-        if let cst::Definition::FragmentDefinition(fragment) = definition {
-            let range = fragment.syntax().text_range();
-            let start: usize = range.start().into();
-            let end: usize = range.end().into();
-            if let Some(text) = contents.get(start..end) {
-                fragment_texts.push(text.to_string());
-            }
-        } else if !matches!(definition, cst::Definition::OperationDefinition(_)) {
-            let range = definition.syntax().text_range();
-            let start: usize = range.start().into();
-            let end: usize = range.end().into();
-            if let Some(text) = contents.get(start..end) {
-                extensions.push(ExtensionSnippet {
-                    text: text.to_string(),
-                    file: file.to_path_buf(),
-                });
-            }
-        }
-    }
-
-    let mut operations = Vec::new();
-    for definition in doc.definitions() {
-        if let cst::Definition::OperationDefinition(def) = definition
-            && let Some(op) = build_operation_input(file, contents, def, &fragment_texts)
-        {
-            operations.push(op);
-        }
-    }
-
-    Ok(ParsedFile {
-        operations,
-        extensions,
-    })
-}
-
-fn build_operation_input(
-    file: &Utf8Path,
-    contents: &str,
-    def: cst::OperationDefinition,
-    fragments: &[String],
-) -> Option<OperationInput> {
-    let name = def
-        .name()
-        .map(|n| n.text().to_string())
-        .unwrap_or_else(|| String::from("<anonymous>"));
-    if name == "<anonymous>" {
-        return None;
-    }
-    let range = def.syntax().text_range();
-    let start: usize = range.start().into();
-    let end: usize = range.end().into();
-    let operation_text = contents.get(start..end)?.to_string();
-
-    let fragments_text = fragments.join("\n\n");
-
-    let body = if fragments_text.is_empty() {
-        operation_text
-    } else {
-        format!("{operation_text}\n\n{fragments_text}")
-    };
-
-    let line = contents[..start].lines().count() + 1;
-    let column = contents[..start]
-        .rsplit_once('\n')
-        .map(|(_, rest)| rest.len() + 1)
-        .unwrap_or(1);
-
-    Some(OperationInput {
-        name,
-        body,
-        file: file.to_path_buf(),
-        line,
-        column,
-    })
 }
 
 async fn collect_extension_failures(
@@ -333,7 +244,7 @@ fn format_extension_failure(failure: ExtensionFailure) -> String {
 async fn validate_against_remote(
     client: &rover_client::blocking::StudioClient,
     graph_ref: &rover_studio::types::GraphRef,
-    operations: &[OperationInput],
+    operations: &[parsed_file::OperationInput],
     git_context: &rover_client::shared::GitContext,
 ) -> RoverResult<Vec<ClientValidationResult>> {
     let op_inputs = operations
