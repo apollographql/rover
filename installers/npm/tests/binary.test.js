@@ -4,26 +4,28 @@ const path = require("path");
 const pjson = require("../package.json");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
-const MockAdapter = require("axios-mock-adapter");
-const axios = require("axios");
+const { MockAgent, setGlobalDispatcher, getGlobalDispatcher } = require("undici");
 const {getPlatform} = require("../binary");
 
-var mock = new MockAdapter(axios);
-mock.onGet(new RegExp("https://rover\.apollo\.dev/tar/rover/x86_64-pc-windows-msvc/.*")).reply(function (_) {
-  return [
-    200,
-    fs.createReadStream(
-        path.join(__dirname, "fake_tarballs", "rover-fake-windows.tar.gz"),
-    ),
-  ];
+let originalDispatcher;
+
+beforeAll(() => {
+  originalDispatcher = getGlobalDispatcher();
+  const mockAgent = new MockAgent();
+  mockAgent.disableNetConnect();
+  setGlobalDispatcher(mockAgent);
+
+  const mockPool = mockAgent.get("https://rover.apollo.dev");
+  mockPool.intercept({ path: /\/tar\/rover\/x86_64-pc-windows-msvc\/.*/, method: "GET" })
+    .reply(200, fs.readFileSync(path.join(__dirname, "fake_tarballs", "rover-fake-windows.tar.gz")))
+    .persist();
+  mockPool.intercept({ path: /\/tar\/rover\/.*/, method: "GET" })
+    .reply(200, fs.readFileSync(path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz")))
+    .persist();
 });
-mock.onGet(new RegExp("https://rover\.apollo\.dev/tar/rover/.*")).reply(function (_) {
-  return [
-    200,
-    fs.createReadStream(
-        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
-    ),
-  ];
+
+afterAll(() => {
+  setGlobalDispatcher(originalDispatcher);
 });
 
 
@@ -80,7 +82,7 @@ test("install doesn't do anything if a binary already exists", () => {
 
   const binary_name = `rover-${pjson.version}`;
   fs.writeFileSync(path.join(directory, binary_name), "foobarbash");
-  bin.install({}, true);
+  bin.install(true);
   const file_contents = fs.readFileSync(path.join(directory, binary_name));
   expect(file_contents.toString()).toBe("foobarbash");
 });
@@ -94,7 +96,7 @@ test("install recreates an existing directory if it exists", () => {
     path.join(directory, "i-am-a-different-new-file.txt"),
     "binboobaznar",
   );
-  bin.install({}, true);
+  bin.install(true);
 
   const directory_entries = fs.readdirSync(directory, { withFileTypes: true });
   expect(
@@ -107,7 +109,7 @@ test("install downloads a binary if none exists", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   const bin = binary.getBinary(directory);
   //
-  const directory_entries = await bin.install({}, true).then(async () => {
+  const directory_entries = await bin.install(true).then(async () => {
     return fs.readdirSync(directory, { withFileTypes: true });
   });
   const filtered_directory_entries = directory_entries.filter(
@@ -129,7 +131,7 @@ test("install renames binary properly", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   // Create a Binary object
   const bin = binary.getBinary(directory);
-  const directory_entries = await bin.install({}, true).then(async () => {
+  const directory_entries = await bin.install(true).then(async () => {
     return fs.readdirSync(directory, { withFileTypes: true });
   });
   expect(
@@ -144,7 +146,7 @@ test("install renames binary properly (Windows)", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   // Create a Binary object
   const bin = binary.getBinary(directory, getPlatform("Windows_NT", "x64"));
-  const directory_entries = await bin.install({}, true).then(async () => {
+  const directory_entries = await bin.install(true).then(async () => {
     return fs.readdirSync(directory, { withFileTypes: true });
   });
   expect(
@@ -171,7 +173,7 @@ test("install adds a new binary if another version exists", async () => {
   // Create a Binary object
   const bin = binary.getBinary(directory);
   // Install the binary
-  let new_directory_entries = await bin.install({}, true).then(() => {
+  let new_directory_entries = await bin.install(true).then(() => {
     // Grab the directory entries again
     return fs.readdirSync(directory, { withFileTypes: true });
   });

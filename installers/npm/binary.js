@@ -1,13 +1,12 @@
 "use strict";
 
-const axios = require("axios");
 const libc = require("detect-libc");
 const os = require("os");
 const tar = require("tar");
-const { configureProxy } = require("axios-proxy-builder");
 const { existsSync, mkdirSync, rmSync } = require("fs");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
+const { Readable } = require("stream");
 
 const error = (msg) => {
   console.error(msg);
@@ -99,6 +98,16 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
   );
 };
 
+const getProxyUrl = (urlString) => {
+  const { protocol, hostname } = new URL(urlString);
+  const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
+  if (noProxy === "*") return null;
+  if (noProxy && noProxy.split(",").some(h => hostname.endsWith(h.trim()))) return null;
+  if (protocol === "https:") return process.env.HTTPS_PROXY || process.env.https_proxy || null;
+  if (protocol === "http:") return process.env.HTTP_PROXY || process.env.http_proxy || null;
+  return null;
+};
+
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
 class Binary {
   constructor(name, raw_name, url, installDirectory) {
@@ -145,7 +154,7 @@ class Binary {
     return existsSync(this.binaryPath);
   }
 
-  install(fetchOptions, suppressLogs = false) {
+  install(suppressLogs = false) {
     if (this.exists()) {
       if (!suppressLogs) {
         console.error(
@@ -165,10 +174,20 @@ class Binary {
       console.error(`Downloading release from ${this.url}`);
     }
 
-    return axios({ ...fetchOptions, url: this.url, responseType: "stream" })
+    const proxyUrl = getProxyUrl(this.url);
+
+    let fetchPromise;
+    if (proxyUrl) {
+      const { ProxyAgent, fetch: undiciFetch } = require("undici");
+      fetchPromise = undiciFetch(this.url, { dispatcher: new ProxyAgent(proxyUrl) });
+    } else {
+      fetchPromise = fetch(this.url);
+    }
+
+    return fetchPromise
       .then(res => {
         return new Promise((resolve, reject) => {
-          const sink = res.data.pipe(
+          const sink = Readable.fromWeb(res.body).pipe(
             tar.x({ strip: 1, C: this.installDirectory })
           );
           sink.on("finish", () => resolve());
@@ -186,9 +205,9 @@ class Binary {
       });
   }
 
-  run(fetchOptions) {
+  run() {
     const promise = !this.exists()
-      ? this.install(fetchOptions, true)
+      ? this.install(true)
       : Promise.resolve();
 
     promise
@@ -233,7 +252,6 @@ const getBinary = (overrideInstallDirectory, platform = getPlatform()) => {
 
 const install = (suppressLogs = false) => {
   const binary = getBinary();
-  const proxy = configureProxy(binary.url);
   // these messages are duplicated in `src/command/install/mod.rs`
   // for the curl installer.
   if (!suppressLogs) {
@@ -245,7 +263,7 @@ const install = (suppressLogs = false) => {
     );
   }
 
-  return binary.install(proxy, suppressLogs);
+  return binary.install(suppressLogs);
 };
 
 const run = () => {
