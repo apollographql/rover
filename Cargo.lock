@@ -4715,6 +4715,7 @@ dependencies = [
  "flate2",
  "futures",
  "git2",
+ "globwalk",
  "graphql-schema-diff",
  "graphql_client",
  "heck",
