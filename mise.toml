@@ -1,6 +1,6 @@
 [tools]
 lychee = "0.23.0"
-node = "20.18.1"
+node = "20.20.2"
 "cargo:cargo-deny" = "0.19"
 
 [tasks.check]
