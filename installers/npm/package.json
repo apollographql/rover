@@ -29,7 +29,7 @@
     "url": "https://github.com/apollographql/rover/issues"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.18.1"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {

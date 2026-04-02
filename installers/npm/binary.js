@@ -103,21 +103,53 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
   process.exit(1);
 };
 
-const getProxyUrl = (urlString) => {
-  const { protocol, hostname } = new URL(urlString);
+/*! Copyright (c) 2022 Mitchell Alderson - MIT License */
+export const getProxyEnv = (requestURL) => {
   const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
-  if (!noProxy) {
-    // fall through to proxy lookup
-  } else if (noProxy === "*" || /^(true|1)$/i.test(noProxy)) {
-    return null;
-  } else if (noProxy.split(",").some((h) => hostname.endsWith(h.trim()))) {
+
+  // if the noProxy is a wildcard then return null
+  if (noProxy === "*") {
     return null;
   }
-  if (protocol === "https:")
-    return process.env.HTTPS_PROXY || process.env.https_proxy || null;
-  if (protocol === "http:")
+
+  // if the noProxy is not empty and the uri is found, return null
+  if (noProxy !== "" && urlInNoProxy(requestURL, noProxy)) {
+    return null;
+  }
+
+  // get proxy based on request url's protocol
+  if (requestURL.protocol == "http:") {
     return process.env.HTTP_PROXY || process.env.http_proxy || null;
+  }
+
+  if (requestURL.protocol == "https:") {
+    return process.env.HTTPS_PROXY || process.env.https_proxy || null;
+  }
+
+  // not a supported protocol...
   return null;
+};
+
+/*! Copyright (c) 2022 Mitchell Alderson - MIT License */
+const urlInNoProxy = (requestURL, noProxy) => {
+  const port =
+    requestURL.port || (requestURL.protocol === "https:" ? "443" : "80");
+  const hostname = formatHostName(requestURL.hostname);
+  //testing: internal.example.com,internal2.example.com
+  const noProxyList = noProxy.split(",");
+
+  return noProxyList.map(parseNoProxyZone).some((noProxyZone) => {
+    const isMatchedAt = hostname.indexOf(noProxyZone.hostname);
+    const hostnameMatched =
+      isMatchedAt > -1 &&
+      isMatchedAt === hostname.length - noProxyZone.hostname.length;
+
+    if (noProxyZone.hasPort) {
+      return port === noProxyZone.port && hostnameMatched;
+    }
+
+    return hostnameMatched;
+  });
 };
 
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
@@ -186,7 +218,7 @@ class Binary {
       console.error(`Downloading release from ${this.url}`);
     }
 
-    const proxyUrl = getProxyUrl(this.url);
+    const proxyUrl = getProxyEnv(this.url);
 
     const agent = proxyUrl ? new ProxyAgent(proxyUrl) : null;
     const fetchPromise = fetch(this.url, agent ? { dispatcher: agent } : {});
@@ -195,7 +227,7 @@ class Binary {
       .then((res) => {
         if (!res.ok) {
           throw new Error(
-            `Failed to download binary from ${this.url}: HTTP ${res.status} ${res.statusText}`,
+            `Failed to download binary: HTTP ${res.status} ${res.statusText}`,
           );
         }
         return new Promise((resolve, reject) => {
