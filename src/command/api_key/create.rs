@@ -71,6 +71,7 @@ impl Create {
                 }
                 let resources = ApiKeyResourceInput {
                     subgraphs: Some(subgraphs_input),
+                    gateways: None,
                 };
                 Some(resources)
             }

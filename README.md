@@ -47,10 +47,14 @@ Commands:
           Cloud configuration commands
   connector
           Work with Apollo Connectors
+  completion
+          Generate shell completion scripts
   config
           Configuration profile commands
   contract
           Contract configuration commands
+  schema
+          Schema inspection commands
   dev
           Run a supergraph locally to develop and test subgraph changes
   supergraph
@@ -69,6 +73,8 @@ Commands:
           Commands related to updating rover
   persisted-queries
           Commands for persisted queries [aliases: pq]
+  install
+          Installs Rover
   explain
           Explain error codes
   license
@@ -82,7 +88,7 @@ Options:
 
       --format <FORMAT_KIND>
           Specify Rover's format type
-          
+
           [default: plain]
           [possible values: plain, json]
 
@@ -91,21 +97,21 @@ Options:
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
-          
+
           You should think very carefully before using this flag.
-          
+
           If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
 
       --insecure-accept-invalid-hostnames
           Accept invalid hostnames when performing HTTPS requests.
-          
+
           You should think very carefully before using this flag.
-          
+
           If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
 
       --client-timeout <CLIENT_TIMEOUT>
           Configure the timeout length (in seconds) when performing HTTP(S) requests
-          
+
           [default: 30]
 
       --skip-update-check
@@ -120,7 +126,7 @@ Options:
 
 
 ** Getting Started with Rover **
-    
+
 Run the following command to authenticate with GraphOS:
 
     $ rover config auth
