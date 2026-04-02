@@ -4,8 +4,12 @@ const path = require("path");
 const pjson = require("../package.json");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
-const { MockAgent, setGlobalDispatcher, getGlobalDispatcher } = require("undici");
-const {getPlatform} = require("../binary");
+const {
+  MockAgent,
+  setGlobalDispatcher,
+  getGlobalDispatcher,
+} = require("undici");
+const { getPlatform } = require("../binary");
 
 let originalDispatcher;
 
@@ -16,18 +20,32 @@ beforeAll(() => {
   setGlobalDispatcher(mockAgent);
 
   const mockPool = mockAgent.get("https://rover.apollo.dev");
-  mockPool.intercept({ path: /\/tar\/rover\/x86_64-pc-windows-msvc\/.*/, method: "GET" })
-    .reply(200, fs.readFileSync(path.join(__dirname, "fake_tarballs", "rover-fake-windows.tar.gz")))
+  mockPool
+    .intercept({
+      path: /\/tar\/rover\/x86_64-pc-windows-msvc\/.*/,
+      method: "GET",
+    })
+    .reply(
+      200,
+      fs.readFileSync(
+        path.join(__dirname, "fake_tarballs", "rover-fake-windows.tar.gz"),
+      ),
+    )
     .persist();
-  mockPool.intercept({ path: /\/tar\/rover\/.*/, method: "GET" })
-    .reply(200, fs.readFileSync(path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz")))
+  mockPool
+    .intercept({ path: /\/tar\/rover\/.*/, method: "GET" })
+    .reply(
+      200,
+      fs.readFileSync(
+        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
+      ),
+    )
     .persist();
 });
 
 afterAll(() => {
   setGlobalDispatcher(originalDispatcher);
 });
-
 
 test("getBinary should be created with correct name and URL", () => {
   fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
@@ -117,12 +135,7 @@ test("install downloads a binary if none exists", async () => {
   );
   expect(filtered_directory_entries).toHaveLength(1);
   expect(
-    fs.statSync(
-      path.join(
-        filtered_directory_entries[0].path,
-        filtered_directory_entries[0].name,
-      ),
-    ).size,
+    fs.statSync(path.join(directory, filtered_directory_entries[0].name)).size,
   ).toBe(0);
 });
 
@@ -150,9 +163,9 @@ test("install renames binary properly (Windows)", async () => {
     return fs.readdirSync(directory, { withFileTypes: true });
   });
   expect(
-      directory_entries.filter(
-          (d) => d.isFile() && d.name === `rover-${pjson.version}.exe`,
-      ),
+    directory_entries.filter(
+      (d) => d.isFile() && d.name === `rover-${pjson.version}.exe`,
+    ),
   ).toHaveLength(1);
 });
 

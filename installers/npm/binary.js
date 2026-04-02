@@ -7,6 +7,7 @@ const { existsSync, mkdirSync, rmSync } = require("fs");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
 const { Readable } = require("stream");
+const { ProxyAgent, fetch } = require("undici");
 
 const error = (msg) => {
   console.error(msg);
@@ -23,35 +24,35 @@ const supportedPlatforms = [
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-pc-windows-msvc",
     BINARY_NAME: `${name}-${version}.exe`,
-    RAW_NAME: `${name}.exe`
+    RAW_NAME: `${name}.exe`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-unknown-linux-gnu",
     BINARY_NAME: `${name}-${version}`,
-    RAW_NAME: `${name}`
+    RAW_NAME: `${name}`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-unknown-linux-gnu",
     BINARY_NAME: `${name}-${version}`,
-    RAW_NAME: `${name}`
+    RAW_NAME: `${name}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-apple-darwin",
     BINARY_NAME: `${name}-${version}`,
-    RAW_NAME: `${name}`
+    RAW_NAME: `${name}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-apple-darwin",
     BINARY_NAME: `${name}-${version}`,
-    RAW_NAME: `${name}`
+    RAW_NAME: `${name}`,
   },
 ];
 
@@ -66,7 +67,7 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
           "Downloading musl binary that does not include `rover supergraph compose`.";
         if (libc.isNonGlibcLinuxSync()) {
           console.warn(
-            "This operating system does not support dynamic linking to glibc."
+            "This operating system does not support dynamic linking to glibc.",
           );
           console.warn(musl_warning);
           supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
@@ -82,7 +83,7 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
             libc_minor_version < min_minor_version
           ) {
             console.warn(
-              `This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`
+              `This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`,
             );
             console.warn(musl_warning);
             supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
@@ -94,17 +95,24 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
   }
 
   error(
-    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.\nYour system must be one of the following:\n\n${supportedPlatforms.map(p => `  ${p.TYPE} ${p.ARCHITECTURE} (${p.RUST_TARGET})`).join("\n")}`
+    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.\nYour system must be one of the following:\n\n${supportedPlatforms.map((p) => `  ${p.TYPE} ${p.ARCHITECTURE} (${p.RUST_TARGET})`).join("\n")}`,
   );
 };
 
 const getProxyUrl = (urlString) => {
   const { protocol, hostname } = new URL(urlString);
   const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
-  if (noProxy === "*") return null;
-  if (noProxy && noProxy.split(",").some(h => hostname.endsWith(h.trim()))) return null;
-  if (protocol === "https:") return process.env.HTTPS_PROXY || process.env.https_proxy || null;
-  if (protocol === "http:") return process.env.HTTP_PROXY || process.env.http_proxy || null;
+  if (!noProxy) {
+    // fall through to proxy lookup
+  } else if (noProxy === "*" || /^(true|1)$/i.test(noProxy)) {
+    return null;
+  } else if (noProxy.split(",").some((h) => hostname.endsWith(h.trim()))) {
+    return null;
+  }
+  if (protocol === "https:")
+    return process.env.HTTPS_PROXY || process.env.https_proxy || null;
+  if (protocol === "http:")
+    return process.env.HTTP_PROXY || process.env.http_proxy || null;
   return null;
 };
 
@@ -131,7 +139,7 @@ class Binary {
     if (errors.length > 0) {
       let errorMsg =
         "One or more of the parameters you passed to the Binary constructor are invalid:\n";
-      errors.forEach(error => {
+      errors.forEach((error) => {
         errorMsg += error;
       });
       errorMsg +=
@@ -158,7 +166,7 @@ class Binary {
     if (this.exists()) {
       if (!suppressLogs) {
         console.error(
-          `${this.name} is already installed, skipping installation.`
+          `${this.name} is already installed, skipping installation.`,
         );
       }
       return Promise.resolve();
@@ -176,39 +184,41 @@ class Binary {
 
     const proxyUrl = getProxyUrl(this.url);
 
-    let fetchPromise;
-    if (proxyUrl) {
-      const { ProxyAgent, fetch: undiciFetch } = require("undici");
-      fetchPromise = undiciFetch(this.url, { dispatcher: new ProxyAgent(proxyUrl) });
-    } else {
-      fetchPromise = fetch(this.url);
-    }
+    const agent = proxyUrl ? new ProxyAgent(proxyUrl) : null;
+    const fetchPromise = fetch(this.url, agent ? { dispatcher: agent } : {});
 
     return fetchPromise
-      .then(res => {
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(
+            `Failed to download binary from ${this.url}: HTTP ${res.status} ${res.statusText}`,
+          );
+        }
         return new Promise((resolve, reject) => {
           const sink = Readable.fromWeb(res.body).pipe(
-            tar.x({ strip: 1, C: this.installDirectory })
+            tar.x({ strip: 1, C: this.installDirectory }),
           );
           sink.on("finish", () => resolve());
-          sink.on("error", err => reject(err));
+          sink.on("error", (err) => reject(err));
         });
       })
       .then(() => {
-        fs.renameSync(join(this.installDirectory, this.raw_name), this.binaryPath);
+        fs.renameSync(
+          join(this.installDirectory, this.raw_name),
+          this.binaryPath,
+        );
         if (!suppressLogs) {
           console.error(`${this.name} has been installed!`);
         }
       })
-      .catch(e => {
+      .finally(() => agent && agent.close())
+      .catch((e) => {
         error(`Error fetching release: ${e.message}`);
       });
   }
 
   run() {
-    const promise = !this.exists()
-      ? this.install(true)
-      : Promise.resolve();
+    const promise = !this.exists() ? this.install(true) : Promise.resolve();
 
     promise
       .then(() => {
@@ -224,7 +234,7 @@ class Binary {
 
         process.exit(result.status);
       })
-      .catch(e => {
+      .catch((e) => {
         error(e.message);
         process.exit(1);
       });
@@ -232,17 +242,25 @@ class Binary {
 }
 
 const getBinary = (overrideInstallDirectory, platform = getPlatform()) => {
-  const download_host = process.env.npm_config_apollo_rover_download_host || process.env.APOLLO_ROVER_DOWNLOAD_HOST || 'https://rover.apollo.dev'
+  const download_host =
+    process.env.npm_config_apollo_rover_download_host ||
+    process.env.APOLLO_ROVER_DOWNLOAD_HOST ||
+    "https://rover.apollo.dev";
   // the url for this binary is constructed from values in `package.json`
   // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
   const url = `${download_host}/tar/${name}/${platform.RUST_TARGET}/v${version}`;
-  const { dirname } = require('path');
+  const { dirname } = require("path");
   const appDir = dirname(require.main.filename);
   let installDirectory = join(appDir, "binary");
   if (overrideInstallDirectory != null && overrideInstallDirectory !== "") {
-    installDirectory = overrideInstallDirectory
+    installDirectory = overrideInstallDirectory;
   }
-  let binary = new Binary(platform.BINARY_NAME, platform.RAW_NAME, url, installDirectory);
+  let binary = new Binary(
+    platform.BINARY_NAME,
+    platform.RAW_NAME,
+    url,
+    installDirectory,
+  );
 
   // setting this allows us to extract supergraph plugins to the proper directory
   // the variable itself is read in Rust code
@@ -256,10 +274,10 @@ const install = (suppressLogs = false) => {
   // for the curl installer.
   if (!suppressLogs) {
     console.error(
-      "If you would like to disable Rover's anonymized usage collection, you can set APOLLO_TELEMETRY_DISABLED=true"
+      "If you would like to disable Rover's anonymized usage collection, you can set APOLLO_TELEMETRY_DISABLED=true",
     );
     console.error(
-      "You can check out our documentation at https://go.apollo.dev/r/docs."
+      "You can check out our documentation at https://go.apollo.dev/r/docs.",
     );
   }
 
