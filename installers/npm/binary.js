@@ -104,7 +104,7 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
 };
 
 /*! Copyright (c) 2022 Mitchell Alderson - MIT License */
-export const getProxyEnv = (requestURL) => {
+const getProxyEnv = (requestURL) => {
   const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
 
   // if the noProxy is a wildcard then return null
@@ -283,7 +283,7 @@ const getBinary = (overrideInstallDirectory, platform = getPlatform()) => {
     process.env.APOLLO_ROVER_DOWNLOAD_HOST ||
     "https://rover.apollo.dev";
   // the url for this binary is constructed from values in `package.json`
-  // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
+  // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/vx.x.x
   const url = `${download_host}/tar/${name}/${platform.RUST_TARGET}/v${version}`;
   const { dirname } = require("path");
   const appDir = dirname(require.main.filename);
