@@ -3,6 +3,7 @@
 const libc = require("detect-libc");
 const os = require("os");
 const tar = require("tar");
+const { Console } = require("node:console");
 const { existsSync, mkdirSync, rmSync } = require("fs");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
@@ -94,9 +95,12 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
     }
   }
 
-  error(
-    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.\nYour system must be one of the following:\n\n${supportedPlatforms.map((p) => `  ${p.TYPE} ${p.ARCHITECTURE} (${p.RUST_TARGET})`).join("\n")}`,
+  const stderr = new Console(process.stderr);
+  stderr.log(
+    `Platform with type "${type}" and architecture "${architecture}" is not supported by ${name}.`,
   );
+  stderr.table(supportedPlatforms);
+  process.exit(1);
 };
 
 const getProxyUrl = (urlString) => {
