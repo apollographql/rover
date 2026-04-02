@@ -18,7 +18,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# Unreleased
+# [0.38.0] - 2026-04-02
+
+## 🚀 Features
+
+- **Add rover schema describe command - @dotdat PR #3091**
+
+## 🐛 Fixes
+
+- **Enable non-compose supergraph commands on Alpine - @SharkBaitDLS PR #3062**
+
+## 🛠 Maintenance
+
+- **Remove dependencies from rover npm package - @phryneas, @claude, @SharkBaitDLS PR #3136**
+  - This drops the dependencies `axios`, `axios-proxy-builder` and `console.table` and introduces `undici` as a dependency. It also pins `detect-libc` to a fixed version with no further dependencies.
 
 ## 📚 Documentation
 
