@@ -35,7 +35,7 @@
   "dependencies": {
     "detect-libc": "2.1.2",
     "tar": "^7.0.0",
-    "undici": "^7.0.0"
+    "undici": "^8.0.0"
   },
   "devDependencies": {
     "jest": "30.3.0",
