@@ -44,7 +44,7 @@ async fn e2e_test_rover_subgraph_publish(
     // 3.2 * 10^115 possibilities for identifiers, so I think for practical purposes we can
     // consider these as unique.
     let mut rng = rand::rng();
-    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{0,63}", 100)
+    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
         .expect("Could not compile regex");
     let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
     let schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
