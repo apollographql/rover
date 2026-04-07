@@ -556,7 +556,7 @@ commands:
                 name: Publish to npm (stable)
                 command: |
                   cd << parameters.npm_dir >>
-                  && export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
+                  export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
                   npm publish << parameters.options >>
       - when:
           condition:
@@ -566,5 +566,5 @@ commands:
                 name: Publish to npm (beta)
                 command: |
                   cd << parameters.npm_dir >>
-                  && export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
+                  export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
                   npm publish --tag beta << parameters.options >>
