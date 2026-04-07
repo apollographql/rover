@@ -348,8 +348,8 @@ commands:
             - run:
                 name: Install default versions of npm and node
                 command: |
-                  volta install node@16
-                  volta install npm@7
+                  volta install node@22
+                  volta install npm@11
 
   install_rust_toolchain:
     parameters:
@@ -548,21 +548,23 @@ commands:
         type: string
         default: << pipeline.git.tag >>
     steps:
-      - run:
-          name: Export NPM OIDC Token
-          command: |
-            export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
       - unless:
           condition:
             <<: *tag_matches_prerelease
           steps:
             - run:
                 name: Publish to npm (stable)
-                command: cd << parameters.npm_dir >> && npm publish << parameters.options >>
+                command: |
+                  cd << parameters.npm_dir >>
+                  && export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
+                  npm publish << parameters.options >>
       - when:
           condition:
             <<: *tag_matches_prerelease
           steps:
             - run:
                 name: Publish to npm (beta)
-                command: cd << parameters.npm_dir >> && npm publish --tag beta << parameters.options >>
+                command: |
+                  cd << parameters.npm_dir >>
+                  && export NPM_ID_TOKEN=$(circleci run oidc get --claims '{"aud": "npm:registry.npmjs.org"}')
+                  npm publish --tag beta << parameters.options >>
