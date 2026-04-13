@@ -23,7 +23,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install nightly@nightly toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
+      uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
       with:
         toolchain: nightly
         components: rustfmt
@@ -37,7 +37,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
+      uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
       with:
         components: clippy
     - name: Run Clippy
@@ -66,7 +66,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
-      - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
+      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
           target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
@@ -94,7 +94,7 @@ jobs:
         git branch -a
         git log --oneline -1
         git symbolic-ref HEAD || echo "Detached HEAD detected"
-    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
+    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
     - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
     - run: mise run test
     - run: mise run check-glibc
