@@ -51,11 +51,10 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-    let temp_dir_clone = temp_dir.clone();
     let output = run_with_retries(
         || {
             let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-            cmd.env("APOLLO_HOME", &temp_dir_clone);
+            cmd.env("APOLLO_HOME", &temp_dir);
             cmd.env("APOLLO_ELV2_LICENSE", "accept");
             cmd.args(&args_owned);
             cmd
@@ -147,7 +146,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.env("APOLLO_ELV2_LICENSE", "accept");
-    cmd.args(args_without_force_option.clone());
+    cmd.args(args_without_force_option);
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     let re = Regex::new("exists, skipping install").unwrap();
@@ -165,14 +164,12 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     assert_that!(installed).is_true();
 
     // THIRD INSTALLATION, USES FORCE, BINARY EXISTS
-    let temp_dir_clone = temp_dir.clone();
-    let forced_args_clone = forced_args.clone();
     let output = run_with_retries(
         || {
             let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-            cmd.env("APOLLO_HOME", &temp_dir_clone);
+            cmd.env("APOLLO_HOME", temp_dir.as_path());
             cmd.env("APOLLO_ELV2_LICENSE", "accept");
-            cmd.args(&forced_args_clone);
+            cmd.args(&forced_args);
             cmd
         },
         3,
@@ -206,11 +203,10 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         .replace("\"", "");
 
     let plugin_arg = format!("{binary_name}@{latest_version_from_config_file}");
-    let temp_dir_clone = temp_dir.clone();
     let output = run_with_retries(
         || {
             let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-            cmd.env("APOLLO_HOME", &temp_dir_clone);
+            cmd.env("APOLLO_HOME", &temp_dir);
             cmd.env("APOLLO_ELV2_LICENSE", "accept");
             cmd.args(["install", "--plugin", &plugin_arg]);
             cmd
