@@ -5,7 +5,6 @@ use assert_fs::TempDir;
 use camino::Utf8PathBuf;
 use regex::Regex;
 use rstest::{fixture, rstest};
-use sealed_test::prelude::*;
 use serde_json::Value;
 use serial_test::serial;
 use speculoos::prelude::*;
@@ -22,7 +21,6 @@ use tracing_test::traced_test;
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 #[serial]
-#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_name: &str) {
     // GIVEN
     //   - an install command for the supergraph binary that forces replacement; sometimes this
@@ -34,6 +32,7 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_HOME", temp_dir);
+    cmd.env("APOLLO_ELV2_LICENSE", "accept");
     cmd.args(args);
     let output = cmd.output().expect("Could not run command");
 
@@ -74,7 +73,6 @@ fn temp_dir() -> Utf8PathBuf {
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 #[serial]
-#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin_with_force_opt(
     #[case] args: Vec<&str>,
     #[case] binary: &str,
@@ -93,6 +91,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     // FIRST INSTALLATION, NO FORCE
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_HOME", temp_dir.clone());
+    cmd.env("APOLLO_ELV2_LICENSE", "accept");
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
@@ -113,6 +112,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     // SECOND INSTALLATION, NO FORCE, USES EXISTING BINARY
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_HOME", temp_dir.clone());
+    cmd.env("APOLLO_ELV2_LICENSE", "accept");
     cmd.args(args_without_force_option.clone());
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
@@ -133,6 +133,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     // THIRD INSTALLATION, USES FORCE, BINARY EXISTS
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.env("APOLLO_HOME", temp_dir.clone());
+    cmd.env("APOLLO_ELV2_LICENSE", "accept");
     cmd.args(forced_args);
     let output = cmd.output().expect("Could not run command");
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
@@ -147,7 +148,6 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 #[serial]
-#[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")], files = ["latest_plugin_versions.json"])]
 async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     #[case] binary_name: &str,
     #[case] config_version_name: &str,
@@ -156,10 +156,10 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
 
-    let config_file_contents = std::fs::read_to_string("latest_plugin_versions.json")
-        .expect("Should have been able to read the file");
+    let config_file_contents =
+        include_str!("../../../latest_plugin_versions.json");
 
-    let versions: Value = serde_json::from_str(&config_file_contents)
+    let versions: Value = serde_json::from_str(config_file_contents)
         .expect("failed to get json out of latest_plugin_versions.json");
 
     let latest_version_from_config_file = &versions[binary_name]["versions"][config_version_name]
@@ -167,6 +167,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         .replace("\"", "");
 
     cmd.env("APOLLO_HOME", temp_dir);
+    cmd.env("APOLLO_ELV2_LICENSE", "accept");
     cmd.args([
         "install",
         "--plugin",
