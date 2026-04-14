@@ -7,6 +7,7 @@ use regex::Regex;
 use rstest::{fixture, rstest};
 use sealed_test::prelude::*;
 use serde_json::Value;
+use serial_test::serial;
 use speculoos::prelude::*;
 use tracing_test::traced_test;
 
@@ -20,6 +21,7 @@ use tracing_test::traced_test;
 #[case::installs_apollo_mcp_server_at_latest(Vec::from(["install", "--plugin", "apollo-mcp-server@latest", "--client-timeout", "120"]), "apollo-mcp-server")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[serial]
 #[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_name: &str) {
     // GIVEN
@@ -71,6 +73,7 @@ fn temp_dir() -> Utf8PathBuf {
 #[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router",  "router-v1.0.0")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[serial]
 #[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")])]
 async fn e2e_test_rover_install_plugin_with_force_opt(
     #[case] args: Vec<&str>,
@@ -143,6 +146,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 #[case::supergraph_latest_2("supergraph", "latest-2")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[serial]
 #[sealed_test(env = [("APOLLO_ELV2_LICENSE", "accept")], files = ["latest_plugin_versions.json"])]
 async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     #[case] binary_name: &str,
