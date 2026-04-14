@@ -156,8 +156,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
 
-    let config_file_contents =
-        include_str!("../../../latest_plugin_versions.json");
+    let config_file_contents = include_str!("../../../latest_plugin_versions.json");
 
     let versions: Value = serde_json::from_str(config_file_contents)
         .expect("failed to get json out of latest_plugin_versions.json");
