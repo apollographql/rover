@@ -171,6 +171,8 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         "install",
         "--plugin",
         &format!("{binary_name}@{latest_version_from_config_file}"),
+        "--client-timeout",
+        "120",
     ]);
     cmd.output().expect("Could not run command");
 
