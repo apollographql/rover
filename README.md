@@ -203,7 +203,7 @@ iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
 
 #### npm installer
 
-Rover is distributed on npm for easy integration with your JavaScript projects.
+Rover is distributed on npm for easy integration with your JavaScript projects. Rover's Node dependency will follow LTS versions where possible unless security concerns justify an earlier upgrade.
 
 ##### devDependency install
 
