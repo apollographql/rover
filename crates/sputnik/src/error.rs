@@ -3,7 +3,7 @@ use std::io;
 use rover_std::RoverStdError;
 use thiserror::Error;
 
-/// SputnikError is the type of Error that occured.
+/// SputnikError is the type of Error that occurred.
 #[derive(Error, Debug)]
 pub enum SputnikError {
     /// io::Error occurs when any given std::io::Error arises.
