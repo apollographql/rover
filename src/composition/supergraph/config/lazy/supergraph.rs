@@ -61,7 +61,7 @@ impl LazilyResolvedSupergraphConfig {
                 subgraphs: BTreeMap::from_iter(subgraphs),
                 federation_version,
             },
-            BTreeMap::from_iter(errors.into_iter()),
+            BTreeMap::from_iter(errors),
         )
     }
 
