@@ -346,13 +346,13 @@ impl CompositionPipeline<state::Run> {
     > {
         tracing::debug!("generate_lazy_and_fully_resolved_supergraph_configs");
         // Get the two different kinds of resolutions (we know that the fully_resolved will be a non-proper subset of the lazily_resolved)
-        let (mut lazily_resolved_supergraph_config, _) = self
+        let (lazily_resolved_supergraph_config, _) = self
             .state
             .resolver
             .lazily_resolve_subgraphs(&self.state.supergraph_root)
             .await?;
         debug!(
-            "Initial Lazily Resolved Config is: {:?}",
+            "Lazily Resolved Config is: {:?}",
             lazily_resolved_supergraph_config
         );
         let (fully_resolved_supergraph_config, full_resolution_errors) = self
@@ -365,15 +365,14 @@ impl CompositionPipeline<state::Run> {
             )
             .await?;
         debug!(
-            "Initial Fully Resolved Config is: {:?}",
+            "Fully Resolved Config is: {:?}",
             fully_resolved_supergraph_config
         );
-        // Generate the correct lazily_resolved config, by removing all the things that cannot fully resolve
-        lazily_resolved_supergraph_config
-            .filter_subgraphs(full_resolution_errors.keys().cloned().collect());
-        debug!("Final Config is: {:?}", lazily_resolved_supergraph_config);
 
-        // Merge all the errors together and give all three back
+        // Note: subgraphs that failed full resolution (e.g. unreachable introspection endpoints)
+        // are intentionally kept in the lazily-resolved config so that watchers are created for
+        // them. Those watchers will keep polling and trigger recomposition once the subgraphs
+        // become available.
         Ok((
             lazily_resolved_supergraph_config,
             fully_resolved_supergraph_config,

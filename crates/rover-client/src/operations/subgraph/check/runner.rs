@@ -1,8 +1,8 @@
-use crate::RoverClientError;
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::{self, IsFederatedInput};
 use crate::operations::subgraph::check::types::{MutationResponseData, SubgraphCheckAsyncInput};
 use crate::shared::CheckRequestSuccessResult;
+use crate::RoverClientError;
 
 use graphql_client::*;
 use rover_studio::types::GraphRef;
