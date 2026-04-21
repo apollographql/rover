@@ -29,6 +29,7 @@ pub async fn run(
 mod tests {
     use rstest::{fixture, rstest};
     use serde_json::json;
+    use speculoos::prelude::*;
 
     use crate::operations::graph::fetch::service::{
         get_schema_from_response_data, graph_fetch_query,
@@ -62,17 +63,19 @@ mod tests {
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
     }
 
-    /// Verifies that a null graph in the response produces an error.
+    /// Verifies that a null graph in the response produces a GraphNotFound error.
     #[rstest]
     fn get_schema_from_response_data_errs_on_no_service(graph_ref: GraphRef) {
         let json_response =
             json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data, graph_ref);
-        assert!(output.is_err());
+        assert_that!(get_schema_from_response_data(data, graph_ref))
+            .is_err()
+            .matches(|err| matches!(err, crate::RoverClientError::GraphNotFound { .. }));
     }
 
-    /// Verifies that a response with a null variant (no published schema) produces an error.
+    /// Verifies that a response with a null variant (no published schema) produces a
+    /// NoSchemaForVariant error.
     #[rstest]
     fn get_schema_from_response_data_errs_on_no_schema(graph_ref: GraphRef) {
         let json_response = json!({
@@ -83,7 +86,8 @@ mod tests {
             },
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data, graph_ref);
-        assert!(output.is_err());
+        assert_that!(get_schema_from_response_data(data, graph_ref))
+            .is_err()
+            .matches(|err| matches!(err, crate::RoverClientError::NoSchemaForVariant { .. }));
     }
 }
