@@ -259,6 +259,7 @@ url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 apollo-compiler = { workspace = true }
+apollo-parser = { workspace = true }
 assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3"

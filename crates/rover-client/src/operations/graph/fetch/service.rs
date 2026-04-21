@@ -17,7 +17,7 @@ type GraphQLDocument = String;
 #[graphql(
     query_path = "src/operations/graph/fetch/fetch_query.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "Clone, Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 pub(crate) struct GraphFetchQuery;
@@ -94,6 +94,128 @@ where
             })
         };
         Box::pin(fut)
+    }
+}
+
+#[cfg(test)]
+type GraphFetchReq = GraphQLRequest<GraphFetchQuery>;
+#[cfg(test)]
+type GraphFetchResp = graph_fetch_query::ResponseData;
+#[cfg(test)]
+type GraphFetchErr = rover_graphql::GraphQLServiceError<graph_fetch_query::ResponseData>;
+
+#[cfg(test)]
+rover_tower::mock_service!(GraphFetchInner, GraphFetchReq, GraphFetchResp, GraphFetchErr);
+
+#[cfg(test)]
+mod tests {
+    use futures::future;
+    use rstest::{fixture, rstest};
+    use rover_tower::test::{MockCloneService, expect_poll_ready};
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::operations::graph::fetch::types::GraphFetchInput;
+    use rover_graphql::GraphQLServiceError;
+    use rover_studio::types::GraphRef;
+
+    #[fixture]
+    fn graph_ref() -> GraphRef {
+        GraphRef::new("mygraph", Some("current")).unwrap()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_returns_sdl_on_success(graph_ref: GraphRef) {
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
+            "graph": {
+                "variant": {
+                    "latestPublication": {
+                        "schema": { "document": "type Query { hello: String }" }
+                    }
+                },
+                "variants": []
+            }
+        }))
+        .unwrap();
+
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Ok(data.clone())));
+
+        let response = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(GraphFetchInput {
+                graph_ref: graph_ref.clone(),
+            }))
+            .await
+            .unwrap();
+
+        assert_eq!(response.sdl.contents, "type Query { hello: String }");
+        assert_eq!(response.sdl.r#type, crate::shared::SdlType::Graph);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_maps_inner_service_error(graph_ref: GraphRef) {
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(|_| future::ready(Err(GraphQLServiceError::InvalidCredentials())));
+
+        let err = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(GraphFetchInput { graph_ref }))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RoverClientError::Service { .. }));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_errors_when_graph_not_found(graph_ref: GraphRef) {
+        let data: graph_fetch_query::ResponseData =
+            serde_json::from_value(json!({ "graph": null, "frontendUrlRoot": "https://studio.apollographql.com" }))
+                .unwrap();
+
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Ok(data.clone())));
+
+        let err = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(GraphFetchInput { graph_ref }))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RoverClientError::GraphNotFound { .. }));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_errors_when_no_schema_for_variant(graph_ref: GraphRef) {
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
+            "graph": {
+                "variant": null,
+                "variants": [{ "name": "current" }]
+            }
+        }))
+        .unwrap();
+
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Ok(data.clone())));
+
+        let err = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(GraphFetchInput { graph_ref }))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RoverClientError::NoSchemaForVariant { .. }));
     }
 }
 

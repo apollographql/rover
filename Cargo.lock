@@ -4809,6 +4809,7 @@ dependencies = [
  "hyper",
  "indoc",
  "itertools 0.14.0",
+ "mockall",
  "pretty_assertions",
  "reqwest",
  "rover-graphql",

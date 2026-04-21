@@ -348,3 +348,188 @@ fn format_extension_failure(failure: ExtensionFailure) -> String {
         failure.message
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+
+    use super::*;
+    use crate::command::client::extensions::ExtensionFailure;
+    use parsed_file::{OperationInput, ParsedFile};
+    use rover_client::operations::graph::validate_operations::{
+        ValidationErrorCode, ValidationResultType,
+    };
+
+    #[fixture]
+    fn parsed(
+        #[default(String::from("query Hello { __typename }"))] content: String,
+    ) -> ParsedFile {
+        ParsedFile::new(&Utf8PathBuf::from("test.graphql"), &content).unwrap()
+    }
+
+    #[fixture]
+    fn op(
+        #[default(String::from("Hello"))] name: String,
+        #[default(String::from("src/ops.graphql"))] file: String,
+        #[default(1usize)] line: usize,
+        #[default(1usize)] col: usize,
+    ) -> OperationInput {
+        OperationInput {
+            name: name.clone(),
+            body: format!("query {name} {{ __typename }}"),
+            file: Utf8PathBuf::from(file),
+            line,
+            column: col,
+        }
+    }
+
+    #[fixture]
+    fn validation_result(
+        #[default(String::from("Hello"))] name: String,
+    ) -> ClientValidationResult {
+        ClientValidationResult {
+            operation_name: name,
+            r#type: ValidationResultType::Warning,
+            code: ValidationErrorCode::DeprecatedField,
+            description: "desc".to_string(),
+            file: None,
+            line: None,
+            column: None,
+        }
+    }
+
+    // gather_inputs
+
+    #[rstest]
+    fn gather_inputs_empty_files() {
+        let (ops, exts) = gather_inputs(&[]);
+        assert!(ops.is_empty());
+        assert!(exts.is_empty());
+    }
+
+    #[rstest]
+    fn gather_inputs_single_operation_no_fragments(parsed: ParsedFile) {
+        let (ops, exts) = gather_inputs(&[parsed]);
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].name, "Hello");
+        assert!(!ops[0].body.contains("fragment"));
+        assert!(exts.is_empty());
+    }
+
+    #[rstest]
+    fn gather_inputs_appends_fragments_to_each_operation(
+        #[with(String::from("query Hello { ...F }\nfragment F on Query { __typename }"))]
+        parsed: ParsedFile,
+    ) {
+        let (ops, _) = gather_inputs(&[parsed]);
+        assert_eq!(ops.len(), 1);
+        assert!(ops[0].body.contains("fragment F"));
+    }
+
+    #[rstest]
+    fn gather_inputs_collects_extensions(
+        #[with(String::from("extend type Query { world: String }\nquery Hello { __typename }"))]
+        parsed: ParsedFile,
+    ) {
+        let (ops, exts) = gather_inputs(&[parsed]);
+        assert_eq!(ops.len(), 1);
+        assert_eq!(exts.len(), 1);
+        assert!(exts[0].text.contains("extend type Query"));
+    }
+
+    #[rstest]
+    fn gather_inputs_deduplicates_fragments_across_files() {
+        let pf1 = parsed(String::from("query A { ...F }\nfragment F on Query { __typename }"));
+        let pf2 = parsed(String::from("query B { ...F }\nfragment F on Query { __typename }"));
+        let (ops, _) = gather_inputs(&[pf1, pf2]);
+        assert_eq!(ops.len(), 2);
+        assert_eq!(ops[0].body.matches("fragment F").count(), 1);
+        assert_eq!(ops[1].body.matches("fragment F").count(), 1);
+    }
+
+    // annotate_with_locations
+
+    #[rstest]
+    fn annotate_matches_operation_by_name(
+        #[with(String::from("Hello"), String::from("src/ops.graphql"), 3usize, 1usize)]
+        op: OperationInput,
+        validation_result: ClientValidationResult,
+    ) {
+        let annotated = annotate_with_locations(vec![validation_result], &[op]);
+        assert_eq!(annotated[0].file, Some(Utf8PathBuf::from("src/ops.graphql")));
+        assert_eq!(annotated[0].line, Some(3));
+        assert_eq!(annotated[0].column, Some(1));
+    }
+
+    #[rstest]
+    fn annotate_leaves_unmatched_result_as_none(
+        #[with(String::from("Other"), String::from("src/ops.graphql"), 1usize, 1usize)]
+        op: OperationInput,
+        validation_result: ClientValidationResult,
+    ) {
+        let annotated = annotate_with_locations(vec![validation_result], &[op]);
+        assert_eq!(annotated[0].file, None);
+        assert_eq!(annotated[0].line, None);
+        assert_eq!(annotated[0].column, None);
+    }
+
+    #[rstest]
+    fn annotate_handles_multiple_results() {
+        let ops = vec![
+            op(String::from("A"), String::from("a.graphql"), 1, 1),
+            op(String::from("B"), String::from("b.graphql"), 5, 1),
+        ];
+        let results = vec![
+            validation_result(String::from("B")),
+            validation_result(String::from("A")),
+        ];
+        let annotated = annotate_with_locations(results, &ops);
+        assert_eq!(annotated[0].file, Some(Utf8PathBuf::from("b.graphql")));
+        assert_eq!(annotated[1].file, Some(Utf8PathBuf::from("a.graphql")));
+    }
+
+    // format_extension_failure
+
+    #[rstest]
+    fn format_extension_failure_with_location() {
+        let failure = ExtensionFailure {
+            file: Utf8PathBuf::from("ext.graphql"),
+            message: "unknown type".to_string(),
+            line: Some(2),
+            column: Some(5),
+        };
+        assert_eq!(format_extension_failure(failure), "unknown type at 2:5");
+    }
+
+    #[rstest]
+    fn format_extension_failure_without_location() {
+        let failure = ExtensionFailure {
+            file: Utf8PathBuf::from("ext.graphql"),
+            message: "unknown type".to_string(),
+            line: None,
+            column: None,
+        };
+        assert_eq!(format_extension_failure(failure), "unknown type");
+    }
+
+    // parse_graphql_files
+
+    #[rstest]
+    fn parse_graphql_files_returns_error_on_syntax_failure() {
+        let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();
+        std::fs::write(temp.path(), "not { valid graphql !!!").unwrap();
+        let path = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        let result = parse_graphql_files(vec![path]);
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    fn parse_graphql_files_succeeds_on_valid_file() {
+        let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();
+        std::fs::write(temp.path(), "query Hello { __typename }").unwrap();
+        let path = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        let result = parse_graphql_files(vec![path]).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+}

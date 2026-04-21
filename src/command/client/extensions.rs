@@ -77,51 +77,57 @@ pub fn validate_extensions(
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
+
     use super::*;
 
-    fn ext(text: &str, file: &str) -> ExtensionSnippet {
+    #[fixture]
+    fn ext(
+        #[default(String::from("extend type Query { world: String }"))] text: String,
+        #[default(String::from("extensions.graphql"))] file: String,
+    ) -> ExtensionSnippet {
         ExtensionSnippet {
-            text: text.to_string(),
+            text,
             file: Utf8PathBuf::from(file),
         }
     }
 
-    #[test]
-    fn valid_extension_returns_no_failures() {
+    #[rstest]
+    fn valid_extension_returns_no_failures(ext: ExtensionSnippet) {
         let failures = validate_extensions(
             "type Query { hello: String }",
             "graph@current",
-            &[ext("extend type Query { world: String }", "extensions.graphql")],
+            &[ext],
         );
         assert!(failures.is_empty());
     }
 
-    #[test]
-    fn invalid_extension_attributed_to_extension_file() {
+    #[rstest]
+    fn invalid_extension_attributed_to_extension_file(
+        #[with(String::from("extend type Query { world: FakeType! }"), String::from("extensions.graphql"))]
+        ext: ExtensionSnippet,
+    ) {
         let failures = validate_extensions(
             "type Query { hello: String }",
             "graph@current",
-            &[ext(
-                "extend type Query { world: FakeType! }",
-                "extensions.graphql",
-            )],
+            &[ext],
         );
         assert!(!failures.is_empty());
         assert_eq!(failures[0].file, Utf8PathBuf::from("extensions.graphql"));
     }
 
-    #[test]
-    fn error_in_base_schema_attributed_to_base_source() {
+    #[rstest]
+    fn error_in_base_schema_attributed_to_base_source(ext: ExtensionSnippet) {
         let failures = validate_extensions(
             "type Query { hello: NonExistentType }",
             "graph@current",
-            &[ext("extend type Query { world: String }", "extensions.graphql")],
+            &[ext],
         );
         assert!(!failures.is_empty());
         assert_eq!(failures[0].file, Utf8PathBuf::from("graph@current"));
     }
 
-    #[test]
+    #[rstest]
     fn empty_extensions_returns_no_failures() {
         let failures = validate_extensions("type Query { hello: String }", "graph@current", &[]);
         assert!(failures.is_empty());

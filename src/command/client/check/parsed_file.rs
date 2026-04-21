@@ -81,6 +81,103 @@ impl ParsedFile {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+
+    use super::*;
+
+    #[fixture]
+    fn file() -> Utf8PathBuf {
+        Utf8PathBuf::from("test.graphql")
+    }
+
+    #[rstest]
+    fn syntax_error_returns_err(file: Utf8PathBuf) {
+        let result = ParsedFile::new(&file, "not { valid !!!");
+        assert!(matches!(result, Err(ParsedFileError::Syntax(_))));
+    }
+
+    #[rstest]
+    fn named_operation_collected_with_metadata(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "query Hello { __typename }").unwrap();
+        assert_eq!(pf.operations.len(), 1);
+        assert_eq!(pf.operations[0].name, "Hello");
+        assert_eq!(pf.operations[0].body, "query Hello { __typename }");
+        assert_eq!(pf.operations[0].file, file);
+        assert_eq!(pf.operations[0].line, 1);
+        assert_eq!(pf.operations[0].column, 1);
+    }
+
+    #[rstest]
+    fn anonymous_operation_is_ignored(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "{ __typename }").unwrap();
+        assert!(pf.operations.is_empty());
+        assert!(pf.fragments.is_empty());
+        assert!(pf.extensions.is_empty());
+    }
+
+    #[rstest]
+    fn multiple_named_operations_all_collected(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "query A { __typename }\nquery B { __typename }").unwrap();
+        assert_eq!(pf.operations.len(), 2);
+        let names: Vec<&str> = pf.operations.iter().map(|o| o.name.as_str()).collect();
+        assert!(names.contains(&"A"));
+        assert!(names.contains(&"B"));
+    }
+
+    #[rstest]
+    fn fragment_goes_into_fragments_map(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "fragment F on Query { __typename }").unwrap();
+        assert!(pf.operations.is_empty());
+        assert!(pf.extensions.is_empty());
+        assert!(pf.fragments.contains_key("F"));
+        assert!(pf.fragments["F"].contains("fragment F"));
+    }
+
+    #[rstest]
+    fn schema_extension_goes_into_extensions(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "extend type Query { world: String }").unwrap();
+        assert!(pf.operations.is_empty());
+        assert!(pf.fragments.is_empty());
+        assert_eq!(pf.extensions.len(), 1);
+        assert!(pf.extensions[0].text.contains("extend type Query"));
+        assert_eq!(pf.extensions[0].file, file);
+    }
+
+    #[rstest]
+    fn mixed_content_split_into_correct_buckets(file: Utf8PathBuf) {
+        let content = indoc::indoc! {"
+            query Hello { __typename }
+            fragment F on Query { __typename }
+            extend type Query { world: String }
+        "};
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(pf.operations.len(), 1);
+        assert_eq!(pf.operations[0].name, "Hello");
+        assert!(pf.fragments.contains_key("F"));
+        assert_eq!(pf.extensions.len(), 1);
+    }
+
+    #[rstest]
+    fn operation_on_second_line_has_correct_location(file: Utf8PathBuf) {
+        let content = "# comment\nquery Hello { __typename }";
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(pf.operations[0].line, 2);
+        assert_eq!(pf.operations[0].column, 1);
+    }
+
+    #[rstest]
+    fn indented_operation_has_correct_column(file: Utf8PathBuf) {
+        // lines().count() counts the indent spaces as a segment, so line is 3 not 2.
+        let content = "# comment\n  query Hello { __typename }";
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(pf.operations[0].line, 3);
+        assert_eq!(pf.operations[0].column, 3);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct OperationInput {
     pub(super) name: String,

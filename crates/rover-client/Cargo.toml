@@ -60,10 +60,12 @@ reqwest = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-indoc = { workspace = true}
+indoc = { workspace = true }
+mockall = { workspace = true }
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
+rover-tower = { workspace = true, features = ["test"] }
 speculoos = { workspace = true }
 strip-ansi-escapes = { workspace = true }
 tower-test = { workspace = true }

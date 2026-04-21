@@ -11,7 +11,7 @@ use crate::{EndpointKind, RoverClientError};
 #[graphql(
     query_path = "src/operations/graph/validate_operations/validate_operations.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "Debug, Serialize, Deserialize",
+    response_derives = "Clone, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 pub struct ValidateOperationsQuery;
@@ -114,6 +114,140 @@ where
                 })
         };
         Box::pin(fut)
+    }
+}
+
+#[cfg(test)]
+type ValidateOpsReq = GraphQLRequest<ValidateOperationsQuery>;
+#[cfg(test)]
+type ValidateOpsResp = validate_operations_query::ResponseData;
+#[cfg(test)]
+type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
+
+#[cfg(test)]
+rover_tower::mock_service!(ValidateOpsInner, ValidateOpsReq, ValidateOpsResp, ValidateOpsErr);
+
+#[cfg(test)]
+mod tests {
+    use futures::future;
+    use rstest::{fixture, rstest};
+    use rover_tower::test::{MockCloneService, expect_poll_ready};
+    use rover_studio::types::GraphRef;
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::{
+        operations::graph::validate_operations::types::{
+            OperationDocument, ValidateOperationsInput,
+        },
+        shared::GitContext,
+    };
+
+    #[fixture]
+    fn graph_ref() -> GraphRef {
+        GraphRef::new("mygraph", Some("current")).unwrap()
+    }
+
+    #[fixture]
+    fn input(graph_ref: GraphRef) -> ValidateOperationsInput {
+        ValidateOperationsInput {
+            graph_ref,
+            operations: vec![OperationDocument {
+                name: "MyQuery".to_string(),
+                body: "query MyQuery { __typename }".to_string(),
+            }],
+            git_context: GitContext {
+                branch: None,
+                author: None,
+                commit: None,
+                remote_url: None,
+            },
+        }
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_returns_results_on_success(input: ValidateOperationsInput) {
+        let data: ValidateOpsResp = serde_json::from_value(json!({
+            "graph": {
+                "validateOperations": {
+                    "validationResults": [{
+                        "type": "WARNING",
+                        "code": "DEPRECATED_FIELD",
+                        "description": "field is deprecated",
+                        "operation": { "name": "MyQuery" }
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+
+        let mut mock = MockValidateOpsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Ok(data.clone())));
+
+        let results = ValidateOperations::new(MockCloneService::new(mock))
+            .oneshot(ValidateOperationsRequest::new(input))
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].operation_name, "MyQuery");
+        assert_eq!(results[0].r#type, ValidationResultType::Warning);
+        assert_eq!(results[0].code, ValidationErrorCode::DeprecatedField);
+        assert_eq!(results[0].description, "field is deprecated");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_returns_empty_when_graph_is_null(input: ValidateOperationsInput) {
+        let data: ValidateOpsResp = serde_json::from_value(json!({ "graph": null })).unwrap();
+
+        let mut mock = MockValidateOpsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Ok(data.clone())));
+
+        let results = ValidateOperations::new(MockCloneService::new(mock))
+            .oneshot(ValidateOperationsRequest::new(input))
+            .await
+            .unwrap();
+
+        assert!(results.is_empty());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_maps_invalid_credentials_to_permission_error(input: ValidateOperationsInput) {
+        let mut mock = MockValidateOpsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(|_| future::ready(Err(GraphQLServiceError::InvalidCredentials())));
+
+        let err = ValidateOperations::new(MockCloneService::new(mock))
+            .oneshot(ValidateOperationsRequest::new(input))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RoverClientError::PermissionError { .. }));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_maps_other_errors_to_service_error(input: ValidateOperationsInput) {
+        let mut mock = MockValidateOpsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(|_| future::ready(Err(GraphQLServiceError::NoData(vec![]))));
+
+        let err = ValidateOperations::new(MockCloneService::new(mock))
+            .oneshot(ValidateOperationsRequest::new(input))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RoverClientError::Service { .. }));
     }
 }
 
