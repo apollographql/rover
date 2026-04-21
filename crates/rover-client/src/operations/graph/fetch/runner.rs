@@ -4,9 +4,14 @@ use super::{
     service::{GraphFetch, GraphFetchRequest},
     types::GraphFetchInput,
 };
-use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
+use crate::{RoverClientError, blocking::StudioClient, shared::FetchResponse};
 
-/// Fetch the SDL for the graph variant described by `input` using the given `client`.
+/// Fetch the SDL for a graph variant from Apollo Studio using a graph ref.
+///
+/// On success, the response contains the full SDL string for that variant.
+///
+/// This returns an error if the graph does not exist, if no schema has been published for the
+/// requested variant, or if the Studio API call fails.
 pub async fn run(
     input: GraphFetchInput,
     client: &StudioClient,
@@ -25,7 +30,9 @@ mod tests {
     use rstest::{fixture, rstest};
     use serde_json::json;
 
-    use crate::operations::graph::fetch::service::{get_schema_from_response_data, graph_fetch_query};
+    use crate::operations::graph::fetch::service::{
+        get_schema_from_response_data, graph_fetch_query,
+    };
     use rover_studio::types::GraphRef;
 
     #[fixture]
