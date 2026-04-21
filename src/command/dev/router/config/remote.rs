@@ -68,7 +68,7 @@ impl RemoteRouterConfig {
                              Either select a `--profile` that is configured with a graph-specific \
                              key, or provide one via the APOLLO_KEY environment variable. \
                              You can configure a graph key by following the instructions at \
-                             https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys"
+                             https://www.apollographql.com/docs/graphos/platform/access-management/api-keys/graph-api-keys"
                         );
                     }
                 },
