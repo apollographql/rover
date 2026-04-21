@@ -56,13 +56,10 @@ impl FileSearch {
             .build()
             .map_err(|e| anyhow::anyhow!(e))?;
 
-        let mut results = BTreeSet::new();
-        for entry in walker.filter_map(|e| e.ok()) {
-            let Ok(path) = Utf8PathBuf::from_path_buf(entry.into_path()) else {
-                continue;
-            };
-            results.insert(path);
-        }
+        let results: BTreeSet<Utf8PathBuf> = walker
+            .filter_map(|e| e.ok())
+            .filter_map(|e| Utf8PathBuf::from_path_buf(e.into_path()).ok())
+            .collect();
 
         Ok(results.into_iter().collect())
     }
@@ -109,6 +106,42 @@ mod tests {
         fs::write(&nested, "query Ignore { x }").unwrap();
 
         let files = FileSearch::builder().root(root.clone()).build().find(&["graphql"]).unwrap();
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn default_scan_finds_all_matching_extensions() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        let nested = root.join("sub");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(root.join("a.graphql"), "query A { x }").unwrap();
+        fs::write(nested.join("b.graphql"), "query B { x }").unwrap();
+        fs::write(root.join("c.txt"), "not graphql").unwrap();
+
+        let files = FileSearch::builder().root(root).build().find(&["graphql"]).unwrap();
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn finds_multiple_extensions() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        fs::write(root.join("a.graphql"), "query A { x }").unwrap();
+        fs::write(root.join("b.gql"), "query B { x }").unwrap();
+        fs::write(root.join("c.txt"), "not graphql").unwrap();
+
+        let files = FileSearch::builder().root(root).build().find(&["graphql", "gql"]).unwrap();
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn returns_empty_when_no_files_match() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        fs::write(root.join("readme.txt"), "not graphql").unwrap();
+
+        let files = FileSearch::builder().root(root).build().find(&["graphql"]).unwrap();
         assert!(files.is_empty());
     }
 }

@@ -1,11 +1,11 @@
-use rover_client::operations::graph::validate_operations::ValidationResultType;
+use rover_client::operations::graph::validate_operations::{ValidationErrorCode, ValidationResultType};
 use rover_std::Style;
 use serde::Serialize;
 use serde_json::json;
 
 use crate::command::CliOutput;
 
-use super::ClientCheckSummary;
+use super::{ClientCheckFailure, ClientCheckSummary, ClientValidationResult};
 
 #[derive(Debug, Serialize)]
 /// [`CliOutput`] implementation for the `rover client check` command.
@@ -81,5 +81,131 @@ impl CliOutput for ClientCheckOutput {
                     .collect::<Vec<_>>(),
             }
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+
+    use super::*;
+
+    #[fixture]
+    fn clean_summary() -> ClientCheckSummary {
+        ClientCheckSummary {
+            graph_ref: Some("mygraph@current".to_string()),
+            files_scanned: 3,
+            operations_sent: 2,
+            failures: vec![],
+            validation_results: vec![],
+            has_errors: false,
+        }
+    }
+
+    #[fixture]
+    fn validation_result(
+        #[default(String::from("Hello"))] name: String,
+        #[default(ValidationResultType::Warning)] result_type: ValidationResultType,
+        #[default(String::from("src/ops.graphql"))] file: String,
+    ) -> ClientValidationResult {
+        ClientValidationResult {
+            operation_name: name,
+            r#type: result_type,
+            code: ValidationErrorCode::InvalidOperation,
+            description: "be careful".to_string(),
+            file: Some(Utf8PathBuf::from(file)),
+            line: Some(1),
+            column: Some(5),
+        }
+    }
+
+    #[rstest]
+    fn exit_code_is_zero_when_no_errors(clean_summary: ClientCheckSummary) {
+        assert_eq!(ClientCheckOutput::from(clean_summary).exit_code(), 0);
+    }
+
+    #[rstest]
+    fn exit_code_is_one_when_has_errors(mut clean_summary: ClientCheckSummary) {
+        clean_summary.has_errors = true;
+        assert_eq!(ClientCheckOutput::from(clean_summary).exit_code(), 1);
+    }
+
+    #[rstest]
+    fn text_clean_run(clean_summary: ClientCheckSummary) {
+        assert_eq!(
+            ClientCheckOutput::from(clean_summary).text(),
+            "Validated 2 operations (3 files scanned)"
+        );
+    }
+
+    #[rstest]
+    fn text_with_validation_result(
+        mut clean_summary: ClientCheckSummary,
+        validation_result: ClientValidationResult,
+    ) {
+        clean_summary.validation_results = vec![validation_result];
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || {
+            ClientCheckOutput::from(clean_summary).text()
+        });
+        assert_eq!(
+            text,
+            "Validated 2 operations (3 files scanned)\nsrc/ops.graphql:1:5 WARNING be careful"
+        );
+    }
+
+    #[rstest]
+    fn text_with_parse_failures(mut clean_summary: ClientCheckSummary) {
+        clean_summary.failures = vec![ClientCheckFailure {
+            file: Utf8PathBuf::from("bad.graphql"),
+            message: "syntax error".to_string(),
+        }];
+        assert_eq!(
+            ClientCheckOutput::from(clean_summary).text(),
+            "Validated 2 operations (3 files scanned)\nLocal parse errors:\n  bad.graphql: syntax error"
+        );
+    }
+
+    #[rstest]
+    fn json_clean_run(clean_summary: ClientCheckSummary) {
+        assert_eq!(ClientCheckOutput::from(clean_summary).json().unwrap(), json!({
+            "client_check": {
+                "graph_ref": "mygraph@current",
+                "files_scanned": 3,
+                "operations_sent": 2,
+                "failures": [],
+                "validation_results": []
+            }
+        }));
+    }
+
+    #[rstest]
+    fn json_with_validation_result(
+        mut clean_summary: ClientCheckSummary,
+        #[with(
+            String::from("Hello"),
+            ValidationResultType::Failure,
+            String::from("ops.graphql")
+        )]
+        validation_result: ClientValidationResult,
+    ) {
+        clean_summary.validation_results = vec![validation_result];
+        assert_eq!(ClientCheckOutput::from(clean_summary).json().unwrap(), json!({
+            "client_check": {
+                "graph_ref": "mygraph@current",
+                "files_scanned": 3,
+                "operations_sent": 2,
+                "failures": [],
+                "validation_results": [{
+                    "operation_name": "Hello",
+                    "type": "FAILURE",
+                    "code": "INVALID_OPERATION",
+                    "description": "be careful",
+                    "file": "ops.graphql",
+                    "line": 1,
+                    "column": 5
+                }]
+            }
+        }));
     }
 }

@@ -91,11 +91,7 @@ pub(super) struct OperationInput {
 }
 
 impl OperationInput {
-    fn new(
-        file: &Utf8Path,
-        contents: &str,
-        def: cst::OperationDefinition,
-    ) -> Option<Self> {
+    fn new(file: &Utf8Path, contents: &str, def: cst::OperationDefinition) -> Option<Self> {
         def.name().and_then(|name| {
             let range = def.syntax().text_range();
             let start: usize = range.start().into();

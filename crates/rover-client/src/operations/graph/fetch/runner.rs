@@ -22,18 +22,19 @@ pub async fn run(
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
     use serde_json::json;
 
-    use super::super::service::graph_fetch_query;
-    use super::super::service::get_schema_from_response_data;
+    use crate::operations::graph::fetch::service::{get_schema_from_response_data, graph_fetch_query};
     use rover_studio::types::GraphRef;
 
-    fn mock_graph_ref() -> GraphRef {
+    #[fixture]
+    fn graph_ref() -> GraphRef {
         GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
-    #[test]
-    fn get_schema_from_response_data_works() {
+    #[rstest]
+    fn get_schema_from_response_data_works(graph_ref: GraphRef) {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com",
             "graph": {
@@ -48,22 +49,22 @@ mod tests {
             }
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data, mock_graph_ref());
+        let output = get_schema_from_response_data(data, graph_ref);
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
     }
 
-    #[test]
-    fn get_schema_from_response_data_errs_on_no_service() {
+    #[rstest]
+    fn get_schema_from_response_data_errs_on_no_service(graph_ref: GraphRef) {
         let json_response =
             json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data, mock_graph_ref());
+        let output = get_schema_from_response_data(data, graph_ref);
         assert!(output.is_err());
     }
 
-    #[test]
-    fn get_schema_from_response_data_errs_on_no_schema() {
+    #[rstest]
+    fn get_schema_from_response_data_errs_on_no_schema(graph_ref: GraphRef) {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
             "graph": {
@@ -72,7 +73,7 @@ mod tests {
             },
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data, mock_graph_ref());
+        let output = get_schema_from_response_data(data, graph_ref);
         assert!(output.is_err());
     }
 }
