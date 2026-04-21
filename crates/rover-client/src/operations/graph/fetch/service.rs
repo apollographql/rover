@@ -97,20 +97,23 @@ where
     }
 }
 
-#[cfg(test)]
-type GraphFetchReq = GraphQLRequest<GraphFetchQuery>;
-#[cfg(test)]
-type GraphFetchResp = graph_fetch_query::ResponseData;
-#[cfg(test)]
-type GraphFetchErr = rover_graphql::GraphQLServiceError<graph_fetch_query::ResponseData>;
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 
-#[cfg(test)]
-rover_tower::mock_service!(
-    GraphFetchInner,
-    GraphFetchReq,
-    GraphFetchResp,
-    GraphFetchErr
-);
+    use super::{graph_fetch_query, GraphFetchQuery};
+
+    pub type GraphFetchReq = GraphQLRequest<GraphFetchQuery>;
+    pub type GraphFetchResp = graph_fetch_query::ResponseData;
+    pub type GraphFetchErr = GraphQLServiceError<graph_fetch_query::ResponseData>;
+
+    rover_tower::mock_service!(
+        GraphFetchInner,
+        GraphFetchReq,
+        GraphFetchResp,
+        GraphFetchErr
+    );
+}
 
 #[cfg(test)]
 mod tests {
@@ -122,7 +125,7 @@ mod tests {
     use serde_json::json;
     use tower::ServiceExt;
 
-    use super::*;
+    use super::{mock::MockGraphFetchInnerService, *};
     use crate::operations::graph::fetch::types::GraphFetchInput;
 
     #[fixture]
