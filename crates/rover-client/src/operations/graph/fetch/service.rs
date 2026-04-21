@@ -22,22 +22,26 @@ type GraphQLDocument = String;
 )]
 pub(crate) struct GraphFetchQuery;
 
+/// Request type for fetching a graph's SDL via the tower [`GraphFetch`] service.
 pub struct GraphFetchRequest {
     input: GraphFetchInput,
 }
 
 impl GraphFetchRequest {
+    /// Construct a new request from the given [`GraphFetchInput`].
     pub const fn new(input: GraphFetchInput) -> Self {
         Self { input }
     }
 }
 
+/// Tower [`Service`] that fetches the SDL for a graph variant from Apollo Studio.
 #[derive(Clone)]
 pub struct GraphFetch<S: Clone> {
     inner: S,
 }
 
 impl<S: Clone> GraphFetch<S> {
+    /// Wrap an inner GraphQL service with the graph-fetch logic.
     pub const fn new(inner: S) -> GraphFetch<S> {
         GraphFetch { inner }
     }

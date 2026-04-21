@@ -6,11 +6,13 @@ use apollo_compiler::parser::{SourceFile, SourceSpan};
 use camino::Utf8PathBuf;
 
 #[derive(Debug, Clone)]
+/// A schema-extension snippet extracted from a client `.graphql` file.
 pub struct ExtensionSnippet {
     pub text: String,
     pub file: Utf8PathBuf,
 }
 
+/// A validation error produced while merging extension snippets into the base schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtensionFailure {
     pub file: Utf8PathBuf,
@@ -19,6 +21,13 @@ pub struct ExtensionFailure {
     pub column: Option<usize>,
 }
 
+/// Validate `extensions` against `base_sdl` using `apollo_compiler`.
+///
+/// Returns one [`ExtensionFailure`] per diagnostic error. Each failure is attributed to
+/// the source file that introduced the problem (falling back to `base_source` when the
+/// error location is in the base schema).
+///
+/// Returns an empty `Vec` when there are no extensions or all extensions are valid.
 pub fn validate_extensions(
     base_sdl: &str,
     base_source: &str,

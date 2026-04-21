@@ -63,11 +63,13 @@ pub struct Check {
 
 #[derive(thiserror::Error, Debug, Serialize, Clone, PartialEq, Eq)]
 #[error("{file}: {message}")]
+/// A file-level parse or schema-extension failure encountered before network validation.
 pub struct ClientCheckFailure {
     pub file: Utf8PathBuf,
     pub message: String,
 }
 
+/// Aggregated result from a `rover client check` run.
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct ClientCheckSummary {
     pub graph_ref: Option<String>,
@@ -78,6 +80,7 @@ pub struct ClientCheckSummary {
     pub has_errors: bool,
 }
 
+/// A single operation-level validation result, enriched with source-location information.
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct ClientValidationResult {
     pub operation_name: String,

@@ -6,23 +6,30 @@ use serde::{Deserialize, Serialize};
 use crate::shared::GitContext;
 
 #[derive(Debug, Clone, Serialize)]
+/// Input for a client-operation validation request against a graph variant.
 pub struct ValidateOperationsInput {
     pub graph_ref: GraphRef,
     pub operations: Vec<OperationDocument>,
     pub git_context: GitContext,
 }
 
+/// A single GraphQL operation document to validate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationDocument {
     pub name: String,
     pub body: String,
 }
 
+/// Severity level returned by Apollo Studio for a validation result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationResultType {
+    /// The operation has an error that will break execution.
     Failure,
+    /// The operation uses a deprecated or inadvisable pattern.
     Warning,
+    /// The operation cannot be meaningfully analyzed (e.g. unparseable schema state).
     Invalid,
+    /// An unrecognised value returned by the API; preserved as-is for forward compatibility.
     Unknown(String),
 }
 
@@ -55,10 +62,15 @@ impl<'de> Deserialize<'de> for ValidationResultType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Machine-readable error code associated with a [`ValidationResultType`].
 pub enum ValidationErrorCode {
+    /// The operation document could not be parsed.
     NonParseableDocument,
+    /// The operation is structurally invalid against the schema.
     InvalidOperation,
+    /// The operation references a deprecated schema field.
     DeprecatedField,
+    /// An unrecognised value returned by the API; preserved as-is for forward compatibility.
     Unknown(String),
 }
 
@@ -91,6 +103,7 @@ impl<'de> Deserialize<'de> for ValidationErrorCode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// A single validation result returned for one operation by Apollo Studio.
 pub struct ValidationResult {
     pub operation_name: String,
     pub r#type: ValidationResultType,

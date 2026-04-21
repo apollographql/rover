@@ -8,6 +8,7 @@ use crate::command::CliOutput;
 use super::ClientCheckSummary;
 
 #[derive(Debug, Serialize)]
+/// [`CliOutput`] implementation for the `rover client check` command.
 pub struct ClientCheckOutput(pub ClientCheckSummary);
 
 impl From<ClientCheckSummary> for ClientCheckOutput {
