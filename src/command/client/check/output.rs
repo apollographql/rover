@@ -120,17 +120,20 @@ mod tests {
         }
     }
 
+    /// Verifies that the exit code is 0 when the summary has no errors.
     #[rstest]
     fn exit_code_is_zero_when_no_errors(clean_summary: ClientCheckSummary) {
         assert_eq!(ClientCheckOutput::from(clean_summary).exit_code(), 0);
     }
 
+    /// Verifies that the exit code is 1 when has_errors is true.
     #[rstest]
     fn exit_code_is_one_when_has_errors(mut clean_summary: ClientCheckSummary) {
         clean_summary.has_errors = true;
         assert_eq!(ClientCheckOutput::from(clean_summary).exit_code(), 1);
     }
 
+    /// Verifies the text output for a clean run shows counts with no extra lines.
     #[rstest]
     fn text_clean_run(clean_summary: ClientCheckSummary) {
         assert_eq!(
@@ -139,6 +142,8 @@ mod tests {
         );
     }
 
+    /// Verifies that a validation result is rendered with its file location, type, and description
+    /// on a single line below the summary.
     #[rstest]
     fn text_with_validation_result(
         mut clean_summary: ClientCheckSummary,
@@ -154,6 +159,8 @@ mod tests {
         );
     }
 
+    /// Verifies that parse failures are listed under a 'Local parse errors:' heading in the text
+    /// output.
     #[rstest]
     fn text_with_parse_failures(mut clean_summary: ClientCheckSummary) {
         clean_summary.failures = vec![ClientCheckFailure {
@@ -166,6 +173,7 @@ mod tests {
         );
     }
 
+    /// Verifies the full JSON structure for a clean run with no results or failures.
     #[rstest]
     fn json_clean_run(clean_summary: ClientCheckSummary) {
         assert_eq!(ClientCheckOutput::from(clean_summary).json().unwrap(), json!({
@@ -179,6 +187,7 @@ mod tests {
         }));
     }
 
+    /// Verifies that validation results are serialized with all fields present in the JSON output.
     #[rstest]
     fn json_with_validation_result(
         mut clean_summary: ClientCheckSummary,

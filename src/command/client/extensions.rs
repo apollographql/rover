@@ -92,6 +92,7 @@ mod tests {
         }
     }
 
+    /// Verifies that a valid type extension against a compatible base schema produces no failures.
     #[rstest]
     fn valid_extension_returns_no_failures(ext: ExtensionSnippet) {
         let failures = validate_extensions(
@@ -102,6 +103,8 @@ mod tests {
         assert!(failures.is_empty());
     }
 
+    /// Verifies that an extension referencing an unknown type is attributed to the extension file,
+    /// not the base schema.
     #[rstest]
     fn invalid_extension_attributed_to_extension_file(
         #[with(String::from("extend type Query { world: FakeType! }"), String::from("extensions.graphql"))]
@@ -116,6 +119,8 @@ mod tests {
         assert_eq!(failures[0].file, Utf8PathBuf::from("extensions.graphql"));
     }
 
+    /// Verifies that a type error in the base schema is attributed to the base source identifier
+    /// rather than the extension file.
     #[rstest]
     fn error_in_base_schema_attributed_to_base_source(ext: ExtensionSnippet) {
         let failures = validate_extensions(
@@ -127,6 +132,8 @@ mod tests {
         assert_eq!(failures[0].file, Utf8PathBuf::from("graph@current"));
     }
 
+    /// Verifies that passing an empty extensions slice returns no failures without invoking the
+    /// compiler.
     #[rstest]
     fn empty_extensions_returns_no_failures() {
         let failures = validate_extensions("type Query { hello: String }", "graph@current", &[]);

@@ -125,6 +125,8 @@ mod tests {
         GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
+    /// Verifies that a successful inner service response is mapped to a FetchResponse containing
+    /// the SDL string from the published schema.
     #[rstest]
     #[tokio::test]
     async fn call_returns_sdl_on_success(graph_ref: GraphRef) {
@@ -157,6 +159,7 @@ mod tests {
         assert_eq!(response.sdl.r#type, crate::shared::SdlType::Graph);
     }
 
+    /// Verifies that an inner service error is propagated as a RoverClientError::Service.
     #[rstest]
     #[tokio::test]
     async fn call_maps_inner_service_error(graph_ref: GraphRef) {
@@ -173,6 +176,7 @@ mod tests {
         assert!(matches!(err, RoverClientError::Service { .. }));
     }
 
+    /// Verifies that a null graph in the response produces a GraphNotFound error.
     #[rstest]
     #[tokio::test]
     async fn call_errors_when_graph_not_found(graph_ref: GraphRef) {
@@ -193,6 +197,8 @@ mod tests {
         assert!(matches!(err, RoverClientError::GraphNotFound { .. }));
     }
 
+    /// Verifies that a null variant (with known variants listed) produces a NoSchemaForVariant
+    /// error.
     #[rstest]
     #[tokio::test]
     async fn call_errors_when_no_schema_for_variant(graph_ref: GraphRef) {

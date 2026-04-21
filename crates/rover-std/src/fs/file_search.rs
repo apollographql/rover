@@ -71,6 +71,7 @@ mod tests {
 
     use super::*;
 
+    /// Verifies that include and exclude patterns combine to select only the expected files.
     #[test]
     fn discovers_files_with_include_and_exclude() {
         let temp = tempfile::tempdir().unwrap();
@@ -96,6 +97,7 @@ mod tests {
         assert_eq!(files[0], file_b);
     }
 
+    /// Verifies that node_modules and other default-ignored directories are not scanned.
     #[test]
     fn skips_ignored_directories() {
         let temp = tempfile::tempdir().unwrap();
@@ -109,6 +111,8 @@ mod tests {
         assert!(files.is_empty());
     }
 
+    /// Verifies that a default scan (no includes specified) finds all files matching the requested
+    /// extension in nested subdirectories.
     #[test]
     fn default_scan_finds_all_matching_extensions() {
         let temp = tempfile::tempdir().unwrap();
@@ -123,6 +127,7 @@ mod tests {
         assert_eq!(files.len(), 2);
     }
 
+    /// Verifies that multiple extensions can be requested and all matching files are returned.
     #[test]
     fn finds_multiple_extensions() {
         let temp = tempfile::tempdir().unwrap();
@@ -135,6 +140,7 @@ mod tests {
         assert_eq!(files.len(), 2);
     }
 
+    /// Verifies that an empty result is returned when no files match the requested extension.
     #[test]
     fn returns_empty_when_no_files_match() {
         let temp = tempfile::tempdir().unwrap();

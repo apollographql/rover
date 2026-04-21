@@ -401,6 +401,7 @@ mod tests {
 
     // gather_inputs
 
+    /// Verifies that an empty file list produces no operations or extensions.
     #[rstest]
     fn gather_inputs_empty_files() {
         let (ops, exts) = gather_inputs(&[]);
@@ -408,6 +409,8 @@ mod tests {
         assert!(exts.is_empty());
     }
 
+    /// Verifies that a parsed file with one named operation yields one operation with no fragment
+    /// suffix appended to the body.
     #[rstest]
     fn gather_inputs_single_operation_no_fragments(parsed: ParsedFile) {
         let (ops, exts) = gather_inputs(&[parsed]);
@@ -417,6 +420,8 @@ mod tests {
         assert!(exts.is_empty());
     }
 
+    /// Verifies that fragment definitions found in the file are appended to each operation body
+    /// so the server can resolve them.
     #[rstest]
     fn gather_inputs_appends_fragments_to_each_operation(
         #[with(String::from("query Hello { ...F }\nfragment F on Query { __typename }"))]
@@ -427,6 +432,8 @@ mod tests {
         assert!(ops[0].body.contains("fragment F"));
     }
 
+    /// Verifies that schema extension definitions are collected separately from operations and
+    /// returned in the extensions list.
     #[rstest]
     fn gather_inputs_collects_extensions(
         #[with(String::from("extend type Query { world: String }\nquery Hello { __typename }"))]
@@ -438,6 +445,8 @@ mod tests {
         assert!(exts[0].text.contains("extend type Query"));
     }
 
+    /// Verifies that the same fragment defined in multiple files appears only once in each
+    /// operation body (BTreeMap deduplication by name).
     #[rstest]
     fn gather_inputs_deduplicates_fragments_across_files() {
         let pf1 = parsed(String::from("query A { ...F }\nfragment F on Query { __typename }"));
@@ -450,6 +459,8 @@ mod tests {
 
     // annotate_with_locations
 
+    /// Verifies that a validation result is annotated with the file, line, and column of the
+    /// matching operation.
     #[rstest]
     fn annotate_matches_operation_by_name(
         #[with(String::from("Hello"), String::from("src/ops.graphql"), 3usize, 1usize)]
@@ -462,6 +473,8 @@ mod tests {
         assert_eq!(annotated[0].column, Some(1));
     }
 
+    /// Verifies that a validation result whose operation name has no match retains null location
+    /// fields.
     #[rstest]
     fn annotate_leaves_unmatched_result_as_none(
         #[with(String::from("Other"), String::from("src/ops.graphql"), 1usize, 1usize)]
@@ -474,6 +487,8 @@ mod tests {
         assert_eq!(annotated[0].column, None);
     }
 
+    /// Verifies that multiple results are each annotated with their respective operation's
+    /// location when operations are provided out of order.
     #[rstest]
     fn annotate_handles_multiple_results() {
         let ops = vec![
@@ -491,6 +506,7 @@ mod tests {
 
     // format_extension_failure
 
+    /// Verifies that a failure with line and column information gets an 'at line:column' suffix.
     #[rstest]
     fn format_extension_failure_with_location() {
         let failure = ExtensionFailure {
@@ -502,6 +518,7 @@ mod tests {
         assert_eq!(format_extension_failure(failure), "unknown type at 2:5");
     }
 
+    /// Verifies that a failure without location information returns the message unchanged.
     #[rstest]
     fn format_extension_failure_without_location() {
         let failure = ExtensionFailure {
@@ -515,6 +532,8 @@ mod tests {
 
     // parse_graphql_files
 
+    /// Verifies that a file with a GraphQL syntax error causes parse_graphql_files to return an
+    /// error rather than silently skipping the file.
     #[rstest]
     fn parse_graphql_files_returns_error_on_syntax_failure() {
         let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();
@@ -524,6 +543,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// Verifies that a valid GraphQL file is successfully parsed and returned as a ParsedFile.
     #[rstest]
     fn parse_graphql_files_succeeds_on_valid_file() {
         let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();

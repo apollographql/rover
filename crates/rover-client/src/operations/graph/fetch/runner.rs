@@ -33,6 +33,7 @@ mod tests {
         GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
+    /// Verifies that a response containing a schema document returns the SDL string successfully.
     #[rstest]
     fn get_schema_from_response_data_works(graph_ref: GraphRef) {
         let json_response = json!({
@@ -54,6 +55,7 @@ mod tests {
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
     }
 
+    /// Verifies that a null graph in the response produces an error.
     #[rstest]
     fn get_schema_from_response_data_errs_on_no_service(graph_ref: GraphRef) {
         let json_response =
@@ -63,6 +65,7 @@ mod tests {
         assert!(output.is_err());
     }
 
+    /// Verifies that a response with a null variant (no published schema) produces an error.
     #[rstest]
     fn get_schema_from_response_data_errs_on_no_schema(graph_ref: GraphRef) {
         let json_response = json!({

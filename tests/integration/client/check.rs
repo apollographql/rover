@@ -5,6 +5,8 @@ use httpmock::{Method::POST, MockServer};
 use serde_json::Value;
 use serial_test::serial;
 
+/// Verifies that a valid operation file is sent to the validate-operations API and that
+/// a WARNING result is surfaced in the JSON output without failing the command.
 #[test]
 #[serial]
 fn client_check_hits_validate_operations() {
@@ -69,6 +71,8 @@ fn client_check_hits_validate_operations() {
     }));
 }
 
+/// Verifies that a file with a GraphQL syntax error causes the command to fail and surface the
+/// parse error message in the JSON output.
 #[test]
 fn client_check_fails_on_parse_error() {
     let content = "query Bad { hello(";
@@ -117,6 +121,8 @@ fn client_check_fails_on_parse_error() {
     }));
 }
 
+/// Verifies that omitting the graph ref argument causes the command to fail with an explanatory
+/// error message.
 #[test]
 fn client_check_requires_graph_ref() {
     let temp = tempfile::tempdir().unwrap();
@@ -145,6 +151,8 @@ fn client_check_requires_graph_ref() {
     }));
 }
 
+/// Verifies that files matching the --exclude pattern are skipped and, if no other operations
+/// remain, the command fails with the 'no operations found' error.
 #[test]
 fn client_check_excludes_files_matching_pattern() {
     let temp = tempfile::tempdir().unwrap();
@@ -174,6 +182,8 @@ fn client_check_excludes_files_matching_pattern() {
     }));
 }
 
+/// Verifies that running client check in a directory with no .graphql files fails with the
+/// 'no operations found' error.
 #[test]
 fn client_check_errors_when_no_operations_found() {
     let temp = tempfile::tempdir().unwrap();

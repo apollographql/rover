@@ -93,12 +93,15 @@ mod tests {
         Utf8PathBuf::from("test.graphql")
     }
 
+    /// Verifies that a file with GraphQL syntax errors returns a Syntax parse error.
     #[rstest]
     fn syntax_error_returns_err(file: Utf8PathBuf) {
         let result = ParsedFile::new(&file, "not { valid !!!");
         assert!(matches!(result, Err(ParsedFileError::Syntax(_))));
     }
 
+    /// Verifies that a named operation is collected with its name, body, file path, and source
+    /// location.
     #[rstest]
     fn named_operation_collected_with_metadata(file: Utf8PathBuf) {
         let pf = ParsedFile::new(&file, "query Hello { __typename }").unwrap();
@@ -110,6 +113,8 @@ mod tests {
         assert_eq!(pf.operations[0].column, 1);
     }
 
+    /// Verifies that an anonymous (unnamed) operation produces no operations, fragments, or
+    /// extensions.
     #[rstest]
     fn anonymous_operation_is_ignored(file: Utf8PathBuf) {
         let pf = ParsedFile::new(&file, "{ __typename }").unwrap();
@@ -118,6 +123,7 @@ mod tests {
         assert!(pf.extensions.is_empty());
     }
 
+    /// Verifies that all named operations in a multi-operation file are individually collected.
     #[rstest]
     fn multiple_named_operations_all_collected(file: Utf8PathBuf) {
         let pf = ParsedFile::new(&file, "query A { __typename }\nquery B { __typename }").unwrap();
@@ -127,6 +133,8 @@ mod tests {
         assert!(names.contains(&"B"));
     }
 
+    /// Verifies that a fragment definition is stored in the fragments map rather than the
+    /// operations list.
     #[rstest]
     fn fragment_goes_into_fragments_map(file: Utf8PathBuf) {
         let pf = ParsedFile::new(&file, "fragment F on Query { __typename }").unwrap();
@@ -136,6 +144,8 @@ mod tests {
         assert!(pf.fragments["F"].contains("fragment F"));
     }
 
+    /// Verifies that a schema extension definition is stored in the extensions list rather than
+    /// operations.
     #[rstest]
     fn schema_extension_goes_into_extensions(file: Utf8PathBuf) {
         let pf = ParsedFile::new(&file, "extend type Query { world: String }").unwrap();
@@ -146,6 +156,8 @@ mod tests {
         assert_eq!(pf.extensions[0].file, file);
     }
 
+    /// Verifies that a file with operations, fragments, and extensions is correctly split into the
+    /// three respective buckets.
     #[rstest]
     fn mixed_content_split_into_correct_buckets(file: Utf8PathBuf) {
         let content = indoc::indoc! {"
@@ -160,6 +172,7 @@ mod tests {
         assert_eq!(pf.extensions.len(), 1);
     }
 
+    /// Verifies that an operation starting on the second line of a file reports line=2.
     #[rstest]
     fn operation_on_second_line_has_correct_location(file: Utf8PathBuf) {
         let content = "# comment\nquery Hello { __typename }";
@@ -168,6 +181,8 @@ mod tests {
         assert_eq!(pf.operations[0].column, 1);
     }
 
+    /// Verifies that an indented operation's column reflects its distance from the start of the
+    /// line.
     #[rstest]
     fn indented_operation_has_correct_column(file: Utf8PathBuf) {
         // lines().count() counts the indent spaces as a segment, so line is 3 not 2.

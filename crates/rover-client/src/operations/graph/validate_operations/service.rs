@@ -166,6 +166,8 @@ mod tests {
         }
     }
 
+    /// Verifies that validation results from the API are correctly mapped to typed
+    /// ValidationResult values.
     #[rstest]
     #[tokio::test]
     async fn call_returns_results_on_success(input: ValidateOperationsInput) {
@@ -200,6 +202,7 @@ mod tests {
         assert_eq!(results[0].description, "field is deprecated");
     }
 
+    /// Verifies that a null graph in the response yields an empty result list rather than an error.
     #[rstest]
     #[tokio::test]
     async fn call_returns_empty_when_graph_is_null(input: ValidateOperationsInput) {
@@ -218,6 +221,8 @@ mod tests {
         assert!(results.is_empty());
     }
 
+    /// Verifies that an InvalidCredentials inner error is translated to a PermissionError rather
+    /// than a generic Service error.
     #[rstest]
     #[tokio::test]
     async fn call_maps_invalid_credentials_to_permission_error(input: ValidateOperationsInput) {
@@ -234,6 +239,7 @@ mod tests {
         assert!(matches!(err, RoverClientError::PermissionError { .. }));
     }
 
+    /// Verifies that non-credential inner errors are wrapped as a generic RoverClientError::Service.
     #[rstest]
     #[tokio::test]
     async fn call_maps_other_errors_to_service_error(input: ValidateOperationsInput) {
