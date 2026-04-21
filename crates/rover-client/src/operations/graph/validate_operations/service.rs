@@ -4,7 +4,7 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use super::types::{ValidateOperationsInput, ValidationResult};
+use super::types::{ValidateOperationsInput, ValidationErrorCode, ValidationResult, ValidationResultType};
 use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
@@ -122,8 +122,18 @@ impl
     ) -> Self {
         Self {
             operation_name: result.operation.name.unwrap_or_default(),
-            r#type: format!("{:?}", result.type_),
-            code: Some(format!("{:?}", result.code)),
+            r#type: match result.type_ {
+                validate_operations_query::ValidationErrorType::FAILURE => ValidationResultType::Failure,
+                validate_operations_query::ValidationErrorType::WARNING => ValidationResultType::Warning,
+                validate_operations_query::ValidationErrorType::INVALID => ValidationResultType::Invalid,
+                validate_operations_query::ValidationErrorType::Other(s) => ValidationResultType::Unknown(s),
+            },
+            code: match result.code {
+                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => ValidationErrorCode::NonParseableDocument,
+                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => ValidationErrorCode::InvalidOperation,
+                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => ValidationErrorCode::DeprecatedField,
+                validate_operations_query::ValidationErrorCode::Other(s) => ValidationErrorCode::Unknown(s),
+            },
             description: result.description,
         }
     }

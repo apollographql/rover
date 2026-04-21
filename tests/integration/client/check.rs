@@ -2,6 +2,7 @@ use std::fs;
 
 use assert_cmd::Command;
 use httpmock::{Method::POST, MockServer};
+use predicates::prelude::*;
 use serial_test::serial;
 
 #[test]
@@ -83,6 +84,28 @@ fn client_check_requires_graph_ref() {
         .arg(graphql.to_str().unwrap())
         .assert()
         .failure();
+}
+
+#[test]
+fn client_check_excludes_files_matching_pattern() {
+    let temp = tempfile::tempdir().unwrap();
+
+    // This file has invalid syntax — if processed, it would cause a parse failure.
+    let bad = temp.path().join("bad.graphql");
+    fs::write(&bad, "this { is {{ not valid graphql").unwrap();
+
+    // Exclude the bad file; with nothing left to scan the command should fail
+    // with NoOperations, not a parse error.
+    let mut cmd = Command::cargo_bin("rover").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("client")
+        .arg("check")
+        .arg("graph@current")
+        .arg("--exclude")
+        .arg("**/bad.graphql")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("No .graphql operations found"));
 }
 
 #[test]

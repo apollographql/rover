@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use apollo_compiler::Schema;
+use apollo_compiler::diagnostic::ToCliReport;
+use apollo_compiler::parser::{SourceFile, SourceSpan};
 use camino::Utf8PathBuf;
 
 #[derive(Debug, Clone)]
@@ -17,66 +21,100 @@ pub struct ExtensionFailure {
 
 pub fn validate_extensions(
     base_sdl: &str,
+    base_source: &str,
     extensions: &[ExtensionSnippet],
 ) -> Vec<ExtensionFailure> {
     if extensions.is_empty() {
         return Vec::new();
     }
 
-    let mut combined = base_sdl.to_string();
-    let mut newline_count = count_newlines(base_sdl);
-    let mut extension_ranges = Vec::with_capacity(extensions.len());
-    for ext in extensions {
-        combined.push_str("\n\n");
-        newline_count += 2;
+    let builder = extensions.iter().fold(
+        Schema::builder().parse(base_sdl, base_source),
+        |b, ext| b.parse(&ext.text, ext.file.as_std_path()),
+    );
 
-        let start_line = newline_count + 1;
-        let ext_newlines = count_newlines(&ext.text);
-        let end_line = start_line + ext_newlines;
+    let errors = match builder.build() {
+        Ok(schema) => match schema.validate() {
+            Ok(_) => return Vec::new(),
+            Err(e) => e.errors,
+        },
+        Err(e) => e.errors,
+    };
 
-        extension_ranges.push((start_line, end_line, ext.file.clone()));
+    errors
+        .iter()
+        .map(|diag| {
+            let location = diag.error.location();
 
-        combined.push_str(&ext.text);
-        newline_count += ext_newlines;
-    }
+            let file = location
+                .and_then(|span: SourceSpan| diag.sources.get(&span.file_id()))
+                .map(|sf: &Arc<SourceFile>| Utf8PathBuf::from(sf.path().to_string_lossy().as_ref()))
+                .unwrap_or_else(|| Utf8PathBuf::from(base_source));
 
-    let base_file = Utf8PathBuf::from("schema.graphql");
-    let default_extension_file = extensions
-        .first()
-        .map(|e| e.file.clone())
-        .unwrap_or_else(|| base_file.clone());
+            let (line, column) = diag
+                .line_column_range()
+                .map(|r| (Some(r.start.line), Some(r.start.column)))
+                .unwrap_or((None, None));
 
-    match Schema::parse_and_validate(combined, "schema.graphql") {
-        Ok(_) => Vec::new(),
-        Err(errs) => errs
-            .errors
-            .iter()
-            .map(|diag| {
-                let (line, column) = diag
-                    .line_column_range()
-                    .map(|range| (Some(range.start.line), Some(range.start.column)))
-                    .unwrap_or((None, None));
-
-                let (file, mapped_line) = match line {
-                    Some(line) => extension_ranges
-                        .iter()
-                        .find(|(start, end, _)| line >= *start && line <= *end)
-                        .map(|(start, _, file)| (file.clone(), Some(line - start + 1)))
-                        .unwrap_or_else(|| (base_file.clone(), Some(line))),
-                    None => (default_extension_file.clone(), None),
-                };
-
-                ExtensionFailure {
-                    file,
-                    message: diag.to_string(),
-                    line: mapped_line,
-                    column,
-                }
-            })
-            .collect(),
-    }
+            ExtensionFailure {
+                file,
+                message: diag.to_string(),
+                line,
+                column,
+            }
+        })
+        .collect()
 }
 
-fn count_newlines(text: &str) -> usize {
-    text.bytes().filter(|b| *b == b'\n').count()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ext(text: &str, file: &str) -> ExtensionSnippet {
+        ExtensionSnippet {
+            text: text.to_string(),
+            file: Utf8PathBuf::from(file),
+        }
+    }
+
+    #[test]
+    fn valid_extension_returns_no_failures() {
+        let failures = validate_extensions(
+            "type Query { hello: String }",
+            "graph@current",
+            &[ext("extend type Query { world: String }", "extensions.graphql")],
+        );
+        assert!(failures.is_empty());
+    }
+
+    #[test]
+    fn invalid_extension_attributed_to_extension_file() {
+        let failures = validate_extensions(
+            "type Query { hello: String }",
+            "graph@current",
+            &[ext(
+                "extend type Query { world: FakeType! }",
+                "extensions.graphql",
+            )],
+        );
+        assert!(!failures.is_empty());
+        assert_eq!(failures[0].file, Utf8PathBuf::from("extensions.graphql"));
+    }
+
+    #[test]
+    fn error_in_base_schema_attributed_to_base_source() {
+        let failures = validate_extensions(
+            "type Query { hello: NonExistentType }",
+            "graph@current",
+            &[ext("extend type Query { world: String }", "extensions.graphql")],
+        );
+        assert!(!failures.is_empty());
+        assert_eq!(failures[0].file, Utf8PathBuf::from("graph@current"));
+    }
+
+    #[test]
+    fn empty_extensions_returns_no_failures() {
+        let failures = validate_extensions("type Query { hello: String }", "graph@current", &[]);
+        assert!(failures.is_empty());
+    }
 }

@@ -24,12 +24,12 @@ impl Client {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-        output_opts: &OutputOpts,
+        _output_opts: &OutputOpts,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
                 command
-                    .run(client_config, git_context, output_opts.format_kind)
+                    .run(client_config, git_context)
                     .await
             }
         }

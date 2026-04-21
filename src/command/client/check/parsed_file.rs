@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_parser::{
     Parser,
     cst::{self, CstNode},
@@ -18,6 +20,8 @@ pub(super) enum ParsedFileError {
 pub(super) struct ParsedFile {
     pub(super) operations: Vec<OperationInput>,
     pub(super) extensions: Vec<ExtensionSnippet>,
+    /// Fragment definitions keyed by name, for global deduplication across files.
+    pub(super) fragments: HashMap<String, String>,
 }
 
 impl ParsedFile {
@@ -32,14 +36,20 @@ impl ParsedFile {
 
         let doc = tree.document();
         let mut extensions = Vec::new();
-        let mut fragment_text = Vec::new();
+        let mut fragments = HashMap::new();
         for definition in doc.definitions() {
-            if let cst::Definition::FragmentDefinition(fragment) = definition {
-                let range = fragment.syntax().text_range();
-                let start: usize = range.start().into();
-                let end: usize = range.end().into();
-                if let Some(text) = contents.get(start..end) {
-                    fragment_text.push(text.to_string());
+            if let cst::Definition::FragmentDefinition(ref fragment) = definition {
+                let name = fragment
+                    .fragment_name()
+                    .and_then(|n| n.name())
+                    .map(|n| n.syntax().text().to_string());
+                if let Some(name) = name {
+                    let range = definition.syntax().text_range();
+                    let start: usize = range.start().into();
+                    let end: usize = range.end().into();
+                    if let Some(text) = contents.get(start..end) {
+                        fragments.insert(name, text.to_string());
+                    }
                 }
             } else if !matches!(definition, cst::Definition::OperationDefinition(_)) {
                 let range = definition.syntax().text_range();
@@ -57,7 +67,7 @@ impl ParsedFile {
         let mut operations = Vec::new();
         for definition in doc.definitions() {
             if let cst::Definition::OperationDefinition(def) = definition
-                && let Some(op) = OperationInput::new(file, contents, def, &fragment_text)
+                && let Some(op) = OperationInput::new(file, contents, def)
             {
                 operations.push(op);
             }
@@ -66,6 +76,7 @@ impl ParsedFile {
         Ok(Self {
             operations,
             extensions,
+            fragments,
         })
     }
 }
@@ -84,21 +95,12 @@ impl OperationInput {
         file: &Utf8Path,
         contents: &str,
         def: cst::OperationDefinition,
-        fragments: &[String],
     ) -> Option<Self> {
         def.name().and_then(|name| {
             let range = def.syntax().text_range();
             let start: usize = range.start().into();
             let end: usize = range.end().into();
-            let operation_text = contents.get(start..end)?.to_string();
-
-            let fragments_text = fragments.join("\n\n");
-
-            let body = if fragments_text.is_empty() {
-                operation_text
-            } else {
-                format!("{operation_text}\n\n{fragments_text}")
-            };
+            let body = contents.get(start..end)?.to_string();
 
             let line = contents[..start].lines().count() + 1;
             let column = contents[..start]

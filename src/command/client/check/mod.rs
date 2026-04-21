@@ -1,15 +1,19 @@
+mod output;
 mod parsed_file;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use itertools::Itertools;
 
 use camino::Utf8PathBuf;
 use clap::Parser as ClapParser;
 use rover_client::operations::graph::{
+    fetch::{GraphFetch, GraphFetchInput, GraphFetchRequest},
     validate_operations,
-    validate_operations::{OperationDocument, ValidateOperationsInput},
+    validate_operations::{OperationDocument, ValidateOperationsInput, ValidationErrorCode, ValidationResultType},
 };
+use rover_graphql::GraphQLLayer;
+use tower::{Service, ServiceBuilder, ServiceExt};
 use rover_std::FileSearch;
 use serde::Serialize;
 
@@ -77,8 +81,8 @@ pub struct ClientCheckSummary {
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct ClientValidationResult {
     pub operation_name: String,
-    pub r#type: String,
-    pub code: Option<String>,
+    pub r#type: ValidationResultType,
+    pub code: ValidationErrorCode,
     pub description: String,
     pub file: Option<Utf8PathBuf>,
     pub line: Option<usize>,
@@ -90,7 +94,6 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: rover_client::shared::GitContext,
-        _format: crate::cli::RoverOutputFormatKind,
     ) -> RoverResult<RoverOutput> {
         let root = match &self.root_dir {
             Some(r) => r.clone(),
@@ -101,9 +104,27 @@ impl Check {
             }
         };
 
+        let canonical_root = root.canonicalize().unwrap_or_else(|_| root.as_std_path().to_path_buf());
+        let includes: Vec<String> = self
+            .include
+            .iter()
+            .map(|p| {
+                let path = std::path::Path::new(p);
+                if path.is_absolute() {
+                    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+                    canonical
+                        .strip_prefix(&canonical_root)
+                        .map(|rel| rel.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| p.clone())
+                } else {
+                    p.clone()
+                }
+            })
+            .collect();
+
         let search = FileSearch::builder()
             .root(root)
-            .includes(self.include.clone())
+            .includes(includes)
             .excludes(self.exclude.clone())
             .build();
 
@@ -133,7 +154,27 @@ impl Check {
             return Err(ClientCheckError::ParseFailures { parse_failures })?;
         }
 
-        let operations: Vec<_> = parsed_files.iter().flat_map(|f| f.operations.iter().cloned()).collect();
+        let fragments_text = {
+            let all_fragments: BTreeMap<_, _> = parsed_files
+                .iter()
+                .flat_map(|f| f.fragments.iter())
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            all_fragments.into_values().join("\n\n")
+        };
+
+        let operations: Vec<_> = parsed_files
+            .iter()
+            .flat_map(|f| f.operations.iter())
+            .map(|op| {
+                let body = if fragments_text.is_empty() {
+                    op.body.clone()
+                } else {
+                    format!("{}\n\n{}", op.body, fragments_text)
+                };
+                parsed_file::OperationInput { body, ..op.clone() }
+            })
+            .collect();
         let extensions: Vec<_> = parsed_files.iter().flat_map(|f| f.extensions.iter().cloned()).collect();
         let mut failures = Vec::new();
 
@@ -147,10 +188,24 @@ impl Check {
             .clone()
             .ok_or(ClientCheckError::MissingGraphRef)?;
 
-        let extension_failures =
-            collect_extension_failures(&client_config, &self.profile, &graph_ref, &extensions)
-                .await;
-        failures.extend(extension_failures);
+        if !extensions.is_empty() {
+            let http_service = client_config.authenticated_service(&self.profile)?;
+            let graphql_service = ServiceBuilder::new()
+                .layer(GraphQLLayer::default())
+                .service(http_service);
+            let mut fetch_service = GraphFetch::new(graphql_service);
+            let fetch_service = fetch_service.ready().await?;
+            let fetch_response = fetch_service
+                .call(GraphFetchRequest::new(GraphFetchInput {
+                    graph_ref: graph_ref.clone(),
+                }))
+                .await?;
+            failures.extend(collect_extension_failures(
+                &fetch_response.sdl.contents,
+                &graph_ref.to_string(),
+                &extensions,
+            ));
+        }
 
         let client = client_config.get_authenticated_client(&self.profile)?;
 
@@ -173,58 +228,28 @@ impl Check {
 
         let has_errors = mapped_results
             .iter()
-            .any(|r| matches!(r.r#type.as_str(), "FAILURE" | "INVALID"))
+            .any(|r| matches!(r.r#type, ValidationResultType::Failure | ValidationResultType::Invalid))
             || !failures.is_empty();
 
         let summary = ClientCheckSummary {
             graph_ref: Some(graph_ref.to_string()),
-            files_scanned: operations.len(),
+            files_scanned: parsed_files.len(),
             operations_sent: operations.len(),
             failures,
             validation_results: mapped_results,
             has_errors,
         };
 
-        Ok(RoverOutput::ClientCheckResponse { summary })
+        Ok(RoverOutput::CliOutput(Box::new(output::ClientCheckOutput::from(summary))))
     }
 }
 
-async fn collect_extension_failures(
-    client_config: &StudioClientConfig,
-    profile: &ProfileOpt,
-    graph_ref: &rover_studio::types::GraphRef,
+fn collect_extension_failures(
+    sdl: &str,
+    source: &str,
     extensions: &[ExtensionSnippet],
 ) -> Vec<ClientCheckFailure> {
-    if extensions.is_empty() {
-        return Vec::new();
-    }
-
-    let client = match client_config.get_authenticated_client(profile) {
-        Ok(client) => client,
-        Err(err) => {
-            return vec![ClientCheckFailure {
-                file: Utf8PathBuf::from("schema.graphql"),
-                message: err.to_string(),
-            }];
-        }
-    };
-
-    let fetch_input = rover_client::operations::graph::fetch::GraphFetchInput {
-        graph_ref: graph_ref.clone(),
-    };
-    let fetch_response =
-        match rover_client::operations::graph::fetch::run(fetch_input, &client).await {
-            Ok(res) => res,
-            Err(err) => {
-                return vec![ClientCheckFailure {
-                    file: Utf8PathBuf::from("schema.graphql"),
-                    message: err.to_string(),
-                }];
-            }
-        };
-
-    let failures = validate_extensions(&fetch_response.sdl.contents, extensions);
-    failures
+    validate_extensions(sdl, source, extensions)
         .into_iter()
         .map(|ext_failure| ClientCheckFailure {
             file: ext_failure.file.clone(),

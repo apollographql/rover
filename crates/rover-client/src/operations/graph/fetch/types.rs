@@ -1,6 +1,6 @@
 use rover_studio::types::GraphRef;
 
-use crate::operations::graph::fetch::runner::graph_fetch_query;
+use crate::operations::graph::fetch::service::graph_fetch_query;
 
 type QueryVariables = graph_fetch_query::Variables;
 
