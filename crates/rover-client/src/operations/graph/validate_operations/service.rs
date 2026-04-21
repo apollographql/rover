@@ -16,22 +16,26 @@ use crate::{EndpointKind, RoverClientError};
 )]
 pub struct ValidateOperationsQuery;
 
+/// Request type for validating operations via the tower [`ValidateOperations`] service.
 pub struct ValidateOperationsRequest {
     input: ValidateOperationsInput,
 }
 
 impl ValidateOperationsRequest {
+    /// Construct a new request from the given [`ValidateOperationsInput`].
     pub const fn new(input: ValidateOperationsInput) -> Self {
         Self { input }
     }
 }
 
+/// Tower [`Service`] that validates client operations against a graph variant in Apollo Studio.
 #[derive(Clone)]
 pub struct ValidateOperations<S: Clone> {
     inner: S,
 }
 
 impl<S: Clone> ValidateOperations<S> {
+    /// Wrap an inner GraphQL service with the validate-operations logic.
     pub const fn new(inner: S) -> ValidateOperations<S> {
         ValidateOperations { inner }
     }

@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{blocking::StudioClient, RoverClientError};
 
+/// Validate the operations in `input` against the graph variant using the given `client`.
 pub async fn run(
     input: ValidateOperationsInput,
     client: &StudioClient,

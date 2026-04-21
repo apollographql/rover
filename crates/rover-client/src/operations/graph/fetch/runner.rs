@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
 
+/// Fetch the SDL for the graph variant described by `input` using the given `client`.
 pub async fn run(
     input: GraphFetchInput,
     client: &StudioClient,
