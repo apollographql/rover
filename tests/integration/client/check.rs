@@ -41,34 +41,41 @@ fn client_check_hits_validate_operations() {
 
     mock.assert();
     // WARNING results are not errors, so the command should succeed.
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let graphql_canonical = graphql.canonicalize().unwrap();
     let graphql_path = graphql_canonical.to_str().unwrap();
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json, serde_json::json!({
-        "json_version": "1",
-        "data": {
-            "client_check": {
-                "graph_ref": "graph@current",
-                "files_scanned": 1,
-                "operations_sent": 1,
-                "failures": [],
-                "validation_results": [{
-                    "operation_name": "Hello",
-                    "type": "WARNING",
-                    "code": "DEPRECATED_FIELD",
-                    "description": "be careful",
-                    "file": graphql_path,
-                    "line": 1,
-                    "column": 1
-                }]
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": {
+                "client_check": {
+                    "graph_ref": "graph@current",
+                    "files_scanned": 1,
+                    "operations_sent": 1,
+                    "failures": [],
+                    "validation_results": [{
+                        "operation_name": "Hello",
+                        "type": "WARNING",
+                        "code": "DEPRECATED_FIELD",
+                        "description": "be careful",
+                        "file": graphql_path,
+                        "line": 1,
+                        "column": 1
+                    }]
+                },
+                "success": true
             },
-            "success": true
-        },
-        "error": null
-    }));
+            "error": null
+        })
+    );
 }
 
 /// Verifies that a file with a GraphQL syntax error causes the command to fail and surface the
@@ -114,11 +121,14 @@ fn client_check_fails_on_parse_error() {
     assert!(!output.status.success());
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json, serde_json::json!({
-        "json_version": "1",
-        "data": { "success": false },
-        "error": { "message": expected_message, "code": null }
-    }));
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": { "success": false },
+            "error": { "message": expected_message, "code": null }
+        })
+    );
 }
 
 /// Verifies that omitting the graph ref argument causes the command to fail with an explanatory
@@ -144,11 +154,14 @@ fn client_check_requires_graph_ref() {
     assert!(!output.status.success());
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json, serde_json::json!({
-        "json_version": "1",
-        "data": { "success": false },
-        "error": { "message": "A graph ref is required for client check.", "code": null }
-    }));
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": { "success": false },
+            "error": { "message": "A graph ref is required for client check.", "code": null }
+        })
+    );
 }
 
 /// Verifies that files matching the --exclude pattern are skipped and, if no other operations
@@ -175,11 +188,14 @@ fn client_check_excludes_files_matching_pattern() {
     assert!(!output.status.success());
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json, serde_json::json!({
-        "json_version": "1",
-        "data": { "success": false },
-        "error": { "message": "No .graphql operations found under the provided includes", "code": null }
-    }));
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": { "success": false },
+            "error": { "message": "No .graphql operations found under the provided includes", "code": null }
+        })
+    );
 }
 
 /// Verifies that running client check in a directory with no .graphql files fails with the
@@ -202,9 +218,12 @@ fn client_check_errors_when_no_operations_found() {
     assert!(!output.status.success());
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json, serde_json::json!({
-        "json_version": "1",
-        "data": { "success": false },
-        "error": { "message": "No .graphql operations found under the provided includes", "code": null }
-    }));
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": { "success": false },
+            "error": { "message": "No .graphql operations found under the provided includes", "code": null }
+        })
+    );
 }

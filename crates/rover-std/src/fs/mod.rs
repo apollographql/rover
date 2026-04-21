@@ -1,6 +1,4 @@
 pub mod file_search;
-pub use file_search::FileSearch;
-
 use std::{
     fs,
     fs::OpenOptions,
@@ -11,6 +9,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
+pub use file_search::FileSearch;
 #[cfg(windows)]
 use notify::event::{DataChange, ModifyKind};
 use notify::{Config, EventKind, PollWatcher, RecursiveMode, Watcher};

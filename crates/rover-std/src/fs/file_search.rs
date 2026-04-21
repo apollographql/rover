@@ -34,10 +34,7 @@ pub struct FileSearch {
 
 impl FileSearch {
     /// Discovers files with the given extensions under `self.root`.
-    pub fn find(
-        &self,
-        extensions: &[&str],
-    ) -> Result<Vec<Utf8PathBuf>, RoverStdError> {
+    pub fn find(&self, extensions: &[&str]) -> Result<Vec<Utf8PathBuf>, RoverStdError> {
         let mut patterns: Vec<String> = if self.includes.is_empty() {
             extensions.iter().map(|ext| format!("**/*.{ext}")).collect()
         } else {
@@ -107,7 +104,11 @@ mod tests {
         fs::create_dir_all(&ignored).unwrap();
         fs::write(&nested, "query Ignore { x }").unwrap();
 
-        let files = FileSearch::builder().root(root.clone()).build().find(&["graphql"]).unwrap();
+        let files = FileSearch::builder()
+            .root(root.clone())
+            .build()
+            .find(&["graphql"])
+            .unwrap();
         assert!(files.is_empty());
     }
 
@@ -123,7 +124,11 @@ mod tests {
         fs::write(nested.join("b.graphql"), "query B { x }").unwrap();
         fs::write(root.join("c.txt"), "not graphql").unwrap();
 
-        let files = FileSearch::builder().root(root).build().find(&["graphql"]).unwrap();
+        let files = FileSearch::builder()
+            .root(root)
+            .build()
+            .find(&["graphql"])
+            .unwrap();
         assert_eq!(files.len(), 2);
     }
 
@@ -136,7 +141,11 @@ mod tests {
         fs::write(root.join("b.gql"), "query B { x }").unwrap();
         fs::write(root.join("c.txt"), "not graphql").unwrap();
 
-        let files = FileSearch::builder().root(root).build().find(&["graphql", "gql"]).unwrap();
+        let files = FileSearch::builder()
+            .root(root)
+            .build()
+            .find(&["graphql", "gql"])
+            .unwrap();
         assert_eq!(files.len(), 2);
     }
 
@@ -147,7 +156,11 @@ mod tests {
         let root = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
         fs::write(root.join("readme.txt"), "not graphql").unwrap();
 
-        let files = FileSearch::builder().root(root).build().find(&["graphql"]).unwrap();
+        let files = FileSearch::builder()
+            .root(root)
+            .build()
+            .find(&["graphql"])
+            .unwrap();
         assert!(files.is_empty());
     }
 }

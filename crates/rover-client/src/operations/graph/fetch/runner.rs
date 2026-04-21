@@ -4,7 +4,7 @@ use super::{
     service::{GraphFetch, GraphFetchRequest},
     types::GraphFetchInput,
 };
-use crate::{RoverClientError, blocking::StudioClient, shared::FetchResponse};
+use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
 
 /// Fetch the SDL for a graph variant from Apollo Studio using a graph ref.
 ///
@@ -27,6 +27,7 @@ pub async fn run(
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
     use serde_json::json;
     use speculoos::prelude::*;
@@ -34,7 +35,6 @@ mod tests {
     use crate::operations::graph::fetch::service::{
         get_schema_from_response_data, graph_fetch_query,
     };
-    use rover_studio::types::GraphRef;
 
     #[fixture]
     fn graph_ref() -> GraphRef {

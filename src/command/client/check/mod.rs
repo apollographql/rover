@@ -3,10 +3,10 @@ mod parsed_file;
 
 use std::collections::{BTreeMap, HashMap};
 
-use itertools::Itertools;
-
 use camino::Utf8PathBuf;
 use clap::Parser as ClapParser;
+use itertools::Itertools;
+use parsed_file::{OperationInput, ParsedFile};
 use rover_client::operations::graph::{
     fetch::{GraphFetch, GraphFetchInput, GraphFetchRequest},
     validate_operations::{
@@ -27,7 +27,6 @@ use crate::{
     options::{OptionalGraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,
 };
-use parsed_file::{OperationInput, ParsedFile};
 
 type GraphQlService = rover_graphql::GraphQLService<HttpService>;
 
@@ -352,14 +351,14 @@ fn format_extension_failure(failure: ExtensionFailure) -> String {
 #[cfg(test)]
 mod tests {
     use camino::Utf8PathBuf;
-    use rstest::{fixture, rstest};
-
-    use super::*;
-    use crate::command::client::extensions::ExtensionFailure;
     use parsed_file::{OperationInput, ParsedFile};
     use rover_client::operations::graph::validate_operations::{
         ValidationErrorCode, ValidationResultType,
     };
+    use rstest::{fixture, rstest};
+
+    use super::*;
+    use crate::command::client::extensions::ExtensionFailure;
 
     #[fixture]
     fn parsed(
@@ -385,9 +384,7 @@ mod tests {
     }
 
     #[fixture]
-    fn validation_result(
-        #[default(String::from("Hello"))] name: String,
-    ) -> ClientValidationResult {
+    fn validation_result(#[default(String::from("Hello"))] name: String) -> ClientValidationResult {
         ClientValidationResult {
             operation_name: name,
             r#type: ValidationResultType::Warning,
@@ -449,8 +446,12 @@ mod tests {
     /// operation body (BTreeMap deduplication by name).
     #[rstest]
     fn gather_inputs_deduplicates_fragments_across_files() {
-        let pf1 = parsed(String::from("query A { ...F }\nfragment F on Query { __typename }"));
-        let pf2 = parsed(String::from("query B { ...F }\nfragment F on Query { __typename }"));
+        let pf1 = parsed(String::from(
+            "query A { ...F }\nfragment F on Query { __typename }",
+        ));
+        let pf2 = parsed(String::from(
+            "query B { ...F }\nfragment F on Query { __typename }",
+        ));
         let (ops, _) = gather_inputs(&[pf1, pf2]);
         assert_eq!(ops.len(), 2);
         assert_eq!(ops[0].body.matches("fragment F").count(), 1);
@@ -468,7 +469,10 @@ mod tests {
         validation_result: ClientValidationResult,
     ) {
         let annotated = annotate_with_locations(vec![validation_result], &[op]);
-        assert_eq!(annotated[0].file, Some(Utf8PathBuf::from("src/ops.graphql")));
+        assert_eq!(
+            annotated[0].file,
+            Some(Utf8PathBuf::from("src/ops.graphql"))
+        );
         assert_eq!(annotated[0].line, Some(3));
         assert_eq!(annotated[0].column, Some(1));
     }

@@ -1,11 +1,12 @@
-use rover_client::operations::graph::validate_operations::{ValidationErrorCode, ValidationResultType};
+use rover_client::operations::graph::validate_operations::{
+    ValidationErrorCode, ValidationResultType,
+};
 use rover_std::Style;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::command::CliOutput;
-
 use super::{ClientCheckFailure, ClientCheckSummary, ClientValidationResult};
+use crate::command::CliOutput;
 
 #[derive(Debug, Serialize)]
 /// [`CliOutput`] implementation for the `rover client check` command.
@@ -176,15 +177,18 @@ mod tests {
     /// Verifies the full JSON structure for a clean run with no results or failures.
     #[rstest]
     fn json_clean_run(clean_summary: ClientCheckSummary) {
-        assert_eq!(ClientCheckOutput::from(clean_summary).json().unwrap(), json!({
-            "client_check": {
-                "graph_ref": "mygraph@current",
-                "files_scanned": 3,
-                "operations_sent": 2,
-                "failures": [],
-                "validation_results": []
-            }
-        }));
+        assert_eq!(
+            ClientCheckOutput::from(clean_summary).json().unwrap(),
+            json!({
+                "client_check": {
+                    "graph_ref": "mygraph@current",
+                    "files_scanned": 3,
+                    "operations_sent": 2,
+                    "failures": [],
+                    "validation_results": []
+                }
+            })
+        );
     }
 
     /// Verifies that validation results are serialized with all fields present in the JSON output.
@@ -199,22 +203,25 @@ mod tests {
         validation_result: ClientValidationResult,
     ) {
         clean_summary.validation_results = vec![validation_result];
-        assert_eq!(ClientCheckOutput::from(clean_summary).json().unwrap(), json!({
-            "client_check": {
-                "graph_ref": "mygraph@current",
-                "files_scanned": 3,
-                "operations_sent": 2,
-                "failures": [],
-                "validation_results": [{
-                    "operation_name": "Hello",
-                    "type": "FAILURE",
-                    "code": "INVALID_OPERATION",
-                    "description": "be careful",
-                    "file": "ops.graphql",
-                    "line": 1,
-                    "column": 5
-                }]
-            }
-        }));
+        assert_eq!(
+            ClientCheckOutput::from(clean_summary).json().unwrap(),
+            json!({
+                "client_check": {
+                    "graph_ref": "mygraph@current",
+                    "files_scanned": 3,
+                    "operations_sent": 2,
+                    "failures": [],
+                    "validation_results": [{
+                        "operation_name": "Hello",
+                        "type": "FAILURE",
+                        "code": "INVALID_OPERATION",
+                        "description": "be careful",
+                        "file": "ops.graphql",
+                        "line": 1,
+                        "column": 5
+                    }]
+                }
+            })
+        );
     }
 }

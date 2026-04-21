@@ -4,7 +4,9 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use super::types::{ValidateOperationsInput, ValidationErrorCode, ValidationResult, ValidationResultType};
+use super::types::{
+    ValidateOperationsInput, ValidationErrorCode, ValidationResult, ValidationResultType,
+};
 use crate::{EndpointKind, RoverClientError};
 
 #[derive(GraphQLQuery)]
@@ -125,14 +127,19 @@ type ValidateOpsResp = validate_operations_query::ResponseData;
 type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
 
 #[cfg(test)]
-rover_tower::mock_service!(ValidateOpsInner, ValidateOpsReq, ValidateOpsResp, ValidateOpsErr);
+rover_tower::mock_service!(
+    ValidateOpsInner,
+    ValidateOpsReq,
+    ValidateOpsResp,
+    ValidateOpsErr
+);
 
 #[cfg(test)]
 mod tests {
     use futures::future;
-    use rstest::{fixture, rstest};
-    use rover_tower::test::{MockCloneService, expect_poll_ready};
     use rover_studio::types::GraphRef;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
+    use rstest::{fixture, rstest};
     use serde_json::json;
     use tower::ServiceExt;
 
@@ -267,16 +274,32 @@ impl
         Self {
             operation_name: result.operation.name.unwrap_or_default(),
             r#type: match result.type_ {
-                validate_operations_query::ValidationErrorType::FAILURE => ValidationResultType::Failure,
-                validate_operations_query::ValidationErrorType::WARNING => ValidationResultType::Warning,
-                validate_operations_query::ValidationErrorType::INVALID => ValidationResultType::Invalid,
-                validate_operations_query::ValidationErrorType::Other(s) => ValidationResultType::Unknown(s),
+                validate_operations_query::ValidationErrorType::FAILURE => {
+                    ValidationResultType::Failure
+                }
+                validate_operations_query::ValidationErrorType::WARNING => {
+                    ValidationResultType::Warning
+                }
+                validate_operations_query::ValidationErrorType::INVALID => {
+                    ValidationResultType::Invalid
+                }
+                validate_operations_query::ValidationErrorType::Other(s) => {
+                    ValidationResultType::Unknown(s)
+                }
             },
             code: match result.code {
-                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => ValidationErrorCode::NonParseableDocument,
-                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => ValidationErrorCode::InvalidOperation,
-                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => ValidationErrorCode::DeprecatedField,
-                validate_operations_query::ValidationErrorCode::Other(s) => ValidationErrorCode::Unknown(s),
+                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => {
+                    ValidationErrorCode::NonParseableDocument
+                }
+                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => {
+                    ValidationErrorCode::InvalidOperation
+                }
+                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => {
+                    ValidationErrorCode::DeprecatedField
+                }
+                validate_operations_query::ValidationErrorCode::Other(s) => {
+                    ValidationErrorCode::Unknown(s)
+                }
             },
             description: result.description,
         }

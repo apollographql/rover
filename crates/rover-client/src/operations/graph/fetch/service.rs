@@ -5,9 +5,9 @@ use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
 use crate::{
-    EndpointKind, RoverClientError,
     operations::graph::fetch::types::GraphFetchInput,
     shared::{FetchResponse, Sdl, SdlType},
+    EndpointKind, RoverClientError,
 };
 
 // Required by the GraphQLQuery derive for the custom GraphQLDocument scalar
@@ -105,20 +105,25 @@ type GraphFetchResp = graph_fetch_query::ResponseData;
 type GraphFetchErr = rover_graphql::GraphQLServiceError<graph_fetch_query::ResponseData>;
 
 #[cfg(test)]
-rover_tower::mock_service!(GraphFetchInner, GraphFetchReq, GraphFetchResp, GraphFetchErr);
+rover_tower::mock_service!(
+    GraphFetchInner,
+    GraphFetchReq,
+    GraphFetchResp,
+    GraphFetchErr
+);
 
 #[cfg(test)]
 mod tests {
     use futures::future;
+    use rover_graphql::GraphQLServiceError;
+    use rover_studio::types::GraphRef;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
-    use rover_tower::test::{MockCloneService, expect_poll_ready};
     use serde_json::json;
     use tower::ServiceExt;
 
     use super::*;
     use crate::operations::graph::fetch::types::GraphFetchInput;
-    use rover_graphql::GraphQLServiceError;
-    use rover_studio::types::GraphRef;
 
     #[fixture]
     fn graph_ref() -> GraphRef {
@@ -180,9 +185,10 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn call_errors_when_graph_not_found(graph_ref: GraphRef) {
-        let data: graph_fetch_query::ResponseData =
-            serde_json::from_value(json!({ "graph": null, "frontendUrlRoot": "https://studio.apollographql.com" }))
-                .unwrap();
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(
+            json!({ "graph": null, "frontendUrlRoot": "https://studio.apollographql.com" }),
+        )
+        .unwrap();
 
         let mut mock = MockGraphFetchInnerService::new();
         expect_poll_ready!(mock);

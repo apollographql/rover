@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
-use apollo_compiler::Schema;
-use apollo_compiler::diagnostic::ToCliReport;
-use apollo_compiler::parser::{SourceFile, SourceSpan};
+use apollo_compiler::{
+    Schema,
+    diagnostic::ToCliReport,
+    parser::{SourceFile, SourceSpan},
+};
 use camino::Utf8PathBuf;
 
 #[derive(Debug, Clone)]
@@ -37,10 +39,11 @@ pub fn validate_extensions(
         return Vec::new();
     }
 
-    let builder = extensions.iter().fold(
-        Schema::builder().parse(base_sdl, base_source),
-        |b, ext| b.parse(&ext.text, ext.file.as_std_path()),
-    );
+    let builder = extensions
+        .iter()
+        .fold(Schema::builder().parse(base_sdl, base_source), |b, ext| {
+            b.parse(&ext.text, ext.file.as_std_path())
+        });
 
     let errors = match builder.build() {
         Ok(schema) => match schema.validate() {
@@ -95,11 +98,7 @@ mod tests {
     /// Verifies that a valid type extension against a compatible base schema produces no failures.
     #[rstest]
     fn valid_extension_returns_no_failures(ext: ExtensionSnippet) {
-        let failures = validate_extensions(
-            "type Query { hello: String }",
-            "graph@current",
-            &[ext],
-        );
+        let failures = validate_extensions("type Query { hello: String }", "graph@current", &[ext]);
         assert!(failures.is_empty());
     }
 
@@ -107,14 +106,13 @@ mod tests {
     /// not the base schema.
     #[rstest]
     fn invalid_extension_attributed_to_extension_file(
-        #[with(String::from("extend type Query { world: FakeType! }"), String::from("extensions.graphql"))]
+        #[with(
+            String::from("extend type Query { world: FakeType! }"),
+            String::from("extensions.graphql")
+        )]
         ext: ExtensionSnippet,
     ) {
-        let failures = validate_extensions(
-            "type Query { hello: String }",
-            "graph@current",
-            &[ext],
-        );
+        let failures = validate_extensions("type Query { hello: String }", "graph@current", &[ext]);
         assert!(!failures.is_empty());
         assert_eq!(failures[0].file, Utf8PathBuf::from("extensions.graphql"));
     }
