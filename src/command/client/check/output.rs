@@ -1,11 +1,9 @@
-use rover_client::operations::graph::validate_operations::{
-    ValidationErrorCode, ValidationResultType,
-};
+use rover_client::operations::graph::validate_operations::ValidationResultType;
 use rover_std::Style;
 use serde::Serialize;
 use serde_json::json;
 
-use super::{ClientCheckFailure, ClientCheckSummary, ClientValidationResult};
+use super::ClientCheckSummary;
 use crate::command::CliOutput;
 
 #[derive(Debug, Serialize)]
@@ -88,9 +86,11 @@ impl CliOutput for ClientCheckOutput {
 #[cfg(test)]
 mod tests {
     use camino::Utf8PathBuf;
+    use rover_client::operations::graph::validate_operations::ValidationErrorCode;
     use rstest::{fixture, rstest};
 
     use super::*;
+    use crate::command::client::check::{ClientCheckFailure, ClientValidationResult};
 
     #[fixture]
     fn clean_summary() -> ClientCheckSummary {
