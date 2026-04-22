@@ -1,19 +1,15 @@
 use std::collections::HashMap;
 
-use apollo_parser::{
-    Parser,
-    cst::{self, CstNode},
-};
+use apollo_compiler::{Node, ast, parser::Parser as ApolloParser};
 use camino::{Utf8Path, Utf8PathBuf};
-use itertools::Itertools;
 use thiserror::Error;
 
 use crate::command::client::extensions::ExtensionSnippet;
 
 #[derive(Debug, Error)]
 pub(super) enum ParsedFileError {
-    #[error("GraphQL syntax errors:\n  {}", .0.iter().join("\n  "))]
-    Syntax(Vec<apollo_parser::Error>),
+    #[error("{0}")]
+    Syntax(String),
 }
 
 #[derive(Debug, Clone)]
@@ -26,50 +22,39 @@ pub(super) struct ParsedFile {
 
 impl ParsedFile {
     pub(super) fn new(file: &Utf8Path, contents: &str) -> Result<Self, ParsedFileError> {
-        let parser = Parser::new(contents);
-        let tree = parser.parse();
-        let errors: Vec<_> = tree.errors().collect();
-        if !errors.is_empty() {
-            let errors = errors.into_iter().cloned().collect();
-            return Err(ParsedFileError::Syntax(errors));
-        }
+        let doc = ApolloParser::new()
+            .parse_ast(contents, file.as_std_path())
+            .map_err(|e| ParsedFileError::Syntax(e.to_string()))?;
 
-        let doc = tree.document();
         let mut extensions = Vec::new();
         let mut fragments = HashMap::new();
-        for definition in doc.definitions() {
-            if let cst::Definition::FragmentDefinition(ref fragment) = definition {
-                let name = fragment
-                    .fragment_name()
-                    .and_then(|n| n.name())
-                    .map(|n| n.syntax().text().to_string());
-                if let Some(name) = name {
-                    let range = definition.syntax().text_range();
-                    let start: usize = range.start().into();
-                    let end: usize = range.end().into();
-                    if let Some(text) = contents.get(start..end) {
-                        fragments.insert(name, text.to_string());
+        let mut operations = Vec::new();
+
+        for definition in &doc.definitions {
+            match definition {
+                ast::Definition::FragmentDefinition(fragment) => {
+                    let name = fragment.name.to_string();
+                    if let Some(span) = fragment.location() {
+                        if let Some(text) = contents.get(span.offset()..span.end_offset()) {
+                            fragments.insert(name, text.to_string());
+                        }
                     }
                 }
-            } else if !matches!(definition, cst::Definition::OperationDefinition(_)) {
-                let range = definition.syntax().text_range();
-                let start: usize = range.start().into();
-                let end: usize = range.end().into();
-                if let Some(text) = contents.get(start..end) {
-                    extensions.push(ExtensionSnippet {
-                        text: text.to_string(),
-                        file: file.to_path_buf(),
-                    });
+                ast::Definition::OperationDefinition(op) => {
+                    if let Some(op_input) = OperationInput::new(file, contents, op, &doc.sources) {
+                        operations.push(op_input);
+                    }
                 }
-            }
-        }
-
-        let mut operations = Vec::new();
-        for definition in doc.definitions() {
-            if let cst::Definition::OperationDefinition(def) = definition
-                && let Some(op) = OperationInput::new(file, contents, def)
-            {
-                operations.push(op);
+                other => {
+                    if let Some(span) = type_system_definition_span(other) {
+                        if let Some(text) = contents.get(span.offset()..span.end_offset()) {
+                            extensions.push(ExtensionSnippet {
+                                text: text.to_string(),
+                                file: file.to_path_buf(),
+                            });
+                        }
+                    }
+                }
             }
         }
 
@@ -91,27 +76,47 @@ pub(super) struct OperationInput {
 }
 
 impl OperationInput {
-    fn new(file: &Utf8Path, contents: &str, def: cst::OperationDefinition) -> Option<Self> {
-        def.name().and_then(|name| {
-            let range = def.syntax().text_range();
-            let start: usize = range.start().into();
-            let end: usize = range.end().into();
-            let body = contents.get(start..end)?.to_string();
-
-            let line = contents[..start].lines().count() + 1;
-            let column = contents[..start]
-                .rsplit_once('\n')
-                .map(|(_, rest)| rest.len() + 1)
-                .unwrap_or(1);
-
-            Some(Self {
-                name: name.syntax().text().to_string(),
-                body,
-                file: file.to_path_buf(),
-                line,
-                column,
-            })
+    fn new(
+        file: &Utf8Path,
+        contents: &str,
+        op: &Node<ast::OperationDefinition>,
+        sources: &apollo_compiler::parser::SourceMap,
+    ) -> Option<Self> {
+        let name = op.name.as_ref()?.to_string();
+        let span = op.location()?;
+        let body = contents.get(span.offset()..span.end_offset())?.to_string();
+        let loc = op.line_column_range(sources)?;
+        Some(Self {
+            name,
+            body,
+            file: file.to_path_buf(),
+            line: loc.start.line,
+            column: loc.start.column,
         })
+    }
+}
+
+fn type_system_definition_span(
+    def: &ast::Definition,
+) -> Option<apollo_compiler::parser::SourceSpan> {
+    use ast::Definition::*;
+    match def {
+        DirectiveDefinition(n) => n.location(),
+        SchemaDefinition(n) => n.location(),
+        ScalarTypeDefinition(n) => n.location(),
+        ObjectTypeDefinition(n) => n.location(),
+        InterfaceTypeDefinition(n) => n.location(),
+        UnionTypeDefinition(n) => n.location(),
+        EnumTypeDefinition(n) => n.location(),
+        InputObjectTypeDefinition(n) => n.location(),
+        SchemaExtension(n) => n.location(),
+        ScalarTypeExtension(n) => n.location(),
+        ObjectTypeExtension(n) => n.location(),
+        InterfaceTypeExtension(n) => n.location(),
+        UnionTypeExtension(n) => n.location(),
+        EnumTypeExtension(n) => n.location(),
+        InputObjectTypeExtension(n) => n.location(),
+        OperationDefinition(_) | FragmentDefinition(_) => unreachable!(),
     }
 }
 
@@ -219,10 +224,9 @@ mod tests {
     /// line.
     #[rstest]
     fn indented_operation_has_correct_column(file: Utf8PathBuf) {
-        // lines().count() counts the indent spaces as a segment, so line is 3 not 2.
         let content = "# comment\n  query Hello { __typename }";
         let pf = ParsedFile::new(&file, content).unwrap();
-        assert_eq!(pf.operations[0].line, 3);
+        assert_eq!(pf.operations[0].line, 2);
         assert_eq!(pf.operations[0].column, 3);
     }
 }
