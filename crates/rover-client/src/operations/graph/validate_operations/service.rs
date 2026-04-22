@@ -123,13 +123,18 @@ where
 pub mod mock {
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 
-    use super::{ValidateOperationsQuery, validate_operations_query};
+    use super::{validate_operations_query, ValidateOperationsQuery};
 
     pub type ValidateOpsReq = GraphQLRequest<ValidateOperationsQuery>;
     pub type ValidateOpsResp = validate_operations_query::ResponseData;
     pub type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
 
-    rover_tower::mock_service!(ValidateOpsInner, ValidateOpsReq, ValidateOpsResp, ValidateOpsErr);
+    rover_tower::mock_service!(
+        ValidateOpsInner,
+        ValidateOpsReq,
+        ValidateOpsResp,
+        ValidateOpsErr
+    );
 }
 
 #[cfg(test)]
@@ -141,8 +146,7 @@ mod tests {
     use serde_json::json;
     use tower::ServiceExt;
 
-    use super::mock::MockValidateOpsInnerService;
-    use super::*;
+    use super::{mock::MockValidateOpsInnerService, *};
     use crate::{
         operations::graph::validate_operations::types::{
             OperationDocument, ValidateOperationsInput,
