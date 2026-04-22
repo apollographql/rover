@@ -247,11 +247,15 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].operation_name, "MyQuery");
-        assert_eq!(results[0].r#type, ValidationResultType::Warning);
-        assert_eq!(results[0].code, ValidationErrorCode::DeprecatedField);
-        assert_eq!(results[0].description, "field is deprecated");
+        assert_eq!(
+            serde_json::to_value(&results).unwrap(),
+            json!([{
+                "operation_name": "MyQuery",
+                "type": "WARNING",
+                "code": "DEPRECATED_FIELD",
+                "description": "field is deprecated"
+            }])
+        );
     }
 
     /// Verifies that a null graph in the response yields an empty result list rather than an error.
@@ -270,7 +274,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(results.is_empty());
+        assert_eq!(serde_json::to_value(&results).unwrap(), json!([]));
     }
 
     /// Verifies that an InvalidCredentials inner error is translated to a PermissionError rather
