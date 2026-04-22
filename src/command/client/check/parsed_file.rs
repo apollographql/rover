@@ -172,15 +172,18 @@ mod tests {
         assert!(names.contains(&"B"));
     }
 
-    /// Verifies that a fragment definition is stored in the fragments map rather than the
-    /// operations list.
+    /// Verifies that a fragment definition is stored in the fragments map keyed by its name,
+    /// rather than the operations list.
     #[rstest]
     fn fragment_goes_into_fragments_map(file: Utf8PathBuf) {
-        let pf = ParsedFile::new(&file, "fragment F on Query { __typename }").unwrap();
+        let pf = ParsedFile::new(&file, "fragment MyFragment on Query { __typename }").unwrap();
         assert!(pf.operations.is_empty());
         assert!(pf.extensions.is_empty());
-        assert!(pf.fragments.contains_key("F"));
-        assert!(pf.fragments["F"].contains("fragment F"));
+        let fragment_body = pf
+            .fragments
+            .get("MyFragment")
+            .expect("fragment should be keyed by its name");
+        assert!(fragment_body.contains("fragment MyFragment"));
     }
 
     /// Verifies that a schema extension definition is stored in the extensions list rather than
@@ -201,13 +204,13 @@ mod tests {
     fn mixed_content_split_into_correct_buckets(file: Utf8PathBuf) {
         let content = indoc::indoc! {"
             query Hello { __typename }
-            fragment F on Query { __typename }
+            fragment MyFragment on Query { __typename }
             extend type Query { world: String }
         "};
         let pf = ParsedFile::new(&file, content).unwrap();
         assert_eq!(pf.operations.len(), 1);
         assert_eq!(pf.operations[0].name, "Hello");
-        assert!(pf.fragments.contains_key("F"));
+        assert!(pf.fragments.contains_key("MyFragment"));
         assert_eq!(pf.extensions.len(), 1);
     }
 
