@@ -78,6 +78,65 @@ fn client_check_hits_validate_operations() {
     );
 }
 
+/// Verifies that when the API returns no validation results the command exits successfully and
+/// the JSON output shows an empty validation_results array.
+#[test]
+#[serial]
+fn client_check_succeeds_with_no_validation_results() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST);
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"data": {"graph": {"validateOperations": {"validationResults": []}}}}"#);
+    });
+
+    let temp = tempfile::tempdir().unwrap();
+    let graphql = temp.path().join("op.graphql");
+    fs::write(&graphql, "query Hello { hello }").unwrap();
+
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .env("APOLLO_KEY", "testkey")
+        .env("APOLLO_REGISTRY_URL", server.base_url())
+        .current_dir(temp.path())
+        .arg("client")
+        .arg("check")
+        .arg("graph@current")
+        .arg("--include")
+        .arg(graphql.to_str().unwrap())
+        .arg("--format")
+        .arg("json")
+        .output()
+        .unwrap();
+
+    mock.assert();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "json_version": "1",
+            "data": {
+                "client_check": {
+                    "graph_ref": "graph@current",
+                    "files_scanned": 1,
+                    "operations_sent": 1,
+                    "failures": [],
+                    "validation_results": []
+                },
+                "success": true
+            },
+            "error": null
+        })
+    );
+}
+
 /// Verifies that a file with a GraphQL syntax error causes the command to fail and surface the
 /// parse error message in the JSON output.
 #[test]
