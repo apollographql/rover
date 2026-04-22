@@ -97,6 +97,27 @@ where
     }
 }
 
+pub(super) fn get_schema_from_response_data(
+    response_data: graph_fetch_query::ResponseData,
+    graph_ref: rover_studio::types::GraphRef,
+) -> Result<String, RoverClientError> {
+    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
+
+    let valid_variants = graph.variants.into_iter().map(|v| v.name).collect();
+
+    if let Some(publication) = graph.variant.and_then(|it| it.latest_publication) {
+        Ok(publication.schema.document)
+    } else {
+        Err(RoverClientError::NoSchemaForVariant {
+            graph_ref,
+            valid_variants,
+            frontend_url_root: response_data.frontend_url_root,
+        })
+    }
+}
+
 #[cfg(any(test, feature = "testing"))]
 pub mod mock {
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
@@ -231,26 +252,5 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(err, RoverClientError::NoSchemaForVariant { .. }));
-    }
-}
-
-pub(super) fn get_schema_from_response_data(
-    response_data: graph_fetch_query::ResponseData,
-    graph_ref: rover_studio::types::GraphRef,
-) -> Result<String, RoverClientError> {
-    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-
-    let valid_variants = graph.variants.into_iter().map(|v| v.name).collect();
-
-    if let Some(publication) = graph.variant.and_then(|it| it.latest_publication) {
-        Ok(publication.schema.document)
-    } else {
-        Err(RoverClientError::NoSchemaForVariant {
-            graph_ref,
-            valid_variants,
-            frontend_url_root: response_data.frontend_url_root,
-        })
     }
 }

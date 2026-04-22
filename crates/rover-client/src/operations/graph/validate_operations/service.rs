@@ -119,6 +119,48 @@ where
     }
 }
 
+impl
+    From<validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults>
+    for ValidationResult
+{
+    fn from(
+        result: validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults,
+    ) -> Self {
+        Self {
+            operation_name: result.operation.name.unwrap_or_default(),
+            r#type: match result.type_ {
+                validate_operations_query::ValidationErrorType::FAILURE => {
+                    ValidationResultType::Failure
+                }
+                validate_operations_query::ValidationErrorType::WARNING => {
+                    ValidationResultType::Warning
+                }
+                validate_operations_query::ValidationErrorType::INVALID => {
+                    ValidationResultType::Invalid
+                }
+                validate_operations_query::ValidationErrorType::Other(s) => {
+                    ValidationResultType::Unknown(s)
+                }
+            },
+            code: match result.code {
+                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => {
+                    ValidationErrorCode::NonParseableDocument
+                }
+                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => {
+                    ValidationErrorCode::InvalidOperation
+                }
+                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => {
+                    ValidationErrorCode::DeprecatedField
+                }
+                validate_operations_query::ValidationErrorCode::Other(s) => {
+                    ValidationErrorCode::Unknown(s)
+                }
+            },
+            description: result.description,
+        }
+    }
+}
+
 #[cfg(any(test, feature = "testing"))]
 pub mod mock {
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
@@ -264,47 +306,5 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(err, RoverClientError::Service { .. }));
-    }
-}
-
-impl
-    From<validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults>
-    for ValidationResult
-{
-    fn from(
-        result: validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults,
-    ) -> Self {
-        Self {
-            operation_name: result.operation.name.unwrap_or_default(),
-            r#type: match result.type_ {
-                validate_operations_query::ValidationErrorType::FAILURE => {
-                    ValidationResultType::Failure
-                }
-                validate_operations_query::ValidationErrorType::WARNING => {
-                    ValidationResultType::Warning
-                }
-                validate_operations_query::ValidationErrorType::INVALID => {
-                    ValidationResultType::Invalid
-                }
-                validate_operations_query::ValidationErrorType::Other(s) => {
-                    ValidationResultType::Unknown(s)
-                }
-            },
-            code: match result.code {
-                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => {
-                    ValidationErrorCode::NonParseableDocument
-                }
-                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => {
-                    ValidationErrorCode::InvalidOperation
-                }
-                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => {
-                    ValidationErrorCode::DeprecatedField
-                }
-                validate_operations_query::ValidationErrorCode::Other(s) => {
-                    ValidationErrorCode::Unknown(s)
-                }
-            },
-            description: result.description,
-        }
     }
 }
