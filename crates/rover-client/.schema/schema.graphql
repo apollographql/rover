@@ -449,9 +449,6 @@ enum BuildPipelineTrack {
 
   """Federation 2.13"""
   FED_2_13
-
-  """Federation 2.14"""
-  FED_2_14
   FED_2_3
   FED_2_4
   FED_2_5
@@ -6152,15 +6149,6 @@ type Graph implements Identity {
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
 
-  """Get a check workflow for this graph by its ID"""
-  checkWorkflow(id: ID!): CheckWorkflow
-
-  """
-  When this is true, this graph will be hidden from non-admin members of the org who haven't been explicitly assigned a
-  role on this graph.
-  """
-  hiddenFromUninvitedNonAdminAccountMembers: Boolean!
-
   """
    Returns a timeseries of operation metrics across a specified time range for this graph. This will return specified metrics (request count,
    avg latency, etc) grouped by time and the specified dimensions (query ID, query name, client name, etc). This API is rate limited and only
@@ -6256,6 +6244,15 @@ type Graph implements Identity {
     """
     to: Timestamp!
   ): SchemaCoordinateInsightsTimeseriesReportResult!
+
+  """Get a check workflow for this graph by its ID"""
+  checkWorkflow(id: ID!): CheckWorkflow
+
+  """
+  When this is true, this graph will be hidden from non-admin members of the org who haven't been explicitly assigned a
+  role on this graph.
+  """
+  hiddenFromUninvitedNonAdminAccountMembers: Boolean!
 
   """
    Returns a timeseries of subgraph and connector fetch metrics across a specified time range for this graph. Each
