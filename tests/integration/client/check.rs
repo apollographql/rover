@@ -1,6 +1,7 @@
 use std::fs;
 
 use assert_cmd::Command;
+use dunce::canonicalize;
 use httpmock::{Method::POST, MockServer};
 use serde_json::Value;
 use serial_test::serial;
@@ -47,8 +48,8 @@ fn client_check_hits_validate_operations() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let graphql_canonical = graphql.canonicalize().unwrap();
-    let graphql_path = graphql_canonical.to_str().unwrap();
+    let graphql_path = canonicalize(&graphql).unwrap();
+    let graphql_path = graphql_path.to_str().unwrap();
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(
@@ -146,10 +147,9 @@ fn client_check_fails_on_parse_error() {
     let graphql = temp.path().join("bad.graphql");
     fs::write(&graphql, content).unwrap();
 
-    // Compute expected error using the same parser the code uses, with the
-    // canonical path that GlobWalker resolves to on macOS.
-    let graphql_canonical = graphql.canonicalize().unwrap();
-    let graphql_path = graphql_canonical.to_str().unwrap();
+    let graphql_path = canonicalize(&graphql).unwrap();
+    let graphql_path = graphql_path.to_str().unwrap();
+
     let errors: Vec<_> = apollo_parser::Parser::new(content)
         .parse()
         .errors()

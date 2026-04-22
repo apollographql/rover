@@ -116,6 +116,7 @@ derive-getters = "0.5"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 directories-next = "2"
 dotenvy = "0.15"
+dunce = "1"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
@@ -208,6 +209,7 @@ console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 dotenvy = { workspace = true }
+dunce = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 graphql_client = { workspace = true }
@@ -263,6 +265,7 @@ apollo-parser = { workspace = true }
 assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3"
+dunce = { workspace = true }
 duct = "1"
 git2 = { workspace = true }
 graphql-schema-diff = "0.2"

@@ -147,16 +147,22 @@ impl Check {
             }
         };
 
-        let canonical_root = root
-            .canonicalize()
+        // Use dunce::canonicalize so paths on Windows don't carry the \\?\ UNC prefix that
+        // std::fs::canonicalize adds. This keeps error messages readable and lets test code
+        // independently compute expected paths with the same function.
+        let canonical_root = dunce::canonicalize(root.as_std_path())
             .unwrap_or_else(|_| root.as_std_path().to_path_buf());
+        let canonical_root_utf8 =
+            Utf8PathBuf::from_path_buf(canonical_root.clone()).unwrap_or(root);
+
         let includes: Vec<String> = self
             .include
             .iter()
             .map(|p| {
                 let path = std::path::Path::new(p);
                 if path.is_absolute() {
-                    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+                    let canonical =
+                        dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
                     canonical
                         .strip_prefix(&canonical_root)
                         .map(|rel| rel.to_string_lossy().into_owned())
@@ -168,7 +174,7 @@ impl Check {
             .collect();
 
         let files = FileSearch::builder()
-            .root(root)
+            .root(canonical_root_utf8)
             .includes(includes)
             .excludes(self.exclude.clone())
             .build()
