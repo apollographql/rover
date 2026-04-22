@@ -188,7 +188,10 @@ mod tests {
     use serde_json::json;
     use tower::ServiceExt;
 
-    use super::{mock::MockValidateOpsInnerService, *};
+    use super::{
+        mock::{MockValidateOpsInnerService, ValidateOpsResp},
+        *,
+    };
     use crate::{
         operations::graph::validate_operations::types::{
             OperationDocument, ValidateOperationsInput,

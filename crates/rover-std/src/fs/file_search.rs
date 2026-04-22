@@ -84,7 +84,7 @@ mod tests {
         fs::write(&file_c, "query C { x }").unwrap();
 
         let search = FileSearch::builder()
-            .root(root.clone())
+            .root(root)
             .includes(vec!["nested/**".to_string()])
             .excludes(vec!["nested/ignore.graphql".to_string()])
             .build();
@@ -105,7 +105,7 @@ mod tests {
         fs::write(&nested, "query Ignore { x }").unwrap();
 
         let files = FileSearch::builder()
-            .root(root.clone())
+            .root(root)
             .build()
             .find(&["graphql"])
             .unwrap();
