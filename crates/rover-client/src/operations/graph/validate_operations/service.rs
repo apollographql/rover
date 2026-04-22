@@ -119,20 +119,18 @@ where
     }
 }
 
-#[cfg(test)]
-type ValidateOpsReq = GraphQLRequest<ValidateOperationsQuery>;
-#[cfg(test)]
-type ValidateOpsResp = validate_operations_query::ResponseData;
-#[cfg(test)]
-type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 
-#[cfg(test)]
-rover_tower::mock_service!(
-    ValidateOpsInner,
-    ValidateOpsReq,
-    ValidateOpsResp,
-    ValidateOpsErr
-);
+    use super::{ValidateOperationsQuery, validate_operations_query};
+
+    pub type ValidateOpsReq = GraphQLRequest<ValidateOperationsQuery>;
+    pub type ValidateOpsResp = validate_operations_query::ResponseData;
+    pub type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
+
+    rover_tower::mock_service!(ValidateOpsInner, ValidateOpsReq, ValidateOpsResp, ValidateOpsErr);
+}
 
 #[cfg(test)]
 mod tests {
@@ -143,6 +141,7 @@ mod tests {
     use serde_json::json;
     use tower::ServiceExt;
 
+    use super::mock::MockValidateOpsInnerService;
     use super::*;
     use crate::{
         operations::graph::validate_operations::types::{
