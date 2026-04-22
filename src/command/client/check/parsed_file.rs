@@ -81,6 +81,40 @@ impl ParsedFile {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct OperationInput {
+    pub(super) name: String,
+    pub(super) body: String,
+    pub(super) file: Utf8PathBuf,
+    pub(super) line: usize,
+    pub(super) column: usize,
+}
+
+impl OperationInput {
+    fn new(file: &Utf8Path, contents: &str, def: cst::OperationDefinition) -> Option<Self> {
+        def.name().and_then(|name| {
+            let range = def.syntax().text_range();
+            let start: usize = range.start().into();
+            let end: usize = range.end().into();
+            let body = contents.get(start..end)?.to_string();
+
+            let line = contents[..start].lines().count() + 1;
+            let column = contents[..start]
+                .rsplit_once('\n')
+                .map(|(_, rest)| rest.len() + 1)
+                .unwrap_or(1);
+
+            Some(Self {
+                name: name.syntax().text().to_string(),
+                body,
+                file: file.to_path_buf(),
+                line,
+                column,
+            })
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use camino::Utf8PathBuf;
@@ -190,39 +224,5 @@ mod tests {
         let pf = ParsedFile::new(&file, content).unwrap();
         assert_eq!(pf.operations[0].line, 3);
         assert_eq!(pf.operations[0].column, 3);
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct OperationInput {
-    pub(super) name: String,
-    pub(super) body: String,
-    pub(super) file: Utf8PathBuf,
-    pub(super) line: usize,
-    pub(super) column: usize,
-}
-
-impl OperationInput {
-    fn new(file: &Utf8Path, contents: &str, def: cst::OperationDefinition) -> Option<Self> {
-        def.name().and_then(|name| {
-            let range = def.syntax().text_range();
-            let start: usize = range.start().into();
-            let end: usize = range.end().into();
-            let body = contents.get(start..end)?.to_string();
-
-            let line = contents[..start].lines().count() + 1;
-            let column = contents[..start]
-                .rsplit_once('\n')
-                .map(|(_, rest)| rest.len() + 1)
-                .unwrap_or(1);
-
-            Some(Self {
-                name: name.syntax().text().to_string(),
-                body,
-                file: file.to_path_buf(),
-                line,
-                column,
-            })
-        })
     }
 }
