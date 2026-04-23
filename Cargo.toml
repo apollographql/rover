@@ -80,7 +80,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-compiler = "1.30"
+apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
