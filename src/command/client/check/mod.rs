@@ -1,7 +1,7 @@
 mod output;
 mod parsed_file;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use camino::Utf8PathBuf;
 use clap::Parser as ClapParser;
@@ -64,6 +64,11 @@ enum ClientCheckError {
     MissingGraphRef,
     #[error("current directory is not utf-8")]
     NonUtf8CurrentDir,
+    #[error(
+        "Conflicting fragment bodies detected across multiple files:\n  {}",
+        .0.iter().join("\n  ")
+    )]
+    FragmentConflicts(Vec<String>),
 }
 
 #[derive(thiserror::Error, Debug, Serialize, Clone, PartialEq, Eq)]
@@ -104,7 +109,7 @@ impl Check {
         git_context: rover_client::shared::GitContext,
     ) -> RoverResult<RoverOutput> {
         let parsed_files = self.find_and_parse_files()?;
-        let (operations, extensions) = gather_inputs(&parsed_files);
+        let (operations, extensions) = gather_inputs(&parsed_files)?;
 
         if operations.is_empty() {
             Err(ClientCheckError::NoOperations)?;
@@ -229,12 +234,39 @@ fn parse_graphql_files(files: Vec<Utf8PathBuf>) -> RoverResult<Vec<ParsedFile>> 
     Ok(parsed_files)
 }
 
-fn gather_inputs(parsed_files: &[ParsedFile]) -> (Vec<OperationInput>, Vec<ExtensionSnippet>) {
+fn gather_inputs(
+    parsed_files: &[ParsedFile],
+) -> Result<(Vec<OperationInput>, Vec<ExtensionSnippet>), ClientCheckError> {
+    let mut seen: HashMap<&str, &str> = HashMap::new();
+    let mut conflicts: BTreeSet<&str> = BTreeSet::new();
+    for file in parsed_files {
+        for (name, text) in &file.fragments {
+            match seen.get(name.as_str()) {
+                Some(existing) if *existing != text.as_str() => {
+                    conflicts.insert(name.as_str());
+                }
+                None => {
+                    seen.insert(name.as_str(), text.as_str());
+                }
+                _ => {}
+            }
+        }
+    }
+    if !conflicts.is_empty() {
+        let names = conflicts.into_iter().map(str::to_owned).collect();
+        return Err(ClientCheckError::FragmentConflicts(names));
+    }
+
     let fragments_text = {
-        let all_fragments: BTreeMap<_, _> = parsed_files
+        use std::hash::{DefaultHasher, Hash, Hasher};
+        let all_fragments: BTreeMap<u64, _> = parsed_files
             .iter()
-            .flat_map(|f| f.fragments.iter())
-            .map(|(k, v)| (k.clone(), v.clone()))
+            .flat_map(|f| f.fragments.values())
+            .map(|v| {
+                let mut hasher = DefaultHasher::new();
+                v.hash(&mut hasher);
+                (hasher.finish(), v.clone())
+            })
             .collect();
         all_fragments.into_values().join("\n\n")
     };
@@ -257,7 +289,7 @@ fn gather_inputs(parsed_files: &[ParsedFile]) -> (Vec<OperationInput>, Vec<Exten
         .flat_map(|f| f.extensions.iter().cloned())
         .collect();
 
-    (operations, extensions)
+    Ok((operations, extensions))
 }
 
 async fn fetch_and_validate_extensions(
@@ -407,7 +439,7 @@ mod tests {
     /// Verifies that an empty file list produces no operations or extensions.
     #[rstest]
     fn gather_inputs_empty_files() {
-        let (ops, exts) = gather_inputs(&[]);
+        let (ops, exts) = gather_inputs(&[]).unwrap();
         assert!(ops.is_empty());
         assert!(exts.is_empty());
     }
@@ -416,7 +448,7 @@ mod tests {
     /// suffix appended to the body.
     #[rstest]
     fn gather_inputs_single_operation_no_fragments(parsed: ParsedFile) {
-        let (ops, exts) = gather_inputs(&[parsed]);
+        let (ops, exts) = gather_inputs(&[parsed]).unwrap();
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].name, "Hello");
         assert!(!ops[0].body.contains("fragment"));
@@ -430,7 +462,7 @@ mod tests {
         #[with(String::from("query Hello { ...F }\nfragment F on Query { __typename }"))]
         parsed: ParsedFile,
     ) {
-        let (ops, _) = gather_inputs(&[parsed]);
+        let (ops, _) = gather_inputs(&[parsed]).unwrap();
         assert_eq!(ops.len(), 1);
         assert!(ops[0].body.contains("fragment F"));
     }
@@ -442,14 +474,14 @@ mod tests {
         #[with(String::from("extend type Query { world: String }\nquery Hello { __typename }"))]
         parsed: ParsedFile,
     ) {
-        let (ops, exts) = gather_inputs(&[parsed]);
+        let (ops, exts) = gather_inputs(&[parsed]).unwrap();
         assert_eq!(ops.len(), 1);
         assert_eq!(exts.len(), 1);
         assert!(exts[0].text.contains("extend type Query"));
     }
 
     /// Verifies that the same fragment defined in multiple files appears only once in each
-    /// operation body (BTreeMap deduplication by name).
+    /// operation body (content-hash deduplication).
     #[rstest]
     fn gather_inputs_deduplicates_fragments_across_files() {
         let pf1 = parsed(String::from(
@@ -458,10 +490,24 @@ mod tests {
         let pf2 = parsed(String::from(
             "query B { ...F }\nfragment F on Query { __typename }",
         ));
-        let (ops, _) = gather_inputs(&[pf1, pf2]);
+        let (ops, _) = gather_inputs(&[pf1, pf2]).unwrap();
         assert_eq!(ops.len(), 2);
         assert_eq!(ops[0].body.matches("fragment F").count(), 1);
         assert_eq!(ops[1].body.matches("fragment F").count(), 1);
+    }
+
+    /// Verifies that fragments with the same name but different bodies across files produce an
+    /// error rather than silently sending a malformed document to the server.
+    #[rstest]
+    fn gather_inputs_errors_on_conflicting_fragment_bodies() {
+        let pf1 = parsed(String::from(
+            "query A { ...F }\nfragment F on Query { field1 }",
+        ));
+        let pf2 = parsed(String::from(
+            "query B { ...F }\nfragment F on Query { field2 }",
+        ));
+        let err = gather_inputs(&[pf1, pf2]).unwrap_err();
+        assert!(matches!(err, ClientCheckError::FragmentConflicts(ref names) if names == &["F"]));
     }
 
     // annotate_with_locations
