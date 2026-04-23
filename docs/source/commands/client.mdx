@@ -1,0 +1,96 @@
+---
+title: Rover client Commands
+subtitle: Validate client operations against your GraphQL schema
+description: Use the rover client check command to validate that your client's GraphQL operations are compatible with your graph's published schema.
+---
+
+import AuthNotice from '../../../shared/auth-notice.mdx';
+
+## `client check`
+
+<AuthNotice />
+
+Use `rover client check` to validate that every named GraphQL operation in your client project is compatible with your graph's published schema in GraphOS.
+
+```bash
+rover client check my-graph@my-variant --include "src/**/*.graphql"
+```
+
+The argument `my-graph@my-variant` is a [graph ref](../conventions/#graph-refs) that identifies the GraphOS graph and [variant](/graphos/graphs/#variants) to validate against. If you omit the variant, Rover uses the default variant named `current`.
+
+### File discovery
+
+Rover scans for `.graphql` files using the glob patterns you provide. You can specify multiple `--include` patterns and optionally exclude paths with `--exclude`.
+
+```bash
+rover client check my-graph@staging \
+  --include "src/**/*.graphql" \
+  --exclude "src/__generated__/**"
+```
+
+By default, Rover scans from the current working directory. Use `--root-dir` to scan from a different location:
+
+```bash
+rover client check my-graph@staging \
+  --root-dir /path/to/client \
+  --include "**/*.graphql"
+```
+
+### Operation requirements
+
+All operations must be **named**. Anonymous operations (for example, `{ user { name } }`) are rejected with an error. Give every operation an explicit name:
+
+```graphql
+# Invalid — will error
+{ user { name } }
+
+# Valid
+query GetUser {
+  user { name }
+}
+```
+
+### Fragment deduplication and conflicts
+
+Fragments defined identically across multiple files are deduplicated automatically. However, if two files define a fragment with the **same name but different bodies**, `rover client check` returns an error listing the conflicting fragment names. Resolve conflicts by ensuring each fragment name is unique or that all files use an identical definition.
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--include <PATTERN>` | Glob pattern for `.graphql` files to include. Repeatable. |
+| `--exclude <PATTERN>` | Glob pattern for files to exclude. Repeatable. |
+| `--root-dir <DIR>` | Root directory to scan from. Defaults to the current working directory. |
+| `--graph <GRAPH_REF>` | Graph ref (`graph@variant`) to validate against. |
+| `--profile <PROFILE>` | [Configuration profile](../configuring/#profiles) to use for authentication. |
+| `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
+| `--output <FILE>` | Write output to a file instead of stdout. |
+
+### Output
+
+For each operation, `rover client check` reports whether it passed validation and, for failures, the specific error code and description:
+
+```
+GetUser: src/queries/user.graphql:4
+
+  FAILURE  Field "legacyId" was removed from type "User".
+
+10 total operations validated
+1 failure
+```
+
+The command exits with code `1` if any operation fails validation, making it straightforward to fail a CI pipeline.
+
+### Using with continuous integration
+
+`rover client check` is designed for use in CI pipelines. Configure it to check operations against the variant that matches your deployment environment:
+
+```yaml title="config.yml"
+# Example: GitHub Actions
+- name: Validate client operations
+  run: |
+    rover client check my-graph@production \
+      --include "src/**/*.graphql"
+  env:
+    APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+```

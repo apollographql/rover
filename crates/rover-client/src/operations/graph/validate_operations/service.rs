@@ -63,8 +63,11 @@ where
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        tower::Service::<GraphQLRequest<ValidateOperationsMutation>>::poll_ready(&mut self.inner, cx)
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))
+        tower::Service::<GraphQLRequest<ValidateOperationsMutation>>::poll_ready(
+            &mut self.inner,
+            cx,
+        )
+        .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))
     }
 
     fn call(&mut self, req: ValidateOperationsRequest) -> Self::Future {

@@ -263,11 +263,7 @@ impl Rover {
             Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
             Command::Client(command) => {
                 command
-                    .run(
-                        self.get_client_config()?,
-                        self.get_git_context()?,
-                        &self.output_opts,
-                    )
+                    .run(self.get_client_config()?, self.get_git_context()?)
                     .await
             }
         }
