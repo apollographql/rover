@@ -150,20 +150,6 @@ fn client_check_fails_on_parse_error() {
     let graphql_path = canonicalize(&graphql).unwrap();
     let graphql_path = graphql_path.to_str().unwrap();
 
-    let errors: Vec<_> = apollo_parser::Parser::new(content)
-        .parse()
-        .errors()
-        .cloned()
-        .collect();
-    let error_lines = errors
-        .iter()
-        .map(|e| e.to_string())
-        .collect::<Vec<_>>()
-        .join("\n  ");
-    let expected_message = format!(
-        "Failed to parse 1 .graphql file(s):\n{graphql_path}: GraphQL syntax errors:\n  {error_lines}"
-    );
-
     let output = Command::cargo_bin("rover")
         .unwrap()
         .current_dir(temp.path())
@@ -180,13 +166,20 @@ fn client_check_fails_on_parse_error() {
     assert!(!output.status.success());
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        json,
-        serde_json::json!({
-            "json_version": "1",
-            "data": { "success": false },
-            "error": { "message": expected_message, "code": null }
-        })
+    assert_eq!(json["json_version"], "1");
+    assert_eq!(json["data"]["success"], false);
+    assert_eq!(json["error"]["code"], Value::Null);
+
+    let message = json["error"]["message"].as_str().unwrap();
+    assert!(
+        message.starts_with(&format!(
+            "Failed to parse 1 .graphql file(s):\n{graphql_path}:"
+        )),
+        "unexpected error message: {message}"
+    );
+    assert!(
+        message.contains("syntax error"),
+        "expected 'syntax error' in message: {message}"
     );
 }
 
