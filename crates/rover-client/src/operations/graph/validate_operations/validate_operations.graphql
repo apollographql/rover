@@ -1,4 +1,4 @@
-mutation ValidateOperationsQuery(
+mutation ValidateOperationsMutation(
   $graphId: ID!
   $variant: String!
   $operations: [OperationDocumentInput!]!

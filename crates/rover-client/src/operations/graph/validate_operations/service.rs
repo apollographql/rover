@@ -16,7 +16,7 @@ use crate::{EndpointKind, RoverClientError};
     response_derives = "Clone, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct ValidateOperationsQuery;
+pub struct ValidateOperationsMutation;
 
 /// Request type for validating operations via the tower [`ValidateOperations`] service.
 pub struct ValidateOperationsRequest {
@@ -46,9 +46,9 @@ impl<S: Clone> ValidateOperations<S> {
 impl<S, Fut> Service<ValidateOperationsRequest> for ValidateOperations<S>
 where
     S: Service<
-            GraphQLRequest<ValidateOperationsQuery>,
-            Response = validate_operations_query::ResponseData,
-            Error = GraphQLServiceError<validate_operations_query::ResponseData>,
+            GraphQLRequest<ValidateOperationsMutation>,
+            Response = validate_operations_mutation::ResponseData,
+            Error = GraphQLServiceError<validate_operations_mutation::ResponseData>,
             Future = Fut,
         > + Clone
         + Send
@@ -63,7 +63,7 @@ where
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        tower::Service::<GraphQLRequest<ValidateOperationsQuery>>::poll_ready(&mut self.inner, cx)
+        tower::Service::<GraphQLRequest<ValidateOperationsMutation>>::poll_ready(&mut self.inner, cx)
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))
     }
 
@@ -73,18 +73,18 @@ where
         let fut = async move {
             let input = req.input;
             let (graph_id, variant) = input.graph_ref.into_parts();
-            let variables = validate_operations_query::Variables {
+            let variables = validate_operations_mutation::Variables {
                 graph_id,
                 variant,
                 operations: input
                     .operations
                     .into_iter()
-                    .map(|op| validate_operations_query::OperationDocumentInput {
+                    .map(|op| validate_operations_mutation::OperationDocumentInput {
                         name: Some(op.name),
                         body: op.body,
                     })
                     .collect(),
-                git_context: Some(validate_operations_query::GitContextInput {
+                git_context: Some(validate_operations_mutation::GitContextInput {
                     branch: input.git_context.branch,
                     commit: input.git_context.commit,
                     committer: input.git_context.author,
@@ -93,7 +93,7 @@ where
                 }),
             };
             inner
-                .call(GraphQLRequest::<ValidateOperationsQuery>::new(variables))
+                .call(GraphQLRequest::<ValidateOperationsMutation>::new(variables))
                 .await
                 .map_err(|err| match err {
                     GraphQLServiceError::InvalidCredentials() => {
@@ -120,39 +120,39 @@ where
 }
 
 impl
-    From<validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults>
+    From<validate_operations_mutation::ValidateOperationsMutationGraphValidateOperationsValidationResults>
     for ValidationResult
 {
     fn from(
-        result: validate_operations_query::ValidateOperationsQueryGraphValidateOperationsValidationResults,
+        result: validate_operations_mutation::ValidateOperationsMutationGraphValidateOperationsValidationResults,
     ) -> Self {
         Self {
             operation_name: result.operation.name.unwrap_or_default(),
             r#type: match result.type_ {
-                validate_operations_query::ValidationErrorType::FAILURE => {
+                validate_operations_mutation::ValidationErrorType::FAILURE => {
                     ValidationResultType::Failure
                 }
-                validate_operations_query::ValidationErrorType::WARNING => {
+                validate_operations_mutation::ValidationErrorType::WARNING => {
                     ValidationResultType::Warning
                 }
-                validate_operations_query::ValidationErrorType::INVALID => {
+                validate_operations_mutation::ValidationErrorType::INVALID => {
                     ValidationResultType::Invalid
                 }
-                validate_operations_query::ValidationErrorType::Other(s) => {
+                validate_operations_mutation::ValidationErrorType::Other(s) => {
                     ValidationResultType::Unknown(s)
                 }
             },
             code: match result.code {
-                validate_operations_query::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => {
+                validate_operations_mutation::ValidationErrorCode::NON_PARSEABLE_DOCUMENT => {
                     ValidationErrorCode::NonParseableDocument
                 }
-                validate_operations_query::ValidationErrorCode::INVALID_OPERATION => {
+                validate_operations_mutation::ValidationErrorCode::INVALID_OPERATION => {
                     ValidationErrorCode::InvalidOperation
                 }
-                validate_operations_query::ValidationErrorCode::DEPRECATED_FIELD => {
+                validate_operations_mutation::ValidationErrorCode::DEPRECATED_FIELD => {
                     ValidationErrorCode::DeprecatedField
                 }
-                validate_operations_query::ValidationErrorCode::Other(s) => {
+                validate_operations_mutation::ValidationErrorCode::Other(s) => {
                     ValidationErrorCode::Unknown(s)
                 }
             },
@@ -165,11 +165,11 @@ impl
 pub mod mock {
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 
-    use super::{validate_operations_query, ValidateOperationsQuery};
+    use super::{validate_operations_mutation, ValidateOperationsMutation};
 
-    pub type ValidateOpsReq = GraphQLRequest<ValidateOperationsQuery>;
-    pub type ValidateOpsResp = validate_operations_query::ResponseData;
-    pub type ValidateOpsErr = GraphQLServiceError<validate_operations_query::ResponseData>;
+    pub type ValidateOpsReq = GraphQLRequest<ValidateOperationsMutation>;
+    pub type ValidateOpsResp = validate_operations_mutation::ResponseData;
+    pub type ValidateOpsErr = GraphQLServiceError<validate_operations_mutation::ResponseData>;
 
     rover_tower::mock_service!(
         ValidateOpsInner,
