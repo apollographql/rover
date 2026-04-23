@@ -603,6 +603,14 @@ impl RoverOutput {
         })
     }
 
+    pub fn exit_code(&self) -> i32 {
+        if let RoverOutput::CliOutput(cli_output) = self {
+            cli_output.exit_code()
+        } else {
+            0
+        }
+    }
+
     pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
             RoverOutput::ConfigWhoAmIOutput {

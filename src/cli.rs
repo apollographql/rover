@@ -165,13 +165,12 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
+                let exit_code = output.exit_code();
                 self.output_opts.handle_output(output)?;
-
-                process::exit(0);
+                process::exit(exit_code);
             }
             Err(error) => {
                 self.output_opts.handle_output(error)?;
-
                 process::exit(1);
             }
         }

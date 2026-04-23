@@ -51,13 +51,6 @@ impl RoverPrinter for RoverOutput {
             }
         }
 
-        if let RoverOutput::CliOutput(cli_output) = self {
-            let code = cli_output.exit_code();
-            if code != 0 {
-                std::process::exit(code);
-            }
-        }
-
         Ok(())
     }
 }
