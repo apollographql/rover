@@ -10,6 +10,8 @@ use crate::command::client::extensions::ExtensionSnippet;
 pub(super) enum ParsedFileError {
     #[error("{0}")]
     Syntax(String),
+    #[error("anonymous operations are not supported; all operations must have a name")]
+    AnonymousOperation,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +43,9 @@ impl ParsedFile {
                     }
                 }
                 ast::Definition::OperationDefinition(op) => {
+                    if op.name.is_none() {
+                        return Err(ParsedFileError::AnonymousOperation);
+                    }
                     if let Some(op_input) = OperationInput::new(file, contents, op, &doc.sources) {
                         operations.push(op_input);
                     }
@@ -152,14 +157,12 @@ mod tests {
         assert_eq!(pf.operations[0].column, 1);
     }
 
-    /// Verifies that an anonymous (unnamed) operation produces no operations, fragments, or
-    /// extensions.
+    /// Verifies that an anonymous (unnamed) operation returns an error, matching the behavior of
+    /// the original Apollo CLI.
     #[rstest]
-    fn anonymous_operation_is_ignored(file: Utf8PathBuf) {
-        let pf = ParsedFile::new(&file, "{ __typename }").unwrap();
-        assert!(pf.operations.is_empty());
-        assert!(pf.fragments.is_empty());
-        assert!(pf.extensions.is_empty());
+    fn anonymous_operation_returns_error(file: Utf8PathBuf) {
+        let result = ParsedFile::new(&file, "{ __typename }");
+        assert!(matches!(result, Err(ParsedFileError::AnonymousOperation)));
     }
 
     /// Verifies that all named operations in a multi-operation file are individually collected.
