@@ -36,10 +36,10 @@ impl ParsedFile {
             match definition {
                 ast::Definition::FragmentDefinition(fragment) => {
                     let name = fragment.name.to_string();
-                    if let Some(span) = fragment.location() {
-                        if let Some(text) = contents.get(span.offset()..span.end_offset()) {
-                            fragments.insert(name, text.to_string());
-                        }
+                    if let Some(span) = fragment.location()
+                        && let Some(text) = contents.get(span.offset()..span.end_offset())
+                    {
+                        fragments.insert(name, text.to_string());
                     }
                 }
                 ast::Definition::OperationDefinition(op) => {
@@ -51,13 +51,13 @@ impl ParsedFile {
                     }
                 }
                 other => {
-                    if let Some(span) = type_system_definition_span(other) {
-                        if let Some(text) = contents.get(span.offset()..span.end_offset()) {
-                            extensions.push(ExtensionSnippet {
-                                text: text.to_string(),
-                                file: file.to_path_buf(),
-                            });
-                        }
+                    if let Some(span) = type_system_definition_span(other)
+                        && let Some(text) = contents.get(span.offset()..span.end_offset())
+                    {
+                        extensions.push(ExtensionSnippet {
+                            text: text.to_string(),
+                            file: file.to_path_buf(),
+                        });
                     }
                 }
             }
