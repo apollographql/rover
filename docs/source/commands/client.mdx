@@ -58,25 +58,22 @@ Fragments defined identically across multiple files are deduplicated automatical
 
 | Option | Description |
 |---|---|
+| `[GRAPH_REF]` | Graph ref (`graph@variant`) to validate against (positional argument). |
 | `--include <PATTERN>` | Glob pattern for `.graphql` files to include. Repeatable. |
 | `--exclude <PATTERN>` | Glob pattern for files to exclude. Repeatable. |
 | `--root-dir <DIR>` | Root directory to scan from. Defaults to the current working directory. |
-| `--graph <GRAPH_REF>` | Graph ref (`graph@variant`) to validate against. |
 | `--profile <PROFILE>` | [Configuration profile](../configuring/#profiles) to use for authentication. |
 | `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
 | `--output <FILE>` | Write output to a file instead of stdout. |
 
 ### Output
 
-For each operation, `rover client check` reports whether it passed validation and, for failures, the specific error code and description:
+For each operation, `rover client check` reports whether it passed validation and, for failures, the specific error code and description. The first line shows the total operations and files scanned, followed by one entry per result:
 
 ```
-GetUser: src/queries/user.graphql:4
-
-  FAILURE  Field "legacyId" was removed from type "User".
-
-10 total operations validated
-1 failure
+Validated 10 operations (5 files scanned)
+GetUser: src/queries/user.graphql:4:1
+  FAILURE Field "legacyId" was removed from type "User".
 ```
 
 The command exits with code `1` if any operation fails validation, making it straightforward to fail a CI pipeline.

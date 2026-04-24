@@ -42,7 +42,7 @@ impl CliOutput for ClientCheckOutput {
                 ValidationResultType::Invalid => Style::WarningHeading.paint(&result.description),
                 _ => Style::Pending.paint(&result.description),
             };
-            lines.push(format!("{}{} {}", loc, result.r#type, styled_desc));
+            lines.push(format!("{}: {}\n  {} {}", result.operation_name, loc.trim_end(), result.r#type, styled_desc));
         }
 
         if !summary.failures.is_empty() {
@@ -156,7 +156,7 @@ mod tests {
         });
         assert_eq!(
             text,
-            "Validated 2 operations (3 files scanned)\nsrc/ops.graphql:1:5 WARNING be careful"
+            "Validated 2 operations (3 files scanned)\nHello: src/ops.graphql:1:5\n  WARNING be careful"
         );
     }
 
