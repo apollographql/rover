@@ -1,4 +1,5 @@
 mod check;
+mod check_and_publish;
 mod delete;
 mod fetch;
 mod introspect;
@@ -22,6 +23,10 @@ pub enum Command {
     /// Check for breaking changes in a local graph schema
     /// against a graph schema in the Apollo graph registry
     Check(check::Check),
+
+    /// Check a graph schema for breaking changes and, if the check passes, publish it
+    /// to the Apollo graph registry
+    CheckAndPublish(check_and_publish::CheckAndPublish),
 
     /// Delete a graph schema from the Apollo graph registry
     Delete(delete::Delete),
@@ -49,6 +54,11 @@ impl Graph {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
+            }
+            Command::CheckAndPublish(command) => {
                 command
                     .run(client_config, git_context, checks_timeout_seconds)
                     .await
