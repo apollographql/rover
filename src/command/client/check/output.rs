@@ -42,7 +42,13 @@ impl CliOutput for ClientCheckOutput {
                 ValidationResultType::Invalid => Style::WarningHeading.paint(&result.description),
                 _ => Style::Pending.paint(&result.description),
             };
-            lines.push(format!("{}: {}\n  {} {}", result.operation_name, loc.trim_end(), result.r#type, styled_desc));
+            lines.push(format!(
+                "{}: {}\n  {} {}",
+                result.operation_name,
+                loc.trim_end(),
+                result.r#type,
+                styled_desc
+            ));
         }
 
         if !summary.failures.is_empty() {
