@@ -5,6 +5,7 @@ on:
   pull_request:
   merge_group:
 
+name: Run Command E2E Tests
 jobs:
   introspection_e2e:
     name: introspection E2E
