@@ -55,6 +55,11 @@ pub trait CliOutput: Debug + Send {
 
     /// Structured JSON output.
     fn json(&self) -> Result<serde_json::Value, serde_json::Error>;
+
+    /// Process exit code; non-zero causes `rover` to exit with that code.
+    fn exit_code(&self) -> i32 {
+        0
+    }
 }
 
 /// RoverOutput defines all of the different types of data that are printed
@@ -596,6 +601,14 @@ impl RoverOutput {
             }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
+    }
+
+    pub fn exit_code(&self) -> i32 {
+        if let RoverOutput::CliOutput(cli_output) = self {
+            cli_output.exit_code()
+        } else {
+            0
+        }
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {

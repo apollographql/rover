@@ -1,0 +1,7 @@
+subscription OnOrderStatus($orderId: ID!) {
+  orderStatusChanged(orderId: $orderId) {
+    id
+    status
+    updatedAt
+  }
+}

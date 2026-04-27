@@ -80,7 +80,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-compiler = "1"
+apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
@@ -105,6 +105,7 @@ bytes = "1"
 cargo_metadata = "0.23"
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
+globwalk = "0.9"
 clap = "4"
 clap_complete = "4"
 chrono = "0.4"
@@ -115,6 +116,7 @@ derive-getters = "0.5"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 directories-next = "2"
 dotenvy = "0.15"
+dunce = "1"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
@@ -195,16 +197,19 @@ apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
+bon = { workspace = true }
 buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 clap_complete = { workspace = true }
 chrono = { workspace = true }
+comfy-table = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 dotenvy = { workspace = true }
+dunce = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 graphql_client = { workspace = true }
@@ -253,13 +258,14 @@ tower-lsp = { version = "0.20" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-comfy-table = { workspace = true }
 
 [dev-dependencies]
 apollo-compiler = { workspace = true }
+apollo-parser = { workspace = true }
 assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3"
+dunce = { workspace = true }
 duct = "1"
 git2 = { workspace = true }
 graphql-schema-diff = "0.2"

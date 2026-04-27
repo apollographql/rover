@@ -1,0 +1,668 @@
+mod output;
+mod parsed_file;
+
+use std::collections::{BTreeSet, HashMap};
+
+use camino::Utf8PathBuf;
+use clap::Parser as ClapParser;
+use itertools::Itertools;
+use parsed_file::{OperationInput, ParsedFile};
+use rover_client::operations::graph::{
+    fetch::{GraphFetch, GraphFetchInput, GraphFetchRequest},
+    validate_operations::{
+        OperationDocument, ValidateOperations, ValidateOperationsInput, ValidateOperationsRequest,
+        ValidationErrorCode, ValidationResultType,
+    },
+};
+use rover_graphql::GraphQLLayer;
+use rover_http::HttpService;
+use rover_std::FileSearch;
+use rover_studio::types::GraphRef;
+use serde::Serialize;
+use tower::{Service, ServiceBuilder, ServiceExt};
+
+use crate::{
+    RoverOutput, RoverResult,
+    command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
+    options::{OptionalGraphRefOpt, ProfileOpt},
+    utils::client::StudioClientConfig,
+};
+
+type GraphQlService = rover_graphql::GraphQLService<HttpService>;
+
+#[derive(Debug, Serialize, ClapParser)]
+pub struct Check {
+    /// Graph reference to validate against (optional; defaults to env/config)
+    #[clap(flatten)]
+    graph: OptionalGraphRefOpt,
+
+    #[clap(flatten)]
+    profile: ProfileOpt,
+
+    /// Glob patterns to include (e.g. `src/**/*.graphql`).
+    #[arg(long = "include", value_name = "PATTERN", action = clap::ArgAction::Append)]
+    include: Vec<String>,
+
+    /// Glob patterns to exclude (e.g. `**/__generated__/**`).
+    #[arg(long = "exclude", value_name = "PATTERN", action = clap::ArgAction::Append)]
+    exclude: Vec<String>,
+
+    /// Root directory to scan. Defaults to the current working directory.
+    #[arg(long = "root-dir", value_name = "DIR")]
+    root_dir: Option<Utf8PathBuf>,
+}
+
+#[derive(Debug, thiserror::Error)]
+enum ClientCheckError {
+    #[error("Failed to parse {} .graphql file(s):\n{}", .parse_failures.len(), .parse_failures.iter().join("\n"))]
+    ParseFailures {
+        parse_failures: Vec<ClientCheckFailure>,
+    },
+    #[error("No .graphql operations found under the provided includes")]
+    NoOperations,
+    #[error("A graph ref is required for client check.")]
+    MissingGraphRef,
+    #[error("current directory is not utf-8")]
+    NonUtf8CurrentDir,
+    #[error(
+        "Conflicting fragment bodies detected across multiple files:\n  {}",
+        .0.iter().join("\n  ")
+    )]
+    FragmentConflicts(Vec<String>),
+}
+
+#[derive(thiserror::Error, Debug, Serialize, Clone, PartialEq, Eq)]
+#[error("{file}: {message}")]
+/// A file-level parse or schema-extension failure encountered before network validation.
+pub struct ClientCheckFailure {
+    pub file: Utf8PathBuf,
+    pub message: String,
+}
+
+/// Aggregated result from a `rover client check` run.
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct ClientCheckSummary {
+    pub graph_ref: Option<String>,
+    pub files_scanned: usize,
+    pub operations_sent: usize,
+    pub failures: Vec<ClientCheckFailure>,
+    pub validation_results: Vec<ClientValidationResult>,
+    pub has_errors: bool,
+}
+
+/// A single operation-level validation result, enriched with source-location information.
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct ClientValidationResult {
+    pub operation_name: String,
+    pub r#type: ValidationResultType,
+    pub code: ValidationErrorCode,
+    pub description: String,
+    pub file: Option<Utf8PathBuf>,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
+}
+
+impl Check {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: rover_client::shared::GitContext,
+    ) -> RoverResult<RoverOutput> {
+        let parsed_files = self.find_and_parse_files()?;
+        let (operations, extensions) = gather_inputs(&parsed_files)?;
+
+        if operations.is_empty() {
+            Err(ClientCheckError::NoOperations)?;
+        }
+
+        let graph_ref = self.require_graph_ref()?;
+        let service = self.build_graphql_service(&client_config)?;
+
+        let extension_failures =
+            fetch_and_validate_extensions(&extensions, &graph_ref, service.clone()).await?;
+        let raw_results =
+            validate_operations_remotely(&operations, &graph_ref, &git_context, service).await?;
+        let validation_results = annotate_with_locations(raw_results, &operations);
+
+        let has_errors = validation_results.iter().any(|r| {
+            matches!(
+                r.r#type,
+                ValidationResultType::Failure | ValidationResultType::Invalid
+            )
+        }) || !extension_failures.is_empty();
+
+        Ok(RoverOutput::CliOutput(Box::new(
+            output::ClientCheckOutput::from(ClientCheckSummary {
+                graph_ref: Some(graph_ref.to_string()),
+                files_scanned: parsed_files.len(),
+                operations_sent: operations.len(),
+                failures: extension_failures,
+                validation_results,
+                has_errors,
+            }),
+        )))
+    }
+
+    fn find_and_parse_files(&self) -> RoverResult<Vec<ParsedFile>> {
+        let root = match &self.root_dir {
+            Some(r) => r.clone(),
+            None => {
+                let cwd = std::env::current_dir()?;
+                Utf8PathBuf::from_path_buf(cwd).map_err(|_| ClientCheckError::NonUtf8CurrentDir)?
+            }
+        };
+
+        // Use dunce::canonicalize so paths on Windows don't carry the \\?\ UNC prefix that
+        // std::fs::canonicalize adds. This keeps error messages readable and lets test code
+        // independently compute expected paths with the same function.
+        let canonical_root = dunce::canonicalize(root.as_std_path())
+            .unwrap_or_else(|_| root.as_std_path().to_path_buf());
+        let canonical_root_utf8 =
+            Utf8PathBuf::from_path_buf(canonical_root.clone()).unwrap_or(root);
+
+        let includes: Vec<String> = self
+            .include
+            .iter()
+            .map(|p| {
+                let path = std::path::Path::new(p);
+                if path.is_absolute() {
+                    let canonical =
+                        dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                    canonical
+                        .strip_prefix(&canonical_root)
+                        .map(|rel| rel.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| p.clone())
+                } else {
+                    p.clone()
+                }
+            })
+            .collect();
+
+        let files = FileSearch::builder()
+            .root(canonical_root_utf8)
+            .includes(includes)
+            .excludes(self.exclude.clone())
+            .build()
+            .find(&["graphql"])?;
+
+        parse_graphql_files(files)
+    }
+
+    fn require_graph_ref(&self) -> Result<GraphRef, ClientCheckError> {
+        self.graph
+            .graph_ref
+            .clone()
+            .ok_or(ClientCheckError::MissingGraphRef)
+    }
+
+    fn build_graphql_service(
+        &self,
+        client_config: &StudioClientConfig,
+    ) -> RoverResult<GraphQlService> {
+        let http_service = client_config.authenticated_service(&self.profile)?;
+        Ok(ServiceBuilder::new()
+            .layer(GraphQLLayer::default())
+            .service(http_service))
+    }
+}
+
+fn parse_graphql_files(files: Vec<Utf8PathBuf>) -> RoverResult<Vec<ParsedFile>> {
+    let results: Vec<Result<ParsedFile, ClientCheckFailure>> = files
+        .into_iter()
+        .map(|file| {
+            rover_std::Fs::read_file(&file)
+                .map_err(|e| ClientCheckFailure {
+                    file: file.clone(),
+                    message: e.to_string(),
+                })
+                .and_then(|contents| {
+                    ParsedFile::new(&file, &contents).map_err(|e| ClientCheckFailure {
+                        file: file.clone(),
+                        message: e.to_string(),
+                    })
+                })
+        })
+        .collect();
+
+    let (parsed_files, parse_failures): (Vec<ParsedFile>, Vec<ClientCheckFailure>) =
+        results.into_iter().partition_result();
+
+    if !parse_failures.is_empty() {
+        Err(ClientCheckError::ParseFailures { parse_failures })?;
+    }
+
+    Ok(parsed_files)
+}
+
+fn gather_inputs(
+    parsed_files: &[ParsedFile],
+) -> Result<(Vec<OperationInput>, Vec<ExtensionSnippet>), ClientCheckError> {
+    // Detect fragments with the same name but different bodies across files.
+    let mut seen: HashMap<&str, &str> = HashMap::new();
+    let mut conflicts: BTreeSet<&str> = BTreeSet::new();
+    for file in parsed_files {
+        for (name, text) in &file.fragments {
+            match seen.get(name.as_str()) {
+                Some(existing) if *existing != text.as_str() => {
+                    conflicts.insert(name.as_str());
+                }
+                None => {
+                    seen.insert(name.as_str(), text.as_str());
+                }
+                _ => {}
+            }
+        }
+    }
+    if !conflicts.is_empty() {
+        let names = conflicts.into_iter().map(str::to_owned).collect();
+        return Err(ClientCheckError::FragmentConflicts(names));
+    }
+
+    // Build a deduplicated fragment text map and a global dependency map.
+    let all_fragments: HashMap<&str, &str> = parsed_files
+        .iter()
+        .flat_map(|f| f.fragments.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+        .collect();
+
+    let all_fragment_deps: HashMap<&str, &BTreeSet<String>> = parsed_files
+        .iter()
+        .flat_map(|f| f.fragment_deps.iter().map(|(k, v)| (k.as_str(), v)))
+        .collect();
+
+    let operations = parsed_files
+        .iter()
+        .flat_map(|f| f.operations.iter())
+        .map(|op| {
+            let reachable = reachable_fragments(&op.fragment_spreads, &all_fragment_deps);
+            let fragments_text = reachable
+                .iter()
+                .filter_map(|name| all_fragments.get(name.as_str()).copied())
+                .join("\n\n");
+            let body = if fragments_text.is_empty() {
+                op.body.clone()
+            } else {
+                format!("{}\n\n{}", op.body, fragments_text)
+            };
+            OperationInput { body, ..op.clone() }
+        })
+        .collect();
+
+    let extensions = parsed_files
+        .iter()
+        .flat_map(|f| f.extensions.iter().cloned())
+        .collect();
+
+    Ok((operations, extensions))
+}
+
+/// Returns the set of fragment names transitively reachable from `seeds`.
+fn reachable_fragments(
+    seeds: &BTreeSet<String>,
+    deps: &HashMap<&str, &BTreeSet<String>>,
+) -> BTreeSet<String> {
+    let mut reachable = BTreeSet::new();
+    let mut queue: Vec<&str> = seeds.iter().map(String::as_str).collect();
+    while let Some(name) = queue.pop() {
+        if reachable.insert(name.to_owned())
+            && let Some(children) = deps.get(name)
+        {
+            queue.extend(children.iter().map(String::as_str));
+        }
+    }
+    reachable
+}
+
+async fn fetch_and_validate_extensions(
+    extensions: &[ExtensionSnippet],
+    graph_ref: &GraphRef,
+    service: GraphQlService,
+) -> RoverResult<Vec<ClientCheckFailure>> {
+    if extensions.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut fetch_service = GraphFetch::new(service);
+    let fetch_service = fetch_service.ready().await?;
+    let sdl = fetch_service
+        .call(GraphFetchRequest::new(GraphFetchInput {
+            graph_ref: graph_ref.clone(),
+        }))
+        .await?
+        .sdl
+        .contents;
+
+    let failures = validate_extensions(&sdl, &graph_ref.to_string(), extensions)
+        .into_iter()
+        .map(|f| ClientCheckFailure {
+            file: f.file.clone(),
+            message: format_extension_failure(f),
+        })
+        .collect();
+
+    Ok(failures)
+}
+
+async fn validate_operations_remotely(
+    operations: &[OperationInput],
+    graph_ref: &GraphRef,
+    git_context: &rover_client::shared::GitContext,
+    service: GraphQlService,
+) -> RoverResult<Vec<ClientValidationResult>> {
+    let op_inputs = operations
+        .iter()
+        .map(|op| OperationDocument {
+            name: op.name.clone(),
+            body: op.body.clone(),
+        })
+        .collect();
+
+    let mut validate_service = ValidateOperations::new(service);
+    let validate_service = validate_service.ready().await?;
+    let raw_results = validate_service
+        .call(ValidateOperationsRequest::new(ValidateOperationsInput {
+            graph_ref: graph_ref.clone(),
+            operations: op_inputs,
+            git_context: git_context.clone(),
+        }))
+        .await?;
+
+    Ok(raw_results
+        .into_iter()
+        .map(|val| ClientValidationResult {
+            operation_name: val.operation_name,
+            r#type: val.r#type,
+            code: val.code,
+            description: val.description,
+            file: None,
+            line: None,
+            column: None,
+        })
+        .collect())
+}
+
+fn annotate_with_locations(
+    results: Vec<ClientValidationResult>,
+    operations: &[OperationInput],
+) -> Vec<ClientValidationResult> {
+    let op_lookup: HashMap<_, _> = operations.iter().map(|op| (op.name.clone(), op)).collect();
+    results
+        .into_iter()
+        .map(|mut res| {
+            if let Some(op) = op_lookup.get(&res.operation_name) {
+                res.file = Some(op.file.clone());
+                res.line = Some(op.line);
+                res.column = Some(op.column);
+            }
+            res
+        })
+        .collect()
+}
+
+fn format_extension_failure(failure: ExtensionFailure) -> String {
+    if let (Some(line), Some(column)) = (failure.line, failure.column) {
+        format!("{} at {}:{}", failure.message, line, column)
+    } else {
+        failure.message
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use parsed_file::{OperationInput, ParsedFile};
+    use rover_client::operations::graph::validate_operations::{
+        ValidationErrorCode, ValidationResultType,
+    };
+    use rstest::{fixture, rstest};
+
+    use super::*;
+    use crate::command::client::extensions::ExtensionFailure;
+
+    #[fixture]
+    fn parsed(
+        #[default(String::from("query Hello { __typename }"))] content: String,
+    ) -> ParsedFile {
+        ParsedFile::new(&Utf8PathBuf::from("test.graphql"), &content).unwrap()
+    }
+
+    #[fixture]
+    fn op(
+        #[default(String::from("Hello"))] name: String,
+        #[default(String::from("src/ops.graphql"))] file: String,
+        #[default(1usize)] line: usize,
+        #[default(1usize)] col: usize,
+    ) -> OperationInput {
+        OperationInput {
+            name: name.clone(),
+            body: format!("query {name} {{ __typename }}"),
+            file: Utf8PathBuf::from(file),
+            line,
+            column: col,
+            fragment_spreads: BTreeSet::new(),
+        }
+    }
+
+    #[fixture]
+    fn validation_result(#[default(String::from("Hello"))] name: String) -> ClientValidationResult {
+        ClientValidationResult {
+            operation_name: name,
+            r#type: ValidationResultType::Warning,
+            code: ValidationErrorCode::DeprecatedField,
+            description: "desc".to_string(),
+            file: None,
+            line: None,
+            column: None,
+        }
+    }
+
+    // gather_inputs
+
+    /// Verifies that an empty file list produces no operations or extensions.
+    #[rstest]
+    fn gather_inputs_empty_files() {
+        let (ops, exts) = gather_inputs(&[]).unwrap();
+        assert!(ops.is_empty());
+        assert!(exts.is_empty());
+    }
+
+    /// Verifies that a parsed file with one named operation yields one operation with no fragment
+    /// suffix appended to the body.
+    #[rstest]
+    fn gather_inputs_single_operation_no_fragments(parsed: ParsedFile) {
+        let (ops, exts) = gather_inputs(&[parsed]).unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].name, "Hello");
+        assert!(!ops[0].body.contains("fragment"));
+        assert!(exts.is_empty());
+    }
+
+    /// Verifies that fragment definitions found in the file are appended to each operation body
+    /// so the server can resolve them.
+    #[rstest]
+    fn gather_inputs_appends_fragments_to_each_operation(
+        #[with(String::from("query Hello { ...F }\nfragment F on Query { __typename }"))]
+        parsed: ParsedFile,
+    ) {
+        let (ops, _) = gather_inputs(&[parsed]).unwrap();
+        assert_eq!(ops.len(), 1);
+        assert!(ops[0].body.contains("fragment F"));
+    }
+
+    /// Verifies that schema extension definitions are collected separately from operations and
+    /// returned in the extensions list.
+    #[rstest]
+    fn gather_inputs_collects_extensions(
+        #[with(String::from("extend type Query { world: String }\nquery Hello { __typename }"))]
+        parsed: ParsedFile,
+    ) {
+        let (ops, exts) = gather_inputs(&[parsed]).unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(exts.len(), 1);
+        assert!(exts[0].text.contains("extend type Query"));
+    }
+
+    /// Verifies that the same fragment defined in multiple files appears only once in each
+    /// operation body (content-hash deduplication).
+    #[rstest]
+    fn gather_inputs_deduplicates_fragments_across_files() {
+        let pf1 = parsed(String::from(
+            "query A { ...F }\nfragment F on Query { __typename }",
+        ));
+        let pf2 = parsed(String::from(
+            "query B { ...F }\nfragment F on Query { __typename }",
+        ));
+        let (ops, _) = gather_inputs(&[pf1, pf2]).unwrap();
+        assert_eq!(ops.len(), 2);
+        assert_eq!(ops[0].body.matches("fragment F").count(), 1);
+        assert_eq!(ops[1].body.matches("fragment F").count(), 1);
+    }
+
+    /// Verifies that an operation with no fragment spreads gets no fragments appended, even when
+    /// unrelated fragments exist in other files (matching apollo-cli separateOperations behavior).
+    #[rstest]
+    fn gather_inputs_omits_unreachable_fragments() {
+        let mutations = parsed(String::from("mutation PlaceOrder { placeOrder { id } }"));
+        let fragments = parsed(String::from(
+            "query GetProduct { product { ...ProductFields } }\nfragment ProductFields on Product { id }",
+        ));
+        let (ops, _) = gather_inputs(&[mutations, fragments]).unwrap();
+        let place_order = ops.iter().find(|o| o.name == "PlaceOrder").unwrap();
+        assert!(
+            !place_order.body.contains("fragment"),
+            "PlaceOrder should not include ProductFields"
+        );
+        let get_product = ops.iter().find(|o| o.name == "GetProduct").unwrap();
+        assert!(
+            get_product.body.contains("fragment ProductFields"),
+            "GetProduct should include ProductFields"
+        );
+    }
+
+    /// Verifies that fragments transitively reachable from an operation are included even when the
+    /// operation only directly spreads an intermediate fragment.
+    #[rstest]
+    fn gather_inputs_includes_transitive_fragments() {
+        let content = indoc::indoc! {"
+            query Q { node { ...A } }
+            fragment A on Node { ...B }
+            fragment B on Node { id }
+        "};
+        let pf = parsed(String::from(content));
+        let (ops, _) = gather_inputs(&[pf]).unwrap();
+        assert!(ops[0].body.contains("fragment A"));
+        assert!(ops[0].body.contains("fragment B"));
+    }
+
+    /// Verifies that fragments with the same name but different bodies across files produce an
+    /// error rather than silently sending a malformed document to the server.
+    #[rstest]
+    fn gather_inputs_errors_on_conflicting_fragment_bodies() {
+        let pf1 = parsed(String::from(
+            "query A { ...F }\nfragment F on Query { field1 }",
+        ));
+        let pf2 = parsed(String::from(
+            "query B { ...F }\nfragment F on Query { field2 }",
+        ));
+        let err = gather_inputs(&[pf1, pf2]).unwrap_err();
+        assert!(matches!(err, ClientCheckError::FragmentConflicts(ref names) if names == &["F"]));
+    }
+
+    // annotate_with_locations
+
+    /// Verifies that a validation result is annotated with the file, line, and column of the
+    /// matching operation.
+    #[rstest]
+    fn annotate_matches_operation_by_name(
+        #[with(String::from("Hello"), String::from("src/ops.graphql"), 3usize, 1usize)]
+        op: OperationInput,
+        validation_result: ClientValidationResult,
+    ) {
+        let annotated = annotate_with_locations(vec![validation_result], &[op]);
+        assert_eq!(
+            annotated[0].file,
+            Some(Utf8PathBuf::from("src/ops.graphql"))
+        );
+        assert_eq!(annotated[0].line, Some(3));
+        assert_eq!(annotated[0].column, Some(1));
+    }
+
+    /// Verifies that a validation result whose operation name has no match retains null location
+    /// fields.
+    #[rstest]
+    fn annotate_leaves_unmatched_result_as_none(
+        #[with(String::from("Other"), String::from("src/ops.graphql"), 1usize, 1usize)]
+        op: OperationInput,
+        validation_result: ClientValidationResult,
+    ) {
+        let annotated = annotate_with_locations(vec![validation_result], &[op]);
+        assert_eq!(annotated[0].file, None);
+        assert_eq!(annotated[0].line, None);
+        assert_eq!(annotated[0].column, None);
+    }
+
+    /// Verifies that multiple results are each annotated with their respective operation's
+    /// location when operations are provided out of order.
+    #[rstest]
+    fn annotate_handles_multiple_results() {
+        let ops = vec![
+            op(String::from("A"), String::from("a.graphql"), 1, 1),
+            op(String::from("B"), String::from("b.graphql"), 5, 1),
+        ];
+        let results = vec![
+            validation_result(String::from("B")),
+            validation_result(String::from("A")),
+        ];
+        let annotated = annotate_with_locations(results, &ops);
+        assert_eq!(annotated[0].file, Some(Utf8PathBuf::from("b.graphql")));
+        assert_eq!(annotated[1].file, Some(Utf8PathBuf::from("a.graphql")));
+    }
+
+    // format_extension_failure
+
+    /// Verifies that a failure with line and column information gets an 'at line:column' suffix.
+    #[rstest]
+    fn format_extension_failure_with_location() {
+        let failure = ExtensionFailure {
+            file: Utf8PathBuf::from("ext.graphql"),
+            message: "unknown type".to_string(),
+            line: Some(2),
+            column: Some(5),
+        };
+        assert_eq!(format_extension_failure(failure), "unknown type at 2:5");
+    }
+
+    /// Verifies that a failure without location information returns the message unchanged.
+    #[rstest]
+    fn format_extension_failure_without_location() {
+        let failure = ExtensionFailure {
+            file: Utf8PathBuf::from("ext.graphql"),
+            message: "unknown type".to_string(),
+            line: None,
+            column: None,
+        };
+        assert_eq!(format_extension_failure(failure), "unknown type");
+    }
+
+    // parse_graphql_files
+
+    /// Verifies that a file with a GraphQL syntax error causes parse_graphql_files to return an
+    /// error rather than silently skipping the file.
+    #[rstest]
+    fn parse_graphql_files_returns_error_on_syntax_failure() {
+        let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();
+        std::fs::write(temp.path(), "not { valid graphql !!!").unwrap();
+        let path = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        let result = parse_graphql_files(vec![path]);
+        assert!(result.is_err());
+    }
+
+    /// Verifies that a valid GraphQL file is successfully parsed and returned as a ParsedFile.
+    #[rstest]
+    fn parse_graphql_files_succeeds_on_valid_file() {
+        let temp = tempfile::NamedTempFile::with_suffix(".graphql").unwrap();
+        std::fs::write(temp.path(), "query Hello { __typename }").unwrap();
+        let path = Utf8PathBuf::from_path_buf(temp.path().to_path_buf()).unwrap();
+        let result = parse_graphql_files(vec![path]).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+}

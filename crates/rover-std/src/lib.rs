@@ -7,7 +7,7 @@ pub mod url;
 pub mod print;
 pub mod prompt;
 pub use error::RoverStdError;
-pub use fs::Fs;
+pub use fs::{FileSearch, Fs};
 pub use spinner::Spinner;
 pub use style::{is_no_color_set, Style};
 pub use url::{hyperlink, hyperlink_with_text, sanitize_url};

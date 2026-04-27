@@ -1,0 +1,14 @@
+mutation PlaceOrder($cartId: ID!, $paymentMethodId: ID!) {
+  placeOrder(cartId: $cartId, paymentMethodId: $paymentMethodId) {
+    order {
+      id
+      status
+      total
+      estimatedDelivery
+    }
+    errors {
+      field
+      message
+    }
+  }
+}

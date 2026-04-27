@@ -1,0 +1,3 @@
+extend type Query {
+  recommendedProducts(limit: Int = 5): [Product!]!
+}

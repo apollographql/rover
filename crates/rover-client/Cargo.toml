@@ -7,6 +7,9 @@ version = "0.0.0"
 
 publish = false
 
+[features]
+testing = ["dep:mockall", "rover-tower/test"]
+
 [dependencies]
 ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
@@ -38,6 +41,7 @@ rover-graphql = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
+mockall = { workspace = true, optional = true }
 rover-tower = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
@@ -60,10 +64,12 @@ reqwest = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-indoc = { workspace = true}
+indoc = { workspace = true }
+mockall = { workspace = true }
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
+rover-tower = { workspace = true, features = ["test"] }
 speculoos = { workspace = true }
 strip-ansi-escapes = { workspace = true }
 tower-test = { workspace = true }

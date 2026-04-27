@@ -27,6 +27,10 @@ ignore = [
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
     "RUSTSEC-2024-0320",
+    # Reachable panic in `rustls-webpki` CRL parsing (RUSTSEC-2026-0104). We do not parse certificate
+    # revocation lists in rover, so this code path is not reachable for us. Remove once a patched
+    # `rustls-webpki` propagates through our dependency tree.
+    "RUSTSEC-2026-0104",
 ]
 
 # This section is considered when running `cargo deny check licenses`
