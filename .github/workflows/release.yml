@@ -1,0 +1,257 @@
+name: Release
+
+on:
+  push:
+    # The authoritative semver check lives in the
+    # `validate_tag` job so we don't accidentally drop valid prerelease or
+    # build-metadata tags that GitHub's glob syntax can't express.
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LATEST_FED_VERSION_JSON_KEY: latest-2
+
+jobs:
+  validate_tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Validate semver tag
+        uses: skymatic/semver-validation-action@deebc1609f29f664ba6b2ae252ce1b2ac7f9fbf5 # v4
+        with:
+          version: ${{ github.ref_name }}
+
+  build:
+    name: Build and bundle release artifacts (${{ matrix.platform }})
+    needs: validate_tag
+    if: |
+      !cancelled() &&
+      (needs.validate_tag.result == 'success' || needs.validate_tag.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: amd_linux_min_glibc
+            runs-on: ubuntu-latest
+            container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.6
+            target: x86_64-unknown-linux-gnu
+          - platform: amd_musl
+            runs-on: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - platform: arm_ubuntu
+            runs-on: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - platform: amd_macos
+            # macOS 15 will be the last supported Intel runner from GitHub. When it is deprecated
+            # and we move to macOS 26 runners, we will deprecate native support for Intel Macs.
+            runs-on: macos-15-intel
+            target: x86_64-apple-darwin
+          - platform: arm_macos
+            runs-on: macos-15
+            target: aarch64-apple-darwin
+          - platform: amd_windows
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container }}
+
+    env:
+      XTASK_TARGET: ${{ matrix.target }}
+
+    steps:
+      - name: Report glibc version (min-glibc builder)
+        if: matrix.platform == 'amd_linux_min_glibc'
+        run: ldd --version
+
+      - name: Install musl-tools
+        if: matrix.platform == 'amd_musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev musl-tools bash
+          ldd --version
+
+      - name: Install OpenSSL (arm ubuntu)
+        if: matrix.platform == 'arm_ubuntu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+          ldd --version
+
+      - name: Install cmake and nasm (Windows)
+        if: runner.os == 'Windows'
+        run: choco install cmake nasm -y
+        shell: pwsh
+
+      - name: Install macOS tooling
+        if: runner.os == 'macOS'
+        run: |
+          brew install openssl@3 p7zip curl
+          # Override the system curl because of outdated CA certificates on the
+          # base macOS image.
+          echo "/usr/local/opt/curl/bin" >> "$GITHUB_PATH"
+
+      - name: Install Rosetta 2 (arm macOS)
+        if: matrix.platform == 'arm_macos'
+        run: |
+          if [ "$(uname -m)" = "arm64" ]; then
+            /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+          else
+            echo "Rosetta 2 can only be installed on Apple Silicon!"
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Fix git ownership (containerized runner)
+        if: matrix.platform == 'amd_linux_min_glibc'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+        with:
+          target: ${{ matrix.target }}
+          # The action defaults RUSTFLAGS to `-D warnings`, which is great for
+          # the `checks.yml` CI but wrong for releases: configurations that
+          # disable features (e.g. musl with --no-default-features) surface
+          # dead-code warnings that aren't release blockers.
+          rustflags: ""
+
+      - name: Build and package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_TEAM_ID: YQK948L752
+          APPLE_USERNAME: opensource@apollographql.com
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          MACOS_CERT_BUNDLE_BASE64: ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}
+          MACOS_CERT_BUNDLE_PASSWORD: ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+        run: |
+          # Copy the GraphQL schema exactly once across the whole release, using ARM MacOS is 
+          # an arbitrary choice to accomplish that.
+          cargo xtask package --rebuild ${{ matrix.platform == 'arm_macos' && '--copy-schema' || '' }}
+
+      - name: Build and package
+        if: runner.os != 'macOS'
+        shell: bash
+        run: cargo xtask package --rebuild
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: artifacts-${{ matrix.platform }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release and release to npm
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for trusted publishing support
+        # npm trusted publishing (OIDC) requires npm >= 11.5.1. Node 22 ships
+        # with npm 10.x, so pin to npm 11
+        run: npm install --global npm@11
+
+      - name: Resolve release parameters
+        id: params
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            tag="$REF_NAME"
+            extra=""
+            dry_run="false"
+          else
+            tag="$REF_NAME"
+            extra="--draft"
+            dry_run="true"
+            mkdir -p artifacts
+            echo "this release is part of a test, please ignore." > artifacts/this_is_a_fake_release.txt
+          fi
+
+          # Prerelease regex adapted from https://semver.org/ — a prerelease has
+          # an identifier appended after a `-`.
+          if [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
+            prerelease="--prerelease"
+            npm_tag="beta"
+          else
+            prerelease=""
+            npm_tag=""
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "extra=$extra"
+            echo "dry_run=$dry_run"
+            echo "prerelease=$prerelease"
+            echo "npm_tag=$npm_tag"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compute checksums
+        working-directory: artifacts
+        run: |
+          sha256sum *.tar.gz > sha256sums.txt
+          md5sum *.tar.gz > md5sums.txt
+          sha1sum *.tar.gz > sha1sums.txt
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.params.outputs.tag }}
+          PRERELEASE: ${{ steps.params.outputs.prerelease }}
+          EXTRA: ${{ steps.params.outputs.extra }}
+        run: |
+          gh release create "$TAG" \
+            $PRERELEASE \
+            --title "$TAG" \
+            $EXTRA \
+            --notes '<!-- changelog -->
+          ---
+          This release was automatically created by [GitHub Actions](./.github/workflows/release.yml).
+
+          If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+
+          Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+            artifacts/*
+
+      - name: Publish to npm
+        working-directory: installers/npm
+        env:
+          DRY_RUN: ${{ steps.params.outputs.dry_run }}
+          NPM_TAG: ${{ steps.params.outputs.npm_tag }}
+        run: |
+          args=()
+          if [ -n "$NPM_TAG" ]; then
+            args+=(--tag "$NPM_TAG")
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          npm publish "${args[@]}"
