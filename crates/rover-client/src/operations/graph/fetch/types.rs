@@ -1,9 +1,10 @@
 use rover_studio::types::GraphRef;
 
-use crate::operations::graph::fetch::runner::graph_fetch_query;
+use crate::operations::graph::fetch::service::graph_fetch_query;
 
 type QueryVariables = graph_fetch_query::Variables;
 
+/// Input for fetching a graph variant's SDL from Apollo Studio.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GraphFetchInput {
     pub graph_ref: GraphRef,

@@ -1,81 +1,49 @@
-use graphql_client::*;
-use rover_studio::types::GraphRef;
+use tower::{Service, ServiceExt};
 
-use crate::{
-    blocking::StudioClient,
-    operations::graph::fetch::GraphFetchInput,
-    shared::{FetchResponse, Sdl, SdlType},
-    RoverClientError,
+use super::{
+    service::{GraphFetch, GraphFetchRequest},
+    types::GraphFetchInput,
 };
+use crate::{blocking::StudioClient, shared::FetchResponse, RoverClientError};
 
-// I'm not sure where this should live long-term
-/// this is because of the custom GraphQLDocument scalar in the schema
-type GraphQLDocument = String;
-
-#[derive(GraphQLQuery)]
-// The paths are relative to the directory where your `Cargo.toml` is located.
-// Both json and the GraphQL schema language are supported as sources for the schema
-#[graphql(
-    query_path = "src/operations/graph/fetch/fetch_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-/// This struct is used to generate the module containing `Variables` and
-/// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. graph_fetch_query
-pub(crate) struct GraphFetchQuery;
-
-/// The main function to be used from this module. This function fetches a
-/// schema from apollo studio and returns it in either sdl (default) or json format
+/// Fetch the SDL for a graph variant from Apollo Studio using a graph ref.
+///
+/// On success, the response contains the full SDL string for that variant.
+///
+/// This returns an error if the graph does not exist, if no schema has been published for the
+/// requested variant, or if the Studio API call fails.
 pub async fn run(
     input: GraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<GraphFetchQuery>(input.into()).await?;
-    let sdl_contents = get_schema_from_response_data(response_data, graph_ref)?;
-    Ok(FetchResponse {
-        sdl: Sdl {
-            contents: sdl_contents,
-            r#type: SdlType::Graph,
-        },
-    })
-}
-
-fn get_schema_from_response_data(
-    response_data: graph_fetch_query::ResponseData,
-    graph_ref: GraphRef,
-) -> Result<String, RoverClientError> {
-    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-
-    let mut valid_variants = Vec::new();
-
-    for variant in graph.variants {
-        valid_variants.push(variant.name)
-    }
-
-    if let Some(publication) = graph.variant.and_then(|it| it.latest_publication) {
-        Ok(publication.schema.document)
-    } else {
-        Err(RoverClientError::NoSchemaForVariant {
-            graph_ref,
-            valid_variants,
-            frontend_url_root: response_data.frontend_url_root,
-        })
-    }
+    let mut service = GraphFetch::new(
+        client
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+    );
+    let service = service.ready().await?;
+    service.call(GraphFetchRequest::new(input)).await
 }
 
 #[cfg(test)]
 mod tests {
+    use rover_studio::types::GraphRef;
+    use rstest::{fixture, rstest};
     use serde_json::json;
+    use speculoos::prelude::*;
 
-    use super::*;
+    use crate::operations::graph::fetch::service::{
+        get_schema_from_response_data, graph_fetch_query,
+    };
 
-    #[test]
-    fn get_schema_from_response_data_works() {
+    #[fixture]
+    fn graph_ref() -> GraphRef {
+        GraphRef::new("mygraph", Some("current")).unwrap()
+    }
+
+    /// Verifies that a response containing a schema document returns the SDL string successfully.
+    #[rstest]
+    fn get_schema_from_response_data_works(graph_ref: GraphRef) {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com",
             "graph": {
@@ -90,26 +58,26 @@ mod tests {
             }
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let graph_ref = mock_graph_ref();
         let output = get_schema_from_response_data(data, graph_ref);
-
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
     }
 
-    #[test]
-    fn get_schema_from_response_data_errs_on_no_service() {
+    /// Verifies that a null graph in the response produces a GraphNotFound error.
+    #[rstest]
+    fn get_schema_from_response_data_errs_on_no_service(graph_ref: GraphRef) {
         let json_response =
             json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let graph_ref = mock_graph_ref();
-        let output = get_schema_from_response_data(data, graph_ref);
-
-        assert!(output.is_err());
+        assert_that!(get_schema_from_response_data(data, graph_ref))
+            .is_err()
+            .matches(|err| matches!(err, crate::RoverClientError::GraphNotFound { .. }));
     }
 
-    #[test]
-    fn get_schema_from_response_data_errs_on_no_schema() {
+    /// Verifies that a response with a null variant (no published schema) produces a
+    /// NoSchemaForVariant error.
+    #[rstest]
+    fn get_schema_from_response_data_errs_on_no_schema(graph_ref: GraphRef) {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
             "graph": {
@@ -118,13 +86,8 @@ mod tests {
             },
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let graph_ref = mock_graph_ref();
-        let output = get_schema_from_response_data(data, graph_ref);
-
-        assert!(output.is_err());
-    }
-
-    fn mock_graph_ref() -> GraphRef {
-        GraphRef::new("mygraph", Some("current")).unwrap()
+        assert_that!(get_schema_from_response_data(data, graph_ref))
+            .is_err()
+            .matches(|err| matches!(err, crate::RoverClientError::NoSchemaForVariant { .. }));
     }
 }

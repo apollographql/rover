@@ -165,13 +165,12 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
+                let exit_code = output.exit_code();
                 self.output_opts.handle_output(output)?;
-
-                process::exit(0);
+                process::exit(exit_code);
             }
             Err(error) => {
                 self.output_opts.handle_output(error)?;
-
                 process::exit(1);
             }
         }
@@ -262,6 +261,11 @@ impl Rover {
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
             Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
+            Command::Client(command) => {
+                command
+                    .run(self.get_client_config()?, self.get_git_context()?)
+                    .await
+            }
         }
     }
 
@@ -456,6 +460,9 @@ pub enum Command {
     #[cfg(feature = "composition-js")]
     #[clap(hide = true)]
     Lsp(command::Lsp),
+
+    /// Client workflow commands
+    Client(command::Client),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
