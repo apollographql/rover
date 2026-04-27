@@ -132,7 +132,7 @@ jobs:
           MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
           MACOS_CERT_BUNDLE_BASE64: ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}
           MACOS_CERT_BUNDLE_PASSWORD: ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}
-          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
         run: |
           # Copy the GraphQL schema exactly once across the whole release, using ARM MacOS is 
           # an arbitrary choice to accomplish that.
