@@ -7,6 +7,7 @@ on:
 
 permissions: {}
 
+name: Check Markdown Links
 jobs:
   check-links:
     runs-on: ubuntu-latest
