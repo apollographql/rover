@@ -3,6 +3,7 @@ use std::fs;
 use assert_cmd::Command;
 use dunce::canonicalize;
 use httpmock::{Method::POST, MockServer};
+use rstest::{fixture, rstest};
 use serde_json::Value;
 use serial_test::serial;
 
@@ -278,4 +279,144 @@ fn client_check_errors_when_no_operations_found() {
             "error": { "message": "No .graphql operations found under the provided includes", "code": null }
         })
     );
+}
+
+// ── Fixture-based tests ───────────────────────────────────────────────────────
+
+const VALIDATE_RESPONSE: &str =
+    r#"{"data": {"graph": {"validateOperations": {"validationResults": []}}}}"#;
+
+// Includes the Product type required by src/extensions/client.graphql.
+const SCHEMA_FETCH_RESPONSE: &str =
+    r#"{"data": {"frontendUrlRoot": "https://studio.apollographql.com", "graph": {"variant": {"latestPublication": {"schema": {"document": "type Query { _placeholder: String } type Product { id: ID! name: String price: Float description: String imageUrl: String }"}}}, "variants": []}}}"#;
+
+fn fixture_path(relative: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/client-check")
+        .join(relative)
+}
+
+/// Mock server with mutually exclusive schema-fetch and validate-operations mocks.
+/// body_includes / body_excludes on "GraphFetchQuery" ensures httpmock's non-deterministic
+/// HashMap iteration always picks the right mock for each request type.
+#[fixture]
+fn mock_server() -> MockServer {
+    let server = MockServer::start();
+    server.mock(|when, then| {
+        when.method(POST).body_includes("GraphFetchQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(SCHEMA_FETCH_RESPONSE);
+    });
+    server.mock(|when, then| {
+        when.method(POST).body_excludes("GraphFetchQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(VALIDATE_RESPONSE);
+    });
+    server
+}
+
+/// Verifies that broken fixture files are rejected before any network call.
+#[rstest]
+#[case::syntax_error("broken/syntax_error.graphql", "syntax error")]
+#[case::anonymous_op("broken/anonymous.graphql", "anonymous")]
+fn fixture_parse_errors(#[case] rel_path: &str, #[case] expected: &str) {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .arg("client")
+        .arg("check")
+        .arg("graph@current")
+        .arg("--include")
+        .arg(fixture_path(rel_path))
+        .arg("--format")
+        .arg("json")
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let message = json["error"]["message"].as_str().unwrap();
+    assert!(message.contains(expected), "expected '{expected}' in: {message}");
+}
+
+/// Verifies file-discovery scenarios: root-dir, include globs, and exclude globs all produce the
+/// expected operation count sent to the API.
+#[rstest]
+#[case::src_scans_six_ops(Some("src"), &[] as &[&str], &[] as &[&str], 6)]
+#[case::include_only_queries(Some("src"), &["queries/**/*.graphql"], &[], 3)]
+#[case::exclude_generated_and_broken(Some(""), &[], &["generated/**", "broken/**"], 6)]
+#[serial]
+fn fixture_discovery(
+    mock_server: MockServer,
+    #[case] root_dir: Option<&str>,
+    #[case] includes: &[&str],
+    #[case] excludes: &[&str],
+    #[case] expected_ops: usize,
+) {
+    let mut cmd = Command::cargo_bin("rover").unwrap();
+    cmd.env("APOLLO_KEY", "testkey")
+        .env("APOLLO_REGISTRY_URL", mock_server.base_url())
+        .arg("client")
+        .arg("check")
+        .arg("graph@current");
+    if let Some(dir) = root_dir {
+        cmd.arg("--root-dir").arg(fixture_path(dir));
+    }
+    for inc in includes {
+        cmd.arg("--include").arg(inc);
+    }
+    for exc in excludes {
+        cmd.arg("--exclude").arg(exc);
+    }
+    cmd.arg("--format").arg("json");
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["data"]["client_check"]["operations_sent"], expected_ops);
+}
+
+/// Verifies that an operation with no fragment spreads (PlaceOrder) does not have unrelated
+/// fragments (ProductFields) appended to its document sent to the API.
+/// If the reachability logic is broken, ProductFields would appear in the request body and the
+/// mock — which requires body_excludes — would not match, failing the test.
+#[rstest]
+#[serial]
+fn fixture_unreachable_fragment_not_sent(mock_server: MockServer) {
+    // Override the validate mock to require ProductFields is absent from the request body.
+    mock_server.mock(|when, then| {
+        when.method(POST).body_excludes("ProductFields");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(VALIDATE_RESPONSE);
+    });
+
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .env("APOLLO_KEY", "testkey")
+        .env("APOLLO_REGISTRY_URL", mock_server.base_url())
+        .arg("client")
+        .arg("check")
+        .arg("graph@current")
+        .arg("--include")
+        .arg(fixture_path("src/mutations/PlaceOrder.graphql"))
+        .arg("--include")
+        .arg(fixture_path("src/fragments/ProductFields.graphql"))
+        .arg("--format")
+        .arg("json")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["data"]["client_check"]["operations_sent"], 1);
 }

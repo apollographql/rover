@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use apollo_compiler::{Node, ast, parser::Parser as ApolloParser};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -20,6 +20,8 @@ pub(super) struct ParsedFile {
     pub(super) extensions: Vec<ExtensionSnippet>,
     /// Fragment definitions keyed by name, for global deduplication across files.
     pub(super) fragments: HashMap<String, String>,
+    /// Direct fragment spreads for each fragment, for transitive reachability.
+    pub(super) fragment_deps: HashMap<String, BTreeSet<String>>,
 }
 
 impl ParsedFile {
@@ -30,6 +32,7 @@ impl ParsedFile {
 
         let mut extensions = Vec::new();
         let mut fragments = HashMap::new();
+        let mut fragment_deps = HashMap::new();
         let mut operations = Vec::new();
 
         for definition in &doc.definitions {
@@ -39,8 +42,10 @@ impl ParsedFile {
                     if let Some(span) = fragment.location()
                         && let Some(text) = contents.get(span.offset()..span.end_offset())
                     {
-                        fragments.insert(name, text.to_string());
+                        fragments.insert(name.clone(), text.to_string());
                     }
+                    fragment_deps
+                        .insert(name, collect_spreads(&fragment.selection_set));
                 }
                 ast::Definition::OperationDefinition(op) => {
                     if op.name.is_none() {
@@ -67,6 +72,7 @@ impl ParsedFile {
             operations,
             extensions,
             fragments,
+            fragment_deps,
         })
     }
 }
@@ -78,6 +84,8 @@ pub(super) struct OperationInput {
     pub(super) file: Utf8PathBuf,
     pub(super) line: usize,
     pub(super) column: usize,
+    /// Fragment names directly spread by this operation (not transitive).
+    pub(super) fragment_spreads: BTreeSet<String>,
 }
 
 impl OperationInput {
@@ -91,14 +99,35 @@ impl OperationInput {
         let span = op.location()?;
         let body = contents.get(span.offset()..span.end_offset())?.to_string();
         let loc = op.line_column_range(sources)?;
+        let fragment_spreads = collect_spreads(&op.selection_set);
         Some(Self {
             name,
             body,
             file: file.to_path_buf(),
             line: loc.start.line,
             column: loc.start.column,
+            fragment_spreads,
         })
     }
+}
+
+/// Recursively collect all fragment spread names from a selection set.
+fn collect_spreads(selections: &[ast::Selection]) -> BTreeSet<String> {
+    let mut spreads = BTreeSet::new();
+    for selection in selections {
+        match selection {
+            ast::Selection::FragmentSpread(fs) => {
+                spreads.insert(fs.fragment_name.to_string());
+            }
+            ast::Selection::Field(f) => {
+                spreads.extend(collect_spreads(&f.selection_set));
+            }
+            ast::Selection::InlineFragment(i) => {
+                spreads.extend(collect_spreads(&i.selection_set));
+            }
+        }
+    }
+    spreads
 }
 
 fn type_system_definition_span(
@@ -234,5 +263,47 @@ mod tests {
         let pf = ParsedFile::new(&file, content).unwrap();
         assert_eq!(pf.operations[0].line, 2);
         assert_eq!(pf.operations[0].column, 3);
+    }
+
+    /// Verifies that an operation's direct fragment spreads are collected.
+    #[rstest]
+    fn operation_fragment_spreads_collected(file: Utf8PathBuf) {
+        let content = "query GetProduct { product { ...ProductFields } }\nfragment ProductFields on Product { id }";
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(
+            pf.operations[0].fragment_spreads,
+            BTreeSet::from(["ProductFields".to_string()])
+        );
+    }
+
+    /// Verifies that an operation with no fragment spreads has an empty set.
+    #[rstest]
+    fn operation_without_spreads_has_empty_set(file: Utf8PathBuf) {
+        let pf = ParsedFile::new(&file, "mutation PlaceOrder { placeOrder { id } }").unwrap();
+        assert!(pf.operations[0].fragment_spreads.is_empty());
+    }
+
+    /// Verifies that fragment deps track the fragments a fragment itself spreads.
+    #[rstest]
+    fn fragment_deps_track_nested_spreads(file: Utf8PathBuf) {
+        let content = "fragment A on Query { ...B }\nfragment B on Query { __typename }";
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(
+            pf.fragment_deps["A"],
+            BTreeSet::from(["B".to_string()])
+        );
+        assert!(pf.fragment_deps["B"].is_empty());
+    }
+
+    /// Verifies that spreads nested inside inline fragments are collected.
+    #[rstest]
+    fn spreads_inside_inline_fragments_collected(file: Utf8PathBuf) {
+        let content =
+            "query Q { node(id: \"1\") { ... on User { ...UserFields } } }\nfragment UserFields on User { id }";
+        let pf = ParsedFile::new(&file, content).unwrap();
+        assert_eq!(
+            pf.operations[0].fragment_spreads,
+            BTreeSet::from(["UserFields".to_string()])
+        );
     }
 }

@@ -1,0 +1,13 @@
+query SearchProducts($query: String!, $first: Int = 10) {
+  search(query: $query, first: $first) {
+    edges {
+      node {
+        ...ProductFields
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

@@ -1,7 +1,7 @@
 mod output;
 mod parsed_file;
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use camino::Utf8PathBuf;
 use clap::Parser as ClapParser;
@@ -237,6 +237,7 @@ fn parse_graphql_files(files: Vec<Utf8PathBuf>) -> RoverResult<Vec<ParsedFile>> 
 fn gather_inputs(
     parsed_files: &[ParsedFile],
 ) -> Result<(Vec<OperationInput>, Vec<ExtensionSnippet>), ClientCheckError> {
+    // Detect fragments with the same name but different bodies across files.
     let mut seen: HashMap<&str, &str> = HashMap::new();
     let mut conflicts: BTreeSet<&str> = BTreeSet::new();
     for file in parsed_files {
@@ -257,24 +258,31 @@ fn gather_inputs(
         return Err(ClientCheckError::FragmentConflicts(names));
     }
 
-    let fragments_text = {
-        use std::hash::{DefaultHasher, Hash, Hasher};
-        let all_fragments: BTreeMap<u64, _> = parsed_files
-            .iter()
-            .flat_map(|f| f.fragments.values())
-            .map(|v| {
-                let mut hasher = DefaultHasher::new();
-                v.hash(&mut hasher);
-                (hasher.finish(), v.clone())
-            })
-            .collect();
-        all_fragments.into_values().join("\n\n")
-    };
+    // Build a deduplicated fragment text map and a global dependency map.
+    let all_fragments: HashMap<&str, &str> = parsed_files
+        .iter()
+        .flat_map(|f| f.fragments.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+        .collect();
+
+    let all_fragment_deps: HashMap<&str, &BTreeSet<String>> = parsed_files
+        .iter()
+        .flat_map(|f| {
+            f.fragment_deps
+                .iter()
+                .map(|(k, v)| (k.as_str(), v))
+        })
+        .collect();
 
     let operations = parsed_files
         .iter()
         .flat_map(|f| f.operations.iter())
         .map(|op| {
+            let reachable =
+                reachable_fragments(&op.fragment_spreads, &all_fragment_deps);
+            let fragments_text = reachable
+                .iter()
+                .filter_map(|name| all_fragments.get(name.as_str()).copied())
+                .join("\n\n");
             let body = if fragments_text.is_empty() {
                 op.body.clone()
             } else {
@@ -290,6 +298,23 @@ fn gather_inputs(
         .collect();
 
     Ok((operations, extensions))
+}
+
+/// Returns the set of fragment names transitively reachable from `seeds`.
+fn reachable_fragments<'a>(
+    seeds: &BTreeSet<String>,
+    deps: &HashMap<&'a str, &BTreeSet<String>>,
+) -> BTreeSet<String> {
+    let mut reachable = BTreeSet::new();
+    let mut queue: Vec<&str> = seeds.iter().map(String::as_str).collect();
+    while let Some(name) = queue.pop() {
+        if reachable.insert(name.to_owned()) {
+            if let Some(children) = deps.get(name) {
+                queue.extend(children.iter().map(String::as_str));
+            }
+        }
+    }
+    reachable
 }
 
 async fn fetch_and_validate_extensions(
@@ -418,6 +443,7 @@ mod tests {
             file: Utf8PathBuf::from(file),
             line,
             column: col,
+            fragment_spreads: BTreeSet::new(),
         }
     }
 
@@ -494,6 +520,43 @@ mod tests {
         assert_eq!(ops.len(), 2);
         assert_eq!(ops[0].body.matches("fragment F").count(), 1);
         assert_eq!(ops[1].body.matches("fragment F").count(), 1);
+    }
+
+    /// Verifies that an operation with no fragment spreads gets no fragments appended, even when
+    /// unrelated fragments exist in other files (matching apollo-cli separateOperations behavior).
+    #[rstest]
+    fn gather_inputs_omits_unreachable_fragments() {
+        let mutations =
+            parsed(String::from("mutation PlaceOrder { placeOrder { id } }"));
+        let fragments = parsed(String::from(
+            "query GetProduct { product { ...ProductFields } }\nfragment ProductFields on Product { id }",
+        ));
+        let (ops, _) = gather_inputs(&[mutations, fragments]).unwrap();
+        let place_order = ops.iter().find(|o| o.name == "PlaceOrder").unwrap();
+        assert!(
+            !place_order.body.contains("fragment"),
+            "PlaceOrder should not include ProductFields"
+        );
+        let get_product = ops.iter().find(|o| o.name == "GetProduct").unwrap();
+        assert!(
+            get_product.body.contains("fragment ProductFields"),
+            "GetProduct should include ProductFields"
+        );
+    }
+
+    /// Verifies that fragments transitively reachable from an operation are included even when the
+    /// operation only directly spreads an intermediate fragment.
+    #[rstest]
+    fn gather_inputs_includes_transitive_fragments() {
+        let content = indoc::indoc! {"
+            query Q { node { ...A } }
+            fragment A on Node { ...B }
+            fragment B on Node { id }
+        "};
+        let pf = parsed(String::from(content));
+        let (ops, _) = gather_inputs(&[pf]).unwrap();
+        assert!(ops[0].body.contains("fragment A"));
+        assert!(ops[0].body.contains("fragment B"));
     }
 
     /// Verifies that fragments with the same name but different bodies across files produce an

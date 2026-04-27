@@ -1,0 +1,17 @@
+query GetUserOrders($userId: ID!, $status: OrderStatus) {
+  user(id: $userId) {
+    id
+    email
+    orders(status: $status) {
+      id
+      createdAt
+      total
+      items {
+        quantity
+        product {
+          ...ProductFields
+        }
+      }
+    }
+  }
+}
