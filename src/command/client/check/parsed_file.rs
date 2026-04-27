@@ -44,8 +44,7 @@ impl ParsedFile {
                     {
                         fragments.insert(name.clone(), text.to_string());
                     }
-                    fragment_deps
-                        .insert(name, collect_spreads(&fragment.selection_set));
+                    fragment_deps.insert(name, collect_spreads(&fragment.selection_set));
                 }
                 ast::Definition::OperationDefinition(op) => {
                     if op.name.is_none() {
@@ -288,18 +287,14 @@ mod tests {
     fn fragment_deps_track_nested_spreads(file: Utf8PathBuf) {
         let content = "fragment A on Query { ...B }\nfragment B on Query { __typename }";
         let pf = ParsedFile::new(&file, content).unwrap();
-        assert_eq!(
-            pf.fragment_deps["A"],
-            BTreeSet::from(["B".to_string()])
-        );
+        assert_eq!(pf.fragment_deps["A"], BTreeSet::from(["B".to_string()]));
         assert!(pf.fragment_deps["B"].is_empty());
     }
 
     /// Verifies that spreads nested inside inline fragments are collected.
     #[rstest]
     fn spreads_inside_inline_fragments_collected(file: Utf8PathBuf) {
-        let content =
-            "query Q { node(id: \"1\") { ... on User { ...UserFields } } }\nfragment UserFields on User { id }";
+        let content = "query Q { node(id: \"1\") { ... on User { ...UserFields } } }\nfragment UserFields on User { id }";
         let pf = ParsedFile::new(&file, content).unwrap();
         assert_eq!(
             pf.operations[0].fragment_spreads,

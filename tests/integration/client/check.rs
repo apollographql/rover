@@ -287,8 +287,7 @@ const VALIDATE_RESPONSE: &str =
     r#"{"data": {"graph": {"validateOperations": {"validationResults": []}}}}"#;
 
 // Includes the Product type required by src/extensions/client.graphql.
-const SCHEMA_FETCH_RESPONSE: &str =
-    r#"{"data": {"frontendUrlRoot": "https://studio.apollographql.com", "graph": {"variant": {"latestPublication": {"schema": {"document": "type Query { _placeholder: String } type Product { id: ID! name: String price: Float description: String imageUrl: String }"}}}, "variants": []}}}"#;
+const SCHEMA_FETCH_RESPONSE: &str = r#"{"data": {"frontendUrlRoot": "https://studio.apollographql.com", "graph": {"variant": {"latestPublication": {"schema": {"document": "type Query { _placeholder: String } type Product { id: ID! name: String price: Float description: String imageUrl: String }"}}}, "variants": []}}}"#;
 
 fn fixture_path(relative: &str) -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -337,7 +336,10 @@ fn fixture_parse_errors(#[case] rel_path: &str, #[case] expected: &str) {
     assert!(!output.status.success());
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     let message = json["error"]["message"].as_str().unwrap();
-    assert!(message.contains(expected), "expected '{expected}' in: {message}");
+    assert!(
+        message.contains(expected),
+        "expected '{expected}' in: {message}"
+    );
 }
 
 /// Verifies file-discovery scenarios: root-dir, include globs, and exclude globs all produce the
@@ -378,7 +380,10 @@ fn fixture_discovery(
         String::from_utf8_lossy(&output.stderr)
     );
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["data"]["client_check"]["operations_sent"], expected_ops);
+    assert_eq!(
+        json["data"]["client_check"]["operations_sent"],
+        expected_ops
+    );
 }
 
 /// Verifies that an operation with no fragment spreads (PlaceOrder) does not have unrelated

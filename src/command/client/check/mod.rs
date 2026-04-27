@@ -266,19 +266,14 @@ fn gather_inputs(
 
     let all_fragment_deps: HashMap<&str, &BTreeSet<String>> = parsed_files
         .iter()
-        .flat_map(|f| {
-            f.fragment_deps
-                .iter()
-                .map(|(k, v)| (k.as_str(), v))
-        })
+        .flat_map(|f| f.fragment_deps.iter().map(|(k, v)| (k.as_str(), v)))
         .collect();
 
     let operations = parsed_files
         .iter()
         .flat_map(|f| f.operations.iter())
         .map(|op| {
-            let reachable =
-                reachable_fragments(&op.fragment_spreads, &all_fragment_deps);
+            let reachable = reachable_fragments(&op.fragment_spreads, &all_fragment_deps);
             let fragments_text = reachable
                 .iter()
                 .filter_map(|name| all_fragments.get(name.as_str()).copied())
@@ -301,17 +296,17 @@ fn gather_inputs(
 }
 
 /// Returns the set of fragment names transitively reachable from `seeds`.
-fn reachable_fragments<'a>(
+fn reachable_fragments(
     seeds: &BTreeSet<String>,
-    deps: &HashMap<&'a str, &BTreeSet<String>>,
+    deps: &HashMap<&str, &BTreeSet<String>>,
 ) -> BTreeSet<String> {
     let mut reachable = BTreeSet::new();
     let mut queue: Vec<&str> = seeds.iter().map(String::as_str).collect();
     while let Some(name) = queue.pop() {
-        if reachable.insert(name.to_owned()) {
-            if let Some(children) = deps.get(name) {
-                queue.extend(children.iter().map(String::as_str));
-            }
+        if reachable.insert(name.to_owned())
+            && let Some(children) = deps.get(name)
+        {
+            queue.extend(children.iter().map(String::as_str));
         }
     }
     reachable
@@ -526,8 +521,7 @@ mod tests {
     /// unrelated fragments exist in other files (matching apollo-cli separateOperations behavior).
     #[rstest]
     fn gather_inputs_omits_unreachable_fragments() {
-        let mutations =
-            parsed(String::from("mutation PlaceOrder { placeOrder { id } }"));
+        let mutations = parsed(String::from("mutation PlaceOrder { placeOrder { id } }"));
         let fragments = parsed(String::from(
             "query GetProduct { product { ...ProductFields } }\nfragment ProductFields on Product { id }",
         ));
