@@ -193,11 +193,11 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
         panic!("Command did not complete successfully");
     }
 
-    // Verify stderr contains expected message about subgraph creation
+    // Verify stderr contains expected message about publishing
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("was created") || stderr.contains("published"),
-        "Expected stderr to contain creation/publish message, got: {}",
+        stderr.contains("Publishing SDL"),
+        "Expected stderr to contain 'Publishing SDL' message, got: {}",
         stderr
     );
 
