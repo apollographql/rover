@@ -41,7 +41,8 @@ pub struct Publish {
 
     /// Url of a running subgraph that a supergraph can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
-    /// if not running a gateway or router in managed federation mode
+    /// if not running a gateway or router in managed federation mode.
+    /// Not required if `--use-example-schema` is provided.
     #[arg(long)]
     #[serde(skip_serializing)]
     routing_url: Option<String>,

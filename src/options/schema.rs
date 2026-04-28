@@ -1,4 +1,5 @@
 use clap::Parser;
+
 use crate::{
     RoverResult,
     utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
@@ -53,6 +54,7 @@ impl SchemaOpt {
 #[derive(Debug, Parser)]
 pub struct OptionalSchemaOpt {
     /// The schema file to publish. You can pass `-` to use stdin instead of a file.
+    /// Not required if `--use-example-schema` is provided.
     #[arg(
         long,
         short = 's',
@@ -61,20 +63,22 @@ pub struct OptionalSchemaOpt {
     )]
     schema: Option<FileDescriptorType>,
 
+    /// Publish using a placeholder example schema instead of providing your own.
+    /// Useful for setting up your graph structure before your actual schema is ready.
     #[arg(long)]
     use_example_schema: bool,
 }
 
 impl OptionalSchemaOpt {
-    pub fn is_using_example_schema(&self) -> bool {
+    pub const fn is_using_example_schema(&self) -> bool {
         self.use_example_schema
     }
 
-    pub fn example_schema() -> &'static str {
+    pub const fn example_schema() -> &'static str {
         EXAMPLE_SCHEMA
     }
 
-    pub fn example_url() -> &'static str {
+    pub const fn example_url() -> &'static str {
         EXAMPLE_URL
     }
 
@@ -92,8 +96,9 @@ impl OptionalSchemaOpt {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::{CommandFactory, Parser};
+
+    use super::*;
 
     #[derive(Debug, Parser)]
     struct TestCmd {
@@ -106,13 +111,9 @@ mod tests {
 
     #[test]
     fn test_use_example_schema_returns_correct_values() {
-        let cmd = TestCmd::try_parse_from([
-            "test",
-            "--name",
-            "my-subgraph",
-            "--use-example-schema",
-        ])
-        .unwrap();
+        let cmd =
+            TestCmd::try_parse_from(["test", "--name", "my-subgraph", "--use-example-schema"])
+                .unwrap();
 
         assert!(cmd.schema.is_using_example_schema());
         assert_eq!(

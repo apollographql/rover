@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [Unreleased]
+
+## 🚀 Features
+
+- **Add `--use-example-schema` flag to `subgraph publish`**
+
+  Allows publishing a placeholder schema without needing to provide your own schema file. This is useful for setting up your graph structure before your actual schemas are ready. The placeholder schema is `type Query { helloWorld: String }` with a routing URL of `https://example.com`.
+
 # [0.38.1] - 2026-04-22
 
 ## 🐛 Fixes
