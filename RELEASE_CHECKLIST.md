@@ -52,7 +52,7 @@ commits previous to it. Preparing it involves several phases:
 
 ### Tag and build release
 
-This part of the release process is handled by CircleCI, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries for multiple platforms, and creates a new GitHub release for that tag.
+This part of the release process is handled by GitHub Actions, and our binaries are distributed both as GitHub Releases and as Docker images to ghcr.io and Dockerhub. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries and images for multiple platforms, and creates a new GitHub release for that tag.
 
 1. Have your PR merged to `main`.
 2. Once merged, run `git checkout main` and `git pull`.
@@ -69,6 +69,8 @@ This part of the release process is handled by CircleCI, and our binaries are di
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to latest is the expected one
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
+4. Install Rover using Dockerhub (`docker pull apollographql/rover`)
+5. Run some commands against it to ensure the container works (`docker run apollographql/rover:latest <<args>>`)
 
 ## Release Candidate Builds
 
@@ -90,7 +92,7 @@ These are releases that usually proceed a standard release as a way of getting f
 
 ### Tag and build release
 
-This part of the release process is handled by CircleCI, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries for multiple platforms, and creates a new GitHub release for that tag.
+This part of the release process is handled by GitHub Actions, and our binaries are distributed both as GitHub Releases and as Docker images to ghcr.io and Dockerhub. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries and images for multiple platforms, and creates a new GitHub release for that tag.
 
 1. Have your PR merged to `main`.
 2. Once merged, run `git checkout main` and `git pull`.
@@ -114,6 +116,8 @@ This part of the release process is handled by CircleCI, and our binaries are di
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
+4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-rc.#`)
+5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-rc.# <<args>>`)
 
 ## Pre-Release Release
 
@@ -130,7 +134,7 @@ Sometimes it's necessary to create a `rover` release from an arbitrary branch, t
 
 ### Tag and build release
 
-This part of the release process is handled by CircleCI, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries for multiple platforms, and creates a new GitHub release for that tag.
+This part of the release process is handled by GitHub Actions, and our binaries are distributed both as GitHub Releases and as Docker images to ghcr.io and Dockerhub. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries and images for multiple platforms, and creates a new GitHub release for that tag.
 
 1. Once merged, run `git checkout <<YOUR_BRANCH>>` and `git pull`.
 2. Sync your local tags with the remote tags by running `git tag -d $(git tag) && git fetch --tags`
@@ -142,8 +146,11 @@ This part of the release process is handled by CircleCI, and our binaries are di
 
 ### Verify The Release
 
-1. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the newly published version on your machine
-2. Run some commands against that version to ensure the binary runs
+1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
+2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
+3. Run some commands against that version to ensure the binary runs
+4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-<<IDENTIFIER>>`)
+5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-<<IDENTIFIER>> <<args>>`)
 
 ### Post-Release Cleanup
 
@@ -160,7 +167,7 @@ That's OK! In this scenario, do the following.
 1. Try re-running the job, see if it fixes itself
 2. If it doesn't, try re-running it with SSH and poke around, see if you can identify the issue
 3. Delete the tag either in the GitHub UI or by running `git push --delete origin vX.X.X`
-4. Make a PR to fix the issue in [`.circleci/config.yml`](./.circleci/config.yml)
+4. Make a PR to fix the issue in [`.github/workflows/release.yml`](./.github/workflows/release.yml)
 5. Merge the PR
 6. Go back to the "Tag and build release" section and re-tag the release. If it fails again, that's OK, you can keep trying until it succeeds.
 

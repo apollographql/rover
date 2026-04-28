@@ -1,7 +1,9 @@
 # Rover
 
-[![CircleCI Tests](https://circleci.com/gh/apollographql/rover.svg?style=svg)](https://app.circleci.com/pipelines/github/apollographql/rover?branch=main)
 [![GitHub Release Downloads](https://shields.io/github/downloads/apollographql/rover/total.svg)](https://github.com/apollographql/rover/releases/latest)
+[![Unit/Integration Tests](https://github.com/apollographql/rover/actions/workflows/checks.yml/badge.svg)](https://github.com/apollographql/rover/actions/workflows/checks.yml)
+[![E2E Tests](https://github.com/apollographql/rover/actions/workflows/run-smokes-on-pr.yml/badge.svg)](https://github.com/apollographql/rover/actions/workflows/run-smokes-on-pr.yml)
+[![Command E2E Tests](https://github.com/apollographql/rover/actions/workflows/run-commands-e2e.yml/badge.svg)](https://github.com/apollographql/rover/actions/workflows/run-commands-e2e.yml)
 
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
 
