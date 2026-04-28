@@ -47,15 +47,14 @@ jobs:
             runs-on: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
           - platform: amd_macos
-            # macOS 15 will be the last supported Intel runner from GitHub. When it is deprecated
-            # and we move to macOS 26 runners, we will deprecate native support for Intel Macs.
-            runs-on: macos-15-intel
+            # macos-xx-large images are intel Macs: https://github.com/actions/runner-images
+            runs-on: macos-14-large
             target: x86_64-apple-darwin
           - platform: arm_macos
-            runs-on: macos-15
+            runs-on: macos-14
             target: aarch64-apple-darwin
           - platform: amd_windows
-            runs-on: windows-latest
+            runs-on: windows-2022
             target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.runs-on }}
