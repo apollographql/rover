@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt},
+    options::{GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
 
@@ -33,7 +33,7 @@ pub struct Publish {
 
     #[clap(flatten)]
     #[serde(skip_serializing)]
-    schema: SchemaOpt,
+    schema: OptionalSchemaOpt,
 
     /// Indicate whether to convert a non-federated graph into a subgraph
     #[arg(short, long)]
@@ -66,25 +66,38 @@ impl Publish {
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
-        let url = Self::determine_routing_url(
-            self.no_url,
-            &self.routing_url,
-            self.allow_invalid_routing_url,
-            || async {
-                Ok(routing_url::run(
-                    SubgraphRoutingUrlInput {
-                        graph_ref: self.graph.graph_ref.clone(),
-                        subgraph_name: self.subgraph.subgraph_name.clone(),
-                    },
-                    &client,
-                )
-                .await?)
-            },
-            &mut io::stderr(),
-            &mut io::stdin(),
-            io::stderr().is_terminal() && io::stdin().is_terminal(),
-        )
-        .await?;
+        let (url, schema) = if self.schema.is_using_example_schema() {
+            (
+                Some(OptionalSchemaOpt::example_url().to_string()),
+                OptionalSchemaOpt::example_schema().to_string(),
+            )
+        } else {
+            let url = Self::determine_routing_url(
+                self.no_url,
+                &self.routing_url,
+                self.allow_invalid_routing_url,
+                || async {
+                    Ok(routing_url::run(
+                        SubgraphRoutingUrlInput {
+                            graph_ref: self.graph.graph_ref.clone(),
+                            subgraph_name: self.subgraph.subgraph_name.clone(),
+                        },
+                        &client,
+                    )
+                    .await?)
+                },
+                &mut io::stderr(),
+                &mut io::stdin(),
+                io::stderr().is_terminal() && io::stdin().is_terminal(),
+            )
+            .await?;
+
+            let schema = self
+                .schema
+                .read_file_descriptor("SDL", &mut std::io::stdin())?;
+
+            (url, schema)
+        };
 
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
@@ -92,10 +105,6 @@ impl Publish {
             Style::Link.paint(&self.subgraph.subgraph_name),
             Style::Command.paint(&self.profile.profile_name)
         );
-
-        let schema = self
-            .schema
-            .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         tracing::debug!("Publishing \n{}", &schema);
 
