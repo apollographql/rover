@@ -69,8 +69,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to latest is the expected one
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:latest <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:latest <<args>>`)
 
 ## Release Candidate Builds
 
@@ -116,8 +116,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-rc.#`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-rc.# <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover:#.#.#-rc.#`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:#.#.#-rc.# <<args>>`)
 
 ## Pre-Release Release
 
@@ -149,8 +149,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-<<IDENTIFIER>>`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-<<IDENTIFIER>> <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover:#.#.#-<<IDENTIFIER>>`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:#.#.#-<<IDENTIFIER>> <<args>>`)
 
 ### Post-Release Cleanup
 
