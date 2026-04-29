@@ -1,0 +1,12 @@
+target
+.git
+.github
+docs
+examples
+regressions/examples
+regressions/fixtures
+tests
+*.md
+node_modules
+.idea
+.vscode

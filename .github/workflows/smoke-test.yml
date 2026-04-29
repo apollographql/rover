@@ -14,7 +14,6 @@ on:
         required: false
         type: string
 
-#TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
 name: Smoke Tests
 jobs:
   build_binaries:
@@ -22,15 +21,20 @@ jobs:
     strategy:
       matrix:
         compile_target:
-          - target: x86_64-apple-darwin
-            compiles_on: macos-14-xlarge
-          - target: aarch64-apple-darwin
-            compiles_on: macos-14-xlarge
-          - target: x86_64-pc-windows-msvc
-            compiles_on: windows-2022
+          # This should stay in sync with the matrix in release.yaml, minus MUSL targets as
+          # those deliberately do not work with composition at this time.
           - target: x86_64-unknown-linux-gnu
             compiles_on: ubuntu-latest
-            container: "ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.21.1"
+            container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.6
+          - target: aarch64-unknown-linux-gnu
+            compiles_on: ubuntu-22.04-arm
+          - target: x86_64-apple-darwin
+            # macos-xx-large images are intel Macs: https://github.com/actions/runner-images
+            compiles_on: macos-14-large
+          - target: aarch64-apple-darwin
+            compiles_on: macos-14
+          - target: x86_64-pc-windows-msvc
+            compiles_on: windows-2022
     runs-on: ${{ matrix.compile_target.compiles_on }}
     container: ${{ matrix.compile_target.container }}
     steps:
@@ -73,34 +77,50 @@ jobs:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
         router-version: ${{ fromJSON(inputs.router-versions) }}
         testing_target:
-          - run_test_on: windows-2022
-            binary_under_test: x86_64-pc-windows-msvc
+          - run_test_on: ubuntu-latest
+            binary_under_test: x86_64-unknown-linux-gnu
+          - run_test_on: ubuntu-22.04-arm
+            binary_under_test: aarch64-unknown-linux-gnu
+          # Test on the full matrix of supported OSes for Mac/Windows
           - run_test_on: macos-14-large
             binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-15-large
             binary_under_test: x86_64-apple-darwin
-          - run_test_on: ubuntu-22.04
-            binary_under_test: x86_64-unknown-linux-gnu
+          - run_test_on: macos-26-large
+            binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-14
             binary_under_test: aarch64-apple-darwin
           - run_test_on: macos-15
             binary_under_test: aarch64-apple-darwin
-    # x86-64 runner
+          - run_test_on: macos-26
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: windows-2022
+            binary_under_test: x86_64-pc-windows-msvc
+          - run_test_on: windows-2025
+            binary_under_test: x86_64-pc-windows-msvc
+
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
       - uses: actions/checkout@v6
         name: "Checkout rover repo"
+
       - uses: actions/download-artifact@v8
-        name: "Download artifacts built in previous stages"
+        name: "Download artifact built in previous stage"
+        with:
+          name: ${{ matrix.testing_target.binary_under_test }}
+          path: ${{ matrix.testing_target.binary_under_test }}
+
       - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         name: "Set permissions on artifacts correctly"
         run: |
           chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
+
       - name: "Create expected directory structure for test binary lookup"
         shell: bash
         run: |
           mkdir -p target/${{ matrix.testing_target.binary_under_test }}/debug
           cp -r ./${{ matrix.testing_target.binary_under_test }}/* target/${{ matrix.testing_target.binary_under_test }}/debug/
+
       - name: "Create symlink for Linux container path (compiled in Docker with different workspace)"
         if: ${{ matrix.testing_target.binary_under_test == 'x86_64-unknown-linux-gnu' }}
         run: |
@@ -111,8 +131,14 @@ jobs:
           sudo ln -s ${{ github.workspace }} /__w/rover/rover
           echo "Created symlink: /__w/rover/rover -> ${{ github.workspace }}"
           ls -la /__w/rover/
-      - uses: volta-cli/action@v5
-        name: "Install volta"
+
+      - name: Install OpenSSL (arm ubuntu)
+        if: ${{ matrix.testing_target.binary_under_test == 'aarch64-unknown-linux-gnu' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+          ldd --version
+
       - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         shell: bash
@@ -127,6 +153,7 @@ jobs:
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
           $E2E_BINARY --ignored --nocapture
+
       - name: Run Smoke Tests (Windows)
         if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
         env:
@@ -140,6 +167,43 @@ jobs:
           $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
           Write-Output "Found '$E2E_BINARY'"
           & $E2E_BINARY --ignored --nocapture
+
+  docker_smoke_tests:
+    name: Build & smoke-test Docker image (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runs-on: ubuntu-latest
+          - platform: linux/arm64
+            runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.13.0
+
+      - name: Build image
+        uses: docker/build-push-action@64c9b141502b80dbbd71e008a0130ad330f480f8 # v6.21
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: true
+          tags: rover:pr
+          cache-from: type=gha,scope=docker-pr-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=docker-pr-${{ matrix.platform }}
+
+      # Exercises rustls + ca-certificates + DNS by hitting Apollo Studio.
+      - name: Verify HTTPS path with rover config whoami
+        env:
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+        run: docker run --rm -e APOLLO_KEY rover:pr config whoami
+
   # It appears as though GitHub Actions mechanisms for handling errors within matrix job runs are... less than
   # intuitive. There's an answer here (https://github.com/orgs/community/discussions/26822) that describes the
   # fact that if any of the jobs in the matrix succeeds then the job is marked successful as well. So we
@@ -151,7 +215,7 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     name: Final Results
-    needs: [ smoke_tests ]
+    needs: [ smoke_tests, docker_smoke_tests ]
     steps:
       - run: exit 1
         if: >-

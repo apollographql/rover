@@ -47,15 +47,14 @@ jobs:
             runs-on: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
           - platform: amd_macos
-            # macOS 15 will be the last supported Intel runner from GitHub. When it is deprecated
-            # and we move to macOS 26 runners, we will deprecate native support for Intel Macs.
-            runs-on: macos-15-intel
+            # macos-xx-large images are intel Macs: https://github.com/actions/runner-images
+            runs-on: macos-14-large
             target: x86_64-apple-darwin
           - platform: arm_macos
-            runs-on: macos-15
+            runs-on: macos-14
             target: aarch64-apple-darwin
           - platform: amd_windows
-            runs-on: windows-latest
+            runs-on: windows-2022
             target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.runs-on }}
@@ -150,13 +149,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build_image:
+    name: Build and push Docker image to internal registry
+    needs: validate_tag
+    if: |
+      !cancelled() &&
+      (needs.validate_tag.result == 'success' || needs.validate_tag.result == 'skipped')
+    permissions:
+      contents: read
+      id-token: write
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@c7be32f7edfa558c5c05da29a66dad36f20a1991
+    with:
+      image_name: rover
+      image_description: "Apollo Rover CLI — a tool for working with the Apollo GraphOS platform"
+      platforms: '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]'
+      context: .
+      dockerfile_location: ./Dockerfile
+      buildkit_cache_key: rover-cargo
+      buildkit_cache_hash_files: "**/Cargo.lock"
+    secrets: inherit
+
   publish:
-    name: Publish GitHub release and release to npm
-    needs: build
+    name: Publish release artifacts
+    needs: [build, build_image]
+    if: |
+      !cancelled() &&
+      needs.build.result == 'success' &&
+      needs.build_image.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
+      packages: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -206,12 +230,16 @@ jobs:
             npm_tag=""
           fi
 
+          # Docker tags conventionally drop the leading `v`.
+          version_number="${tag#v}"
+
           {
             echo "tag=$tag"
             echo "extra=$extra"
             echo "dry_run=$dry_run"
             echo "prerelease=$prerelease"
             echo "npm_tag=$npm_tag"
+            echo "version_number=$version_number"
           } >> "$GITHUB_OUTPUT"
 
       - name: Compute checksums
@@ -255,3 +283,20 @@ jobs:
             args+=(--dry-run)
           fi
           npm publish "${args[@]}"
+
+      - name: Publish Docker image to DockerHub
+        if: github.event_name == 'push'
+        uses: apollographql/release-tooling/release-dockerhub@c7be32f7edfa558c5c05da29a66dad36f20a1991
+        with:
+          commit_sha: ${{ github.sha }}
+          image_name: rover
+          version_number: ${{ steps.params.outputs.version_number }}
+
+      - name: Publish Docker image to GHCR
+        if: github.event_name == 'push'
+        uses: apollographql/release-tooling/release-ghcr@c7be32f7edfa558c5c05da29a66dad36f20a1991
+        with:
+          commit_sha: ${{ github.sha }}
+          image_name: rover
+          version_number: ${{ steps.params.outputs.version_number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
