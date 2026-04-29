@@ -52,15 +52,11 @@ impl SchemaOpt {
 }
 
 #[derive(Debug, Parser)]
+#[group(required = true, multiple = false)]
 pub struct OptionalSchemaOpt {
     /// The schema file to publish. You can pass `-` to use stdin instead of a file.
     /// Not required if `--use-example-schema` is provided.
-    #[arg(
-        long,
-        short = 's',
-        required_unless_present = "use_example_schema",
-        conflicts_with = "use_example_schema"
-    )]
+    #[arg(long, short = 's')]
     schema: Option<FileDescriptorType>,
 
     /// Publish using a placeholder example schema instead of providing your own.
