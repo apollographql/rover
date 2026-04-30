@@ -69,8 +69,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to latest is the expected one
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:latest <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:latest <<args>>`)
 
 ## Release Candidate Builds
 
@@ -116,8 +116,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-rc.#`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-rc.# <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover:#.#.#-rc.#`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:#.#.#-rc.# <<args>>`)
 
 ## Pre-Release Release
 
@@ -149,8 +149,8 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 1. Run `npm dist-tag ls @apollo/rover` and check the version listed next to beta is the expected one, and that `latest` matches that which is marked as `latest` in GitHub.
 2. Head to the [Rover Documentation](https://www.apollographql.com/docs/rover/getting-started/) and install the latest version on your machine
 3. Run some commands against that version to ensure the binary runs
-4. Install Rover using Dockerhub (`docker pull apollographql/rover:v#.#.#-<<IDENTIFIER>>`)
-5. Run some commands against it to ensure the container works (`docker run apollographql/rover:v#.#.#-<<IDENTIFIER>> <<args>>`)
+4. Install Rover using Dockerhub (`docker pull apollograph/rover:#.#.#-<<IDENTIFIER>>`)
+5. Run some commands against it to ensure the container works (`docker run apollograph/rover:#.#.#-<<IDENTIFIER>> <<args>>`)
 
 ### Post-Release Cleanup
 
@@ -187,12 +187,43 @@ Make sure you also delete the local tag:
 git tag --delete vX.X.X
 ```
 
+#### The wrong tag was published to NPM and/or Dockerhub
+
+Both registries treat release artifacts as effectively immutable, but the
+recovery steps differ.
+
+**NPM**
+
+1. Authenticate to your personal npm account; you must be listed as a publisher
+   on `@apollo/rover`:
+   ```console
+   npm login
+   ```
+2. If the bad publish is **less than 72 hours old**, unpublish it:
+   ```console
+   npm unpublish @apollo/rover@X.X.X
+   ```
+3. After 72 hours npm refuses unpublish. Deprecate instead so installers warn:
+   ```console
+   npm deprecate @apollo/rover@X.X.X "<<reason>>"
+   ```
+
+**Dockerhub**
+
+1. Delete the offending tag from the Dockerhub UI (requires admin access on the apollograph org).
+
+**After the wrong tag is removed**
+
+1. Cut a new release at a higher version number. Both Dockerhub and NPM treat verisons as immutable.
+
 ### The release worked but the installer is not working.
 
-In this case, you should yank the version so npm packages and packages downloading from `rover.apollo.dev/{platform}/latest` are not affected.
+In this case you want to stop new installs of the broken version, in particular
+via npm and `rover.apollo.dev/{platform}/latest`.
 
-   - Follow the same steps as above to delete the release and the tag.
-   - Run `npm unpublish @apollo/rover@vX.X.X`
+1. Follow the process outlined in [I pushed the wrong tag](#i-pushed-the-wrong-tag) to pull the release
+   from GitHub, NPM, and Dockerhub.
+2. Ship the fix at a **new version number** by pushing a new tag.
 
 ### I tried to do a pre-release, but it ended up becoming an actual release
 
@@ -216,4 +247,13 @@ In this case you need to do two things
    beta: <<PRE_RELEASE_VERSION>>
    latest: <<VERSION_NUMBER_FROM_STEP_3>>
    ```
-   
+7. Repoint the Dockerhub `:latest` tag back to the previous stable release.
+   You'll need `docker login` against an account with push access to the `apollograph` org:
+   ```console
+   docker buildx imagetools create -t apollograph/rover:latest apollograph/rover:<<VERSION_NUMBER_FROM_STEP_3>>
+   ```
+8. Verify `:latest` now points at the correct version and still carries both
+   `linux/amd64` and `linux/arm64`:
+   ```console
+   docker buildx imagetools inspect apollograph/rover:latest
+   ```
