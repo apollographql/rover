@@ -223,10 +223,10 @@ jobs:
           # Prerelease regex adapted from https://semver.org/ — a prerelease has
           # an identifier appended after a `-`.
           if [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
-            prerelease="--prerelease"
+            is_prerelease="true"
             npm_tag="beta"
           else
-            prerelease=""
+            is_prerelease="false"
             npm_tag=""
           fi
 
@@ -237,7 +237,7 @@ jobs:
             echo "tag=$tag"
             echo "extra=$extra"
             echo "dry_run=$dry_run"
-            echo "prerelease=$prerelease"
+            echo "is_prerelease=$is_prerelease"
             echo "npm_tag=$npm_tag"
             echo "version_number=$version_number"
           } >> "$GITHUB_OUTPUT"
@@ -253,11 +253,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.params.outputs.tag }}
-          PRERELEASE: ${{ steps.params.outputs.prerelease }}
+          PRERELEASE_FLAG: ${{ steps.params.outputs.is_prerelease == 'true' && '--prerelease' || '' }}
           EXTRA: ${{ steps.params.outputs.extra }}
         run: |
           gh release create "$TAG" \
-            $PRERELEASE \
+            $PRERELEASE_FLAG \
             --title "$TAG" \
             $EXTRA \
             --notes '<!-- changelog -->
@@ -284,13 +284,16 @@ jobs:
           fi
           npm publish "${args[@]}"
 
+      # tag_latest=false on prereleases keeps :latest pointing at the most
+      # recent stable release
       - name: Publish Docker image to DockerHub
         if: github.event_name == 'push'
-        uses: apollographql/release-tooling/release-dockerhub@c7be32f7edfa558c5c05da29a66dad36f20a1991
+        uses: apollographql/release-tooling/release-dockerhub@7b36a82577635afaf398bf1cf2f007a369712052
         with:
           commit_sha: ${{ github.sha }}
           image_name: rover
           version_number: ${{ steps.params.outputs.version_number }}
+          tag_latest: ${{ steps.params.outputs.is_prerelease == 'false' }}
 
       - name: Publish Docker image to GHCR
         if: github.event_name == 'push'
