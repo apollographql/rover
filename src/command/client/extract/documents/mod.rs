@@ -5,7 +5,7 @@ use serde::Serialize;
 pub use triple_quote::ExtractTripleQuoteDocuments;
 pub use typescript::ExtractTypescriptDocuments;
 
-use super::{language::ExtractLanguage, types::ExtractResult};
+use super::{language::ExtractLanguage, ExtractResult};
 
 pub trait ExtractDocuments {
     fn extract_documents(&self, source: &str) -> ExtractResult;

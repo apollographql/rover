@@ -2,8 +2,8 @@ use tree_sitter::Parser;
 
 use super::{
     super::{
+        ExtractedDocument,
         graphql::{GraphQLParseError, parse_graphql},
-        types::ExtractedDocument,
     },
     ExtractDocuments, ExtractResult,
 };

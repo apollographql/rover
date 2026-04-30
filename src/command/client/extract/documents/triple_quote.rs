@@ -1,7 +1,7 @@
 use super::{
     super::{
+        ExtractedDocument,
         graphql::{GraphQLParseError, parse_graphql},
-        types::ExtractedDocument,
     },
     ExtractDocuments, ExtractResult, SkipReason, SkippedDocument,
 };
