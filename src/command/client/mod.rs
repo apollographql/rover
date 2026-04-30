@@ -1,5 +1,6 @@
 pub(crate) mod check;
 mod extensions;
+mod extract;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
