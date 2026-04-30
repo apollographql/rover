@@ -4,6 +4,7 @@ use assert_cmd::cargo;
 use rand::RngExt;
 use rstest::rstest;
 use serde::Deserialize;
+use serde_json::Value;
 use speculoos::{assert_that, iter::ContainingIntoIterAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
@@ -113,6 +114,133 @@ async fn e2e_test_rover_subgraph_publish(
     // left with subgraphs lying around. In the future we should move to something like
     // test-context (https://docs.rs/test-context/latest/test_context/) so that we get cleanup
     // for free. Until then we can manually clean up if it becomes necessary.
+    let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
+    subgraph_delete_cmd.args([
+        "subgraph",
+        "delete",
+        "--name",
+        &id,
+        "--confirm",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+
+    let delete_output = subgraph_delete_cmd.output().expect("Could not run command");
+
+    if !delete_output.status.success() {
+        error!("{}", String::from_utf8(delete_output.stderr).unwrap());
+        panic!("Command did not complete successfully");
+    }
+}
+
+#[rstest]
+#[ignore]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+async fn e2e_test_rover_subgraph_publish_with_example_schema(
+    remote_supergraph_publish_test_variant_graphref: String,
+) {
+    // Generate a unique identifier for the subgraph name
+    let mut rng = rand::rng();
+    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
+        .expect("Could not compile regex");
+    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
+    info!("Using name {} for subgraph with example schema", &id);
+
+    // Grab the initial list of subgraphs to check that what we want doesn't already exist
+    let mut subgraph_list_cmd = Command::new(cargo::cargo_bin!("rover"));
+    subgraph_list_cmd.args([
+        "subgraph",
+        "list",
+        &remote_supergraph_publish_test_variant_graphref,
+        "--format",
+        "json",
+    ]);
+    let list_cmd_output = subgraph_list_cmd
+        .output()
+        .expect("Could not run initial list command");
+    let resp: SubgraphListResponse = serde_json::from_slice(list_cmd_output.stdout.as_slice())
+        .unwrap_or_else(|_| {
+            panic!(
+                "Could not parse response to struct - Raw: {}",
+                from_utf8(list_cmd_output.stdout.as_slice()).unwrap()
+            )
+        });
+    let initial_subgraphs = resp.get_subgraph_names();
+    assert_that(&initial_subgraphs).does_not_contain(&id);
+
+    // Publish a subgraph using --use-example-schema instead of --schema and --routing-url
+    info!("Creating subgraph with name {} using example schema", &id);
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        &id,
+        "--use-example-schema",
+        "--client-timeout",
+        "120",
+        "--format",
+        "json",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let output = cmd.output().expect("Could not run command");
+
+    if !output.status.success() {
+        error!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        panic!("Command did not complete successfully");
+    }
+
+    // Verify stderr contains expected message about publishing
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Publishing SDL"),
+        "Expected stderr to contain 'Publishing SDL' message, got: {}",
+        stderr
+    );
+
+    // Parse JSON response and verify subgraph_was_created and no build errors
+    let json_response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "Could not parse publish response as JSON - Raw: {}",
+            from_utf8(&output.stdout).unwrap()
+        )
+    });
+
+    let data = json_response
+        .get("data")
+        .expect("Response should have 'data' field");
+
+    assert_eq!(
+        data.get("subgraph_was_created"),
+        Some(&Value::Bool(true)),
+        "Expected subgraph_was_created to be true"
+    );
+
+    // Verify build_errors is empty (null or empty array)
+    let build_errors = data.get("build_errors");
+    assert!(
+        build_errors.is_none()
+            || build_errors == Some(&Value::Null)
+            || build_errors == Some(&Value::Array(vec![])),
+        "Expected no build errors, got: {:?}",
+        build_errors
+    );
+
+    // Also verify via list that the subgraph was created
+    let post_creation_output = subgraph_list_cmd
+        .output()
+        .expect("Could not run list command after creating new variant");
+    let post_creation_resp: SubgraphListResponse =
+        serde_json::from_slice(post_creation_output.stdout.as_slice())
+            .expect("Could not parse response to struct");
+    let final_subgraphs = post_creation_resp.get_subgraph_names();
+    assert_that(&final_subgraphs).contains(&id);
+
+    // Clean up by deleting the subgraph
+    info!("Deleting subgraph with name {}", &id);
     let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
     subgraph_delete_cmd.args([
         "subgraph",

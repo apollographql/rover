@@ -184,9 +184,25 @@ Options include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in SDL format.
+**Required unless `--use-example-schema` is provided.** The path to a local `.graphql` or `.gql` file, in SDL format.
 
 Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
+
+</td>
+</tr>
+
+<tr class="required">
+<td>
+
+###### `--use-example-schema`
+
+</td>
+
+<td>
+
+**Required unless `--schema` is provided.** Publish using a placeholder example schema (`type Query { helloWorld: String }`) and routing URL (`https://example.com`) instead of providing your own.
+
+Use this option to set up your graph structure before your actual schemas are ready, such as when you create a new supergraph and its initial subgraphs.
 
 </td>
 </tr>
