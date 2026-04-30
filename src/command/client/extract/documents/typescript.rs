@@ -95,7 +95,12 @@ fn parse_call_expression(
         .child_by_field_name("function")
         .or_else(|| node.child(0))?;
     let func_text = func_node.utf8_text(source.as_bytes()).ok()?;
-    let template_node = find_template_child(node, "template_string")?;
+    // Tagged template form (`gql\`...\``) has template_string as a direct child.
+    // Call expression form (`gql(\`...\`)`) has it nested inside arguments.
+    let template_node = find_template_child(node, "template_string").or_else(|| {
+        node.child_by_field_name("arguments")
+            .and_then(|args| find_template_child(&args, "template_string"))
+    })?;
     extract_template_node(source, func_text, &template_node, allowed_tags)
 }
 
@@ -190,5 +195,27 @@ mod tests {
 
         assert_that!(&result.documents).is_empty();
         assert_that!(&result.skipped).is_empty();
+    }
+
+    #[rstest]
+    #[case::gql_tag("gql", "const q = gql(`query GetUser { user { id } }`);")]
+    #[case::graphql_tag("graphql", "const q = graphql(`query GetUser { user { id } }`);")]
+    fn extracts_call_expression_with_template_arg(#[case] tag: &str, #[case] source: &str) {
+        let result = extractor(&[tag]).extract_documents(source);
+
+        assert_that!(&result.documents).has_length(1);
+        assert_that!(&result.skipped).is_empty();
+        assert_that!(&result.documents[0].content).contains("query GetUser");
+    }
+
+    #[test]
+    fn skips_call_expression_with_interpolation() {
+        let source = "const q = gql(`query User { user(id: ${id}) { id } }`);";
+        let result = extractor(&["gql"]).extract_documents(source);
+
+        assert_that!(&result.documents).is_empty();
+        assert_that!(&result.skipped).has_length(1);
+        assert_that!(&result.skipped[0].reason)
+            .matches(|r| matches!(r, SkipReason::UnsupportedInterpolation));
     }
 }
