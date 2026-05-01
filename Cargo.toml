@@ -90,7 +90,7 @@ apollo-language-server = { version = "0.7.0", default-features = false, features
 
 # tree-sitter grammars for client extraction
 tree-sitter = "0.22"
-tree-sitter-typescript = "0.21"
+tree-sitter-typescript = "0.23"
 tree-sitter-swift = "0.7"
 tree-sitter-kotlin = "0.3"
 
