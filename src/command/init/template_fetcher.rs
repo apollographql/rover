@@ -184,13 +184,15 @@ impl InitTemplateOptions {
 
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
-    service: GitHubService,
+    pub(crate) service: GitHubService,
 }
 
 impl InitTemplateFetcher {
-    pub fn new() -> Self {
+    pub fn new(accept_invalid_certs: bool) -> Self {
         Self {
-            service: GitHubService::new(),
+            service: GitHubService::builder()
+                .accept_invalid_certs(accept_invalid_certs)
+                .build(),
         }
     }
 
@@ -377,7 +379,9 @@ impl SelectedTemplateState {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use serde_json;
+    use speculoos::prelude::*;
 
     use super::*;
 

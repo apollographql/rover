@@ -214,7 +214,10 @@ impl Init {
         };
 
         let creation_confirmed = match use_case_selected
-            .select_template(&self.project_template)
+            .select_template(
+                &self.project_template,
+                client_config.accept_invalid_certs(),
+            )
             .await?
             .enter_project_name(&self.project_name)?
             .confirm_graph_id(&self.graph_id)?
@@ -785,7 +788,8 @@ impl Init {
 
         // Fetch raw files from the add-mcp directory
         let branch_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new();
+        let mut template_fetcher =
+            InitTemplateFetcher::new(client_config.accept_invalid_certs());
         let template_options = template_fetcher.call(branch_ref).await?;
 
         // Extract files directly from the add-mcp directory (no examples to remove)
@@ -1312,7 +1316,8 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Fetch base template + add-mcp using the existing fetch_mcp_template method
         let branch_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new();
+        let mut template_fetcher =
+            InitTemplateFetcher::new(client_config.accept_invalid_certs());
         let mut selected_template = template_fetcher
             .fetch_mcp_template(base_template_id, branch_ref)
             .await?;

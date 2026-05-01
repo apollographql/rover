@@ -29,26 +29,26 @@ impl From<GitHubServiceError> for RoverClientError {
 pub struct GitHubService {
     client: Client,
     base_url: String,
+    pub accept_invalid_certs: bool,
 }
 
-impl Default for GitHubService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+#[bon::bon]
 impl GitHubService {
-    pub fn new() -> Self {
+    #[builder]
+    pub fn new(
+        #[builder(default = "https://api.github.com".to_string())]
+        base_url: String,
+        #[builder(default)]
+        accept_invalid_certs: bool,
+    ) -> Self {
+        let client = Client::builder()
+            .danger_accept_invalid_certs(accept_invalid_certs)
+            .build()
+            .expect("Failed to build HTTP client");
         Self {
-            client: Client::new(),
-            base_url: "https://api.github.com".to_string(),
-        }
-    }
-
-    pub fn with_base_url(base_url: String) -> Self {
-        Self {
-            client: Client::new(),
+            client,
             base_url,
+            accept_invalid_certs,
         }
     }
 }
@@ -190,7 +190,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tar() {
-        let mut service = GitHubService::new();
+        let mut service = GitHubService::builder().build();
         let request = GetTarRequest::new(
             "apollographql".to_string(),
             "rover-init-starters".to_string(),

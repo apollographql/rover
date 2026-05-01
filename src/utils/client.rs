@@ -204,6 +204,10 @@ impl StudioClientConfig {
         Ok(service)
     }
 
+    pub fn accept_invalid_certs(&self) -> bool {
+        self.client_builder.accept_invalid_certs
+    }
+
     pub const fn retry_period(&self) -> Duration {
         self.client_timeout.get_duration()
     }

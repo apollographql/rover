@@ -16,6 +16,7 @@ apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 apollo-encoder = { workspace = true }
 backon = { workspace = true }
+bon = { workspace = true }
 buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}

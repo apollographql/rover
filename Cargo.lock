@@ -4798,6 +4798,7 @@ dependencies = [
  "apollo-parser 0.8.5",
  "ariadne",
  "backon",
+ "bon",
  "buildstructor",
  "camino",
  "chrono",
