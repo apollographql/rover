@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin};
 
 use reqwest::Client;
 use serde::Deserialize;
-use tower::{util::BoxCloneService, Service};
+use tower::{Service, util::BoxCloneService};
 
 use crate::error::RoverClientError;
 
@@ -29,7 +29,6 @@ impl From<GitHubServiceError> for RoverClientError {
 pub struct GitHubService {
     client: Client,
     base_url: String,
-    pub accept_invalid_certs: bool,
 }
 
 #[bon::bon]
@@ -43,11 +42,7 @@ impl GitHubService {
             .danger_accept_invalid_certs(accept_invalid_certs)
             .build()
             .expect("Failed to build HTTP client");
-        Self {
-            client,
-            base_url,
-            accept_invalid_certs,
-        }
+        Self { client, base_url }
     }
 }
 
