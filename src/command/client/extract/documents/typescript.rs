@@ -1,13 +1,10 @@
 use tree_sitter::Parser;
 
-use super::{
-    super::{
-        ExtractedDocument,
-        graphql::{GraphQLParseError, parse_graphql},
-    },
-    ExtractDocuments, ExtractResult,
+use crate::command::client::extract::{
+    ExtractedDocument,
+    documents::{ExtractDocuments, ExtractResult, SkipReason, SkippedDocument},
+    graphql::{GraphQLParseError, parse_graphql},
 };
-use crate::command::client::extract::documents::{SkipReason, SkippedDocument};
 
 pub struct ExtractTypescriptDocuments {
     pub allowed_tags: Vec<String>,

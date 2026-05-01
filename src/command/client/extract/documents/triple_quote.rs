@@ -1,9 +1,7 @@
-use super::{
-    super::{
-        ExtractedDocument,
-        graphql::{GraphQLParseError, parse_graphql},
-    },
-    ExtractDocuments, ExtractResult, SkipReason, SkippedDocument,
+use crate::command::client::extract::{
+    ExtractedDocument,
+    documents::{ExtractDocuments, ExtractResult, SkipReason, SkippedDocument},
+    graphql::{GraphQLParseError, parse_graphql},
 };
 
 pub struct ExtractTripleQuoteDocuments;
