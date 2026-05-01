@@ -1,6 +1,6 @@
 [[rules]]
   id = "generic-api-key"
-  [rules.allowlist]
+  [[rules.allowlists]]
     commits = [
       # Allowlist placeholder API key in transitions.rs
       "12faf7bd764685b4327fa213c8e47092723f9f38",
@@ -11,7 +11,7 @@
 
 [[rules]]
   id = "apollo-graphos-api-key"
-  [rules.allowlist]
+  [[rules.allowlists]]
     commits = [
       "c8efac81365648b0236d691a2fc622ba0d516f0c"
     ]
