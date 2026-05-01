@@ -1,5 +1,5 @@
 [tools]
-lychee = "0.23.0"
+"github:lycheeverse/lychee" = { version = "0.24.1", version_prefix = "lychee-v" }
 node = "22.14.0"
 "cargo:cargo-deny" = "0.19"
 
