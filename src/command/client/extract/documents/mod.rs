@@ -17,6 +17,8 @@ pub enum SkipReason {
     UnsupportedInterpolation,
     #[error("GraphQL syntax error: {0}")]
     GraphQlSyntax(String),
+    #[error("unclosed triple-quote block; no matching closing \"\"\"")]
+    UnclosedTripleQuote,
 }
 
 #[derive(Debug, Serialize)]

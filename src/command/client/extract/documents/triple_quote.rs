@@ -11,15 +11,24 @@ impl ExtractDocuments for ExtractTripleQuoteDocuments {
         let mut result = ExtractResult::default();
         let markers: Vec<_> = source.match_indices(r#""""#).collect();
         for pair in markers.chunks(2) {
-            let [(start, _), (end, _)] = pair else {
-                continue;
+            let (start, end) = match pair {
+                [(start, _), (end, _)] => (*start, *end),
+                [(start, _)] => {
+                    let line = source[..*start].chars().filter(|c| *c == '\n').count() + 1;
+                    result.skipped.push(SkippedDocument {
+                        line,
+                        reason: SkipReason::UnclosedTripleQuote,
+                    });
+                    continue;
+                }
+                _ => continue,
             };
-            let start_idx = *start + 3;
-            if start_idx > source.len() || *end <= start_idx {
+            let start_idx = start + 3;
+            if start_idx > source.len() || end <= start_idx {
                 continue;
             }
-            let body = &source[start_idx..*end];
-            let line = source[..*start].chars().filter(|c| *c == '\n').count() + 1;
+            let body = &source[start_idx..end];
+            let line = source[..start].chars().filter(|c| *c == '\n').count() + 1;
             match parse_graphql(body) {
                 Ok(_) => result.documents.push(ExtractedDocument {
                     content: body.trim().to_string(),
@@ -65,13 +74,15 @@ mod tests {
     }
 
     #[test]
-    fn unpaired_opening_marker_produces_no_output() {
+    fn unpaired_opening_marker_is_skipped() {
         let source = r#"let q = """
         query A { a { id } }"#;
         let result = ExtractTripleQuoteDocuments.extract_documents(source);
 
         assert_that!(&result.documents).is_empty();
-        assert_that!(&result.skipped).is_empty();
+        assert_that!(&result.skipped).has_length(1);
+        assert_that!(&result.skipped[0].reason)
+            .matches(|r| matches!(r, SkipReason::UnclosedTripleQuote));
     }
 
     #[test]
