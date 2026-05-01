@@ -16,7 +16,7 @@ impl ExtractDocuments for ExtractTypescriptDocuments {
         let mut parser = Parser::new();
         let mut result = ExtractResult::default();
         if parser
-            .set_language(&tree_sitter_typescript::language_tsx())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TSX.into())
             .is_err()
         {
             return result;
