@@ -89,10 +89,10 @@ apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
 apollo-language-server = { version = "0.7.0", default-features = false, features = ["tokio"] }
 
 # tree-sitter grammars for client extraction
-tree-sitter = "0.22"
-tree-sitter-typescript = "0.21"
+tree-sitter = "0.26"
+tree-sitter-typescript = "0.23"
 tree-sitter-swift = "0.7"
-tree-sitter-kotlin = "0.3"
+tree-sitter-kotlin-ng = "1"
 
 # crates.io dependencies
 anyhow = "1"
@@ -267,7 +267,7 @@ url = { workspace = true, features = ["serde"] }
 tree-sitter = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }
-tree-sitter-kotlin = { workspace = true }
+tree-sitter-kotlin-ng = { workspace = true }
 
 [dev-dependencies]
 apollo-compiler = { workspace = true }
