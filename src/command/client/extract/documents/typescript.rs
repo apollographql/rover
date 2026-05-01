@@ -35,55 +35,25 @@ impl ExtractDocuments for ExtractTypescriptDocuments {
             for child in node.children(&mut cursor) {
                 stack.push(child);
             }
-            match node.kind() {
-                "tagged_template" | "tagged_template_expression" | "template_string" => {
-                    if let Some(doc) = parse_tagged_template(source, &node, &allowed_tags) {
-                        match doc {
-                            Ok(doc) => match parse_graphql(&doc.content) {
-                                Ok(_) => result.documents.push(doc),
-                                Err(GraphQLParseError::Syntax(msg)) => {
-                                    result.skipped.push(SkippedDocument {
-                                        line: doc.line,
-                                        reason: SkipReason::GraphQlSyntax(msg),
-                                    })
-                                }
-                            },
-                            Err(skipped) => result.skipped.push(skipped),
+            if node.kind() == "call_expression"
+                && let Some(doc) = parse_call_expression(source, &node, &allowed_tags)
+            {
+                match doc {
+                    Ok(doc) => match parse_graphql(&doc.content) {
+                        Ok(_) => result.documents.push(doc),
+                        Err(GraphQLParseError::Syntax(msg)) => {
+                            result.skipped.push(SkippedDocument {
+                                line: doc.line,
+                                reason: SkipReason::GraphQlSyntax(msg),
+                            })
                         }
-                    }
+                    },
+                    Err(skipped) => result.skipped.push(skipped),
                 }
-                "call_expression" => {
-                    if let Some(doc) = parse_call_expression(source, &node, &allowed_tags) {
-                        match doc {
-                            Ok(doc) => match parse_graphql(&doc.content) {
-                                Ok(_) => result.documents.push(doc),
-                                Err(GraphQLParseError::Syntax(msg)) => {
-                                    result.skipped.push(SkippedDocument {
-                                        line: doc.line,
-                                        reason: SkipReason::GraphQlSyntax(msg),
-                                    })
-                                }
-                            },
-                            Err(skipped) => result.skipped.push(skipped),
-                        }
-                    }
-                }
-                _ => {}
             }
         }
         result
     }
-}
-
-fn parse_tagged_template(
-    source: &str,
-    node: &tree_sitter::Node<'_>,
-    allowed_tags: &[&str],
-) -> Option<Result<ExtractedDocument, SkippedDocument>> {
-    let tag_node = node.child(0)?;
-    let tag_text = tag_node.utf8_text(source.as_bytes()).ok()?;
-    let template_node = find_template_child(node, "template_string")?;
-    extract_template_node(source, tag_text, &template_node, allowed_tags)
 }
 
 fn parse_call_expression(

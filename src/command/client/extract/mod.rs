@@ -5,9 +5,8 @@ mod graphql;
 mod language;
 
 use camino::Utf8PathBuf;
-use serde::Serialize;
-
 use documents::SkippedDocument;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct ExtractedDocument {
