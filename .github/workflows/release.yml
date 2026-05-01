@@ -198,9 +198,10 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Upgrade npm for trusted publishing support
-        # npm trusted publishing (OIDC) requires npm >= 11.5.1. Node 22 ships
-        # with npm 10.x, so pin to npm 11
-        run: npm install --global npm@11
+        # npm trusted publishing (OIDC) requires npm >= 11.5.1
+        # due to a bug (https://github.com/nodejs/node/issues/62425#issuecomment-4200715930)
+        # NPM 10 has to be installed first for NPM 11 to successfully install
+        run: npm install -g npm@10.9.8 && npm install -g npm@11
 
       - name: Resolve release parameters
         id: params
