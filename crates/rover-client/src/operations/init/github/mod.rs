@@ -36,10 +36,8 @@ pub struct GitHubService {
 impl GitHubService {
     #[builder]
     pub fn new(
-        #[builder(default = "https://api.github.com".to_string())]
-        base_url: String,
-        #[builder(default)]
-        accept_invalid_certs: bool,
+        #[builder(default = "https://api.github.com".to_string())] base_url: String,
+        #[builder(default)] accept_invalid_certs: bool,
     ) -> Self {
         let client = Client::builder()
             .danger_accept_invalid_certs(accept_invalid_certs)

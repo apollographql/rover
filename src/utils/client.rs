@@ -204,7 +204,7 @@ impl StudioClientConfig {
         Ok(service)
     }
 
-    pub fn accept_invalid_certs(&self) -> bool {
+    pub const fn accept_invalid_certs(&self) -> bool {
         self.client_builder.accept_invalid_certs
     }
 
