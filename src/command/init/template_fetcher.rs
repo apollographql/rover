@@ -188,9 +188,11 @@ pub struct InitTemplateFetcher {
 }
 
 impl InitTemplateFetcher {
-    pub fn new() -> Self {
+    pub fn new(accept_invalid_certs: bool) -> Self {
         Self {
-            service: GitHubService::new(),
+            service: GitHubService::builder()
+                .accept_invalid_certs(accept_invalid_certs)
+                .build(),
         }
     }
 

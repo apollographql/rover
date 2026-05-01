@@ -165,6 +165,7 @@ pub struct MCPOrganizationSelected {
     pub organization: OrganizationId,
     pub setup_type: MCPSetupType,
     pub data_source_type: MCPDataSourceType,
+    pub accept_invalid_certs: bool,
 }
 
 #[derive(Debug)]

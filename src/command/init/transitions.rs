@@ -228,10 +228,11 @@ impl UseCaseSelected {
     pub async fn select_template(
         self,
         options: &ProjectTemplateOpt,
+        accept_invalid_certs: bool,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
         let repo_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new();
+        let mut template_fetcher = InitTemplateFetcher::new(accept_invalid_certs);
         let template_options = template_fetcher.call(repo_ref).await?;
 
         // MCP flow is handled in separate state machine, should not reach here with --mcp flag
@@ -854,6 +855,7 @@ impl MCPDataSourceSelected {
             organization,
             setup_type: self.setup_type,
             data_source_type: self.data_source_type,
+            accept_invalid_certs: client_config.accept_invalid_certs(),
         })
     }
 }
@@ -867,7 +869,7 @@ impl MCPOrganizationSelected {
         };
 
         let repo_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new();
+        let mut template_fetcher = InitTemplateFetcher::new(self.accept_invalid_certs);
 
         // Select template based on data source type
         let template_id = match self.data_source_type {
