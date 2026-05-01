@@ -119,7 +119,7 @@ impl Publish {
         })
     }
 
-    async fn determine_routing_url<F, G>(
+    pub(crate) async fn determine_routing_url<F, G>(
         no_url: bool,
         routing_url: &Option<String>,
         allow_invalid_routing_url: bool,

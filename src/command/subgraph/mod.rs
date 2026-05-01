@@ -1,4 +1,5 @@
 mod check;
+mod check_and_publish;
 mod delete;
 mod fetch;
 pub mod introspect;
@@ -23,6 +24,10 @@ pub enum Command {
     /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry
     Check(check::Check),
+
+    /// Check a subgraph schema for build errors and breaking changes and, if the check passes,
+    /// publish it to the Apollo graph registry
+    CheckAndPublish(check_and_publish::CheckAndPublish),
 
     /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
     Delete(delete::Delete),
@@ -53,6 +58,11 @@ impl Subgraph {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
+            }
+            Command::CheckAndPublish(command) => {
                 command
                     .run(client_config, git_context, checks_timeout_seconds)
                     .await
