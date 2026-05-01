@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin};
 
 use reqwest::Client;
 use serde::Deserialize;
-use tower::{Service, util::BoxCloneService};
+use tower::{util::BoxCloneService, Service};
 
 use crate::error::RoverClientError;
 

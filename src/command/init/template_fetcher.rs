@@ -184,7 +184,7 @@ impl InitTemplateOptions {
 
 #[derive(Debug)]
 pub struct InitTemplateFetcher {
-    pub(crate) service: GitHubService,
+    service: GitHubService,
 }
 
 impl InitTemplateFetcher {
@@ -379,9 +379,7 @@ impl SelectedTemplateState {
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
     use serde_json;
-    use speculoos::prelude::*;
 
     use super::*;
 
