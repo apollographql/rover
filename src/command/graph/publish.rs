@@ -64,7 +64,8 @@ impl Publish {
                     config: CheckConfig {
                         validation_period: self.check_config.validation_period.clone(),
                         query_count_threshold: self.check_config.query_count_threshold,
-                        query_count_threshold_percentage: self.check_config
+                        query_count_threshold_percentage: self
+                            .check_config
                             .query_percentage_threshold,
                     },
                 },
@@ -85,9 +86,7 @@ impl Publish {
                 Ok(check_res) => {
                     eprintln!("{}", check_res.get_output());
                 }
-                Err(RoverClientError::CheckWorkflowFailure {
-                    check_response, ..
-                }) => {
+                Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
                     eprintln!("{}", check_response.get_output());
                     eprintln!(
                         "{}",
