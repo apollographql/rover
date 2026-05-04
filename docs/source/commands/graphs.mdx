@@ -106,11 +106,12 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 For more on accepting input via `stdin`, see [Conventions](/rover/conventions#using-stdin).
 
-You can run all configured checks before publishing via the `--check` option. This flag takes no value, and it runs all the standard checks configured for the given graph.
+Run all configured checks before publishing via the `--check` option. This flag takes no value, and it runs all the standard checks configured for your graph.
 
-If any of the checks fail then the error message will be displayed, and no publish action will take place. If all the checks do pass then the publishing of the schema will proceed.
+If any checks fail, an error message appears and the publish action stops. If all checks pass, the schema publishing proceeds.
 
-For example if you wanted to check a schema change for `test-graph` and then publish the same you could run two commands:
+For example, to check a schema change for `test-graph` and then publish it, run these two commands:
+
 ```shell
 # Check that schema.graphql works
 rover graph check --schema schemas/schema.graphql test-graph@current
@@ -124,8 +125,7 @@ Or you could use the `--check` flag and do both in one command
 graph publish --check --schema schemas/schema.graphql test-graph@current
 ```
 
-For more information on the `check` see the following section on `graph check`. Passing the `--check` option runs the same checks `rover graph check` would with the same arguments.
-
+For more information on checks, see the following section on `graph check`. Passing the `--check` option runs the same checks `rover graph check` would with the same arguments.
 
 ## Validating schema changes
 
