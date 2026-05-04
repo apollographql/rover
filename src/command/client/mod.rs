@@ -18,6 +18,9 @@ pub struct Client {
 pub enum Command {
     /// Validate operations in .graphql files against a graph
     Check(check::Check),
+
+    /// Extract GraphQL documents from source files into .graphql files
+    Extract(extract::Extract),
 }
 
 impl Client {
@@ -28,6 +31,7 @@ impl Client {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(client_config, git_context).await,
+            Command::Extract(command) => command.run().await,
         }
     }
 }
