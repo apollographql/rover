@@ -2,11 +2,7 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use serde_json::json;
 
-use super::{
-    documents::SkippedDocument,
-    ExtractionSummary,
-    MaterializedFile,
-};
+use super::{ExtractionSummary, MaterializedFile, documents::SkippedDocument};
 use crate::command::CliOutput;
 
 #[derive(Debug, Serialize)]
@@ -83,9 +79,8 @@ mod tests {
 
     use super::*;
     use crate::command::client::extract::{
+        ExtractionSummary, MaterializedFile,
         documents::{SkipReason, SkippedDocument},
-        ExtractionSummary,
-        MaterializedFile,
     };
 
     fn make_output(

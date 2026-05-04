@@ -2,9 +2,9 @@ use camino::{Utf8Path, Utf8PathBuf};
 use rover_std::{Fs, RoverStdError};
 
 use super::{
+    MaterializedFile,
     documents::{ExtractDocuments, SkippedDocument},
     language::{ExtractLanguage, UnsupportedExtractExtension},
-    MaterializedFile,
 };
 
 #[derive(thiserror::Error, Debug)]
