@@ -4,7 +4,8 @@ use serde_json::json;
 
 use super::{
     documents::SkippedDocument,
-    types::{ExtractionSummary, MaterializedFile},
+    ExtractionSummary,
+    MaterializedFile,
 };
 use crate::command::CliOutput;
 
@@ -83,7 +84,8 @@ mod tests {
     use super::*;
     use crate::command::client::extract::{
         documents::{SkipReason, SkippedDocument},
-        types::{ExtractionSummary, MaterializedFile},
+        ExtractionSummary,
+        MaterializedFile,
     };
 
     fn make_output(

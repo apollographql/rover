@@ -4,7 +4,7 @@ use rover_std::{Fs, RoverStdError};
 use super::{
     documents::{ExtractDocuments, SkippedDocument},
     language::{ExtractLanguage, UnsupportedExtractExtension},
-    types::MaterializedFile,
+    MaterializedFile,
 };
 
 #[derive(thiserror::Error, Debug)]
