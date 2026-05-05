@@ -5,7 +5,7 @@ use rand::RngExt;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
-use speculoos::{assert_that, iter::ContainingIntoIterAssertions};
+use speculoos::{assert_that, boolean::BooleanAssertions, iter::ContainingIntoIterAssertions, string::StrAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
@@ -258,5 +258,159 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
     if !delete_output.status.success() {
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Command did not complete successfully");
+    }
+}
+
+#[rstest]
+#[ignore]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+async fn e2e_test_rover_subgraph_publish_with_check_passes(
+    remote_supergraph_publish_test_variant_graphref: String,
+    test_artifacts_directory: PathBuf,
+) {
+    // GIVEN
+    //   - a unique subgraph name (no prior schema to compare against, so no breaking changes)
+    //   - the full perfSubgraph01 schema
+    let mut rng = rand::rng();
+    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
+        .expect("Could not compile regex");
+    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
+    let schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
+    info!("Using name {} for subgraph", &id);
+
+    // WHEN
+    //   - the command is run with --check on a brand-new subgraph
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        &id,
+        "--schema",
+        schema_path.canonicalize().unwrap().to_str().unwrap(),
+        "--routing-url",
+        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "--check",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let output = cmd.output().expect("Could not run command");
+
+    // THEN
+    //   - the command succeeds
+    //   - stderr confirms checks passed before publishing
+    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    assert_that!(output.status.success()).is_true();
+    assert_that!(stderr).contains("Check passed. Publishing SDL");
+
+    // Cleanup: delete the subgraph so the variant is left in a clean state
+    info!("Deleting subgraph with name {}", &id);
+    let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
+    subgraph_delete_cmd.args([
+        "subgraph",
+        "delete",
+        "--name",
+        &id,
+        "--confirm",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let delete_output = subgraph_delete_cmd.output().expect("Could not run delete command");
+    if !delete_output.status.success() {
+        error!("{}", String::from_utf8(delete_output.stderr).unwrap());
+        panic!("Cleanup delete did not complete successfully");
+    }
+}
+
+#[rstest]
+#[ignore]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+async fn e2e_test_rover_subgraph_publish_with_check_fails(
+    remote_supergraph_publish_test_variant_graphref: String,
+    test_artifacts_directory: PathBuf,
+) {
+    // GIVEN
+    //   - a unique subgraph name
+    //   - a full schema published as the baseline
+    //   - a breaking schema (field removed) that will be used for the --check publish attempt
+    let mut rng = rand::rng();
+    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
+        .expect("Could not compile regex");
+    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
+    let full_schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
+    let breaking_schema_path =
+        test_artifacts_directory.join("subgraph/publish_check_breaking.graphql");
+    info!("Using name {} for subgraph", &id);
+
+    // Publish the baseline schema without --check to establish the registered schema
+    info!("Publishing baseline schema for subgraph {}", &id);
+    let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
+    baseline_cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        &id,
+        "--schema",
+        full_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        "--routing-url",
+        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let baseline_output = baseline_cmd.output().expect("Could not run baseline publish");
+    if !baseline_output.status.success() {
+        error!("{}", String::from_utf8(baseline_output.stderr).unwrap());
+        panic!("Baseline publish did not complete successfully");
+    }
+
+    // WHEN
+    //   - the command is run with --check using a breaking schema (number field removed)
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        &id,
+        "--schema",
+        breaking_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        "--routing-url",
+        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "--check",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let output = cmd.output().expect("Could not run command");
+
+    // THEN
+    //   - the command fails
+    //   - stderr confirms the check blocked the publish
+    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    assert_that!(output.status.success()).is_false();
+    assert_that!(stderr)
+        .contains("Schema check failed — no changes were published to the graph registry.");
+
+    // Cleanup: delete the subgraph so the variant is left in a clean state
+    info!("Deleting subgraph with name {}", &id);
+    let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
+    subgraph_delete_cmd.args([
+        "subgraph",
+        "delete",
+        "--name",
+        &id,
+        "--confirm",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let delete_output = subgraph_delete_cmd.output().expect("Could not run delete command");
+    if !delete_output.status.success() {
+        error!("{}", String::from_utf8(delete_output.stderr).unwrap());
+        panic!("Cleanup delete did not complete successfully");
     }
 }
