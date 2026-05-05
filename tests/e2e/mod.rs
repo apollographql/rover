@@ -316,12 +316,14 @@ fn find_matching_log_line(reader: &mut BufReader<ChildStderr>, matcher: &Regex) 
 
 #[fixture]
 fn remote_supergraph_graphref() -> String {
-    String::from("rover-e2e-tests@current")
+    env::var("APOLLO_E2E_SUPERGRAPH_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@current"))
 }
 
 #[fixture]
 fn remote_supergraph_publish_test_variant_graphref() -> String {
-    String::from("rover-e2e-tests@publish-test")
+    env::var("APOLLO_E2E_SUPERGRAPH_PUBLISH_TEST_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@publish-test"))
 }
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
