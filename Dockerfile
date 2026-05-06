@@ -24,4 +24,8 @@ COPY --from=builder /usr/local/bin/rover /usr/local/bin/rover
 USER rover
 WORKDIR /home/rover
 
-ENTRYPOINT ["rover"]
+# `--skip-update-check` is baked in: each container has a pinned binary, the
+# update-check message recommends the shell installer (wrong surface for
+# Docker), and the check pays a per-invocation HTTP round-trip because the
+# throttle file in $HOME does not persist across runs.
+ENTRYPOINT ["rover", "--skip-update-check"]
