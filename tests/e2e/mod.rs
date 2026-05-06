@@ -338,20 +338,6 @@ fn remote_supergraph_check_publish_test_variant_graphref() -> String {
         .unwrap_or_else(|_| String::from("rover-e2e-tests@check-publish-test"))
 }
 
-/// Dedicated NON-FEDERATED variant for the graph publish --check e2e tests.
-/// `rover graph publish` only works on non-federated graphs; using the shared
-/// @current variant (which may be federated) causes the publish step to fail
-/// with E007 even when the schema check itself passes.
-///
-/// The variant must be created in Apollo Studio as a non-federated graph
-/// (i.e. never use `rover subgraph publish` against it).
-/// Override the default by setting APOLLO_E2E_GRAPH_PUBLISH_CHECK_GRAPHREF.
-#[fixture]
-fn remote_graph_publish_check_graphref() -> String {
-    env::var("APOLLO_E2E_GRAPH_PUBLISH_CHECK_GRAPHREF")
-        .unwrap_or_else(|_| String::from("rover-e2e-tests@graph-publish-check-test"))
-}
-
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
