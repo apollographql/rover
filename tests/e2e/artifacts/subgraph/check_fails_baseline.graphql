@@ -1,0 +1,15 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
+"""
+Baseline schema for the check_fails e2e test.
+Uses unique type names that will never conflict with any perf-subgraph schemas.
+"""
+type Query {
+  checkFailsResult: CheckFailsResult
+}
+
+type CheckFailsResult @key(fields: "id") {
+  id: ID!
+  status: String!
+}

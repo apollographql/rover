@@ -1,0 +1,14 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
+"""
+Breaking schema for the check_fails e2e test.
+Removes the `status` field from CheckFailsResult, which triggers FIELD_REMOVED.
+"""
+type Query {
+  checkFailsResult: CheckFailsResult
+}
+
+type CheckFailsResult @key(fields: "id") {
+  id: ID!
+}

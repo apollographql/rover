@@ -12,7 +12,10 @@ use speculoos::{
 use tracing::{error, info};
 use tracing_test::traced_test;
 
-use crate::e2e::{remote_supergraph_publish_test_variant_graphref, test_artifacts_directory};
+use crate::e2e::{
+    remote_supergraph_check_publish_test_variant_graphref,
+    remote_supergraph_publish_test_variant_graphref, test_artifacts_directory,
+};
 
 #[derive(Debug, Deserialize)]
 struct SubgraphListResponse {
@@ -269,93 +272,64 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_subgraph_publish_with_check_passes(
-    remote_supergraph_publish_test_variant_graphref: String,
+    remote_supergraph_check_publish_test_variant_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
-    // Pre-test cleanup: remove any accumulated subgraphs from previous test runs.
-    // Leftover subgraphs that share type/field names cause INVALID_FIELD_SHARING
-    // composition errors which make the check step fail even for an otherwise valid schema.
-    {
-        let mut list_cmd = Command::new(cargo::cargo_bin!("rover"));
-        list_cmd.args([
-            "subgraph",
-            "list",
-            &remote_supergraph_publish_test_variant_graphref,
-            "--format",
-            "json",
-        ]);
-        if let Ok(list_output) = list_cmd.output() {
-            if let Ok(resp) = serde_json::from_slice::<SubgraphListResponse>(&list_output.stdout) {
-                for name in resp.get_subgraph_names() {
-                    let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
-                    del_cmd.args([
-                        "subgraph",
-                        "delete",
-                        "--name",
-                        &name,
-                        "--confirm",
-                        "--client-timeout",
-                        "60",
-                        &remote_supergraph_publish_test_variant_graphref,
-                    ]);
-                    let _ = del_cmd.output();
-                }
-            }
-        }
-    }
-
-    // After deleting all subgraphs the variant becomes non-federated, which would cause
-    // `subgraph check` to fail before we even reach the assertion.  Publish a minimal
-    // seed subgraph (unique types, no conflict with perfSubgraph01) to re-establish
-    // federation so the check workflow can run properly.
+    // GIVEN
+    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
+    //   - a fixed subgraph name "e2e-check-passes" that is always overwritten on each run,
+    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - we first publish the seed schema as the baseline (--convert handles the case
+    //     where the variant is non-federated), then check+publish the same schema
+    //     (identical schema → no breaking changes → check must pass)
     let seed_schema_path = test_artifacts_directory.join("subgraph/check_seed.graphql");
-    let mut seed_cmd = Command::new(cargo::cargo_bin!("rover"));
-    seed_cmd.args([
+    let seed_schema_str = seed_schema_path
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
+    info!("Publishing baseline schema for e2e-check-passes");
+    let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
+    baseline_cmd.args([
         "subgraph",
         "publish",
         "--name",
-        "e2e-check-seed",
+        "e2e-check-passes",
         "--schema",
-        seed_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        &seed_schema_str,
         "--routing-url",
         "https://placeholder.example.com/graphql",
         "--convert",
         "--client-timeout",
-        "60",
-        &remote_supergraph_publish_test_variant_graphref,
+        "120",
+        &remote_supergraph_check_publish_test_variant_graphref,
     ]);
-    let seed_output = seed_cmd.output().expect("Could not run seed publish");
-    if !seed_output.status.success() {
-        error!("{}", String::from_utf8_lossy(&seed_output.stderr));
-        panic!("Seed publish did not complete successfully");
+    let baseline_output = baseline_cmd
+        .output()
+        .expect("Could not run baseline publish");
+    if !baseline_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&baseline_output.stderr));
+        panic!("Baseline publish did not complete successfully");
     }
 
-    // GIVEN
-    //   - a unique subgraph name (no prior schema to compare against, so no breaking changes)
-    //   - the full perfSubgraph01 schema
-    let mut rng = rand::rng();
-    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
-        .expect("Could not compile regex");
-    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
-    let schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
-    info!("Using name {} for subgraph", &id);
-
     // WHEN
-    //   - the command is run with --check on a brand-new subgraph
+    //   - the same schema is published again with --check (no breaking changes)
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "publish",
         "--name",
-        &id,
+        "e2e-check-passes",
         "--schema",
-        schema_path.canonicalize().unwrap().to_str().unwrap(),
+        &seed_schema_str,
         "--routing-url",
-        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "https://placeholder.example.com/graphql",
         "--check",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        &remote_supergraph_check_publish_test_variant_graphref,
     ]);
     let output = cmd.output().expect("Could not run command");
 
@@ -365,27 +339,6 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     assert_that!(output.status.success()).is_true();
     assert_that!(stderr).contains("Check passed. Publishing SDL");
-
-    // Cleanup: delete the test subgraph and the seed so the variant is left clean
-    info!("Deleting subgraph with name {}", &id);
-    for name in [id.as_str(), "e2e-check-seed"] {
-        let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
-        del_cmd.args([
-            "subgraph",
-            "delete",
-            "--name",
-            name,
-            "--confirm",
-            "--client-timeout",
-            "120",
-            &remote_supergraph_publish_test_variant_graphref,
-        ]);
-        let del_output = del_cmd.output().expect("Could not run delete command");
-        if !del_output.status.success() {
-            error!("{}", String::from_utf8(del_output.stderr).unwrap());
-            panic!("Cleanup delete of '{name}' did not complete successfully");
-        }
-    }
 }
 
 #[rstest]
@@ -393,89 +346,58 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_subgraph_publish_with_check_fails(
-    remote_supergraph_publish_test_variant_graphref: String,
+    remote_supergraph_check_publish_test_variant_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
-    // Pre-test cleanup: remove accumulated subgraphs so composition is clean before
-    // we establish the baseline. Without this, pre-existing INVALID_FIELD_SHARING errors
-    // would obscure the breaking-change check failure we're specifically testing for.
-    {
-        let mut list_cmd = Command::new(cargo::cargo_bin!("rover"));
-        list_cmd.args([
-            "subgraph",
-            "list",
-            &remote_supergraph_publish_test_variant_graphref,
-            "--format",
-            "json",
-        ]);
-        if let Ok(list_output) = list_cmd.output() {
-            if let Ok(resp) = serde_json::from_slice::<SubgraphListResponse>(&list_output.stdout) {
-                for name in resp.get_subgraph_names() {
-                    let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
-                    del_cmd.args([
-                        "subgraph",
-                        "delete",
-                        "--name",
-                        &name,
-                        "--confirm",
-                        "--client-timeout",
-                        "60",
-                        &remote_supergraph_publish_test_variant_graphref,
-                    ]);
-                    let _ = del_cmd.output();
-                }
-            }
-        }
-    }
-
     // GIVEN
-    //   - a unique subgraph name
-    //   - a full schema published as the baseline
-    //   - a breaking schema (field removed) that will be used for the --check publish attempt
-    let mut rng = rand::rng();
-    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
-        .expect("Could not compile regex");
-    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
-    let full_schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
+    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
+    //   - a fixed subgraph name "e2e-check-fails" that is always overwritten on each run,
+    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - the baseline schema (CheckFailsResult with id + status) is published first to
+    //     establish what check compares against
+    //   - the breaking schema (CheckFailsResult with id only — status removed) is then
+    //     published with --check, which should detect FIELD_REMOVED and fail
+    let baseline_schema_path =
+        test_artifacts_directory.join("subgraph/check_fails_baseline.graphql");
     let breaking_schema_path =
-        test_artifacts_directory.join("subgraph/publish_check_breaking.graphql");
-    info!("Using name {} for subgraph", &id);
+        test_artifacts_directory.join("subgraph/check_fails_breaking.graphql");
 
-    // Publish the baseline schema without --check to establish the registered schema
-    info!("Publishing baseline schema for subgraph {}", &id);
+    info!("Publishing baseline schema for e2e-check-fails");
     let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
     baseline_cmd.args([
         "subgraph",
         "publish",
         "--name",
-        &id,
+        "e2e-check-fails",
         "--schema",
-        full_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        baseline_schema_path
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "--routing-url",
-        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
-        // --convert handles the case where the variant was reset to non-federated by the
-        // pre-test cleanup above; it is harmless if the graph is already federated
+        "https://placeholder.example.com/graphql",
         "--convert",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        &remote_supergraph_check_publish_test_variant_graphref,
     ]);
     let baseline_output = baseline_cmd
         .output()
         .expect("Could not run baseline publish");
     if !baseline_output.status.success() {
-        error!("{}", String::from_utf8(baseline_output.stderr).unwrap());
+        error!("{}", String::from_utf8_lossy(&baseline_output.stderr));
         panic!("Baseline publish did not complete successfully");
     }
 
     // WHEN
-    //   - the command is run with --check using a breaking schema (number field removed)
+    //   - the breaking schema is published with --check (status field removed → FIELD_REMOVED)
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "publish",
         "--name",
-        &id,
+        "e2e-check-fails",
         "--schema",
         breaking_schema_path
             .canonicalize()
@@ -483,11 +405,11 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
             .to_str()
             .unwrap(),
         "--routing-url",
-        "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "https://placeholder.example.com/graphql",
         "--check",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        &remote_supergraph_check_publish_test_variant_graphref,
     ]);
     let output = cmd.output().expect("Could not run command");
 
@@ -498,25 +420,4 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
     assert_that!(output.status.success()).is_false();
     assert_that!(stderr)
         .contains("Schema check failed — no changes were published to the graph registry.");
-
-    // Cleanup: delete the subgraph so the variant is left in a clean state
-    info!("Deleting subgraph with name {}", &id);
-    let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
-    subgraph_delete_cmd.args([
-        "subgraph",
-        "delete",
-        "--name",
-        &id,
-        "--confirm",
-        "--client-timeout",
-        "120",
-        &remote_supergraph_publish_test_variant_graphref,
-    ]);
-    let delete_output = subgraph_delete_cmd
-        .output()
-        .expect("Could not run delete command");
-    if !delete_output.status.success() {
-        error!("{}", String::from_utf8(delete_output.stderr).unwrap());
-        panic!("Cleanup delete did not complete successfully");
-    }
 }

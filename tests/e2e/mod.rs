@@ -325,6 +325,19 @@ fn remote_supergraph_publish_test_variant_graphref() -> String {
     env::var("APOLLO_E2E_SUPERGRAPH_PUBLISH_TEST_GRAPHREF")
         .unwrap_or_else(|_| String::from("rover-e2e-tests@publish-test"))
 }
+
+/// Dedicated variant for the subgraph publish --check e2e tests.
+/// Using a separate variant prevents the cleanup those tests perform from interfering
+/// with other subgraph tests that share rover-e2e-tests@publish-test.
+///
+/// The variant must be created in Apollo Studio before running these tests.
+/// Override the default by setting APOLLO_E2E_SUPERGRAPH_CHECK_PUBLISH_TEST_GRAPHREF.
+#[fixture]
+fn remote_supergraph_check_publish_test_variant_graphref() -> String {
+    env::var("APOLLO_E2E_SUPERGRAPH_CHECK_PUBLISH_TEST_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@check-publish-test"))
+}
+
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
