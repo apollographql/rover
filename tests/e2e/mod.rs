@@ -338,6 +338,16 @@ fn remote_supergraph_check_publish_test_variant_graphref() -> String {
         .unwrap_or_else(|_| String::from("rover-e2e-tests@check-publish-test"))
 }
 
+/// Graph ref for the non-federated (monograph) graph used to e2e test
+/// `rover graph publish --check`. rover graph publish only works on classic
+/// non-federated graphs; the federated rover-e2e-tests graph returns E007.
+/// Override the default by setting APOLLO_E2E_MONOGRAPH_GRAPHREF.
+#[fixture]
+fn remote_monograph_graphref() -> String {
+    env::var("APOLLO_E2E_MONOGRAPH_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-monograph-tests@current"))
+}
+
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
