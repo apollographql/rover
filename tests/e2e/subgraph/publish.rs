@@ -5,7 +5,10 @@ use rand::RngExt;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
-use speculoos::{assert_that, boolean::BooleanAssertions, iter::ContainingIntoIterAssertions, string::StrAssertions};
+use speculoos::{
+    assert_that, boolean::BooleanAssertions, iter::ContainingIntoIterAssertions,
+    string::StrAssertions,
+};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
@@ -269,6 +272,38 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
     remote_supergraph_publish_test_variant_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
+    // Pre-test cleanup: remove any accumulated subgraphs from previous test runs.
+    // Leftover subgraphs that share type/field names cause INVALID_FIELD_SHARING
+    // composition errors which make the check step fail even for an otherwise valid schema.
+    {
+        let mut list_cmd = Command::new(cargo::cargo_bin!("rover"));
+        list_cmd.args([
+            "subgraph",
+            "list",
+            &remote_supergraph_publish_test_variant_graphref,
+            "--format",
+            "json",
+        ]);
+        if let Ok(list_output) = list_cmd.output() {
+            if let Ok(resp) = serde_json::from_slice::<SubgraphListResponse>(&list_output.stdout) {
+                for name in resp.get_subgraph_names() {
+                    let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
+                    del_cmd.args([
+                        "subgraph",
+                        "delete",
+                        "--name",
+                        &name,
+                        "--confirm",
+                        "--client-timeout",
+                        "60",
+                        &remote_supergraph_publish_test_variant_graphref,
+                    ]);
+                    let _ = del_cmd.output();
+                }
+            }
+        }
+    }
+
     // GIVEN
     //   - a unique subgraph name (no prior schema to compare against, so no breaking changes)
     //   - the full perfSubgraph01 schema
@@ -318,7 +353,9 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
         "120",
         &remote_supergraph_publish_test_variant_graphref,
     ]);
-    let delete_output = subgraph_delete_cmd.output().expect("Could not run delete command");
+    let delete_output = subgraph_delete_cmd
+        .output()
+        .expect("Could not run delete command");
     if !delete_output.status.success() {
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Cleanup delete did not complete successfully");
@@ -333,6 +370,38 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
     remote_supergraph_publish_test_variant_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
+    // Pre-test cleanup: remove accumulated subgraphs so composition is clean before
+    // we establish the baseline. Without this, pre-existing INVALID_FIELD_SHARING errors
+    // would obscure the breaking-change check failure we're specifically testing for.
+    {
+        let mut list_cmd = Command::new(cargo::cargo_bin!("rover"));
+        list_cmd.args([
+            "subgraph",
+            "list",
+            &remote_supergraph_publish_test_variant_graphref,
+            "--format",
+            "json",
+        ]);
+        if let Ok(list_output) = list_cmd.output() {
+            if let Ok(resp) = serde_json::from_slice::<SubgraphListResponse>(&list_output.stdout) {
+                for name in resp.get_subgraph_names() {
+                    let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
+                    del_cmd.args([
+                        "subgraph",
+                        "delete",
+                        "--name",
+                        &name,
+                        "--confirm",
+                        "--client-timeout",
+                        "60",
+                        &remote_supergraph_publish_test_variant_graphref,
+                    ]);
+                    let _ = del_cmd.output();
+                }
+            }
+        }
+    }
+
     // GIVEN
     //   - a unique subgraph name
     //   - a full schema published as the baseline
@@ -362,7 +431,9 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         "120",
         &remote_supergraph_publish_test_variant_graphref,
     ]);
-    let baseline_output = baseline_cmd.output().expect("Could not run baseline publish");
+    let baseline_output = baseline_cmd
+        .output()
+        .expect("Could not run baseline publish");
     if !baseline_output.status.success() {
         error!("{}", String::from_utf8(baseline_output.stderr).unwrap());
         panic!("Baseline publish did not complete successfully");
@@ -377,7 +448,11 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         "--name",
         &id,
         "--schema",
-        breaking_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        breaking_schema_path
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "--routing-url",
         "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
         "--check",
@@ -408,7 +483,9 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         "120",
         &remote_supergraph_publish_test_variant_graphref,
     ]);
-    let delete_output = subgraph_delete_cmd.output().expect("Could not run delete command");
+    let delete_output = subgraph_delete_cmd
+        .output()
+        .expect("Could not run delete command");
     if !delete_output.status.success() {
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Cleanup delete did not complete successfully");

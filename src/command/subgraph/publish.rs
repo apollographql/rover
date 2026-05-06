@@ -149,6 +149,7 @@ impl Publish {
             {
                 Ok(check_res) => {
                     eprintln!("{}", check_res.get_output());
+                    eprintln!("{}", Style::Success.paint("Check passed. Publishing SDL"));
                 }
                 Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
                     eprintln!("{}", check_response.get_output());
@@ -162,7 +163,15 @@ impl Publish {
                         "Schema checks must pass before publishing. Fix the check failures above and try again."
                     )));
                 }
-                Err(e) => return Err(RoverError::new(e)),
+                Err(e) => {
+                    eprintln!(
+                        "{}",
+                        Style::Failure.paint(
+                            "Schema check failed — no changes were published to the graph registry."
+                        )
+                    );
+                    return Err(RoverError::new(e));
+                }
             }
         }
 
