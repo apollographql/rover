@@ -304,6 +304,32 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
         }
     }
 
+    // After deleting all subgraphs the variant becomes non-federated, which would cause
+    // `subgraph check` to fail before we even reach the assertion.  Publish a minimal
+    // seed subgraph (unique types, no conflict with perfSubgraph01) to re-establish
+    // federation so the check workflow can run properly.
+    let seed_schema_path = test_artifacts_directory.join("subgraph/check_seed.graphql");
+    let mut seed_cmd = Command::new(cargo::cargo_bin!("rover"));
+    seed_cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        "e2e-check-seed",
+        "--schema",
+        seed_schema_path.canonicalize().unwrap().to_str().unwrap(),
+        "--routing-url",
+        "https://placeholder.example.com/graphql",
+        "--convert",
+        "--client-timeout",
+        "60",
+        &remote_supergraph_publish_test_variant_graphref,
+    ]);
+    let seed_output = seed_cmd.output().expect("Could not run seed publish");
+    if !seed_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&seed_output.stderr));
+        panic!("Seed publish did not complete successfully");
+    }
+
     // GIVEN
     //   - a unique subgraph name (no prior schema to compare against, so no breaking changes)
     //   - the full perfSubgraph01 schema
@@ -340,25 +366,25 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
     assert_that!(output.status.success()).is_true();
     assert_that!(stderr).contains("Check passed. Publishing SDL");
 
-    // Cleanup: delete the subgraph so the variant is left in a clean state
+    // Cleanup: delete the test subgraph and the seed so the variant is left clean
     info!("Deleting subgraph with name {}", &id);
-    let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
-    subgraph_delete_cmd.args([
-        "subgraph",
-        "delete",
-        "--name",
-        &id,
-        "--confirm",
-        "--client-timeout",
-        "120",
-        &remote_supergraph_publish_test_variant_graphref,
-    ]);
-    let delete_output = subgraph_delete_cmd
-        .output()
-        .expect("Could not run delete command");
-    if !delete_output.status.success() {
-        error!("{}", String::from_utf8(delete_output.stderr).unwrap());
-        panic!("Cleanup delete did not complete successfully");
+    for name in [id.as_str(), "e2e-check-seed"] {
+        let mut del_cmd = Command::new(cargo::cargo_bin!("rover"));
+        del_cmd.args([
+            "subgraph",
+            "delete",
+            "--name",
+            name,
+            "--confirm",
+            "--client-timeout",
+            "120",
+            &remote_supergraph_publish_test_variant_graphref,
+        ]);
+        let del_output = del_cmd.output().expect("Could not run delete command");
+        if !del_output.status.success() {
+            error!("{}", String::from_utf8(del_output.stderr).unwrap());
+            panic!("Cleanup delete of '{name}' did not complete successfully");
+        }
     }
 }
 
@@ -427,6 +453,9 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         full_schema_path.canonicalize().unwrap().to_str().unwrap(),
         "--routing-url",
         "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        // --convert handles the case where the variant was reset to non-federated by the
+        // pre-test cleanup above; it is harmless if the graph is already federated
+        "--convert",
         "--client-timeout",
         "120",
         &remote_supergraph_publish_test_variant_graphref,

@@ -1,8 +1,9 @@
-use std::{path::PathBuf, process::Command};
+use std::{process::Command, str};
 
 use assert_cmd::cargo;
 use rstest::rstest;
 use speculoos::{assert_that, boolean::BooleanAssertions, string::StrAssertions};
+use tracing::{error, info};
 use tracing_test::traced_test;
 
 use crate::e2e::{remote_supergraph_graphref, test_artifacts_directory};
@@ -11,25 +12,43 @@ use crate::e2e::{remote_supergraph_graphref, test_artifacts_directory};
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
-async fn e2e_test_rover_graph_publish_with_check_passes(
-    remote_supergraph_graphref: String,
-    test_artifacts_directory: PathBuf,
-) {
+async fn e2e_test_rover_graph_publish_with_check_passes(remote_supergraph_graphref: String) {
     // GIVEN
-    //   - a local schema compatible with the currently published schema (no breaking changes)
-    let schema_path = test_artifacts_directory.join("perfSubgraph00.graphql");
-    let schema_path = schema_path
-        .to_str()
-        .expect("Couldn't get schema path for graph publish --check");
+    //   - the schema currently published to the graph (fetched dynamically)
+    //   Using the registered schema guarantees zero breaking changes so the check
+    //   always passes regardless of what was published by a previous test run.
+    info!(
+        "Fetching current schema from {}",
+        &remote_supergraph_graphref
+    );
+    let mut fetch_cmd = Command::new(cargo::cargo_bin!("rover"));
+    fetch_cmd.args([
+        "graph",
+        "fetch",
+        "--client-timeout",
+        "60",
+        &remote_supergraph_graphref,
+    ]);
+    let fetch_output = fetch_cmd.output().expect("Could not run graph fetch");
+    if !fetch_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&fetch_output.stderr));
+        panic!("graph fetch did not complete successfully");
+    }
+
+    // Write the fetched schema to a temp file so we can pass it as --schema
+    let schema_path = std::env::temp_dir().join("rover_e2e_graph_publish_check_passes.graphql");
+    std::fs::write(&schema_path, &fetch_output.stdout)
+        .expect("Could not write fetched schema to temp file");
 
     // WHEN
-    //   - the command is run with --check
+    //   - the command is run with --check using the same schema that is already published
+    //   (identical schema → no breaking changes → check must pass)
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "graph",
         "publish",
         "--schema",
-        schema_path,
+        schema_path.to_str().unwrap(),
         "--check",
         "--client-timeout",
         "120",
@@ -40,9 +59,12 @@ async fn e2e_test_rover_graph_publish_with_check_passes(
     // THEN
     //   - the command succeeds
     //   - stderr confirms checks passed before publishing
-    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    let stderr = str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     assert_that!(output.status.success()).is_true();
     assert_that!(stderr).contains("Check passed. Publishing SDL");
+
+    // Cleanup temp file
+    let _ = std::fs::remove_file(&schema_path);
 }
 
 #[rstest]
@@ -51,7 +73,7 @@ async fn e2e_test_rover_graph_publish_with_check_passes(
 #[traced_test]
 async fn e2e_test_rover_graph_publish_with_check_fails(
     remote_supergraph_graphref: String,
-    test_artifacts_directory: PathBuf,
+    test_artifacts_directory: std::path::PathBuf,
 ) {
     // GIVEN
     //   - a local schema with breaking changes relative to the published schema
@@ -80,7 +102,7 @@ async fn e2e_test_rover_graph_publish_with_check_fails(
     // THEN
     //   - the command fails
     //   - stderr confirms the check blocked the publish
-    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    let stderr = str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     assert_that!(output.status.success()).is_false();
     assert_that!(stderr)
         .contains("Schema check failed — no changes were published to the graph registry.");
