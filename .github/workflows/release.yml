@@ -19,19 +19,26 @@ jobs:
   validate_tag:
     name: Validate release tag
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
     steps:
+      - name: Strip v prefix
+        id: parse
+        env:
+          TAG: ${{ github.ref_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
       - name: Validate semver tag
+        if: github.event_name == 'push'
         uses: skymatic/semver-validation-action@deebc1609f29f664ba6b2ae252ce1b2ac7f9fbf5 # v4
         with:
-          version: ${{ github.ref_name }}
+          version: ${{ steps.parse.outputs.version }}
 
   build:
     name: Build and bundle release artifacts (${{ matrix.platform }})
     needs: validate_tag
     if: |
       !cancelled() &&
-      (needs.validate_tag.result == 'success' || needs.validate_tag.result == 'skipped')
+      needs.validate_tag.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -154,11 +161,11 @@ jobs:
     needs: validate_tag
     if: |
       !cancelled() &&
-      (needs.validate_tag.result == 'success' || needs.validate_tag.result == 'skipped')
+      needs.validate_tag.result == 'success'
     permissions:
       contents: read
       id-token: write
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@c7be32f7edfa558c5c05da29a66dad36f20a1991
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@c213498102777dadfef33f5c3b04d8543ec3fdf3
     with:
       image_name: rover
       image_description: "Apollo Rover CLI — a tool for working with the Apollo GraphOS platform"
@@ -171,7 +178,7 @@ jobs:
 
   publish:
     name: Publish release artifacts
-    needs: [build, build_image]
+    needs: [validate_tag, build, build_image]
     if: |
       !cancelled() &&
       needs.build.result == 'success' &&
@@ -207,14 +214,12 @@ jobs:
         id: params
         env:
           EVENT_NAME: ${{ github.event_name }}
-          REF_NAME: ${{ github.ref_name }}
+          VERSION: ${{ needs.validate_tag.outputs.version }}
         run: |
           if [ "$EVENT_NAME" = "push" ]; then
-            tag="$REF_NAME"
             extra=""
             dry_run="false"
           else
-            tag="$REF_NAME"
             extra="--draft"
             dry_run="true"
             mkdir -p artifacts
@@ -223,7 +228,7 @@ jobs:
 
           # Prerelease regex adapted from https://semver.org/ — a prerelease has
           # an identifier appended after a `-`.
-          if [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
+          if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
             is_prerelease="true"
             npm_tag="beta"
           else
@@ -231,16 +236,11 @@ jobs:
             npm_tag=""
           fi
 
-          # Docker tags conventionally drop the leading `v`.
-          version_number="${tag#v}"
-
           {
-            echo "tag=$tag"
             echo "extra=$extra"
             echo "dry_run=$dry_run"
             echo "is_prerelease=$is_prerelease"
             echo "npm_tag=$npm_tag"
-            echo "version_number=$version_number"
           } >> "$GITHUB_OUTPUT"
 
       - name: Compute checksums
@@ -253,7 +253,7 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.params.outputs.tag }}
+          TAG: ${{ github.ref_name }}
           PRERELEASE_FLAG: ${{ steps.params.outputs.is_prerelease == 'true' && '--prerelease' || '' }}
           EXTRA: ${{ steps.params.outputs.extra }}
         run: |
@@ -289,18 +289,18 @@ jobs:
       # recent stable release
       - name: Publish Docker image to DockerHub
         if: github.event_name == 'push'
-        uses: apollographql/release-tooling/release-dockerhub@7b36a82577635afaf398bf1cf2f007a369712052
+        uses: apollographql/release-tooling/release-dockerhub@c213498102777dadfef33f5c3b04d8543ec3fdf3
         with:
           commit_sha: ${{ github.sha }}
           image_name: rover
-          version_number: ${{ steps.params.outputs.version_number }}
+          version_number: ${{ needs.validate_tag.outputs.version }}
           tag_latest: ${{ steps.params.outputs.is_prerelease == 'false' }}
 
       - name: Publish Docker image to GHCR
         if: github.event_name == 'push'
-        uses: apollographql/release-tooling/release-ghcr@c7be32f7edfa558c5c05da29a66dad36f20a1991
+        uses: apollographql/release-tooling/release-ghcr@c213498102777dadfef33f5c3b04d8543ec3fdf3
         with:
           commit_sha: ${{ github.sha }}
           image_name: rover
-          version_number: ${{ steps.params.outputs.version_number }}
+          version_number: ${{ needs.validate_tag.outputs.version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
