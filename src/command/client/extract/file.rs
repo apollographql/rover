@@ -74,24 +74,25 @@ impl ExtractFile {
             if let Some(parent) = target.parent() {
                 let _ = Fs::create_dir_all(parent);
             }
+            let output = (
+                MaterializedFile {
+                    source: self.path.clone(),
+                    target: target.clone(),
+                    documents_count: result.documents.len(),
+                },
+                result.skipped,
+            );
             let body = result
                 .documents
-                .iter()
-                .map(|doc| doc.content.clone())
+                .into_iter()
+                .map(|doc| doc.content)
                 .collect::<Vec<_>>()
                 .join("\n\n");
             Fs::write_file(&target, body).map_err(|err| MaterializeFileError::FileWriteError {
                 path: self.path.clone(),
                 err,
             })?;
-            Ok((
-                MaterializedFile {
-                    source: self.path.clone(),
-                    target,
-                    documents_count: result.documents.len(),
-                },
-                result.skipped,
-            ))
+            Ok(output)
         }
     }
 }
