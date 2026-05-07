@@ -1,7 +1,8 @@
+use std::path::{Path, PathBuf};
+
 use assert_cmd::Command;
 use rstest::{fixture, rstest};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
