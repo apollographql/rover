@@ -1,0 +1,14 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
+"""
+A minimal seed type used only to establish federation on the publish-test variant.
+Uses unique names that will never conflict with the perf subgraph schemas.
+"""
+type Query {
+  checkSeed: CheckSeedResult
+}
+
+type CheckSeedResult @key(fields: "id") {
+  id: ID!
+}

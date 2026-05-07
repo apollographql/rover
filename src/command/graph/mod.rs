@@ -56,7 +56,11 @@ impl Graph {
             Command::Delete(command) => command.run(client_config).await,
             Command::Fetch(command) => command.run(client_config).await,
             Command::Lint(command) => command.run(client_config).await,
-            Command::Publish(command) => command.run(client_config, git_context).await,
+            Command::Publish(command) => {
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
+            }
             Command::Introspect(command) => {
                 command
                     .run(

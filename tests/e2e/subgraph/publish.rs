@@ -5,11 +5,17 @@ use rand::RngExt;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
-use speculoos::{assert_that, iter::ContainingIntoIterAssertions};
+use speculoos::{
+    assert_that, boolean::BooleanAssertions, iter::ContainingIntoIterAssertions,
+    string::StrAssertions,
+};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
-use crate::e2e::{remote_supergraph_publish_test_variant_graphref, test_artifacts_directory};
+use crate::e2e::{
+    remote_supergraph_check_publish_test_variant_graphref,
+    remote_supergraph_publish_test_variant_graphref, test_artifacts_directory,
+};
 
 #[derive(Debug, Deserialize)]
 struct SubgraphListResponse {
@@ -259,4 +265,159 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Command did not complete successfully");
     }
+}
+
+#[rstest]
+#[ignore]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+async fn e2e_test_rover_subgraph_publish_with_check_passes(
+    remote_supergraph_check_publish_test_variant_graphref: String,
+    test_artifacts_directory: PathBuf,
+) {
+    // GIVEN
+    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
+    //   - a fixed subgraph name "e2e-check-passes" that is always overwritten on each run,
+    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - we first publish the seed schema as the baseline (--convert handles the case
+    //     where the variant is non-federated), then check+publish the same schema
+    //     (identical schema → no breaking changes → check must pass)
+    let seed_schema_path = test_artifacts_directory.join("subgraph/check_seed.graphql");
+    let seed_schema_str = seed_schema_path
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
+    info!("Publishing baseline schema for e2e-check-passes");
+    let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
+    baseline_cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        "e2e-check-passes",
+        "--schema",
+        &seed_schema_str,
+        "--routing-url",
+        "https://placeholder.example.com/graphql",
+        "--convert",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_check_publish_test_variant_graphref,
+    ]);
+    let baseline_output = baseline_cmd
+        .output()
+        .expect("Could not run baseline publish");
+    if !baseline_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&baseline_output.stderr));
+        panic!("Baseline publish did not complete successfully");
+    }
+
+    // WHEN
+    //   - the same schema is published again with --check (no breaking changes)
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        "e2e-check-passes",
+        "--schema",
+        &seed_schema_str,
+        "--routing-url",
+        "https://placeholder.example.com/graphql",
+        "--check",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_check_publish_test_variant_graphref,
+    ]);
+    let output = cmd.output().expect("Could not run command");
+
+    // THEN
+    //   - the command succeeds
+    //   - stderr confirms checks passed before publishing
+    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    assert_that!(output.status.success()).is_true();
+    assert_that!(stderr).contains("Check passed. Publishing SDL");
+}
+
+#[rstest]
+#[ignore]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+async fn e2e_test_rover_subgraph_publish_with_check_fails(
+    remote_supergraph_check_publish_test_variant_graphref: String,
+    test_artifacts_directory: PathBuf,
+) {
+    // GIVEN
+    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
+    //   - a fixed subgraph name "e2e-check-fails" that is always overwritten on each run,
+    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - the baseline schema (CheckFailsResult with id + status) is published first to
+    //     establish what check compares against
+    //   - the breaking schema (CheckFailsResult with id only — status removed) is then
+    //     published with --check, which should detect FIELD_REMOVED and fail
+    let baseline_schema_path =
+        test_artifacts_directory.join("subgraph/check_fails_baseline.graphql");
+    let breaking_schema_path =
+        test_artifacts_directory.join("subgraph/check_fails_breaking.graphql");
+
+    info!("Publishing baseline schema for e2e-check-fails");
+    let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
+    baseline_cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        "e2e-check-fails",
+        "--schema",
+        baseline_schema_path
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "--routing-url",
+        "https://placeholder.example.com/graphql",
+        "--convert",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_check_publish_test_variant_graphref,
+    ]);
+    let baseline_output = baseline_cmd
+        .output()
+        .expect("Could not run baseline publish");
+    if !baseline_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&baseline_output.stderr));
+        panic!("Baseline publish did not complete successfully");
+    }
+
+    // WHEN
+    //   - the breaking schema is published with --check (status field removed → FIELD_REMOVED)
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "subgraph",
+        "publish",
+        "--name",
+        "e2e-check-fails",
+        "--schema",
+        breaking_schema_path
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "--routing-url",
+        "https://placeholder.example.com/graphql",
+        "--check",
+        "--client-timeout",
+        "120",
+        &remote_supergraph_check_publish_test_variant_graphref,
+    ]);
+    let output = cmd.output().expect("Could not run command");
+
+    // THEN
+    //   - the command fails
+    //   - stderr confirms the check blocked the publish
+    let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
+    assert_that!(output.status.success()).is_false();
+    assert_that!(stderr)
+        .contains("Schema check failed — no changes were published to the graph registry.");
 }

@@ -316,13 +316,38 @@ fn find_matching_log_line(reader: &mut BufReader<ChildStderr>, matcher: &Regex) 
 
 #[fixture]
 fn remote_supergraph_graphref() -> String {
-    String::from("rover-e2e-tests@current")
+    env::var("APOLLO_E2E_SUPERGRAPH_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@current"))
 }
 
 #[fixture]
 fn remote_supergraph_publish_test_variant_graphref() -> String {
-    String::from("rover-e2e-tests@publish-test")
+    env::var("APOLLO_E2E_SUPERGRAPH_PUBLISH_TEST_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@publish-test"))
 }
+
+/// Dedicated variant for the subgraph publish --check e2e tests.
+/// Using a separate variant prevents the cleanup those tests perform from interfering
+/// with other subgraph tests that share rover-e2e-tests@publish-test.
+///
+/// The variant must be created in Apollo Studio before running these tests.
+/// Override the default by setting APOLLO_E2E_SUPERGRAPH_CHECK_PUBLISH_TEST_GRAPHREF.
+#[fixture]
+fn remote_supergraph_check_publish_test_variant_graphref() -> String {
+    env::var("APOLLO_E2E_SUPERGRAPH_CHECK_PUBLISH_TEST_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests@check-publish-test"))
+}
+
+/// Graph ref for the non-federated (monograph) graph used to e2e test
+/// `rover graph publish --check`. rover graph publish only works on classic
+/// non-federated graphs; the federated rover-e2e-tests graph returns E007.
+/// Override the default by setting APOLLO_E2E_MONOGRAPH_GRAPHREF.
+#[fixture]
+fn remote_monograph_graphref() -> String {
+    env::var("APOLLO_E2E_MONOGRAPH_GRAPHREF")
+        .unwrap_or_else(|_| String::from("rover-e2e-tests-monograph@current"))
+}
+
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =

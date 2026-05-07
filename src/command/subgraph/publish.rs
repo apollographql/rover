@@ -5,18 +5,21 @@ use clap::Parser;
 use futures::Future;
 use reqwest::Url;
 use rover_client::{
+    RoverClientError,
     operations::subgraph::{
+        check::{self, SubgraphCheckAsyncInput},
+        check_workflow::{self, CheckWorkflowInput},
         publish::{self, SubgraphPublishInput},
         routing_url::{self, SubgraphRoutingUrlInput},
     },
-    shared::GitContext,
+    shared::{CheckConfig, GitContext},
 };
 use rover_std::Style;
 use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    options::{GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
+    options::{CheckConfigOpts, GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
 
@@ -57,6 +60,13 @@ pub struct Publish {
     /// This is shorthand for `--routing-url "" --allow-invalid-routing-url`.
     #[arg(long)]
     no_url: bool,
+
+    /// Run schema checks before publishing and abort if they fail
+    #[arg(long)]
+    check: bool,
+
+    #[clap(flatten)]
+    check_config: CheckConfigOpts,
 }
 
 impl Publish {
@@ -64,6 +74,7 @@ impl Publish {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
@@ -100,6 +111,70 @@ impl Publish {
             (url, schema)
         };
 
+        if self.check {
+            eprintln!(
+                "Checking the proposed schema for subgraph {} against {}",
+                Style::Link.paint(&self.subgraph.subgraph_name),
+                Style::Link.paint(self.graph.graph_ref.to_string())
+            );
+
+            let workflow_res = check::run(
+                SubgraphCheckAsyncInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    subgraph: self.subgraph.subgraph_name.clone(),
+                    git_context: git_context.clone(),
+                    proposed_schema: schema.clone(),
+                    config: CheckConfig {
+                        validation_period: self.check_config.validation_period.clone(),
+                        query_count_threshold: self.check_config.query_count_threshold,
+                        query_count_threshold_percentage: self
+                            .check_config
+                            .query_percentage_threshold,
+                    },
+                },
+                &client,
+            )
+            .await?;
+
+            match check_workflow::run(
+                CheckWorkflowInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    workflow_id: workflow_res.workflow_id,
+                    checks_timeout_seconds,
+                },
+                self.subgraph.subgraph_name.clone(),
+                &client,
+            )
+            .await
+            {
+                Ok(check_res) => {
+                    eprintln!("{}", check_res.get_output());
+                    eprintln!("{}", Style::Success.paint("Check passed. Publishing SDL"));
+                }
+                Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
+                    eprintln!("{}", check_response.get_output());
+                    eprintln!(
+                        "{}",
+                        Style::Failure.paint(
+                            "Schema check failed — no changes were published to the graph registry."
+                        )
+                    );
+                    return Err(RoverError::new(anyhow!(
+                        "Schema checks must pass before publishing. Fix the check failures above and try again."
+                    )));
+                }
+                Err(e) => {
+                    eprintln!(
+                        "{}",
+                        Style::Failure.paint(
+                            "Schema check failed — no changes were published to the graph registry."
+                        )
+                    );
+                    return Err(RoverError::new(e));
+                }
+            }
+        }
+
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             Style::Link.paint(self.graph.graph_ref.to_string()),
@@ -129,7 +204,7 @@ impl Publish {
         })
     }
 
-    async fn determine_routing_url<F, G>(
+    pub(crate) async fn determine_routing_url<F, G>(
         no_url: bool,
         routing_url: &Option<String>,
         allow_invalid_routing_url: bool,
