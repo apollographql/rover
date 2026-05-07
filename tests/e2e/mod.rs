@@ -345,7 +345,7 @@ fn remote_supergraph_check_publish_test_variant_graphref() -> String {
 #[fixture]
 fn remote_monograph_graphref() -> String {
     env::var("APOLLO_E2E_MONOGRAPH_GRAPHREF")
-        .unwrap_or_else(|_| String::from("rover-e2e-monograph-tests@current"))
+        .unwrap_or_else(|_| String::from("rover-e2e-tests-monograph@current"))
 }
 
 #[fixture]
