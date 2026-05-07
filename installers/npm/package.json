@@ -41,7 +41,7 @@
     "undici": "^7.0.0"
   },
   "devDependencies": {
-    "jest": "30.3.0",
+    "jest": "30.4.0",
     "jest-junit": "17.0.0",
     "prettier": "3.8.3"
   }
