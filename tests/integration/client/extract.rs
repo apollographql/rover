@@ -135,36 +135,36 @@ fn rewrite_path(value: &mut Value, out_dir: &Path, fixtures: &Path) {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// Scenario 1: queries.ts → 3, mutations.ts → 2, subscriptions.ts → 1,
-/// with-graphql-tag.ts → 1, ProductCard.tsx → 2 = 9 total.
+/// `--language ts` walks both `.ts` and `.tsx` files and extracts every
+/// `gql`/`graphql` template across them.
 #[rstest]
 fn typescript_only_extracts_all_ts_and_tsx_files(src_dir: PathBuf) {
     let json = run_extract(&src_dir, &["--language", "ts"]);
     assert_json_snapshot!(json);
 }
 
-/// Scenario 2: Queries.swift → 2, Mutations.swift → 1 = 3 total.
+/// `--language swift` walks `.swift` files and extracts gql templates.
 #[rstest]
 fn swift_only_extracts_swift_files(src_dir: PathBuf) {
     let json = run_extract(&src_dir, &["--language", "swift"]);
     assert_json_snapshot!(json);
 }
 
-/// Scenario 3: Queries.kt → 2, Mutations.kts → 1 = 3 total.
+/// `--language kotlin` walks both `.kt` and `.kts` files.
 #[rstest]
 fn kotlin_only_extracts_kt_and_kts_files(src_dir: PathBuf) {
     let json = run_extract(&src_dir, &["--language", "kotlin"]);
     assert_json_snapshot!(json);
 }
 
-/// Scenario 4: 5 TS/TSX + 2 Swift + 2 Kotlin = 9 files, 15 documents.
+/// Without `--language`, every supported extension is walked across the tree.
 #[rstest]
 fn all_languages_extracts_from_every_supported_extension(src_dir: PathBuf) {
     let json = run_extract(&src_dir, &[]);
     assert_json_snapshot!(json);
 }
 
-/// Scenario 5: Only mutations.ts matches the glob.
+/// `--include` glob restricts file selection to matching paths.
 #[rstest]
 fn include_glob_restricts_to_matching_files(src_dir: PathBuf) {
     let json = run_extract(
@@ -174,7 +174,7 @@ fn include_glob_restricts_to_matching_files(src_dir: PathBuf) {
     assert_json_snapshot!(json);
 }
 
-/// Scenario 6: generated/ and broken/ are excluded; only src/ts/ + src/tsx/ remain.
+/// `--exclude` glob skips matching paths at directory granularity.
 #[rstest]
 fn exclude_glob_skips_matching_directories(full_dir: PathBuf) {
     let json = run_extract(
@@ -191,7 +191,8 @@ fn exclude_glob_skips_matching_directories(full_dir: PathBuf) {
     assert_json_snapshot!(json);
 }
 
-/// Scenario 7a: Second run without --overwrite creates .generated.graphql for each conflict.
+/// A second run without `--overwrite` writes `.generated.graphql` rather than
+/// clobbering the existing target.
 #[rstest]
 fn second_run_without_overwrite_creates_generated_suffix(
     src_dir: PathBuf,
@@ -235,7 +236,7 @@ fn second_run_without_overwrite_creates_generated_suffix(
     );
 }
 
-/// Scenario 7b: With --overwrite, files are replaced in place — no .generated suffix.
+/// `--overwrite` replaces the existing target without the `.generated` suffix.
 #[rstest]
 fn overwrite_flag_replaces_existing_files_without_suffix(
     src_dir: PathBuf,
@@ -280,7 +281,8 @@ fn overwrite_flag_replaces_existing_files_without_suffix(
     );
 }
 
-/// Scenario 9: ${...} interpolation is skipped; the clean template is extracted.
+/// `${...}` interpolation in a tagged template is reported in `skipped`; a
+/// sibling clean template in the same file is still extracted.
 #[rstest]
 fn template_interpolation_is_skipped_and_clean_template_is_extracted(broken_dir: PathBuf) {
     let json = run_extract(
@@ -290,7 +292,8 @@ fn template_interpolation_is_skipped_and_clean_template_is_extracted(broken_dir:
     assert_json_snapshot!(json);
 }
 
-/// Scenario 10: A tagged template with a GraphQL syntax error is skipped.
+/// A GraphQL syntax error in a tagged template is reported in `skipped` with
+/// the parser error text.
 #[rstest]
 fn graphql_syntax_error_is_skipped_with_reason(broken_dir: PathBuf) {
     let json = run_extract(
@@ -300,7 +303,7 @@ fn graphql_syntax_error_is_skipped_with_reason(broken_dir: PathBuf) {
     assert_json_snapshot!(json);
 }
 
-/// Scenario 11: A file with no gql tags produces zero documents.
+/// Files without any gql/graphql tags are processed but produce no documents.
 #[rstest]
 fn file_with_no_graphql_produces_no_documents(broken_dir: PathBuf) {
     let json = run_extract(

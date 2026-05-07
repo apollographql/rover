@@ -69,3 +69,18 @@ To run against our supported architectures and operating systems, go to the [man
 ```
 
 These would be input individually, which will make sense when you see the input prompt.
+
+## Integration tests
+
+Integration tests live in `tests/integration/` and run against the compiled `rover` binary via `assert_cmd`. They are not `#[ignore]`d, so they run as part of `cargo test` and `mise run test`.
+
+### Snapshot tests
+
+Some integration tests (e.g. `tests/integration/client/extract.rs`) use [`insta`](https://insta.rs) to assert against the full JSON output of a command. The expected output for each test is checked in under `tests/integration/<area>/snapshots/`.
+
+When a test fails because the producer's output changed, regenerate the snapshots in one of two ways:
+
+- **Interactive review** — `cargo insta review` walks each pending diff and lets you accept or reject per snapshot. One-time setup: `cargo install cargo-insta`.
+- **Bulk overwrite** — `INSTA_UPDATE=always cargo test --test main <filter>` re-runs the matching tests and writes the new output over the existing `.snap` files.
+
+Either way, commit the updated `.snap` files alongside the code change that motivated them.
