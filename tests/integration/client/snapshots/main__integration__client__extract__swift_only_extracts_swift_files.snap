@@ -1,0 +1,31 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 2,
+      "source_files_with_graphql": 2,
+      "documents_extracted": 3,
+      "documents_skipped": 0,
+      "files": [
+        {
+          "source": "[FIXTURES]/src/swift/Mutations.swift",
+          "target": "[OUT_DIR]/swift/Mutations.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/swift/Queries.swift",
+          "target": "[OUT_DIR]/swift/Queries.graphql",
+          "documents": 2
+        }
+      ],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}

@@ -136,6 +136,7 @@ http-body-util = "0.1"
 httpmock = "0.8"
 hyper = "1"
 indoc = "2"
+insta = { version = "1", features = ["json"] }
 itertools = "0.14"
 lazycell = "1"
 lazy_static = "1"
@@ -281,6 +282,7 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.2"
 httpmock = { workspace = true }
 indoc = { workspace = true }
+insta = { workspace = true }
 json-matcher = "0.1"
 jsonschema = "0.46"
 mime = "0.3"

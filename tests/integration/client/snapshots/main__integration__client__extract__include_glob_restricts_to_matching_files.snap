@@ -1,0 +1,26 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 1,
+      "source_files_with_graphql": 1,
+      "documents_extracted": 2,
+      "documents_skipped": 0,
+      "files": [
+        {
+          "source": "[FIXTURES]/src/ts/mutations.ts",
+          "target": "[OUT_DIR]/ts/mutations.graphql",
+          "documents": 2
+        }
+      ],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}

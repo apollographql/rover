@@ -1,0 +1,46 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 5,
+      "source_files_with_graphql": 5,
+      "documents_extracted": 9,
+      "documents_skipped": 0,
+      "files": [
+        {
+          "source": "[FIXTURES]/src/ts/mutations.ts",
+          "target": "[OUT_DIR]/src/ts/mutations.graphql",
+          "documents": 2
+        },
+        {
+          "source": "[FIXTURES]/src/ts/queries.ts",
+          "target": "[OUT_DIR]/src/ts/queries.graphql",
+          "documents": 3
+        },
+        {
+          "source": "[FIXTURES]/src/ts/subscriptions.ts",
+          "target": "[OUT_DIR]/src/ts/subscriptions.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/ts/with-graphql-tag.ts",
+          "target": "[OUT_DIR]/src/ts/with-graphql-tag.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/tsx/ProductCard.tsx",
+          "target": "[OUT_DIR]/src/tsx/ProductCard.graphql",
+          "documents": 2
+        }
+      ],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}
