@@ -1,4 +1,4 @@
-use std::{process::Command, str};
+use std::{env, process::Command, str};
 
 use assert_cmd::cargo;
 use rstest::rstest;
@@ -7,6 +7,14 @@ use tracing::{error, info};
 use tracing_test::traced_test;
 
 use crate::e2e::{remote_monograph_graphref, remote_supergraph_graphref, test_artifacts_directory};
+
+/// Returns the Apollo API key to use for monograph commands.
+/// Falls back to APOLLO_KEY if the monograph-specific key is not set.
+fn monograph_apollo_key() -> String {
+    env::var("APOLLO_KEY_ROVER_E2E_MONOGRAPH")
+        .or_else(|_| env::var("APOLLO_KEY"))
+        .expect("Neither APOLLO_KEY_ROVER_E2E_MONOGRAPH nor APOLLO_KEY is set")
+}
 
 #[rstest]
 #[ignore]
@@ -29,12 +37,14 @@ async fn e2e_test_rover_graph_publish_with_check_passes(
         .unwrap()
         .to_owned();
 
+    let apollo_key = monograph_apollo_key();
+
     info!(
         "Publishing baseline schema to {}",
         &remote_monograph_graphref
     );
     let mut baseline_cmd = Command::new(cargo::cargo_bin!("rover"));
-    baseline_cmd.args([
+    baseline_cmd.env("APOLLO_KEY", &apollo_key).args([
         "graph",
         "publish",
         "--schema",
@@ -54,7 +64,7 @@ async fn e2e_test_rover_graph_publish_with_check_passes(
     // WHEN
     //   - the same schema is published again with --check (identical → no breaking changes)
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-    cmd.args([
+    cmd.env("APOLLO_KEY", &apollo_key).args([
         "graph",
         "publish",
         "--schema",
