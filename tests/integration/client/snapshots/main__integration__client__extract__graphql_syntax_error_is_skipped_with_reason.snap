@@ -1,0 +1,26 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 1,
+      "source_files_with_graphql": 0,
+      "documents_extracted": 0,
+      "documents_skipped": 1,
+      "files": [],
+      "skipped": [
+        {
+          "source": "[FIXTURES]/broken/syntax_error.ts",
+          "line": 4,
+          "reason": "GraphQL syntax error: expected R_PAREN, got {"
+        }
+      ]
+    },
+    "success": true
+  },
+  "error": null
+}

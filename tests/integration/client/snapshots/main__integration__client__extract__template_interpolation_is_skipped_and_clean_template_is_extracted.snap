@@ -1,0 +1,32 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 1,
+      "source_files_with_graphql": 1,
+      "documents_extracted": 1,
+      "documents_skipped": 1,
+      "files": [
+        {
+          "source": "[FIXTURES]/broken/interpolated.ts",
+          "target": "[OUT_DIR]/interpolated.graphql",
+          "documents": 1
+        }
+      ],
+      "skipped": [
+        {
+          "source": "[FIXTURES]/broken/interpolated.ts",
+          "line": 6,
+          "reason": "contains a template interpolation (${...}); only static strings can be extracted"
+        }
+      ]
+    },
+    "success": true
+  },
+  "error": null
+}

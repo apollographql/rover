@@ -1,0 +1,31 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 2,
+      "source_files_with_graphql": 2,
+      "documents_extracted": 3,
+      "documents_skipped": 0,
+      "files": [
+        {
+          "source": "[FIXTURES]/src/kotlin/Mutations.kts",
+          "target": "[OUT_DIR]/kotlin/Mutations.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/kotlin/Queries.kt",
+          "target": "[OUT_DIR]/kotlin/Queries.graphql",
+          "documents": 2
+        }
+      ],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}

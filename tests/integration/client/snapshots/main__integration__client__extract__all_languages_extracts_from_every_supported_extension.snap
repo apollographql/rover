@@ -1,0 +1,66 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 9,
+      "source_files_with_graphql": 9,
+      "documents_extracted": 15,
+      "documents_skipped": 0,
+      "files": [
+        {
+          "source": "[FIXTURES]/src/kotlin/Mutations.kts",
+          "target": "[OUT_DIR]/kotlin/Mutations.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/kotlin/Queries.kt",
+          "target": "[OUT_DIR]/kotlin/Queries.graphql",
+          "documents": 2
+        },
+        {
+          "source": "[FIXTURES]/src/swift/Mutations.swift",
+          "target": "[OUT_DIR]/swift/Mutations.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/swift/Queries.swift",
+          "target": "[OUT_DIR]/swift/Queries.graphql",
+          "documents": 2
+        },
+        {
+          "source": "[FIXTURES]/src/ts/mutations.ts",
+          "target": "[OUT_DIR]/ts/mutations.graphql",
+          "documents": 2
+        },
+        {
+          "source": "[FIXTURES]/src/ts/queries.ts",
+          "target": "[OUT_DIR]/ts/queries.graphql",
+          "documents": 3
+        },
+        {
+          "source": "[FIXTURES]/src/ts/subscriptions.ts",
+          "target": "[OUT_DIR]/ts/subscriptions.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/ts/with-graphql-tag.ts",
+          "target": "[OUT_DIR]/ts/with-graphql-tag.graphql",
+          "documents": 1
+        },
+        {
+          "source": "[FIXTURES]/src/tsx/ProductCard.tsx",
+          "target": "[OUT_DIR]/tsx/ProductCard.graphql",
+          "documents": 2
+        }
+      ],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}

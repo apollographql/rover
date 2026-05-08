@@ -1,0 +1,20 @@
+---
+source: tests/integration/client/extract.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+      "out_dir": "[OUT_DIR]",
+      "source_files_processed": 1,
+      "source_files_with_graphql": 0,
+      "documents_extracted": 0,
+      "documents_skipped": 0,
+      "files": [],
+      "skipped": []
+    },
+    "success": true
+  },
+  "error": null
+}
