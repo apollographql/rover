@@ -9,15 +9,22 @@ publish = false
 
 [dependencies]
 apollo-compiler = { workspace = true }
+bon = { workspace = true }
+heck = { workspace = true }
 itertools = { workspace = true }
 pathfinding = { workspace = true }
+rust-stemmers = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+strsim = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 indoc = { workspace = true }
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
+serde_json = { workspace = true }
 speculoos = { workspace = true }
 
 [lints]

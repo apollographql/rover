@@ -10,6 +10,8 @@ pub mod error;
 pub mod parsed_schema;
 /// Root-path traversal for finding how types are reachable.
 pub mod root_paths;
+/// Schema text search.
+pub mod search;
 // Re-export main public types
 pub use apollo_compiler::coordinate::SchemaCoordinate;
 pub use describe::{
@@ -19,3 +21,4 @@ pub use describe::{
 };
 pub use error::SchemaError;
 pub use parsed_schema::ParsedSchema;
+pub use search::{ElementKind, SearchResult};
