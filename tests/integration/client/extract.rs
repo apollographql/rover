@@ -125,7 +125,13 @@ fn rewrite_path(value: &mut Value, out_dir: &Path, fixtures: &Path) {
         Some(if rel.as_os_str().is_empty() {
             label.to_string()
         } else {
-            format!("{label}/{}", rel.display())
+            // Use forward slashes regardless of host so snapshots are portable.
+            let rel_str = rel
+                .iter()
+                .map(|seg| seg.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/");
+            format!("{label}/{rel_str}")
         })
     });
     if let Some(rewritten) = rewritten {
