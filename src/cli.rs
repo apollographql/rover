@@ -266,6 +266,7 @@ impl Rover {
                     .run(self.get_client_config()?, self.get_git_context()?)
                     .await
             }
+            Command::Tag(command) => command.run(self.get_client_config()?).await,
         }
     }
 
@@ -463,6 +464,9 @@ pub enum Command {
 
     /// Client workflow commands
     Client(command::Client),
+
+    /// Graph Artifact tag commands
+    Tag(command::Tag),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]

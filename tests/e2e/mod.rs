@@ -36,6 +36,7 @@ mod options;
 mod schema;
 mod subgraph;
 mod supergraph;
+mod tag;
 
 const GRAPHQL_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
@@ -348,6 +349,10 @@ fn remote_monograph_graphref() -> String {
         .unwrap_or_else(|_| String::from("rover-e2e-tests-monograph@current"))
 }
 
+#[fixture]
+fn remote_supergraph_graph_id() -> String {
+    String::from("rover-e2e-tests")
+}
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =

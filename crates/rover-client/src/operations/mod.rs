@@ -30,3 +30,6 @@ pub mod api_key;
 
 /// all rover-client functionality for the "init" commands in rover
 pub mod init;
+
+/// all rover-client functionality for the "tag" commands in rover
+pub mod tag;

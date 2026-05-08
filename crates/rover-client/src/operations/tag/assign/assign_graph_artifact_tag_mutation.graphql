@@ -1,0 +1,38 @@
+mutation AssignGraphArtifactTagMutation($artifact: GraphArtifactInput!, $graphID: String!, $tag: String!) {
+    assignGraphArtifactTag(artifact: $artifact, graphID: $graphID, tag: $tag) {
+        __typename
+        ...on AssignTagToGraphArtifactPayload {
+            graphArtifact {
+                id
+                digest
+            }
+        }
+        ...on BadInputError {
+            message
+        }
+        ...on OperationInProgressError {
+            message
+        }
+        ...on GraphArtifactDigestInvalidError {
+            message
+        }
+        ...on GraphArtifactNotFoundError {
+            message
+        }
+        ...on GraphArtifactTagInvalidError {
+            message
+        }
+        ...on GraphArtifactTagVariantAssignError {
+            message
+        }
+        ...on GraphArtifactTaggingLimitError {
+            message
+        }
+        ...on GraphArtifactTotalTagsLimitError {
+            message
+        }
+        ...on GraphNotFoundError {
+            message
+        }
+    }
+}
