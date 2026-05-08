@@ -30,6 +30,7 @@ use tracing::{info, warn};
 mod config;
 mod dev;
 mod graph;
+mod graph_artifact;
 mod init;
 mod install;
 mod options;
@@ -348,6 +349,10 @@ fn remote_monograph_graphref() -> String {
         .unwrap_or_else(|_| String::from("rover-e2e-tests-monograph@current"))
 }
 
+#[fixture]
+fn remote_supergraph_graph_id() -> String {
+    String::from("rover-e2e-tests")
+}
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =

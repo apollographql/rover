@@ -13,6 +13,7 @@ use rover_client::{
         api_key::list::ApiKey,
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
+        graph_artifact::tag::AssignGraphArtifactTagResponse,
         init::memberships::InitMembershipsResponse,
         persisted_queries::publish::PersistedQueriesPublishResponse,
         subgraph::{
@@ -93,6 +94,7 @@ pub enum RoverOutput {
     CheckWorkflowResponse(CheckWorkflowResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
     LintResponse(LintResponse),
+    AssignGraphArtifactTagResponse(AssignGraphArtifactTagResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -599,6 +601,17 @@ impl RoverOutput {
                 stderrln!("Renamed API Key {id} from '{display_old_name}' to '{new_name}'")?;
                 None
             }
+            RoverOutput::AssignGraphArtifactTagResponse(response) => {
+                stderrln!(
+                    "Successfully tagged graph {} with tag {}\nDigest: {}\nGraph Artifact ID: {}",
+                    response.graph_id,
+                    response.tag,
+                    response.digest,
+                    response.graph_artifact_id
+                )?;
+
+                None
+            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
@@ -761,6 +774,9 @@ impl RoverOutput {
                 new_name,
             } => {
                 json!({ "old_name": old_name, "new_name": new_name, "id": id })
+            }
+            RoverOutput::AssignGraphArtifactTagResponse(response) => {
+                json!({ "graph_artifact_id": response.graph_artifact_id })
             }
             RoverOutput::CliOutput(cli_output) => {
                 cli_output.json().unwrap_or(serde_json::Value::Null)
