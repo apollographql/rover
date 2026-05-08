@@ -5,7 +5,7 @@ use apollo_compiler::{
     },
 };
 
-pub(super) trait IsDeprecated {
+pub(crate) trait IsDeprecated {
     fn is_deprecated(&self) -> bool;
     fn deprecation_reason(&self) -> Option<String>;
 }
@@ -62,6 +62,16 @@ impl IsDeprecated for Component<EnumValueDefinition> {
 }
 
 impl IsDeprecated for &InputValueDefinition {
+    fn is_deprecated(&self) -> bool {
+        self.directives.is_deprecated()
+    }
+
+    fn deprecation_reason(&self) -> Option<String> {
+        self.directives.deprecation_reason()
+    }
+}
+
+impl IsDeprecated for Component<InputValueDefinition> {
     fn is_deprecated(&self) -> bool {
         self.directives.is_deprecated()
     }
