@@ -304,3 +304,104 @@ jobs:
           image_name: rover
           version_number: ${{ needs.validate_tag.outputs.version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  update_action_repos:
+    name: Update apollographql-gh-actions/${{ matrix.dest }}
+    needs: [validate_tag, publish]
+    if: github.event_name == 'push' && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - src: install
+            dest: install-rover
+    steps:
+      - name: Mint installation token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.APOLLO_GH_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.APOLLO_GH_ACTIONS_APP_PRIVATE_KEY }}
+          owner: apollographql-gh-actions
+          repositories: ${{ matrix.dest }}
+
+      - name: Discover bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          slug=$(gh api /app --jq '.slug')
+          # The bot user's id is required to construct the noreply email that
+          # GitHub accepts as authored-by-the-App.
+          id=$(gh api "/users/${slug}[bot]" --jq '.id')
+          {
+            echo "name=${slug}[bot]"
+            echo "email=${id}+${slug}[bot]@users.noreply.github.com"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout rover at the release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: rover
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+
+      - name: Checkout target action repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: apollographql-gh-actions/${{ matrix.dest }}
+          token: ${{ steps.app-token.outputs.token }}
+          path: target
+
+      - name: Skip if release tag already exists on target
+        id: tag-check
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEST: ${{ matrix.dest }}
+          # Action repo tags use a `rover-` prefix to avoid colliding with the
+          # legacy `v1`/`v1.0.0` tags inherited from the pre-lockstep era.
+          ACTION_TAG: rover-${{ github.ref_name }}
+        run: |
+          if gh api "repos/apollographql-gh-actions/${DEST}/git/refs/tags/${ACTION_TAG}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stage mastered files
+        if: steps.tag-check.outputs.exists == 'false'
+        env:
+          SRC: ${{ matrix.src }}
+        run: |
+          set -euo pipefail
+          cp -R "rover/actions/${SRC}/." target/
+          # install-rover ships the canonical installer scripts alongside its
+          # action.yml.
+          if [ "$SRC" = "install" ]; then
+            cp rover/installers/binstall/scripts/nix/install.sh    target/install.sh
+            cp rover/installers/binstall/scripts/windows/install.ps1 target/install.ps1
+            chmod +x target/install.sh
+          fi
+
+      - name: Commit, tag, and push
+        if: steps.tag-check.outputs.exists == 'false'
+        working-directory: target
+        env:
+          ROVER_TAG: ${{ github.ref_name }}
+          ACTION_TAG: rover-${{ github.ref_name }}
+          BOT_NAME: ${{ steps.bot.outputs.name }}
+          BOT_EMAIL: ${{ steps.bot.outputs.email }}
+        run: |
+          set -euo pipefail
+          git config user.name  "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Release $ROVER_TAG"
+          fi
+          git tag "$ACTION_TAG"
+          git push origin HEAD
+          git push origin "$ACTION_TAG"

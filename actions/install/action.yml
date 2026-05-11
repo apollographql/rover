@@ -1,0 +1,29 @@
+name: "Install Rover CLI"
+description: "Install the Rover CLI on the runner. The version installed is pinned to the version of this action."
+author: "Apollo GraphQL"
+branding:
+  icon: "terminal"
+
+# This action takes no inputs by design: it invokes the canonical installer
+# scripts, which have the rover version baked in by `cargo xtask prep` at
+# release time. Pin to a different release tag to install a different version.
+#
+# In this repo, `install.sh` / `install.ps1` do NOT live next to this file —
+# they live at `installers/binstall/scripts/{nix,windows}/`. The release
+# workflow copies them alongside this action.yml when pushing to
+# apollographql-gh-actions/install-rover, so `${{ github.action_path }}/...`
+# resolves correctly for end users.
+
+runs:
+  using: "composite"
+  steps:
+    - if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        "${{ github.action_path }}/install.sh"
+        echo "$HOME/.rover/bin" >> "$GITHUB_PATH"
+    - if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        & "${{ github.action_path }}/install.ps1"
+        Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $HOME '.rover\bin')
