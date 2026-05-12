@@ -5,10 +5,24 @@ use camino::Utf8PathBuf;
 use httpmock::prelude::*;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use rover_http::ReqwestService;
+use sealed_test::prelude::*;
 use speculoos::prelude::*;
 
-#[test]
-pub fn test_install() {
+#[sealed_test]
+fn test_install() {
+    // `install()` appends to shell rc files (e.g. ~/.zshenv). The `cfg!(test)`
+    // guard in unix::get_available_shells() is evaluated against this test crate,
+    // not binstall, so it doesn't fire here.
+    //
+    // HOME redirects rc-file writes for Posix/Bash/Zsh into the sandbox.
+    // ZDOTDIR is independent — Zsh::rcfiles() reads it directly, so a developer
+    // who exports it (e.g. ~/.config/zsh) would still get $ZDOTDIR/.zshenv
+    // touched. Unsetting it makes Zsh::zdotdir() return Err, dropping that
+    // candidate.
+    let sandbox = env::current_dir().expect("sealed_test sets cwd to a tempdir");
+    env::set_var("HOME", &sandbox);
+    env::remove_var("ZDOTDIR");
+
     let mut executable_location =
         tempfile::NamedTempFile::new().expect("Unable to create temp file");
     executable_location
