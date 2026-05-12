@@ -16,6 +16,6 @@ You can run `cargo xtask dist` to build Rover's binary like it would be built in
 
 The most important xtask command you'll need to run locally is `cargo xtask prep`. This command prepares Rover for a new release. You'll want to update the version in `Cargo.toml`, and run `cargo xtask prep` as a part of making the PR for a new release.
 
-You must have `volta` [installed](https://docs.volta.sh/guide/getting-started) in order to ensure the proper node versions are used for the multiple packages in this repo.
+Run `mise install` from the repo root to get the pinned `node`, `npm`, and `graphql_client_cli` versions declared in [`mise.toml`](../mise.toml), then run `mise run prep` (which wraps `cargo xtask prep`).
 
 These steps are outlined in more detail in the [release checklist](../RELEASE_CHECKLIST.md).

@@ -1,11 +1,19 @@
+[settings]
+idiomatic_version_file_enable_tools = ["rust"]
+
 [tools]
 "github:lycheeverse/lychee" = { version = "0.24.2", version_prefix = "lychee-v" }
 node = "22.14.0"
 "cargo:cargo-deny" = "0.19"
+"cargo:graphql_client_cli" = "0.14.0"
 
 [tasks.check]
 description = "Run the same checks as CI"
 depends = ["clippy", "format-check", "test"]
+
+[tasks.prep]
+description = "Prepare a release: regenerate template schemas/queries and bump the npm installer version"
+run = "cargo xtask prep"
 
 [tasks.format-check]
 run = "cargo +nightly fmt --all -- --check"
