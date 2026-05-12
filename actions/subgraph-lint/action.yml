@@ -1,0 +1,60 @@
+name: "Run Rover Subgraph Lint"
+description: "Run the `rover subgraph lint` command."
+author: "Apollo GraphQL"
+branding:
+  icon: "terminal"
+
+inputs:
+  # required
+  apollo-key:
+    description: "Your Apollo Studio API key."
+    required: true
+  graph-ref:
+    description: "<NAME>@<VARIANT> of graph in Apollo Studio."
+    required: true
+  name:
+    description: "The name of the subgraph."
+    required: true
+  schema:
+    description: "The schema file to lint."
+    required: true
+
+  # optional
+  ignore-existing-lint-violations:
+    description: "(Optional) If `true`, the linter only flags violations present in the diff between the local schema and the published schema. By default, all violations in the local schema are flagged."
+
+  # common
+  log:
+    description: "Specify Rover's log level."
+  format:
+    description: "Specify Rover's log format type [plain|json]."
+  client-timeout:
+    description: "Configure the timeout length (in seconds) when performing HTTP(S) requests."
+
+runs:
+  using: "docker"
+  # The image tag is rewritten by `cargo xtask prep` so each release tag pins
+  # the action to the matching Rover version. Do not edit by hand.
+  image: "docker://ghcr.io/apollographql/rover:0.38.1"
+  entrypoint: "/bin/bash"
+  args:
+    - "-c"
+    # Inputs flow through env (not template-inlined) so values containing shell
+    # metacharacters cannot break out of quoting and execute arbitrary commands.
+    - |
+      set -euo pipefail
+      ARGS=("$INPUT_GRAPH_REF" --name "$INPUT_NAME" --schema "$INPUT_SCHEMA")
+      [ "${INPUT_IGNORE_EXISTING_LINT_VIOLATIONS:-}" = "true" ] && ARGS+=(--ignore-existing-lint-violations)
+      [ -n "${INPUT_LOG:-}" ] && ARGS+=(--log "$INPUT_LOG")
+      [ -n "${INPUT_FORMAT:-}" ] && ARGS+=(--format "$INPUT_FORMAT")
+      [ -n "${INPUT_CLIENT_TIMEOUT:-}" ] && ARGS+=(--client-timeout "$INPUT_CLIENT_TIMEOUT")
+      exec rover --skip-update-check subgraph lint "${ARGS[@]}"
+  env:
+    APOLLO_KEY: ${{ inputs.apollo-key }}
+    INPUT_GRAPH_REF: ${{ inputs.graph-ref }}
+    INPUT_NAME: ${{ inputs.name }}
+    INPUT_SCHEMA: ${{ inputs.schema }}
+    INPUT_IGNORE_EXISTING_LINT_VIOLATIONS: ${{ inputs.ignore-existing-lint-violations }}
+    INPUT_LOG: ${{ inputs.log }}
+    INPUT_FORMAT: ${{ inputs.format }}
+    INPUT_CLIENT_TIMEOUT: ${{ inputs.client-timeout }}

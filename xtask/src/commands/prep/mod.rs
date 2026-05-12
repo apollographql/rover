@@ -6,6 +6,7 @@ use crate::{
     tools::{CargoRunner, NpmRunner},
 };
 
+mod container_actions;
 mod docs;
 mod installers;
 mod main_schema;
@@ -36,6 +37,7 @@ impl Prep {
         let cargo_runner = CargoRunner::new()?;
         cargo_runner.update_deps()?;
         installers::update_versions()?;
+        container_actions::update_versions()?;
         let docs_runner = DocsRunner::new()?;
         docs_runner
             .build_error_code_reference()
