@@ -310,6 +310,8 @@ jobs:
             dest: install-rover
           - src: subgraph-lint
             dest: rover-subgraph-lint 
+          - src: persisted-queries-publish
+            dest: rover-persisted-queries-publish
     steps:
       - name: Mint installation token
         id: app-token

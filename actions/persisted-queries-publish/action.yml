@@ -1,0 +1,80 @@
+name: "Run Rover Persisted Queries Publish"
+description: "Run the `rover persisted-queries publish` command."
+author: "Apollo GraphQL"
+branding:
+  icon: "terminal"
+
+inputs:
+  # required
+  apollo-key:
+    description: "Your Apollo Studio API key."
+    required: true
+  manifest:
+    description: "Path to the persisted queries manifest file."
+    required: true
+
+  # one of:  graph-ref  OR  (graph-id + list-id)  is required
+  graph-ref:
+    description: "<NAME>@<VARIANT> of graph in Apollo Studio. Looks up the persisted-query list attached to the variant. Takes precedence over `graph-id`/`list-id` if both are set."
+  graph-id:
+    description: "Graph ID in Apollo Studio. Use together with `list-id` instead of `graph-ref`."
+  list-id:
+    description: "Persisted queries list ID in Apollo Studio. Use together with `graph-id` instead of `graph-ref`."
+
+  # optional
+  manifest-format:
+    description: "Manifest format: `apollo` (default) or `relay`."
+  for-client-name:
+    description: "If provided, overrides the `clientName` field in every operation in the manifest."
+
+  # common
+  log:
+    description: "Specify Rover's log level."
+  format:
+    description: "Specify Rover's log format type [plain|json]."
+  client-timeout:
+    description: "Configure the timeout length (in seconds) when performing HTTP(S) requests."
+
+runs:
+  using: "docker"
+  # The image tag is rewritten by `cargo xtask prep` so each release tag pins
+  # the action to the matching Rover version. Do not edit by hand.
+  image: "docker://ghcr.io/apollographql/rover:0.38.1"
+  entrypoint: "/bin/bash"
+  args:
+    - "-c"
+    # Inputs flow through env (not template-inlined) so values containing shell
+    # metacharacters cannot break out of quoting and execute arbitrary commands.
+    - |
+      set -euo pipefail
+      if [ -z "${INPUT_GRAPH_REF:-}" ] && { [ -z "${INPUT_GRAPH_ID:-}" ] || [ -z "${INPUT_LIST_ID:-}" ]; }; then
+        echo "::error::Either 'graph-ref' or both 'graph-id' and 'list-id' must be provided." >&2
+        exit 1
+      fi
+
+      ARGS=()
+      if [ -n "${INPUT_GRAPH_REF:-}" ]; then
+        ARGS+=("$INPUT_GRAPH_REF")
+      else
+        ARGS+=(--graph-id "$INPUT_GRAPH_ID" --list-id "$INPUT_LIST_ID")
+      fi
+
+      ARGS+=(--manifest "$INPUT_MANIFEST")
+      [ -n "${INPUT_MANIFEST_FORMAT:-}" ] && ARGS+=(--manifest-format "$INPUT_MANIFEST_FORMAT")
+      [ -n "${INPUT_FOR_CLIENT_NAME:-}" ] && ARGS+=(--for-client-name "$INPUT_FOR_CLIENT_NAME")
+      [ -n "${INPUT_LOG:-}" ] && ARGS+=(--log "$INPUT_LOG")
+      [ -n "${INPUT_FORMAT:-}" ] && ARGS+=(--format "$INPUT_FORMAT")
+      [ -n "${INPUT_CLIENT_TIMEOUT:-}" ] && ARGS+=(--client-timeout "$INPUT_CLIENT_TIMEOUT")
+
+      exec rover --skip-update-check persisted-queries publish "${ARGS[@]}"
+  env:
+    APOLLO_KEY: ${{ inputs.apollo-key }}
+    INPUT_GRAPH_REF: ${{ inputs.graph-ref }}
+    INPUT_GRAPH_ID: ${{ inputs.graph-id }}
+    INPUT_LIST_ID: ${{ inputs.list-id }}
+    INPUT_MANIFEST: ${{ inputs.manifest }}
+    INPUT_MANIFEST_FORMAT: ${{ inputs.manifest-format }}
+    INPUT_FOR_CLIENT_NAME: ${{ inputs.for-client-name }}
+    INPUT_LOG: ${{ inputs.log }}
+    INPUT_FORMAT: ${{ inputs.format }}
+    INPUT_CLIENT_TIMEOUT: ${{ inputs.client-timeout }}
