@@ -199,16 +199,7 @@ jobs:
           pattern: artifacts-*
           merge-multiple: true
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Upgrade npm for trusted publishing support
-        # npm trusted publishing (OIDC) requires npm >= 11.5.1
-        # due to a bug (https://github.com/nodejs/node/issues/62425#issuecomment-4200715930)
-        # NPM 10 has to be installed first for NPM 11 to successfully install
-        run: npm install -g npm@10.9.8 && npm install -g npm@11
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
 
       - name: Resolve release parameters
         id: params
