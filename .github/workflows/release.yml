@@ -308,6 +308,8 @@ jobs:
         include:
           - src: install
             dest: install-rover
+          - src: subgraph-lint
+            dest: rover-subgraph-lint 
     steps:
       - name: Mint installation token
         id: app-token
