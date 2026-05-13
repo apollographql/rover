@@ -443,6 +443,62 @@ mod tests {
     }
 
     #[rstest]
+    fn test_from_extended_type_object_type_result_inherits_via(schema: ParsedSchema) {
+        let user = name!("User");
+        let ty = ty_of(&schema, &user);
+        let results = SearchResult::from_extended_type(&schema, &user, ty, &terms("user"), false);
+        assert_that!(&results).matching_contains(|r| {
+            r.coordinate == SchemaCoordinate::from(coord!(User))
+                && matches!(r.kind, ElementKind::Type)
+                && r.via.iter().any(|p| {
+                    p.segments
+                        .first()
+                        .is_some_and(|s| s.type_name == "Query" && s.field_name == "user")
+                })
+        });
+    }
+
+    #[rstest]
+    fn test_from_extended_type_interface_type_result_has_empty_via(schema: ParsedSchema) {
+        let node = name!("Node");
+        let ty = ty_of(&schema, &node);
+        let results = SearchResult::from_extended_type(&schema, &node, ty, &terms("node"), false);
+        assert_that!(&results).matching_contains(|r| {
+            r.coordinate == SchemaCoordinate::from(coord!(Node))
+                && matches!(r.kind, ElementKind::Type)
+                && r.via.is_empty()
+        });
+    }
+
+    #[rstest]
+    fn test_from_extended_type_input_object_type_result_has_empty_via(schema: ParsedSchema) {
+        let input = name!("CreatePostInput");
+        let ty = ty_of(&schema, &input);
+        let results = SearchResult::from_extended_type(&schema, &input, ty, &terms("input"), false);
+        assert_that!(&results).matching_contains(|r| {
+            r.coordinate == SchemaCoordinate::from(coord!(CreatePostInput))
+                && matches!(r.kind, ElementKind::Type)
+                && r.via.is_empty()
+        });
+    }
+
+    #[rstest]
+    fn test_from_extended_type_enum_type_result_inherits_via(schema: ParsedSchema) {
+        let freq = name!("DigestFrequency");
+        let ty = ty_of(&schema, &freq);
+        let results = SearchResult::from_extended_type(&schema, &freq, ty, &terms("digest"), false);
+        assert_that!(&results).matching_contains(|r| {
+            r.coordinate == SchemaCoordinate::from(coord!(DigestFrequency))
+                && matches!(r.kind, ElementKind::Type)
+                && r.via.iter().any(|p| {
+                    p.segments
+                        .first()
+                        .is_some_and(|s| s.type_name == "Query" && s.field_name == "viewer")
+                })
+        });
+    }
+
+    #[rstest]
     fn test_from_extended_type_excludes_deprecated_by_default(schema: ParsedSchema) {
         let user = name!("User");
         let ty = ty_of(&schema, &user);
