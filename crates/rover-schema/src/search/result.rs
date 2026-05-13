@@ -304,6 +304,7 @@ mod tests {
         assert_that!(result.coordinate).is_equal_to(SchemaCoordinate::from(coord!(User.email)));
         assert_that!(result.kind).is_equal_to(ElementKind::Field);
         assert_that!(result.score()).is_equal_to(MatchScore::Stem);
+        assert_that!(result.via).is_empty();
     }
 
     #[rstest]
@@ -349,7 +350,13 @@ mod tests {
         let ty = ty_of(&schema, &user);
         let results = SearchResult::from_extended_type(&schema, &user, ty, &terms("email"), false);
         assert_that!(&results).matching_contains(|r| {
-            r.coordinate == coord!(User.email).into() && matches!(r.kind, ElementKind::Field)
+            r.coordinate == coord!(User.email).into()
+                && matches!(r.kind, ElementKind::Field)
+                && r.via.iter().any(|p| {
+                    p.segments
+                        .first()
+                        .is_some_and(|s| s.type_name == "Query" && s.field_name == "user")
+                })
         });
     }
 
@@ -368,7 +375,9 @@ mod tests {
         let ty = ty_of(&schema, &node);
         let results = SearchResult::from_extended_type(&schema, &node, ty, &terms("id"), false);
         assert_that!(&results).matching_contains(|r| {
-            r.coordinate == coord!(Node.id).into() && matches!(r.kind, ElementKind::Field)
+            r.coordinate == coord!(Node.id).into()
+                && matches!(r.kind, ElementKind::Field)
+                && r.via.is_empty()
         });
     }
 
@@ -402,7 +411,12 @@ mod tests {
         let ty = ty_of(&schema, &freq);
         let results = SearchResult::from_extended_type(&schema, &freq, ty, &terms("daily"), false);
         assert_that!(&results).matching_contains(|r| {
-            r.coordinate == coord!(DigestFrequency.DAILY).into() && !r.via.is_empty()
+            r.coordinate == coord!(DigestFrequency.DAILY).into()
+                && r.via.iter().any(|p| {
+                    p.segments
+                        .first()
+                        .is_some_and(|s| s.type_name == "Query" && s.field_name == "viewer")
+                })
         });
     }
 
@@ -411,10 +425,11 @@ mod tests {
         let ci = name!("ContentItem");
         let ty = ty_of(&schema, &ci);
         let results = SearchResult::from_extended_type(&schema, &ci, ty, &terms("content"), false);
-        assert_that!(results).has_length(1);
+        assert_that!(&results).has_length(1);
         assert_that!(results[0].kind).is_equal_to(ElementKind::Type);
         assert_that!(results[0].coordinate)
             .is_equal_to(SchemaCoordinate::from(coord!(ContentItem)));
+        assert_that!(results[0].via).is_empty();
     }
 
     #[rstest]
