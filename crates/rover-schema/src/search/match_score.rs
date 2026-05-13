@@ -54,9 +54,12 @@ impl MatchScore {
     }
 
     fn maybe_fuzzy(words: &[String], terms: &[String]) -> Option<Self> {
+        if terms.iter().any(|t| t.len() < 4) {
+            return None;
+        }
         let fuzzy_hit = terms
             .iter()
-            .all(|t| t.len() >= 4 && words.iter().any(|w| strsim::levenshtein(w, t) <= 1));
+            .all(|t| words.iter().any(|w| strsim::levenshtein(w, t) <= 1));
         if fuzzy_hit { Some(Self::Fuzzy) } else { None }
     }
 
