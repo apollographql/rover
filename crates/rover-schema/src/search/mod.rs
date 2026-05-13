@@ -32,8 +32,8 @@ impl ParsedSchema {
             .collect();
 
         results.sort_by(|a, b| {
-            b.score()
-                .cmp(&a.score())
+            a.score()
+                .cmp(&b.score())
                 .then_with(|| a.coordinate.to_string().cmp(&b.coordinate.to_string()))
         });
         results.truncate(limit);
@@ -109,7 +109,7 @@ mod tests {
             .find(|r| r.coordinate.to_string() == "User.posts")
             .expect("User.posts should appear");
 
-        assert_that!(name_match.score()).is_greater_than(desc_match.score());
+        assert_that!(name_match.score()).is_less_than(desc_match.score());
     }
 
     #[rstest]
@@ -152,7 +152,7 @@ mod tests {
         let exact = schema.search("create", 10, false);
         let stem = schema.search("creating", 10, false);
         if let (Some(e), Some(s)) = (exact.first(), stem.first()) {
-            assert_that!(e.score()).is_greater_than(s.score());
+            assert_that!(e.score()).is_less_than(s.score());
         }
     }
 
@@ -169,7 +169,7 @@ mod tests {
         let exact = schema.search("email", 10, false);
         let fuzzy = schema.search("emaill", 10, false);
         if let (Some(e), Some(f)) = (exact.first(), fuzzy.first()) {
-            assert_that!(e.score()).is_greater_than(f.score());
+            assert_that!(e.score()).is_less_than(f.score());
         }
     }
 }

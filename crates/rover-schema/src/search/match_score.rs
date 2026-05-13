@@ -1,21 +1,21 @@
 use heck::ToSnakeCase;
 use rust_stemmers::{Algorithm, Stemmer};
 
-/// Why a result matched its query, ordered from weakest to strongest precedence.
+/// Why a result matched its query, ordered from strongest to weakest precedence.
 ///
 /// The derived [`Ord`] uses declaration order, so:
-/// `Description < Fuzzy < Stem < Exact`. Sorting results by `score` in
-/// descending order surfaces the strongest matches first.
+/// `Exact < Stem < Fuzzy < Description`. Sorting results by `score` in
+/// ascending order surfaces the strongest matches first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum_macros::EnumIter)]
 pub(super) enum MatchScore {
-    /// All terms appeared in the description, but no token of the name matched.
-    Description,
-    /// All terms came within one edit of a name token (terms must be ≥ 4 chars).
-    Fuzzy,
-    /// All terms matched a name token after English stemming.
-    Stem,
     /// All terms appeared as a substring of the name or one of its tokens.
     Exact,
+    /// All terms matched a name token after English stemming.
+    Stem,
+    /// All terms came within one edit of a name token (terms must be ≥ 4 chars).
+    Fuzzy,
+    /// All terms appeared in the description, but no token of the name matched.
+    Description,
 }
 
 impl MatchScore {
@@ -109,10 +109,10 @@ mod tests {
         // the test fails until this list is updated to match.
         let ordered: Vec<MatchScore> = MatchScore::iter().collect();
         assert_that!(ordered).is_equal_to(vec![
-            MatchScore::Description,
-            MatchScore::Fuzzy,
-            MatchScore::Stem,
             MatchScore::Exact,
+            MatchScore::Stem,
+            MatchScore::Fuzzy,
+            MatchScore::Description,
         ]);
     }
 
