@@ -169,6 +169,125 @@ test("install renames binary properly (Windows)", async () => {
   ).toHaveLength(1);
 });
 
+describe("proxy environment handling", () => {
+  const PROXY_ENV_VARS = [
+    "HTTP_PROXY",
+    "http_proxy",
+    "HTTPS_PROXY",
+    "https_proxy",
+    "NO_PROXY",
+    "no_proxy",
+  ];
+  let savedEnv;
+
+  beforeEach(() => {
+    savedEnv = {};
+    for (const key of PROXY_ENV_VARS) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of PROXY_ENV_VARS) {
+      if (savedEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = savedEnv[key];
+      }
+    }
+  });
+
+  test("getProxyEnv returns null when no proxy vars are set", () => {
+    expect(
+      binary.getProxyEnv(new URL("https://rover.apollo.dev/tar/rover")),
+    ).toBeNull();
+  });
+
+  test("getProxyEnv returns HTTPS_PROXY for https URLs", () => {
+    process.env.HTTPS_PROXY = "http://proxy.example.com:8080";
+    expect(
+      binary.getProxyEnv(new URL("https://rover.apollo.dev/tar/rover")),
+    ).toBe("http://proxy.example.com:8080");
+  });
+
+  test("getProxyEnv returns HTTP_PROXY for http URLs", () => {
+    process.env.HTTP_PROXY = "http://proxy.example.com:8080";
+    expect(
+      binary.getProxyEnv(new URL("http://rover.apollo.dev/tar/rover")),
+    ).toBe("http://proxy.example.com:8080");
+  });
+
+  // Regression test for https://github.com/apollographql/rover/issues/3267:
+  // a non-matching NO_PROXY entry must not throw and must still return the proxy.
+  test("getProxyEnv with non-matching NO_PROXY still returns the proxy", () => {
+    process.env.NO_PROXY = "foo";
+    process.env.HTTPS_PROXY = "http://proxy.example.com:8080";
+    expect(
+      binary.getProxyEnv(new URL("https://rover.apollo.dev/tar/rover")),
+    ).toBe("http://proxy.example.com:8080");
+  });
+
+  test("shouldBypassProxy returns false when NO_PROXY is unset", () => {
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      false,
+    );
+  });
+
+  test("shouldBypassProxy returns true for wildcard NO_PROXY", () => {
+    process.env.NO_PROXY = "*";
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      true,
+    );
+  });
+
+  test("shouldBypassProxy matches exact hostnames", () => {
+    process.env.NO_PROXY = "rover.apollo.dev";
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      true,
+    );
+    expect(binary.shouldBypassProxy(new URL("https://other.apollo.dev"))).toBe(
+      false,
+    );
+  });
+
+  test("shouldBypassProxy treats leading-dot entries as suffix matches", () => {
+    process.env.NO_PROXY = ".apollo.dev";
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      true,
+    );
+    expect(
+      binary.shouldBypassProxy(new URL("https://nested.rover.apollo.dev")),
+    ).toBe(true);
+    expect(binary.shouldBypassProxy(new URL("https://apollo.dev"))).toBe(false);
+  });
+
+  test("shouldBypassProxy honors port in NO_PROXY entries", () => {
+    process.env.NO_PROXY = "rover.apollo.dev:8443";
+    expect(
+      binary.shouldBypassProxy(new URL("https://rover.apollo.dev:8443")),
+    ).toBe(true);
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      false,
+    );
+  });
+
+  test("shouldBypassProxy splits NO_PROXY on commas and whitespace", () => {
+    process.env.NO_PROXY = "foo, bar.example.com ,rover.apollo.dev";
+    expect(binary.shouldBypassProxy(new URL("https://rover.apollo.dev"))).toBe(
+      true,
+    );
+  });
+
+  test("getProxyEnv returns null when host matches NO_PROXY", () => {
+    process.env.NO_PROXY = "rover.apollo.dev";
+    process.env.HTTPS_PROXY = "http://proxy.example.com:8080";
+    expect(
+      binary.getProxyEnv(new URL("https://rover.apollo.dev/tar/rover")),
+    ).toBeNull();
+  });
+});
+
 test("install adds a new binary if another version exists", async () => {
   // Create the temporary directory
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));

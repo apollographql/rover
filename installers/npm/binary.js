@@ -103,53 +103,101 @@ const getPlatform = (type = os.type(), architecture = os.arch()) => {
   process.exit(1);
 };
 
-/*! Copyright (c) 2022 Mitchell Alderson - MIT License */
+const DEFAULT_PORTS = { "http:": 80, "https:": 443 };
+
+/*! Copyright (c) 2014-present Matt Zabriskie & Collaborators - MIT License */
+const parseNoProxyEntry = (entry) => {
+  let entryHost = entry;
+  let entryPort = 0;
+
+  if (entryHost.charAt(0) === "[") {
+    const bracketIndex = entryHost.indexOf("]");
+    if (bracketIndex !== -1) {
+      const host = entryHost.slice(1, bracketIndex);
+      const rest = entryHost.slice(bracketIndex + 1);
+      if (rest.charAt(0) === ":" && /^\d+$/.test(rest.slice(1))) {
+        entryPort = Number.parseInt(rest.slice(1), 10);
+      }
+      return [host, entryPort];
+    }
+  }
+
+  const firstColon = entryHost.indexOf(":");
+  const lastColon = entryHost.lastIndexOf(":");
+  if (
+    firstColon !== -1 &&
+    firstColon === lastColon &&
+    /^\d+$/.test(entryHost.slice(lastColon + 1))
+  ) {
+    entryPort = Number.parseInt(entryHost.slice(lastColon + 1), 10);
+    entryHost = entryHost.slice(0, lastColon);
+  }
+
+  return [entryHost, entryPort];
+};
+
+/*! Copyright (c) 2014-present Matt Zabriskie & Collaborators - MIT License */
+const normalizeNoProxyHost = (hostname) => {
+  if (!hostname) return hostname;
+  if (
+    hostname.charAt(0) === "[" &&
+    hostname.charAt(hostname.length - 1) === "]"
+  ) {
+    hostname = hostname.slice(1, -1);
+  }
+  return hostname.replace(/\.+$/, "");
+};
+
+/*! Copyright (c) 2014-present Matt Zabriskie & Collaborators - MIT License */
+const shouldBypassProxy = (requestURL) => {
+  const noProxy = (
+    process.env.no_proxy ||
+    process.env.NO_PROXY ||
+    ""
+  ).toLowerCase();
+
+  if (!noProxy) return false;
+  if (noProxy === "*") return true;
+
+  const port =
+    Number.parseInt(requestURL.port, 10) ||
+    DEFAULT_PORTS[requestURL.protocol] ||
+    0;
+  const hostname = normalizeNoProxyHost(requestURL.hostname.toLowerCase());
+
+  return noProxy.split(/[\s,]+/).some((entry) => {
+    if (!entry) return false;
+
+    let [entryHost, entryPort] = parseNoProxyEntry(entry);
+    entryHost = normalizeNoProxyHost(entryHost);
+    if (!entryHost) return false;
+
+    if (entryPort && entryPort !== port) return false;
+
+    if (entryHost.charAt(0) === "*") {
+      entryHost = entryHost.slice(1);
+    }
+
+    if (entryHost.charAt(0) === ".") {
+      return hostname.endsWith(entryHost);
+    }
+
+    return hostname === entryHost;
+  });
+};
+
 const getProxyEnv = (requestURL) => {
-  const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
+  if (shouldBypassProxy(requestURL)) return null;
 
-  // if the noProxy is a wildcard then return null
-  if (noProxy === "*") {
-    return null;
-  }
-
-  // if the noProxy is not empty and the uri is found, return null
-  if (noProxy !== "" && urlInNoProxy(requestURL, noProxy)) {
-    return null;
-  }
-
-  // get proxy based on request url's protocol
-  if (requestURL.protocol == "http:") {
+  if (requestURL.protocol === "http:") {
     return process.env.HTTP_PROXY || process.env.http_proxy || null;
   }
 
-  if (requestURL.protocol == "https:") {
+  if (requestURL.protocol === "https:") {
     return process.env.HTTPS_PROXY || process.env.https_proxy || null;
   }
 
-  // not a supported protocol...
   return null;
-};
-
-/*! Copyright (c) 2022 Mitchell Alderson - MIT License */
-const urlInNoProxy = (requestURL, noProxy) => {
-  const port =
-    requestURL.port || (requestURL.protocol === "https:" ? "443" : "80");
-  const hostname = formatHostName(requestURL.hostname);
-  //testing: internal.example.com,internal2.example.com
-  const noProxyList = noProxy.split(",");
-
-  return noProxyList.map(parseNoProxyZone).some((noProxyZone) => {
-    const isMatchedAt = hostname.indexOf(noProxyZone.hostname);
-    const hostnameMatched =
-      isMatchedAt > -1 &&
-      isMatchedAt === hostname.length - noProxyZone.hostname.length;
-
-    if (noProxyZone.hasPort) {
-      return port === noProxyZone.port && hostnameMatched;
-    }
-
-    return hostnameMatched;
-  });
 };
 
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
@@ -218,7 +266,7 @@ class Binary {
       console.error(`Downloading release from ${this.url}`);
     }
 
-    const proxyUrl = getProxyEnv(this.url);
+    const proxyUrl = getProxyEnv(new URL(this.url));
 
     const agent = proxyUrl ? new ProxyAgent(proxyUrl) : null;
     const fetchPromise = fetch(this.url, agent ? { dispatcher: agent } : {});
@@ -330,4 +378,6 @@ module.exports = {
   run,
   getBinary,
   getPlatform,
+  getProxyEnv,
+  shouldBypassProxy,
 };
