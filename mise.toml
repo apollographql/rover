@@ -6,7 +6,7 @@ idiomatic_version_file_enable_tools = ["rust"]
 node = "22.22.3"
 "npm:npm" = "11.14.1"
 "cargo:cargo-deny" = "0.19"
-"cargo:graphql_client_cli" = "0.14.0"
+"cargo:graphql_client_cli" = "0.16.0"
 
 [tasks.check]
 description = "Run the same checks as CI"
