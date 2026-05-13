@@ -14,7 +14,8 @@ pub(super) enum MatchScore {
     Stem,
     /// All terms came within one edit of a name token (terms must be ≥ 4 chars).
     Fuzzy,
-    /// All terms appeared in the description, but no token of the name matched.
+    /// All terms appeared in the description as a substring or stemmed token,
+    /// but no token of the name matched.
     Description,
 }
 
@@ -62,13 +63,29 @@ impl MatchScore {
     fn maybe_description(description: Option<&str>, terms: &[String]) -> Option<Self> {
         description.and_then(|description| {
             let description = description.to_lowercase();
-            if terms.iter().all(|t| description.contains(t.as_str())) {
-                Some(Self::Description)
-            } else {
-                None
-            }
+            let stemmer = Stemmer::create(Algorithm::English);
+            let stemmed_words: Vec<String> = tokenize_text(&description)
+                .iter()
+                .map(|w| stemmer.stem(w).into_owned())
+                .collect();
+            let hit = terms.iter().all(|t| {
+                if description.contains(t.as_str()) {
+                    return true;
+                }
+                let stemmed_term = stemmer.stem(t).into_owned();
+                stemmed_words.iter().any(|sw| sw == &stemmed_term)
+            });
+            if hit { Some(Self::Description) } else { None }
         })
     }
+}
+
+/// Splits prose into lowercase words on non-alphanumeric boundaries.
+fn tokenize_text(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect()
 }
 
 /// Splits a GraphQL name into lowercase words by camelCase and snake_case boundaries.
@@ -152,6 +169,14 @@ mod tests {
     #[rstest]
     fn test_new_description_only_when_name_does_not_match() {
         let score = MatchScore::new("Post", Some("Written by the author"), &terms("author"));
+        assert_that!(score).is_equal_to(Some(MatchScore::Description));
+    }
+
+    #[rstest]
+    fn test_new_description_stem_match() {
+        // "creating" stems to "creat"; description "Creates a new post" tokens
+        // stem to ["creat", "a", "new", "post"]. Name doesn't match → Description.
+        let score = MatchScore::new("Post", Some("Creates a new post"), &terms("creating"));
         assert_that!(score).is_equal_to(Some(MatchScore::Description));
     }
 
