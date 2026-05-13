@@ -2,7 +2,6 @@ use std::str;
 
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
-use which::which;
 
 use crate::{
     tools::Runner,
@@ -43,10 +42,7 @@ impl NpmRunner {
     }
 
     /// prepares our npm installer package for release
-    /// you must have volta installed to run this command
     pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.require_volta()?;
-
         self.update_dependency_tree()
             .with_context(|| "Could not update the dependency tree.")?;
 
@@ -60,12 +56,6 @@ impl NpmRunner {
             .with_context(|| "Publish dry-run failed.")?;
 
         Ok(())
-    }
-
-    fn require_volta(&self) -> Result<()> {
-        which("volta")
-            .map(|_| ())
-            .map_err(|_| anyhow!("You must have `volta` installed to run this command."))
     }
 
     fn update_dependency_tree(&self) -> Result<()> {

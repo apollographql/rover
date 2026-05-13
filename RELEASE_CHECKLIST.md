@@ -36,12 +36,12 @@ commits previous to it. Preparing it involves several phases:
 
 ### Create a release PR
 
-1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
+1. Make sure you have [`mise`](https://mise.jdx.dev/) installed on your machine and in your `PATH`, then run `mise install` from the repo root. This installs the pinned `rust`, `cargo` (both sourced from [`rust-toolchain.toml`](./rust-toolchain.toml)), `node`, `npm`, and `graphql_client_cli`.
 2. Create a new branch "#.#.#" where "#.#.#" is this release's version
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
 4. Update the installer versions in [`docs/source/getting-started.mdx`](./docs/source/getting-started.mdx) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
 5. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
-6. Run `cargo xtask prep` (this will require `npm` to be installed).
+6. Run `mise run prep`.
 7. Push up all of your local changes. The commit message should be "release: v#.#.#"
 8. Open a Pull Request from the branch you pushed.
 9. Add the release pull request to the milestone you opened.
@@ -78,11 +78,11 @@ These are releases that usually proceed a standard release as a way of getting f
 
 ### Create a release PR
 
-1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
+1. Make sure you have [`mise`](https://mise.jdx.dev/) installed on your machine and in your `PATH`, then run `mise install` from the repo root. This installs the pinned `rust` (sourced from [`rust-toolchain.toml`](./rust-toolchain.toml), which provides `cargo`), `node` (which provides `npm`), and `graphql_client_cli` declared in [`mise.toml`](./mise.toml).
 2. Create a new branch "#.#.#-rc.#" where "#.#.#" is this release's version, and the final `#` is the number of the release candidate (this starts at 0 and increments by 1 for each subsequent release candidate)
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
 4. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
-5. Run `cargo xtask prep` (this will require `npm` to be installed).
+5. Run `mise run prep` (this wraps `cargo xtask prep` with the pinned toolchain from [`mise.toml`](./mise.toml)).
 6. Push up all of your local changes. The commit message should be "release: v#.#.#-rc.#"
 7. Open a Pull Request from the branch you pushed. The description for this PR should include the salient changes in this release candidate, and what testing should be applied to it.
 8. Paste the changelog entry into the description of the Pull Request.
@@ -125,11 +125,11 @@ Sometimes it's necessary to create a `rover` release from an arbitrary branch, t
 
 ### Create a release branch
 
-1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
+1. Make sure you have [`mise`](https://mise.jdx.dev/) installed on your machine and in your `PATH`, then run `mise install` from the repo root. This installs the pinned `rust` (sourced from [`rust-toolchain.toml`](./rust-toolchain.toml), which provides `cargo`), `node` (which provides `npm`), and `graphql_client_cli` declared in [`mise.toml`](./mise.toml).
 2. Create a new branch `#.#.#-<<IDENTIFIER>>` where "#.#.#" is this release's version.
    1. `IDENTIFIER` can be any series of valid [Semver identifiers separated by dots](https://semver.org/#spec-item-9)
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
-4. Run `cargo xtask prep` (this will require `npm` to be installed).
+4. Run `mise run prep` (this wraps `cargo xtask prep` with the pinned toolchain from [`mise.toml`](./mise.toml)).
 5. Push up all of your local changes.
 
 ### Tag and build release
