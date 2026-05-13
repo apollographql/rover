@@ -12,7 +12,8 @@ pub(super) enum MatchScore {
     Exact,
     /// All terms matched a name token after English stemming.
     Stem,
-    /// All terms came within one edit of a name token (terms must be ≥ 4 chars).
+    /// All terms matched a name token: terms ≥ 4 chars within one edit, shorter
+    /// terms must match a token exactly.
     Fuzzy,
     /// All terms appeared in the description as a substring or stemmed token,
     /// but no token of the name matched.
@@ -54,12 +55,14 @@ impl MatchScore {
     }
 
     fn maybe_fuzzy(words: &[String], terms: &[String]) -> Option<Self> {
-        if terms.iter().any(|t| t.len() < 4) {
-            return None;
-        }
-        let fuzzy_hit = terms
-            .iter()
-            .all(|t| words.iter().any(|w| strsim::levenshtein(w, t) <= 1));
+        let fuzzy_hit = terms.iter().all(|t| {
+            if t.len() < 4 {
+                // Too short to fuzzy-match reliably — require an exact token hit.
+                words.iter().any(|w| w == t)
+            } else {
+                words.iter().any(|w| strsim::levenshtein(w, t) <= 1)
+            }
+        });
         if fuzzy_hit { Some(Self::Fuzzy) } else { None }
     }
 
@@ -163,9 +166,26 @@ mod tests {
     }
 
     #[rstest]
-    fn test_new_fuzzy_requires_term_length_at_least_four() {
-        // 3-char term within 1 edit shouldn't trigger fuzzy.
+    fn test_new_fuzzy_short_term_must_match_token_exactly() {
+        // A < 4-char term doesn't get typo tolerance: "fop" isn't a token of "foo",
+        // so the fuzzy tier rejects it even though levenshtein("foo","fop") == 1.
         let score = MatchScore::new("foo", None, &terms("fop"));
+        assert_that!(score).is_equal_to(None);
+    }
+
+    #[rstest]
+    fn test_new_fuzzy_short_term_exact_plus_long_term_fuzzy() {
+        // "id" matches token "id" exactly; "userr" is 1 edit from token "user".
+        // Exact fails ("userr" isn't a substring anywhere); Stem fails; Fuzzy succeeds.
+        let score = MatchScore::new("userById", None, &terms("id userr"));
+        assert_that!(score).is_equal_to(Some(MatchScore::Fuzzy));
+    }
+
+    #[rstest]
+    fn test_new_fuzzy_short_term_not_token_blocks_match() {
+        // "zz" is not a token of "userById"; even though "userr" fuzzy-matches "user",
+        // the short term fails its exact-token requirement, so the whole query fails.
+        let score = MatchScore::new("userById", None, &terms("zz userr"));
         assert_that!(score).is_equal_to(None);
     }
 
