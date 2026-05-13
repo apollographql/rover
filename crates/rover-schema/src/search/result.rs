@@ -165,7 +165,7 @@ impl SearchResult {
             ExtendedType::Enum(e) => {
                 let via = schema.find_root_paths(type_name);
                 let desc = e.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, via, terms));
+                out.extend(Self::from_type_match(type_name, desc, via.clone(), terms));
                 for (val_name, val) in &e.values {
                     if include_deprecated || !val.is_deprecated() {
                         let vdesc = val.description.as_ref().map(|d| d.to_string());
@@ -174,7 +174,7 @@ impl SearchResult {
                             val_name,
                             ElementKind::EnumValue,
                             vdesc,
-                            Vec::new(),
+                            via.clone(),
                             terms,
                         ));
                     }
@@ -385,14 +385,24 @@ mod tests {
     }
 
     #[rstest]
-    fn test_from_extended_type_enum_uses_enumvalue_kind_and_no_via(schema: ParsedSchema) {
+    fn test_from_extended_type_enum_uses_enumvalue_kind(schema: ParsedSchema) {
         let role = name!("Role");
         let ty = ty_of(&schema, &role);
         let results = SearchResult::from_extended_type(&schema, &role, ty, &terms("admin"), false);
         assert_that!(&results).matching_contains(|r| {
-            r.coordinate == coord!(Role.ADMIN).into()
-                && r.kind == ElementKind::EnumValue
-                && r.via.is_empty()
+            r.coordinate == coord!(Role.ADMIN).into() && r.kind == ElementKind::EnumValue
+        });
+    }
+
+    #[rstest]
+    fn test_from_extended_type_enum_value_inherits_via(schema: ParsedSchema) {
+        // DigestFrequency is reachable via Query.viewer.preferences.digestFrequency,
+        // so its values should inherit the same root paths as the type itself.
+        let freq = name!("DigestFrequency");
+        let ty = ty_of(&schema, &freq);
+        let results = SearchResult::from_extended_type(&schema, &freq, ty, &terms("daily"), false);
+        assert_that!(&results).matching_contains(|r| {
+            r.coordinate == coord!(DigestFrequency.DAILY).into() && !r.via.is_empty()
         });
     }
 
