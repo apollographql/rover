@@ -310,6 +310,8 @@ jobs:
             dest: install-rover
           - src: subgraph-lint
             dest: rover-subgraph-lint 
+          - src: persisted-queries-publish
+            dest: rover-persisted-queries-publish
           - src: subgraph-check
             dest: rover-subgraph-check
           - src: subgraph-publish
