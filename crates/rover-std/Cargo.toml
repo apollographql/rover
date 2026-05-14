@@ -10,6 +10,7 @@ publish = false
 anyhow = { workspace = true }
 bon = { workspace = true }
 camino = { workspace = true }
+dunce = { workspace = true }
 globwalk = { workspace = true }
 console = { workspace = true }
 notify = { workspace = true }
