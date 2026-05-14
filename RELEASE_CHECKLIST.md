@@ -7,6 +7,8 @@ This is a list of the things that need to happen during a release. We support th
 
 _N.B All the version numbers above follow Semantic Versioning, and specifically its notion of encoding pre-release information after the `-` for more information see the [Semantic Versioning specification](https://semver.org/)_
 
+Note that as of Rover 0.39.0 onwards, we enforce release immutability on all platforms including GitHub releases. This means that any partial/failed release must be removed on all platforms and a minor version bump will be needed for the re-try.
+
 ## Standard Release
 
 As noted above, a standard release takes the form of a tagged commit on the `main` branch, and includes all
@@ -61,6 +63,7 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 5. Run `git push --tags`.
 6. Wait for CI to pass.
 7. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
+8. Verify that all of the [actions repos](https://github.com/search?q=org%3Aapollographql-gh-actions+rover&type=repositories) had releases created.
 8. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
 9. Close the milestone for this release.
 
@@ -162,18 +165,20 @@ Mistakes happen. Most of these release steps are recoverable if you mess up.
 
 ### The release build failed after I pushed a tag!
 
-That's OK! In this scenario, do the following. 
+That's OK, but recovery is constrained by the immutability policy at the top of this checklist: once any artifact (GitHub release, NPM publish, Docker image) has been published for a given version, that version is burned and cannot be re-used.
 
-1. Try re-running the job, see if it fixes itself
-2. If it doesn't, try re-running it with SSH and poke around, see if you can identify the issue
-3. Delete the tag either in the GitHub UI or by running `git push --delete origin vX.X.X`
-4. Make a PR to fix the issue in [`.github/workflows/release.yml`](./.github/workflows/release.yml)
-5. Merge the PR
-6. Go back to the "Tag and build release" section and re-tag the release. If it fails again, that's OK, you can keep trying until it succeeds.
+1. First, check the failed workflow to determine which publish steps ran. If **nothing** was published anywhere (e.g. the run failed during build/test before any publish step executed), you may try re-running the job — or re-running it with SSH to poke around — to see if it succeeds on a retry against the same tag.
+2. If a re-run will not resolve it, or **any** artifact was already published, you must cut a fresh release at a new version:
+   1. Clean up the partial release on every platform it reached. See [The wrong tag was published to a registry](#the-wrong-tag-was-published-to-a-registry) for the per-platform steps.
+   2. Delete the tag locally and on the remote (`git push --delete origin vX.X.X` and `git tag --delete vX.X.X`).
+   3. Make a PR to fix the issue in [`.github/workflows/release.yml`](./.github/workflows/release.yml) and merge it.
+   4. Restart from "Create a release PR" with the next minor version bump. Do **not** re-tag the burned version.
 
 ### I pushed the wrong tag
 
-Tags and releases can be removed in GitHub. First, remove the remote tag:
+If you catch this **before** the release workflow has published any artifacts, you can remove the bad tag and the workflow's draft GitHub release without having to burn the version. If anything has already been published, follow [The wrong tag was published to a registry](#the-wrong-tag-was-published-to-a-registry) instead — once artifacts are out, the version is immutable and you must move on to a new one.
+
+First, remove the remote tag:
 
 ```console
 git push --delete origin vX.X.X
@@ -187,10 +192,22 @@ Make sure you also delete the local tag:
 git tag --delete vX.X.X
 ```
 
-#### The wrong tag was published to NPM and/or Dockerhub
+#### The wrong tag was published to a registry
 
-Both registries treat release artifacts as effectively immutable, but the
-recovery steps differ.
+GitHub Releases, NPM, and Dockerhub all treat release artifacts as immutable. The
+recovery steps differ per platform, but the outcome is the same: clean up what is
+out there and then ship the fix at a new version — you cannot replace the burned
+version in place.
+
+**GitHub Releases**
+
+1. From the release's page, click `Delete` to remove the release. If the workflow
+   only created a draft, delete the draft from the Releases list.
+2. Delete the underlying git tag from the remote and locally:
+   ```console
+   git push --delete origin vX.X.X
+   git tag --delete vX.X.X
+   ```
 
 **NPM**
 
@@ -214,16 +231,16 @@ recovery steps differ.
 
 **After the wrong tag is removed**
 
-1. Cut a new release at a higher version number. Both Dockerhub and NPM treat verisons as immutable.
+1. Cut a new release at the next minor version bump. None of the registries above will let you re-publish the burned version, and per the immutability policy at the top of this checklist we do not attempt to re-use it even where the registry would technically allow it (e.g. a fully-deleted GitHub release).
 
 ### The release worked but the installer is not working.
 
 In this case you want to stop new installs of the broken version, in particular
 via npm and `rover.apollo.dev/{platform}/latest`.
 
-1. Follow the process outlined in [I pushed the wrong tag](#i-pushed-the-wrong-tag) to pull the release
+1. Follow the process outlined in [The wrong tag was published to a registry](#the-wrong-tag-was-published-to-a-registry) to pull the release
    from GitHub, NPM, and Dockerhub.
-2. Ship the fix at a **new version number** by pushing a new tag.
+2. Ship the fix at a **new version number** by pushing a new tag. Per the immutability policy, the broken version is burned even after cleanup.
 
 ### I tried to do a pre-release, but it ended up becoming an actual release
 
