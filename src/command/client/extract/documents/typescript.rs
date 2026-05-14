@@ -127,7 +127,6 @@ fn extract_template_node(
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
     use rstest::rstest;
     use speculoos::prelude::*;
 
