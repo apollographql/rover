@@ -317,6 +317,7 @@ impl CompositionPipeline<state::Run> {
             .map_err(CompositionPipelineError::ResolveSubgraphs)?
             .setup_supergraph_config_watcher(
                 lazily_resolved_supergraph_config,
+                self.state.resolver.remote_subgraphs().clone(),
                 self.state.fetch_remote_subgraph_factory.clone(),
                 self.state.resolve_introspect_subgraph_factory.clone(),
             )

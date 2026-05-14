@@ -25,7 +25,9 @@ use crate::{
             federation::FederationVersionResolver,
             full::{FullyResolvedSupergraphConfig, introspect::ResolveIntrospectSubgraphFactory},
             lazy::LazilyResolvedSupergraphConfig,
-            resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
+            resolver::{
+                fetch_remote_subgraph::FetchRemoteSubgraphFactory, merge_yaml_over_remote_subgraphs,
+            },
             unresolved::UnresolvedSupergraphConfig,
         },
         watchers::watcher::supergraph_config::SupergraphConfigSerialisationError::DeserializingConfigError,
@@ -39,6 +41,11 @@ use crate::{
 pub(crate) struct SupergraphConfigWatcher {
     file_watcher: FileWatcher,
     supergraph_config: SupergraphConfigYaml,
+    /// Subgraphs originally loaded via `--graph-ref`. Merged into the freshly-read YAML on each
+    /// hot-reload so they are preserved across edits to the local supergraph config (matching the
+    /// merge precedence used at startup in
+    /// `SupergraphConfigResolver::load_from_file_descriptor`).
+    remote_subgraphs: BTreeMap<String, SubgraphConfig>,
     fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
 }
@@ -47,12 +54,14 @@ impl SupergraphConfigWatcher {
     pub fn new(
         file_watcher: FileWatcher,
         supergraph_config: LazilyResolvedSupergraphConfig,
+        remote_subgraphs: BTreeMap<String, SubgraphConfig>,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     ) -> SupergraphConfigWatcher {
         SupergraphConfigWatcher {
             file_watcher,
             supergraph_config: supergraph_config.into(),
+            remote_subgraphs,
             fetch_remote_subgraph_factory,
             resolve_introspect_subgraph_factory,
         }
@@ -127,6 +136,16 @@ impl SupergraphConfigWatcher {
                     debug!("Current supergraph config is: {:?}", latest_supergraph_config);
                     match Self::read_supergraph_config(&contents) {
                         Ok(supergraph_config) => {
+                            // Re-apply the startup-time merge so subgraphs originally loaded
+                            // from `--graph-ref` survive edits to the local YAML file.
+                            let merged_subgraphs = merge_yaml_over_remote_subgraphs(
+                                self.remote_subgraphs.clone(),
+                                supergraph_config.subgraphs,
+                            );
+                            let supergraph_config = SupergraphConfigYaml {
+                                subgraphs: merged_subgraphs,
+                                federation_version: supergraph_config.federation_version,
+                            };
                             let unresolved_supergraph_config = UnresolvedSupergraphConfig {
                                 origin_path: Some(supergraph_config_path.clone()),
                                 federation_version_resolver: Some(FederationVersionResolver::default().from_supergraph_config(Some( &supergraph_config))),
@@ -320,6 +339,77 @@ mod tests {
 
     use super::{SupergraphConfigDiff, *};
     use crate::composition::watchers::watcher::supergraph_config::SupergraphConfigWatcher;
+
+    // Regression test for ROVER-377: when `rover dev` is run with both `--graph-ref` and a
+    // local supergraph.yaml, editing the YAML file at runtime previously dropped every
+    // graph-ref-only subgraph from the session because the watcher only re-read the YAML and
+    // discarded the remote subgraphs that had been merged in at startup.
+    #[test]
+    fn test_hot_reload_preserves_graph_ref_subgraphs() {
+        fn sdl(value: &str) -> SubgraphConfig {
+            SubgraphConfig {
+                routing_url: Some(format!("http://localhost/{value}")),
+                schema: SchemaSource::Sdl {
+                    sdl: value.to_string(),
+                },
+            }
+        }
+        fn remote(name: &str) -> SubgraphConfig {
+            SubgraphConfig {
+                routing_url: Some(format!("http://localhost/{name}")),
+                schema: SchemaSource::Subgraph {
+                    graphref: "graph@variant".to_string(),
+                    subgraph: name.to_string(),
+                },
+            }
+        }
+
+        // Subgraphs that came from `--graph-ref` at startup.
+        let remote_subgraphs = BTreeMap::from([
+            ("accounts".to_string(), remote("accounts")),
+            ("products".to_string(), remote("products")),
+            ("billing".to_string(), remote("billing")),
+        ]);
+
+        // The user's initial supergraph.yaml only overrides "test".
+        let initial_yaml_subgraphs = BTreeMap::from([("test".to_string(), sdl("test-v1"))]);
+        let initial_merged =
+            merge_yaml_over_remote_subgraphs(remote_subgraphs.clone(), initial_yaml_subgraphs);
+        // Sanity-check the startup merge.
+        assert_eq!(initial_merged.len(), 4);
+
+        // The user edits supergraph.yaml — only the local "test" entry changes.
+        let new_yaml_subgraphs = BTreeMap::from([("test".to_string(), sdl("test-v2"))]);
+        let post_reload_merged =
+            merge_yaml_over_remote_subgraphs(remote_subgraphs, new_yaml_subgraphs);
+
+        // The graph-ref subgraphs must still be present after the hot-reload merge.
+        for name in ["accounts", "products", "billing"] {
+            assert!(
+                post_reload_merged.contains_key(name),
+                "expected graph-ref subgraph `{name}` to be preserved across hot-reload"
+            );
+        }
+
+        let old = SupergraphConfigYaml {
+            subgraphs: initial_merged,
+            ..Default::default()
+        };
+        let new = SupergraphConfigYaml {
+            subgraphs: post_reload_merged,
+            ..Default::default()
+        };
+        let diff = SupergraphConfigDiff::new(old, new, BTreeMap::default(), false).unwrap();
+
+        assert!(
+            diff.removed().is_empty(),
+            "no graph-ref subgraphs should be reported as removed, got: {:?}",
+            diff.removed()
+        );
+        assert!(diff.added().is_empty());
+        assert_eq!(diff.changed().len(), 1);
+        assert_eq!(diff.changed()[0].0, "test");
+    }
 
     #[test]
     fn test_supergraph_config_diff() {

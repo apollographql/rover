@@ -46,6 +46,28 @@ pub mod fetch_remote_subgraph;
 pub mod fetch_remote_subgraphs;
 mod state;
 
+/// Merges YAML-defined subgraphs over a base of remote (`--graph-ref`) subgraphs.
+///
+/// YAML entries win, but their `routing_url` falls back to the remote entry's when unset.
+/// Remote-only subgraphs are preserved.
+pub(crate) fn merge_yaml_over_remote_subgraphs(
+    mut merged: BTreeMap<String, SubgraphConfig>,
+    yaml_subgraphs: BTreeMap<String, SubgraphConfig>,
+) -> BTreeMap<String, SubgraphConfig> {
+    for (name, subgraph_config) in yaml_subgraphs {
+        let subgraph_config = SubgraphConfig {
+            routing_url: subgraph_config.routing_url.or_else(|| {
+                merged
+                    .get(&name)
+                    .and_then(|remote_config| remote_config.routing_url.clone())
+            }),
+            schema: subgraph_config.schema,
+        };
+        merged.insert(name, subgraph_config);
+    }
+    merged
+}
+
 /// This is a state-based resolver for the different stages of resolving a supergraph config
 pub struct SupergraphConfigResolver<State> {
     state: State,
@@ -142,26 +164,21 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                 .state
                 .federation_version_resolver
                 .from_supergraph_config(Some(&supergraph_config));
-            let mut merged_subgraphs = self.state.subgraphs;
-            for (name, subgraph_config) in supergraph_config.subgraphs {
-                let subgraph_config = SubgraphConfig {
-                    routing_url: subgraph_config.routing_url.or_else(|| {
-                        merged_subgraphs
-                            .get(&name)
-                            .and_then(|remote_config| remote_config.routing_url.clone())
-                    }),
-                    schema: subgraph_config.schema,
-                };
-                merged_subgraphs.insert(name, subgraph_config);
-            }
+            let remote_subgraphs = self.state.subgraphs;
+            let merged_subgraphs = merge_yaml_over_remote_subgraphs(
+                remote_subgraphs.clone(),
+                supergraph_config.subgraphs,
+            );
             Ok(SupergraphConfigResolver {
                 state: state::DefineDefaultSubgraph {
                     origin_path,
                     federation_version_resolver,
                     subgraphs: merged_subgraphs,
+                    remote_subgraphs,
                 },
             })
         } else {
+            let remote_subgraphs = self.state.subgraphs.clone();
             Ok(SupergraphConfigResolver {
                 state: state::DefineDefaultSubgraph {
                     origin_path: None,
@@ -170,6 +187,7 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
                         .federation_version_resolver
                         .from_supergraph_config(None),
                     subgraphs: self.state.subgraphs,
+                    remote_subgraphs,
                 },
             })
         }
@@ -233,6 +251,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 origin_path: self.state.origin_path,
                 federation_version_resolver: self.state.federation_version_resolver,
                 subgraphs: self.state.subgraphs,
+                remote_subgraphs: self.state.remote_subgraphs,
             },
         })
     }
@@ -244,6 +263,7 @@ impl SupergraphConfigResolver<state::DefineDefaultSubgraph> {
                 origin_path: self.state.origin_path,
                 federation_version_resolver: self.state.federation_version_resolver,
                 subgraphs: self.state.subgraphs,
+                remote_subgraphs: self.state.remote_subgraphs,
             },
         }
     }
@@ -280,6 +300,13 @@ pub enum ResolveSupergraphConfigError {
 pub type InitializedSupergraphConfigResolver = SupergraphConfigResolver<state::ResolveSubgraphs>;
 
 impl SupergraphConfigResolver<state::ResolveSubgraphs> {
+    /// Returns the subgraphs that were originally loaded via `--graph-ref`. This is the
+    /// pre-merge snapshot used to re-apply remote subgraphs when the local supergraph config
+    /// file is hot-reloaded.
+    pub const fn remote_subgraphs(&self) -> &BTreeMap<String, SubgraphConfig> {
+        &self.state.remote_subgraphs
+    }
+
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
     pub async fn fully_resolve_subgraphs(
         &self,
