@@ -4,7 +4,7 @@ use rust_stemmers::{Algorithm, Stemmer};
 /// Why a result matched its query, ordered from strongest to weakest precedence.
 ///
 /// The derived [`Ord`] uses declaration order, so:
-/// `Exact < Stem < Fuzzy < Description`. Sorting results by `score` in
+/// `Exact > Stem > Fuzzy > Description`. Sorting results by `score` in
 /// ascending order surfaces the strongest matches first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum_macros::EnumIter)]
 pub(super) enum MatchScore {
