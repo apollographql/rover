@@ -4892,6 +4892,7 @@ dependencies = [
  "bon",
  "camino",
  "console 0.16.3",
+ "dunce",
  "globwalk",
  "notify",
  "rstest",

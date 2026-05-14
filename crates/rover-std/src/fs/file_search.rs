@@ -38,9 +38,14 @@ impl FileSearch {
         // Canonicalize before passing to globwalk. Without this, globwalk's internal
         // strip_prefix panics on macOS where /var and /tmp resolve through /private/var
         // and /private/tmp, causing the walker's base_dir to mismatch entry paths.
-        let root = self.root.canonicalize_utf8().map_err(|e| {
+        // Use dunce::canonicalize so Windows paths don't carry the \\?\ UNC prefix
+        // that std::fs::canonicalize adds, keeping output paths consistent with the
+        // rest of the codebase (e.g. `client check`).
+        let root_std = dunce::canonicalize(self.root.as_std_path()).map_err(|e| {
             anyhow::anyhow!("could not resolve root directory '{}': {e}", self.root)
         })?;
+        let root = Utf8PathBuf::from_path_buf(root_std)
+            .map_err(|p| anyhow::anyhow!("canonical path was not UTF-8: {}", p.display()))?;
 
         let mut patterns: Vec<String> = if self.includes.is_empty() {
             extensions.iter().map(|ext| format!("**/*.{ext}")).collect()
@@ -98,7 +103,8 @@ mod tests {
 
         let files = search.find(&["graphql"]).unwrap();
         assert_eq!(files.len(), 1);
-        assert_eq!(files[0], file_b.canonicalize_utf8().unwrap());
+        let expected = Utf8PathBuf::from_path_buf(dunce::canonicalize(&file_b).unwrap()).unwrap();
+        assert_eq!(files[0], expected);
     }
 
     /// Verifies that node_modules and other default-ignored directories are not scanned.
