@@ -19,6 +19,9 @@ pub struct DefineDefaultSubgraph {
     pub origin_path: Option<Utf8PathBuf>,
     pub federation_version_resolver: FederationVersionResolverFromSubgraphs,
     pub subgraphs: BTreeMap<String, SubgraphConfig>,
+    /// Subgraphs fetched from the `--graph-ref` flag, preserved separately from the merged
+    /// `subgraphs` set so they can be re-applied when the local `supergraph.yaml` is hot-reloaded.
+    pub remote_subgraphs: BTreeMap<String, SubgraphConfig>,
 }
 
 /// In this stage, we attempt to resolve subgraphs lazily: making sure file paths are correct
@@ -27,4 +30,7 @@ pub struct ResolveSubgraphs {
     pub origin_path: Option<Utf8PathBuf>,
     pub federation_version_resolver: FederationVersionResolverFromSubgraphs,
     pub subgraphs: BTreeMap<String, SubgraphConfig>,
+    /// Subgraphs fetched from the `--graph-ref` flag, preserved separately from the merged
+    /// `subgraphs` set so they can be re-applied when the local `supergraph.yaml` is hot-reloaded.
+    pub remote_subgraphs: BTreeMap<String, SubgraphConfig>,
 }
