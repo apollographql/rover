@@ -4867,13 +4867,20 @@ name = "rover-schema"
 version = "0.0.0"
 dependencies = [
  "apollo-compiler",
+ "bon",
+ "heck",
  "indoc",
  "itertools",
  "pathfinding",
  "pretty_assertions",
  "rstest",
+ "rust-stemmers",
  "serde",
+ "serde_json",
  "speculoos",
+ "strsim",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -4986,6 +4993,16 @@ dependencies = [
  "rustc_version",
  "syn 2.0.117",
  "unicode-ident",
+]
+
+[[package]]
+name = "rust-stemmers"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e46a2036019fdb888131db7a4c847a1063a7493f971ed94ea82c67eada63ca54"
+dependencies = [
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]

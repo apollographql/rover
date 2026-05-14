@@ -10,13 +10,17 @@ use crate::ParsedSchema;
 pub struct RootPath {
     /// Sequence of (type_name, field_name) pairs from root to target.
     /// The last element's type_name is the parent of the target.
-    pub(crate) segments: Vec<PathSegment>,
+    pub segments: Vec<PathSegment>,
 }
 
+/// One step in a [`RootPath`]: the type the step departs from and the field
+/// followed to reach the next type.
 #[derive(Debug, Clone, serde::Serialize)]
-pub(crate) struct PathSegment {
-    pub(crate) type_name: Name,
-    pub(crate) field_name: Name,
+pub struct PathSegment {
+    /// Name of the type the segment departs from.
+    pub type_name: Name,
+    /// Name of the field followed on `type_name`.
+    pub field_name: Name,
 }
 
 /// Schema path node carrying the field name used to arrive at `current`.
