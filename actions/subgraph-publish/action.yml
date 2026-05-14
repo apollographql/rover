@@ -1,0 +1,69 @@
+name: "Run Rover Subgraph Publish"
+description: "Run the `rover subgraph publish` command."
+author: "Apollo GraphQL"
+branding:
+  icon: "terminal"
+
+inputs:
+  # required
+  apollo-key:
+    description: "Your Apollo Studio API key."
+    required: true
+  graph-ref:
+    description: "<NAME>@<VARIANT> of graph in Apollo Studio."
+    required: true
+  name:
+    description: "The name of the subgraph."
+    required: true
+  schema:
+    description: "The schema file to publish."
+    required: true
+  routing-url:
+    description: "URL of the running subgraph where a supergraph can route operations. Optional after the first publish."
+    required: false
+
+  # optional
+  allow-invalid-routing-url:
+    description: "(Optional) Bypasses warnings and the prompt to confirm publish when the routing URL is invalid in a TTY environment."
+  no-url:
+    description: "(Optional) Shorthand for `--routing-url \"\" --allow-invalid-routing-url`."
+
+  # common
+  log:
+    description: "Specify Rover's log level."
+  format:
+    description: "Specify Rover's log format type [plain|json]."
+  client-timeout:
+    description: "Configure the timeout length (in seconds) when performing HTTP(S) requests."
+
+runs:
+  using: "docker"
+  # The image tag is rewritten by `cargo xtask prep` so each release tag pins
+  # the action to the matching Rover version. Do not edit by hand.
+  image: "docker://ghcr.io/apollographql/rover:0.38.1"
+  entrypoint: "/bin/bash"
+  args:
+    - "-c"
+    # Inputs flow through env (not template-inlined) so values containing shell
+    # metacharacters cannot break out of quoting and execute arbitrary commands.
+    - |
+      set -euo pipefail
+      ARGS=("$INPUT_GRAPH_REF" --name "$INPUT_NAME" --schema "$INPUT_SCHEMA")
+      [ -n "${INPUT_ROUTING_URL:-}" ] && ARGS+=(--routing-url "$INPUT_ROUTING_URL")
+      [ "${INPUT_ALLOW_INVALID_ROUTING_URL:-}" = "true" ] && ARGS+=(--allow-invalid-routing-url)
+      [ "${INPUT_NO_URL:-}" = "true" ] && ARGS+=(--no-url)
+      [ -n "${INPUT_LOG:-}" ] && ARGS+=(--log "$INPUT_LOG")
+      [ -n "${INPUT_FORMAT:-}" ] && ARGS+=(--format "$INPUT_FORMAT")
+      [ -n "${INPUT_CLIENT_TIMEOUT:-}" ] && ARGS+=(--client-timeout "$INPUT_CLIENT_TIMEOUT")
+      exec rover --skip-update-check subgraph publish "${ARGS[@]}"
+  env:
+    APOLLO_KEY: ${{ inputs.apollo-key }}
+    INPUT_GRAPH_REF: ${{ inputs.graph-ref }}
+    INPUT_NAME: ${{ inputs.name }}
+    INPUT_SCHEMA: ${{ inputs.schema }}
+    INPUT_ROUTING_URL: ${{ inputs.routing-url }}
+    INPUT_ALLOW_INVALID_ROUTING_URL: ${{ inputs.allow-invalid-routing-url }}
+    INPUT_NO_URL: ${{ inputs.no-url }}
+    INPUT_LOG: ${{ inputs.log }}
+    INPUT_FORMAT: ${{ inputs.format }}
+    INPUT_CLIENT_TIMEOUT: ${{ inputs.client-timeout }}
