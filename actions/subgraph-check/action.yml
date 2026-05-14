@@ -1,0 +1,73 @@
+name: "Run Rover Subgraph Check"
+description: "Run the `rover subgraph check` command."
+author: "Apollo GraphQL"
+branding:
+  icon: "terminal"
+
+inputs:
+  # required
+  apollo-key:
+    description: "Your Apollo Studio API key."
+    required: true
+  graph-ref:
+    description: "<NAME>@<VARIANT> of graph in Apollo Studio."
+    required: true
+  name:
+    description: "The name of the subgraph."
+    required: true
+  schema:
+    description: "The schema file to check."
+    required: true
+
+  # optional
+  background:
+    description: "(Optional) Set to `true` if the check should be run asynchronously and exit without waiting for the check results."
+  query-count-threshold:
+    description: "(Optional) The minimum number of times a query or mutation must have been executed in order to be considered in the check operation."
+  query-percentage-threshold:
+    description: "(Optional) The minimum percentage of times a query or mutation must have been executed in the time window, relative to the request count, for it to be considered in the check (0 <= x <= 100)."
+  validation-period:
+    description: "(Optional) Size of the time window with which to validate schema against (e.g. \"24h\" or \"1w 2d 5h\")."
+
+  # common
+  log:
+    description: "Specify Rover's log level."
+  format:
+    description: "Specify Rover's log format type [plain|json]."
+  client-timeout:
+    description: "Configure the timeout length (in seconds) when performing HTTP(S) requests."
+
+runs:
+  using: "docker"
+  # The image tag is rewritten by `cargo xtask prep` so each release tag pins
+  # the action to the matching Rover version. Do not edit by hand.
+  image: "docker://ghcr.io/apollographql/rover:0.38.1"
+  entrypoint: "/bin/bash"
+  args:
+    - "-c"
+    # Inputs are passed through env (not template-inlined) so values containing
+    # shell metacharacters cannot break out of quoting and execute arbitrary
+    # commands.
+    - |
+      set -euo pipefail
+      ARGS=("$INPUT_GRAPH_REF" --name "$INPUT_NAME" --schema "$INPUT_SCHEMA")
+      [ "${INPUT_BACKGROUND:-}" = "true" ] && ARGS+=(--background)
+      [ -n "${INPUT_QUERY_COUNT_THRESHOLD:-}" ] && ARGS+=(--query-count-threshold "$INPUT_QUERY_COUNT_THRESHOLD")
+      [ -n "${INPUT_QUERY_PERCENTAGE_THRESHOLD:-}" ] && ARGS+=(--query-percentage-threshold "$INPUT_QUERY_PERCENTAGE_THRESHOLD")
+      [ -n "${INPUT_VALIDATION_PERIOD:-}" ] && ARGS+=(--validation-period "$INPUT_VALIDATION_PERIOD")
+      [ -n "${INPUT_LOG:-}" ] && ARGS+=(--log "$INPUT_LOG")
+      [ -n "${INPUT_FORMAT:-}" ] && ARGS+=(--format "$INPUT_FORMAT")
+      [ -n "${INPUT_CLIENT_TIMEOUT:-}" ] && ARGS+=(--client-timeout "$INPUT_CLIENT_TIMEOUT")
+      exec rover --skip-update-check subgraph check "${ARGS[@]}"
+  env:
+    APOLLO_KEY: ${{ inputs.apollo-key }}
+    INPUT_GRAPH_REF: ${{ inputs.graph-ref }}
+    INPUT_NAME: ${{ inputs.name }}
+    INPUT_SCHEMA: ${{ inputs.schema }}
+    INPUT_BACKGROUND: ${{ inputs.background }}
+    INPUT_QUERY_COUNT_THRESHOLD: ${{ inputs.query-count-threshold }}
+    INPUT_QUERY_PERCENTAGE_THRESHOLD: ${{ inputs.query-percentage-threshold }}
+    INPUT_VALIDATION_PERIOD: ${{ inputs.validation-period }}
+    INPUT_LOG: ${{ inputs.log }}
+    INPUT_FORMAT: ${{ inputs.format }}
+    INPUT_CLIENT_TIMEOUT: ${{ inputs.client-timeout }}
