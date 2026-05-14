@@ -20,11 +20,57 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
+# [0.39.0] - 2026-05-14
+
 ## 🚀 Features
+
+- **Add `rover client extract` command - @dotdat PR #3223, #3224, #3225**
+
+  New `rover client extract` command pulls GraphQL operations out of client code. Includes the core extraction logic, CLI wiring, and integration tests.
+
+- **Add `rover client check` command - @dotdat PR #3120**
+
+  New `rover client check` subcommand for validating client operations against a schema.
+
+- **Add `rover schema search` - @dotdat PR #3262**
+
+  New subcommand under `rover schema` for searching schema contents.
+
+- **Add `--check` flag to `rover graph publish` - @joshuaoshields95 PR #3203**
+
+  Runs `graph check` and `graph publish` as a single unit when `--check` is passed.
 
 - **Add `--use-example-schema` flag to `subgraph publish` - @samaanghani PR #3218**
 
   Allows publishing a placeholder schema without needing to provide your own schema file. This is useful for setting up your graph structure before your actual schemas are ready. The placeholder schema is `type Query { helloWorld: String }` with a routing URL of `https://example.com`.
+
+- **Respect `--insecure-accept-invalid-certs` in `rover init --mcp` - @dotdat PR #3234**
+
+  `rover init --mcp` now honors `--insecure-accept-invalid-certs` when fetching templates.
+
+## 🐛 Fixes
+
+- **Port axios no-proxy behavior - @SharkBaitDLS PR #3270**
+
+  Restores `no_proxy` / `NO_PROXY` handling that was previously provided by axios before its removal in 0.38.0.
+
+- **Fix path and formatting issues in `client check`/`client extract` - @dotdat PR #3285**
+
+- **Use `--root-dir` in client check fixture tests for cross-platform compatibility - @samaanghani PR #3219**
+
+- **Don't run the automated update check in Docker - @SharkBaitDLS PR #3245**
+
+  Skips the rover version-update check when running inside a container so Docker users don't see spurious update prompts.
+
+- **Workaround NPM 11 installation bug - @SharkBaitDLS PR #3230**
+
+## 🛠 Maintenance
+
+- **Add canonical GitHub Actions for install / subgraph / persisted queries - @SharkBaitDLS PR #3264, #3269, #3278, #3279, #3280**
+
+  New companion actions under `apollographql-gh-actions/*` for installing rover and wrapping common subgraph and persisted-queries subcommands.
+
+- **Bump `apollo-language-server` to 0.8.0 - PR #3251**
 
 # [0.38.1] - 2026-04-22
 
