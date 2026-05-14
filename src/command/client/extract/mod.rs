@@ -114,12 +114,17 @@ impl Extract {
                 .collect()
         };
 
+        tracing::info!("scanning {} for source files...", root);
         let files = FileSearch::builder()
             .root(root.clone())
             .includes(self.include.clone())
             .excludes(self.exclude.clone())
             .build()
             .find(&extensions)?;
+        tracing::info!(
+            "found {} source file(s), extracting GraphQL...",
+            files.len()
+        );
 
         let mut summary = ExtractionSummary {
             out_dir: out_dir.clone(),
@@ -133,6 +138,7 @@ impl Extract {
             .build();
 
         let (successes, failures): (Vec<_>, Vec<_>) = files.iter().partition_map(|file| {
+            tracing::debug!("processing {}", file);
             match ExtractFile::builder()
                 .root_dir(root.clone())
                 .path(file.clone())

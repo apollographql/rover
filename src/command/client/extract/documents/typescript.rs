@@ -6,6 +6,29 @@ use crate::command::client::extract::{
     graphql::{GraphQLParseError, parse_graphql},
 };
 
+/// Strips common leading whitespace from all lines, then trims blank outer lines.
+fn dedent(s: &str) -> String {
+    let lines: Vec<&str> = s.lines().collect();
+    let min_indent = lines
+        .iter()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    let dedented = lines
+        .iter()
+        .map(|l| {
+            if l.len() >= min_indent {
+                &l[min_indent..]
+            } else {
+                l.trim_start()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    dedented.trim().to_string()
+}
+
 pub struct ExtractTypescriptDocuments {
     pub allowed_tags: Vec<String>,
 }
@@ -97,13 +120,14 @@ fn extract_template_node(
             reason: SkipReason::UnsupportedInterpolation,
         }));
     }
-    let content = template_text.trim_matches('`').trim().to_string();
+    let content = dedent(template_text.trim_matches('`'));
 
     Some(Ok(ExtractedDocument { content, line }))
 }
 
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
     use rstest::rstest;
     use speculoos::prelude::*;
 
@@ -173,6 +197,32 @@ mod tests {
         assert_that!(&result.documents).has_length(1);
         assert_that!(&result.skipped).is_empty();
         assert_that!(&result.documents[0].content).contains("query GetUser");
+    }
+
+    #[test]
+    fn dedents_indented_multiline_template() {
+        let source = r#"
+        const q = gql`
+          query GetProduct($id: ID!) {
+            product(id: $id) {
+              id
+            }
+          }
+        `;
+        "#;
+        let result = extractor(&["gql"]).extract_documents(source);
+
+        assert_that!(&result.documents).has_length(1);
+        assert_that!(&result.documents[0].content).is_equal_to(
+            indoc::indoc! {"
+            query GetProduct($id: ID!) {
+              product(id: $id) {
+                id
+              }
+            }"
+            }
+            .to_string(),
+        );
     }
 
     #[test]

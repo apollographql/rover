@@ -35,6 +35,13 @@ pub struct FileSearch {
 impl FileSearch {
     /// Discovers files with the given extensions under `self.root`.
     pub fn find(&self, extensions: &[&str]) -> Result<Vec<Utf8PathBuf>, RoverStdError> {
+        // Canonicalize before passing to globwalk. Without this, globwalk's internal
+        // strip_prefix panics on macOS where /var and /tmp resolve through /private/var
+        // and /private/tmp, causing the walker's base_dir to mismatch entry paths.
+        let root = self.root.canonicalize_utf8().map_err(|e| {
+            anyhow::anyhow!("could not resolve root directory '{}': {e}", self.root)
+        })?;
+
         let mut patterns: Vec<String> = if self.includes.is_empty() {
             extensions.iter().map(|ext| format!("**/*.{ext}")).collect()
         } else {
@@ -48,7 +55,7 @@ impl FileSearch {
             patterns.push(format!("!{pat}"));
         }
 
-        let walker = GlobWalkerBuilder::from_patterns(&self.root, &patterns)
+        let walker = GlobWalkerBuilder::from_patterns(&root, &patterns)
             .follow_links(false)
             .build()
             .map_err(|e| anyhow::anyhow!(e))?;
@@ -91,7 +98,7 @@ mod tests {
 
         let files = search.find(&["graphql"]).unwrap();
         assert_eq!(files.len(), 1);
-        assert_eq!(files[0], file_b);
+        assert_eq!(files[0], file_b.canonicalize_utf8().unwrap());
     }
 
     /// Verifies that node_modules and other default-ignored directories are not scanned.
