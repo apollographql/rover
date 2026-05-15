@@ -81,6 +81,8 @@ Commands:
           Explain error codes
   license
           Commands for fetching offline licenses
+  client
+          Client workflow commands
   help
           Print this message or the help of the given subcommand(s)
 
