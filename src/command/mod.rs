@@ -22,6 +22,7 @@ mod readme;
 mod schema;
 pub(crate) mod subgraph;
 pub(crate) mod supergraph;
+mod tag;
 pub(crate) mod template;
 mod update;
 
@@ -49,5 +50,6 @@ pub use readme::Readme;
 pub use schema::Schema;
 pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
+pub use tag::Tag;
 pub use template::Template;
 pub use update::Update;
