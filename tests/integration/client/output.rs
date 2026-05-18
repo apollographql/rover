@@ -1,33 +1,23 @@
-use std::{
-    fs,
-    io::{Read, Write},
-    net::TcpListener,
-    thread,
-};
+use std::fs;
 
 use assert_cmd::Command;
+use httpmock::{Method::POST, MockServer};
 use serde_json::Value;
+use serial_test::serial;
 
+/// Verifies that a FAILURE validation result is surfaced in the JSON output and the command
+/// exits non-zero.
 #[test]
+#[serial]
 fn client_check_json_output_includes_validation_results() {
-    // Minimal HTTP server; skip if binding fails.
-    let listener = match TcpListener::bind("127.0.0.1:0") {
-        Ok(l) => l,
-        Err(_) => return,
-    };
-    let addr = listener.local_addr().unwrap();
-    let response_body = r#"{"data": {"graph": {"validateOperations": {"validationResults": [{"type":"FAILURE","code":"BAD","description":"nope","operation":{"name":"Hello"}}]}}}}"#;
-    thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            let mut _buf = [0u8; 1024];
-            let _ = stream.read(&mut _buf);
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                response_body.len(),
-                response_body
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST);
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"data": {"graph": {"validateOperations": {"validationResults": [{"type":"FAILURE","code":"BAD","description":"nope","operation":{"name":"Hello"}}]}}}}"#,
             );
-            let _ = stream.write_all(resp.as_bytes());
-        }
     });
 
     let temp = tempfile::tempdir().unwrap();
@@ -37,10 +27,7 @@ fn client_check_json_output_includes_validation_results() {
     let output = Command::cargo_bin("rover")
         .unwrap()
         .env("APOLLO_KEY", "testkey")
-        .env(
-            "APOLLO_REGISTRY_URL",
-            format!("http://{}:{}", addr.ip(), addr.port()),
-        )
+        .env("APOLLO_REGISTRY_URL", server.base_url())
         .current_dir(temp.path())
         .arg("client")
         .arg("check")
@@ -52,12 +39,11 @@ fn client_check_json_output_includes_validation_results() {
         .output()
         .unwrap();
 
-    // Validation failure should exit non-zero now
+    mock.assert();
+    // Validation failure should exit non-zero.
     assert!(!output.status.success());
 
-    let stdout = output.stdout;
-
-    let json: Value = serde_json::from_slice(&stdout).unwrap();
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(
         json["data"]["client_check"]["validation_results"][0]["type"],
         "FAILURE"
