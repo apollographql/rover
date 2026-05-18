@@ -82,10 +82,17 @@ impl NpmRunner {
     }
 
     fn publish_dry_run(&self) -> Result<()> {
-        let command_output = self.npm_exec(
-            &["publish", "--dry-run"],
-            &self.npm_installer_package_directory,
-        )?;
+        let version = semver::Version::parse(&PKG_VERSION).with_context(|| {
+            format!(
+                "Could not parse Rover version '{}' as semver.",
+                *PKG_VERSION
+            )
+        })?;
+        let mut args: Vec<&str> = vec!["publish", "--dry-run"];
+        if !version.pre.is_empty() {
+            args.extend(["--tag", "beta"]);
+        }
+        let command_output = self.npm_exec(&args, &self.npm_installer_package_directory)?;
 
         assert_publish_includes(&command_output)
             .with_context(|| "There were problems with the output of 'npm publish --dry-run'.")
