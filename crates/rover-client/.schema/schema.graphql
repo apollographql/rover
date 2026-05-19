@@ -8,6 +8,11 @@ type Organization {
   """
   offlineLicense: RouterLicense
 
+  """
+  Globally unique identifier, which isn't guaranteed stable (can be changed by administrators).
+  """
+  id: ID!
+
   """Fetches a specific API key by its ID"""
   apiKey(keyId: ID!): GraphOsKey
 
@@ -15,11 +20,6 @@ type Organization {
   Returns a list of all active Operator, Subgraph, and SCIM API keys for the account. Org Admins can view all keys; Graph Admins can view only keys for graphs they administer.
   """
   apiKeys(after: String, before: String, filter: ApiKeyFilterInput, first: Int, last: Int): GraphOsKeyConnection!
-
-  """
-  Globally unique identifier, which isn't guaranteed stable (can be changed by administrators).
-  """
-  id: ID!
 
   """The user memberships belonging to an Organization"""
   memberships: [AccountMembership!]
