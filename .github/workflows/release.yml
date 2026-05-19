@@ -330,15 +330,15 @@ jobs:
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
           set -euo pipefail
-          slug=$(gh api /app --jq '.slug')
           # The bot user's id is required to construct the noreply email that
           # GitHub accepts as authored-by-the-App.
-          id=$(gh api "/users/${slug}[bot]" --jq '.id')
+          id=$(gh api "/users/${APP_SLUG}[bot]" --jq '.id')
           {
-            echo "name=${slug}[bot]"
-            echo "email=${id}+${slug}[bot]@users.noreply.github.com"
+            echo "name=${APP_SLUG}[bot]"
+            echo "email=${id}+${APP_SLUG}[bot]@users.noreply.github.com"
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout rover at the release tag
