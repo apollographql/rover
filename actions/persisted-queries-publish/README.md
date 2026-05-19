@@ -26,7 +26,7 @@ GitHub Action that runs [`rover persisted-queries publish`](https://www.apollogr
 Using a graph ref:
 
 ```yaml
-- uses: apollographql-gh-actions/rover-persisted-queries-publish@rover-v0.38.1
+- uses: apollographql-gh-actions/rover-persisted-queries-publish@rover-v0.39.1
   with:
     apollo-key: ${{ secrets.APOLLO_KEY }}
     graph-ref: ${{ vars.APOLLO_GRAPH_REF }}
@@ -36,7 +36,7 @@ Using a graph ref:
 Using graph ID + list ID:
 
 ```yaml
-- uses: apollographql-gh-actions/rover-persisted-queries-publish@rover-v0.38.1
+- uses: apollographql-gh-actions/rover-persisted-queries-publish@rover-v0.39.1
   with:
     apollo-key: ${{ secrets.APOLLO_KEY }}
     graph-id: my-graph-id
@@ -46,10 +46,10 @@ Using graph ID + list ID:
 
 ## Versioning
 
-Action releases are pinned in lockstep with Rover releases. Lockstep tags use a `rover-` prefix.
+Action releases are pinned in lockstep with Rover releases, starting with Rover 0.39.1. Lockstep tags use a `rover-` prefix.
 
 - `@rover-v0.X.Y` — runs Rover `0.X.Y` exactly. Both this action and Rover use immutable releases so no SHA pinning is required.
-- `@v1` — pre-lockstep composite action. This does not guarantee immutability and should be used only in cases where pinning a specific version is not desirable.
+- `@v1` — pre-lockstep composite action. This does not guarantee immutability and should be used only in cases where pinning a specific version is not desirable or you need an older version of Rover than 0.39.1.
 
 ## Migrating from `@v1`
 
