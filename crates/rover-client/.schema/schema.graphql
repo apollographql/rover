@@ -4533,6 +4533,7 @@ type Order {
   router: Router!
 }
 
+"""The direction in which results are ordered."""
 enum Ordering {
   ASCENDING
   DESCENDING
@@ -7139,10 +7140,18 @@ type TaskError {
   message: String!
 }
 
+"""The size of each time bucket in a timeseries report."""
 enum TimeseriesReportResolution {
+  """One-day buckets."""
   DAY
+
+  """One-hour buckets."""
   HOUR
+
+  """One-minute buckets."""
   MINUTE
+
+  """One-month buckets."""
   MONTH
 }
 
