@@ -11,7 +11,7 @@ This action takes no inputs. The Rover version installed is pinned to the action
 ## Usage
 
 ```yaml
-- uses: apollographql-gh-actions/install-rover@rover-v0.38.1
+- uses: apollographql-gh-actions/install-rover@rover-v0.39.1
 - env:
     APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
   run: rover subgraph check ${{ vars.APOLLO_GRAPH_REF }} --name my-subgraph --schema ./schema.graphql
@@ -19,11 +19,11 @@ This action takes no inputs. The Rover version installed is pinned to the action
 
 ## Versioning
 
-Action releases are pinned in lockstep with Rover releases. Lockstep tags use a `rover-` prefix.
+Action releases are pinned in lockstep with Rover releases, starting with Rover 0.39.1. Lockstep tags use a `rover-` prefix.
 
 - `@rover-v0.X.Y` — installs Rover `0.X.Y` exactly. Both this action and Rover use immutable releases so no SHA pinning is required.
 - `@v1` — pre-lockstep version that accepts a `version:` input defaulting to `latest`. This does not guarantee immutability
-and should be used only in cases where pinning a specific version is not desirable.
+and should be used only in cases where pinning a specific version is not desirable or you need an older version of Rover than 0.39.1.
 
 ## Migrating from `@v1`
 
@@ -32,13 +32,13 @@ The `version:` input no longer exists. Instead of:
 ```yaml
 - uses: apollographql-gh-actions/install-rover@v1
   with:
-    version: 0.28.1
+    version: 0.39.1
 ```
 
 write:
 
 ```yaml
-- uses: apollographql-gh-actions/install-rover@rover-v0.28.1
+- uses: apollographql-gh-actions/install-rover@rover-v0.39.1
 ```
 
 ## Source
