@@ -404,3 +404,26 @@ jobs:
           git tag "$ACTION_TAG"
           git push origin HEAD
           git push origin "$ACTION_TAG"
+
+      - name: Create GitHub release on action repo
+        if: steps.tag-check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEST: ${{ matrix.dest }}
+          ACTION_TAG: rover-${{ github.ref_name }}
+          ROVER_TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.validate_tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Prerelease regex adapted from https://semver.org/ — kept in sync
+          # with the `publish` job's resolve-release-parameters step.
+          if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
+            prerelease_flag="--prerelease"
+          else
+            prerelease_flag=""
+          fi
+          gh release create "$ACTION_TAG" \
+            --repo "apollographql-gh-actions/${DEST}" \
+            --title "rover ${ROVER_TAG}" \
+            $prerelease_flag \
+            --notes "Mastered from [apollographql/rover@${ROVER_TAG}](https://github.com/apollographql/rover/releases/tag/${ROVER_TAG})."
