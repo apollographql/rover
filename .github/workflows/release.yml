@@ -355,8 +355,8 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: target
 
-      - name: Skip if release tag already exists on target
-        id: tag-check
+      - name: Check existing tag and release on target
+        id: state
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           DEST: ${{ matrix.dest }}
@@ -364,14 +364,20 @@ jobs:
           # legacy `v1`/`v1.0.0` tags inherited from the pre-lockstep era.
           ACTION_TAG: rover-${{ github.ref_name }}
         run: |
-          if gh api "repos/apollographql-gh-actions/${DEST}/git/refs/tags/${ACTION_TAG}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if gh api "repos/apollographql-gh-actions/${DEST}/git/ref/tags/${ACTION_TAG}" >/dev/null 2>&1; then
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          if gh api "repos/apollographql-gh-actions/${DEST}/releases/tags/${ACTION_TAG}" >/dev/null 2>&1; then
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Stage mastered files
-        if: steps.tag-check.outputs.exists == 'false'
+        if: steps.state.outputs.tag_exists == 'false'
         env:
           SRC: ${{ matrix.src }}
         run: |
@@ -386,7 +392,7 @@ jobs:
           fi
 
       - name: Commit, tag, and push
-        if: steps.tag-check.outputs.exists == 'false'
+        if: steps.state.outputs.tag_exists == 'false'
         working-directory: target
         env:
           ROVER_TAG: ${{ github.ref_name }}
@@ -406,7 +412,7 @@ jobs:
           git push origin "$ACTION_TAG"
 
       - name: Create GitHub release on action repo
-        if: steps.tag-check.outputs.exists == 'false'
+        if: steps.state.outputs.release_exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           DEST: ${{ matrix.dest }}
