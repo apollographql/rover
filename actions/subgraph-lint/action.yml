@@ -1,8 +1,9 @@
-name: "Run Rover Subgraph Lint"
+name: "Run Apollo Rover CLI Subgraph Lint"
 description: "Run the `rover subgraph lint` command."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
+  color: "blue"
 
 inputs:
   # required

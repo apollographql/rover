@@ -1,8 +1,9 @@
-name: "Run Rover Subgraph Check"
+name: "Run Apollo Rover CLI Subgraph Check"
 description: "Run the `rover subgraph check` command."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
+  color: "blue"
 
 inputs:
   # required

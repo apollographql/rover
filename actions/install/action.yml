@@ -1,8 +1,9 @@
-name: "Install Rover CLI"
+name: "Install Apollo Rover CLI"
 description: "Install the Rover CLI on the runner. The version installed is pinned to the version of this action."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
+  color: "blue"
 
 # This action takes no inputs by design: it invokes the canonical installer
 # scripts, which have the rover version baked in by `cargo xtask prep` at
