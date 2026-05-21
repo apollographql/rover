@@ -82,7 +82,6 @@ timber = { path = "./crates/timber" }
 # https://github.com/apollographql/apollo-rs
 apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
-apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }

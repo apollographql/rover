@@ -180,26 +180,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b877306ffde4d3cc428bbc8f506fdd67b99255298ae92b919954c0c52f530504"
 dependencies = [
  "ahash 0.8.12",
- "apollo-parser 0.8.6",
+ "apollo-parser",
  "ariadne",
  "futures",
  "indexmap 2.14.0",
- "rowan 0.16.1",
+ "rowan",
  "serde",
  "serde_json_bytes",
  "thiserror 2.0.18",
  "triomphe",
  "typed-arena",
-]
-
-[[package]]
-name = "apollo-encoder"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee9f27b20841d14923dd5f0714a79f86360b23492d2f98ab5d1651471a56b7a4"
-dependencies = [
- "apollo-parser 0.7.7",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -268,7 +258,7 @@ checksum = "2e35a18ec424a36424f493bb5c4df80e4f14ac39ee3c0ae78cafa4284dc02d85"
 dependencies = [
  "apollo-compiler",
  "apollo-federation-types",
- "apollo-parser 0.8.6",
+ "apollo-parser",
  "debounced",
  "futures",
  "itertools",
@@ -287,23 +277,12 @@ dependencies = [
 
 [[package]]
 name = "apollo-parser"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bb7c8a9776825e5524b5ab3a7f478bf091a054180f244dff85814452cb87d90"
-dependencies = [
- "memchr",
- "rowan 0.15.18",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "apollo-parser"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11f6e2be4b3474e5890d34d3e483d49ec9b5cbf9e358bc62c9cc5423376df54b"
 dependencies = [
  "memchr",
- "rowan 0.16.1",
+ "rowan",
  "thiserror 2.0.18",
 ]
 
@@ -3356,15 +3335,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
-name = "memoffset"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
 name = "memoize"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4666,7 +4636,7 @@ dependencies = [
  "apollo-compiler",
  "apollo-federation-types",
  "apollo-language-server",
- "apollo-parser 0.8.6",
+ "apollo-parser",
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
@@ -4768,9 +4738,9 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "apollo-encoder",
+ "apollo-compiler",
  "apollo-federation-types",
- "apollo-parser 0.8.6",
+ "apollo-parser",
  "ariadne",
  "backon",
  "bon",
@@ -4940,19 +4910,6 @@ dependencies = [
  "mockall",
  "pastey",
  "tower 0.5.3",
-]
-
-[[package]]
-name = "rowan"
-version = "0.15.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62f509095fc8cc0c8c8564016771d458079c11a8d857e65861f045145c0d3208"
-dependencies = [
- "countme",
- "hashbrown 0.14.5",
- "memoffset",
- "rustc-hash 1.1.0",
- "text-size",
 ]
 
 [[package]]

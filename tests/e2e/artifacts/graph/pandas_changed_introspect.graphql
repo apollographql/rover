@@ -1,18 +1,22 @@
-type Query {                                                                                               
+type Query {
   getMeAllThePandas: [Panda]
-  panda(name: ID!): Panda                                                                                  
+  panda(name: ID!): Panda
   _service: _Service!
-}                                                    
-type Panda {                                         
+}
+
+type Panda {
   name: ID!
   favoriteFood: String
 }
+
 type _Service {
   sdl: String!
 }
-"Exposes a URL that specifies the behavior of this scalar."
+
+"""Exposes a URL that specifies the behavior of this scalar."""
 directive @specifiedBy(
-    "The URL that specifies the behavior of this scalar."
-    url: String!
-  ) on SCALAR
+  """The URL that specifies the behavior of this scalar."""
+  url: String!,
+) on SCALAR
+
 directive @tag(name: String!) on FIELD_DEFINITION
