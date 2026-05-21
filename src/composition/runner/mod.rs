@@ -8,6 +8,7 @@ use std::{
     fmt::Debug,
 };
 
+use apollo_federation_types::config::SubgraphConfig;
 use camino::Utf8PathBuf;
 use futures::stream::{BoxStream, StreamExt, select};
 use rover_http::HttpService;
@@ -102,6 +103,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
     pub fn setup_supergraph_config_watcher(
         self,
         supergraph_config: LazilyResolvedSupergraphConfig,
+        remote_subgraphs: BTreeMap<String, SubgraphConfig>,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
     ) -> Runner<state::SetupCompositionWatcher> {
@@ -122,6 +124,7 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
             let watcher = SupergraphConfigWatcher::new(
                 f,
                 supergraph_config.clone(),
+                remote_subgraphs,
                 fetch_remote_subgraph_factory,
                 resolve_introspect_subgraph_factory,
             );
