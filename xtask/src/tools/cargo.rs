@@ -85,6 +85,11 @@ impl CargoRunner {
         Ok(())
     }
 
+    pub(crate) fn fmt_all_nightly(&self) -> Result<()> {
+        self.cargo_exec(vec!["+nightly", "fmt", "--all"], vec![], None)?;
+        Ok(())
+    }
+
     fn cargo_exec(
         &self,
         cargo_args: Vec<&str>,
