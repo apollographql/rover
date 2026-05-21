@@ -1,8 +1,9 @@
-name: "Run Rover Subgraph Publish"
+name: "Run Apollo Rover CLI Subgraph Publish"
 description: "Run the `rover subgraph publish` command."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
+  color: "blue"
 
 inputs:
   # required

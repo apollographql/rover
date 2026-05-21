@@ -64,8 +64,9 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 6. Wait for CI to pass.
 7. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
 8. Verify that all of the [actions repos](https://github.com/search?q=org%3Aapollographql-gh-actions+rover&type=repositories) had releases created.
-8. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
-9. Close the milestone for this release.
+   - For each repo, open the new release on that repo, click `Edit`, then `Update release` to push the new version to the Marketplace. Releases created via the API don't auto-publish when authored by a GitHub App token (see https://github.com/orgs/community/discussions/7941).
+9. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
+10. Close the milestone for this release.
 
 ### Verify The Release
 

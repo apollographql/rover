@@ -1,8 +1,9 @@
-name: "Run Rover Persisted Queries Publish"
+name: "Run Apollo Rover CLI Persisted Queries Publish"
 description: "Run the `rover persisted-queries publish` command."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
+  color: "blue"
 
 inputs:
   # required
