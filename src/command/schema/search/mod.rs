@@ -46,9 +46,9 @@ pub struct Search {
 
 impl Search {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        let (sdl, _label) = self.read_sdl()?;
+        let (sdl, label) = self.read_sdl()?;
         let query = self.terms.join(" ");
-        let schema = ParsedSchema::parse(&sdl, "<input>");
+        let schema = ParsedSchema::parse(&sdl, &label);
         let results = schema.search(&query, self.limit, self.include_deprecated);
         Ok(RoverOutput::CliOutput(Box::new(SearchOutput {
             query,
