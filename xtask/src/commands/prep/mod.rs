@@ -45,6 +45,9 @@ impl Prep {
         docs_runner
             .copy_contributing()
             .with_context(|| "Could not update contributing.md in the docs.")?;
+        cargo_runner
+            .fmt_all_nightly()
+            .with_context(|| "Could not run `cargo +nightly fmt --all`")?;
 
         Ok(())
     }
