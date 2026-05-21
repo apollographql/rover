@@ -48,7 +48,10 @@ impl Search {
         let query = self.terms.join(" ");
         let schema = ParsedSchema::parse(&sdl, "<input>");
         let results = schema.search(&query, self.limit, self.include_deprecated);
-        Ok(RoverOutput::CliOutput(Box::new(SearchOutput { query, results })))
+        Ok(RoverOutput::CliOutput(Box::new(SearchOutput {
+            query,
+            results,
+        })))
     }
 
     fn read_sdl(&self) -> RoverResult<(String, String)> {
@@ -93,11 +96,7 @@ impl CliOutput for SearchOutput {
             self.query
         );
 
-        let items = self
-            .results
-            .iter()
-            .map(format_result)
-            .join("\n\n");
+        let items = self.results.iter().map(format_result).join("\n\n");
 
         format!("{header}\n\n{items}")
     }
