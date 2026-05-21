@@ -1,0 +1,21 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 90
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "query": "membership",
+    "results": [
+      {
+        "coordinate": "Role",
+        "kind": "type",
+        "description": "Membership tier governing access",
+        "via": []
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
