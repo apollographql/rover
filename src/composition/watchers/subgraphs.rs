@@ -23,7 +23,10 @@ use crate::{
             resolver::fetch_remote_subgraph::FetchRemoteSubgraphFactory,
         },
         watchers::{
-            composition::{CompositionInputEvent, CompositionInputEvent::Subgraph},
+            composition::{
+                CompositionInputEvent,
+                CompositionInputEvent::{Subgraph, SubgraphBatch},
+            },
             watcher::supergraph_config::SupergraphConfigSerialisationError,
         },
     },
@@ -195,43 +198,55 @@ impl SubtaskHandleStream for SubgraphWatchers {
             cancellation_token.run_until_cancelled(async move {
                 while let Some(diff) = input.next().await {
                     if let Ok(diff) = diff {
-                            // If we detect additional diffs, start a new subgraph subtask.
-                            // Adding the abort handle to the current collection of handles.
-                            for (subgraph_name, subgraph_config) in diff.added() {
-                                let _ = subgraph_handles.add(
-                                    subgraph_name,
-                                    subgraph_config,
-                                    self.introspection_polling_interval
-                                ).await.tap_err(|err| error!("{:?}", err));
-                            }
+                        // Collect every event that originated from this single
+                        // supergraph.yaml diff so the composition watcher applies
+                        // them as one atomic change.
+                        let mut batch: Vec<SubgraphEvent> = Vec::new();
 
-                            for (subgraph_name, subgraph_config) in diff.changed() {
-                                let _ = subgraph_handles.update(
-                                    subgraph_name,
-                                    subgraph_config,
-                                    self.introspection_polling_interval
-                                ).await.tap_err(|err| error!("{:?}", err));
-                            }
-
-                            // If we detect removal diffs, stop the subtask for the removed subgraph.
-                            for (subgraph_name, potential_error) in diff.removed() {
-                                match potential_error {
-                                    None => eprintln!("Removing subgraph from session: `{subgraph_name}`"),
-                                    Some(err) =>  {
-                                        errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
-                                    },
-                                }
-                                subgraph_handles.remove(subgraph_name, potential_error.clone());
-                            }
-
-                            // If a diff is empty, but the previous version of the supergraph.yaml
-                            // was broken we need to force a recomposition of anything that's
-                            // changed.
-                            if *diff.previously_broken() && diff.is_empty() {
-                                let _ = sender.send(CompositionInputEvent::Recompose()).tap_err(|err| error!("{:?}", err));
+                        for (subgraph_name, subgraph_config) in diff.added() {
+                            match subgraph_handles.add(
+                                subgraph_name,
+                                subgraph_config,
+                                self.introspection_polling_interval
+                            ).await {
+                                Ok(events) => batch.extend(events),
+                                Err(err) => error!("{:?}", err),
                             }
                         }
+
+                        for (subgraph_name, subgraph_config) in diff.changed() {
+                            match subgraph_handles.update(
+                                subgraph_name,
+                                subgraph_config,
+                                self.introspection_polling_interval
+                            ).await {
+                                Ok(events) => batch.extend(events),
+                                Err(err) => error!("{:?}", err),
+                            }
+                        }
+
+                        for (subgraph_name, potential_error) in diff.removed() {
+                            match potential_error {
+                                None => eprintln!("Removing subgraph from session: `{subgraph_name}`"),
+                                Some(err) =>  {
+                                    errln!("Error detected with the config for {}\n{:?}. \nRemoving it from the session.", subgraph_name, err)
+                                },
+                            }
+                            batch.push(subgraph_handles.remove(subgraph_name, potential_error.clone()));
+                        }
+
+                        if !batch.is_empty() {
+                            let _ = sender.send(SubgraphBatch(batch)).tap_err(|err| error!("{:?}", err));
+                        }
+
+                        // If a diff is empty, but the previous version of the supergraph.yaml
+                        // was broken we need to force a recomposition of anything that's
+                        // changed.
+                        if *diff.previously_broken() && diff.is_empty() {
+                            let _ = sender.send(CompositionInputEvent::Recompose()).tap_err(|err| error!("{:?}", err));
+                        }
                     }
+                }
             }).await
         });
     }
@@ -296,7 +311,7 @@ impl SubgraphHandles {
         subgraph: &str,
         subgraph_config: &SubgraphConfig,
         introspection_polling_interval: u64,
-    ) -> Result<(), ResolveSubgraphError> {
+    ) -> Result<Vec<SubgraphEvent>, ResolveSubgraphError> {
         eprintln!("Adding subgraph to session: `{subgraph}`");
         let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
             &self.supergraph_config_root,
@@ -320,18 +335,18 @@ impl SubgraphHandles {
         // want to spin up watchers; rather, we emit a SubgraphSchemaChanged event with
         // either what we fetch from Studio (for Subgraphs) or what the SupergraphConfig
         // has for Sdls
-        if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
+        let event = if let SubgraphWatcherKind::Once(subgraph_config) = subgraph_watcher.watcher() {
             self.add_oneshot_subgraph_to_session(subgraph, subgraph_config.clone())
-                .await;
+                .await
         } else {
             // When we have a SchemaSource that's watchable, we start a new subtask
             // and add it to our list of subtasks
-            let _ = self
-                .add_streaming_subgraph_to_session(subgraph_watcher)
+            self.add_streaming_subgraph_to_session(subgraph_watcher)
                 .await
-                .tap_err(|err| tracing::error!("{:?}", err));
-        }
-        Ok(())
+                .tap_err(|err| tracing::error!("{:?}", err))
+                .ok()
+        };
+        Ok(event.into_iter().collect())
     }
 
     pub async fn update(
@@ -339,7 +354,7 @@ impl SubgraphHandles {
         subgraph: &str,
         subgraph_config: &SubgraphConfig,
         introspection_polling_interval: u64,
-    ) -> Result<(), ResolveSubgraphError> {
+    ) -> Result<Vec<SubgraphEvent>, ResolveSubgraphError> {
         eprintln!("Change detected for subgraph: `{subgraph}`");
         let lazily_resolved_subgraph = LazilyResolvedSubgraph::resolve(
             &self.supergraph_config_root.clone(),
@@ -359,20 +374,16 @@ impl SubgraphHandles {
             introspection_polling_interval,
             subgraph.to_string(),
         );
-        if let SubgraphWatcherKind::Once(non_repeating_fetch) = subgraph_watcher.watcher() {
-            let _ = non_repeating_fetch
+
+        let mut events: Vec<SubgraphEvent> = Vec::new();
+        if let SubgraphWatcherKind::Once(non_repeating_fetch) = subgraph_watcher.watcher()
+            && let Ok(subgraph) = non_repeating_fetch
                 .clone()
                 .run()
                 .await
                 .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
-                .map(|subgraph| {
-                    let _ = self
-                        .sender
-                        .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                            subgraph.into(),
-                        )))
-                        .tap_err(|err| tracing::error!("{:?}", err));
-                });
+        {
+            events.push(SubgraphEvent::SubgraphSchemaChanged(subgraph.into()));
         }
 
         // It's possible that the routing_url was updated at this point so we need to update that
@@ -399,66 +410,54 @@ impl SubgraphHandles {
             },
             a => a,
         };
-        let _ = self.sender.send(Subgraph(SubgraphEvent::RoutingUrlChanged(
+        events.push(SubgraphEvent::RoutingUrlChanged(
             SubgraphRoutingUrlChanged {
                 name: subgraph.to_string(),
                 routing_url,
             },
-        )));
-        Ok(())
+        ));
+        Ok(events)
     }
 
-    pub fn remove(&mut self, subgraph: &str, potential_error: Option<ResolveSubgraphError>) {
+    pub fn remove(
+        &mut self,
+        subgraph: &str,
+        potential_error: Option<ResolveSubgraphError>,
+    ) -> SubgraphEvent {
         if let Some(cancellation_token) = self.cancellation_tokens.get(subgraph) {
             cancellation_token.cancel();
             self.cancellation_tokens.remove(subgraph);
         }
 
-        let _ = self
-            .sender
-            .send(Subgraph(SubgraphEvent::SubgraphRemoved(
-                SubgraphSchemaRemoved {
-                    name: subgraph.to_string(),
-                    resolution_error: potential_error,
-                },
-            )))
-            .tap_err(|err| error!("{:?}", err));
+        SubgraphEvent::SubgraphRemoved(SubgraphSchemaRemoved {
+            name: subgraph.to_string(),
+            resolution_error: potential_error,
+        })
     }
 
     async fn add_oneshot_subgraph_to_session(
         &mut self,
         subgraph: &str,
         non_repeating_fetch: NonRepeatingFetch,
-    ) {
-        let _ = non_repeating_fetch
+    ) -> Option<SubgraphEvent> {
+        non_repeating_fetch
             .run()
             .await
             .tap_err(|err| tracing::error!("failed to get {subgraph}'s SDL: {err:?}"))
-            .map(|subgraph| {
-                let _ = self
-                    .sender
-                    .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                        subgraph.into(),
-                    )))
-                    .tap_err(|err| tracing::error!("{:?}", err));
-            });
+            .ok()
+            .map(|subgraph| SubgraphEvent::SubgraphSchemaChanged(subgraph.into()))
     }
 
     async fn add_streaming_subgraph_to_session(
         &mut self,
         subgraph_watcher: SubgraphWatcher,
-    ) -> Result<(), ResolveSubgraphError> {
+    ) -> Result<SubgraphEvent, ResolveSubgraphError> {
         let fetch = subgraph_watcher.watcher().clone();
         let subgraph = fetch.fetch().await?;
         let cancellation_token = CancellationToken::new();
         let (mut messages, subtask) =
             Subtask::<SubgraphWatcher, FullyResolvedSubgraph>::new(subgraph_watcher);
-        let _ = self
-            .sender
-            .send(Subgraph(SubgraphEvent::SubgraphSchemaChanged(
-                subgraph.clone().into(),
-            )))
-            .tap_err(|err| tracing::error!("{:?}", err));
+        let initial_event = SubgraphEvent::SubgraphSchemaChanged(subgraph.clone().into());
 
         tokio::spawn({
             let sender = self.sender.clone();
@@ -480,7 +479,7 @@ impl SubgraphHandles {
         subtask.run(Some(cancellation_token.clone()));
         self.cancellation_tokens
             .insert(subgraph.name().to_string(), cancellation_token);
-        Ok(())
+        Ok(initial_event)
     }
 }
 

@@ -27,7 +27,9 @@ use crate::{
             install::{InstallSupergraph, InstallSupergraphError},
         },
         watchers::{
-            composition::CompositionInputEvent::{Federation, Passthrough, Recompose, Subgraph},
+            composition::CompositionInputEvent::{
+                Federation, Passthrough, Recompose, Subgraph, SubgraphBatch,
+            },
             subgraphs::SubgraphEvent,
         },
     },
@@ -39,8 +41,11 @@ use crate::{
 /// Event to represent an input to the CompositionWatcher, depending on the source the event comes
 /// from. This is really like a Union type over multiple disparate events
 pub enum CompositionInputEvent {
-    /// Variant to represent if the change comes from a change to subgraphs
+    /// A single change to one subgraph
     Subgraph(SubgraphEvent),
+    /// A collection of subgraph changes that all originate from the same supergraph.yaml
+    /// change and must compose as a single unit
+    SubgraphBatch(Vec<SubgraphEvent>),
     /// Variant to represent if the change comes from a change in the Federation Version
     Federation(FederationVersion),
     /// Variant to represent if we need to recompose quickly without other changes
@@ -48,6 +53,59 @@ pub enum CompositionInputEvent {
     /// Variant to something that we do not want to perform Composition on but needs to be passed
     /// through to the final stream of Composition Events.
     Passthrough(CompositionEvent),
+}
+
+/// Apply a single subgraph event to the in-memory supergraph config and emit
+/// any user-visible side-effect events. Returns `true` when the change should
+/// trigger a recomposition.
+fn apply_subgraph_event(
+    sg_event: SubgraphEvent,
+    supergraph_config: &mut FullyResolvedSupergraphConfig,
+    sender: &UnboundedSender<CompositionEvent>,
+) -> bool {
+    match sg_event {
+        SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed) => {
+            let name = subgraph_schema_changed.name().clone();
+            let schema_source = subgraph_schema_changed.schema_source().clone();
+            let message = format!("Schema change detected for subgraph: {}", &name);
+            infoln!("{}", message);
+            tracing::info!(message);
+            if supergraph_config
+                .update_subgraph_schema(name.clone(), subgraph_schema_changed.into())
+                .is_none()
+            {
+                let _ = sender
+                    .send(CompositionEvent::SubgraphAdded(CompositionSubgraphAdded {
+                        name,
+                        schema_source,
+                    }))
+                    .tap_err(|err| error!("{:?}", err));
+            }
+            true
+        }
+        SubgraphEvent::RoutingUrlChanged(routing_url_changed) => {
+            let name = routing_url_changed.name();
+            info!("Change of routing_url detected for subgraph '{}'", name);
+            supergraph_config
+                .update_routing_url(name, routing_url_changed.routing_url().clone())
+                .is_some()
+        }
+        SubgraphEvent::SubgraphRemoved(subgraph_removed) => {
+            let name = subgraph_removed.name();
+            let resolution_error = subgraph_removed.resolution_error().clone();
+            info!("Subgraph removed: {}", name);
+            supergraph_config.remove_subgraph(name);
+            let _ = sender
+                .send(CompositionEvent::SubgraphRemoved(
+                    CompositionSubgraphRemoved {
+                        name: name.clone(),
+                        resolution_error,
+                    },
+                ))
+                .tap_err(|err| error!("{:?}", err));
+            true
+        }
+    }
 }
 
 #[derive(Builder, Debug)]
@@ -124,48 +182,22 @@ where
             cancellation_token.run_until_cancelled(async {
                 while let Some(event) = input.next().await {
                     match event {
-                        Subgraph(SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed)) => {
-                            let name = subgraph_schema_changed.name().clone();
-                            let schema_source = subgraph_schema_changed.schema_source().clone();
-                            let message = format!("Schema change detected for subgraph: {}", &name);
-                            infoln!("{}", message);
-                            tracing::info!(message);
-                            if supergraph_config
-                                .update_subgraph_schema(
-                                    name.clone(),
-                                    subgraph_schema_changed.into(),
-                                )
-                                .is_none()
-                            {
-                                let _ = sender
-                                    .send(CompositionEvent::SubgraphAdded(
-                                        CompositionSubgraphAdded {
-                                            name,
-                                            schema_source
-                                        },
-                                    ))
-                                    .tap_err(|err| error!("{:?}", err));
-                            };
-                        }
-                        Subgraph(SubgraphEvent::RoutingUrlChanged(routing_url_changed)) => {
-                            let name = routing_url_changed.name();
-                            info!("Change of routing_url detected for subgraph '{}'", name);
-                            if supergraph_config.update_routing_url(name, routing_url_changed.routing_url().clone()).is_none() {
-                                // If we get None back then continue, as we don't need to recompose
-                                continue
+                        Subgraph(sg_event) => {
+                            if !apply_subgraph_event(sg_event, &mut supergraph_config, &sender) {
+                                continue;
                             }
-                        }
-                        Subgraph(SubgraphEvent::SubgraphRemoved(subgraph_removed)) => {
-                            let name = subgraph_removed.name();
-                            let resolution_error = subgraph_removed.resolution_error().clone();
-                            info!("Subgraph removed: {}", name);
-                            supergraph_config.remove_subgraph(name);
-                            let _ = sender
-                                .send(CompositionEvent::SubgraphRemoved(
-                                    CompositionSubgraphRemoved { name: name.clone(), resolution_error },
-                                ))
-                                .tap_err(|err| error!("{:?}", err));
-                        }
+                        },
+                        SubgraphBatch(sg_events) => {
+                            let mut subgraph_changed = false;
+                            for sg_event in sg_events {
+                                if apply_subgraph_event(sg_event, &mut supergraph_config, &sender) {
+                                    subgraph_changed = true;
+                                }
+                            }
+                            if !subgraph_changed {
+                                continue;
+                            }
+                        },
                         Federation(fed_version) => {
                             if let Some(federation_updater_config) = self.federation_updater_config.clone() {
                                 info!("Attempting to change supergraph version to {:?}", fed_version);
@@ -458,6 +490,96 @@ mod tests {
                 CompositionEvent::Error(..)
             ));
         }
+
+        cancellation_token.cancel();
+        Ok(())
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn test_runcomposition_subgraph_batch_runs_one_composition() -> Result<()> {
+        use crate::composition::watchers::composition::CompositionInputEvent::SubgraphBatch;
+
+        let temp_dir = assert_fs::TempDir::new()?;
+        let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
+
+        let federation_version = Version::from_str("2.8.0").unwrap();
+        let subgraphs = FullyResolvedSupergraphConfig::builder()
+            .subgraphs(BTreeMap::new())
+            .federation_version(FederationVersion::ExactFedTwo(federation_version.clone()))
+            .build();
+        let supergraph_version = SupergraphVersion::new(federation_version.clone());
+        let supergraph_binary = SupergraphBinary::builder()
+            .version(supergraph_version)
+            .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .build();
+
+        let composition_output = serde_json::to_string(&default_composition_json()).unwrap();
+        let mut mock_exec = MockExecCommand::new();
+        mock_exec
+            .expect_exec_command()
+            .times(1)
+            .returning(move |_| {
+                Ok(Output {
+                    status: ExitStatus::default(),
+                    stdout: composition_output.as_bytes().into(),
+                    stderr: Vec::default(),
+                })
+            });
+
+        let mut mock_write_file = MockWriteFile::new();
+        mock_write_file
+            .expect_write_file()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let composition_handler = CompositionWatcher::builder()
+            .initial_supergraph_config(subgraphs)
+            .supergraph_binary(Ok(supergraph_binary))
+            .exec_command(mock_exec)
+            .write_file(mock_write_file)
+            .temp_dir(temp_dir_path)
+            .compose_on_initialisation(false)
+            .build();
+
+        let subgraph_sdl = "type Query { test: String! }".to_string();
+        let inner: Vec<SubgraphEvent> = (0..3)
+            .map(|i| {
+                SubgraphEvent::SubgraphSchemaChanged(SubgraphSchemaChanged::new(
+                    format!("subgraph-{i}"),
+                    subgraph_sdl.clone(),
+                    "https://example.com".to_string(),
+                    SchemaSource::Sdl {
+                        sdl: subgraph_sdl.clone(),
+                    },
+                ))
+            })
+            .collect();
+        let event_stream: BoxStream<CompositionInputEvent> =
+            once(async { SubgraphBatch(inner) }).boxed();
+
+        let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
+        let cancellation_token = CancellationToken::new();
+        composition_subtask.run(event_stream, Some(cancellation_token.clone()));
+
+        let mut subgraph_added = 0;
+        let mut started = 0;
+        let mut success = 0;
+        let mut error = 0;
+        while let Some(ev) = composition_messages.next().await {
+            match ev {
+                CompositionEvent::SubgraphAdded(_) => subgraph_added += 1,
+                CompositionEvent::Started => started += 1,
+                CompositionEvent::Success(_) => success += 1,
+                CompositionEvent::Error(_) => error += 1,
+                _ => {}
+            }
+        }
+
+        assert_that!(subgraph_added).is_equal_to(3);
+        assert_that!(started).is_equal_to(1);
+        assert_that!(success).is_equal_to(1);
+        assert_that!(error).is_equal_to(0);
 
         cancellation_token.cancel();
         Ok(())
