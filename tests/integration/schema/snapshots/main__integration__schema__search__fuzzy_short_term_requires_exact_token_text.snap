@@ -1,0 +1,6 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 195
+expression: text
+---
+No results for "usr"

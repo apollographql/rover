@@ -1,0 +1,9 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 213
+expression: text
+---
+1 result for "guest"
+
+Role.GUEST
+  enum value

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use insta::assert_json_snapshot;
+use insta::{assert_json_snapshot, assert_snapshot};
 use rstest::{fixture, rstest};
 use serde_json::Value;
 
@@ -40,6 +40,25 @@ fn run_search(schema: &Path, terms: &[&str], extra_args: &[&str]) -> Value {
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).unwrap()
+}
+
+/// Runs `rover schema search <schema> <terms...> [extra_args] --format plain` and returns
+/// its captured stdout as a String for text-format snapshot assertions.
+fn run_search_text(schema: &Path, terms: &[&str], extra_args: &[&str]) -> String {
+    let output = rover()
+        .arg(schema)
+        .args(terms)
+        .args(extra_args)
+        .arg("--format")
+        .arg("plain")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "rover schema search failed\nstderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -138,4 +157,90 @@ fn stdin_input_via_dash(schema_path: PathBuf) {
 fn no_matches_returns_empty_results(schema_path: PathBuf) {
     let json = run_search(&schema_path, &["xyzzy"], &[]);
     assert_json_snapshot!(json);
+}
+
+// ── Text-format snapshots ────────────────────────────────────────────────────
+//
+// Each test below mirrors the JSON test of the same name, asserting the
+// human-facing plain-text formatter (`SearchOutput::text` / `format_result` /
+// `format_root_path` in src/command/schema/search/output.rs).
+
+#[rstest]
+fn exact_name_match_returns_field_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["email"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn multi_term_match_requires_all_terms_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["create", "post"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn stem_match_finds_via_english_stemming_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["creating"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn fuzzy_match_tolerates_single_edit_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["emaill"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn fuzzy_short_term_requires_exact_token_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["usr"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn description_only_match_surfaces_result_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["membership"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn default_excludes_deprecated_members_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["guest"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn include_deprecated_surfaces_deprecated_members_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["guest"], &["--include-deprecated"]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn limit_caps_result_count_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["post"], &["-n", "2"]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn stdin_input_via_dash_text(schema_path: PathBuf) {
+    let sdl = std::fs::read_to_string(&schema_path).unwrap();
+    let output = rover()
+        .arg("-")
+        .arg("email")
+        .arg("--format")
+        .arg("plain")
+        .write_stdin(sdl)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "rover schema search - failed\nstderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn no_matches_returns_empty_results_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["xyzzy"], &[]);
+    assert_snapshot!(text);
 }
