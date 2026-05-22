@@ -159,6 +159,16 @@ fn no_matches_returns_empty_results(schema_path: PathBuf) {
     assert_json_snapshot!(json);
 }
 
+/// Comma-separated clauses are OR'd: a result matching any clause is returned.
+#[rstest]
+fn comma_or_clauses_union_results(schema_path: PathBuf) {
+    // "email" matches User.email; "creating" stems to Mutation.createPost and
+    // CreatePostInput. Results from both clauses appear, sorted by tier then
+    // coordinate.
+    let json = run_search(&schema_path, &["email,", "creating"], &[]);
+    assert_json_snapshot!(json);
+}
+
 // ── Text-format snapshots ────────────────────────────────────────────────────
 //
 // Each test below mirrors the JSON test of the same name, asserting the
@@ -242,5 +252,11 @@ fn stdin_input_via_dash_text(schema_path: PathBuf) {
 #[rstest]
 fn no_matches_returns_empty_results_text(schema_path: PathBuf) {
     let text = run_search_text(&schema_path, &["xyzzy"], &[]);
+    assert_snapshot!(text);
+}
+
+#[rstest]
+fn comma_or_clauses_union_results_text(schema_path: PathBuf) {
+    let text = run_search_text(&schema_path, &["email,", "creating"], &[]);
     assert_snapshot!(text);
 }

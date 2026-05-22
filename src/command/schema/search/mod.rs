@@ -16,13 +16,22 @@ use crate::{RoverOutput, RoverResult};
 #[derive(Debug, Serialize, Parser)]
 /// Search a GraphQL schema for types and fields by keyword
 ///
-/// Searches names (with camelCase / snake_case splitting) and descriptions.
-/// All terms must match. Results are ranked: name matches above description matches.
+/// Queries are comma-separated clauses; a result matches if any clause matches.
+/// Within a clause, all terms must match (space-separated). Names are split on
+/// camelCase / snake_case; matching is case-insensitive. Results are ranked by
+/// match tier (strongest first), then alphabetically by coordinate:
 ///
-/// Pass - as FILE to read from stdin.
+///   Exact        substring of the name or a name token
+///   Stem         shares an English stem with a name token
+///   Fuzzy        within one edit of a name token (terms ≥ 4 chars;
+///                shorter terms must match a token exactly)
+///   Description  appears in the SDL description (with no name match)
+///
+/// Pass `-` as FILE to read an SDL as a file from stdin.
 #[command(after_help = "EXAMPLES:\n    \
     rover schema search schema.graphql email\n    \
     rover schema search schema.graphql \"create post\"\n    \
+    rover schema search schema.graphql \"email, displayName\"\n    \
     cat schema.graphql | rover schema search - user\n    \
     rover schema search schema.graphql author --limit 20\n    \
     rover schema search schema.graphql id --include-deprecated")]
