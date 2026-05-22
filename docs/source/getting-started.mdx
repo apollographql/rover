@@ -74,7 +74,7 @@ Set the format of the URL to `https://<username>:<password>@<remote-host>/apollo
 
 ### Docker image
 
-Starting with Rover 0.39.1, Apollo publishes a Linux container image with each release. The image's default entry point is `rover`, so any arguments you pass to `docker run` are forwarded to the CLI. Each version tag is enforced as immutable, so a pinned tag won't change underneath you.
+Starting with Rover v0.39.1, Apollo publishes a Linux container image with each release. The image's default entry point is `rover`, so any arguments you pass to `docker run` are forwarded to the CLI. Each version tag is enforced as immutable, so a pinned tag can't change transparently.
 
 Pull from either GitHub Container Registry or Docker Hub:
 
@@ -102,7 +102,7 @@ Rover is distributed on npm for integration with your JavaScript projects. Rover
 
 <Caution>
 
-This installation method is provided for convenience in projects that are already in the Node ecosystem. We do not recommend it otherwise, as it exposes your installation to npm's surface area of potential supply-chain attacks. Rover's npm installation script has been minimized to reduce that surface, but it still represents nonzero risk. For other use cases, prefer the [Linux/MacOS installer](#linux--macos-installer), the [Windows PowerShell installer](#windows-powershell-installer), or the [Docker image](#docker-image).
+This installation method is provided for convenience in projects that are already in the Node ecosystem. Apollo does not recommend it otherwise, as it exposes your installation to npm's surface area of potential supply-chain attacks. Rover's npm installation script has been minimized to reduce that surface, but it still represents nonzero risk. For other use cases, prefer the [Linux/MacOS installer](#linux--macos-installer), the [Windows PowerShell installer](#windows-powershell-installer), or the [Docker image](#docker-image).
 
 </Caution>
 
