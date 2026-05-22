@@ -1,0 +1,14 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 140
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "query": "xyzzy",
+    "results": [],
+    "success": true
+  },
+  "error": null
+}

@@ -6,18 +6,16 @@ pub use result::{ElementKind, SearchResult};
 use crate::ParsedSchema;
 
 impl ParsedSchema {
-    /// Search the schema for elements whose name or description matches all of the given terms.
+    /// Search the schema for elements whose name or description matches the query.
     ///
-    /// Terms are whitespace-separated. Matching is case-insensitive substring search after
-    /// splitting camelCase / snake_case names into words. Results are sorted by relevance
-    /// (name matches rank above description matches) then alphabetically by coordinate.
+    /// The query is comma-separated into OR'd clauses; within a clause, terms are
+    /// whitespace-separated and all must match. Matching is case-insensitive
+    /// substring search after splitting camelCase / snake_case names into words.
+    /// Results are sorted by relevance (name matches rank above description matches)
+    /// then alphabetically by coordinate.
     pub fn search(&self, query: &str, limit: usize, include_deprecated: bool) -> Vec<SearchResult> {
-        let terms: Vec<String> = query
-            .split_whitespace()
-            .map(|t| t.to_lowercase())
-            .filter(|t| !t.is_empty())
-            .collect();
-        if terms.is_empty() {
+        let clauses = parse_query(query);
+        if clauses.is_empty() {
             return Vec::new();
         }
 
@@ -27,7 +25,7 @@ impl ParsedSchema {
             .iter()
             .filter(|(type_name, _)| !type_name.starts_with("__"))
             .flat_map(|(type_name, ty)| {
-                SearchResult::from_extended_type(self, type_name, ty, &terms, include_deprecated)
+                SearchResult::from_extended_type(self, type_name, ty, &clauses, include_deprecated)
             })
             .collect();
 
@@ -39,6 +37,23 @@ impl ParsedSchema {
         results.truncate(limit);
         results
     }
+}
+
+/// Parses a query into OR'd clauses of AND'd terms.
+///
+/// `"create post, delete"` → `[["create","post"], ["delete"]]`.
+/// Empty clauses (from `,,` or trailing/leading `,`) are dropped.
+fn parse_query(query: &str) -> Vec<Vec<String>> {
+    query
+        .split(',')
+        .map(|clause| {
+            clause
+                .split_whitespace()
+                .map(|t| t.to_lowercase())
+                .collect::<Vec<_>>()
+        })
+        .filter(|terms| !terms.is_empty())
+        .collect()
 }
 
 #[cfg(test)]
@@ -171,5 +186,44 @@ mod tests {
         if let (Some(e), Some(f)) = (exact.first(), fuzzy.first()) {
             assert_that!(e.score()).is_less_than(f.score());
         }
+    }
+
+    #[rstest]
+    fn test_search_comma_or_clauses_union_results(schema: ParsedSchema) {
+        // "email" matches User.email; "creating" stems to "creat" → Mutation.createPost.
+        // The two clauses are OR'd, so both should appear in the result set.
+        let results = schema.search("email, creating", 10, false);
+        assert_that!(&results).matching_contains(|r| r.coordinate.to_string() == "User.email");
+        assert_that!(&results)
+            .matching_contains(|r| r.coordinate.to_string() == "Mutation.createPost");
+    }
+
+    #[rstest]
+    fn test_search_clause_picks_best_tier_across_clauses(schema: ParsedSchema) {
+        // For Mutation.createPost: clause "create" matches Exact; clause "creating"
+        // matches Stem. The score should be the best (Exact) — sort order proves it
+        // when compared against a sibling that only matches at Stem.
+        let results = schema.search("create, creating", 10, false);
+        let create_post = results
+            .iter()
+            .find(|r| r.coordinate.to_string() == "Mutation.createPost")
+            .expect("Mutation.createPost should appear");
+        // Stem-only sibling for comparison
+        let stem_only = schema.search("creating", 10, false);
+        let stem_score = stem_only
+            .iter()
+            .find(|r| r.coordinate.to_string() == "Mutation.createPost")
+            .map(|r| r.score())
+            .expect("Mutation.createPost should appear in stem-only search");
+        // Exact (from "create" clause) outranks Stem (from "creating" clause).
+        assert_that!(create_post.score()).is_less_than(stem_score);
+    }
+
+    #[rstest]
+    fn test_search_empty_clauses_are_dropped(schema: ParsedSchema) {
+        // Leading/trailing/double commas produce empty clauses which should be
+        // ignored; the rest of the query still works.
+        let results = schema.search(", email,,", 10, false);
+        assert_that!(&results).matching_contains(|r| r.coordinate.to_string() == "User.email");
     }
 }

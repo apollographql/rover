@@ -1,4 +1,5 @@
 mod describe;
+mod search;
 
 use clap::Parser;
 use serde::Serialize;
@@ -16,12 +17,15 @@ pub struct Schema {
 pub enum Command {
     /// Describe a graph's schema by type or field
     Describe(describe::Describe),
+    /// Search a schema for types and fields by keyword
+    Search(search::Search),
 }
 
 impl Schema {
     pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Describe(command) => command.run().await,
+            Command::Search(command) => command.run().await,
         }
     }
 }

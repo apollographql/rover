@@ -1,0 +1,12 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 219
+expression: text
+---
+2 results for "post"
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field

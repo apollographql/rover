@@ -1,0 +1,27 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 59
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "query": "create post",
+    "results": [
+      {
+        "coordinate": "CreatePostInput",
+        "kind": "type",
+        "description": null,
+        "via": []
+      },
+      {
+        "coordinate": "Mutation.createPost",
+        "kind": "field",
+        "description": "Create a new post",
+        "via": []
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
