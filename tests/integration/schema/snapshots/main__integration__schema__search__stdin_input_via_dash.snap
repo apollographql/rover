@@ -1,0 +1,42 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 133
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "query": "email",
+    "results": [
+      {
+        "coordinate": "User.email",
+        "kind": "field",
+        "description": "The user's email address",
+        "via": [
+          {
+            "segments": [
+              {
+                "type_name": "Query",
+                "field_name": "user"
+              }
+            ]
+          },
+          {
+            "segments": [
+              {
+                "type_name": "Mutation",
+                "field_name": "createPost"
+              },
+              {
+                "type_name": "Post",
+                "field_name": "author"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

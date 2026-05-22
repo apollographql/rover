@@ -1,0 +1,21 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 105
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "query": "guest",
+    "results": [
+      {
+        "coordinate": "Role.GUEST",
+        "kind": "enum_value",
+        "description": null,
+        "via": []
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

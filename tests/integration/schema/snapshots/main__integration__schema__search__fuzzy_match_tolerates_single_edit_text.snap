@@ -1,0 +1,9 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 189
+expression: text
+---
+1 result for "emaill"
+
+User.email — The user's email address
+  field  ·  via Query.user, Mutation.createPost -> Post.author

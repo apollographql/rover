@@ -1,0 +1,15 @@
+---
+source: tests/integration/schema/search.rs
+assertion_line: 261
+expression: text
+---
+3 results for "email, creating"
+
+User.email — The user's email address
+  field  ·  via Query.user, Mutation.createPost -> Post.author
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field

@@ -35,6 +35,19 @@ impl MatchScore {
             .or_else(|| Self::maybe_description(description, terms))
     }
 
+    /// Returns the best tier across multiple OR'd clauses — the strongest
+    /// score from any clause that matches, or `None` if no clause does.
+    pub(super) fn best_of_clauses(
+        name: &str,
+        description: Option<&str>,
+        clauses: &[Vec<String>],
+    ) -> Option<Self> {
+        clauses
+            .iter()
+            .filter_map(|terms| Self::new(name, description, terms))
+            .min()
+    }
+
     fn maybe_exact(name: &str, words: &[String], terms: &[String]) -> Option<Self> {
         let name = name.to_lowercase();
         let exact_hit = terms

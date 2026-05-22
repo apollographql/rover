@@ -100,11 +100,14 @@ impl SearchResult {
     /// Collect all matching results from a single top-level schema type:
     /// the type itself (if it matches) plus any matching fields, input
     /// fields, or enum values it owns.
+    ///
+    /// `clauses` is a list of OR'd term groups — a candidate matches if any
+    /// single clause's terms all match it.
     pub(super) fn from_extended_type(
         schema: &ParsedSchema,
         type_name: &Name,
         ty: &ExtendedType,
-        terms: &[String],
+        clauses: &[Vec<String>],
         include_deprecated: bool,
     ) -> Vec<Self> {
         let mut out = Vec::new();
@@ -112,7 +115,7 @@ impl SearchResult {
             ExtendedType::Object(obj) => {
                 let via = schema.find_root_paths(type_name);
                 let desc = obj.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, via.clone(), terms));
+                out.extend(Self::from_type_match(type_name, desc, via.clone(), clauses));
                 for (field_name, field) in &obj.fields {
                     if include_deprecated || !field.is_deprecated() {
                         let fdesc = field.description.as_ref().map(|d| d.to_string());
@@ -122,7 +125,7 @@ impl SearchResult {
                             ElementKind::Field,
                             fdesc,
                             via.clone(),
-                            terms,
+                            clauses,
                         ));
                     }
                 }
@@ -130,7 +133,7 @@ impl SearchResult {
             ExtendedType::Interface(iface) => {
                 let via = schema.find_root_paths(type_name);
                 let desc = iface.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, via.clone(), terms));
+                out.extend(Self::from_type_match(type_name, desc, via.clone(), clauses));
                 for (field_name, field) in &iface.fields {
                     if include_deprecated || !field.is_deprecated() {
                         let fdesc = field.description.as_ref().map(|d| d.to_string());
@@ -140,14 +143,14 @@ impl SearchResult {
                             ElementKind::Field,
                             fdesc,
                             via.clone(),
-                            terms,
+                            clauses,
                         ));
                     }
                 }
             }
             ExtendedType::InputObject(inp) => {
                 let desc = inp.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, Vec::new(), terms));
+                out.extend(Self::from_type_match(type_name, desc, Vec::new(), clauses));
                 for (field_name, field) in &inp.fields {
                     if include_deprecated || !field.is_deprecated() {
                         let fdesc = field.description.as_ref().map(|d| d.to_string());
@@ -157,7 +160,7 @@ impl SearchResult {
                             ElementKind::InputField,
                             fdesc,
                             Vec::new(),
-                            terms,
+                            clauses,
                         ));
                     }
                 }
@@ -165,7 +168,7 @@ impl SearchResult {
             ExtendedType::Enum(e) => {
                 let via = schema.find_root_paths(type_name);
                 let desc = e.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, via.clone(), terms));
+                out.extend(Self::from_type_match(type_name, desc, via.clone(), clauses));
                 for (val_name, val) in &e.values {
                     if include_deprecated || !val.is_deprecated() {
                         let vdesc = val.description.as_ref().map(|d| d.to_string());
@@ -175,7 +178,7 @@ impl SearchResult {
                             ElementKind::EnumValue,
                             vdesc,
                             via.clone(),
-                            terms,
+                            clauses,
                         ));
                     }
                 }
@@ -183,25 +186,26 @@ impl SearchResult {
             ExtendedType::Union(u) => {
                 let desc = u.description.as_ref().map(|d| d.to_string());
                 let via = schema.find_root_paths(type_name);
-                out.extend(Self::from_type_match(type_name, desc, via, terms));
+                out.extend(Self::from_type_match(type_name, desc, via, clauses));
             }
             ExtendedType::Scalar(s) => {
                 let desc = s.description.as_ref().map(|d| d.to_string());
-                out.extend(Self::from_type_match(type_name, desc, Vec::new(), terms));
+                out.extend(Self::from_type_match(type_name, desc, Vec::new(), clauses));
             }
         }
         out
     }
 
-    /// Build a result for a top-level type when its name or description
-    /// matches every term. Returns `None` when no tier matches.
+    /// Build a result for a top-level type when any clause's terms all match
+    /// the name or description. Returns `None` when no clause matches.
     fn from_type_match(
         type_name: &Name,
         description: Option<String>,
         via: Vec<RootPath>,
-        terms: &[String],
+        clauses: &[Vec<String>],
     ) -> Option<Self> {
-        let score = MatchScore::new(type_name.as_str(), description.as_deref(), terms)?;
+        let score =
+            MatchScore::best_of_clauses(type_name.as_str(), description.as_deref(), clauses)?;
         Some(
             Self::for_type()
                 .type_name(type_name)
@@ -213,16 +217,17 @@ impl SearchResult {
     }
 
     /// Build a result for a single attribute — field, input field, or enum
-    /// value — when its name or description matches every term.
+    /// value — when any clause's terms all match its name or description.
     fn from_attribute_match(
         type_name: &Name,
         attribute: &Name,
         kind: ElementKind,
         description: Option<String>,
         via: Vec<RootPath>,
-        terms: &[String],
+        clauses: &[Vec<String>],
     ) -> Option<Self> {
-        let score = MatchScore::new(attribute.as_str(), description.as_deref(), terms)?;
+        let score =
+            MatchScore::best_of_clauses(attribute.as_str(), description.as_deref(), clauses)?;
         Some(
             Self::for_attribute()
                 .type_name(type_name)
@@ -257,8 +262,9 @@ mod tests {
         ParsedSchema::parse(sdl, "test_schema.graphql")
     }
 
-    fn terms(s: &str) -> Vec<String> {
-        s.split_whitespace().map(str::to_lowercase).collect()
+    /// Builds a single-clause input from a whitespace-separated string.
+    fn terms(s: &str) -> Vec<Vec<String>> {
+        vec![s.split_whitespace().map(str::to_lowercase).collect()]
     }
 
     fn ty_of<'a>(schema: &'a ParsedSchema, type_name: &Name) -> &'a ExtendedType {

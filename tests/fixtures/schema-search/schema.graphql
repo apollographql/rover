@@ -1,0 +1,50 @@
+"""Root query type"""
+type Query {
+  """Get a user by ID"""
+  user(id: ID!): User
+  """Get a post by ID"""
+  post(id: ID!): Post
+}
+
+type Mutation {
+  """Create a new post"""
+  createPost(input: CreatePostInput!): Post
+}
+
+"""A registered user"""
+type User implements Node {
+  id: ID!
+  """The user's email address"""
+  email: String!
+  displayName: String!
+  """Posts authored by this user"""
+  posts: [Post!]!
+  legacyId: String @deprecated(reason: "Use id instead")
+}
+
+"""A content post"""
+type Post implements Node {
+  id: ID!
+  title: String!
+  """The author of this post"""
+  author: User!
+  body: String!
+}
+
+"""An entity with a stable ID"""
+interface Node {
+  id: ID!
+}
+
+"""Membership tier governing access"""
+enum Role {
+  ADMIN
+  USER
+  GUEST @deprecated(reason: "Use USER instead")
+}
+
+input CreatePostInput {
+  """The post title"""
+  title: String!
+  body: String!
+}
