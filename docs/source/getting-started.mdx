@@ -72,9 +72,39 @@ $env:APOLLO_ROVER_BINARY_DOWNLOAD_PREFIX = "https://my-mirror-proxy.com/artifact
 This variable also supports basic authentication.
 Set the format of the URL to `https://<username>:<password>@<remote-host>/apollographql/rover/releases/download`
 
+### Docker image
+
+Starting with Rover 0.39.1, Apollo publishes a Linux container image with each release. The image's default entry point is `rover`, so any arguments you pass to `docker run` are forwarded to the CLI. Each version tag is enforced as immutable, so a pinned tag won't change underneath you.
+
+Pull from either GitHub Container Registry or Docker Hub:
+
+```bash
+docker pull ghcr.io/apollographql/rover:0.39.1
+# or
+docker pull apollograph/rover:0.39.1
+```
+
+Then run any Rover command:
+
+```bash
+docker run --rm \
+  -e APOLLO_KEY \
+  -v "$PWD:/workspace" -w /workspace \
+  ghcr.io/apollographql/rover:0.39.1 \
+  subgraph check my-graph@prod --name products --schema ./schema.graphql
+```
+
+This is the recommended way to run Rover in CI on providers that support running steps inside a container image (CircleCI, Bitbucket Pipelines, GitLab CI/CD, Jenkins with a Docker agent, and so on). See the [CI/CD guide](./ci-cd) for end-to-end examples.
+
 ### `npm` installer
 
-Rover is distributed on npm for integration with your JavaScript projects.
+Rover is distributed on npm for integration with your JavaScript projects. Rover's Node dependency follows LTS versions where possible unless security concerns justify an earlier upgrade.
+
+<Caution>
+
+This installation method is provided for convenience in projects that are already in the Node ecosystem. We do not recommend it otherwise, as it exposes your installation to npm's surface area of potential supply-chain attacks. Rover's npm installation script has been minimized to reduce that surface, but it still represents nonzero risk. For other use cases, prefer the [Linux/MacOS installer](#linux--macos-installer), the [Windows PowerShell installer](#windows-powershell-installer), or the [Docker image](#docker-image).
+
+</Caution>
 
 #### Installing from a binary mirror
 
@@ -109,6 +139,12 @@ You can then call `rover <parameters>` directly in your `package.json` [scripts]
 When using `npx`, the `-p @apollo/rover` argument is necessary to specify that the `@apollo/rover` package provides the `rover` command. See [`npx`'s documentation](https://www.npmjs.com/package/npx#description) for more information.
 
 </Note>
+
+<Caution>
+
+Running Rover directly via `npx` (without first installing it as a `devDependency`) bypasses lockfiles — including Rover's own — and is the highest-risk install path in terms of supply-chain exposure. Prefer installing `@apollo/rover` as a `devDependency` so the resolved version is captured in your project's lockfile.
+
+</Caution>
 
 #### Global install
 

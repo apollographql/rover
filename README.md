@@ -171,7 +171,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 
 ## Installation Methods
 
-As of Rover 0.39.0, all the platforms listed below enforce immutable release tags. This means that you can reference a GitHub release, Docker image, or NPM release version directly by SemVer and be
+As of Rover 0.39.1, all the platforms listed below enforce immutable release tags. This means that you can reference a GitHub release, Docker image, or NPM release version directly by SemVer and be
 guaranteed that the artifact will not change. Note that the `curl | sh` method, while ultimately referencing immutable GitHub release binaries, still first downloads a shell script from a webservice
 that does not provide that same guarantee of immutability. Security conscious installers should verify the downloaded shell script matches 
 [the pinned artifact for its respective Rover version](https://github.com/apollographql-gh-actions/install-rover) or use one of the immutable installation methods described below.
@@ -213,22 +213,22 @@ iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
 
 #### Docker images
 
-Starting with version 0.39.0, Rover vends immutable Linux Docker images that pre-build Rover as an entry point for consumption in CI environments
+Starting with version 0.39.1, Rover vends immutable Linux Docker images that pre-build Rover as an entry point for consumption in CI environments
 or to run Rover on platforms that Rover does not build natively for. Each release verison tag is enforced as immutable at the platform level for
 your convenience so that you can pin to the Rover version you want without needing to deal with the indirection of SHA pinning.
 
 Install directly from Dockerhub:
 
 ```bash
-docker pull apollograph/rover:0.39.0
-docker run apollograph/rover:0.39.0 <<args>>
+docker pull apollograph/rover:0.39.1
+docker run apollograph/rover:0.39.1 <<args>>
 ```
 
 or via ghcr.io:
 
 ```bash
-docker pull ghcr.io/apollographql/rover:0.39.0
-docker run ghcr.io/apollographql/rover:0.39.0 <<args>>
+docker pull ghcr.io/apollographql/rover:0.39.1
+docker run ghcr.io/apollographql/rover:0.39.1 <<args>>
 ```
 
 All CI platforms that support referencing images from those respective image repositories can do so directly as well.
@@ -238,7 +238,7 @@ All CI platforms that support referencing images from those respective image rep
 Rover vends a number of GitHub actions for convenient invocation of common Rover commands in your CI pipeline. They can be found on
 [GitHub's actions marketplace](https://github.com/marketplace?query=apollographql-gh-actions+Rover&type=actions).
 
-As of Rover 0.39.0, each Rover release corresponds to an immutable action tag of `<action>@rover-<version>`. This allows you to specify
+As of Rover 0.39.1, each Rover release corresponds to an immutable action tag of `<action>@rover-<version>`. This allows you to specify
 the exact version of Rover for your CI actions without needing to rely on SHA pinning to guarantee action immutability. These actions
 leverage Rover's Docker image under the hood to sandbox the Rover invocation and only expose it to the `APOLLO_*` environment variable
 surface.
