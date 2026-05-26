@@ -51,6 +51,15 @@ impl RetryPolicy {
     }
 }
 
+/// Whether a response with the given status code is worth retrying.
+fn is_retryable_status(status: StatusCode) -> bool {
+    status.is_server_error()
+        || matches!(
+            status,
+            StatusCode::REQUEST_TIMEOUT | StatusCode::TOO_EARLY | StatusCode::TOO_MANY_REQUESTS
+        )
+}
+
 impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
     type Future = tokio::time::Sleep;
     fn retry(
@@ -68,16 +77,8 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
                 | Err(HttpServiceError::Closed(_)) => Some(self.backoff.next_backoff()),
                 Err(_) => None,
                 Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_client_error()
-                        || status.is_server_error()
-                        || status.is_redirection()
-                    {
-                        if matches!(status, StatusCode::BAD_REQUEST) {
-                            None
-                        } else {
-                            Some(self.backoff.next_backoff())
-                        }
+                    if is_retryable_status(resp.status()) {
+                        Some(self.backoff.next_backoff())
                     } else {
                         None
                     }
@@ -157,6 +158,69 @@ mod tests {
         assert_that!(resp)
             .is_ok()
             .matches(|resp| resp.status() == StatusCode::INTERNAL_SERVER_ERROR);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED)]
+    #[case::forbidden(StatusCode::FORBIDDEN)]
+    #[case::not_found(StatusCode::NOT_FOUND)]
+    #[case::bad_request(StatusCode::BAD_REQUEST)]
+    #[tokio::test]
+    pub async fn non_retryable_4xx_is_not_retried(
+        #[case] status: StatusCode,
+        mut retry_service: HttpService,
+    ) -> Result<()> {
+        let server = MockServer::start();
+        let uri = format!("http://{}/", server.address());
+
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/");
+            then.status(status.as_u16()).body("");
+        });
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = retry_service.call(request).await;
+
+        mock.assert_calls(1);
+        assert_that!(resp)
+            .is_ok()
+            .matches(|resp| resp.status() == status);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::request_timeout(StatusCode::REQUEST_TIMEOUT)]
+    #[case::too_many_requests(StatusCode::TOO_MANY_REQUESTS)]
+    #[tokio::test]
+    pub async fn retryable_4xx_is_retried(
+        #[case] status: StatusCode,
+        mut retry_service: HttpService,
+    ) -> Result<()> {
+        let server = MockServer::start();
+        let uri = format!("http://{}/", server.address());
+
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/");
+            then.status(status.as_u16()).body("");
+        });
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = retry_service.call(request).await;
+
+        // 1.5s budget with 500ms initial backoff → at least a couple attempts.
+        assert_that!(mock.calls()).is_greater_than(1);
+        assert_that!(resp)
+            .is_ok()
+            .matches(|resp| resp.status() == status);
         Ok(())
     }
 }

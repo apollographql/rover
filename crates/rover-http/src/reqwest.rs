@@ -1,15 +1,21 @@
-use std::{pin::Pin, time::Duration};
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use buildstructor::buildstructor;
 use futures::Future;
-use http_body_util::Full;
+use http_body_util::{BodyExt, Full};
 use reqwest::ClientBuilder;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceExt};
 
 use crate::{
     body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
     HttpServiceError, HttpServiceFactory,
 };
+
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// Constructs [`HttpService`]s
 #[derive(Clone, Debug)]
@@ -33,7 +39,8 @@ impl HttpServiceFactory for ReqwestServiceFactory {
 /// A [`Service`] that wraps a [`reqwest`] client and uses [`http`] constructs for requests and responses
 #[derive(Clone, Debug)]
 pub struct ReqwestService {
-    client: BoxCloneService<reqwest::Request, reqwest::Response, HttpServiceError>,
+    client: reqwest::Client,
+    timeout: Duration,
 }
 
 #[buildstructor]
@@ -54,12 +61,8 @@ impl ReqwestService {
                 )
                 .build()?,
         };
-        let client = ServiceBuilder::new()
-            .map_err(HttpServiceError::from)
-            .timeout((*config.timeout()).unwrap_or_else(|| Duration::from_secs(90)))
-            .service(client)
-            .boxed_clone();
-        Ok(ReqwestService { client })
+        let timeout = config.timeout().unwrap_or(DEFAULT_TIMEOUT);
+        Ok(ReqwestService { client, timeout })
     }
 }
 
@@ -84,25 +87,41 @@ impl Service<HttpRequest> for ReqwestService {
     type Error = HttpServiceError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.client.poll_ready(cx).map_err(HttpServiceError::from)
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // `reqwest::Client` handles backpressure internally so there's nothing to gate on here.
+        Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: HttpRequest) -> Self::Future {
-        // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
-        let mut client = self.client.clone();
+        let client = self.client.clone();
+        let timeout = self.timeout;
         let fut = async move {
-            let mut req = req.clone();
-            let bytes = body_to_bytes(&mut req)
+            // `Request::try_from` doesn't do any processing that reqwest runs at builder-construction time.
+            // We instead go through its builder interface which retains all that internal logic.
+            let (parts, body) = req.into_parts();
+
+            let bytes = body
+                .collect()
                 .await
-                .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
-            let body = reqwest::Body::from(bytes);
-            let req = req.map(move |_| body);
-            let req = reqwest::Request::try_from(req)?;
-            let mut resp = http::Response::from(client.call(req).await?);
+                .map_err(|err| HttpServiceError::Body(Box::new(err)))?
+                .to_bytes();
+
+            let mut builder = client
+                .request(parts.method, parts.uri.to_string())
+                .version(parts.version);
+
+            for (name, value) in parts.headers.iter() {
+                builder = builder.header(name, value);
+            }
+
+            let request = builder.body(reqwest::Body::from(bytes)).build()?;
+
+            let response = match tokio::time::timeout(timeout, client.execute(request)).await {
+                Ok(result) => result?,
+                Err(_) => return Err(HttpServiceError::TimedOut),
+            };
+
+            let mut resp = http::Response::from(response);
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
@@ -210,6 +229,33 @@ mod tests {
             assert_that!(body_bytes).is_equal_to(Bytes::from("def".as_bytes()));
         }
 
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    pub async fn url_userinfo_is_sent_as_basic_auth(
+        #[from(raw_service)] mut service: HttpService,
+    ) -> Result<()> {
+        let server = MockServer::start();
+        let expected_auth = "Basic dXNlcjpodW50ZXIy";
+
+        let mock = server.mock(|when, then| {
+            when.method(Method::GET)
+                .path("/")
+                .header("authorization", expected_auth);
+            then.status(200).body("ok");
+        });
+
+        let uri = format!("http://user:hunter2@{}/", server.address());
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = service.call(request).await?;
+        mock.assert_calls(1);
+        assert_that!(resp.status().as_u16()).is_equal_to(200);
         Ok(())
     }
 }

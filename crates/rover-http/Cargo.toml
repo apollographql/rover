@@ -27,7 +27,7 @@ reqwest = { workspace = true, features = [
 ] }
 rover-tower = { workspace = true, features = ["test"] }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros"] }
+tokio = { workspace = true, features = ["macros", "time"] }
 tower = { workspace = true }
 tap = { workspace = true }
 tracing = { workspace = true }

@@ -636,6 +636,52 @@ mod test {
     }
 
     #[rstest]
+    #[tokio::test]
+    async fn test_extract_plugin_tarball_errors_on_non_success_status(
+        binary_name: &str,
+        installer: Installer,
+        override_path: Utf8PathBuf,
+    ) {
+        let installer = Installer {
+            override_install_path: Some(override_path),
+            ..installer
+        };
+
+        let tarball_url = format!("http://example.com/{}", binary_name);
+        let mut mock_http_service = MockHttpService::new();
+        expect_poll_ready!(mock_http_service);
+        mock_http_service
+            .expect_call()
+            // 401 isn't retryable, so we expect exactly one call to the inner service.
+            .times(1)
+            .returning(move |_| {
+                future::ready(
+                    Response::builder()
+                        .status(401)
+                        .body(Full::new(Bytes::from_static(
+                            b"<html>401 Unauthorized</html>",
+                        )))
+                        .map_err(HttpServiceError::from),
+                )
+            });
+        let service = FileDownloadService::builder()
+            .http_service(MockCloneService::new(mock_http_service))
+            .max_elapsed_duration(Duration::from_secs(5))
+            .timeout_duration(Duration::from_secs(1))
+            .build();
+
+        let err = installer
+            .extract_plugin_tarball(binary_name, &tarball_url, service)
+            .await
+            .expect_err("a 401 response must produce an error");
+        let rendered = format!("{err:?}");
+
+        assert_that!(rendered.as_str()).contains("Bad Status code");
+        assert_that!(rendered.as_str()).contains("401");
+        assert_that!(rendered.as_str()).does_not_contain("invalid gzip header");
+    }
+
+    #[rstest]
     fn test_write_plugin_bin_to_fs(
         binary_name: &str,
         installer: Installer,
