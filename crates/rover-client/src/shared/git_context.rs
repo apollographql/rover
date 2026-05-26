@@ -59,7 +59,10 @@ impl GitContext {
     }
 
     fn get_branch(head: &Reference) -> Option<String> {
-        head.shorthand().map(|s| s.to_string())
+        head.shorthand()
+            .inspect_err(|e| tracing::error!("failed to read git branch shorthand: {e}"))
+            .ok()
+            .map(|s| s.to_string())
     }
 
     fn get_commit(head: &Reference) -> Option<String> {
@@ -80,7 +83,11 @@ impl GitContext {
 
     fn get_remote_url(repo: &Repository) -> Option<String> {
         let remote_url = if let Ok(remote) = repo.find_remote("origin") {
-            remote.url().map(|r| r.to_string())
+            remote
+                .url()
+                .inspect_err(|e| tracing::error!("failed to read git remote url: {e}"))
+                .ok()
+                .map(|r| r.to_string())
         } else {
             None
         };
