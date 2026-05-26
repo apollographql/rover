@@ -1,51 +1,79 @@
 scalar _Any
+
 scalar FieldSet
+
 scalar link__Import
+
 scalar federation__ContextFieldValue
+
 scalar federation__Scope
+
 scalar federation__Policy
+
 type Variant {
   id: ID!
-  "Checks the warehouse API for inventory information."
+  """Checks the warehouse API for inventory information."""
   inventory: Inventory
 }
-"Inventory details about a specific Variant"
+
+"""Inventory details about a specific Variant"""
 type Inventory {
-  "Returns true if the inventory count is greater than 0"
+  """Returns true if the inventory count is greater than 0"""
   inStock: Boolean!
-  "The raw count of not purchased items in the warehouse"
+  """The raw count of not purchased items in the warehouse"""
   inventory: Int
 }
+
 type _Service {
   sdl: String!
 }
+
 type Query {
   _entities(representations: [_Any!]!): [_Entity]!
   _service: _Service!
 }
+
 union _Entity = Variant
+
 enum link__Purpose {
   SECURITY
   EXECUTION
 }
-"Exposes a URL that specifies the behavior of this scalar."
+
+"""Exposes a URL that specifies the behavior of this scalar."""
 directive @specifiedBy(
-    "The URL that specifies the behavior of this scalar."
-    url: String!
-  ) on SCALAR
+  """The URL that specifies the behavior of this scalar."""
+  url: String!,
+) on SCALAR
+
 directive @external on OBJECT | FIELD_DEFINITION
+
 directive @requires(fields: FieldSet!) on FIELD_DEFINITION
+
 directive @provides(fields: FieldSet!) on FIELD_DEFINITION
+
 directive @key(fields: FieldSet!, resolvable: Boolean = true) on OBJECT | INTERFACE
+
 directive @link(url: String!, as: String, for: link__Purpose, import: [link__Import]) on SCHEMA
+
 directive @shareable on OBJECT | FIELD_DEFINITION
+
 directive @inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
 directive @tag(name: String!) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
 directive @override(from: String!) on FIELD_DEFINITION
+
 directive @composeDirective(name: String!) on SCHEMA
+
 directive @interfaceObject on OBJECT
+
 directive @authenticated on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+
 directive @requiresScopes(scopes: [[federation__Scope!]!]!) on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+
 directive @policy(policies: [[federation__Policy!]!]!) on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
+
 directive @context(name: String!) on INTERFACE | OBJECT | UNION
+
 directive @fromContext(field: federation__ContextFieldValue) on ARGUMENT_DEFINITION

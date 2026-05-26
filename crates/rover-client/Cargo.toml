@@ -12,9 +12,9 @@ testing = ["dep:mockall", "rover-tower/test"]
 
 [dependencies]
 ariadne = { workspace = true }
+apollo-compiler = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
-apollo-encoder = { workspace = true }
 backon = { workspace = true }
 bon = { workspace = true }
 buildstructor = { workspace = true }
