@@ -171,7 +171,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 
 ## Installation Methods
 
-As of Rover 0.39.0, all the platforms listed below enforce immutable release tags. This means that you can reference a GitHub release, Docker image, or NPM release version directly by SemVer and be
+As of Rover v0.39.1, all the platforms listed below enforce immutable release tags. This means that you can reference a GitHub release, Docker image, or NPM release version directly by SemVer and be
 guaranteed that the artifact will not change. Note that the `curl | sh` method, while ultimately referencing immutable GitHub release binaries, still first downloads a shell script from a webservice
 that does not provide that same guarantee of immutability. Security conscious installers should verify the downloaded shell script matches 
 [the pinned artifact for its respective Rover version](https://github.com/apollographql-gh-actions/install-rover) or use one of the immutable installation methods described below.
@@ -186,7 +186,7 @@ curl -sSL https://rover.apollo.dev/nix/latest | sh
 
 To install a specific version of Rover (note the `v` prefixing the version number):
 
-> Note: If you're installing Rover in a CI environment, we highly recommend using an [immutable Docker image of Rover](#docker-images)). As an alternative for GitHub Actions users, we vend a [GitHub Action](https://github.com/marketplace/actions/install-apollo-rover-cli) which pins an immutable instance of the download script and installs the native binary.
+> Note: If you're installing Rover in a CI environment, Apollo highly recommends using an [immutable Docker image of Rover](#docker-images)). As an alternative for GitHub Actions users, Apollo vends a [GitHub Action](https://github.com/marketplace/actions/install-apollo-rover-cli) which pins an immutable instance of the download script and installs the native binary.
 
 ```bash
 curl -sSL https://rover.apollo.dev/nix/v0.10.0 | sh
@@ -204,7 +204,7 @@ iwr 'https://rover.apollo.dev/win/latest' | iex
 
 To install a specific version of Rover (note the `v` prefixing the version number):
 
-> Note: If you are installing Rover in a Windows CI environment, you need to put Docker into Linux mode to use the [recommended immutable Docker images](#docker-images)). As an alternative for GitHub Actions users, we vend a [GitHub Action](https://github.com/marketplace/actions/install-apollo-rover-cli) to do so which pins an immutable instance of the download script and installs the native binary.
+> Note: If you are installing Rover in a Windows CI environment, you need to put Docker into Linux mode to use the [recommended immutable Docker images](#docker-images)). As an alternative for GitHub Actions users, Apollo vends a [GitHub Action](https://github.com/marketplace/actions/install-apollo-rover-cli) to do so which pins an immutable instance of the download script and installs the native binary.
 
 
 ```bash
@@ -213,22 +213,22 @@ iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
 
 #### Docker images
 
-Starting with version 0.39.0, Rover vends immutable Linux Docker images that pre-build Rover as an entry point for consumption in CI environments
+Starting with version 0.39.1, Rover vends immutable Linux Docker images that pre-build Rover as an entry point for consumption in CI environments
 or to run Rover on platforms that Rover does not build natively for. Each release verison tag is enforced as immutable at the platform level for
 your convenience so that you can pin to the Rover version you want without needing to deal with the indirection of SHA pinning.
 
 Install directly from Dockerhub:
 
 ```bash
-docker pull apollograph/rover:0.39.0
-docker run apollograph/rover:0.39.0 <<args>>
+docker pull apollograph/rover:0.39.1
+docker run apollograph/rover:0.39.1 <<args>>
 ```
 
 or via ghcr.io:
 
 ```bash
-docker pull ghcr.io/apollographql/rover:0.39.0
-docker run ghcr.io/apollographql/rover:0.39.0 <<args>>
+docker pull ghcr.io/apollographql/rover:0.39.1
+docker run ghcr.io/apollographql/rover:0.39.1 <<args>>
 ```
 
 All CI platforms that support referencing images from those respective image repositories can do so directly as well.
@@ -238,7 +238,7 @@ All CI platforms that support referencing images from those respective image rep
 Rover vends a number of GitHub actions for convenient invocation of common Rover commands in your CI pipeline. They can be found on
 [GitHub's actions marketplace](https://github.com/marketplace?query=apollographql-gh-actions+Rover&type=actions).
 
-As of Rover 0.39.0, each Rover release corresponds to an immutable action tag of `<action>@rover-<version>`. This allows you to specify
+As of Rover v0.39.1, each Rover release corresponds to an immutable action tag of `<action>@rover-<version>`. This allows you to specify
 the exact version of Rover for your CI actions without needing to rely on SHA pinning to guarantee action immutability. These actions
 leverage Rover's Docker image under the hood to sandbox the Rover invocation and only expose it to the `APOLLO_*` environment variable
 surface.
@@ -251,8 +251,8 @@ Their source code is mastered in this repository under the `actions` directory.
 #### npm installer
 
 Rover is distributed on npm for easy integration with your JavaScript projects. Rover's Node dependency will follow LTS versions where possible unless security concerns justify an earlier upgrade.
-While this installation method is provided for convenience in projects that are already in the Node ecosystem, we do not recommend it as an installation method otherwise as it exposes your
-installation to NPM's surface area of potential supply-chain attacks. We have attempted to minimize the dependency surface of Rover's NPM installation script, but it still represents nonzero risk.
+While this installation method is provided for convenience in projects that are already in the Node ecosystem, Apollo does not recommend it as an installation method otherwise as it exposes your
+installation to NPM's surface area of potential supply-chain attacks. Apollo has attempted to minimize the dependency surface of Rover's NPM installation script, but it still represents nonzero risk.
 
 ##### devDependency install
 
@@ -262,7 +262,7 @@ Note that installing rover directly via `npx install` bypasses lockfiles (includ
 
 #### Homebrew
 
-While we recommend using one of the other installation methods above, we do have a homebrew recipe `brew install rover`. The code for this recipe is in the [homebrew-core repo](https://github.com/Homebrew/homebrew-core/blob/master/Formula/r/rover.rb).
+While Apollo recommends using one of the other installation methods above, we do have a homebrew recipe `brew install rover`. The code for this recipe is in the [homebrew-core repo](https://github.com/Homebrew/homebrew-core/blob/master/Formula/r/rover.rb).
 
 #### Manual binary download
 
