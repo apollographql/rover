@@ -4,8 +4,8 @@ use bon::bon;
 use bytes::Bytes;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use rover_http::{
-    extend_headers::ExtendHeadersLayer, retry::RetryPolicy, timeout::TimeoutLayer, Full,
-    HttpRequest, HttpResponse, HttpServiceError,
+    error_on_status::ErrorOnStatusLayer, extend_headers::ExtendHeadersLayer, retry::RetryPolicy,
+    timeout::TimeoutLayer, Full, HttpRequest, HttpResponse, HttpServiceError,
 };
 use tower::{retry::RetryLayer, util::BoxService, Service, ServiceBuilder};
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
@@ -37,6 +37,7 @@ impl FileDownloadService {
         let service = ServiceBuilder::new()
             .boxed()
             .layer(DecompressionLayer::default()) // explicit stand-in for reqwest's brotli/gzip decompression options
+            .layer(ErrorOnStatusLayer::default()) // short-circuit errors so that we don't attempt to decompress error bodies
             .layer(file_download_layer())
             .layer(RetryLayer::new(RetryPolicy::new(
                 max_elapsed_duration

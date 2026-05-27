@@ -36,8 +36,16 @@ impl Default for ErrorOnStatusCriteria {
 }
 
 /// [`Layer`] that attaches the [`ErrorOnStatus`] middleware to the [`Service`] stack
+#[derive(Clone, Default)]
 pub struct ErrorOnStatusLayer {
     criteria: ErrorOnStatusCriteria,
+}
+
+impl ErrorOnStatusLayer {
+    /// Constructs an [`ErrorOnStatusLayer`] that errors on any status matching `criteria`.
+    pub const fn new(criteria: ErrorOnStatusCriteria) -> ErrorOnStatusLayer {
+        ErrorOnStatusLayer { criteria }
+    }
 }
 
 impl<S> Layer<S> for ErrorOnStatusLayer {
