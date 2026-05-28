@@ -20,6 +20,54 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
+# [0.40.0] - 2026-05-28
+
+## 🚀 Features
+
+- **Add `rover schema search` subcommand - @dotdat PR #3315**
+
+  Wires the new `rover schema search FILE TERMS...` subcommand on top of the `ParsedSchema::search` engine added in PR #3262. Accept SDL from a file (or from stdin when `FILE` is `-`), render results as text or JSON via the standard `CliOutput` plumbing, and support `--limit/-n` and `--include-deprecated`.
+
+## 🐛 Fixes
+
+- **Preserve auth and other reqwest helpers in the retry tower layer - @SharkBaitDLS PR #3327 fixes #3326**
+
+  Rebuilds requests through `reqwest::RequestBuilder` inside the retry tower layer so the builder's helper logic (which extracts auth into headers, among other things) is preserved on retried requests. Previously the layer used `reqwest::Request::try_from`, which silently dropped those helpers. Also restricts retries to retriable HTTP status codes and skip gzip-decoding error responses so the underlying failure surfaces instead of manifesting as a hang.
+
+- **Rewrite `graph introspect` to use `apollo-compiler` - @SharkBaitDLS PR #3317 fixes #3312**
+
+  Moves `graph introspect` off the deprecated `apollo-encoder` crate and onto `apollo-compiler` to pick up upstream SDL-encoding fixes that Rover had been missing.
+
+- **Batch `supergraph.yaml` subgraph changes on hot reload - @SharkBaitDLS PR #3304**
+
+  Applies all subgraph additions and removals from a single `supergraph.yaml` edit as one batch before recomposing in `rover dev`. Previously each change was processed individually, so removing a subgraph whose fields were referenced via `@external` produced an intermediate composition failure that persisted as the final state without recovering.
+
+- **Preserve `--graph-ref` subgraphs across hot reloads - @SharkBaitDLS PR #3288**
+
+  Re-merges remote `--graph-ref` subgraphs on every `supergraph.yaml` reload when `rover dev` is run with both `--graph-ref` and a local supergraph file. Previously the watcher only re-read the YAML and dropped the graph-ref-only subgraphs that had been merged in at startup.
+
+- **Fix release tagging workflow - @SharkBaitDLS PR #3309**
+
+  Switches the release "refs exist" check to the exact-match GitHub tag API. Previously it used a fuzzy-matching API that incorrectly no-op'd when prior release-candidate tags existed. Also restores the original workflow names to preserve Marketplace URLs and SEO.
+
+## 🛠 Maintenance
+
+- **Retry artifact uploads in CI - @dotdat PR #3325**
+
+  Adds retries to `actions/upload-artifact` so transient network failures during CI uploads no longer fail builds.
+
+- **Drop unused variant-name querying - @sirdodger PR #3320**
+
+  Removes the unused `variants` field from the graph query to improve performance for graphs with many variants.
+
+- **Run `cargo +nightly fmt --all` at the end of `mise run prep` - @dotdat PR #3311**
+
+## 📚 Documentation
+
+- **Add Docker image information to CI docs - @SharkBaitDLS PR #3318**
+
+  Documents the published Docker images in the CI/CD docs and aligns action names with the links already used on the docs site.
+
 # [0.39.0] - 2026-05-14
 
 ## 🚀 Features
