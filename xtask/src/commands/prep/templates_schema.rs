@@ -3,11 +3,9 @@ use std::{collections::HashMap, process::Command, time::Duration};
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use reqwest::Client;
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::graph::introspect::{self, GraphIntrospectInput},
-};
+use rover_client::operations::graph::introspect::{self, GraphIntrospectInput};
 use rover_std::Fs;
+use url::Url;
 
 const SCHEMA_PATH: &str = "./src/command/template/schema.graphql";
 const QUERIES_PATH: &str = "./src/command/template/queries.graphql";
@@ -32,14 +30,16 @@ async fn introspect() -> Result<String> {
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
     );
-    let graphql_client =
-        GraphQLClient::new(graphql_endpoint, Client::new(), Duration::from_secs(10));
+    let endpoint = Url::parse(graphql_endpoint)?;
     introspect::run(
         GraphIntrospectInput {
             headers: HashMap::new(),
+            endpoint,
+            should_retry: false,
+            retry_period: Duration::from_secs(10),
+            use_legacy_introspection_query: false,
         },
-        &graphql_client,
-        false,
+        &Client::new(),
     )
     .await
     .map(|response| response.schema_sdl)
