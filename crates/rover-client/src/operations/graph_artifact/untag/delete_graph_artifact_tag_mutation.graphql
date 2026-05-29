@@ -1,0 +1,20 @@
+mutation DeleteGraphArtifactTagMutation($graphID: String!, $tag: String!) {
+    deleteGraphArtifactTag(graphID: $graphID, tag: $tag) {
+        __typename
+        ...on DeleteGraphArtifactTagPayload {
+            tag
+        }
+        ...on BadInputError {
+            message
+        }
+        ...on OperationInProgressError {
+            message
+        }
+        ...on GraphArtifactNotFoundError {
+            message
+        }
+        ...on GraphNotFoundError {
+            message
+        }
+    }
+}

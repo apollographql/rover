@@ -13,7 +13,9 @@ use rover_client::{
         api_key::list::ApiKey,
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
-        graph_artifact::tag::AssignGraphArtifactTagResponse,
+        graph_artifact::{
+            tag::AssignGraphArtifactTagResponse, untag::DeleteGraphArtifactTagResponse,
+        },
         init::memberships::InitMembershipsResponse,
         persisted_queries::publish::PersistedQueriesPublishResponse,
         subgraph::{
@@ -95,6 +97,7 @@ pub enum RoverOutput {
     AsyncCheckResponse(CheckRequestSuccessResult),
     LintResponse(LintResponse),
     AssignGraphArtifactTagResponse(AssignGraphArtifactTagResponse),
+    DeleteGraphArtifactTagResponse(DeleteGraphArtifactTagResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -612,6 +615,15 @@ impl RoverOutput {
 
                 None
             }
+            RoverOutput::DeleteGraphArtifactTagResponse(response) => {
+                stderrln!(
+                    "Successfully removed tag {} from graph {}",
+                    response.tag,
+                    response.graph_id
+                )?;
+
+                None
+            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
@@ -777,6 +789,9 @@ impl RoverOutput {
             }
             RoverOutput::AssignGraphArtifactTagResponse(response) => {
                 json!({ "graph_artifact_id": response.graph_artifact_id })
+            }
+            RoverOutput::DeleteGraphArtifactTagResponse(response) => {
+                json!({ "tag": response.tag })
             }
             RoverOutput::CliOutput(cli_output) => {
                 cli_output.json().unwrap_or(serde_json::Value::Null)
