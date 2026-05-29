@@ -49,3 +49,65 @@ rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
 
 - The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the tag you want to remove.
 - The `<TAG>` argument is the name of the tag to remove from the graph.
+
+## Fetching a graph artifact
+
+You can use Rover to fetch metadata about a graph artifact from Apollo's OCI distribution. This lets you look up an artifact's content-addressed digest, the launch that produced it, and (when fetching by tag) its assignment history.
+
+### `graph-artifact fetch`
+
+Identify the artifact using one of three mutually exclusive options:
+
+**By tag name:**
+
+```bash
+rover graph-artifact fetch --graph-id <GRAPH_ID> --tag-name <TAG_NAME>
+```
+
+**By artifact ID:**
+
+```bash
+rover graph-artifact fetch --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_ARTIFACT_ID>
+```
+
+**By content-addressed digest:**
+
+```bash
+rover graph-artifact fetch --graph-id <GRAPH_ID> --digest <DIGEST>
+```
+
+- The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the artifact.
+- You must provide exactly one of `--tag-name`, `--graph-artifact-id`, or `--digest`.
+
+#### Options
+
+| Option | Description |
+|---|---|
+| `--graph-id <GRAPH_ID>` | **(Required)** The ID of the graph that owns the artifact. |
+| `-t, --tag-name <TAG_NAME>` | Fetch by tag name. Mutually exclusive with `--graph-artifact-id` and `--digest`. |
+| `-g, --graph-artifact-id <ID>` | Fetch by artifact ID. Mutually exclusive with `--tag-name` and `--digest`. |
+| `-d, --digest <DIGEST>` | Fetch by content-addressed digest. Mutually exclusive with `--tag-name` and `--graph-artifact-id`. |
+| `--history-limit <N>` | When fetching by tag, the number of tag history entries to include (default: `5`, max: `20`). |
+| `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
+| `--profile <PROFILE_NAME>` | The configuration profile to use (default: `default`). |
+
+#### Output
+
+The command prints the following fields for the resolved artifact:
+
+- **Graph ID** – the ID of the graph
+- **Artifact ID** – the unique identifier for the artifact
+- **Digest** – the content-addressed hash of the artifact
+- **Launch ID** – the ID of the launch that produced the artifact
+- **Tag** – the tag name (only shown when fetching by tag)
+- **Created at** / **Updated at** – timestamps for when the artifact was created and last updated
+
+When fetching by tag, the output also includes a history table showing recent tag reassignments. Each row lists the digest that was assigned and when the reassignment occurred. Use `--history-limit` to control how many entries are shown.
+
+#### Errors
+
+If the artifact cannot be resolved, the command exits with an error describing the cause:
+
+- **Artifact not found** – no artifact matches the given tag name, artifact ID, or digest.
+- **Artifact is still being built** – the artifact's build is pending. Wait for the launch to complete and retry.
+- **Artifact failed to build** – the artifact's build failed. Check the associated launch for details.

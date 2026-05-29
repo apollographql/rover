@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
+mod fetch;
 mod tag;
 mod untag;
 
@@ -14,6 +15,8 @@ pub struct GraphArtifact {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
+    /// Fetch a graph artifact
+    Fetch(fetch::Fetch),
     /// Tag a graph artifact
     Tag(tag::Tag),
     /// Remove a tag from a graph
@@ -23,6 +26,7 @@ pub enum Command {
 impl GraphArtifact {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
+            Command::Fetch(command) => command.run(client_config).await,
             Command::Tag(command) => command.run(client_config).await,
             Command::Untag(command) => command.run(client_config).await,
         }

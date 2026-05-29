@@ -14,7 +14,8 @@ use rover_client::{
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
         graph_artifact::{
-            tag::AssignGraphArtifactTagResponse, untag::DeleteGraphArtifactTagResponse,
+            fetch::FetchGraphArtifactResponse, tag::AssignGraphArtifactTagResponse,
+            untag::DeleteGraphArtifactTagResponse,
         },
         init::memberships::InitMembershipsResponse,
         persisted_queries::publish::PersistedQueriesPublishResponse,
@@ -98,6 +99,7 @@ pub enum RoverOutput {
     LintResponse(LintResponse),
     AssignGraphArtifactTagResponse(AssignGraphArtifactTagResponse),
     DeleteGraphArtifactTagResponse(DeleteGraphArtifactTagResponse),
+    FetchGraphArtifactResponse(FetchGraphArtifactResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -624,6 +626,38 @@ impl RoverOutput {
 
                 None
             }
+            RoverOutput::FetchGraphArtifactResponse(response) => {
+                let mut output = format!(
+                    "Digest: {}\nLaunch: {}\nLatest Graph Artifact ID: {}\nCreated At: {}\nUpdated At: {}",
+                    response.digest,
+                    response.launch_id,
+                    response.graph_artifact_id,
+                    response.created_at,
+                    response.updated_at,
+                );
+
+                if let Some(history) = &response.history
+                    && !history.is_empty()
+                {
+                    let mut table = table::get_table();
+                    table.add_row(vec![
+                        &Style::Success.paint("Digest"),
+                        &Style::Success.paint("Changed At"),
+                    ]);
+                    for entry in history {
+                        table.add_row(vec![
+                            entry.digest.clone().unwrap_or_else(|| "N/A".to_string()),
+                            entry.changed_at.clone(),
+                        ]);
+                    }
+                    let tag = response.tag.as_deref().unwrap_or_default();
+                    write!(output, "\n\nHistory for tag '{tag}':\n{table}")
+                        .expect("writing to a String cannot fail");
+                    // https://github.com/rust-lang/rust/blob/18bf6b4f01a6feaf7259ba7cdae58031af1b7b39/library/alloc/src/string.rs#L2414-L2427
+                }
+
+                Some(output)
+            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
@@ -793,6 +827,7 @@ impl RoverOutput {
             RoverOutput::DeleteGraphArtifactTagResponse(response) => {
                 json!({ "tag": response.tag })
             }
+            RoverOutput::FetchGraphArtifactResponse(response) => json!(response),
             RoverOutput::CliOutput(cli_output) => {
                 cli_output.json().unwrap_or(serde_json::Value::Null)
             }

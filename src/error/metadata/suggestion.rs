@@ -96,6 +96,10 @@ pub enum RoverErrorSuggestion {
     ContactApolloAccountManager,
     TryAgainLater,
     ContactApolloSupport,
+    RetryLaunch {
+        graph_id: String,
+        launch_id: String,
+    },
     CheckOrganizationId,
 }
 
@@ -274,6 +278,11 @@ impl Display for RoverErrorSuggestion {
             TryAgainLater => {"Please try again later.".to_string()},
             ContactApolloSupport => format!(
                 "Please try again later. If the error persists, please contact the Apollo team at {}.",
+                Style::Link.paint("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
+            ),
+            RetryLaunch { graph_id, launch_id } => format!(
+                "Re-run the launch to rebuild the graph artifact. View the launch in Studio at {}. If the problem persists, please contact the Apollo team at {}.",
+                Style::Link.paint(format!("https://studio.apollographql.com/graph/{graph_id}/launches/{launch_id}")),
                 Style::Link.paint("https://support.apollographql.com/?createRequest=true&portalId=1023&requestTypeId=1230")
             ),
             InvalidSupergraphYamlSubgraphSchemaPath {
