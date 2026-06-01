@@ -80,6 +80,8 @@ pub(crate) async fn get_supergraph_binary(
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
             federation_version,
+            // `supergraph compose` warns when the federation version isn't pinned.
+            true,
         )
         .await
         .install_supergraph_binary(

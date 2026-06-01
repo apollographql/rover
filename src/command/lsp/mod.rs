@@ -397,6 +397,8 @@ async fn create_composition_runner(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
+            // LSP runs continuously; no floating-version warning.
+            false,
         )
         .await
         .install_supergraph_binary(

@@ -148,6 +148,8 @@ impl Dev {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
+                // `rover dev` is local/ephemeral and hot-reloads; don't nag about pinning.
+                false,
             )
             .await
             .install_supergraph_binary(
