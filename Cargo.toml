@@ -34,6 +34,7 @@ members = [
     "crates/rover-tower",
     "crates/rover-http",
     "crates/rover-graphql",
+    "crates/rover-open",
     "crates/rover-studio",
     "crates/sputnik",
     "crates/timber",
@@ -70,6 +71,7 @@ robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
+rover-open = { path = "./crates/rover-open" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
 rover-schema = { path = "./crates/rover-schema" }
@@ -191,6 +193,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
+webbrowser = "1"
 zip = "8"
 
 ### rover specific dependencies
