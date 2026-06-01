@@ -199,7 +199,6 @@ async fn load_spec_for_path(
         plugin_opts,
         Some(FileDescriptorType::File(supergraph_yaml_path)),
         None,
-        // LSP runs continuously; no floating-version warning.
         false,
     )
     .await
@@ -399,7 +398,6 @@ async fn create_composition_runner(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
-            // don't nag about pinning the federation version when iterating with the LSP
             false,
         )
         .await

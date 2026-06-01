@@ -148,7 +148,6 @@ impl Dev {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
-                // don't nag about pinning the federation version for dev
                 false,
             )
             .await
