@@ -1,5 +1,6 @@
 mod async_check_response;
 mod check_response;
+pub(crate) mod check_workflow_poll;
 mod fetch_response;
 mod git_context;
 mod lint_response;
