@@ -10,7 +10,7 @@ use apollo_federation_types::config::{
 };
 use camino::Utf8PathBuf;
 use rover_http::HttpService;
-use rover_std::warnln;
+use rover_std::{Style, warnln};
 use rover_studio::types::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
@@ -191,15 +191,19 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         // floating version (`federation_version: 1`/`2`, or omitted) can pull in
         // breaking changes when a new federation release ships. This warning was
         // originally added in #1524 and regressed in v0.27.2 (#2411); restoring it.
+        // The "will fail in future versions" framing matches the public docs.
         if warn_on_floating_version && federation_version.get_exact().is_none() {
             warnln!(
-                "An exact federation version was not specified in your supergraph configuration, so \
-                 composition will track the latest available federation release. Pinning an exact version \
-                 (e.g. `federation_version: =2.x.y`) is strongly recommended: composing against a floating \
-                 version can introduce breaking changes when a new federation release ships, and you must \
-                 update your router before increasing your composition version. See \
-                 https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version \
-                 for details."
+                "An exact {} was not specified in your supergraph configuration. Future versions of {} \
+                 will fail without an exact federation version. Pin one (e.g. {}) to prevent breaking \
+                 changes, and make sure to update your router before increasing your composition version. \
+                 See {} for more information.",
+                Style::Command.paint("federation_version"),
+                Style::Command.paint("rover supergraph compose"),
+                Style::Command.paint("federation_version: =2.x.y"),
+                Style::Link.paint(
+                    "https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"
+                ),
             );
         }
 

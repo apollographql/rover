@@ -24,7 +24,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Restore the "pin your federation version" warning on `supergraph compose` - @SharkBaitDLS PR #3347**
 
-  `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.
+  `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version, reinstating the documented notice that future versions will require one. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again warns and recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.
 
 # [0.40.0] - 2026-05-28
 
