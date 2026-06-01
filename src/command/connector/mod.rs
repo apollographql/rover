@@ -99,6 +99,8 @@ impl Connector {
             self.plugin_opts.clone(),
             supergraph_yaml.clone(),
             self.graph_ref.clone(),
+            // `connector` only introspects connectors; no pin nag.
+            false,
         )
         .await?;
         let default_subgraph = default_subgraph(&supergraph_yaml, &composition_pipeline).await;

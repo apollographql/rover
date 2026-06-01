@@ -199,6 +199,8 @@ async fn load_spec_for_path(
         plugin_opts,
         Some(FileDescriptorType::File(supergraph_yaml_path)),
         None,
+        // LSP runs continuously; no floating-version warning.
+        false,
     )
     .await
     .ok()?
