@@ -10,7 +10,7 @@ use apollo_federation_types::config::{
 };
 use camino::Utf8PathBuf;
 use rover_http::HttpService;
-use rover_std::warnln;
+use rover_std::{Style, warnln};
 use rover_studio::types::GraphRef;
 use tempfile::tempdir;
 use tower::MakeService;
@@ -156,6 +156,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         passed_in_fed_version: Option<FederationVersion>,
+        warn_on_floating_version: bool,
     ) -> CompositionPipeline<state::InstallSupergraph> {
         let resolved_federation_version = match self
             .state
@@ -185,6 +186,23 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         } else {
             resolved_federation_version
         };
+
+        // Nudge users to pin an exact federation version. Composing against a
+        // floating version can pull in breaking changes when a new federation release ships.
+        if warn_on_floating_version && federation_version.get_exact().is_none() {
+            warnln!(
+                "An exact {} was not specified in your supergraph configuration. Future versions of {} \
+                 will fail without an exact federation version. Pin one (e.g. {}) to prevent breaking \
+                 changes, and make sure to update your router before increasing your composition version. \
+                 See {} for more information.",
+                Style::Command.paint("federation_version"),
+                Style::Command.paint("rover supergraph compose"),
+                Style::Command.paint("federation_version: =2.x.y"),
+                Style::Link.paint(
+                    "https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"
+                ),
+            );
+        }
 
         debug!("Using Federation Version '{federation_version}'");
 

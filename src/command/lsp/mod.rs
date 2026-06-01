@@ -199,6 +199,7 @@ async fn load_spec_for_path(
         plugin_opts,
         Some(FileDescriptorType::File(supergraph_yaml_path)),
         None,
+        false,
     )
     .await
     .ok()?
@@ -397,6 +398,7 @@ async fn create_composition_runner(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
             federation_version,
+            false,
         )
         .await
         .install_supergraph_binary(

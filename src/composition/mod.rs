@@ -51,6 +51,9 @@ pub(crate) async fn get_supergraph_binary(
     plugin_opts: PluginOpts,
     supergraph_yaml: Option<FileDescriptorType>,
     graph_ref: Option<GraphRef>,
+    // Only `supergraph compose` nudges users to pin the federation version;
+    // `connector` and the LSP share this helper but shouldn't warn.
+    warn_on_floating_version: bool,
 ) -> Result<CompositionPipeline<Run>, RoverError> {
     let profile = plugin_opts.profile;
 
@@ -80,6 +83,7 @@ pub(crate) async fn get_supergraph_binary(
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
             federation_version,
+            warn_on_floating_version,
         )
         .await
         .install_supergraph_binary(

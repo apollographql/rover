@@ -78,6 +78,7 @@ impl Compose {
             self.opts.plugin_opts.clone(),
             self.opts.supergraph_config_source.supergraph_yaml().clone(),
             self.opts.supergraph_config_source.graph_ref().clone(),
+            true,
         )
         .await?;
         let composition_success = composition_pipeline
