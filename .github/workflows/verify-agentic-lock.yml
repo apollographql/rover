@@ -1,0 +1,54 @@
+name: Verify Agentic Workflow Lock
+
+# Fails any PR whose generated *.lock.yml is out  of sync with its .md source / the pinned gh-aw version
+# so a stale lock cannot be auto-merged before the recompile job pushes its fix.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**.lock.yml"
+      - ".github/workflows/**.md"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve gh-aw version from the action pin
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The version tag only lives in the Renovate-maintained comment on the
+          # gh-aw setup action; the uses: value is a SHA and --pin needs a tag.
+          mapfile -t versions < <(
+            grep -rhE 'uses:[[:space:]]*github/gh-aw/actions/setup@[0-9a-f]+[[:space:]]*#[[:space:]]*v[0-9]+\.[0-9]+\.[0-9]+' \
+              .github/workflows/*.lock.yml \
+              | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -u
+          )
+          case "${#versions[@]}" in
+            0) echo "No github/gh-aw setup pin found; nothing to verify."; echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "version=${versions[0]}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Lock files pin conflicting gh-aw versions: ${versions[*]}"; exit 1 ;;
+          esac
+
+      - name: Install gh-aw CLI matching the action pin
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install github/gh-aw --pin "${{ steps.ver.outputs.version }}"
+
+      - name: Recompile and check for drift
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh aw compile
+          if ! git diff --exit-code -- .github/workflows; then
+            echo "::error::Agentic workflow lock is out of date for gh-aw ${{ steps.ver.outputs.version }}. Run 'gh aw compile' locally and commit the result."
+            exit 1
+          fi

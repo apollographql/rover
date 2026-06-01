@@ -1,0 +1,75 @@
+name: Recompile Agentic Workflows
+
+# Generated *.lock.yml files must be recompiled with a gh-aw CLI that matches the
+# pinned github/gh-aw action, or the runtime drifts and the workflow fails at
+# activation.
+#
+# Renovate bumps the action pin but cannot run a postUpgradeTask,
+# so it can't recompile. This job runs on the Renovate branch, recompiles with a
+# version-matched CLI, and commits the result back into the same PR.
+
+on:
+  push:
+    branches:
+      - "renovate/**"
+    paths:
+      - ".github/workflows/**.lock.yml"
+      - ".github/workflows/**.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recompile-agentic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  recompile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Resolve gh-aw version from the action pin
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The version tag only lives in the Renovate-maintained comment on the
+          # gh-aw setup action; the uses: value is a SHA and --pin needs a tag.
+          mapfile -t versions < <(
+            grep -rhE 'uses:[[:space:]]*github/gh-aw/actions/setup@[0-9a-f]+[[:space:]]*#[[:space:]]*v[0-9]+\.[0-9]+\.[0-9]+' \
+              .github/workflows/*.lock.yml \
+              | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -u
+          )
+          case "${#versions[@]}" in
+            0) echo "No github/gh-aw setup pin found; nothing to recompile."; echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "Resolved gh-aw version: ${versions[0]}"; echo "version=${versions[0]}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Lock files pin conflicting gh-aw versions: ${versions[*]}"; exit 1 ;;
+          esac
+
+      - name: Install gh-aw CLI matching the action pin
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install github/gh-aw --pin "${{ steps.ver.outputs.version }}"
+
+      - name: Recompile lock files
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh aw compile
+
+      - name: Commit & push if the lock changed
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          if [ -z "$(git status --porcelain -- .github/workflows)" ]; then
+            echo "Lock files already match gh-aw ${{ steps.ver.outputs.version }} — nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows
+          git commit -m "chore: recompile agentic workflow locks for gh-aw ${{ steps.ver.outputs.version }}"
+          git push origin "HEAD:${{ github.ref_name }}"
