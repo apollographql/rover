@@ -2,10 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use clap::Parser;
 use reqwest::Client;
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::graph::introspect::{self, GraphIntrospectInput},
-};
+use rover_client::operations::graph::introspect::{self, GraphIntrospectInput};
 use serde::Serialize;
 
 use crate::{
@@ -17,6 +14,18 @@ use crate::{
 pub struct Introspect {
     #[clap(flatten)]
     pub opts: IntrospectOpts,
+
+    /// Skip auto-detection and use the pre-October-2021 introspection query
+    /// directly, omitting `includeDeprecated` on `args`/`inputFields` and
+    /// `isDeprecated`/`deprecationReason` on `__InputValue`. By default
+    /// Rover runs the modern query first and automatically retries with the
+    /// legacy query when the server rejects it (HTTP 422, or GraphQL body
+    /// errors mentioning the unknown fields). Use this flag when you already
+    /// know the target server is pre-spec and want to avoid the extra
+    /// round-trip.
+    #[arg(long)]
+    #[serde(skip_serializing)]
+    pub legacy_introspection_query: bool,
 }
 
 impl Introspect {
@@ -41,8 +50,6 @@ impl Introspect {
         should_retry: bool,
         retry_period: Duration,
     ) -> RoverResult<String> {
-        let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone(), retry_period);
-
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();
         if let Some(arg_headers) = &self.opts.headers {
@@ -51,11 +58,18 @@ impl Introspect {
             }
         };
 
-        Ok(
-            introspect::run(GraphIntrospectInput { headers }, &client, should_retry)
-                .await?
-                .schema_sdl,
+        Ok(introspect::run(
+            GraphIntrospectInput {
+                headers,
+                endpoint: self.opts.endpoint.clone(),
+                should_retry,
+                retry_period,
+                use_legacy_introspection_query: self.legacy_introspection_query,
+            },
+            client,
         )
+        .await?
+        .schema_sdl)
     }
 
     pub async fn exec_and_watch(

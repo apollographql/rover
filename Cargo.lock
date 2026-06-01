@@ -4737,6 +4737,7 @@ dependencies = [
  "backon",
  "bon",
  "buildstructor",
+ "bytes",
  "camino",
  "chrono",
  "comfy-table",
@@ -7380,6 +7381,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-stream",
+ "url",
  "which 8.0.2",
  "zip",
 ]

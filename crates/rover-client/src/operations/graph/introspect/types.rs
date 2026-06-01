@@ -1,19 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use crate::operations::graph::introspect::runner::graph_introspect_query;
-
-pub(crate) type QueryResponseData = graph_introspect_query::ResponseData;
-pub(crate) type QueryVariables = graph_introspect_query::Variables;
+#[cfg(test)]
+pub(crate) type QueryResponseData =
+    crate::operations::graph::introspect::service::graph_introspect_query::ResponseData;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphIntrospectInput {
     pub headers: HashMap<String, String>,
-}
-
-impl From<GraphIntrospectInput> for QueryVariables {
-    fn from(_input: GraphIntrospectInput) -> Self {
-        Self {}
-    }
+    pub endpoint: url::Url,
+    pub should_retry: bool,
+    pub retry_period: Duration,
+    /// Use a pre-October-2021 introspection query that omits
+    /// `includeDeprecated` on `args`/`inputFields` and
+    /// `isDeprecated`/`deprecationReason` on `__InputValue`, for
+    /// servers that don't implement those introspection additions.
+    pub use_legacy_introspection_query: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
