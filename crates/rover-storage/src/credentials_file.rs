@@ -6,18 +6,17 @@ use serde_json::Value;
 
 use crate::{Store, StoreError};
 
-const CREDENTIALS_FILE: &str = "credentials.json";
+const DEFAULT_CREDENTIALS_FILE: &str = "credentials.json";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, bon::Builder)]
 pub struct CredentialsFileStore {
+    #[builder(start_fn)]
     dir: PathBuf,
+    #[builder(default = DEFAULT_CREDENTIALS_FILE.to_string())]
+    credentials_file: String,
 }
 
 impl CredentialsFileStore {
-    pub const fn new(dir: PathBuf) -> CredentialsFileStore {
-        CredentialsFileStore { dir }
-    }
-
     fn checked_dir(&self) -> Result<fs_mistrust::CheckedDir, StoreError> {
         Mistrust::new()
             .verifier()
@@ -27,7 +26,7 @@ impl CredentialsFileStore {
 
     fn read_data(&self) -> Result<BTreeMap<String, Value>, StoreError> {
         let dir = self.checked_dir()?;
-        match dir.read(CREDENTIALS_FILE) {
+        match dir.read(&self.credentials_file) {
             Ok(data) => serde_json::from_slice(&data).map_err(StoreError::Deserialize),
             Err(fs_mistrust::Error::NotFound(_)) => Ok(BTreeMap::new()),
             Err(e) => Err(StoreError::Store(Box::new(e))),
@@ -37,7 +36,7 @@ impl CredentialsFileStore {
     fn write_data(&self, map: &BTreeMap<String, Value>) -> Result<(), StoreError> {
         let data = serde_json::to_vec_pretty(map).map_err(StoreError::Serialize)?;
         let dir = self.checked_dir()?;
-        dir.write_and_replace(CREDENTIALS_FILE, &data)
+        dir.write_and_replace(&self.credentials_file, &data)
             .map_err(|e| StoreError::Store(Box::new(e)))
     }
 }
@@ -128,7 +127,7 @@ mod tests {
         }
         let dir = temp.path().to_path_buf();
         TestStore {
-            store: CredentialsFileStore::new(dir.clone()),
+            store: CredentialsFileStore::builder(dir.clone()).build(),
             dir,
             _temp: temp,
         }

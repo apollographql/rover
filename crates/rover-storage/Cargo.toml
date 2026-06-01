@@ -9,6 +9,7 @@ publish = false
 testing = ["mockall"]
 
 [dependencies]
+bon = { workspace = true }
 fs-mistrust = { workspace = true }
 keyring = { workspace = true, features = ["apple-native", "windows-native", "linux-native"] }
 mockall = { workspace = true, optional = true }
