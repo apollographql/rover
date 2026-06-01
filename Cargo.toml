@@ -124,6 +124,7 @@ dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 directories-next = "2"
 dotenvy = "0.15"
 dunce = "1"
+encoding_rs = "0.8"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.6"
