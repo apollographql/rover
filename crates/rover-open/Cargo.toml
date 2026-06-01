@@ -1,0 +1,20 @@
+[package]
+name = "rover-open"
+version = "0.0.0"
+edition = "2024"
+
+publish = false
+
+[features]
+testing = ["mockall"]
+
+[dependencies]
+mockall = { workspace = true, optional = true }
+url = { workspace = true }
+webbrowser = { workspace = true, features = ["hardened"] }
+
+[dev-dependencies]
+mockall = { workspace = true }
+
+[lints]
+workspace = true
