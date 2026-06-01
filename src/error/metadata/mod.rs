@@ -329,6 +329,15 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::InvalidTimestamp(_) => (None, None),
                 RoverClientError::ApiKeyNotFound { .. } => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
+                RoverClientError::GraphArtifactOperationInProgress { .. } => {
+                    (Some(RoverErrorSuggestion::TryAgainLater), None)
+                }
+                RoverClientError::GraphArtifactNotFound { .. }
+                | RoverClientError::GraphArtifactDigestInvalid { .. }
+                | RoverClientError::GraphArtifactTagInvalid { .. }
+                | RoverClientError::GraphArtifactTagVariantAssign { .. }
+                | RoverClientError::GraphArtifactTaggingLimit { .. }
+                | RoverClientError::GraphArtifactTotalTagsLimit { .. } => (None, None),
                 RoverClientError::MaxRetriesExceeded { .. } => (
                     Some(RoverErrorSuggestion::ContactApolloSupport),
                     Some(RoverErrorCode::E045),

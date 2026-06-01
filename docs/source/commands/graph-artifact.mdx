@@ -1,0 +1,36 @@
+---
+title: The Rover graph-artifact Command
+subtitle: Manage graph artifacts in Apollo's OCI distribution
+minVersion: Rover v0.41.0
+description: Manage graph artifacts to be retrieved by Apollo Router.
+---
+
+import AuthNotice from '../../shared/auth-notice.mdx';
+
+<AuthNotice />
+
+Apollo OCI distribution stores the graph artifacts (such as composed supergraph schemas) that [GraphOS Router](/router/) fetches at runtime. Each artifact is identified by a content-addressed digest, and you can assign human-readable tags to those artifacts so consumers can refer to them by name instead of by digest.
+
+The `rover graph-artifact` set of commands lets you manage graph artifacts from the command line.
+
+## Tagging a graph artifact
+
+You can use Rover to assign a tag to a graph artifact in your graph. Tagging an artifact enables GraphOS Router to fetch it by tag name rather than by digest, which makes it easier to promote a specific artifact across environments.
+
+### `graph-artifact tag`
+
+Run the `graph-artifact tag` command, like so:
+
+```bash
+rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --digest <DIGEST>
+```
+
+Alternatively, you can identify the artifact by its ID instead of its digest:
+
+```bash
+rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_ARTIFACT_ID>
+```
+
+- The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the artifact you want to tag.
+- The `<TAG>` argument is the name of the tag to assign to the artifact.
+- You must provide exactly one of `--digest` or `--graph-artifact-id` to identify the artifact you want to tag.

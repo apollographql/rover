@@ -111,6 +111,34 @@ pub enum RoverClientError {
     #[error("Could not find graph with ID '{graph_id}'")]
     GraphIdNotFound { graph_id: String },
 
+    /// The requested graph artifact could not be found.
+    #[error("Could not find the graph artifact: {msg}")]
+    GraphArtifactNotFound { msg: String },
+
+    /// The provided graph artifact digest was invalid.
+    #[error("The graph artifact digest is invalid: {msg}")]
+    GraphArtifactDigestInvalid { msg: String },
+
+    /// The provided tag was invalid for the graph artifact.
+    #[error("The graph artifact tag is invalid: {msg}")]
+    GraphArtifactTagInvalid { msg: String },
+
+    /// The tag could not be assigned to the graph artifact's variant.
+    #[error("Could not assign the tag to the graph artifact variant: {msg}")]
+    GraphArtifactTagVariantAssign { msg: String },
+
+    /// The per-artifact tagging limit was exceeded.
+    #[error("The graph artifact tagging limit was exceeded: {msg}")]
+    GraphArtifactTaggingLimit { msg: String },
+
+    /// The total tags limit for graph artifacts was exceeded.
+    #[error("The total graph artifact tags limit was exceeded: {msg}")]
+    GraphArtifactTotalTagsLimit { msg: String },
+
+    /// An operation is already in progress on the graph artifact.
+    #[error("An operation is already in progress: {msg}")]
+    GraphArtifactOperationInProgress { msg: String },
+
     /// if someone attempts to get a core schema from a supergraph that has
     /// no successful build in the API, we return this error.
     #[error("No supergraph SDL exists for '{graph_ref}' because its subgraphs failed to build.")]
