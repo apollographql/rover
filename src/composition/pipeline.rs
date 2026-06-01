@@ -188,10 +188,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         };
 
         // Nudge users to pin an exact federation version. Composing against a
-        // floating version (`federation_version: 1`/`2`, or omitted) can pull in
-        // breaking changes when a new federation release ships. This warning was
-        // originally added in #1524 and regressed in v0.27.2 (#2411); restoring it.
-        // The "will fail in future versions" framing matches the public docs.
+        // floating version can pull in breaking changes when a new federation release ships.
         if warn_on_floating_version && federation_version.get_exact().is_none() {
             warnln!(
                 "An exact {} was not specified in your supergraph configuration. Future versions of {} \
