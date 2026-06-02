@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use binstall::{Installer, download::FileDownloadService};
 use camino::Utf8PathBuf;
-use rover_std::{Fs, sanitize_url};
+use rover_std::{Fs, sanitize_url, warnln};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -325,12 +325,38 @@ impl PluginInstaller {
         skip_update: bool,
     ) -> RoverResult<Utf8PathBuf> {
         if skip_update {
-            self.find_existing_latest_major(plugin, major_version)?
-                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()))
-        } else {
-            self.install_latest_major(plugin).await?.ok_or_else(|| {
-                could_not_install_plugin(&plugin.get_name(), &major_version.to_string())
-            })
+            return self
+                .find_existing_latest_major(plugin, major_version)?
+                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()));
+        }
+        match self.install_latest_major(plugin).await {
+            Ok(Some(exe)) => Ok(exe),
+            Ok(None) => Err(could_not_install_plugin(
+                &plugin.get_name(),
+                &major_version.to_string(),
+            )),
+            Err(install_err) => match self.find_existing_latest_major(plugin, major_version) {
+                Ok(Some(exe)) => {
+                    tracing::debug!(
+                        "could not download the '{}' plugin ({install_err}); falling back to {exe}",
+                        plugin.get_name(),
+                    );
+                    warnln!(
+                        "Couldn't download the latest '{}' plugin, so falling back to the already-installed '{}'. Re-run with a connection to the plugin registry to update.",
+                        plugin.get_name(),
+                        exe.file_name().unwrap_or_else(|| exe.as_str()),
+                    );
+                    Ok(exe)
+                }
+                // Nothing usable on disk — surface the original download failure.
+                _ => {
+                    tracing::debug!(
+                        "could not download the '{}' plugin ({install_err})",
+                        plugin.get_name(),
+                    );
+                    Err(install_err)
+                }
+            },
         }
     }
 
@@ -443,11 +469,11 @@ fn find_installed_plugins(
             && let Ok(file_type) = installed_plugin.file_type()
             && file_type.is_file()
         {
-            let splits: Vec<String> = installed_plugin
-                .file_name()
-                .split("-v")
-                .map(|x| x.to_string())
-                .collect();
+            let file_name = installed_plugin.file_name();
+            let file_name = file_name
+                .strip_suffix(std::env::consts::EXE_SUFFIX)
+                .unwrap_or(file_name);
+            let splits: Vec<String> = file_name.split("-v").map(|x| x.to_string()).collect();
             if splits.len() == 2 && splits[0] == plugin_name {
                 let maybe_semver = splits[1].clone();
                 if let Ok(semver) = semver::Version::parse(&maybe_semver)
@@ -464,7 +490,14 @@ fn find_installed_plugins(
     installed_versions.sort();
     let installed_plugins = installed_versions
         .iter()
-        .map(|v| format!("{}-v{}{}", plugin_name, v, std::env::consts::EXE_SUFFIX).into())
+        .map(|v| {
+            plugin_dir.join(format!(
+                "{}-v{}{}",
+                plugin_name,
+                v,
+                std::env::consts::EXE_SUFFIX
+            ))
+        })
         .collect();
     Ok(installed_plugins)
 }

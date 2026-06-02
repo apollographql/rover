@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**
+
+  When Rover needs the latest `supergraph` or `router` plugin but can't reach the plugin registry (an outage, a network blip, or simply being offline), it now falls back to the newest compatible plugin already installed in `~/.rover/bin` with a warning instead of failing outright. Exact version pins still return an error.
+
 - **Read UTF-16 (and BOM-prefixed) schema files - @SharkBaitDLS PR #3351 fixes #653**
 
   `Fs::read_file` now detects a leading byte-order mark and transcodes the file to UTF-8, so schemas saved as UTF-16 — most commonly produced by Windows PowerShell `>` redirects, e.g. `rover graph introspect ... > schema.gql` — are read instead of failing with "stream did not contain valid UTF-8". A UTF-8 BOM is stripped; files with no recognized BOM are still read as UTF-8 (preserving prior behavior), and malformed input surfaces an error rather than being silently replaced. Decoding is handled by `encoding_rs`.
