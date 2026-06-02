@@ -103,6 +103,8 @@ mod tests {
     /// `dir`, so the test bodies need no changes.
     struct TestStore {
         store: CredentialsFileStore,
+        // Only read by the `#[cfg(unix)]` permission tests below.
+        #[cfg_attr(not(unix), allow(dead_code))]
         dir: PathBuf,
         _temp: TempDir,
     }
