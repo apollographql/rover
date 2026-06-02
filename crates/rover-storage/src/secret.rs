@@ -42,7 +42,9 @@ impl Store for KeyringSecretStore {
 
     fn delete(&self, key: &str) -> Result<(), StoreError> {
         let entry = Entry::new(&self.service, key)?;
-        entry.delete_credential()?;
-        Ok(())
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(err) => Err(err.into()),
+        }
     }
 }
