@@ -111,3 +111,25 @@ If the artifact cannot be resolved, the command exits with an error describing t
 - **Artifact not found** – no artifact matches the given tag name, artifact ID, or digest.
 - **Artifact is still being built** – the artifact's build is pending. Wait for the launch to complete and retry.
 - **Artifact failed to build** – the artifact's build failed. Check the associated launch for details.
+## List tags
+
+List the tags applied to artifacts in your graph, either across the entire graph or scoped to a single artifact identified by digest.
+
+### `graph-artifact list-tags`
+
+List every tag applied to any artifact in a graph:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID>
+```
+
+List only the tags applied to a specific artifact by passing its digest:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID> --digest <DIGEST>
+```
+
+- The `--graph-id <GRAPH_ID>` option is the ID of the graph whose tags you want to list
+- The `--digest <DIGEST>` option is optional. When provided, the output narrows to tags on the artifact with that digest; when omitted, the output includes tags across all artifacts in the graph
+
+By default Rover prints one tag per line on stdout, which makes the output easy to pipe to other tools. Pass `--format json` to get machine-readable output of the form `{ "data": { "tags": [...] } }`.

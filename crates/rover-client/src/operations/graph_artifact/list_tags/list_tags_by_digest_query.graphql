@@ -1,0 +1,11 @@
+query ListTagsByDigestQuery($digest: String!, $graphId: ID!) {
+    graphArtifactByDigest(digest: $digest, graphID: $graphId) {
+        tags {
+            edges {
+                node {
+                    tag
+                }
+            }
+        }
+    }
+}
