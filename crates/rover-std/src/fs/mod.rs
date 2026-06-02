@@ -1,5 +1,6 @@
 pub mod file_search;
 use std::{
+    borrow::Cow,
     fs,
     fs::OpenOptions,
     io::{ErrorKind, Write},
@@ -9,6 +10,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
+use encoding_rs::{Encoding, UTF_8};
 pub use file_search::FileSearch;
 #[cfg(windows)]
 use notify::event::{DataChange, ModifyKind};
@@ -37,7 +39,9 @@ impl Fs {
             Ok(metadata) => {
                 if metadata.is_file() {
                     tracing::info!("reading {} from disk", &path);
-                    let contents = fs::read_to_string(path)
+                    let bytes =
+                        fs::read(path).with_context(|| format!("could not read {}", &path))?;
+                    let contents = decode_to_string(&bytes)
                         .with_context(|| format!("could not read {}", &path))?;
                     if contents.is_empty() {
                         Err(RoverStdError::EmptyFile {
@@ -390,6 +394,19 @@ impl Fs {
     }
 }
 
+/// Decodes raw file bytes into a UTF-8 `String`, honoring a leading byte-order
+/// mark.
+///
+/// Files saved as UTF-16 are losslessly transcoded to UTF-8 rather than rejected,
+/// and any BOM is stripped.
+fn decode_to_string(bytes: &[u8]) -> anyhow::Result<String> {
+    let (encoding, bom_len) = Encoding::for_bom(bytes).unwrap_or((UTF_8, 0));
+    encoding
+        .decode_without_bom_handling_and_without_replacement(&bytes[bom_len..])
+        .map(Cow::into_owned)
+        .ok_or_else(|| anyhow!("stream did not contain valid {}", encoding.name()))
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -405,6 +422,61 @@ mod tests {
     };
 
     use super::*;
+
+    const BOM: char = '\u{FEFF}';
+
+    fn utf16_bytes(s: &str, little_endian: bool) -> Vec<u8> {
+        s.encode_utf16()
+            .flat_map(|unit| {
+                if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn decode_plain_utf8() {
+        let sdl = "type Query { hello: String }";
+        assert_eq!(decode_to_string(sdl.as_bytes()).unwrap(), sdl);
+    }
+
+    #[test]
+    fn decode_strips_utf8_bom() {
+        let sdl = "type Query { hello: String }";
+        let bytes = format!("{BOM}{sdl}").into_bytes(); // UTF-8, BOM-prefixed
+        assert_eq!(decode_to_string(&bytes).unwrap(), sdl);
+    }
+
+    #[test]
+    fn decode_transcodes_utf16le_with_bom_and_crlf() {
+        // What PowerShell's `rover graph introspect > schema.gql` produces.
+        let sdl = "type Query { hello: String }\r\n";
+        let bytes = utf16_bytes(&format!("{BOM}{sdl}"), true);
+        assert_eq!(decode_to_string(&bytes).unwrap(), sdl);
+    }
+
+    #[test]
+    fn decode_transcodes_utf16be_with_bom() {
+        let sdl = "schema { query: Query }";
+        let bytes = utf16_bytes(&format!("{BOM}{sdl}"), false);
+        assert_eq!(decode_to_string(&bytes).unwrap(), sdl);
+    }
+
+    #[test]
+    fn decode_rejects_invalid_utf8_without_bom() {
+        // Lone continuation bytes, no BOM -> still surfaces the UTF-8 error.
+        assert!(decode_to_string(&[0x80, 0x81]).is_err());
+    }
+
+    #[test]
+    fn decode_rejects_odd_length_utf16() {
+        let mut bytes = utf16_bytes(&BOM.to_string(), true); // just the BOM (FF FE)
+        bytes.push(0x41); // single trailing byte -> odd length
+        assert!(decode_to_string(&bytes).is_err());
+    }
 
     #[rstest]
     #[case("a/b/c", "a/b/c/supergraph.yaml", vec!(), false)]

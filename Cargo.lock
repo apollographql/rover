@@ -4871,6 +4871,7 @@ dependencies = [
  "camino",
  "console 0.16.3",
  "dunce",
+ "encoding_rs",
  "globwalk",
  "notify",
  "rstest",
