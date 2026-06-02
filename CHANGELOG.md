@@ -26,6 +26,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Downloading plugins no longer uses the API `--client-timeout` (30s by default) as a whole-request deadline. The plugin download path now has a 300s timeout and a 30s connection timeout so that it still fails-fast if the network is genuinely offline.
 
+- **Read UTF-16 (and BOM-prefixed) schema files - @SharkBaitDLS PR #3351 fixes #653**
+
+  `Fs::read_file` now detects a leading byte-order mark and transcodes the file to UTF-8, so schemas saved as UTF-16 — most commonly produced by Windows PowerShell `>` redirects, e.g. `rover graph introspect ... > schema.gql` — are read instead of failing with "stream did not contain valid UTF-8". A UTF-8 BOM is stripped; files with no recognized BOM are still read as UTF-8 (preserving prior behavior), and malformed input surfaces an error rather than being silently replaced. Decoding is handled by `encoding_rs`.
+
 - **Restore the "pin your federation version" warning on `supergraph compose` - @SharkBaitDLS PR #3347**
 
   `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version, reinstating the documented notice that future versions will require one. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again warns and recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.
