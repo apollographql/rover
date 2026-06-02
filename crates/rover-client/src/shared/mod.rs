@@ -5,6 +5,7 @@ mod fetch_response;
 mod git_context;
 mod lint_response;
 
+pub(crate) use async_check_response::map_check_submission_error;
 pub use async_check_response::CheckRequestSuccessResult;
 pub use check_response::{
     ChangeSeverity, CheckConfig, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,

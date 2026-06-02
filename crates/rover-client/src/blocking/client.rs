@@ -139,10 +139,7 @@ impl GraphQLClient {
                                 || response_status.is_client_error()
                                 || response_status.is_redirection()
                             {
-                                if matches!(
-                                    response_status,
-                                    StatusCode::BAD_REQUEST | StatusCode::PAYLOAD_TOO_LARGE
-                                ) {
+                                if matches!(response_status, StatusCode::BAD_REQUEST) {
                                     if let Ok(text) = success.text().await {
                                         tracing::debug!("{}", text);
                                     }
@@ -183,13 +180,9 @@ impl GraphQLClient {
         }
         .map_err(|e| match e {
             BackoffError::Permanent(reqwest_error) | BackoffError::Transient(reqwest_error) => {
-                if reqwest_error.status() == Some(StatusCode::PAYLOAD_TOO_LARGE) {
-                    RoverClientError::RequestTooLarge { endpoint_kind }
-                } else {
-                    RoverClientError::SendRequest {
-                        source: reqwest_error,
-                        endpoint_kind,
-                    }
+                RoverClientError::SendRequest {
+                    source: reqwest_error,
+                    endpoint_kind,
                 }
             }
         })
