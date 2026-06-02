@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Extend the timeout for plugin downloads - @SharkBaitDLS PR #3358 fixes #1583 #1867**
+
+  Downloading plugins no longer uses the API `--client-timeout` (30s by default) as a whole-request deadline. The plugin download path now has a 300s timeout and a 30s connection timeout so that it still fails-fast if the network is genuinely offline.
+
 - **Restore the "pin your federation version" warning on `supergraph compose` - @SharkBaitDLS PR #3347**
 
   `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version, reinstating the documented notice that future versions will require one. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again warns and recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.

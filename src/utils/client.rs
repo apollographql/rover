@@ -17,11 +17,18 @@ use crate::{PKG_NAME, PKG_VERSION, options::ProfileOpt};
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
+/// How long to wait to establish a connection when downloading a plugin tarball
+/// before giving up. If the connection succesfully establishes we allow a much longer
+/// period for the actual request.
+const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
     timeout: Option<std::time::Duration>,
+    connect_timeout: Option<std::time::Duration>,
 }
 
 impl Default for ClientBuilder {
@@ -36,6 +43,7 @@ impl ClientBuilder {
             accept_invalid_certs: false,
             accept_invalid_hostnames: false,
             timeout: None,
+            connect_timeout: None,
         }
     }
 
@@ -60,6 +68,20 @@ impl ClientBuilder {
         }
     }
 
+    const fn clear_timeout(self) -> Self {
+        Self {
+            timeout: None,
+            ..self
+        }
+    }
+
+    const fn with_connect_timeout(self, connect_timeout: std::time::Duration) -> Self {
+        Self {
+            connect_timeout: Some(connect_timeout),
+            ..self
+        }
+    }
+
     pub(crate) fn build(self) -> Result<Client> {
         let mut builder = Client::builder()
             .gzip(true)
@@ -69,6 +91,10 @@ impl ClientBuilder {
 
         if let Some(timeout) = self.timeout {
             builder = builder.timeout(timeout);
+        }
+
+        if let Some(connect_timeout) = self.connect_timeout {
+            builder = builder.connect_timeout(connect_timeout);
         }
 
         let client = builder
@@ -177,6 +203,22 @@ impl StudioClientConfig {
             .boxed_clone())
     }
 
+    /// A service for downloading large binaries (the `supergraph` and `router`
+    /// plugins) with a much longer request timeout and a connection timeout to fail-fast
+    /// in actual offline scenarios.
+    pub fn download_service(&self) -> Result<HttpService> {
+        let client = self
+            .client_builder
+            .clear_timeout()
+            .with_timeout(DOWNLOAD_REQUEST_TIMEOUT)
+            .with_connect_timeout(DOWNLOAD_CONNECT_TIMEOUT)
+            .build()?;
+        Ok(ReqwestService::builder()
+            .client(client)
+            .build()?
+            .boxed_clone())
+    }
+
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
         let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
         Ok(StudioClient::new(
@@ -210,5 +252,28 @@ impl StudioClientConfig {
 
     pub const fn retry_period(&self) -> Duration {
         self.client_timeout.get_duration()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::ClientBuilder;
+
+    #[test]
+    fn clear_timeout_drops_the_whole_request_deadline() {
+        let builder = ClientBuilder::new().with_timeout(Duration::from_secs(30));
+        assert_eq!(builder.timeout, Some(Duration::from_secs(30)));
+        assert!(builder.clear_timeout().timeout.is_none());
+    }
+
+    #[test]
+    fn with_connect_timeout_is_independent_of_the_request_timeout() {
+        let builder = ClientBuilder::new()
+            .with_timeout(Duration::from_secs(30))
+            .with_connect_timeout(Duration::from_secs(5));
+        assert_eq!(builder.timeout, Some(Duration::from_secs(30)));
+        assert_eq!(builder.connect_timeout, Some(Duration::from_secs(5)));
     }
 }
