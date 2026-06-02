@@ -20,14 +20,8 @@ impl Store for KeyringSecretStore {
         T: Serialize + 'static,
     {
         let data = serde_json::to_vec(&value).map_err(StoreError::Serialize)?;
-        let entry = Entry::new(&self.service, key).map_err(|err| match err {
-            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
-            err => StoreError::Store(Box::new(err)),
-        })?;
-        entry.set_secret(&data).map_err(|err| match err {
-            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
-            err => StoreError::Store(Box::new(err)),
-        })?;
+        let entry = Entry::new(&self.service, key)?;
+        entry.set_secret(&data)?;
         Ok(value)
     }
 
@@ -35,30 +29,20 @@ impl Store for KeyringSecretStore {
     where
         T: for<'de> Deserialize<'de> + 'static,
     {
-        let entry = Entry::new(&self.service, key).map_err(|err| match err {
-            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
-            err => StoreError::Store(Box::new(err)),
-        })?;
+        let entry = Entry::new(&self.service, key)?;
         match entry.get_secret() {
             Ok(data) => {
                 let value = serde_json::from_slice(&data).map_err(StoreError::Deserialize)?;
                 Ok(Some(value))
             }
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(keyring::Error::NoStorageAccess(_)) => Err(StoreError::NoBackend),
-            Err(err) => Err(StoreError::Store(Box::new(err))),
+            Err(err) => Err(err.into()),
         }
     }
 
     fn delete(&self, key: &str) -> Result<(), StoreError> {
-        let entry = Entry::new(&self.service, key).map_err(|err| match err {
-            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
-            err => StoreError::Store(Box::new(err)),
-        })?;
-        entry.delete_credential().map_err(|err| match err {
-            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
-            err => StoreError::Store(Box::new(err)),
-        })?;
+        let entry = Entry::new(&self.service, key)?;
+        entry.delete_credential()?;
         Ok(())
     }
 }

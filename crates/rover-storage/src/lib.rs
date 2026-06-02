@@ -15,6 +15,15 @@ pub enum StoreError {
     Store(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
+impl From<keyring::Error> for StoreError {
+    fn from(err: keyring::Error) -> Self {
+        match err {
+            keyring::Error::NoStorageAccess(_) => StoreError::NoBackend,
+            err => StoreError::Store(Box::new(err)),
+        }
+    }
+}
+
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 pub trait Store {
     fn write<T>(&self, key: &str, value: T) -> Result<T, StoreError>
