@@ -65,7 +65,7 @@ impl Stderr<MockPrint> {
 
 impl Default for Stderr<Term> {
     fn default() -> Self {
-        Self::term(true)
+        Self::term(console::colors_enabled_stderr())
     }
 }
 
@@ -119,7 +119,7 @@ impl Stdout<MockPrint> {
 
 impl Default for Stdout<Term> {
     fn default() -> Self {
-        Self::term(true)
+        Self::term(console::colors_enabled())
     }
 }
 
