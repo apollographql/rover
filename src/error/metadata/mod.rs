@@ -277,6 +277,16 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     None,
                 ),
+                RoverClientError::CheckWorkflowResultUnavailable { url, .. } => (
+                    Some(RoverErrorSuggestion::ViewCheckResultInStudio { url: url.clone() }),
+                    None,
+                ),
+                RoverClientError::RequestTooLarge { .. } => (
+                    Some(RoverErrorSuggestion::Adhoc(
+                        "For schema checks and publishes, this usually means the schema exceeds the maximum size GraphOS accepts. Try reducing the schema's size, and if you believe this is in error, contact Apollo support.".to_string(),
+                    )),
+                    None,
+                ),
                 RoverClientError::UnknownCheckWorkflowStatus => {
                     (Some(RoverErrorSuggestion::SubmitIssue), None)
                 }

@@ -1,0 +1,11 @@
+query SubgraphCheckWorkflowStatusQuery($workflowId: ID!, $graphId: ID!) {
+  graph(id: $graphId) {
+    checkWorkflow(id: $workflowId) {
+      status
+      tasks {
+        __typename
+        targetURL
+      }
+    }
+  }
+}

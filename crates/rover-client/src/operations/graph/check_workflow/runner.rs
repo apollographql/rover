@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
@@ -16,6 +14,7 @@ use crate::{
     blocking::StudioClient,
     operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
     shared::{
+        check_workflow_poll::{poll_check_workflow, PollState},
         CheckWorkflowResponse, CustomCheckResponse, Diagnostic, LintCheckResponse,
         OperationCheckResponse, SchemaChange, Violation,
     },
@@ -36,6 +35,18 @@ use crate::{
 /// Snake case of this name is the mod name. i.e. graph_check_workflow_query
 pub(crate) struct GraphCheckWorkflowQuery;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/graph/check_workflow/check_workflow_status_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize, Clone",
+    deprecated = "warn"
+)]
+/// A lightweight, status-only poll query. Used to wait for the check workflow to
+/// finish without re-fetching the (potentially huge) per-task results on every
+/// poll — the full result is fetched once, after the workflow leaves PENDING.
+pub(crate) struct GraphCheckWorkflowStatusQuery;
+
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
@@ -44,35 +55,45 @@ pub async fn run(
     client: &StudioClient,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let mut url: Option<String> = None;
-    let now = Instant::now();
-    loop {
-        let result = client
-            .post::<GraphCheckWorkflowQuery>(input.clone().into())
-            .await;
-        match result {
-            Ok(data) => {
-                let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
-                    graph_ref: graph_ref.clone(),
-                })?;
-                if let Some(check_workflow) = graph.check_workflow {
-                    if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
-                        return get_check_response_from_data(data, graph_ref);
-                    }
-                }
-                url = get_target_url_from_data(data);
-            }
-            Err(e) => {
-                eprintln!(
-                    "error while checking status of check: {e}\nthis error may be transient... retrying"
-                );
-            }
-        }
-        if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError { url });
-        }
-        std::thread::sleep(Duration::from_secs(5));
-    }
+    let checks_timeout_seconds = input.checks_timeout_seconds;
+
+    let data = poll_check_workflow(
+        checks_timeout_seconds,
+        async || {
+            let data = client
+                .post::<GraphCheckWorkflowStatusQuery>(input.clone().into())
+                .await?;
+            // The graph (and its check workflow) may not be reportable on the very
+            // first polls; treat that as "not ready yet" and keep polling.
+            let Some(check_workflow) = data.graph.and_then(|graph| graph.check_workflow) else {
+                return Ok(None);
+            };
+            Ok(Some(PollState {
+                finished: !matches!(
+                    check_workflow.status,
+                    graph_check_workflow_status_query::CheckWorkflowStatus::PENDING
+                ),
+                target_url: get_target_url_from_status_data(&check_workflow),
+            }))
+        },
+        async || {
+            client
+                .post::<GraphCheckWorkflowQuery>(input.clone().into())
+                .await
+        },
+    )
+    .await?;
+    get_check_response_from_data(data, graph_ref)
+}
+
+fn get_target_url_from_status_data(
+    check_workflow: &graph_check_workflow_status_query::GraphCheckWorkflowStatusQueryGraphCheckWorkflow,
+) -> Option<String> {
+    check_workflow
+        .tasks
+        .iter()
+        .filter_map(|task| task.target_url.clone())
+        .next_back()
 }
 
 fn get_check_response_from_data(
@@ -174,23 +195,6 @@ fn get_check_response_from_data(
         }),
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
-}
-
-fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
-    let mut target_url = None;
-    if let Some(graph) = data.graph {
-        if let Some(check_workflow) = graph.check_workflow {
-            for task in check_workflow.tasks {
-                match task.on {
-                    OperationsCheckTask(_) => target_url = task.target_url,
-                    LintCheckTask(_) => target_url = task.target_url,
-                    CustomCheckTask(_) => target_url = task.target_url,
-                    _ => (),
-                }
-            }
-        }
-    }
-    target_url
 }
 
 fn get_operations_response_from_result(

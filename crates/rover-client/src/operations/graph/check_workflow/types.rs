@@ -7,7 +7,9 @@ use rover_studio::types::GraphRef;
 
 use self::graph_check_workflow_query::CheckWorkflowTaskStatus;
 use crate::{
-    operations::graph::check_workflow::runner::graph_check_workflow_query,
+    operations::graph::check_workflow::runner::{
+        graph_check_workflow_query, graph_check_workflow_status_query,
+    },
     shared::{ChangeSeverity, CheckTaskStatus},
 };
 
@@ -22,6 +24,16 @@ pub struct CheckWorkflowInput {
 }
 
 impl From<CheckWorkflowInput> for QueryVariables {
+    fn from(input: CheckWorkflowInput) -> Self {
+        let (graph_id, _variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            workflow_id: input.workflow_id,
+        }
+    }
+}
+
+impl From<CheckWorkflowInput> for graph_check_workflow_status_query::Variables {
     fn from(input: CheckWorkflowInput) -> Self {
         let (graph_id, _variant) = input.graph_ref.into_parts();
         Self {

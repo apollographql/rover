@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
 use rover_studio::types::GraphRef;
@@ -20,6 +18,7 @@ use crate::{
     blocking::StudioClient,
     operations::subgraph::check_workflow::types::QueryResponseData,
     shared::{
+        check_workflow_poll::{poll_check_workflow, PollState},
         CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse,
         LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
         ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
@@ -41,6 +40,18 @@ use crate::{
 /// Snake case of this name is the mod name. i.e. subgraph_check_workflow_query
 pub(crate) struct SubgraphCheckWorkflowQuery;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/subgraph/check_workflow/check_workflow_status_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize, Clone",
+    deprecated = "warn"
+)]
+/// A lightweight, status-only poll query. Used to wait for the check workflow to
+/// finish without re-fetching the (potentially huge) per-task results on every
+/// poll — the full result is fetched once, after the workflow leaves PENDING.
+pub(crate) struct SubgraphCheckWorkflowStatusQuery;
+
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
@@ -50,35 +61,45 @@ pub async fn run(
     client: &StudioClient,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let mut url: Option<String> = None;
-    let now = Instant::now();
-    loop {
-        let result = client
-            .post::<SubgraphCheckWorkflowQuery>(input.clone().into())
-            .await;
-        match result {
-            Ok(data) => {
-                let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
-                    graph_ref: graph_ref.clone(),
-                })?;
-                if let Some(check_workflow) = graph.check_workflow {
-                    if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
-                        return get_check_response_from_data(data, graph_ref, subgraph);
-                    }
-                }
-                url = get_target_url_from_data(data);
-            }
-            Err(e) => {
-                eprintln!(
-                    "error while checking status of check: {e}\nthis error may be transient... retrying"
-                );
-            }
-        }
-        if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError { url });
-        }
-        std::thread::sleep(Duration::from_secs(5));
-    }
+    let checks_timeout_seconds = input.checks_timeout_seconds;
+
+    let data = poll_check_workflow(
+        checks_timeout_seconds,
+        async || {
+            let data = client
+                .post::<SubgraphCheckWorkflowStatusQuery>(input.clone().into())
+                .await?;
+            // The graph (and its check workflow) may not be reportable on the very
+            // first polls; treat that as "not ready yet" and keep polling.
+            let Some(check_workflow) = data.graph.and_then(|graph| graph.check_workflow) else {
+                return Ok(None);
+            };
+            Ok(Some(PollState {
+                finished: !matches!(
+                    check_workflow.status,
+                    subgraph_check_workflow_status_query::CheckWorkflowStatus::PENDING
+                ),
+                target_url: get_target_url_from_status_data(&check_workflow),
+            }))
+        },
+        async || {
+            client
+                .post::<SubgraphCheckWorkflowQuery>(input.clone().into())
+                .await
+        },
+    )
+    .await?;
+    get_check_response_from_data(data, graph_ref, subgraph)
+}
+
+fn get_target_url_from_status_data(
+    check_workflow: &subgraph_check_workflow_status_query::SubgraphCheckWorkflowStatusQueryGraphCheckWorkflow,
+) -> Option<String> {
+    check_workflow
+        .tasks
+        .iter()
+        .filter_map(|task| task.target_url.clone())
+        .next_back()
 }
 
 fn get_check_response_from_data(
@@ -240,18 +261,6 @@ fn get_check_response_from_data(
         }),
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
-}
-
-fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
-    let mut target_url = None;
-    if let Some(graph) = data.graph {
-        if let Some(check_workflow) = graph.check_workflow {
-            for task in check_workflow.tasks {
-                target_url = task.target_url;
-            }
-        }
-    }
-    target_url
 }
 
 fn get_operations_response_from_result(
@@ -467,6 +476,64 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[tokio::test]
+    async fn run_points_to_studio_when_result_fetch_fails() {
+        use std::time::Duration;
+
+        use houston::{Credential, CredentialOrigin};
+        use httpmock::prelude::*;
+        use reqwest::Client as ReqwestClient;
+
+        let server = MockServer::start_async().await;
+        // Lightweight status poll: the workflow has finished (PASSED) and reports a
+        // Studio URL for the check.
+        let _status = server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphCheckWorkflowStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "checkWorkflow": {
+                    "status": "PASSED",
+                    "tasks": [
+                        { "__typename": "OperationsCheckTask", "targetURL": "https://studio.example/checks/abc" }
+                    ]
+                } } }
+            }));
+        });
+        // The one-time full-result fetch fails (e.g. a result too large to
+        // download); we should surface CheckWorkflowResultUnavailable, not an
+        // opaque transport error, and keep the Studio URL from the status poll.
+        let _full = server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("query SubgraphCheckWorkflowQuery");
+            then.status(400).body("too big");
+        });
+
+        let client = StudioClient::new(
+            Credential {
+                api_key: "test".to_string(),
+                origin: CredentialOrigin::EnvVar,
+            },
+            &server.url("/"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        );
+        let input = CheckWorkflowInput {
+            graph_ref: "test-graph@test-variant".parse().unwrap(),
+            workflow_id: "test-workflow".to_string(),
+            checks_timeout_seconds: 30,
+        };
+
+        let result = run(input, "test-subgraph".to_string(), &client).await;
+        match result {
+            Err(RoverClientError::CheckWorkflowResultUnavailable { url, .. }) => {
+                assert_eq!(url, Some("https://studio.example/checks/abc".to_string()));
+            }
+            other => panic!("expected CheckWorkflowResultUnavailable, got {other:?}"),
+        }
+    }
 
     fn create_check_workflow_data(
         status: CheckWorkflowStatus,
