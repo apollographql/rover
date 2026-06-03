@@ -1532,6 +1532,15 @@ input DeleteCommentInput {
 
 union DeleteCommentResult = NotFoundError | PermissionError | ValidationError
 
+"""The payload from deleting a tag from a graph artifact."""
+type DeleteGraphArtifactTagPayload {
+  """The name of the tag that was deleted."""
+  tag: String!
+}
+
+"""The possible result of deleting a tag from a graph artifact."""
+union DeleteGraphArtifactTagResult = BadInputError | DeleteGraphArtifactTagPayload | GraphArtifactNotFoundError | GraphNotFoundError | OperationInProgressError
+
 union DeleteOperationCollectionResult = DeleteOperationCollectionSuccess | PermissionError
 
 type DeleteOperationCollectionSuccess {
@@ -3819,6 +3828,11 @@ type Mutation {
   - If the tag already exists, it will be reassigned to the provided graph artifact.
   """
   assignGraphArtifactTag(artifact: GraphArtifactInput!, graphID: String!, tag: String!): AssignTagToGraphArtifactResult!
+
+  """
+  Delete a tag from a graph. The tag and its full history are removed. Tags managed by Apollo cannot be deleted, such as variant latest tags.
+  """
+  deleteGraphArtifactTag(graphID: String!, tag: String!): DeleteGraphArtifactTagResult!
 
   """
   Provides access to mutation fields for modifying a an organization with the provided ID.
