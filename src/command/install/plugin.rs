@@ -416,7 +416,7 @@ impl PluginInstaller {
             eprintln!("downloading the '{plugin_name}' plugin");
         }
         let file_download_service = FileDownloadService::builder()
-            .http_service(self.client_config.service()?)
+            .http_service(self.client_config.download_service()?)
             .build();
         Ok(self
             .installer

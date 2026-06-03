@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Extend the timeout for plugin downloads - @SharkBaitDLS PR #3358 fixes #1583 #1867**
+
+  Downloading plugins no longer uses the API `--client-timeout` (30s by default) as a whole-request deadline. The plugin download path now has a 300s timeout and a 30s connection timeout so that it still fails-fast if the network is genuinely offline.
+
 - **Read UTF-16 (and BOM-prefixed) schema files - @SharkBaitDLS PR #3351 fixes #653**
 
   `Fs::read_file` now detects a leading byte-order mark and transcodes the file to UTF-8, so schemas saved as UTF-16 — most commonly produced by Windows PowerShell `>` redirects, e.g. `rover graph introspect ... > schema.gql` — are read instead of failing with "stream did not contain valid UTF-8". A UTF-8 BOM is stripped; files with no recognized BOM are still read as UTF-8 (preserving prior behavior), and malformed input surfaces an error rather than being silently replaced. Decoding is handled by `encoding_rs`.
