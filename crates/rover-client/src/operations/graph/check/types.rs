@@ -1,7 +1,7 @@
 use rover_studio::types::GraphRef;
 
 use crate::{
-    operations::graph::check::runner::graph_check_mutation,
+    operations::graph::check::service::graph_check_mutation,
     shared::{CheckConfig, GitContext},
 };
 

@@ -101,6 +101,10 @@ pub enum RoverClientError {
         endpoint_kind: EndpointKind,
     },
 
+    /// The request body was larger than GraphOS accepts (HTTP 413).
+    #[error("The request was too large for GraphOS to process (HTTP 413 Payload Too Large).")]
+    RequestTooLarge { endpoint_kind: EndpointKind },
+
     /// when someone provides a bad graph/variant combination or isn't
     /// validated properly, we don't know which reason is at fault for data.service
     /// being empty, so this error tells them to check both.
@@ -262,6 +266,13 @@ pub enum RoverClientError {
     #[error("The check workflow took too long to run.")]
     ChecksTimeoutError { url: Option<String> },
 
+    #[error("The schema check finished, but Rover could not retrieve its full result.")]
+    CheckWorkflowResultUnavailable {
+        url: Option<String>,
+        #[source]
+        source: Box<RoverClientError>,
+    },
+
     #[error(
         "A check workflow status was reported but it was not specified as a pass or a failure."
     )]
@@ -318,6 +329,15 @@ pub enum RoverClientError {
         /// Graph creation error coming from schema encoder.
         msg: String,
     },
+}
+
+impl RoverClientError {
+    pub(crate) const fn is_transient(&self) -> bool {
+        matches!(
+            self,
+            RoverClientError::SendRequest { .. } | RoverClientError::RateLimitExceeded
+        )
+    }
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {

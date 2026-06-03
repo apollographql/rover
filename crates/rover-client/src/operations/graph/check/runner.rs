@@ -1,32 +1,7 @@
-use graphql_client::*;
-use rover_studio::types::GraphRef;
+use tower::{Service, ServiceExt};
 
-use crate::{
-    blocking::StudioClient,
-    operations::graph::check::{
-        runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{
-            CheckRequestSuccess, InvalidInputError, PermissionError, PlanError,
-            RateLimitExceededError,
-        },
-        types::{CheckSchemaAsyncInput, MutationResponseData},
-    },
-    shared::CheckRequestSuccessResult,
-    RoverClientError,
-};
-
-#[derive(GraphQLQuery)]
-// The paths are relative to the directory where your `Cargo.toml` is located.
-// Both json and the GraphQL schema language are supported as sources for the schema
-#[graphql(
-    query_path = "src/operations/graph/check/graph_check_mutation.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-/// This struct is used to generate the module containing `Variables` and
-/// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. graph_check_mutation
-pub(crate) struct GraphCheckMutation;
+use super::{service::GraphCheck, types::CheckSchemaAsyncInput};
+use crate::{blocking::StudioClient, shared::CheckRequestSuccessResult, RoverClientError};
 
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
@@ -35,31 +10,65 @@ pub async fn run(
     input: CheckSchemaAsyncInput,
     client: &StudioClient,
 ) -> Result<CheckRequestSuccessResult, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let data = client.post::<GraphCheckMutation>(input.into()).await?;
-    get_check_response_from_data(data, graph_ref)
+    let mut service = GraphCheck::new(
+        client
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+    );
+    let service = service.ready().await?;
+    service.call(input).await
 }
 
-fn get_check_response_from_data(
-    data: MutationResponseData,
-    graph_ref: GraphRef,
-) -> Result<CheckRequestSuccessResult, RoverClientError> {
-    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-    let typename = variant.submit_check_schema_async;
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
 
-    match typename {
-        CheckRequestSuccess(result) => Ok(CheckRequestSuccessResult {
-            target_url: result.target_url,
-            workflow_id: result.workflow_id,
-        }),
-        InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
-        PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
-        PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
-        RateLimitExceededError => Err(RoverClientError::RateLimitExceeded),
+    use houston::{Credential, CredentialOrigin};
+    use httpmock::prelude::*;
+    use reqwest::Client as ReqwestClient;
+
+    use super::*;
+    use crate::shared::{CheckConfig, GitContext};
+
+    /// A schema too large for Studio comes back as a 413. Through the tower stack
+    /// this surfaces as a GraphQL deserialization failure carrying the status,
+    /// which the check service translates into a clear `RequestTooLarge` error
+    /// rather than an opaque parse failure. See #1383.
+    #[tokio::test]
+    async fn run_maps_413_to_request_too_large() {
+        let server = MockServer::start_async().await;
+        let mock = server.mock(|when, then| {
+            when.method(POST).body_includes("GraphCheckMutation");
+            then.status(413).body("payload too large");
+        });
+
+        let client = StudioClient::new(
+            Credential {
+                api_key: "test".to_string(),
+                origin: CredentialOrigin::EnvVar,
+            },
+            &server.url("/"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        );
+        let input = CheckSchemaAsyncInput {
+            graph_ref: "test-graph@test-variant".parse().unwrap(),
+            proposed_schema: "type Query { hello: String }".to_string(),
+            git_context: GitContext::default(),
+            config: CheckConfig {
+                query_count_threshold: None,
+                query_count_threshold_percentage: None,
+                validation_period: None,
+            },
+        };
+
+        let result = run(input, &client).await;
+        mock.assert();
+        assert!(
+            matches!(result, Err(RoverClientError::RequestTooLarge { .. })),
+            "expected RequestTooLarge, got {result:?}"
+        );
     }
 }

@@ -1,29 +1,14 @@
-use crate::blocking::StudioClient;
-use crate::operations::config::is_federated::{self, IsFederatedInput};
-use crate::operations::subgraph::check::types::{MutationResponseData, SubgraphCheckAsyncInput};
-use crate::shared::CheckRequestSuccessResult;
-use crate::RoverClientError;
+use tower::{Service, ServiceExt};
 
-use graphql_client::*;
-use rover_studio::types::GraphRef;
-
-use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError, RateLimitExceededError};
-
-type GraphQLDocument = String;
-
-#[derive(GraphQLQuery)]
-// The paths are relative to the directory where your `Cargo.toml` is located.
-// Both json and the GraphQL schema language are supported as sources for the schema
-#[graphql(
-    query_path = "src/operations/subgraph/check/subgraph_check_mutation.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-/// This struct is used to generate the module containing `Variables` and
-/// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. subgraph_check_mutation
-pub(crate) struct SubgraphCheckMutation;
+use crate::{
+    blocking::StudioClient,
+    operations::{
+        config::is_federated::{self, IsFederatedInput},
+        subgraph::check::{service::SubgraphCheck, types::SubgraphCheckAsyncInput},
+    },
+    shared::CheckRequestSuccessResult,
+    RoverClientError,
+};
 
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
@@ -47,30 +32,11 @@ pub async fn run(
             can_operation_convert: false,
         });
     }
-    let data = client.post::<SubgraphCheckMutation>(input.into()).await?;
-    get_check_response_from_data(data, graph_ref)
-}
-
-fn get_check_response_from_data(
-    data: MutationResponseData,
-    graph_ref: GraphRef,
-) -> Result<CheckRequestSuccessResult, RoverClientError> {
-    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-    let typename = variant.submit_subgraph_check_async;
-
-    match typename {
-        CheckRequestSuccess(result) => Ok(CheckRequestSuccessResult {
-            target_url: result.target_url,
-            workflow_id: result.workflow_id,
-        }),
-        InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
-        PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
-        PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
-        RateLimitExceededError => Err(RoverClientError::RateLimitExceeded),
-    }
+    let mut service = SubgraphCheck::new(
+        client
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+    );
+    let service = service.ready().await?;
+    service.call(input).await
 }

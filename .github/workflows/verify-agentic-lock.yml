@@ -1,7 +1,14 @@
 name: Verify Agentic Workflow Lock
 
-# Fails any PR whose generated *.lock.yml is out  of sync with its .md source / the pinned gh-aw version
-# so a stale lock cannot be auto-merged before the recompile job pushes its fix.
+# Fails any PR whose generated *.lock.yml is out of sync with its .md source / the
+# pinned gh-aw version, so a stale lock can't be merged.
+#
+# Renovate bumps the github/gh-aw action pin but can't recompile the lock, and the
+# generated *.lock.yml files live under .github/workflows/ — which GitHub forbids
+# any Actions/App token lacking the `workflows` permission from pushing. Rather
+# than provision such a token, recompiling is a manual step: when this check fails
+# (on a Renovate or any other PR), run the command from the error message locally
+# and commit the result.
 
 on:
   pull_request:
@@ -49,6 +56,6 @@ jobs:
         run: |
           gh aw compile
           if ! git diff --exit-code -- .github/workflows; then
-            echo "::error::Agentic workflow lock is out of date for gh-aw ${{ steps.ver.outputs.version }}. Run 'gh aw compile' locally and commit the result."
+            echo "::error::Agentic workflow lock is out of date for gh-aw ${{ steps.ver.outputs.version }}. Recompile locally with the matching CLI and commit the updated .github/workflows/*.lock.yml: 'gh extension install github/gh-aw --pin ${{ steps.ver.outputs.version }} && gh aw compile'"
             exit 1
           fi

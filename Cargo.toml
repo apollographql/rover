@@ -35,6 +35,7 @@ members = [
     "crates/rover-http",
     "crates/rover-graphql",
     "crates/rover-open",
+    "crates/rover-storage",
     "crates/rover-studio",
     "crates/sputnik",
     "crates/timber",
@@ -73,6 +74,7 @@ rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-open = { path = "./crates/rover-open" }
 rover-std = { path = "./crates/rover-std" }
+rover-storage = { path = "./crates/rover-storage" }
 rover-studio = { path = "./crates/rover-studio" }
 rover-schema = { path = "./crates/rover-schema" }
 rover-tower = { path = "./crates/rover-tower" }
@@ -126,6 +128,7 @@ dotenvy = "0.15"
 dunce = "1"
 encoding_rs = "0.8"
 flate2 = "1"
+fs-mistrust = "0.14.0"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.21", default-features = false }
@@ -140,6 +143,7 @@ hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }
 itertools = "0.14"
+keyring = "3.6.3"
 lazycell = "1"
 lazy_static = "1"
 mockall = "0.14.0"
