@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**
+
+  When Rover needs the latest `supergraph` or `router` plugin but can't reach the plugin registry (an outage, a network blip, or simply being offline), it now falls back to the newest compatible plugin already installed in `~/.rover/bin` with a warning instead of failing outright. Exact version pins still return an error.
+
 - **Extend the timeout for plugin downloads - @SharkBaitDLS PR #3358 fixes #1583 #1867**
 
   Downloading plugins no longer uses the API `--client-timeout` (30s by default) as a whole-request deadline. The plugin download path now has a 300s timeout and a 30s connection timeout so that it still fails-fast if the network is genuinely offline.

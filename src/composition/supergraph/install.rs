@@ -215,4 +215,123 @@ mod tests {
         assert_that!(installed_binary_contents).is_equal_to(b"supergraph".to_vec());
         Ok(())
     }
+
+    #[traced_test]
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    async fn install_falls_back_to_installed_plugin_when_registry_unreachable() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+
+        // The install path whose `.rover/bin` already holds a compatible plugin.
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        let bin_name = if cfg!(windows) {
+            "supergraph-v2.9.0.exe"
+        } else {
+            "supergraph-v2.9.0"
+        };
+        let bin_dir = install_home.path().join(".rover/bin");
+        std::fs::create_dir_all(&bin_dir)?;
+        let installed_binary_path = bin_dir.join(bin_name);
+        std::fs::write(&installed_binary_path, b"supergraph")?;
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+        let install_supergraph =
+            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+
+        // The registry is unreachable: resolving the latest version (a HEAD to the
+        // tarball URL) fails, so the download can't proceed.
+        http_server.mock(|when, then| {
+            when.is_true(|request| {
+                request.method() == Method::HEAD
+                    && request.uri().path().starts_with("/tar/supergraph")
+            });
+            then.status(500);
+        });
+
+        let binary = temp_env::async_with_vars(
+            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
+            async {
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        // Despite the failed download, we fall back to the already-installed plugin
+        // rather than erroring.
+        let subject = assert_that!(binary).is_ok().subject;
+        assert_that!(subject.version())
+            .is_equal_to(&SupergraphVersion::new(Version::from_str("2.9.0")?));
+        assert_that!(subject.exe())
+            .is_equal_to(&Utf8PathBuf::from_path_buf(installed_binary_path).unwrap());
+        Ok(())
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    async fn install_fails_when_registry_unreachable_and_no_fallback_available() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+
+        // The install path whose `.rover/bin` already holds a compatible plugin.
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+        let install_supergraph =
+            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+
+        // The registry is unreachable: resolving the latest version (a HEAD to the
+        // tarball URL) fails, so the download can't proceed.
+        http_server.mock(|when, then| {
+            when.is_true(|request| {
+                request.method() == Method::HEAD
+                    && request.uri().path().starts_with("/tar/supergraph")
+            });
+            then.status(500);
+        });
+
+        let binary = temp_env::async_with_vars(
+            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
+            async {
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        assert_that!(binary).is_err();
+        Ok(())
+    }
 }
