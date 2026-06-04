@@ -1,10 +1,17 @@
-//! Integration tests showcasing `rover-print`'s public behavior: how styled
-//! text renders with color enabled vs. disabled, and how inline styled tokens
-//! compose into a line.
+//! Integration tests showcasing `rover-print`'s public API and behavior.
 //!
-//! `Term` renders through `force_styling(with_color)`, so `term(true)` always
+//! Printers are built with module-level constructors:
+//!   - `stdout::term(bool)` / `stderr::term(bool)` — explicit color on/off
+//!   - `stdout::default()` / `stderr::default()` — color auto-detected from the
+//!     environment (`NO_COLOR` / `CLICOLOR` / TTY, plus `APOLLO_NO_COLOR`)
+//!   - `stdout::mock()` / `stderr::mock()` — a recording mock for assertions
+//!     (requires the `testing` feature; exercised by the crate's unit tests)
+//!
+//! `term` renders through `force_styling(with_color)`, so `term(true)` always
 //! emits color and `term(false)` never does — independent of whether the test
-//! runs under a TTY. That keeps these assertions deterministic in CI.
+//! runs under a TTY, which keeps the color assertions below deterministic in
+//! CI. `default()` auto-detects color, so only stream-independent properties
+//! (e.g. unstyled text round-tripping verbatim) are asserted for it.
 
 use rover_print::{
     print::{Print, PrintExt},
@@ -107,4 +114,19 @@ fn stdout_and_stderr_render_identically(#[case] with_color: bool) {
     let via_stderr = stderr::term(with_color).render(&token);
 
     assert_that!(&via_stdout).is_equal_to(&via_stderr);
+}
+
+/// `default()` auto-detects color from the environment, so we don't assert on
+/// ANSI here; instead we exercise the constructor and the stream-independent
+/// guarantee that unstyled text round-trips verbatim regardless of that
+/// decision.
+#[rstest]
+fn default_constructors_render_unstyled_text_verbatim() {
+    let out = stdout::default();
+    let err = stderr::default();
+
+    assert_that!(&out.render(&StyledText::plain("plain text")))
+        .is_equal_to("plain text".to_string());
+    assert_that!(&err.render(&StyledText::plain("plain text")))
+        .is_equal_to("plain text".to_string());
 }
