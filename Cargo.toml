@@ -143,7 +143,7 @@ hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }
 itertools = "0.14"
-keyring = "3.6.3"
+keyring = "4.0.0"
 lazycell = "1"
 lazy_static = "1"
 mockall = "0.14.0"
