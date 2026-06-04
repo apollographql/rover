@@ -20,3 +20,6 @@ workspace = true
 
 [dev-dependencies]
 mockall = { workspace = true }
+rstest = { workspace = true }
+sealed_test = { workspace = true }
+speculoos = { workspace = true }

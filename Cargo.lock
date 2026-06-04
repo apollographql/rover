@@ -5027,6 +5027,9 @@ dependencies = [
  "clap",
  "console 0.16.3",
  "mockall",
+ "rstest",
+ "sealed_test",
+ "speculoos",
 ]
 
 [[package]]

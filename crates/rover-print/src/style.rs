@@ -13,6 +13,11 @@ impl StyledText {
         }
     }
 
+    /// An unstyled segment — text that should print verbatim.
+    pub fn plain<S: Into<String>>(value: S) -> StyledText {
+        StyledText::new(Style::None, value)
+    }
+
     pub const fn style(&self) -> &Style {
         &self.style
     }
@@ -21,7 +26,9 @@ impl StyledText {
         &self.message
     }
 
-    pub fn paint(&self) -> String {
+    /// Render the message, forcing color on or off via `with_color` rather
+    /// than letting `console` re-derive it from the ambient stream state.
+    pub fn paint(&self, with_color: bool) -> String {
         let message_ref = &self.message;
 
         match &self.style {
@@ -47,6 +54,7 @@ impl StyledText {
             Style::SuccessHeading => style(message_ref).green().bold(),
             Style::None => style(message_ref),
         }
+        .force_styling(with_color)
         .to_string()
     }
 }
