@@ -35,6 +35,7 @@ members = [
     "crates/rover-http",
     "crates/rover-graphql",
     "crates/rover-open",
+    "crates/rover-print",
     "crates/rover-storage",
     "crates/rover-studio",
     "crates/sputnik",
@@ -73,6 +74,7 @@ rover-client = { path = "./crates/rover-client" }
 rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-open = { path = "./crates/rover-open" }
+rover-print = { path = "./crates/rover-print" }
 rover-std = { path = "./crates/rover-std" }
 rover-storage = { path = "./crates/rover-storage" }
 rover-studio = { path = "./crates/rover-studio" }
