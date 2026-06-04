@@ -143,6 +143,14 @@ pub enum RoverClientError {
     #[error("An operation is already in progress: {msg}")]
     GraphArtifactOperationInProgress { msg: String },
 
+    /// The graph artifact build failed, so it has no digest.
+    #[error("The graph artifact build failed: {msg}")]
+    GraphArtifactBuildFailed {
+        msg: String,
+        graph_id: String,
+        launch_id: String,
+    },
+
     /// if someone attempts to get a core schema from a supergraph that has
     /// no successful build in the API, we return this error.
     #[error("No supergraph SDL exists for '{graph_ref}' because its subgraphs failed to build.")]
