@@ -1,10 +1,9 @@
 use std::fmt;
 
-use crate::style::StyledText;
-
 #[cfg(any(test, feature = "testing"))]
 use super::MockPrint;
 use super::{Print, Term};
+use crate::style::StyledText;
 
 /// Printer that writes to standard error.
 pub struct Stderr<P>(P)
@@ -17,12 +16,6 @@ pub fn term(with_color: bool) -> Stderr<Term> {
         term: console::Term::stderr(),
         with_color,
     })
-}
-
-/// Color decision for stderr: `console`'s `NO_COLOR`/`CLICOLOR`/TTY detection,
-/// plus Apollo's `APOLLO_NO_COLOR` opt-out.
-fn detect_color_settings() -> bool {
-    console::colors_enabled_stderr() && !crate::print::is_apollo_no_color_set()
 }
 
 /// Construct a stderr printer with color auto-detected from the environment.
@@ -66,4 +59,10 @@ where
     fn render(&self, text: &StyledText) -> String {
         self.0.render(text)
     }
+}
+
+/// Color decision for stderr: `console`'s `NO_COLOR`/`CLICOLOR`/TTY detection,
+/// plus Apollo's `APOLLO_NO_COLOR` opt-out.
+fn detect_color_settings() -> bool {
+    console::colors_enabled_stderr() && !crate::print::is_apollo_no_color_set()
 }

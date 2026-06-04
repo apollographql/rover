@@ -8,15 +8,6 @@ mod term;
 
 pub use term::Term;
 
-/// Whether Apollo's `APOLLO_NO_COLOR` opt-out is set. Mirrors `rover-std`'s
-/// truthiness: unset / empty / "0" / "false" all count as *not* set.
-fn is_apollo_no_color_set() -> bool {
-    !matches!(
-        std::env::var("APOLLO_NO_COLOR").as_deref(),
-        Err(..) | Ok("") | Ok("0") | Ok("false") | Ok("False") | Ok("FALSE")
-    )
-}
-
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 pub trait Print {
     /// Print a single styled message, followed by a newline.
@@ -78,13 +69,24 @@ pub trait PrintExt: Print {
 
 impl<T: Print + ?Sized> PrintExt for T {}
 
+/// Whether Apollo's `APOLLO_NO_COLOR` opt-out is set. Mirrors `rover-std`'s
+/// truthiness: unset / empty / "0" / "false" all count as *not* set.
+fn is_apollo_no_color_set() -> bool {
+    !matches!(
+        std::env::var("APOLLO_NO_COLOR").as_deref(),
+        Err(..) | Ok("") | Ok("0") | Ok("false") | Ok("False") | Ok("FALSE")
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::{Arc, Mutex};
+
     use rstest::rstest;
     use sealed_test::prelude::*;
     use speculoos::prelude::*;
-    use std::sync::{Arc, Mutex};
+
+    use super::*;
 
     // `is_apollo_no_color_set` reads a process-global env var, so each case runs in an
     // isolated process via `sealed_test` to avoid cross-test interference.

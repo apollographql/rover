@@ -1,6 +1,5 @@
-use crate::style::StyledText;
-
 use super::Print;
+use crate::style::StyledText;
 
 /// Printing for Humans
 #[derive(Clone, Debug, bon::Builder)]
