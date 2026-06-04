@@ -34,3 +34,18 @@ rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_
 - The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the artifact you want to tag.
 - The `<TAG>` argument is the name of the tag to assign to the artifact.
 - You must provide exactly one of `--digest` or `--graph-artifact-id` to identify the artifact you want to tag.
+
+## Removing a tag from a graph artifact
+
+You can use Rover to remove a tag from your graph. Deleting a tag removes it and its full history. Tags managed by Apollo, such as a variant's latest tag, cannot be deleted.
+
+### `graph-artifact untag`
+
+Run the `graph-artifact untag` command, like so:
+
+```bash
+rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
+```
+
+- The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the tag you want to remove.
+- The `<TAG>` argument is the name of the tag to remove from the graph.
