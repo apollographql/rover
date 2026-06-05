@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Report downstream contract check and launch failures from `subgraph check` and `subgraph publish`**
+
+  `rover subgraph check` now treats failed blocking downstream contract workflows as check failures even when the source workflow response does not mark `failsUpstreamWorkflow`. `rover subgraph publish` now initiates downstream contract launches synchronously and waits for the source and downstream launches to finish before reporting success.
+
 - **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**
 
   When Rover needs the latest `supergraph` or `router` plugin but can't reach the plugin registry (an outage, a network blip, or simply being offline), it now falls back to the newest compatible plugin already installed in `~/.rover/bin` with a warning instead of failing outright. Exact version pins still return an error.

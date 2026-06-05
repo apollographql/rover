@@ -1,10 +1,12 @@
-use super::runner::subgraph_publish_mutation;
+use super::runner::{subgraph_publish_launch_status_query, subgraph_publish_mutation};
 use crate::shared::GitContext;
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
 pub(crate) type UpdateResponse =
     subgraph_publish_mutation::SubgraphPublishMutationGraphPublishSubgraph;
+pub(crate) type LaunchStatusResponseData = subgraph_publish_launch_status_query::ResponseData;
+pub(crate) type LaunchStatusVariables = subgraph_publish_launch_status_query::Variables;
 
 use apollo_federation_types::rover::BuildErrors;
 
@@ -22,6 +24,7 @@ pub struct SubgraphPublishInput {
     pub schema: String,
     pub git_context: GitContext,
     pub convert_to_federated_graph: bool,
+    pub launch_poll_timeout_seconds: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
