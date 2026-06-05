@@ -2,7 +2,7 @@ use super::Print;
 use crate::style::StyledText;
 
 /// Printing for Humans
-#[derive(Clone, Debug, bon::Builder)]
+#[derive(Clone, Debug)]
 pub struct Term {
     pub(super) term: console::Term,
     pub(super) with_color: bool,

@@ -10,7 +10,6 @@ cli = ["clap"]
 testing = ["mockall"]
 
 [dependencies]
-bon = { workspace = true }
 clap = { workspace = true, optional = true }
 console = { workspace = true }
 mockall = { workspace = true, optional = true }

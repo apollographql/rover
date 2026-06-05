@@ -5023,7 +5023,6 @@ dependencies = [
 name = "rover-print"
 version = "0.0.0"
 dependencies = [
- "bon",
  "clap",
  "console 0.16.3",
  "mockall",
