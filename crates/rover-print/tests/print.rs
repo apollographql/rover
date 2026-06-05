@@ -130,3 +130,21 @@ fn default_constructors_render_unstyled_text_verbatim() {
     assert_that!(&err.render(&StyledText::plain("plain text")))
         .is_equal_to("plain text".to_string());
 }
+
+// --- PrintExt helpers ------------------------------------------------------
+
+/// `PrintExt::paint` renders a single styled token for interpolation into a
+/// larger line, honoring the printer's color setting: ANSI when on, raw text
+/// when off.
+#[rstest]
+fn printext_paint_renders_a_styled_token() {
+    let colored = stdout::term(true);
+    let plain = stdout::term(false);
+
+    assert_that!(&colored.paint(Style::Command, "rover dev")).contains(ANSI);
+    assert_that!(&plain.paint(Style::Command, "rover dev")).is_equal_to("rover dev".to_string());
+}
+
+// The `PrintExt` prefix helpers (`infoln`/`warnln`/`errln`/`successln`) write to
+// a real terminal, so their composed output is asserted via the `TerminalCapture`
+// recorder in `tests/printext.rs` (which requires the `testing` feature).

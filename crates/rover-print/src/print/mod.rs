@@ -6,6 +6,9 @@ pub mod stderr;
 pub mod stdout;
 mod term;
 
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
+
 pub use term::Term;
 
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
