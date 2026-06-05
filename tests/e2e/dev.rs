@@ -26,6 +26,7 @@ use super::{
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
+const ROVER_DEV_SUPERGRAPH_OUTPUT_FILE: &str = "composed-supergraph.graphql";
 
 #[fixture]
 #[once]
@@ -44,6 +45,8 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
         "router-config-dev.yaml",
         "--supergraph-port",
         &format!("{port}"),
+        "--supergraph-output",
+        ROVER_DEV_SUPERGRAPH_OUTPUT_FILE,
         "--elv2-license",
         "accept",
     ]);
@@ -215,6 +218,27 @@ async fn e2e_test_rover_dev(
     })
     .await
     .expect("Failed to run query before timeout hit");
+}
+
+#[ignore]
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+#[serial]
+async fn e2e_test_rover_dev_writes_supergraph_output(
+    #[from(run_rover_dev)] _router_url: &str,
+    run_subgraphs_retail_supergraph: &RunningRetailSupergraph,
+) {
+    let output_path = run_subgraphs_retail_supergraph
+        .retail_supergraph
+        .working_dir
+        .path()
+        .join(ROVER_DEV_SUPERGRAPH_OUTPUT_FILE);
+    let contents = std::fs::read_to_string(&output_path).unwrap_or_else(|err| {
+        panic!("expected a composed supergraph at {output_path:?}, but couldn't read it: {err}")
+    });
+    // A composed Federation 2 supergraph always links the join/link specs.
+    assert_that(&contents).contains("@link");
 }
 
 /// Test for issue #2751: Router config env var double expansion bug
