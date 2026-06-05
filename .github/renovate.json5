@@ -3,6 +3,7 @@
     "github>Turbo87/renovate-config//rust/updateToolchain",
     ":automergeStableNonMajor"
   ],
+  ignorePaths: [".github/workflows/issue-triage.lock.yml"],
   platformAutomerge: true,
   packageRules: [
     {
