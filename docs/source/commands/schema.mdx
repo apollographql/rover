@@ -1,7 +1,7 @@
 ---
-title: Rover schema Commands
+title: Rover schema commands
 subtitle: Explore and search your graph schema from a local SDL file
-description: Use rover schema commands to describe and search a GraphQL schema from a local SDL file or stdin.
+description: Use `rover` schema commands to describe and search a GraphQL schema from a local SDL file or stdin.
 ---
 
 ## schema describe
@@ -428,7 +428,7 @@ rover schema describe - --coord Post
 
 ### Overview
 
-The `rover schema search` command searches a GraphQL schema for types and fields by keyword. Read from a local SDL file or pipe from stdin. Results are ranked by match strength — exact name matches first, then stem matches, then fuzzy matches, then description-only matches — and capped at a configurable limit.
+The `rover schema search` command searches a GraphQL schema for types and fields by keyword. Read from a local SDL file or pipe from stdin. Rover ranks results by match strength — exact name matches first, then stem matches, then fuzzy matches, then description-only matches — up to a configurable limit.
 
 ### Usage
 
@@ -436,7 +436,7 @@ The `rover schema search` command searches a GraphQL schema for types and fields
 rover schema search [FILE] [TERMS...] [OPTIONS]
 ```
 
-Pass the SDL file as `FILE` followed by one or more search terms. Pass `-` as `FILE` to read from stdin.
+Pass the SDL file as `FILE` followed by one or more search terms. Pass `-` as `FILE` to read from `stdin`.
 
 Terms are space-separated within a query; all terms in a query must match. Separate queries with commas for OR logic — a result is included if any comma-separated clause matches.
 
@@ -444,16 +444,16 @@ Terms are space-separated within a query; all terms in a query must match. Separ
 |---|---|
 | Exact | term is a substring of the name or a name token |
 | Stem | term shares an English stem with a name token |
-| Fuzzy | term is within one edit of a name token (terms ≥ 4 chars; shorter must match exactly) |
+| Fuzzy | term is within one edit of a name token (terms ≥ `4` chars; shorter must match exactly) |
 | Description | term appears in the SDL description (no name match) |
 
-Name matching is case-insensitive and splits on camelCase and snake_case boundaries.
+Name matching is case-insensitive and splits on `camelCase` and `snake_case` boundaries.
 
 ### Options
 
 | Option | Description |
 |---|---|
-| `-n, --limit <N>` | Maximum number of results to return (default: 10) |
+| `-n, --limit <N>` | Maximum number of results to return (default: `10`) |
 | `--include-deprecated` | Include deprecated fields and enum values in results |
 
 ### Examples
@@ -511,7 +511,7 @@ User.email — The user's email address
 
 #### Multi-term AND search
 
-All terms must match. Results must satisfy every term in the query.
+All terms must match.
 
 ```bash
 rover schema search schema.graphql "create post"
@@ -602,7 +602,7 @@ Mutation.createPost — Create a new post
 
 #### Stem match
 
-Terms match names that share an English stem. Searching `creating` finds names containing `create`, `creates`, `created`, etc.
+Terms match names that share an English stem. Searching `creating` finds names containing `create`, `creates`, and `created`.
 
 ```bash
 rover schema search schema.graphql creating
@@ -639,7 +639,7 @@ Role — Membership tier governing access
 
 #### Include deprecated
 
-By default, deprecated fields and enum values are excluded. Pass `--include-deprecated` to surface them.
+Rover excludes deprecated fields and enum values by default. Pass `--include-deprecated` to surface them.
 
 ```bash
 rover schema search schema.graphql guest --include-deprecated
@@ -656,7 +656,7 @@ Role.GUEST
 
 #### Limit results
 
-Cap the number of results with `-n`.
+Limit the number of results with `-n`.
 
 ```bash
 rover schema search schema.graphql post -n 2
