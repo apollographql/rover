@@ -428,7 +428,7 @@ rover schema describe - --coord Post
 
 ### Overview
 
-The `rover schema search` command searches a GraphQL schema for types and fields by keyword. Read from a local SDL file or pipe from stdin. Rover ranks results by match strength — exact name matches first, then stem matches, then fuzzy matches, then description-only matches — up to a configurable limit.
+The `rover schema search` command searches a GraphQL schema for types and fields by keyword and can read from a local SDL file or pipe from stdin. Rover ranks results by match strength — exact name matches first, then stem matches, then fuzzy matches, then description-only matches — up to a configurable limit.
 
 ### Usage
 
@@ -438,16 +438,36 @@ rover schema search [FILE] [TERMS...] [OPTIONS]
 
 Pass the SDL file as `FILE` followed by one or more search terms. Pass `-` as `FILE` to read from `stdin`.
 
-Terms are space-separated within a query; all terms in a query must match. Separate queries with commas for OR logic — a result is included if any comma-separated clause matches.
+### Query syntax
 
-| Tier | Matches when… |
-|---|---|
-| Exact | term is a substring of the name or a name token |
-| Stem | term shares an English stem with a name token |
-| Fuzzy | term is within one edit of a name token (terms ≥ `4` chars; shorter must match exactly) |
-| Description | term appears in the SDL description (no name match) |
+**Single terms.** A single keyword searches all name tokens and SDL descriptions:
 
-Name matching is case-insensitive and splits on `camelCase` and `snake_case` boundaries.
+- `email` — matches `User.email`, `EmailPreferences`, `sendEmail`
+- `post` — matches `Post`, `createPost`, `PostConnection`, `post_id`
+
+**AND logic.** Space-separate multiple terms to require all of them to match:
+
+- `"create post"` — matches `CreatePostInput` and `Mutation.createPost`, but not `Post` alone (missing `create`)
+- `"user email"` — only returns results where both `user` and `email` match the same coordinate
+
+**OR clauses.** Comma-separate independent queries to return results matching any clause:
+
+- `"email, creating"` — returns everything matching `email` plus everything matching `creating`
+- `"create post, delete comment"` — each clause can itself be multi-term
+
+**Name tokenization.** Rover splits names on `camelCase` and `snake_case` boundaries before matching, so a term can match any token in the name. Matching is case-insensitive:
+
+- `post` matches `createPost` (token `post`), `PostConnection` (token `Post`), and `post_id` (token `post`)
+- `create` matches `CreatePostInput`, `Mutation.createPost`, and `createPost`
+
+**Match tiers.** Results are ranked strongest-first within each clause:
+
+| Tier | Example query | Matches | Why |
+|---|---|---|---|
+| Exact | `email` | `User.email` | `email` is a name token |
+| Stem | `creating` | `CreatePostInput`, `Mutation.createPost` | `creating` and `create` share the stem `creat` |
+| Fuzzy | `emial` | `User.email` | one transposition from `email` (terms ≥ `4` chars only) |
+| Description | `membership` | `Role` | `membership` appears in the SDL description of `Role`, not in its name |
 
 ### Options
 
@@ -458,7 +478,7 @@ Name matching is case-insensitive and splits on `camelCase` and `snake_case` bou
 
 ### Examples
 
-#### Single-term search
+#### Basic search
 
 ```bash
 rover schema search schema.graphql email
@@ -550,54 +570,6 @@ Mutation.createPost — Create a new post
   field
 ```
 
-<details>
-<summary>JSON output (<code>--format json</code>)</summary>
-
-```json
-{
-  "json_version": "1",
-  "data": {
-    "query": "email, creating",
-    "results": [
-      {
-        "coordinate": "User.email",
-        "kind": "field",
-        "description": "The user's email address",
-        "via": [
-          {
-            "segments": [
-              { "type_name": "Query", "field_name": "user" }
-            ]
-          },
-          {
-            "segments": [
-              { "type_name": "Mutation", "field_name": "createPost" },
-              { "type_name": "Post", "field_name": "author" }
-            ]
-          }
-        ]
-      },
-      {
-        "coordinate": "CreatePostInput",
-        "kind": "type",
-        "description": null,
-        "via": []
-      },
-      {
-        "coordinate": "Mutation.createPost",
-        "kind": "field",
-        "description": "Create a new post",
-        "via": []
-      }
-    ],
-    "success": true
-  },
-  "error": null
-}
-```
-
-</details>
-
 ---
 
 #### Stem match
@@ -676,6 +648,8 @@ Mutation.createPost — Create a new post
 
 #### No results
 
+When no types or fields match, Rover prints a message instead of an empty list.
+
 ```bash
 rover schema search schema.graphql xyzzy
 ```
@@ -687,6 +661,8 @@ No results for "xyzzy"
 ---
 
 #### Read from stdin
+
+Pass `-` as `FILE` to read the schema from `stdin` instead of a file.
 
 ```bash
 cat schema.graphql | rover schema search - email
