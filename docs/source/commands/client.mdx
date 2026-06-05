@@ -138,7 +138,7 @@ rover client extract \
   --out-dir graphql
 ```
 
-To restrict extraction to a specific language, use `--language` (repeatable):
+To restrict extraction to specific languages, use `--language`. Accepted values: `ts` (scans `.ts` and `.tsx`), `swift`, `kotlin` (scans `.kt` and `.kts`). You can select multiple languages by repeating `--language` with different values:
 
 ```bash
 rover client extract --language ts --language swift
