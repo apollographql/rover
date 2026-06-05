@@ -148,7 +148,7 @@ type Query {
         let s = mock_response.get_ariadne().unwrap();
         assert_eq!(
             strip_ansi_escapes::strip_str(&s),
-            r#"Warning: Schema element Query.key is missing a description.
+            r#"WARNING: Schema element Query.key is missing a description.
    ╭─[ schema.graphql:3:5 ]
    │
  3 │     key: Int!

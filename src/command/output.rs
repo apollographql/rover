@@ -139,6 +139,8 @@ pub enum RoverOutput {
         jwt: String,
     },
     EmptySuccess,
+    /// The command completed successfully and already handled any user-facing output.
+    OutputHandled,
     CloudConfigFetchResponse {
         config: String,
     },
@@ -553,7 +555,7 @@ impl RoverOutput {
                 stderrln!("Success!")?;
                 Some(jwt.to_string())
             }
-            RoverOutput::EmptySuccess => None,
+            RoverOutput::EmptySuccess | RoverOutput::OutputHandled => None,
             RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
             #[cfg(feature = "composition-js")]
@@ -765,7 +767,7 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
-            RoverOutput::EmptySuccess => json!(null),
+            RoverOutput::EmptySuccess | RoverOutput::OutputHandled => json!(null),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
                   "revision": response.revision,

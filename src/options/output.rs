@@ -20,6 +20,10 @@ pub trait RoverPrinter {
 
 impl RoverPrinter for RoverOutput {
     fn write_or_print(&self, output_opts: &OutputOpts) -> RoverResult<()> {
+        if matches!(self, RoverOutput::OutputHandled) {
+            return Ok(());
+        }
+
         // Format the RoverOutput as either plain text or JSON.
         let output = match output_opts.format_kind {
             RoverOutputFormatKind::Plain => self.get_stdout(),

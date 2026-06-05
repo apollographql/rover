@@ -20,6 +20,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
+## 🚀 Features
+
+- **Add `rover persisted-queries generate` command**
+
+  Adds a local, unauthenticated command for generating Apollo persisted query manifests from `.graphql` operation files. The command defaults to scanning `graphql/**/*.graphql`, writes `persisted-query-manifest.json`, emits the Apollo manifest envelope, and is compatible with `rover persisted-queries publish`.
+
 ## 🐛 Fixes
 
 - **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**

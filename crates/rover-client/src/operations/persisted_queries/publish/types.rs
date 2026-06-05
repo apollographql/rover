@@ -317,6 +317,36 @@ mod tests {
     }
 
     #[test]
+    fn it_can_read_apollo_manifest_with_typescript_package_envelope() {
+        let body = "query GetProduct {\n  product {\n    id\n    __typename\n  }\n}";
+        let apollo_manifest = serde_json::json!({
+            "format": "apollo-persisted-query-manifest",
+            "version": 1,
+            "operations": [{
+                "id": "abc123",
+                "name": "GetProduct",
+                "type": "query",
+                "body": body
+            }]
+        })
+        .to_string();
+
+        let apollo_manifest: ApolloPersistedQueryManifest =
+            serde_json::from_str(&apollo_manifest).expect("could not read apollo manifest");
+
+        assert_eq!(
+            apollo_manifest.operations[0],
+            PersistedQueryOperation {
+                name: "GetProduct".to_string(),
+                r#type: PersistedQueryOperationType::Query,
+                id: "abc123".to_string(),
+                body: body.to_string(),
+                client_name: None,
+            }
+        );
+    }
+
+    #[test]
     fn it_can_convert_relay_manifest_to_apollo_manifest() {
         let id = "ed145403db84d192c3f2f44eaa9bc6f9";
         let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
