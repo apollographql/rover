@@ -105,6 +105,10 @@ pub struct Rover {
     client_timeout: ClientTimeout,
 
     /// Skip checking for newer versions of rover.
+    ///
+    /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
+    /// to disable all of Rover's auto-updating at once — both this self-update
+    /// check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
@@ -183,7 +187,7 @@ impl Rover {
         // do their own checks.
         // the check is also skipped if the `--skip-update-check` flag is passed.
         if let Command::Update(_) = &self.command { /* skip check */
-        } else if !self.skip_update_check {
+        } else if !self.skip_update_check && !crate::utils::skip_all_updates() {
             let config = self.get_rover_config();
             if let Ok(config) = config {
                 let _ = version::check_for_update(config, false, self.get_reqwest_client()?).await;

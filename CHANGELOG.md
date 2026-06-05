@@ -20,6 +20,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
+## 🚀 Features
+
+- **Add `APOLLO_ROVER_SKIP_UPDATE` to disable all auto-updating at once - @SharkBaitDLS PR #3378 fixes #1892**
+
+  Setting the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) opts out of all of Rover's auto-updating in a single switch: it skips both the rover self-update check (the `--skip-update-check` flag) and the `supergraph`/`router` plugin auto-updates (the `--skip-update` flag), so on-the-fly plugin resolution uses an already-installed plugin instead of contacting the registry. This is aimed at tightly-controlled monorepo/CI setups that want plugin versions lockstep with CI and prod. The explicit `rover install` command still installs as requested.
+
 ## 🐛 Fixes
 
 - **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**

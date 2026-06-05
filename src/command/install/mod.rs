@@ -112,6 +112,12 @@ impl Install {
         client_config: StudioClientConfig,
         skip_update: bool,
     ) -> RoverResult<Utf8PathBuf> {
+        // `APOLLO_ROVER_SKIP_UPDATE` opts out of all auto-updating; honor it here so
+        // every command that resolves a plugin on the fly (compose, dev, lsp) uses
+        // an already-installed plugin instead of reaching for the registry. The
+        // explicit `rover install` path doesn't go through here, so it still
+        // installs as asked. See #1892.
+        let skip_update = skip_update || crate::utils::skip_all_updates();
         let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
         if let Some(plugin) = &self.plugin {
             let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
