@@ -192,6 +192,7 @@ impl Publish {
                 schema,
                 git_context,
                 convert_to_federated_graph: self.convert,
+                launch_poll_timeout_seconds: checks_timeout_seconds,
             },
             &client,
         )

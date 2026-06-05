@@ -222,6 +222,16 @@ fn get_check_response_from_data(
         graph_ref.variant()
     );
 
+    let maybe_downstream_response = get_downstream_response_from_result(
+        downstream_status,
+        downstream_target_url,
+        downstream_result,
+    );
+    let downstream_failed = maybe_downstream_response
+        .as_ref()
+        .map(|response| response.task_status == crate::shared::CheckTaskStatus::FAILED)
+        .unwrap_or(false);
+
     let check_response = CheckWorkflowResponse {
         default_target_url,
         maybe_core_schema_modified: Some(core_schema_modified),
@@ -246,16 +256,16 @@ fn get_check_response_from_data(
             custom_target_url,
             custom_result,
         ),
-        maybe_downstream_response: get_downstream_response_from_result(
-            downstream_status,
-            downstream_target_url,
-            downstream_result,
-        ),
+        maybe_downstream_response,
     };
 
     match check_workflow.status {
-        CheckWorkflowStatus::PASSED => Ok(check_response),
+        CheckWorkflowStatus::PASSED if !downstream_failed => Ok(check_response),
         CheckWorkflowStatus::FAILED => Err(RoverClientError::CheckWorkflowFailure {
+            graph_ref,
+            check_response: Box::new(check_response),
+        }),
+        CheckWorkflowStatus::PASSED => Err(RoverClientError::CheckWorkflowFailure {
             graph_ref,
             check_response: Box::new(check_response),
         }),
@@ -457,11 +467,24 @@ fn get_downstream_response_from_result(
         Some(results) => {
             let blocking_variants = results
                 .iter()
-                .filter(|result| result.fails_upstream_workflow.unwrap_or(false))
+                .filter(|result| {
+                    result.fails_upstream_workflow.unwrap_or(false)
+                        || (result.blocking
+                            && result
+                                .downstream_workflow
+                                .as_ref()
+                                .map(|workflow| workflow.status == CheckWorkflowStatus::FAILED)
+                                .unwrap_or(false))
+                })
                 .map(|result| result.downstream_variant_name.clone())
-                .collect();
+                .collect::<Vec<_>>();
+            let task_status = if blocking_variants.is_empty() {
+                task_status.into()
+            } else {
+                crate::shared::CheckTaskStatus::FAILED
+            };
             Some(DownstreamCheckResponse {
-                task_status: task_status.into(),
+                task_status,
                 target_url,
                 blocking_variants,
             })
@@ -591,6 +614,58 @@ mod tests {
                 assert_eq!(
                     check_response.default_target_url,
                     "https://studio.apollographql.com/graph/test-graph/variant/test-variant/checks/variant"
+                );
+            }
+            _ => panic!("Expected CheckWorkflowFailure error"),
+        }
+    }
+
+    #[test]
+    fn test_get_check_response_from_data_with_failed_blocking_downstream_workflow() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetUrl": "https://studio.apollographql.com/graph/test/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": true,
+                            "downstreamVariantName": "contract",
+                            "downstreamWorkflow": {
+                                "status": "FAILED"
+                            },
+                            "failsUpstreamWorkflow": null
+                        }
+                    ]
+                }
+            ]),
+        );
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RoverClientError::CheckWorkflowFailure {
+                graph_ref: returned_graph_ref,
+                check_response,
+            } => {
+                assert_eq!(returned_graph_ref, graph_ref);
+                let downstream_response = check_response
+                    .maybe_downstream_response
+                    .expect("expected downstream response");
+                assert_eq!(
+                    downstream_response.task_status,
+                    crate::shared::CheckTaskStatus::FAILED
+                );
+                assert_eq!(
+                    downstream_response.blocking_variants,
+                    vec!["contract".to_string()]
                 );
             }
             _ => panic!("Expected CheckWorkflowFailure error"),

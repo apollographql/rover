@@ -125,6 +125,7 @@ pub(crate) async fn publish_subgraphs(
                     remote_url: None,
                 },
                 convert_to_federated_graph: false,
+                launch_poll_timeout_seconds: 300,
             },
             client,
         )

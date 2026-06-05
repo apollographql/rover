@@ -1,10 +1,19 @@
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
+
 use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
+use self::subgraph_publish_launch_status_query::{
+    LaunchStatus, SubgraphPublishLaunchStatusQueryGraphVariantLaunch,
+};
 use super::types::*;
 use crate::{
     blocking::StudioClient,
+    error::FailedLaunch,
     operations::{
         config::is_federated::{self, IsFederatedInput},
         graph::{variant, variant::VariantListInput},
@@ -25,6 +34,15 @@ use crate::{
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
 pub(crate) struct SubgraphPublishMutation;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/subgraph/publish/launch_status_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize, Clone",
+    deprecated = "warn"
+)]
+pub(crate) struct SubgraphPublishLaunchStatusQuery;
 
 pub async fn run(
     input: SubgraphPublishInput,
@@ -73,7 +91,21 @@ pub async fn run(
         }
     }
     let data = client.post::<SubgraphPublishMutation>(variables).await?;
-    let publish_response = get_publish_response_from_data(data, graph_ref)?;
+    let publish_response = get_publish_response_from_data(data, graph_ref.clone())?;
+    if let Some(launch_id) = publish_response
+        .launch
+        .as_ref()
+        .map(|launch| launch.id.clone())
+    {
+        let launch = poll_launch(
+            &graph_ref,
+            &launch_id,
+            input.launch_poll_timeout_seconds,
+            client,
+        )
+        .await?;
+        ensure_launch_succeeded(&graph_ref, &launch)?;
+    }
     Ok(build_response(publish_response))
 }
 
@@ -90,6 +122,118 @@ fn get_publish_response_from_data(
         .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upsertImplementingServiceAndTriggerComposition".to_string(),
         })
+}
+
+async fn poll_launch(
+    graph_ref: &GraphRef,
+    launch_id: &str,
+    timeout_seconds: u64,
+    client: &StudioClient,
+) -> Result<SubgraphPublishLaunchStatusQueryGraphVariantLaunch, RoverClientError> {
+    let now = Instant::now();
+    let launch_url = Some(launch_url(graph_ref.graph_id(), launch_id));
+
+    loop {
+        match fetch_launch(graph_ref, launch_id, client).await {
+            Ok(launch) => {
+                if launch_is_finished(&launch) {
+                    return Ok(launch);
+                }
+            }
+            Err(e) if e.is_transient() => {
+                eprintln!("error while checking status of launch: {e}\nretrying...");
+            }
+            Err(e) => return Err(e),
+        }
+
+        if now.elapsed() > Duration::from_secs(timeout_seconds) {
+            return Err(RoverClientError::LaunchTimeoutError { url: launch_url });
+        }
+        thread::sleep(Duration::from_secs(5));
+    }
+}
+
+async fn fetch_launch(
+    graph_ref: &GraphRef,
+    launch_id: &str,
+    client: &StudioClient,
+) -> Result<SubgraphPublishLaunchStatusQueryGraphVariantLaunch, RoverClientError> {
+    let (graph_id, variant) = graph_ref.clone().into_parts();
+    let data = client
+        .post::<SubgraphPublishLaunchStatusQuery>(LaunchStatusVariables {
+            graph_id,
+            variant,
+            launch_id: launch_id.to_string(),
+        })
+        .await?;
+
+    get_launch_from_data(data, graph_ref.clone())
+}
+
+fn get_launch_from_data(
+    data: LaunchStatusResponseData,
+    graph_ref: GraphRef,
+) -> Result<SubgraphPublishLaunchStatusQueryGraphVariantLaunch, RoverClientError> {
+    let graph = data
+        .graph
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
+
+    let variant = graph.variant.ok_or(RoverClientError::MalformedResponse {
+        null_field: "graph.variant".to_string(),
+    })?;
+
+    variant.launch.ok_or(RoverClientError::MalformedResponse {
+        null_field: "graph.variant.launch".to_string(),
+    })
+}
+
+fn launch_is_finished(launch: &SubgraphPublishLaunchStatusQueryGraphVariantLaunch) -> bool {
+    !launch_status_is_pending(&launch.status)
+        && launch
+            .downstream_launches
+            .iter()
+            .all(|launch| !launch_status_is_pending(&launch.status))
+}
+
+fn ensure_launch_succeeded(
+    graph_ref: &GraphRef,
+    launch: &SubgraphPublishLaunchStatusQueryGraphVariantLaunch,
+) -> Result<(), RoverClientError> {
+    let failed_downstream_launches = launch
+        .downstream_launches
+        .iter()
+        .filter(|launch| launch_status_is_failed(&launch.status))
+        .map(|launch| FailedLaunch {
+            graph_id: launch.graph_id.clone(),
+            graph_variant: launch.graph_variant.clone(),
+            launch_id: launch.id.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    if launch_status_is_failed(&launch.status) || !failed_downstream_launches.is_empty() {
+        Err(RoverClientError::SubgraphPublishLaunchFailure {
+            graph_ref: graph_ref.clone(),
+            launch_id: launch.id.clone(),
+            failed_downstream_launches,
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn launch_status_is_pending(status: &LaunchStatus) -> bool {
+    matches!(status, LaunchStatus::LAUNCH_INITIATED)
+}
+
+fn launch_status_is_failed(status: &LaunchStatus) -> bool {
+    !matches!(
+        status,
+        LaunchStatus::LAUNCH_COMPLETED | LaunchStatus::LAUNCH_INITIATED
+    )
+}
+
+fn launch_url(graph_id: &str, launch_id: &str) -> String {
+    format!("https://studio.apollographql.com/graph/{graph_id}/launches/{launch_id}")
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
@@ -119,9 +263,119 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use houston::{Credential, CredentialOrigin};
+    use httpmock::prelude::*;
+    use reqwest::Client as ReqwestClient;
     use serde_json::json;
 
     use super::*;
+
+    #[tokio::test]
+    async fn run_fails_when_downstream_launch_fails() {
+        let server = MockServer::start_async().await;
+        let _publish = server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("mutation SubgraphPublishMutation")
+                .body_includes("downstreamLaunchInitiation: SYNC");
+            then.status(200).json_body(json!({
+                "data": {
+                    "graph": {
+                        "publishSubgraph": {
+                            "compositionConfig": { "schemaHash": "5gf564" },
+                            "errors": [],
+                            "didUpdateGateway": true,
+                            "serviceWasCreated": false,
+                            "serviceWasUpdated": true,
+                            "launch": {
+                                "id": "source-launch"
+                            },
+                            "launchUrl": "https://studio.example/launches/source-launch",
+                            "launchCliCopy": "You can monitor this launch in Apollo Studio."
+                        }
+                    }
+                }
+            }));
+        });
+        let _launch = server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("query SubgraphPublishLaunchStatusQuery");
+            then.status(200).json_body(json!({
+                "data": {
+                    "graph": {
+                        "variant": {
+                            "launch": {
+                                "id": "source-launch",
+                                "graphId": "test-graph",
+                                "graphVariant": "current",
+                                "status": "LAUNCH_COMPLETED",
+                                "downstreamLaunches": [
+                                    {
+                                        "id": "contract-launch",
+                                        "graphId": "test-graph",
+                                        "graphVariant": "contract",
+                                        "status": "LAUNCH_FAILED"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }));
+        });
+        let client = StudioClient::new(
+            Credential {
+                api_key: "test".to_string(),
+                origin: CredentialOrigin::EnvVar,
+            },
+            &server.url("/"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        );
+
+        let result = run(
+            SubgraphPublishInput {
+                graph_ref: "test-graph@current".parse().unwrap(),
+                subgraph: "products".to_string(),
+                url: Some("https://example.com/graphql".to_string()),
+                schema: "type Query { product: String }".to_string(),
+                git_context: crate::shared::GitContext {
+                    branch: None,
+                    commit: None,
+                    author: None,
+                    remote_url: None,
+                },
+                convert_to_federated_graph: true,
+                launch_poll_timeout_seconds: 0,
+            },
+            &client,
+        )
+        .await;
+
+        match result {
+            Err(RoverClientError::SubgraphPublishLaunchFailure {
+                graph_ref,
+                launch_id,
+                failed_downstream_launches,
+            }) => {
+                assert_eq!(graph_ref.to_string(), "test-graph@current");
+                assert_eq!(launch_id, "source-launch");
+                assert_eq!(
+                    failed_downstream_launches,
+                    vec![FailedLaunch {
+                        graph_id: "test-graph".to_string(),
+                        graph_variant: "contract".to_string(),
+                        launch_id: "contract-launch".to_string(),
+                    }]
+                );
+            }
+            other => panic!("expected downstream launch failure, got {other:?}"),
+        }
+    }
+
     #[test]
     fn build_response_works_with_composition_errors() {
         let json_response = json!({

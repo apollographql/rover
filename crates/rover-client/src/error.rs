@@ -8,6 +8,13 @@ use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FailedLaunch {
+    pub graph_id: String,
+    pub graph_variant: String,
+    pub launch_id: String,
+}
+
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
 pub enum RoverClientError {
@@ -172,6 +179,13 @@ pub enum RoverClientError {
         source: BuildErrors,
     },
 
+    #[error("{}", subgraph_publish_launch_failure_msg(.graph_ref, .launch_id, .failed_downstream_launches))]
+    SubgraphPublishLaunchFailure {
+        graph_ref: GraphRef,
+        launch_id: String,
+        failed_downstream_launches: Vec<FailedLaunch>,
+    },
+
     #[error("{}", contract_publish_errors_msg(.msgs, .no_launch))]
     ContractPublishErrors { msgs: Vec<String>, no_launch: bool },
 
@@ -274,6 +288,9 @@ pub enum RoverClientError {
     #[error("The check workflow took too long to run.")]
     ChecksTimeoutError { url: Option<String> },
 
+    #[error("The launch took too long to complete.")]
+    LaunchTimeoutError { url: Option<String> },
+
     #[error("The schema check finished, but Rover could not retrieve its full result.")]
     CheckWorkflowResultUnavailable {
         url: Option<String>,
@@ -344,6 +361,32 @@ impl RoverClientError {
         matches!(
             self,
             RoverClientError::SendRequest { .. } | RoverClientError::RateLimitExceeded
+        )
+    }
+}
+
+fn subgraph_publish_launch_failure_msg(
+    graph_ref: &GraphRef,
+    launch_id: &str,
+    failed_downstream_launches: &[FailedLaunch],
+) -> String {
+    if failed_downstream_launches.is_empty() {
+        format!(
+            "The subgraph publish was accepted for '{graph_ref}', but launch '{launch_id}' failed."
+        )
+    } else {
+        let downstream_launches = failed_downstream_launches
+            .iter()
+            .map(|launch| {
+                format!(
+                    "{}@{} (launch {})",
+                    launch.graph_id, launch.graph_variant, launch.launch_id
+                )
+            })
+            .join(", ");
+
+        format!(
+            "The subgraph publish was accepted for '{graph_ref}', but downstream contract launch(es) failed: {downstream_launches}."
         )
     }
 }

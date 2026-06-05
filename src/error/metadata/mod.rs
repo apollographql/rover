@@ -155,6 +155,17 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         )
                     }
                 }
+                RoverClientError::SubgraphPublishLaunchFailure {
+                    graph_ref,
+                    launch_id,
+                    failed_downstream_launches: _,
+                } => (
+                    Some(RoverErrorSuggestion::RetryLaunch {
+                        graph_id: graph_ref.graph_id().to_string(),
+                        launch_id: launch_id.clone(),
+                    }),
+                    None,
+                ),
                 RoverClientError::ContractPublishErrors {
                     msgs: _,
                     no_launch: _,
@@ -339,6 +350,9 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::InvalidTimestamp(_) => (None, None),
                 RoverClientError::ApiKeyNotFound { .. } => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
+                RoverClientError::LaunchTimeoutError { .. } => {
+                    (Some(RoverErrorSuggestion::TryAgainLater), None)
+                }
                 RoverClientError::GraphArtifactOperationInProgress { .. } => {
                     (Some(RoverErrorSuggestion::TryAgainLater), None)
                 }

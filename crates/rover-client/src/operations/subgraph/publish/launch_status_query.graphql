@@ -1,0 +1,22 @@
+query SubgraphPublishLaunchStatusQuery(
+  $graph_id: ID!
+  $variant: String!
+  $launch_id: ID!
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      launch(id: $launch_id) {
+        id
+        graphId
+        graphVariant
+        status
+        downstreamLaunches {
+          id
+          graphId
+          graphVariant
+          status
+        }
+      }
+    }
+  }
+}
