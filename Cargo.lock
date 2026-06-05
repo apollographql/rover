@@ -5020,6 +5020,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rover-print"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "console 0.16.3",
+ "mockall",
+ "rstest",
+ "sealed_test",
+ "speculoos",
+]
+
+[[package]]
 name = "rover-schema"
 version = "0.0.0"
 dependencies = [

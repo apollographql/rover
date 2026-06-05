@@ -1,0 +1,24 @@
+[package]
+name = "rover-print"
+version = "0.0.0"
+edition = "2024"
+
+publish = false
+
+[features]
+cli = ["clap"]
+testing = ["mockall"]
+
+[dependencies]
+clap = { workspace = true, optional = true }
+console = { workspace = true }
+mockall = { workspace = true, optional = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+mockall = { workspace = true }
+rstest = { workspace = true }
+sealed_test = { workspace = true }
+speculoos = { workspace = true }
