@@ -1,7 +1,7 @@
 ---
 title: Rover client commands
 subtitle: Validate client operations against your GraphQL schema
-description: Use rover client commands to validate client GraphQL operations against a published schema and extract embedded GraphQL documents from source files.
+description: Use rover client commands to validate your client's GraphQL operations against a published schema and extract embedded GraphQL documents from source files.
 ---
 
 import AuthNotice from '../../shared/auth-notice.mdx';
@@ -100,7 +100,7 @@ Use `rover client extract` to scan source files and extract embedded GraphQL doc
 rover client extract --out-dir graphql
 ```
 
-By default, Rover scans all supported file types (`.ts`, `.tsx`, `.swift`, `.kt`, `.kts`) under the current working directory.
+By default, Rover scans all supported file types (`.ts`, `.tsx`, `.swift`, `.kt`, and `.kts`) under the current working directory.
 
 ### Supported languages
 
@@ -160,10 +160,10 @@ rover client extract --out-dir graphql --overwrite
 
 ### Skipped documents
 
-Documents that can't be statically extracted are reported but don't cause a non-zero exit. Common skip reasons:
+Rover reports documents it cannot statically extract but does not exit with a non-zero code. Common skip reasons:
 
-- **Template interpolation** — TypeScript documents containing `${...}` expressions can't be extracted.
-- **GraphQL syntax error** — The document couldn't be parsed as valid GraphQL.
+- Template interpolation — TypeScript documents containing `${...}` expressions cannot be extracted
+- GraphQL syntax error — The document could not be parsed as valid GraphQL
 
 Each skipped document is listed in the output with its source path, line number, and reason.
 
