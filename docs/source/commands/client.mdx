@@ -1,7 +1,7 @@
 ---
 title: Rover client commands
 subtitle: Validate client operations against your GraphQL schema
-description: Use the rover client check command to validate that your client's GraphQL operations are compatible with your graph's published schema.
+description: Use rover client commands to validate client GraphQL operations against a published schema and extract embedded GraphQL documents from source files.
 ---
 
 import AuthNotice from '../../shared/auth-notice.mdx';
@@ -90,4 +90,101 @@ Use `rover client check` in CI pipelines to check operations against the variant
       --include "src/**/*.graphql"
   env:
     APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+```
+
+## `client extract`
+
+Use `rover client extract` to scan source files and extract embedded GraphQL documents into standalone `.graphql` files.
+
+```bash
+rover client extract --out-dir graphql
+```
+
+By default, Rover scans all supported file types (`.ts`, `.tsx`, `.swift`, `.kt`, `.kts`) under the current working directory.
+
+### Supported languages
+
+| Language | File extensions | Detection method |
+|---|---|---|
+| TypeScript | `.ts`, `.tsx` | `gql` and `graphql` tagged template literals |
+| Swift | `.swift` | Triple-quoted strings (`"""..."""`) |
+| Kotlin | `.kt`, `.kts` | Triple-quoted strings (`"""..."""`) |
+
+For TypeScript, Rover recognizes both `gql` and `graphql` tags:
+
+```typescript
+const GET_USER = gql`
+  query GetUser($id: ID!) {
+    user(id: $id) { name }
+  }
+`;
+```
+
+### File discovery
+
+Use `--include` and `--exclude` to control which files are scanned. Patterns are evaluated as globs relative to `--root-dir`.
+
+```bash
+rover client extract \
+  --include "src/**/*.ts" \
+  --exclude "src/__generated__/**"
+```
+
+Use `--root-dir` to scan from a location other than the current working directory:
+
+```bash
+rover client extract \
+  --root-dir /path/to/client \
+  --out-dir graphql
+```
+
+To restrict extraction to a specific language, use `--language` (repeatable):
+
+```bash
+rover client extract --language ts --language swift
+```
+
+### Output directory
+
+Rover writes extracted documents to `--out-dir` (default: `graphql`), preserving the relative path of each source file:
+
+```
+src/components/UserCard.ts  →  graphql/src/components/UserCard.graphql
+```
+
+If a `.graphql` file already exists at the target path, Rover writes to `<name>.generated.graphql` instead. Pass `--overwrite` to replace existing files:
+
+```bash
+rover client extract --out-dir graphql --overwrite
+```
+
+### Skipped documents
+
+Documents that can't be statically extracted are reported but don't cause a non-zero exit. Common skip reasons:
+
+- **Template interpolation** — TypeScript documents containing `${...}` expressions can't be extracted.
+- **GraphQL syntax error** — The document couldn't be parsed as valid GraphQL.
+
+Each skipped document is listed in the output with its source path, line number, and reason.
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--include <PATTERN>` | Glob pattern for source files to include. Repeatable. Defaults to all supported extensions. |
+| `--exclude <PATTERN>` | Glob pattern for files to exclude. Repeatable. |
+| `--language <LANG>` | Restrict extraction to `ts`, `swift`, or `kotlin`. Repeatable. |
+| `--root-dir <DIR>` | Root directory to scan from. Defaults to the current working directory. |
+| `--out-dir <DIR>` | Output directory for `.graphql` files. Defaults to `graphql`. |
+| `--overwrite` | Overwrite existing `.graphql` files instead of writing to `<name>.generated.graphql`. |
+| `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
+| `--output <FILE>` | Write output to a file instead of `stdout`. |
+
+### Output
+
+```
+Processed 12 source files; 4 contained GraphQL.
+Wrote 7 documents to /path/to/graphql
+Skipped documents:
+  /path/to/src/DynamicQuery.ts:14 contains a template interpolation (${...}); only static strings can be extracted
 ```
