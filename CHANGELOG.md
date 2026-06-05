@@ -28,6 +28,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Install plugins without relying on a writable system temp directory - @SharkBaitDLS PR #3385 fixes #1422**
+
+  Rover now extracts downloaded `supergraph`/`router` plugin tarballs inside its own install directory rather than the system temp dir (`TMPDIR`/`/tmp`), so installations can succeed on read-only filesystems.
+
 - **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**
 
   When Rover needs the latest `supergraph` or `router` plugin but can't reach the plugin registry (an outage, a network blip, or simply being offline), it now falls back to the newest compatible plugin already installed in `~/.rover/bin` with a warning instead of failing outright. Exact version pins still return an error.
