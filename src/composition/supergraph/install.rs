@@ -334,4 +334,71 @@ mod tests {
         assert_that!(binary).is_err();
         Ok(())
     }
+
+    /// `APOLLO_ROVER_SKIP_UPDATE` opts out of plugin auto-updates: an on-the-fly
+    /// install must use the already-installed plugin and never contact the
+    /// registry, even when `skip_update` wasn't passed on the command. See #1892.
+    #[traced_test]
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    async fn skip_update_env_uses_installed_plugin_without_contacting_registry() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+        // Any request to the registry means the opt-out failed. (A failed request
+        // would also trigger the fallback and still yield 2.9.0, so we assert on
+        // zero calls rather than on the returned version.)
+        let registry = http_server.mock(|when, then| {
+            when.is_true(|request| request.uri().path().starts_with("/tar/supergraph"));
+            then.status(500);
+        });
+
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        let bin_name = if cfg!(windows) {
+            "supergraph-v2.9.0.exe"
+        } else {
+            "supergraph-v2.9.0"
+        };
+        let bin_dir = install_home.path().join(".rover/bin");
+        std::fs::create_dir_all(&bin_dir)?;
+        std::fs::write(bin_dir.join(bin_name), b"supergraph")?;
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+        let install_supergraph =
+            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+
+        let binary = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
+                ("APOLLO_ROVER_SKIP_UPDATE", Some("true".to_string())),
+            ],
+            async {
+                // `skip_update` is false here; the env var is what forces the opt-out.
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        let subject = assert_that!(binary).is_ok().subject;
+        assert_that!(subject.version())
+            .is_equal_to(&SupergraphVersion::new(Version::from_str("2.9.0")?));
+        // The decisive check: opting out meant the registry was never contacted.
+        assert_that!(registry.calls()).is_equal_to(0);
+        Ok(())
+    }
 }
