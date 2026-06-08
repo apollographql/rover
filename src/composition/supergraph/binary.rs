@@ -82,6 +82,12 @@ impl SupergraphBinary {
         &self,
         output: &str,
     ) -> Result<Result<BuildOutput, BuildErrors>, CompositionError> {
+        if output.trim().is_empty() {
+            return Err(CompositionError::EmptyOutput {
+                binary: self.exe.clone(),
+            });
+        }
+
         // Attempt to convert the str to a valid composition result; this ensures that we have a
         // well-formed composition. This doesn't necessarily mean we don't have build errors, but
         // we handle those below
@@ -549,7 +555,7 @@ mod tests {
     use semver::Version;
     use speculoos::prelude::*;
 
-    use super::{CompositionSuccess, SupergraphBinary};
+    use super::{CompositionError, CompositionSuccess, SupergraphBinary};
     use crate::{
         command::supergraph::compose::do_compose::SupergraphComposeOpts,
         composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
@@ -641,6 +647,46 @@ mod tests {
             .await;
 
         assert_that!(result).is_ok().is_equal_to(composition_output);
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_compose_empty_output() -> Result<()> {
+        let supergraph_version = SupergraphVersion::new(fed_two_nine());
+        let binary_path = Utf8PathBuf::from_str("/supergraph")?;
+        let supergraph_binary = SupergraphBinary::builder()
+            .exe(binary_path.clone())
+            .version(supergraph_version)
+            .build();
+
+        let mut mock_exec = MockExecCommand::new();
+        mock_exec
+            .expect_exec_command()
+            .times(1)
+            .returning(move |_| {
+                Ok(Output {
+                    // exit 0, but no output at all
+                    status: ExitStatus::default(),
+                    stdout: Vec::default(),
+                    stderr: Vec::default(),
+                })
+            });
+
+        let result = supergraph_binary
+            .compose(
+                &mock_exec,
+                Utf8PathBuf::from_str("/supergraph_config.yaml")?,
+            )
+            .await;
+
+        match result {
+            Err(CompositionError::EmptyOutput { binary }) => {
+                assert_that!(binary).is_equal_to(binary_path);
+            }
+            other => panic!("expected CompositionError::EmptyOutput, got {other:?}"),
+        }
 
         Ok(())
     }
