@@ -103,6 +103,10 @@ pub struct SupergraphOpts {
     /// For more information, please see https://www.apollographql.com/docs/router/enterprise-features/#offline-enterprise-license
     #[arg(long)]
     license: Option<Utf8PathBuf>,
+
+    /// Path to write the composed supergraph schema to, (re)writing it on every successful composition.
+    #[arg(long = "supergraph-output")]
+    supergraph_output: Option<Utf8PathBuf>,
 }
 
 lazy_static::lazy_static! {
@@ -113,4 +117,29 @@ lazy_static::lazy_static! {
     // https://www.apollographql.com/docs/router/federation-version-support/#support-table
     pub(crate) static ref OVERRIDE_DEV_COMPOSITION_VERSION: Option<String> =
         std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use clap::Parser;
+
+    use super::DevOpts;
+
+    #[test]
+    fn supergraph_output_flag_parses_into_supergraph_opts() {
+        let opts =
+            DevOpts::try_parse_from(["dev", "--supergraph-output", "build/supergraph.graphql"])
+                .unwrap();
+        assert_eq!(
+            opts.supergraph_opts.supergraph_output,
+            Some(Utf8PathBuf::from("build/supergraph.graphql"))
+        );
+    }
+
+    #[test]
+    fn supergraph_output_defaults_to_none() {
+        let opts = DevOpts::try_parse_from(["dev"]).unwrap();
+        assert_eq!(opts.supergraph_opts.supergraph_output, None);
+    }
 }

@@ -157,6 +157,7 @@ impl RunRouter<state::Run> {
         home_override: Option<String>,
         api_key_override: Option<String>,
         log_level: Option<Level>,
+        supergraph_output: Option<Utf8PathBuf>,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -191,9 +192,10 @@ impl RunRouter<state::Run> {
                 err: Box::new(err),
             })?;
 
-        let hot_reload_schema_path = temp_router_dir.join("supergraph.graphql");
+        let hot_reload_schema_path =
+            supergraph_output.unwrap_or_else(|| temp_router_dir.join("supergraph.graphql"));
         tracing::debug!(
-            "Creating temporary supergraph schema path at {}",
+            "Writing supergraph schema (watched for hot reload) to {}",
             hot_reload_schema_path
         );
         write_file
