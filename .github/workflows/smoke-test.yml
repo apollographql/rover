@@ -139,6 +139,26 @@ jobs:
           sudo apt-get install -y libssl-dev
           ldd --version
 
+      - name: Clean up accumulated e2e list-tags test tags
+        if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
+        shell: bash
+        env:
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+        run: |
+          ROVER="${{ github.workspace }}/${{ matrix.testing_target.binary_under_test }}/rover"
+          GRAPH_ID="rover-e2e-tests"
+          echo "Cleaning up stale e2e-test-list-tags-* tags from $GRAPH_ID"
+          TAGS=$("$ROVER" graph-artifact list-tags --graph-id "$GRAPH_ID" --format json 2>/dev/null \
+            | jq -r '.data.tags[] | select(startswith("e2e-test-list-tags-"))' || true)
+          if [ -z "$TAGS" ]; then
+            echo "No stale tags found."
+          else
+            echo "$TAGS" | while read -r tag; do
+              echo "Removing tag: $tag"
+              "$ROVER" graph-artifact untag "$tag" --graph-id "$GRAPH_ID" --client-timeout 30 || true
+            done
+          fi
+
       - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         shell: bash

@@ -1,6 +1,5 @@
 query ListTagsByGraphQuery($graphId: ID!, $first: Int, $after: String) {
     graphArtifactTags(graphID: $graphId, first: $first, after: $after) {
-        totalCount
         pageInfo {
             hasNextPage
             endCursor
