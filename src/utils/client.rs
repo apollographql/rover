@@ -159,6 +159,7 @@ pub struct StudioClientConfig {
     is_sudo: bool,
     client: Option<Client>,
     client_timeout: ClientTimeout,
+    download_timeout: Duration,
 }
 
 impl StudioClientConfig {
@@ -183,7 +184,13 @@ impl StudioClientConfig {
             is_sudo,
             client: None,
             client_timeout,
+            download_timeout: DOWNLOAD_REQUEST_TIMEOUT,
         }
+    }
+
+    pub const fn with_download_timeout(mut self, download_timeout: Duration) -> Self {
+        self.download_timeout = download_timeout;
+        self
     }
 
     pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
@@ -210,7 +217,7 @@ impl StudioClientConfig {
         let client = self
             .client_builder
             .clear_timeout()
-            .with_timeout(DOWNLOAD_REQUEST_TIMEOUT)
+            .with_timeout(self.download_timeout)
             .with_connect_timeout(DOWNLOAD_CONNECT_TIMEOUT)
             .build()?;
         Ok(ReqwestService::builder()
@@ -275,5 +282,37 @@ mod tests {
             .with_connect_timeout(Duration::from_secs(5));
         assert_eq!(builder.timeout, Some(Duration::from_secs(30)));
         assert_eq!(builder.connect_timeout, Some(Duration::from_secs(5)));
+    }
+
+    fn test_client_config() -> super::StudioClientConfig {
+        super::StudioClientConfig::new(
+            None,
+            houston::Config {
+                home: camino::Utf8PathBuf::from("/tmp/rover-client-test"),
+                override_api_key: None,
+            },
+            false,
+            ClientBuilder::default(),
+            super::ClientTimeout::default(),
+        )
+    }
+
+    /// Plugin downloads default to the generous timeout, and an explicit
+    /// `--client-timeout` (applied via `with_download_timeout`) overrides it —
+    /// up or down. Regression guard: #3358 made this unconfigurable.
+    #[test]
+    fn download_timeout_defaults_to_the_generous_default() {
+        assert_eq!(
+            *test_client_config().download_timeout(),
+            super::DOWNLOAD_REQUEST_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn with_download_timeout_overrides_the_default_up_or_down() {
+        for secs in [5, 99_999] {
+            let config = test_client_config().with_download_timeout(Duration::from_secs(secs));
+            assert_eq!(*config.download_timeout(), Duration::from_secs(secs));
+        }
     }
 }
