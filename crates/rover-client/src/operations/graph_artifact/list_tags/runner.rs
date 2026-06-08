@@ -47,7 +47,7 @@ async fn list_by_graph(
         let vars = list_tags_by_graph_query::Variables {
             graph_id: graph_id.clone(),
             first: Some(20),
-            after,
+            after: after.clone(),
         };
         let data = client.post::<ListTagsByGraphQuery>(vars).await?;
         let connection = data.graph_artifact_tags;
@@ -57,7 +57,7 @@ async fn list_by_graph(
             connection.page_info.has_next_page,
             connection.page_info.end_cursor,
         ) {
-            (true, Some(cursor)) => after = Some(cursor),
+            (true, Some(cursor)) if after.as_deref() != Some(&cursor) => after = Some(cursor),
             _ => break,
         }
     }
@@ -70,26 +70,36 @@ async fn list_by_digest(
     digest: String,
     client: &StudioClient,
 ) -> Result<ListTagsResponse, RoverClientError> {
-    let vars = list_tags_by_digest_query::Variables {
-        digest: digest.clone(),
-        graph_id: graph_id.clone(),
-    };
-    let data = client.post::<ListTagsByDigestQuery>(vars).await?;
+    let mut tags = Vec::new();
+    let mut after = None;
 
-    let artifact =
-        data.graph_artifact_by_digest
-            .ok_or_else(|| RoverClientError::GraphArtifactNotFound {
+    loop {
+        let vars = list_tags_by_digest_query::Variables {
+            digest: digest.clone(),
+            graph_id: graph_id.clone(),
+            first: Some(20),
+            after: after.clone(),
+        };
+        let data = client.post::<ListTagsByDigestQuery>(vars).await?;
+
+        let artifact = data.graph_artifact_by_digest.ok_or_else(|| {
+            RoverClientError::GraphArtifactNotFound {
                 msg: format!(
                     "no graph artifact found with digest '{digest}' in graph '{graph_id}'"
                 ),
-            })?;
+            }
+        })?;
 
-    let tags = artifact
-        .tags
-        .edges
-        .into_iter()
-        .map(|edge| edge.node.tag)
-        .collect();
+        tags.extend(artifact.tags.edges.into_iter().map(|e| e.node.tag));
+
+        match (
+            artifact.tags.page_info.has_next_page,
+            artifact.tags.page_info.end_cursor,
+        ) {
+            (true, Some(cursor)) if after.as_deref() != Some(&cursor) => after = Some(cursor),
+            _ => break,
+        }
+    }
 
     Ok(ListTagsResponse { tags })
 }
