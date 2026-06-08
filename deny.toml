@@ -31,6 +31,9 @@ ignore = [
     # revocation lists in rover, so this code path is not reachable for us. Remove once a patched
     # `rustls-webpki` propagates through our dependency tree.
     "RUSTSEC-2026-0104",
+    # `proc-macro-error2`, a dependency of `getset` via `git-url-parse`, is unmaintained.
+    # No safe upgrade is available.
+    "RUSTSEC-2026-0173",
 ]
 
 # This section is considered when running `cargo deny check licenses`

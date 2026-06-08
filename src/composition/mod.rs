@@ -122,6 +122,11 @@ pub enum CompositionError {
     },
     #[error("Failed to parse output of `{binary} compose`\n{error}")]
     InvalidOutput { binary: Utf8PathBuf, error: String },
+    #[error(
+        "The composition binary `{binary} compose` produced no output. This usually means it \
+         exited abnormally without composing. Try re-running with `--log debug` for more detail."
+    )]
+    EmptyOutput { binary: Utf8PathBuf },
     #[error("Invalid input for `{binary} compose`\n{error}")]
     InvalidInput { binary: Utf8PathBuf, error: String },
     #[error("Failed to read the file at: {path}.\n{error}")]

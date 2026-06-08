@@ -145,7 +145,6 @@ hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }
 itertools = "0.14"
-keyring = "3.6.3"
 lazycell = "1"
 lazy_static = "1"
 mockall = "0.14.0"
@@ -202,6 +201,12 @@ uuid = "1"
 url = "2"
 webbrowser = "1"
 zip = "8"
+
+### keyring ecosystem
+keyring-core = "1.0"
+apple-native-keyring-store = { version = "1.0", features = ["protected"] }
+linux-keyutils-keyring-store = "1.0"
+windows-native-keyring-store = "1.0"
 
 ### rover specific dependencies
 [dependencies]

@@ -5,20 +5,24 @@ edition = "2024"
 
 publish = false
 
-[features]
-testing = ["mockall"]
-
 [dependencies]
 bon = { workspace = true }
 fs-mistrust = { workspace = true }
-keyring = { workspace = true, features = ["apple-native", "windows-native", "linux-native"] }
-mockall = { workspace = true, optional = true }
+keyring-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+linux-keyutils-keyring-store = { workspace = true }
+
 [dev-dependencies]
-mockall = { workspace = true }
 rstest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 speculoos = { workspace = true }

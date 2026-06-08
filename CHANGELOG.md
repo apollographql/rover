@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `rover dev --supergraph-output` to control the output of the composed supergraph - @SharkBaitDLS PR #3383 fixes #1864**
+
+  `rover dev` can now write the supergraph schema it composes to a path of your choosing and keep it updated on every recomposition, e.g. `rover dev --supergraph-output build/supergraph.graphql`. Previously the composed supergraph only lived in a temp file, and the global `--output`/`-o` flag (which controls a command's own CLI output, not its artifacts) appeared to be silently ignored by `dev`. The global `--output` help text now clarifies that distinction.
+
 - **Add `APOLLO_ROVER_SKIP_UPDATE` to disable all auto-updating at once - @SharkBaitDLS PR #3378 fixes #1892**
 
   Setting the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) opts out of all of Rover's auto-updating in a single switch: it skips both the rover self-update check (the `--skip-update-check` flag) and the `supergraph`/`router` plugin auto-updates (the `--skip-update` flag), so on-the-fly plugin resolution uses an already-installed plugin instead of contacting the registry. This is aimed at tightly-controlled monorepo/CI setups that want plugin versions lockstep with CI and prod. The explicit `rover install` command still installs as requested.
@@ -31,6 +35,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Install plugins without relying on a writable system temp directory - @SharkBaitDLS PR #3385 fixes #1422**
 
   Rover now extracts downloaded `supergraph`/`router` plugin tarballs inside its own install directory rather than the system temp dir (`TMPDIR`/`/tmp`), so installations can succeed on read-only filesystems.
+
+- **Return a clear error when composition produces no output - @SharkBaitDLS PR #3384 fixes #1904**
 
 - **Fall back to an installed plugin when the registry is unreachable - @SharkBaitDLS PR #3362 fixes #1791 #1808**
 

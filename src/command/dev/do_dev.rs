@@ -272,6 +272,13 @@ impl Dev {
             router_address.pretty_string()
         );
 
+        let supergraph_output = self.opts.supergraph_opts.supergraph_output.clone();
+        if let Some(ref path) = supergraph_output {
+            infoln!(
+                "writing the composed supergraph schema to {path} (updated on every recomposition)"
+            );
+        }
+
         let mut run_router = run_router
             .run(
                 FsWriteFile::default(),
@@ -283,6 +290,7 @@ impl Dev {
                 home_override,
                 api_key_override,
                 log_level,
+                supergraph_output,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages)
