@@ -15,19 +15,21 @@ The `rover graph-artifact` set of commands lets you manage graph artifacts from 
 
 ## Tagging a graph artifact
 
-You can use Rover to assign a tag to a graph artifact in your graph. Tagging an artifact enables GraphOS Router to fetch it by tag name rather than by digest, which makes it easier to promote a specific artifact across environments.
 
 ### `graph-artifact tag`
 
-Run the `graph-artifact tag` command, like so:
+Use Rover to assign a tag to a graph artifact in your graph. Tagging an artifact enables GraphOS Router to fetch it by tag name instead of by digest, which makes it easier to promote a specific artifact across environments.
 
-```bash
+
+Run the `graph-artifact tag` command:
+
+```bash showLineNumbers=false
 rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --digest <DIGEST>
 ```
 
 Alternatively, you can identify the artifact by its ID instead of its digest:
 
-```bash
+```bash showLineNumbers=false
 rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_ARTIFACT_ID>
 ```
 
@@ -37,11 +39,11 @@ rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_
 
 ## Removing a tag from a graph artifact
 
-You can use Rover to remove a tag from your graph. Deleting a tag removes it and its full history. Tags managed by Apollo, such as a variant's latest tag, cannot be deleted.
-
 ### `graph-artifact untag`
 
-Run the `graph-artifact untag` command, like so:
+Use Rover to remove a tag from your graph. Deleting a tag removes it and its full history. Tags managed by Apollo, such as a variant's `latest` tag, can't be deleted.
+
+Run the `graph-artifact untag` command:
 
 ```bash
 rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
@@ -52,44 +54,29 @@ rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
 
 ## Fetching a graph artifact
 
-You can use Rover to fetch metadata about a graph artifact from Apollo's OCI distribution. This lets you look up an artifact's content-addressed digest, the launch that produced it, and (when fetching by tag) its assignment history.
 
 ### `graph-artifact fetch`
 
-Identify the artifact using one of three mutually exclusive options:
+Use `rover graph-artifact fetch` to fetch metadata about a graph artifact from Apollo's OCI distribution. This command returns an artifact's content-addressed digest, the launch that produced it, and (when fetching by tag) its assignment history.
 
-**By tag name:**
+Identify the artifact using one of the following mutually exclusive options:
 
-```bash
-rover graph-artifact fetch --graph-id <GRAPH_ID> --tag-name <TAG_NAME>
-```
+- By tag name (`--tag-name`)
+- By artifact ID (`--graph-artifact-id `)
+- By content-addressed digest (`--digest`)
 
-**By artifact ID:**
-
-```bash
-rover graph-artifact fetch --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_ARTIFACT_ID>
-```
-
-**By content-addressed digest:**
-
-```bash
-rover graph-artifact fetch --graph-id <GRAPH_ID> --digest <DIGEST>
-```
-
-- The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the artifact.
-- You must provide exactly one of `--tag-name`, `--graph-artifact-id`, or `--digest`.
+You must provide exactly one of `--tag-name`, `--graph-artifact-id`, or `--digest`.
 
 #### Options
 
 | Option | Description |
 |---|---|
-| `--graph-id <GRAPH_ID>` | **(Required)** The ID of the graph that owns the artifact. |
-| `-t, --tag-name <TAG_NAME>` | Fetch by tag name. Mutually exclusive with `--graph-artifact-id` and `--digest`. |
-| `-g, --graph-artifact-id <ID>` | Fetch by artifact ID. Mutually exclusive with `--tag-name` and `--digest`. |
-| `-d, --digest <DIGEST>` | Fetch by content-addressed digest. Mutually exclusive with `--tag-name` and `--graph-artifact-id`. |
-| `--history-limit <N>` | When fetching by tag, the number of tag history entries to include (default: `5`, max: `20`). |
-| `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
-| `--profile <PROFILE_NAME>` | The configuration profile to use (default: `default`). |
+| `--graph-id` | **Required.** The ID of the graph that owns the artifact. |
+| `-t, --tag-name` | Fetch by tag name. Mutually exclusive with `--graph-artifact-id` and `--digest`. |
+| `-g, --graph-artifact-id` | Fetch by artifact ID. Mutually exclusive with `--tag-name` and `--digest`. |
+| `-d, --digest` | Fetch by content-addressed digest. Mutually exclusive with `--tag-name` and `--graph-artifact-id`. |
+| `--history-limit` | When fetching by tag, the number of tag history entries to include (default: `5`, max: `20`). |
+| `--format` | Output format: `plain` (default) or `json`. |
 
 #### Output
 
