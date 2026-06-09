@@ -317,7 +317,7 @@ rover subgraph introspect http://localhost:4000 \
   --schema - --name accounts
 ```
 
-To configure the default behavior of schema checks (such as the time range of past operations to check against), see the [Check Configurations](/graphos/platform/schema-management/checks/configure#using-graphos-studio-recommended) documentation.
+To configure the default behavior of schema checks (such as the time range of past operations to check against), see the [Check Configurations documentation](/graphos/platform/schema-management/checks/configure#using-graphos-studio-recommended).
 
 Options for `subgraph check` include:
 
@@ -337,7 +337,7 @@ Options for `subgraph check` include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in SDL format. You can also provide `-`, in which case the command uses an SDL string piped to `stdin` instead.
+**Required.** The path to a local `.graphql` or `.gql` file, in SDL format. You can also provide `-`, in which case the command uses an SDL string piped to `stdin`.
 
 </td>
 </tr>
@@ -363,7 +363,7 @@ Options for `subgraph check` include:
 </td>
 <td>
 
-**Optional.** If provided, the check is run asynchronously and Rover exits without waiting for the check results. You can then look up the check's result in GraphOS Studio on the Checks page.
+**Optional.** If provided, the check runs asynchronously and Rover exits without waiting for the check results. View the check's result in GraphOS Studio on the Checks page.
 
 </td>
 </tr>
@@ -400,7 +400,7 @@ If you're running schema checks in CI, you might want to pass the `--background`
 
 #### Validation period
 
-By default, schema checks compare your changes against the operations seen in the last 7 days. Use `--validation-period` to override this:
+By default, schema checks compare your changes against the operations seen in the last seven days. Use `--validation-period` to override this:
 
 ```shell {4}
 rover subgraph check my-graph@my-variant \
@@ -422,12 +422,12 @@ If you specify a `--validation-period` that exceeds your organization's operatio
 
 #### Threshold values
 
-Use `--query-count-threshold` and `--query-percentage-threshold` to ignore historical operations that are relatively rare — for example, to safely remove a field still used only by an old, low-traffic client.
+Use `--query-count-threshold` and `--query-percentage-threshold` to ignore historical operations that are rare — for example, to safely remove a field still used only by an old, low-traffic client.
 
-- `--query-count-threshold` — only check against operations executed at least this many times within the validation period.
-- `--query-percentage-threshold` — only check against operations that account for at least this percentage of total operation volume (e.g., `3` for 3%).
+- `--query-count-threshold` — Only check against operations executed at least this many times within the validation period.
+- `--query-percentage-threshold` — only check against operations that account for at least this percentage of total operation volume (e.g., `3` for 3%)
 
-If you provide both flags, an operation must meet or exceed **both** thresholds to be included.
+If you provide both flags, an operation must meet or exceed both thresholds to be included.
 
 ```shell {5-6}
 rover subgraph check my-graph@my-variant \
