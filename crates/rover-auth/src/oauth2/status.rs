@@ -115,15 +115,22 @@ where
                 .await
                 .map_err(|err| WhoamiError::Http(Box::new(err)))?;
 
-            if resp.status() == http::StatusCode::UNAUTHORIZED {
-                return Err(WhoamiError::NotLoggedIn);
+            match resp.status() {
+                http::StatusCode::UNAUTHORIZED => return Err(WhoamiError::NotLoggedIn),
+                s if !s.is_success() => {
+                    return Err(WhoamiError::Http(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("unexpected HTTP status: {s}"),
+                    ))));
+                }
+                _ => {
+                    let body = body_to_bytes(resp.body_mut())
+                        .await
+                        .map_err(|err| WhoamiError::Http(Box::new(err)))?;
+                    let resp = serde_json::from_slice(&body).map_err(WhoamiError::Deserialize)?;
+                    Ok(resp)
+                }
             }
-
-            let body = body_to_bytes(resp.body_mut())
-                .await
-                .map_err(|err| WhoamiError::Http(Box::new(err)))?;
-            let resp = serde_json::from_slice(&body).map_err(WhoamiError::Deserialize)?;
-            Ok(resp)
         };
         Box::pin(fut)
     }
@@ -306,5 +313,31 @@ mod tests {
         assert_that!(result)
             .is_err()
             .matches(|e| matches!(e, WhoamiError::Deserialize(_)));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    #[timeout(Duration::from_secs(5))]
+    async fn test_whoami_non_2xx_error(
+        access_token: AccessToken,
+        mut http_service: MockHttpService,
+    ) {
+        expect_poll_ready!(http_service);
+
+        http_service.expect_call().times(1).returning(|_| {
+            futures::future::ready(Ok(http::Response::builder()
+                .status(500)
+                .body(Full::new(Bytes::new()))
+                .unwrap()))
+        });
+
+        let req = WhoamiRequest::new(whoami_url(), access_token);
+        let result = Whoami::new(MockCloneService::new(http_service))
+            .oneshot(req)
+            .await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, WhoamiError::Http(_)));
     }
 }

@@ -116,6 +116,14 @@ where
                 .call(req)
                 .await
                 .map_err(|err| RegisterError::Http(Box::new(err)))?;
+
+            if !resp.status().is_success() {
+                return Err(RegisterError::Http(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("unexpected HTTP status: {}", resp.status()),
+                ))));
+            }
+
             let body = body_to_bytes(resp.body_mut())
                 .await
                 .map_err(|err| RegisterError::Http(Box::new(err)))?;

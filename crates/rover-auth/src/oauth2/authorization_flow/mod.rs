@@ -136,18 +136,24 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
             .add_scopes(scopes)
             .set_pkce_challenge(pkce_challenge)
             .url();
-        if let Err(err) = open_auth_url.open_url(&auth_url) {
-            tracing::error!("Failed to open URL automatically: {}", err);
-            stderr.print(&StyledText::new(Style::Error, format!("We were unable to open the OAuth Authorization URL automatically. Open {} in a browser to continue.", auth_url))).unwrap();
+
+        match open_auth_url.open_url(&auth_url) {
+            Err(err) => {
+                if let Err(print_err) = stderr.print(&StyledText::new(Style::Error, format!("We were unable to open the OAuth Authorization URL automatically. Open {} in a browser to continue.", auth_url))) {
+                    tracing::error!("Failed to print message: {}", print_err);
+                }
+            }
+            Ok(_) => {
+                let code = redirect_server.await_response(csrf_token).await?;
+                Ok(AuthorizationFlow {
+                    state: state::AuthorizationFlowWithCode {
+                        code,
+                        pkce_verifier,
+                        client,
+                    },
+                })
+            }
         }
-        let code = redirect_server.await_response(csrf_token).await?;
-        Ok(AuthorizationFlow {
-            state: state::AuthorizationFlowWithCode {
-                code,
-                pkce_verifier,
-                client,
-            },
-        })
     }
 }
 
