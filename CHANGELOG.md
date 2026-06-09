@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `--changelog-message` to `graph publish` and `subgraph publish` - @SharkBaitDLS PR #3398 fixes #1884 #292**
+
+  `rover graph publish` and `rover subgraph publish` now accept `--changelog-message <MESSAGE>` to attach a note to the publish in the Studio schema changelog. The publish output has also been enriched: `graph publish` now reports the schema hash and total named type count and `subgraph publish` now includes the resulting supergraph composition hash when one is available.
+
 - **Add `rover dev --supergraph-output` to control the output of the composed supergraph - @SharkBaitDLS PR #3383 fixes #1864**
 
   `rover dev` can now write the supergraph schema it composes to a path of your choosing and keep it updated on every recomposition, e.g. `rover dev --supergraph-output build/supergraph.graphql`. Previously the composed supergraph only lived in a temp file, and the global `--output`/`-o` flag (which controls a command's own CLI output, not its artifacts) appeared to be silently ignored by `dev`. The global `--output` help text now clarifies that distinction.
