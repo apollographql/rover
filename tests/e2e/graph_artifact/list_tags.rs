@@ -8,15 +8,14 @@ use speculoos::{assert_that, boolean::BooleanAssertions, string::StrAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
+use super::E2E_TEST_ARTIFACT_DIGEST;
 use crate::e2e::remote_supergraph_graph_id;
 
-// Any digest on any variant from a successful graph artifact build for the e2e graph.
-const E2E_TEST_ARTIFACT_DIGEST: &str =
-    "sha256:9e4067d19c891ff871a6bbe01d1ee157bca7705677394390b2ae1b7fa9af45de";
 const E2E_TEST_TAG: &str = "e2e-test-list-tags";
 
-/// Generates a tag string with a small numeric suffix (0..500) so reruns reuse
-/// tags rather than accumulating new ones in the system.
+/// Generates a tag string with a random numeric suffix so concurrent CI jobs
+/// (which all share the `rover-e2e-tests` graph) don't collide on the same tag
+/// name. The by-digest happy path deletes the tag it creates.
 fn random_tag() -> String {
     let n: u16 = rand::rng().random_range(0..500);
     format!("{E2E_TEST_TAG}-{n:03}")
@@ -112,12 +111,19 @@ async fn e2e_test_rover_graph_artifact_list_tags_by_graph_happy_path(
     remote_supergraph_graph_id: String,
 ) {
     info!("Listing tags for graph {remote_supergraph_graph_id}");
+    // `--limit` caps how many tags are fetched. The shared e2e graph accumulates a
+    // very large tag set, and without a limit this command paginates every tag
+    // (20/page, with a per-request client timeout), which can run for many minutes
+    // and exceed the CI job timeout. We only need to confirm the by-graph path
+    // returns a well-formed `tags` array, so one page is enough.
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "graph-artifact",
         "list-tags",
         "--graph-id",
         &remote_supergraph_graph_id,
+        "--limit",
+        "20",
         "--client-timeout",
         "120",
         "--format",
@@ -192,7 +198,12 @@ async fn e2e_test_rover_graph_artifact_list_tags_by_digest_happy_path(
         .as_array()
         .expect("'tags' should be an array")
         .iter()
-        .map(|v| v.as_str().expect("tag should be a string").to_string())
+        .map(|v| {
+            v.get("tag")
+                .and_then(|t| t.as_str())
+                .expect("tag entry should have a 'tag' string field")
+                .to_string()
+        })
         .collect();
     assert!(
         tags.contains(&tag),

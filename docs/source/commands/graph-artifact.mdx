@@ -129,7 +129,14 @@ List only the tags applied to a specific artifact by passing its digest:
 rover graph-artifact list-tags --graph-id <GRAPH_ID> --digest <DIGEST>
 ```
 
+Change how many tags are returned with `--limit`:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID> --limit <LIMIT>
+```
+
 - The `--graph-id <GRAPH_ID>` option is the ID of the graph whose tags you want to list
 - The `--digest <DIGEST>` option is optional. When provided, the output narrows to tags on the artifact with that digest; when omitted, the output includes tags across all artifacts in the graph
+- The `--limit <LIMIT>` option sets the maximum number of tags to return and defaults to `100`.
 
 By default Rover prints one tag per line on stdout, which makes the output easy to pipe to other tools. Pass `--format json` to get machine-readable output of the form `{ "data": { "tags": [...] } }`.

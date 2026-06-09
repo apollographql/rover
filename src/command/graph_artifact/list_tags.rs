@@ -12,6 +12,11 @@ pub struct ListTags {
     graph_id: String,
     #[arg(long)]
     digest: Option<String>,
+    /// Maximum number of tags to return. Listing stops once this many tags have
+    /// been collected, so listing against a graph with a very large number of
+    /// tags doesn't have to paginate through every one.
+    #[arg(long, default_value_t = 100)]
+    limit: usize,
 }
 
 impl ListTags {
@@ -28,7 +33,7 @@ impl ListTags {
             },
         };
 
-        let response = list_tags::run(input, &client).await?;
+        let response = list_tags::run(input, self.limit, &client).await?;
         Ok(RoverOutput::ListGraphArtifactTagsResponse(response))
     }
 }

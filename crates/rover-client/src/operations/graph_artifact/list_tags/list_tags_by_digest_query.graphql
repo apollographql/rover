@@ -8,6 +8,10 @@ query ListTagsByDigestQuery($digest: String!, $graphId: ID!, $first: Int, $after
             edges {
                 node {
                     tag
+                    graphArtifact {
+                        digest
+                        createdAt
+                    }
                 }
             }
         }

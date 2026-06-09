@@ -7,6 +7,13 @@ pub enum ListTagsInput {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ListTagEntry {
+    pub tag: String,
+    pub digest: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ListTagsResponse {
-    pub tags: Vec<String>,
+    pub tags: Vec<ListTagEntry>,
 }

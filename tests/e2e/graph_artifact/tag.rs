@@ -10,18 +10,41 @@ use speculoos::{
 use tracing::{error, info};
 use tracing_test::traced_test;
 
+use super::E2E_TEST_ARTIFACT_DIGEST;
 use crate::e2e::remote_supergraph_graph_id;
 
-// can be any digest on any variant from a successful launch / graph artifact build
-const E2E_TEST_ARTIFACT_DIGEST: &str =
-    "sha256:9e4067d19c891ff871a6bbe01d1ee157bca7705677394390b2ae1b7fa9af45de";
 const E2E_TEST_TAG: &str = "e2e-test-artifact-tag";
 
-/// Generates a tag string with a small numeric suffix (0..500) so reruns reuse
-/// tags rather than accumulating new ones in the system.
+/// Generates a tag string with a random numeric suffix so concurrent CI jobs
+/// (which all share the `rover-e2e-tests` graph) don't collide on the same tag
+/// name. The happy path deletes the tag it creates so the graph's tag count
+/// stays bounded.
 fn random_tag() -> String {
     let n: u16 = rand::rng().random_range(0..500);
     format!("{E2E_TEST_TAG}-{n:03}")
+}
+
+/// Removes a tag, logging (but not failing) if the removal does not succeed.
+fn delete_tag(graph_id: &str, tag: &str) {
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "graph-artifact",
+        "untag",
+        tag,
+        "--graph-id",
+        graph_id,
+        "--client-timeout",
+        "120",
+    ]);
+    if let Ok(output) = cmd.output()
+        && !output.status.success()
+    {
+        error!(
+            "Warning: failed to delete tag '{}': {}",
+            tag,
+            from_utf8(&output.stderr).unwrap_or("<non-utf8>")
+        );
+    }
 }
 
 #[rstest]
@@ -185,4 +208,7 @@ async fn e2e_test_rover_graph_artifact_tag_happy_path(remote_supergraph_graph_id
         .expect("Response should have 'graph_artifact_id' field");
     let graph_artifact_id_str = graph_artifact_id.as_str();
     assert_that(&graph_artifact_id_str.unwrap_or("").len()).is_greater_than(0);
+
+    // Clean up so the graph's tag list stays bounded for the list-tags tests.
+    delete_tag(&remote_supergraph_graph_id, &tag);
 }

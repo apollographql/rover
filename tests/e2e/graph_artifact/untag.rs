@@ -8,15 +8,14 @@ use speculoos::{assert_that, boolean::BooleanAssertions, string::StrAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
+use super::E2E_TEST_ARTIFACT_DIGEST;
 use crate::e2e::remote_supergraph_graph_id;
 
-// can be any digest on any variant from a successful launch / graph artifact build
-const E2E_TEST_ARTIFACT_DIGEST: &str =
-    "sha256:9e4067d19c891ff871a6bbe01d1ee157bca7705677394390b2ae1b7fa9af45de";
 const E2E_TEST_TAG: &str = "e2e-test-artifact-untag";
 
-/// Generates a tag string with a small numeric suffix (0..500) so reruns reuse
-/// tags rather than accumulating new ones in the system.
+/// Generates a tag string with a random numeric suffix so concurrent CI jobs
+/// (which all share the `rover-e2e-tests` graph) don't collide on the same tag
+/// name. This test creates the tag and then removes it, so it leaves nothing behind.
 fn random_tag() -> String {
     let n: u16 = rand::rng().random_range(0..500);
     format!("{E2E_TEST_TAG}-{n:03}")

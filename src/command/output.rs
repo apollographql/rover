@@ -659,7 +659,25 @@ impl RoverOutput {
 
                 Some(output)
             }
-            RoverOutput::ListGraphArtifactTagsResponse(response) => Some(response.tags.join("\n")),
+            RoverOutput::ListGraphArtifactTagsResponse(response) => {
+                if response.tags.is_empty() {
+                    return Ok(Some("No tags on graph artifact.".to_string()));
+                }
+                let mut table = table::get_table();
+                table.add_row(vec![
+                    &Style::Success.paint("Tag"),
+                    &Style::Success.paint("Digest"),
+                    &Style::Success.paint("Created At"),
+                ]);
+                for entry in &response.tags {
+                    table.add_row(vec![
+                        entry.tag.clone(),
+                        entry.digest.clone().unwrap_or_else(|| "N/A".to_string()),
+                        entry.created_at.clone(),
+                    ]);
+                }
+                Some(table.to_string())
+            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
