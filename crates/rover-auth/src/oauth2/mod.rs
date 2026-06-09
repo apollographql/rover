@@ -11,7 +11,6 @@ pub mod revoke_token;
 /// User status (whoami) service.
 pub mod status;
 
-#[allow(missing_docs)]
 pub use oauth2::{AccessToken, RefreshToken, RevocableToken, Scope};
 
 /// OAuth2 grant type.
