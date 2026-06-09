@@ -33,6 +33,7 @@ url = { workspace = true }
 [dev-dependencies]
 bytes = { workspace = true }
 futures = { workspace = true }
+httpmock = { workspace = true }
 mockall = { workspace = true }
 reqwest = { workspace = true }
 rover-http = { workspace = true, features = ["test"] }
@@ -41,6 +42,7 @@ rover-print = { workspace = true, features = ["testing"] }
 rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 speculoos = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 
 [lints]
 workspace = true

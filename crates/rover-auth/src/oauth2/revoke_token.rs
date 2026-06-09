@@ -9,14 +9,18 @@ use url::Url;
 
 use crate::OauthHttpClient;
 
+/// Errors from the [`RevokeToken`] service.
 #[derive(thiserror::Error, Debug)]
 pub enum RevokeTokenError {
+    /// HTTP transport error.
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
+    /// Invalid oauth2 client configuration for revocation.
     #[error("Failed to configure revoke token request. {}", .0)]
     OauthConfiguration(#[from] oauth2::ConfigurationError),
 }
 
+/// Request to revoke an access or refresh token.
 pub struct RevokeTokenRequest {
     client_id: ClientId,
     revocation_url: RevocationUrl,
@@ -25,6 +29,7 @@ pub struct RevokeTokenRequest {
 
 #[bon::bon]
 impl RevokeTokenRequest {
+    /// Creates a new [`RevokeTokenRequest`].
     #[builder]
     pub fn new<RC>(client_id: String, revocation_url: Url, token: RC) -> RevokeTokenRequest
     where
@@ -38,9 +43,11 @@ impl RevokeTokenRequest {
     }
 }
 
+/// Successful response from token revocation (empty body per RFC 7009).
 #[derive(Debug)]
 pub struct RevokeTokenResponse {}
 
+/// Tower service that revokes an OAuth2 token (RFC 7009).
 pub struct RevokeToken<S, B> {
     inner: S,
     _body: PhantomData<B>,
@@ -58,6 +65,7 @@ where
 }
 
 impl<S, B> RevokeToken<S, B> {
+    /// Creates a new [`RevokeToken`] wrapping the given HTTP service.
     pub const fn new(inner: S) -> RevokeToken<S, B> {
         RevokeToken {
             inner,

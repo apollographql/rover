@@ -5,12 +5,16 @@ use oauth2::{AuthorizationCode, CsrfToken};
 use super::future::{OauthRedirectError, OauthRedirectFuture};
 use crate::oauth2::authorization_flow::redirect::DEFAULT_REDIRECT_HOST;
 
+/// Errors from the OAuth redirect server.
 #[derive(thiserror::Error, Debug)]
 pub enum RedirectServerError {
+    /// Failed to bind the TCP listener.
     #[error("Unable to bind TcpListener: {}", .0)]
     Bind(std::io::Error),
+    /// Failed to retrieve the server's local address.
     #[error("Unable to fetch server address: {}", .0)]
     LocalAddr(std::io::Error),
+    /// The axum redirect handler returned an error.
     #[error(transparent)]
     OauthRedirect(#[from] OauthRedirectError),
 }
@@ -27,24 +31,32 @@ mod state {
     }
 }
 
+/// A redirect server that can bind to a local port to receive the OAuth callback.
 #[cfg_attr(any(test, feature = "testing"), mockall::automock(type Next = MockRedirectServerAwait;))]
 #[async_trait::async_trait]
 pub trait RedirectServerBind {
+    /// The bound server, ready to await the OAuth callback.
     type Next: RedirectServerAwait;
+    /// Binds to a random available port.
     async fn bind(self) -> Result<Self::Next, RedirectServerError>;
+    /// Binds to the specified port.
     async fn bind_to(self, port: u16) -> Result<Self::Next, RedirectServerError>;
 }
 
+/// A bound redirect server waiting for the OAuth authorization callback.
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait RedirectServerAwait {
+    /// Returns the socket address the server is listening on.
     fn local_addr(&self) -> Result<SocketAddr, RedirectServerError>;
+    /// Waits for the OAuth callback and returns the authorization code once the CSRF token validates.
     async fn await_response(
         self,
         csrf_token: CsrfToken,
     ) -> Result<AuthorizationCode, RedirectServerError>;
 }
 
+/// Axum-based local HTTP server that handles the OAuth redirect callback.
 #[derive(Debug)]
 pub struct AxumRedirectServer<T: Debug> {
     state: T,

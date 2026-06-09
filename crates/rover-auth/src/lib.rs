@@ -1,3 +1,7 @@
+//! OAuth2 authentication services for rover.
+
+#![warn(missing_docs)]
+
 use std::{marker::PhantomData, sync::Arc};
 
 use ::oauth2::AsyncHttpClient;
@@ -7,8 +11,10 @@ use rover_tower::ResponseFuture;
 use tokio::sync::Mutex;
 use tower::{Service, ServiceExt};
 
+/// Core OAuth2 service types for rover.
 pub mod oauth2;
 
+/// Tower [`Service`] wrapper that implements [`oauth2::AsyncHttpClient`].
 #[derive(Clone)]
 pub struct OauthHttpClient<T, B> {
     inner: Arc<Mutex<T>>,
@@ -16,6 +22,7 @@ pub struct OauthHttpClient<T, B> {
 }
 
 impl<T, B> OauthHttpClient<T, B> {
+    /// Creates a new [`OauthHttpClient`] wrapping the given tower service.
     pub fn new(inner: T) -> OauthHttpClient<T, B> {
         OauthHttpClient {
             inner: Arc::new(Mutex::new(inner)),

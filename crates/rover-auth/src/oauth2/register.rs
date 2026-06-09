@@ -9,6 +9,7 @@ use url::Url;
 
 use super::{GrantType, TokenEndpointAuthMethod};
 
+/// Request body for OAuth2 dynamic client registration.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename = "snake_case")]
 pub struct RegisterRequest {
@@ -22,6 +23,7 @@ pub struct RegisterRequest {
 
 #[bon::bon]
 impl RegisterRequest {
+    /// Creates a new [`RegisterRequest`].
     #[builder]
     pub fn new(register_url: Url, redirect_url: Url) -> RegisterRequest {
         RegisterRequest {
@@ -39,27 +41,35 @@ impl RegisterRequest {
     }
 }
 
+/// Errors from the [`Register`] service.
 #[derive(thiserror::Error, Debug)]
 pub enum RegisterError {
+    /// HTTP transport error.
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
+    /// Failed to deserialize the server response.
     #[error("Failed to deserialize response: {}.", .0)]
     Deserialize(serde_json::Error),
+    /// Failed to serialize the registration request.
     #[error("Failed to serialize request: {}.", .0)]
     Serialize(serde_json::Error),
 }
 
+/// Successful response from dynamic client registration.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename = "snake_case")]
 pub struct RegisterResponse {
+    /// The registered client ID.
     pub client_id: String,
 }
 
+/// Tower service for OAuth2 dynamic client registration (RFC 7591).
 pub struct Register<S> {
     inner: S,
 }
 
 impl<S> Register<S> {
+    /// Creates a new [`Register`] wrapping the given HTTP service.
     pub const fn new(inner: S) -> Register<S> {
         Register { inner }
     }

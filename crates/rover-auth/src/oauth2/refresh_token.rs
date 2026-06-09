@@ -12,12 +12,15 @@ use url::Url;
 
 use crate::OauthHttpClient;
 
+/// Errors from the [`RefreshToken`] service.
 #[derive(thiserror::Error, Debug)]
 pub enum RefreshTokenError {
+    /// HTTP transport error.
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
 }
 
+/// Request to exchange a refresh token for a new access token.
 pub struct RefreshTokenRequest {
     client_id: ClientId,
     token_url: TokenUrl,
@@ -26,6 +29,7 @@ pub struct RefreshTokenRequest {
 
 #[bon::bon]
 impl RefreshTokenRequest {
+    /// Creates a new [`RefreshTokenRequest`].
     #[builder]
     pub fn new(client_id: String, token_url: Url, refresh_token: String) -> RefreshTokenRequest {
         RefreshTokenRequest {
@@ -36,19 +40,25 @@ impl RefreshTokenRequest {
     }
 }
 
+/// Successful response from a token refresh.
 #[derive(Debug)]
 pub struct RefreshTokenResponse {
+    /// The new access token.
     pub access_token: AccessToken,
+    /// A replacement refresh token, if issued.
     pub refresh_token: Option<OauthRefreshToken>,
+    /// Lifetime of the new access token.
     pub expires_in: Option<Duration>,
 }
 
+/// Tower service that exchanges a refresh token for a new access token.
 pub struct RefreshToken<S, B> {
     inner: S,
     _body: PhantomData<B>,
 }
 
 impl<S, B> RefreshToken<S, B> {
+    /// Creates a new [`RefreshToken`] wrapping the given HTTP service.
     pub const fn new(inner: S) -> RefreshToken<S, B> {
         RefreshToken {
             inner,

@@ -16,15 +16,20 @@ use url::Url;
 
 use crate::OauthHttpClient;
 
+/// OAuth redirect server for handling the PKCE callback.
 pub mod redirect;
 
 type AuthorizationFlowClient =
     BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
+/// Tokens returned after a successful PKCE authorization code exchange.
 #[derive(Debug)]
 pub struct AuthorizationFlowResponse {
+    /// The issued access token.
     pub access_token: AccessToken,
+    /// A refresh token, if the server issued one.
     pub refresh_token: Option<RefreshToken>,
+    /// Lifetime of the access token.
     pub expires_in: Option<std::time::Duration>,
 }
 
@@ -64,16 +69,21 @@ mod state {
     }
 }
 
+/// Errors from the PKCE authorization flow.
 #[derive(thiserror::Error, Debug)]
 pub enum AuthorizationFlowError {
+    /// The local redirect server failed.
     #[error(transparent)]
     RedirectServer(#[from] RedirectServerError),
+    /// Could not construct the redirect URL from the server address.
     #[error("Failed to parse the redirect server URL: {}", .0)]
     RedirectUrl(url::ParseError),
+    /// The token endpoint rejected the authorization code.
     #[error("Failed to exchange access code: {}", .0)]
     AccessCodeExchange(Box<dyn std::error::Error>),
 }
 
+/// State machine for the OAuth2 PKCE authorization code flow.
 #[derive(Debug)]
 pub struct AuthorizationFlow<T>
 where
@@ -85,6 +95,7 @@ where
 #[bon::bon]
 impl AuthorizationFlow<state::AuthorizationFlowInit> {
     #[builder]
+    /// Creates a new [`AuthorizationFlow`] in its initial state.
     pub const fn new(
         client_id: String,
         authorization_url: Url,
@@ -98,6 +109,7 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
             },
         }
     }
+    /// Opens the authorization URL and waits for the OAuth callback, returning the flow with code.
     pub async fn authorize<O, P, RS>(
         &self,
         scopes: Vec<Scope>,
@@ -140,6 +152,7 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
 }
 
 impl AuthorizationFlow<state::AuthorizationFlowWithCode> {
+    /// Exchanges the authorization code for tokens via the token endpoint.
     pub async fn exchange_code<S, B>(
         self,
         http_service: S,

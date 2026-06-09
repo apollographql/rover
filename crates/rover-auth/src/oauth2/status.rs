@@ -7,6 +7,7 @@ use serde::Deserialize;
 use tower::{Service, ServiceExt};
 use url::Url;
 
+/// Request to fetch the authenticated user's identity.
 #[derive(Clone, Debug)]
 pub struct WhoamiRequest {
     whoami_url: Url,
@@ -14,6 +15,7 @@ pub struct WhoamiRequest {
 }
 
 impl WhoamiRequest {
+    /// Creates a new [`WhoamiRequest`].
     pub const fn new(whoami_url: Url, access_token: AccessToken) -> WhoamiRequest {
         WhoamiRequest {
             whoami_url,
@@ -22,29 +24,39 @@ impl WhoamiRequest {
     }
 }
 
+/// Errors from the [`Whoami`] service.
 #[derive(thiserror::Error, Debug)]
 pub enum WhoamiError {
+    /// HTTP transport error.
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
+    /// Failed to deserialize the server response.
     #[error("Failed to deserialize response: {}.", .0)]
     Deserialize(serde_json::Error),
+    /// The access token was rejected (401).
     #[error("User is not logged in")]
     NotLoggedIn,
 }
 
+/// Authenticated user identity returned by the whoami endpoint.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct WhoamiResponse {
+    /// The authenticated user's ID.
     pub user_id: String,
+    /// The authenticated user's email.
     pub email: String,
+    /// The authenticated user's display name.
     pub name: String,
 }
 
+/// Tower service that fetches the authenticated user's identity.
 pub struct Whoami<S> {
     inner: S,
 }
 
 impl<S> Whoami<S> {
+    /// Creates a new [`Whoami`] wrapping the given HTTP service.
     pub const fn new(inner: S) -> Whoami<S> {
         Whoami { inner }
     }
@@ -56,6 +68,7 @@ where
     S::Error: std::error::Error + Send + 'static,
     S::Future: Send,
 {
+    /// Fetches the authenticated user's identity using the given service and request.
     pub async fn fetch(service: S, req: WhoamiRequest) -> Result<WhoamiResponse, WhoamiError> {
         Whoami::new(service).oneshot(req).await
     }

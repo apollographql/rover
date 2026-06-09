@@ -4,8 +4,10 @@ use tokio::sync::{Mutex, oneshot};
 
 mod future;
 mod handler;
+/// Axum-based local server for handling the OAuth redirect callback.
 pub mod server;
 
+/// Default host for the local OAuth redirect server.
 pub const DEFAULT_REDIRECT_HOST: &str = "127.0.0.1";
 
 #[derive(Clone, Debug)]
