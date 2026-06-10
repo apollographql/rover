@@ -30,6 +30,7 @@ members = [
     "xtask",
     "crates/houston",
     "crates/robot-panic",
+    "crates/rover-auth",
     "crates/rover-schema",
     "crates/rover-tower",
     "crates/rover-http",
@@ -79,6 +80,7 @@ rover-std = { path = "./crates/rover-std" }
 rover-storage = { path = "./crates/rover-storage" }
 rover-studio = { path = "./crates/rover-studio" }
 rover-schema = { path = "./crates/rover-schema" }
+rover-auth = { path = "./crates/rover-auth" }
 rover-tower = { path = "./crates/rover-tower" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
@@ -106,6 +108,7 @@ assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
 async-trait = "0.1"
+axum = "0.8.8"
 backtrace = "0.3"
 backon = { version = "1.4", features = ["std", "tokio-sleep"] }
 base64 = "0.22"
@@ -149,11 +152,13 @@ lazycell = "1"
 lazy_static = "1"
 mockall = "0.14.0"
 notify = "8"
+oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.8"
 os_info = "3"
 os_type = "2"
 pathfinding = "4"
 pastey = "0.2.1"
+pin-project = "1.1.10"
 predicates = "3"
 pretty_assertions = "1"
 rand = "0.10"

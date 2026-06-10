@@ -3830,6 +3830,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "oauth2"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.2.17",
+ "http",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
 name = "objc2"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4912,6 +4931,36 @@ dependencies = [
  "url",
  "uuid",
  "which 8.0.3",
+]
+
+[[package]]
+name = "rover-auth"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "bon",
+ "bytes",
+ "futures",
+ "http",
+ "httpmock",
+ "mockall",
+ "oauth2",
+ "pin-project",
+ "reqwest",
+ "rover-http",
+ "rover-open",
+ "rover-print",
+ "rover-tower",
+ "rstest",
+ "serde",
+ "serde_json",
+ "speculoos",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "url",
 ]
 
 [[package]]
