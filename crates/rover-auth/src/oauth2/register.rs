@@ -118,8 +118,7 @@ where
                 .map_err(|err| RegisterError::Http(Box::new(err)))?;
 
             if !resp.status().is_success() {
-                return Err(RegisterError::Http(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(RegisterError::Http(Box::new(std::io::Error::other(
                     format!("unexpected HTTP status: {}", resp.status()),
                 ))));
             }

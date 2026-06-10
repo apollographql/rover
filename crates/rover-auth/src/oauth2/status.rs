@@ -116,13 +116,10 @@ where
                 .map_err(|err| WhoamiError::Http(Box::new(err)))?;
 
             match resp.status() {
-                http::StatusCode::UNAUTHORIZED => return Err(WhoamiError::NotLoggedIn),
-                s if !s.is_success() => {
-                    return Err(WhoamiError::Http(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("unexpected HTTP status: {s}"),
-                    ))));
-                }
+                http::StatusCode::UNAUTHORIZED => Err(WhoamiError::NotLoggedIn),
+                s if !s.is_success() => Err(WhoamiError::Http(Box::new(std::io::Error::other(
+                    format!("unexpected HTTP status: {s}"),
+                )))),
                 _ => {
                     let body = body_to_bytes(resp.body_mut())
                         .await
