@@ -40,7 +40,8 @@ async fn test_client_credentials_exchanges_for_access_token() {
         .scopes(vec![Scope::new("rover:cli".to_string())])
         .build();
 
-    let svc: ClientCredentials<ReqwestService, Full<Bytes>> = ClientCredentials::new(http_service());
+    let svc: ClientCredentials<ReqwestService, Full<Bytes>> =
+        ClientCredentials::new(http_service());
     let result = svc.oneshot(req).await;
     let resp = assert_that!(result).is_ok().subject;
 
@@ -69,7 +70,8 @@ async fn test_client_credentials_response_includes_expires_in() {
         .scopes(vec![])
         .build();
 
-    let svc: ClientCredentials<ReqwestService, Full<Bytes>> = ClientCredentials::new(http_service());
+    let svc: ClientCredentials<ReqwestService, Full<Bytes>> =
+        ClientCredentials::new(http_service());
     let result = svc.oneshot(req).await;
     let resp = assert_that!(result).is_ok().subject;
 
@@ -85,7 +87,9 @@ async fn test_client_credentials_server_oauth_error() {
         when.method(POST).path("/token");
         then.status(400)
             .header("content-type", "application/json")
-            .body(r#"{"error":"invalid_client","error_description":"Client authentication failed"}"#);
+            .body(
+                r#"{"error":"invalid_client","error_description":"Client authentication failed"}"#,
+            );
     });
 
     let token_url = Url::parse(&format!("http://{}/token", server.address())).unwrap();
@@ -97,7 +101,8 @@ async fn test_client_credentials_server_oauth_error() {
         .scopes(vec![])
         .build();
 
-    let svc: ClientCredentials<ReqwestService, Full<Bytes>> = ClientCredentials::new(http_service());
+    let svc: ClientCredentials<ReqwestService, Full<Bytes>> =
+        ClientCredentials::new(http_service());
     let result = svc.oneshot(req).await;
 
     assert_that!(result)
@@ -126,7 +131,8 @@ async fn test_client_credentials_server_parse_error() {
         .scopes(vec![])
         .build();
 
-    let svc: ClientCredentials<ReqwestService, Full<Bytes>> = ClientCredentials::new(http_service());
+    let svc: ClientCredentials<ReqwestService, Full<Bytes>> =
+        ClientCredentials::new(http_service());
     let result = svc.oneshot(req).await;
 
     assert_that!(result)
