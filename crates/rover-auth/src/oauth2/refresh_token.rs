@@ -2,8 +2,8 @@ use std::{marker::PhantomData, time::Duration};
 
 use http::{Request, Response};
 use oauth2::{
-    AccessToken, ClientId, RefreshToken as OauthRefreshToken, TokenResponse, TokenUrl,
-    basic::BasicClient,
+    AccessToken, ClientId, RefreshToken as OauthRefreshToken, RequestTokenError, TokenResponse,
+    TokenUrl, basic::BasicClient,
 };
 use rover_http::Body;
 use rover_tower::{ResponseFuture, service::replace_ready_service};
@@ -98,7 +98,10 @@ where
                 .exchange_refresh_token(&req.refresh_token)
                 .request_async(&http_client)
                 .await
-                .map_err(|err| RefreshTokenError::Http(Box::new(err)))?;
+                .map_err(|err| match err {
+                    RequestTokenError::Request(e) => RefreshTokenError::Http(Box::new(e)),
+                    other => RefreshTokenError::Http(Box::new(other)),
+                })?;
             Ok(RefreshTokenResponse {
                 access_token: resp.access_token().clone(),
                 refresh_token: resp.refresh_token().cloned(),
@@ -158,7 +161,7 @@ mod tests {
         token_url: Url,
         mut http_service: MockHttpService,
     ) {
-        expect_poll_ready!(http_service, 2);
+        expect_poll_ready!(http_service, 1);
 
         // GIVEN: HTTP request succeeds to refresh the token
         let expected_token_url = token_url.clone();
@@ -197,7 +200,7 @@ mod tests {
         token_url: Url,
         mut http_service: MockHttpService,
     ) {
-        expect_poll_ready!(http_service, 2);
+        expect_poll_ready!(http_service, 1);
 
         // GIVEN: HTTP request fails to refresh the token
         http_service
@@ -219,7 +222,7 @@ mod tests {
         // THEN: The error is returned
         assert_that!(result)
             .is_err()
-            .matches(|e| matches!(e, RefreshTokenError::Http(_)));
+            .matches(|e| matches!(e, RefreshTokenError::Http(inner) if inner.to_string().contains("Request timed out")));
     }
 
     #[rstest]
@@ -237,6 +240,8 @@ mod tests {
         let result = service.ready().await;
 
         // THEN: The error is returned
-        assert!(matches!(result.err().unwrap(), RefreshTokenError::Http(_)));
+        assert_that!(result.err())
+            .is_some()
+            .matches(|e| matches!(e, RefreshTokenError::Http(inner) if inner.to_string().contains("Request timed out")));
     }
 }

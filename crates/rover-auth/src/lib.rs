@@ -9,21 +9,21 @@ use http::{Request, Response};
 use rover_http::{Body, BodyExt};
 use rover_tower::ResponseFuture;
 use tokio::sync::Mutex;
-use tower::{Service, ServiceExt};
+use tower::Service;
 
 /// Core OAuth2 service types for rover.
 pub mod oauth2;
 
 /// Tower [`Service`] wrapper that implements [`oauth2::AsyncHttpClient`].
 #[derive(Clone)]
-pub struct OauthHttpClient<T, B> {
+pub(crate) struct OauthHttpClient<T, B> {
     inner: Arc<Mutex<T>>,
     _body: PhantomData<B>,
 }
 
 impl<T, B> OauthHttpClient<T, B> {
     /// Creates a new [`OauthHttpClient`] wrapping the given tower service.
-    pub fn new(inner: T) -> OauthHttpClient<T, B> {
+    pub(crate) fn new(inner: T) -> OauthHttpClient<T, B> {
         OauthHttpClient {
             inner: Arc::new(Mutex::new(inner)),
             _body: PhantomData,
@@ -46,11 +46,10 @@ where
         let service = self.inner.clone();
         let fut = async move {
             let mut service = service.lock().await;
-            let ready_service = service.ready().await?;
             let (parts, body) = request.into_parts();
             let body = B::from(body);
             let request = Request::from_parts(parts, body);
-            let resp = ready_service.call(request).await?;
+            let resp = service.call(request).await?;
             let (parts, body) = resp.into_parts();
             let body = body.collect().await?;
             let body = body.to_bytes().to_vec();

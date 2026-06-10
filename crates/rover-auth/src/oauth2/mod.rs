@@ -2,6 +2,8 @@ use serde::Serialize;
 
 /// PKCE authorization code flow.
 pub mod authorization_flow;
+/// Client credentials grant service.
+pub mod client_credentials;
 /// Token refresh service.
 pub mod refresh_token;
 /// Dynamic client registration service.
@@ -19,6 +21,8 @@ pub use oauth2::{AccessToken, RefreshToken, RevocableToken, Scope};
 pub enum GrantType {
     /// Authorization code grant.
     AuthorizationCode,
+    /// Client credentials grant.
+    ClientCredentials,
 }
 
 /// Client authentication method for the token endpoint.
