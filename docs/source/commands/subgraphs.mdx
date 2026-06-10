@@ -317,7 +317,9 @@ rover subgraph introspect http://localhost:4000 \
   --schema - --name accounts
 ```
 
-To configure the default behavior of schema checks (such as the time range of past operations to check against), see the [Check Configurations documentation](/graphos/platform/schema-management/checks/configure#using-graphos-studio-recommended).
+To configure schema check defaults for every check run on a graph variant, use [check configurations in GraphOS Studio](/graphos/platform/schema-management/checks/configure#using-graphos-studio-recommended).
+
+To override the default check configuration for a single check run, see the [validation period](#validation-period) and [threshold values](#threshold-values) options below.
 
 Options for `subgraph check` include:
 
@@ -400,7 +402,7 @@ If you're running schema checks in CI, you might want to pass the `--background`
 
 #### Validation period
 
-By default, schema checks compare your changes against the operations seen in the last seven days. Use `--validation-period` to override this:
+By default, schema checks compare your changes against the operations seen in the last seven days, or whatever default you've configured in GraphOS Studio. Use `--validation-period` to override that default setting:
 
 ```shell {4}
 rover subgraph check my-graph@my-variant \
