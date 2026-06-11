@@ -243,7 +243,8 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![Scope::new("rover:cli".to_string())])
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -275,7 +276,8 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -307,7 +309,8 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -340,7 +343,8 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -400,7 +404,9 @@ mod tests {
 
         assert!(matches!(
             err,
-            ClientCredentialsError::EmptyCredential { field: "client_secret" }
+            ClientCredentialsError::EmptyCredential {
+                field: "client_secret"
+            }
         ));
     }
 }
