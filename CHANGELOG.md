@@ -32,6 +32,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Include error cause detail in `--format json` output - @SharkBaitDLS PR#3408 fixes #1320**
+
+  When a command fails, its JSON output now includes a `causes` array carrying the same `Caused by:` detail that plain-text output already shows, outermost cause first.
+
 - **Install plugins without relying on a writable system temp directory - @SharkBaitDLS PR #3385 fixes #1422**
 
   Rover now extracts downloaded `supergraph`/`router` plugin tarballs inside its own install directory rather than the system temp dir (`TMPDIR`/`/tmp`), so installations can succeed on read-only filesystems.
