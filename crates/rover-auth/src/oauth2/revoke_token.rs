@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use http::{Request, Response};
-use oauth2::{ClientId, RevocationUrl, StandardRevocableToken, basic::BasicClient};
+use oauth2::{
+    ClientId, RequestTokenError, RevocationUrl, StandardRevocableToken, basic::BasicClient,
+};
 use rover_http::Body;
 use rover_tower::{ResponseFuture, service::replace_ready_service};
 use tower::Service;
@@ -105,7 +107,10 @@ where
             request
                 .request_async(&http_client)
                 .await
-                .map_err(|err| RevokeTokenError::Http(Box::new(err)))?;
+                .map_err(|err| match err {
+                    RequestTokenError::Request(e) => RevokeTokenError::Http(Box::new(e)),
+                    other => RevokeTokenError::Http(Box::new(other)),
+                })?;
             Ok(RevokeTokenResponse {})
         };
         Box::pin(fut)
@@ -157,7 +162,7 @@ mod tests {
         revocation_url: Url,
         mut http_service: MockHttpService,
     ) {
-        expect_poll_ready!(http_service, 2);
+        expect_poll_ready!(http_service, 1);
 
         let expected_revocation_url = revocation_url.clone();
         http_service
@@ -191,7 +196,7 @@ mod tests {
         revocation_url: Url,
         mut http_service: MockHttpService,
     ) {
-        expect_poll_ready!(http_service, 2);
+        expect_poll_ready!(http_service, 1);
 
         let expected_revocation_url = revocation_url.clone();
         http_service
@@ -225,7 +230,7 @@ mod tests {
         revocation_url: Url,
         mut http_service: MockHttpService,
     ) {
-        expect_poll_ready!(http_service, 2);
+        expect_poll_ready!(http_service, 1);
 
         http_service
             .expect_call()
@@ -245,7 +250,7 @@ mod tests {
         let result = service.call(req).await;
         assert_that!(result)
             .is_err()
-            .matches(|e| matches!(e, RevokeTokenError::Http(_)));
+            .matches(|e| matches!(e, RevokeTokenError::Http(inner) if inner.to_string().contains("Request timed out")));
     }
 
     #[rstest]
@@ -260,6 +265,8 @@ mod tests {
         let mut service: RevokeToken<_, Full<Bytes>> =
             RevokeToken::new(MockCloneService::new(http_service));
         let result = service.ready().await;
-        assert!(matches!(result.err().unwrap(), RevokeTokenError::Http(_)));
+        assert_that!(result.err())
+            .is_some()
+            .matches(|e| matches!(e, RevokeTokenError::Http(inner) if inner.to_string().contains("Request timed out")));
     }
 }

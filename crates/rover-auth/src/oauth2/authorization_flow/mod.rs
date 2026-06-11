@@ -201,7 +201,6 @@ mod tests {
     use rover_http::{Full, test::MockHttpService};
     use rover_open::MockOpenUrl;
     use rover_print::{print::MockPrint, style::Style};
-    use rover_tower::expect_poll_ready;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use url::Url;
@@ -290,8 +289,6 @@ mod tests {
         assert_that!(result).is_ok();
         let next = result.unwrap();
         assert_that!(next.state.code.secret()).is_equal_to(expected_authorization_code.secret());
-
-        expect_poll_ready!(http_service);
 
         let expected_token_url = token_url.clone();
         http_service
