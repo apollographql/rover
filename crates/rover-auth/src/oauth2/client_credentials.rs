@@ -31,6 +31,9 @@ pub enum ClientCredentialsError {
     /// An unexpected response from the token endpoint.
     #[error("{0}")]
     Other(String),
+    /// `client_id` or `client_secret` must not be empty.
+    #[error("{field} must not be empty")]
+    EmptyCredential { field: &'static str },
 }
 
 /// Request to obtain an access token via the client credentials grant.
@@ -50,13 +53,21 @@ impl ClientCredentialsRequest {
         client_secret: String,
         token_url: Url,
         scopes: Vec<Scope>,
-    ) -> ClientCredentialsRequest {
-        ClientCredentialsRequest {
+    ) -> Result<ClientCredentialsRequest, ClientCredentialsError> {
+        if client_id.is_empty() {
+            return Err(ClientCredentialsError::EmptyCredential { field: "client_id" });
+        }
+        if client_secret.is_empty() {
+            return Err(ClientCredentialsError::EmptyCredential {
+                field: "client_secret",
+            });
+        }
+        Ok(ClientCredentialsRequest {
             client_id: ClientId::new(client_id),
             client_secret: ClientSecret::new(client_secret),
             token_url: TokenUrl::from_url(token_url),
             scopes,
-        }
+        })
     }
 }
 
@@ -232,7 +243,7 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![Scope::new("rover:cli".to_string())])
-            .build();
+            .build().unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -264,7 +275,7 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build();
+            .build().unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -296,7 +307,7 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build();
+            .build().unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -329,7 +340,7 @@ mod tests {
             .client_secret(client_secret)
             .token_url(token_url)
             .scopes(vec![])
-            .build();
+            .build().unwrap();
 
         let mut service: ClientCredentials<_, Full<Bytes>> =
             ClientCredentials::new(MockCloneService::new(http_service));
@@ -357,5 +368,39 @@ mod tests {
         assert_that!(result.err())
             .is_some()
             .matches(|e| matches!(e, ClientCredentialsError::Http(inner) if inner.to_string().contains("Request timed out")));
+    }
+
+    #[rstest]
+    fn test_empty_client_id_is_rejected(client_secret: String, token_url: Url) {
+        let err = ClientCredentialsRequest::builder()
+            .client_id("".to_string())
+            .client_secret(client_secret)
+            .token_url(token_url)
+            .scopes(vec![])
+            .build()
+            .err()
+            .expect("expected an error");
+
+        assert!(matches!(
+            err,
+            ClientCredentialsError::EmptyCredential { field: "client_id" }
+        ));
+    }
+
+    #[rstest]
+    fn test_empty_client_secret_is_rejected(client_id: String, token_url: Url) {
+        let err = ClientCredentialsRequest::builder()
+            .client_id(client_id)
+            .client_secret("".to_string())
+            .token_url(token_url)
+            .scopes(vec![])
+            .build()
+            .err()
+            .expect("expected an error");
+
+        assert!(matches!(
+            err,
+            ClientCredentialsError::EmptyCredential { field: "client_secret" }
+        ));
     }
 }
