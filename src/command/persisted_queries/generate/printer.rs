@@ -272,3 +272,155 @@ pub(super) const fn operation_type_str(operation_type: ast::OperationType) -> &'
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use apollo_compiler::{Node, parser::Parser as ApolloParser};
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    fn parse_print(src: &str) -> String {
+        let doc = ApolloParser::new().parse_ast(src, "test.graphql").unwrap();
+        let source: std::sync::Arc<str> = src.into();
+        let defs: Vec<PrintableDefinition> = doc
+            .definitions
+            .into_iter()
+            .filter_map(|d| match d {
+                ast::Definition::OperationDefinition(op) => {
+                    Some(PrintableDefinition::Operation { operation: op, source: source.clone() })
+                }
+                ast::Definition::FragmentDefinition(frag) => {
+                    Some(PrintableDefinition::Fragment { fragment: frag, source: source.clone() })
+                }
+                _ => None,
+            })
+            .collect();
+        print_document(&defs)
+    }
+
+    fn print_type_str(ty: ast::Type) -> String {
+        let mut out = String::new();
+        print_type(&mut out, &ty);
+        out
+    }
+
+    fn print_value_str(value: ast::Value) -> String {
+        let mut out = String::new();
+        print_value(&mut out, &Node::new(value), "", 0);
+        out
+    }
+
+    #[test]
+    fn operation_type_str_returns_correct_strings() {
+        assert_that!(operation_type_str(ast::OperationType::Query)).is_equal_to("query");
+        assert_that!(operation_type_str(ast::OperationType::Mutation)).is_equal_to("mutation");
+        assert_that!(operation_type_str(ast::OperationType::Subscription))
+            .is_equal_to("subscription");
+    }
+
+    #[test]
+    fn prints_field_with_alias() {
+        let out = parse_print("query Q { display: name }");
+        assert_that!(out).contains("display: name".to_string());
+    }
+
+    #[test]
+    fn prints_inline_fragment_without_type_condition() {
+        let out = parse_print("query Q { ... { id } }");
+        assert_that!(out).contains("... {".to_string());
+    }
+
+    #[test]
+    fn prints_inline_fragment_with_type_condition() {
+        let out = parse_print("query Q { ... on User { id } }");
+        assert_that!(out).contains("... on User {".to_string());
+    }
+
+    #[test]
+    fn print_type_named() {
+        assert_that!(print_type_str(ast::Type::Named(apollo_compiler::name!("User"))))
+            .is_equal_to("User".to_string());
+    }
+
+    #[test]
+    fn print_type_non_null_named() {
+        assert_that!(print_type_str(ast::Type::NonNullNamed(apollo_compiler::name!("ID"))))
+            .is_equal_to("ID!".to_string());
+    }
+
+    #[test]
+    fn print_type_list() {
+        assert_that!(print_type_str(ast::Type::List(Box::new(ast::Type::Named(
+            apollo_compiler::name!("String")
+        )))))
+        .is_equal_to("[String]".to_string());
+    }
+
+    #[test]
+    fn print_type_non_null_list() {
+        assert_that!(print_type_str(ast::Type::NonNullList(Box::new(ast::Type::Named(
+            apollo_compiler::name!("Int")
+        )))))
+        .is_equal_to("[Int]!".to_string());
+    }
+
+    #[test]
+    fn print_value_null() {
+        assert_that!(print_value_str(ast::Value::Null)).is_equal_to("null".to_string());
+    }
+
+    #[test]
+    fn print_value_enum() {
+        assert_that!(print_value_str(ast::Value::Enum(apollo_compiler::name!("ACTIVE"))))
+            .is_equal_to("ACTIVE".to_string());
+    }
+
+    #[test]
+    fn print_value_variable() {
+        assert_that!(print_value_str(ast::Value::Variable(apollo_compiler::name!("userId"))))
+            .is_equal_to("$userId".to_string());
+    }
+
+    #[test]
+    fn print_value_string() {
+        assert_that!(print_value_str(ast::Value::String("hello".into())))
+            .is_equal_to(r#""hello""#.to_string());
+    }
+
+    #[test]
+    fn print_value_int() {
+        assert_that!(print_value_str(ast::Value::Int(ast::IntValue::from(42_i32))))
+            .is_equal_to("42".to_string());
+    }
+
+    #[test]
+    fn print_value_float() {
+        assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(3.14_f64))))
+            .is_equal_to("3.14".to_string());
+    }
+
+    #[test]
+    fn print_value_boolean() {
+        assert_that!(print_value_str(ast::Value::Boolean(true))).is_equal_to("true".to_string());
+        assert_that!(print_value_str(ast::Value::Boolean(false))).is_equal_to("false".to_string());
+    }
+
+    #[test]
+    fn print_value_list() {
+        let list = ast::Value::List(vec![
+            Node::new(ast::Value::Int(ast::IntValue::from(1_i32))),
+            Node::new(ast::Value::Int(ast::IntValue::from(2_i32))),
+        ]);
+        assert_that!(print_value_str(list)).is_equal_to("[1, 2]".to_string());
+    }
+
+    #[test]
+    fn print_value_object() {
+        let obj = ast::Value::Object(vec![(
+            apollo_compiler::name!("id"),
+            Node::new(ast::Value::Variable(apollo_compiler::name!("userId"))),
+        )]);
+        assert_that!(print_value_str(obj)).is_equal_to("{id: $userId}".to_string());
+    }
+}
+

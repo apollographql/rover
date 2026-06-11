@@ -6,6 +6,8 @@ pub use generate::Generate;
 pub use publish::Publish;
 use serde::Serialize;
 
+use rover_print::print::Print;
+
 use crate::{
     RoverOutput, RoverResult, command::persisted_queries, utils::client::StudioClientConfig,
 };
@@ -29,12 +31,13 @@ impl PersistedQueries {
         matches!(self.command, Command::Publish(_))
     }
 
-    pub async fn run(
+    pub async fn run<P: Print>(
         &self,
         client_config: Option<StudioClientConfig>,
+        stderr: &P,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Generate(command) => command.run().await,
+            Command::Generate(command) => command.run(stderr).await,
             Command::Publish(command) => {
                 command
                     .run(client_config.expect("publish requires client config"))

@@ -1,0 +1,37 @@
+mod ast_ext;
+mod error;
+mod operation;
+
+use camino::Utf8PathBuf;
+use serde::Serialize;
+
+use crate::RoverResult;
+
+use operation::{ParsedInputs, PersistedQueryOperation};
+pub(super) use error::GenerateError;
+
+const MANIFEST_FORMAT: &str = "apollo-persisted-query-manifest";
+const MANIFEST_VERSION: u8 = 1;
+
+#[derive(Debug, Serialize)]
+pub(super) struct PersistedQueryManifest {
+    format: &'static str,
+    version: u8,
+    operations: Vec<PersistedQueryOperation>,
+}
+
+impl PersistedQueryManifest {
+    pub(super) fn from_files(files: Vec<Utf8PathBuf>) -> RoverResult<Self> {
+        let parsed_inputs = ParsedInputs::from_files(files)?;
+        let operations = parsed_inputs.generate_operations()?;
+        Ok(Self {
+            format: MANIFEST_FORMAT,
+            version: MANIFEST_VERSION,
+            operations,
+        })
+    }
+
+    pub(super) fn operation_count(&self) -> usize {
+        self.operations.len()
+    }
+}

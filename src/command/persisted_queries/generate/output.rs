@@ -23,3 +23,43 @@ impl CliOutput for GenerateOutput {
         serde_json::to_value(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn text_output_is_singular_for_one_operation() {
+        let out = GenerateOutput {
+            path: "manifest.json".into(),
+            operation_count: 1,
+        };
+        assert_that!(out.text()).is_equal_to(
+            "Manifest written to manifest.json with 1 operation.".to_string(),
+        );
+    }
+
+    #[test]
+    fn text_output_is_plural_for_zero_operations() {
+        let out = GenerateOutput {
+            path: "manifest.json".into(),
+            operation_count: 0,
+        };
+        assert_that!(out.text()).is_equal_to(
+            "Manifest written to manifest.json with 0 operations.".to_string(),
+        );
+    }
+
+    #[test]
+    fn text_output_is_plural_for_multiple_operations() {
+        let out = GenerateOutput {
+            path: "manifest.json".into(),
+            operation_count: 42,
+        };
+        assert_that!(out.text()).is_equal_to(
+            "Manifest written to manifest.json with 42 operations.".to_string(),
+        );
+    }
+}
