@@ -24,8 +24,10 @@ pub enum ClientCredentialsError {
     /// The token endpoint response could not be parsed.
     #[error("failed to parse token endpoint response: {source}")]
     Parse {
+        /// The underlying parse error.
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
+        /// The raw response body that failed to parse.
         body: Vec<u8>,
     },
     /// An unexpected response from the token endpoint.
@@ -33,7 +35,10 @@ pub enum ClientCredentialsError {
     Other(String),
     /// `client_id` or `client_secret` must not be empty.
     #[error("{field} must not be empty")]
-    EmptyCredential { field: &'static str },
+    EmptyCredential {
+        /// The name of the field that was empty (`"client_id"` or `"client_secret"`).
+        field: &'static str,
+    },
 }
 
 /// Request to obtain an access token via the client credentials grant.
