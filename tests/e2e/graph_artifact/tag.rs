@@ -1,7 +1,6 @@
 use std::{process::Command, str::from_utf8};
 
 use assert_cmd::cargo;
-use rand::RngExt;
 use rstest::rstest;
 use serde_json::Value;
 use speculoos::{
@@ -10,42 +9,10 @@ use speculoos::{
 use tracing::{error, info};
 use tracing_test::traced_test;
 
-use super::E2E_TEST_ARTIFACT_DIGEST;
+use super::{E2E_TEST_ARTIFACT_DIGEST, TagCleanup, random_tag};
 use crate::e2e::remote_supergraph_graph_id;
 
 const E2E_TEST_TAG: &str = "e2e-test-artifact-tag";
-
-/// Generates a tag string with a random numeric suffix so concurrent CI jobs
-/// (which all share the `rover-e2e-tests` graph) don't collide on the same tag
-/// name. The happy path deletes the tag it creates so the graph's tag count
-/// stays bounded.
-fn random_tag() -> String {
-    let n: u16 = rand::rng().random_range(0..500);
-    format!("{E2E_TEST_TAG}-{n:03}")
-}
-
-/// Removes a tag, logging (but not failing) if the removal does not succeed.
-fn delete_tag(graph_id: &str, tag: &str) {
-    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-    cmd.args([
-        "graph-artifact",
-        "untag",
-        tag,
-        "--graph-id",
-        graph_id,
-        "--client-timeout",
-        "120",
-    ]);
-    if let Ok(output) = cmd.output()
-        && !output.status.success()
-    {
-        error!(
-            "Warning: failed to delete tag '{}': {}",
-            tag,
-            from_utf8(&output.stderr).unwrap_or("<non-utf8>")
-        );
-    }
-}
 
 #[rstest]
 #[ignore]
@@ -170,7 +137,11 @@ async fn e2e_test_rover_graph_artifact_tag_nonexistent_digest(remote_supergraph_
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_graph_artifact_tag_happy_path(remote_supergraph_graph_id: String) {
-    let tag = random_tag();
+    let tag = random_tag(E2E_TEST_TAG);
+    let _cleanup = TagCleanup {
+        graph_id: remote_supergraph_graph_id.clone(),
+        tag: tag.clone(),
+    };
     info!("Tagging artifact {E2E_TEST_ARTIFACT_DIGEST} with tag {tag}");
 
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
@@ -208,7 +179,4 @@ async fn e2e_test_rover_graph_artifact_tag_happy_path(remote_supergraph_graph_id
         .expect("Response should have 'graph_artifact_id' field");
     let graph_artifact_id_str = graph_artifact_id.as_str();
     assert_that(&graph_artifact_id_str.unwrap_or("").len()).is_greater_than(0);
-
-    // Clean up so the graph's tag list stays bounded for the list-tags tests.
-    delete_tag(&remote_supergraph_graph_id, &tag);
 }

@@ -2,6 +2,7 @@ use clap::Parser;
 use rover_client::operations::graph_artifact::list_tags::{self, ListTagsInput};
 use serde::Serialize;
 
+use super::list_tags_output::ListTagsOutput;
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
@@ -34,6 +35,6 @@ impl ListTags {
         };
 
         let response = list_tags::run(input, self.limit, &client).await?;
-        Ok(RoverOutput::ListGraphArtifactTagsResponse(response))
+        Ok(RoverOutput::CliOutput(Box::new(ListTagsOutput(response))))
     }
 }

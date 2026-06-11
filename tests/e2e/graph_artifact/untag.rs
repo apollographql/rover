@@ -1,25 +1,16 @@
 use std::{process::Command, str::from_utf8};
 
 use assert_cmd::cargo;
-use rand::RngExt;
 use rstest::rstest;
 use serde_json::Value;
 use speculoos::{assert_that, boolean::BooleanAssertions, string::StrAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
-use super::E2E_TEST_ARTIFACT_DIGEST;
+use super::{E2E_TEST_ARTIFACT_DIGEST, TagCleanup, random_tag};
 use crate::e2e::remote_supergraph_graph_id;
 
 const E2E_TEST_TAG: &str = "e2e-test-artifact-untag";
-
-/// Generates a tag string with a random numeric suffix so concurrent CI jobs
-/// (which all share the `rover-e2e-tests` graph) don't collide on the same tag
-/// name. This test creates the tag and then removes it, so it leaves nothing behind.
-fn random_tag() -> String {
-    let n: u16 = rand::rng().random_range(0..500);
-    format!("{E2E_TEST_TAG}-{n:03}")
-}
 
 #[rstest]
 #[ignore]
@@ -67,7 +58,11 @@ async fn e2e_test_rover_graph_artifact_untag_nonexistent_graph_id() {
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_graph_artifact_untag_happy_path(remote_supergraph_graph_id: String) {
-    let tag = random_tag();
+    let tag = random_tag(E2E_TEST_TAG);
+    let _cleanup = TagCleanup {
+        graph_id: remote_supergraph_graph_id.clone(),
+        tag: tag.clone(),
+    };
 
     // First assign the tag so there's something to remove.
     info!("Tagging artifact {E2E_TEST_ARTIFACT_DIGEST} with tag {tag}");

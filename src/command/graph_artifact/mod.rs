@@ -5,6 +5,7 @@ use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
 mod fetch;
 mod list_tags;
+mod list_tags_output;
 mod tag;
 mod untag;
 

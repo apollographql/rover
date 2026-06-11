@@ -14,8 +14,8 @@ use rover_client::{
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
         graph_artifact::{
-            fetch::FetchGraphArtifactResponse, list_tags::ListTagsResponse,
-            tag::AssignGraphArtifactTagResponse, untag::DeleteGraphArtifactTagResponse,
+            fetch::FetchGraphArtifactResponse, tag::AssignGraphArtifactTagResponse,
+            untag::DeleteGraphArtifactTagResponse,
         },
         init::memberships::InitMembershipsResponse,
         persisted_queries::publish::PersistedQueriesPublishResponse,
@@ -100,7 +100,6 @@ pub enum RoverOutput {
     AssignGraphArtifactTagResponse(AssignGraphArtifactTagResponse),
     DeleteGraphArtifactTagResponse(DeleteGraphArtifactTagResponse),
     FetchGraphArtifactResponse(FetchGraphArtifactResponse),
-    ListGraphArtifactTagsResponse(ListTagsResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -659,25 +658,6 @@ impl RoverOutput {
 
                 Some(output)
             }
-            RoverOutput::ListGraphArtifactTagsResponse(response) => {
-                if response.tags.is_empty() {
-                    return Ok(Some("No tags on graph artifact.".to_string()));
-                }
-                let mut table = table::get_table();
-                table.add_row(vec![
-                    &Style::Success.paint("Tag"),
-                    &Style::Success.paint("Digest"),
-                    &Style::Success.paint("Created At"),
-                ]);
-                for entry in &response.tags {
-                    table.add_row(vec![
-                        entry.tag.clone(),
-                        entry.digest.clone().unwrap_or_else(|| "N/A".to_string()),
-                        entry.created_at.clone(),
-                    ]);
-                }
-                Some(table.to_string())
-            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
@@ -848,9 +828,6 @@ impl RoverOutput {
                 json!({ "tag": response.tag })
             }
             RoverOutput::FetchGraphArtifactResponse(response) => json!(response),
-            RoverOutput::ListGraphArtifactTagsResponse(response) => {
-                json!({ "tags": response.tags })
-            }
             RoverOutput::CliOutput(cli_output) => {
                 cli_output.json().unwrap_or(serde_json::Value::Null)
             }
