@@ -1,14 +1,16 @@
 ---
-title: Rover schema describe Command
-subtitle: Explore your graph schema by type or field
-description: Use the rover schema describe command to view schema overviews, type details, and field details from a local SDL file or stdin.
+title: Rover schema commands
+subtitle: Explore and search your graph schema from a local SDL file
+description: Use `rover` schema commands to describe and search a GraphQL schema from a local SDL file or stdin.
 ---
 
-## Overview
+## schema describe
+
+### Overview
 
 The `rover schema describe` command provides structured descriptions of a GraphQL schema. Read from a local SDL file or pipe from stdin. Start with a full schema overview, then zoom into individual types, fields, directives, and arguments using a schema coordinate.
 
-## Usage
+### Usage
 
 ```bash
 rover schema describe [FILE] [OPTIONS]
@@ -25,7 +27,7 @@ Pass `-` as `FILE` or omit it entirely to read from stdin.
 | `@directive` | Directive definition detail |
 | `@directive(arg:)` | Directive argument detail |
 
-## Options
+### Options
 
 | Option | Description |
 |---|---|
@@ -34,9 +36,9 @@ Pass `-` as `FILE` or omit it entirely to read from stdin.
 | `--include-deprecated` | Show deprecated fields and values |
 | `-v, --view <VIEW>` | Output view: `description` (default) or `sdl` |
 
-## Examples
+### Examples
 
-### Schema overview
+#### Schema overview
 
 ```bash
 rover schema describe schema.graphql
@@ -141,7 +143,7 @@ Types
 
 ---
 
-### Type description
+#### Type description
 
 ```bash
 rover schema describe schema.graphql --coord User
@@ -214,7 +216,7 @@ Available via: Query.user, Mutation.createPost -> CreatePostPayload.post -> Post
 
 ---
 
-### Field description
+#### Field description
 
 ```bash
 rover schema describe schema.graphql --coord User.posts
@@ -288,7 +290,7 @@ Return type: PostConnection (object)
 
 ---
 
-### Field argument detail
+#### Field argument detail
 
 ```bash
 rover schema describe schema.graphql --coord "User.posts(limit:)"
@@ -323,7 +325,7 @@ Default: 20
 
 ---
 
-### Directive description
+#### Directive description
 
 ```bash
 rover schema describe schema.graphql --coord "@auth"
@@ -371,7 +373,7 @@ Args
 
 ---
 
-### Directive argument detail
+#### Directive argument detail
 
 ```bash
 rover schema describe schema.graphql --coord "@auth(requires:)"
@@ -405,7 +407,7 @@ Default: USER
 
 ---
 
-### SDL view
+#### SDL view
 
 ```bash
 rover schema describe schema.graphql --coord User --view sdl
@@ -413,9 +415,318 @@ rover schema describe schema.graphql --coord User --view sdl
 
 Returns the raw SDL for the requested type or directive definition.
 
-### Read from stdin
+#### Read from stdin
 
 ```bash
 cat schema.graphql | rover schema describe --coord Post
 rover schema describe - --coord Post
+```
+
+---
+
+## schema search
+
+### Overview
+
+The `rover schema search` command searches a GraphQL schema for types and fields by keyword and can read from a local SDL file or pipe from stdin. Rover ranks results by match strength — exact name matches first, then stem matches, then fuzzy matches, then description-only matches — up to a configurable limit.
+
+### Usage
+
+```bash
+rover schema search [FILE] [TERMS...] [OPTIONS]
+```
+
+Pass the SDL file as `FILE` followed by one or more search terms. Pass `-` as `FILE` to read from `stdin`.
+
+### Query syntax
+
+**Single terms.** A single keyword searches all name tokens and SDL descriptions:
+
+- `email` — matches `User.email`, `EmailPreferences`, `sendEmail`
+- `post` — matches `Post`, `createPost`, `PostConnection`, `post_id`
+
+**AND logic.** Space-separate multiple terms to require all of them to match:
+
+- `"create post"` — matches `CreatePostInput` and `Mutation.createPost`, but not `Post` alone (missing `create`)
+- `"user email"` — only returns results where both `user` and `email` match the same coordinate
+
+**OR clauses.** Comma-separate independent queries to return results matching any clause:
+
+- `"email, creating"` — returns everything matching `email` plus everything matching `creating`
+- `"create post, delete comment"` — each clause can itself be multi-term
+
+**Name tokenization.** Rover splits names on `camelCase` and `snake_case` boundaries before matching, so a term can match any token in the name. Matching is case-insensitive:
+
+- `post` matches `createPost` (token `post`), `PostConnection` (token `Post`), and `post_id` (token `post`)
+- `create` matches `CreatePostInput`, `Mutation.createPost`, and `createPost`
+
+**Match tiers.** Results are ranked strongest-first within each clause:
+
+| Tier | Example query | Matches | Why |
+|---|---|---|---|
+| Exact | `email` | `User.email` | `email` is a name token |
+| Stem | `creating` | `CreatePostInput`, `Mutation.createPost` | `creating` and `create` share the stem `creat` |
+| Fuzzy | `emial` | `User.email` | one transposition from `email` (terms ≥ `4` chars only) |
+| Description | `membership` | `Role` | `membership` appears in the SDL description of `Role`, not in its name |
+
+### Options
+
+| Option | Description |
+|---|---|
+| `-n, --limit <N>` | Maximum number of results to return (default: `10`) |
+| `--include-deprecated` | Include deprecated fields and enum values in results |
+
+### Examples
+
+All examples on this page use the following schema:
+
+<details>
+<summary><code>schema.graphql</code></summary>
+
+```graphql
+"""Root query type"""
+type Query {
+  """Get a user by ID"""
+  user(id: ID!): User
+  """Get a post by ID"""
+  post(id: ID!): Post
+}
+
+type Mutation {
+  """Create a new post"""
+  createPost(input: CreatePostInput!): Post
+}
+
+"""A registered user"""
+type User implements Node {
+  id: ID!
+  """The user's email address"""
+  email: String!
+  displayName: String!
+  """Posts authored by this user"""
+  posts: [Post!]!
+  legacyId: String @deprecated(reason: "Use id instead")
+}
+
+"""A content post"""
+type Post implements Node {
+  id: ID!
+  title: String!
+  """The author of this post"""
+  author: User!
+  body: String!
+}
+
+"""An entity with a stable ID"""
+interface Node {
+  id: ID!
+}
+
+"""Membership tier governing access"""
+enum Role {
+  ADMIN
+  USER
+  GUEST @deprecated(reason: "Use USER instead")
+}
+
+input CreatePostInput {
+  """The post title"""
+  title: String!
+  body: String!
+}
+```
+
+</details>
+
+---
+
+#### Basic search
+
+```bash
+rover schema search schema.graphql email
+```
+
+```
+1 result for "email"
+
+User.email — The user's email address
+  field  ·  via Query.user, Mutation.createPost -> Post.author
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "query": "email",
+    "results": [
+      {
+        "coordinate": "User.email",
+        "kind": "field",
+        "description": "The user's email address",
+        "via": [
+          {
+            "segments": [
+              { "type_name": "Query", "field_name": "user" }
+            ]
+          },
+          {
+            "segments": [
+              { "type_name": "Mutation", "field_name": "createPost" },
+              { "type_name": "Post", "field_name": "author" }
+            ]
+          }
+        ]
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
+
+</details>
+
+---
+
+#### Multi-term AND search
+
+All terms must match.
+
+```bash
+rover schema search schema.graphql "create post"
+```
+
+```
+2 results for "create post"
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field
+```
+
+---
+
+#### OR clauses (comma-separated)
+
+Separate independent queries with commas. A result is included if any clause matches.
+
+```bash
+rover schema search schema.graphql "email, creating"
+```
+
+```
+3 results for "email, creating"
+
+User.email — The user's email address
+  field  ·  via Query.user, Mutation.createPost -> Post.author
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field
+```
+
+---
+
+#### Stem match
+
+Terms match names that share an English stem. Searching `creating` finds names containing `create`, `creates`, and `created`.
+
+```bash
+rover schema search schema.graphql creating
+```
+
+```
+2 results for "creating"
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field
+```
+
+---
+
+#### Description-only match
+
+If a term appears only in an SDL description and not in any name, the result is still included (ranked last).
+
+```bash
+rover schema search schema.graphql membership
+```
+
+```
+1 result for "membership"
+
+Role — Membership tier governing access
+  type
+```
+
+---
+
+#### Include deprecated
+
+Rover excludes deprecated fields and enum values by default. Pass `--include-deprecated` to surface them.
+
+```bash
+rover schema search schema.graphql guest --include-deprecated
+```
+
+```
+1 result for "guest"
+
+Role.GUEST
+  enum value
+```
+
+---
+
+#### Limit results
+
+Limit the number of results with `-n`.
+
+```bash
+rover schema search schema.graphql post -n 2
+```
+
+```
+2 results for "post"
+
+CreatePostInput
+  type
+
+Mutation.createPost — Create a new post
+  field
+```
+
+---
+
+#### No results
+
+When no types or fields match, Rover prints a message instead of an empty list.
+
+```bash
+rover schema search schema.graphql xyzzy
+```
+
+```
+No results for "xyzzy"
+```
+
+---
+
+#### Read from stdin
+
+Pass `-` as `FILE` to read the schema from `stdin` instead of a file.
+
+```bash
+cat schema.graphql | rover schema search - email
+rover schema search - email < schema.graphql
 ```

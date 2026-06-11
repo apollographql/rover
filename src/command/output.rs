@@ -262,10 +262,11 @@ impl RoverOutput {
                 publish_response,
             } => {
                 stderrln!(
-                    "{}#{} published successfully {}",
+                    "{}#{} published successfully {} ({} total types)",
                     graph_ref,
                     publish_response.api_schema_hash,
-                    publish_response.change_summary
+                    publish_response.change_summary,
+                    publish_response.total_type_count
                 )?;
                 Some((publish_response.api_schema_hash).to_string())
             }
@@ -274,14 +275,26 @@ impl RoverOutput {
                 subgraph,
                 publish_response,
             } => {
+                let hash_suffix = publish_response
+                    .api_schema_hash
+                    .as_deref()
+                    .map(|h| format!(" (#{h})"))
+                    .unwrap_or_default();
+
                 if publish_response.subgraph_was_created {
                     stderrln!(
-                        "A new subgraph called '{}' was created in '{}'",
+                        "A new subgraph called '{}' was created in '{}'{}",
                         subgraph,
-                        graph_ref
+                        graph_ref,
+                        hash_suffix
                     )?;
                 } else if publish_response.subgraph_was_updated {
-                    stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
+                    stderrln!(
+                        "The '{}' subgraph in '{}' was updated{}",
+                        subgraph,
+                        graph_ref,
+                        hash_suffix
+                    )?;
                 } else {
                     stderrln!(
                         "The '{}' subgraph was NOT updated because no changes were detected",
@@ -1587,6 +1600,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     edits: 7,
                 },
             },
+            total_type_count: 50,
         };
         let actual_json = JsonOutput::from(&RoverOutput::GraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
@@ -1607,6 +1621,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     "removals": 0,
                     "edits": 7
                 },
+                "total_type_count": 50,
                 "success": true
             },
             "error": null

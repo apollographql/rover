@@ -78,7 +78,8 @@ impl Installer {
             return Ok(None);
         }
 
-        let plugin_bin_path = self
+        // Hold the extraction `TempDir` guard until the binary has been copied out
+        let (_download_dir, plugin_bin_path) = self
             .extract_plugin_tarball(plugin_name, plugin_tarball_url, file_download_service)
             .await?;
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
@@ -203,16 +204,6 @@ impl Installer {
     ) -> Result<(), InstallerError> {
         let plugin_destination = self.get_plugin_bin_path(plugin_name, plugin_version)?;
         Fs::copy(plugin_bin_path, plugin_destination)?;
-        // clean up temp dir
-        if let Some(dist) = plugin_bin_path.parent() {
-            if let Some(tempdir) = dist.parent() {
-                // attempt to clean up the temp dir
-                // but do not error if it doesn't exist or something goes wrong
-                if let Err(e) = Fs::remove_dir_all(tempdir) {
-                    eprintln!("WARN: {e:?}");
-                }
-            }
-        }
         Ok(())
     }
 
@@ -251,14 +242,26 @@ impl Installer {
         }
     }
 
+    /// Extracts a plugin tarball into a temp directory within the binary install directory.
+    ///
+    /// Returns both a handle to the temp directory and the extracted file path. The temp
+    /// directory is cleaned up when the handle is dropped.
     async fn extract_plugin_tarball(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
         file_download_service: FileDownloadService,
-    ) -> Result<Utf8PathBuf, InstallerError> {
-        let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
-        let download_dir_path = Utf8PathBuf::try_from(download_dir.keep())?;
+    ) -> Result<(tempfile::TempDir, Utf8PathBuf), InstallerError> {
+        // Extract into a temp dir within Rover's install directory rather than the system temp dir.
+        // This lets a read-only root filesystem (or read-only `/tmp`) with a writable
+        // `APOLLO_HOME` succeed instead of failing on the system temp dir (#1422).
+        let bin_dir = self.get_bin_dir_path()?;
+        let staging_dir = bin_dir.parent().unwrap_or(bin_dir.as_path());
+        Fs::create_dir_all(staging_dir)?;
+        let download_dir = tempfile::Builder::new()
+            .prefix(plugin_name)
+            .tempdir_in(staging_dir)?;
+        let download_dir_path = Utf8PathBuf::try_from(download_dir.path().to_path_buf())?;
         let http_request = Request::builder()
             .method(http::Method::GET)
             .uri(plugin_tarball_url)
@@ -284,7 +287,7 @@ impl Installer {
             std::env::consts::EXE_SUFFIX
         ));
         Fs::assert_path_exists(&path)?;
-        Ok(path)
+        Ok((download_dir, path))
     }
 
     #[cfg(windows)]
@@ -628,7 +631,15 @@ mod test {
         let result = installer
             .extract_plugin_tarball(binary_name, &tarball_url, service)
             .await;
-        let plugin_path = assert_that!(result).is_ok().subject.clone();
+        let (_tempdir, plugin_path) = result.expect("extract_plugin_tarball should succeed");
+        assert_that!(plugin_path).starts_with(
+            installer
+                .get_bin_dir_path()
+                .unwrap()
+                .parent()
+                .and_then(|parent| parent.parent())
+                .expect("test installer dir should be at a non-root directory"),
+        );
         let mut contents = String::new();
         let mut f = std::fs::File::open(&plugin_path).unwrap();
         f.read_to_string(&mut contents).unwrap();
@@ -686,7 +697,7 @@ mod test {
         binary_name: &str,
         installer: Installer,
         override_path: Utf8PathBuf,
-    ) {
+    ) -> anyhow::Result<()> {
         let installer = Installer {
             override_install_path: Some(override_path.clone()),
             ..installer
@@ -706,11 +717,6 @@ mod test {
             .join("bin")
             .join(bin_path);
 
-        // Create the plugin binary inside a tempdir/dist/ structure to match
-        // what extract_plugin_tarball produces. write_plugin_bin_to_fs cleans up
-        // by calling remove_dir_all on the grandparent of the binary path —
-        // a flat /tmp/ file would make that resolve to "/", destroying the filesystem
-        // in environments that don't protect root (like our musl tests).
         let plugin_tempdir = tempfile::tempdir().unwrap();
         let dist_dir = plugin_tempdir.path().join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
@@ -726,5 +732,6 @@ mod test {
         let mut plugin_contents = String::new();
         written_plugin.read_to_string(&mut plugin_contents).unwrap();
         assert_that!(plugin_contents).is_equal_to("contents".to_string());
+        Ok(())
     }
 }

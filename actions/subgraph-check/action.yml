@@ -1,5 +1,5 @@
 name: "Run Apollo Rover Subgraph Check"
-description: "Run the `rover subgraph check` command."
+description: "Run the `rover subgraph check` command"
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"

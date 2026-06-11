@@ -89,7 +89,7 @@ pub struct OutputOpts {
     #[arg(long = "format", global = true, default_value_t)]
     pub format_kind: RoverOutputFormatKind,
 
-    /// Specify a file to write Rover's output to
+    /// Specify a file to write Rover's console output to instead of stdout
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
     pub output_file: Option<Utf8PathBuf>,
 

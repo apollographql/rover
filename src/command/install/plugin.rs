@@ -443,6 +443,9 @@ impl PluginInstaller {
         }
         let file_download_service = FileDownloadService::builder()
             .http_service(self.client_config.download_service()?)
+            // Match the per-attempt timeout to the configured download timeout so it
+            // isn't capped by FileDownloadService's shorter default.
+            .timeout_duration(*self.client_config.download_timeout())
             .build();
         Ok(self
             .installer
