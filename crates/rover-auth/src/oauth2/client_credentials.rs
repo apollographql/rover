@@ -3,7 +3,7 @@ use std::{marker::PhantomData, time::Duration};
 use http::{Request, Response};
 use oauth2::{
     AccessToken, ClientId, ClientSecret, RequestTokenError, Scope, TokenResponse, TokenUrl,
-    basic::BasicClient,
+    basic::{BasicClient, BasicErrorResponse},
 };
 use rover_http::Body;
 use rover_tower::{ResponseFuture, service::replace_ready_service};
@@ -18,6 +18,19 @@ pub enum ClientCredentialsError {
     /// HTTP transport error.
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
+    /// The token endpoint returned an OAuth 2.0 error (e.g. `invalid_client`, `invalid_scope`).
+    #[error("{0}")]
+    OAuth(BasicErrorResponse),
+    /// The token endpoint response could not be parsed.
+    #[error("failed to parse token endpoint response: {source}")]
+    Parse {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+        body: Vec<u8>,
+    },
+    /// An unexpected response from the token endpoint.
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Request to obtain an access token via the client credentials grant.
@@ -107,7 +120,12 @@ where
                 .await
                 .map_err(|err| match err {
                     RequestTokenError::Request(e) => ClientCredentialsError::Http(Box::new(e)),
-                    other => ClientCredentialsError::Http(Box::new(other)),
+                    RequestTokenError::ServerResponse(resp) => ClientCredentialsError::OAuth(resp),
+                    RequestTokenError::Parse(err, body) => ClientCredentialsError::Parse {
+                        source: Box::new(err),
+                        body,
+                    },
+                    RequestTokenError::Other(msg) => ClientCredentialsError::Other(msg),
                 })?;
             Ok(ClientCredentialsResponse {
                 access_token: resp.access_token().clone(),
@@ -162,6 +180,17 @@ mod tests {
             "token_type": "Bearer"
         });
         http::Response::builder()
+            .body(Full::new(Bytes::from(serde_json::to_vec(&body).unwrap())))
+            .unwrap()
+    }
+
+    fn token_400_invalid_client() -> http::Response<Full<Bytes>> {
+        let body = serde_json::json!({
+            "error": "invalid_client",
+            "error_description": "Client authentication failed"
+        });
+        http::Response::builder()
+            .status(400)
             .body(Full::new(Bytes::from(serde_json::to_vec(&body).unwrap())))
             .unwrap()
     }
@@ -244,6 +273,39 @@ mod tests {
         let resp = assert_that!(result).is_ok().subject;
 
         assert_that!(resp.expires_in).is_equal_to(Some(Duration::from_secs(3600)));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    #[timeout(Duration::from_secs(5))]
+    async fn test_client_credentials_oauth_error(
+        client_id: String,
+        client_secret: String,
+        token_url: Url,
+        mut http_service: MockHttpService,
+    ) {
+        expect_poll_ready!(http_service, 1);
+
+        http_service
+            .expect_call()
+            .times(1)
+            .returning(|_| futures::future::ready(Ok(token_400_invalid_client())));
+
+        let req = ClientCredentialsRequest::builder()
+            .client_id(client_id)
+            .client_secret(client_secret)
+            .token_url(token_url)
+            .scopes(vec![])
+            .build();
+
+        let mut service: ClientCredentials<_, Full<Bytes>> =
+            ClientCredentials::new(MockCloneService::new(http_service));
+        let service = service.ready().await.unwrap();
+        let result = service.call(req).await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, ClientCredentialsError::OAuth(_)));
     }
 
     #[rstest]

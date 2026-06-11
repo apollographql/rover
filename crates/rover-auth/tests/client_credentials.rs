@@ -107,7 +107,7 @@ async fn test_client_credentials_server_oauth_error() {
 
     assert_that!(result)
         .is_err()
-        .matches(|e| matches!(e, ClientCredentialsError::Http(inner) if inner.to_string().contains("invalid_client")));
+        .matches(|e| matches!(e, ClientCredentialsError::OAuth(_)));
 }
 
 #[rstest]
@@ -137,5 +137,5 @@ async fn test_client_credentials_server_parse_error() {
 
     assert_that!(result)
         .is_err()
-        .matches(|e| matches!(e, ClientCredentialsError::Http(inner) if inner.to_string().contains("Failed to parse server response")));
+        .matches(|e| matches!(e, ClientCredentialsError::Parse { .. }));
 }
