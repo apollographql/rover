@@ -424,7 +424,7 @@ If you specify a `--validation-period` that exceeds your organization's operatio
 
 #### Threshold values
 
-Use `--query-count-threshold` and `--query-percentage-threshold` to ignore historical operations that are rare — for example, to safely remove a field still used only by an old, low-traffic client.
+Use `--query-count-threshold` and `--query-percentage-threshold` to ignore historical operations that are rare—for example, to safely remove a field still used only by an old, low-traffic client.
 
 - `--query-count-threshold`: Only check against operations executed at least this many times within the validation period.
 - `--query-percentage-threshold`: Only check against operations that account for at least this percentage of total operation volume (e.g., `3` for 3%).
