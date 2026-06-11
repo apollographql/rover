@@ -125,6 +125,7 @@ pub(crate) async fn publish_subgraphs(
                     remote_url: None,
                 },
                 convert_to_federated_graph: false,
+                changelog_message: None,
             },
             client,
         )
