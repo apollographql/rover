@@ -5,6 +5,7 @@ use super::selection_set::SelectionSetExt;
 pub trait SelectionExt {
     fn has_directive(&self, name: &str) -> bool;
     fn is_typename_field(&self) -> bool;
+    /// Injects `__typename` into sub-selections; skips fields annotated with `@export` (local-state transfers have no server schema).
     fn add_typename(&mut self);
 }
 

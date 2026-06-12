@@ -2,6 +2,10 @@ use std::sync::Arc;
 
 use apollo_compiler::{Node, ast};
 
+/// A GraphQL definition paired with its original source text.
+///
+/// `source` is required to detect block-string literals by comparing
+/// source span offsets against the raw text.
 pub(super) enum PrintableDefinition {
     Operation {
         operation: Node<ast::OperationDefinition>,
@@ -13,6 +17,7 @@ pub(super) enum PrintableDefinition {
     },
 }
 
+/// Renders `definitions` as a single GraphQL document, separated by blank lines.
 pub(super) fn print_document(definitions: &[PrintableDefinition]) -> String {
     definitions
         .iter()
@@ -239,6 +244,7 @@ fn print_value(output: &mut String, value_node: &Node<ast::Value>, source: &str,
     }
 }
 
+// Uses the node's source span to read the raw token from the original source.
 fn value_was_block_string(value: &Node<ast::Value>, source: &str) -> bool {
     value
         .location()
@@ -264,6 +270,7 @@ fn push_indent(output: &mut String, indent: usize) {
     }
 }
 
+/// Returns the lowercase keyword for `operation_type` ("query", "mutation", "subscription").
 pub(super) const fn operation_type_str(operation_type: ast::OperationType) -> &'static str {
     match operation_type {
         ast::OperationType::Query => "query",
@@ -286,12 +293,14 @@ mod tests {
             .definitions
             .into_iter()
             .filter_map(|d| match d {
-                ast::Definition::OperationDefinition(op) => {
-                    Some(PrintableDefinition::Operation { operation: op, source: source.clone() })
-                }
-                ast::Definition::FragmentDefinition(frag) => {
-                    Some(PrintableDefinition::Fragment { fragment: frag, source: source.clone() })
-                }
+                ast::Definition::OperationDefinition(op) => Some(PrintableDefinition::Operation {
+                    operation: op,
+                    source: source.clone(),
+                }),
+                ast::Definition::FragmentDefinition(frag) => Some(PrintableDefinition::Fragment {
+                    fragment: frag,
+                    source: source.clone(),
+                }),
                 _ => None,
             })
             .collect();
@@ -338,14 +347,18 @@ mod tests {
 
     #[test]
     fn print_type_named() {
-        assert_that!(print_type_str(ast::Type::Named(apollo_compiler::name!("User"))))
-            .is_equal_to("User".to_string());
+        assert_that!(print_type_str(ast::Type::Named(apollo_compiler::name!(
+            "User"
+        ))))
+        .is_equal_to("User".to_string());
     }
 
     #[test]
     fn print_type_non_null_named() {
-        assert_that!(print_type_str(ast::Type::NonNullNamed(apollo_compiler::name!("ID"))))
-            .is_equal_to("ID!".to_string());
+        assert_that!(print_type_str(ast::Type::NonNullNamed(
+            apollo_compiler::name!("ID")
+        )))
+        .is_equal_to("ID!".to_string());
     }
 
     #[test]
@@ -358,9 +371,9 @@ mod tests {
 
     #[test]
     fn print_type_non_null_list() {
-        assert_that!(print_type_str(ast::Type::NonNullList(Box::new(ast::Type::Named(
-            apollo_compiler::name!("Int")
-        )))))
+        assert_that!(print_type_str(ast::Type::NonNullList(Box::new(
+            ast::Type::Named(apollo_compiler::name!("Int"))
+        ))))
         .is_equal_to("[Int]!".to_string());
     }
 
@@ -371,14 +384,18 @@ mod tests {
 
     #[test]
     fn print_value_enum() {
-        assert_that!(print_value_str(ast::Value::Enum(apollo_compiler::name!("ACTIVE"))))
-            .is_equal_to("ACTIVE".to_string());
+        assert_that!(print_value_str(ast::Value::Enum(apollo_compiler::name!(
+            "ACTIVE"
+        ))))
+        .is_equal_to("ACTIVE".to_string());
     }
 
     #[test]
     fn print_value_variable() {
-        assert_that!(print_value_str(ast::Value::Variable(apollo_compiler::name!("userId"))))
-            .is_equal_to("$userId".to_string());
+        assert_that!(print_value_str(ast::Value::Variable(
+            apollo_compiler::name!("userId")
+        )))
+        .is_equal_to("$userId".to_string());
     }
 
     #[test]
@@ -389,14 +406,18 @@ mod tests {
 
     #[test]
     fn print_value_int() {
-        assert_that!(print_value_str(ast::Value::Int(ast::IntValue::from(42_i32))))
-            .is_equal_to("42".to_string());
+        assert_that!(print_value_str(ast::Value::Int(ast::IntValue::from(
+            42_i32
+        ))))
+        .is_equal_to("42".to_string());
     }
 
     #[test]
     fn print_value_float() {
-        assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(3.14_f64))))
-            .is_equal_to("3.14".to_string());
+        assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(
+            3.14_f64
+        ))))
+        .is_equal_to("3.14".to_string());
     }
 
     #[test]
@@ -423,4 +444,3 @@ mod tests {
         assert_that!(print_value_str(obj)).is_equal_to("{id: $userId}".to_string());
     }
 }
-

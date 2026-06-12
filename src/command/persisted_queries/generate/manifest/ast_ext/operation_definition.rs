@@ -3,14 +3,14 @@ use std::{collections::BTreeSet, sync::Arc};
 use apollo_compiler::{Node, ast};
 
 use super::{
-    fragment_definition::FragmentDefinitionExt,
-    selection::SelectionExt,
-    selection_set::SelectionSetExt,
-    variables::collect_variables_from_directives,
+    fragment_definition::FragmentDefinitionExt, selection::SelectionExt,
+    selection_set::SelectionSetExt, variables::collect_variables_from_directives,
 };
 
 pub trait OperationDefinitionExt {
+    /// Strips `@client` fields and directives, then injects `__typename` into every server-bound sub-selection.
     fn add_typenames(&mut self);
+    /// Removes variable definitions not referenced in this operation or any of its associated fragments.
     fn prune_unused_variables(&mut self, fragments: &[(Node<ast::FragmentDefinition>, Arc<str>)]);
     fn collect_variables(&self) -> BTreeSet<String>;
 }
@@ -26,10 +26,7 @@ impl OperationDefinitionExt for ast::OperationDefinition {
         }
     }
 
-    fn prune_unused_variables(
-        &mut self,
-        fragments: &[(Node<ast::FragmentDefinition>, Arc<str>)],
-    ) {
+    fn prune_unused_variables(&mut self, fragments: &[(Node<ast::FragmentDefinition>, Arc<str>)]) {
         let used: BTreeSet<String> = std::iter::once(self.collect_variables())
             .chain(fragments.iter().map(|(f, _)| f.collect_variables()))
             .fold(BTreeSet::new(), |mut acc, vars| {

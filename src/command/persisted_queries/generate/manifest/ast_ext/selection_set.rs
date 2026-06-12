@@ -8,10 +8,13 @@ use super::{
 };
 
 pub trait SelectionSetExt {
+    /// Collects named fragment spreads reachable from this set, excluding spreads under `@client`-annotated selections.
     fn collect_spreads(&self) -> BTreeSet<String>;
     fn collect_variables(&self, into: &mut BTreeSet<String>);
     fn remove_client_selections(&mut self);
     fn add_typenames(&mut self);
+    /// Like `add_typenames`, but only appends `__typename` when `append` is true.
+    /// `@client` removal and recursion into sub-selections happen regardless of `append`.
     fn add_typenames_if(&mut self, append: bool);
 }
 
@@ -232,8 +235,7 @@ mod tests {
 
     #[test]
     fn add_typenames_skips_typename_on_export_annotated_fields() {
-        let mut selections =
-            parse_selections(r#"query Q { data @export(as: "data") { id } }"#);
+        let mut selections = parse_selections(r#"query Q { data @export(as: "data") { id } }"#);
         selections.add_typenames();
         if let ast::Selection::Field(data) = &selections[0] {
             assert_that!(field_names(&data.selection_set)).does_not_contain("__typename");
