@@ -6,37 +6,34 @@ use apollo_compiler::{Node, ast};
 ///
 /// `source` is required to detect block-string literals by comparing
 /// source span offsets against the raw text.
-pub(super) enum PrintableDefinition {
-    Operation {
-        operation: Node<ast::OperationDefinition>,
-        source: Arc<str>,
-    },
-    Fragment {
-        fragment: Node<ast::FragmentDefinition>,
-        source: Arc<str>,
-    },
+pub(super) struct PrintableDefinition {
+    pub(super) source: Arc<str>,
+    pub(super) ast_node: DefinitionNode,
 }
 
-/// Renders `definitions` as a single GraphQL document, separated by blank lines.
+pub(super) enum DefinitionNode {
+    Operation(Node<ast::OperationDefinition>),
+    Fragment(Node<ast::FragmentDefinition>),
+}
+
+impl PrintableDefinition {
+    fn print(&self) -> String {
+        let mut output = String::new();
+        match &self.ast_node {
+            DefinitionNode::Operation(op) => print_operation(&mut output, op, &self.source),
+            DefinitionNode::Fragment(frag) => print_fragment(&mut output, frag, &self.source),
+        }
+        output
+    }
+}
+
+/// Renders `definitions` as a single GraphQL executable document body, separated by blank lines.
 pub(super) fn print_document(definitions: &[PrintableDefinition]) -> String {
     definitions
         .iter()
-        .map(print_definition)
+        .map(PrintableDefinition::print)
         .collect::<Vec<_>>()
         .join("\n\n")
-}
-
-fn print_definition(definition: &PrintableDefinition) -> String {
-    let mut output = String::new();
-    match definition {
-        PrintableDefinition::Operation { operation, source } => {
-            print_operation(&mut output, operation, source)
-        }
-        PrintableDefinition::Fragment { fragment, source } => {
-            print_fragment(&mut output, fragment, source)
-        }
-    }
-    output
 }
 
 fn print_operation(output: &mut String, operation: &ast::OperationDefinition, source: &str) {
@@ -293,13 +290,13 @@ mod tests {
             .definitions
             .into_iter()
             .filter_map(|d| match d {
-                ast::Definition::OperationDefinition(op) => Some(PrintableDefinition::Operation {
-                    operation: op,
+                ast::Definition::OperationDefinition(op) => Some(PrintableDefinition {
                     source: source.clone(),
+                    ast_node: DefinitionNode::Operation(op),
                 }),
-                ast::Definition::FragmentDefinition(frag) => Some(PrintableDefinition::Fragment {
-                    fragment: frag,
+                ast::Definition::FragmentDefinition(frag) => Some(PrintableDefinition {
                     source: source.clone(),
+                    ast_node: DefinitionNode::Fragment(frag),
                 }),
                 _ => None,
             })
