@@ -12,10 +12,13 @@ pub trait SelectionSetExt {
     fn collect_spreads(&self) -> BTreeSet<String>;
     fn collect_variables(&self, into: &mut BTreeSet<String>);
     fn remove_client_selections(&mut self);
-    fn add_typenames(&mut self);
     /// Like `add_typenames`, but only appends `__typename` when `append` is true.
     /// `@client` removal and recursion into sub-selections happen regardless of `append`.
     fn add_typenames_if(&mut self, append: bool);
+
+    fn add_typenames(&mut self) {
+        self.add_typenames_if(true);
+    }
 }
 
 impl SelectionSetExt for Vec<ast::Selection> {
@@ -59,10 +62,6 @@ impl SelectionSetExt for Vec<ast::Selection> {
 
     fn remove_client_selections(&mut self) {
         self.retain(|s| !s.has_directive("client"));
-    }
-
-    fn add_typenames(&mut self) {
-        self.add_typenames_if(true);
     }
 
     fn add_typenames_if(&mut self, append: bool) {
