@@ -1,4 +1,6 @@
-use apollo_compiler::{Node, ast};
+#![allow(dead_code)]
+
+use apollo_compiler::ast;
 
 use super::selection_set::SelectionSetExt;
 

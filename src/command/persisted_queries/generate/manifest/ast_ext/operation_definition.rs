@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{collections::BTreeSet, sync::Arc};
 
 use apollo_compiler::{Node, ast};
