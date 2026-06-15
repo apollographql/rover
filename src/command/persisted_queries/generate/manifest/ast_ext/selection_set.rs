@@ -12,7 +12,7 @@ use super::{
 pub trait SelectionSetExt {
     /// Collects named fragment spreads reachable from this set, excluding spreads under `@client`-annotated selections.
     fn collect_spreads(&self) -> BTreeSet<String>;
-    fn collect_variables(&self, into: &mut BTreeSet<String>);
+    fn collect_variables(&self) -> BTreeSet<String>;
     fn remove_client_selections(&mut self);
     /// Like `add_typenames`, but only appends `__typename` when `append` is true.
     /// `@client` removal and recursion into sub-selections happen regardless of `append`.
@@ -43,23 +43,25 @@ impl SelectionSetExt for Vec<ast::Selection> {
             .collect()
     }
 
-    fn collect_variables(&self, into: &mut BTreeSet<String>) {
+    fn collect_variables(&self) -> BTreeSet<String> {
+        let mut variables = BTreeSet::new();
         for selection in self {
             match selection {
                 ast::Selection::Field(field) => {
-                    collect_variables_from_arguments(&field.arguments, into);
-                    collect_variables_from_directives(&field.directives, into);
-                    field.selection_set.collect_variables(into);
+                    variables.extend(collect_variables_from_arguments(&field.arguments));
+                    variables.extend(collect_variables_from_directives(&field.directives));
+                    variables.extend(field.selection_set.collect_variables());
                 }
                 ast::Selection::FragmentSpread(fs) => {
-                    collect_variables_from_directives(&fs.directives, into);
+                    variables.extend(collect_variables_from_directives(&fs.directives));
                 }
                 ast::Selection::InlineFragment(inf) => {
-                    collect_variables_from_directives(&inf.directives, into);
-                    inf.selection_set.collect_variables(into);
+                    variables.extend(collect_variables_from_directives(&inf.directives));
+                    variables.extend(inf.selection_set.collect_variables());
                 }
             }
         }
+        variables
     }
 
     fn remove_client_selections(&mut self) {
@@ -146,32 +148,28 @@ mod tests {
     #[test]
     fn collect_variables_finds_field_argument_variable() {
         let selections = parse_selections("query Q { user(id: $userId) { name } }");
-        let mut vars = BTreeSet::new();
-        selections.collect_variables(&mut vars);
+        let vars = selections.collect_variables();
         assert_that!(vars.contains("userId")).is_true();
     }
 
     #[test]
     fn collect_variables_finds_directive_argument_variable() {
         let selections = parse_selections("query Q { field @include(if: $show) }");
-        let mut vars = BTreeSet::new();
-        selections.collect_variables(&mut vars);
+        let vars = selections.collect_variables();
         assert_that!(vars.contains("show")).is_true();
     }
 
     #[test]
     fn collect_variables_finds_nested_field_variable() {
         let selections = parse_selections("query Q { parent { child(x: $val) } }");
-        let mut vars = BTreeSet::new();
-        selections.collect_variables(&mut vars);
+        let vars = selections.collect_variables();
         assert_that!(vars.contains("val")).is_true();
     }
 
     #[test]
     fn collect_variables_finds_variable_in_list_value() {
         let selections = parse_selections("query Q { field(ids: [$a, $b]) }");
-        let mut vars = BTreeSet::new();
-        selections.collect_variables(&mut vars);
+        let vars = selections.collect_variables();
         assert_that!(vars.contains("a")).is_true();
         assert_that!(vars.contains("b")).is_true();
     }
@@ -179,8 +177,7 @@ mod tests {
     #[test]
     fn collect_variables_finds_variable_in_object_value() {
         let selections = parse_selections("query Q { field(input: {id: $x}) }");
-        let mut vars = BTreeSet::new();
-        selections.collect_variables(&mut vars);
+        let vars = selections.collect_variables();
         assert_that!(vars.contains("x")).is_true();
     }
 

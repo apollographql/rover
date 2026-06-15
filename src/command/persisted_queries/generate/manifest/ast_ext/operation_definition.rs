@@ -12,9 +12,8 @@ pub trait OperationDefinitionExt {
 
 impl OperationDefinitionExt for ast::OperationDefinition {
     fn collect_variables(&self) -> BTreeSet<String> {
-        let mut variables = BTreeSet::new();
-        collect_variables_from_directives(&self.directives, &mut variables);
-        self.selection_set.collect_variables(&mut variables);
+        let mut variables = collect_variables_from_directives(&self.directives);
+        variables.extend(self.selection_set.collect_variables());
         variables
     }
 }
