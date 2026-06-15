@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use apollo_compiler::{Node, ast};
+use apollo_compiler::ast;
 
 use super::{
     selection::SelectionExt,
@@ -14,13 +14,6 @@ pub trait SelectionSetExt {
     fn collect_spreads(&self) -> BTreeSet<String>;
     fn collect_variables(&self) -> BTreeSet<String>;
     fn remove_client_selections(&mut self);
-    /// Like `add_typenames`, but only appends `__typename` when `append` is true.
-    /// `@client` removal and recursion into sub-selections happen regardless of `append`.
-    fn add_typenames_if(&mut self, append: bool);
-
-    fn add_typenames(&mut self) {
-        self.add_typenames_if(true);
-    }
 }
 
 impl SelectionSetExt for Vec<ast::Selection> {
@@ -66,22 +59,6 @@ impl SelectionSetExt for Vec<ast::Selection> {
 
     fn remove_client_selections(&mut self) {
         self.retain(|s| !s.has_directive("client"));
-    }
-
-    fn add_typenames_if(&mut self, append: bool) {
-        self.remove_client_selections();
-        for selection in self.iter_mut() {
-            selection.add_typename();
-        }
-        if append && !self.iter().any(|s| s.is_typename_field()) {
-            self.push(ast::Selection::Field(Node::new(ast::Field {
-                alias: None,
-                name: apollo_compiler::name!("__typename"),
-                arguments: Vec::new(),
-                directives: ast::DirectiveList::new(),
-                selection_set: Vec::new(),
-            })));
-        }
     }
 }
 
@@ -193,52 +170,5 @@ mod tests {
         let mut selections = parse_selections("query Q { a b c }");
         selections.remove_client_selections();
         assert_that!(field_names(&selections)).is_equal_to(vec!["a", "b", "c"]);
-    }
-
-    #[test]
-    fn add_typenames_appends_typename_to_non_empty_selection_set() {
-        let mut selections = parse_selections("query Q { id }");
-        selections.add_typenames();
-        assert_that!(field_names(&selections)).contains("__typename");
-    }
-
-    #[test]
-    fn add_typenames_does_not_add_duplicate_typename() {
-        let mut selections = parse_selections("query Q { id __typename }");
-        selections.add_typenames();
-        let count = field_names(&selections)
-            .iter()
-            .filter(|&&n| n == "__typename")
-            .count();
-        assert_that!(count).is_equal_to(1);
-    }
-
-    #[test]
-    fn add_typenames_recurses_into_nested_fields() {
-        let mut selections = parse_selections("query Q { parent { child } }");
-        selections.add_typenames();
-        if let ast::Selection::Field(parent) = &selections[0] {
-            assert_that!(field_names(&parent.selection_set)).contains("__typename");
-        } else {
-            panic!("expected field");
-        }
-    }
-
-    #[test]
-    fn add_typenames_if_false_does_not_append_typename() {
-        let mut selections = parse_selections("query Q { id }");
-        selections.add_typenames_if(false);
-        assert_that!(field_names(&selections)).does_not_contain("__typename");
-    }
-
-    #[test]
-    fn add_typenames_skips_typename_on_export_annotated_fields() {
-        let mut selections = parse_selections(r#"query Q { data @export(as: "data") { id } }"#);
-        selections.add_typenames();
-        if let ast::Selection::Field(data) = &selections[0] {
-            assert_that!(field_names(&data.selection_set)).does_not_contain("__typename");
-        } else {
-            panic!("expected field");
-        }
     }
 }
