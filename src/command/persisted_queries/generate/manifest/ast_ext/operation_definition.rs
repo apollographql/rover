@@ -1,16 +1,29 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 
 use apollo_compiler::{Node, ast};
 
-use super::{selection_set::SelectionSetExt, variables::collect_variables_from_directives};
+use super::{
+    fragment_definition::FragmentDefinitionExt, selection_set::SelectionSetExt,
+    variables::collect_variables_from_directives,
+};
 
 pub trait OperationDefinitionExt {
+    /// Removes variable definitions not referenced in this operation or any of its associated fragments.
+    fn prune_unused_variables(&mut self, fragments: &[(Node<ast::FragmentDefinition>, Arc<str>)]);
     fn collect_variables(&self) -> BTreeSet<String>;
 }
 
 impl OperationDefinitionExt for ast::OperationDefinition {
+    fn prune_unused_variables(&mut self, fragments: &[(Node<ast::FragmentDefinition>, Arc<str>)]) {
+        let used: BTreeSet<String> = std::iter::once(self.collect_variables())
+            .chain(fragments.iter().map(|(f, _)| f.collect_variables()))
+            .flatten()
+            .collect();
+        self.variables.retain(|v| used.contains(v.name.as_str()));
+    }
+
     fn collect_variables(&self) -> BTreeSet<String> {
         let mut variables = collect_variables_from_directives(&self.directives);
         variables.extend(self.selection_set.collect_variables());
@@ -20,6 +33,8 @@ impl OperationDefinitionExt for ast::OperationDefinition {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use apollo_compiler::{Node, parser::Parser as ApolloParser};
     use speculoos::prelude::*;
 
@@ -41,11 +56,51 @@ mod tests {
             .unwrap()
     }
 
+    fn parse_fragment(src: &str) -> Node<ast::FragmentDefinition> {
+        ApolloParser::new()
+            .parse_ast(src, "test.graphql")
+            .unwrap()
+            .definitions
+            .into_iter()
+            .find_map(|d| {
+                if let ast::Definition::FragmentDefinition(f) = d {
+                    Some(f)
+                } else {
+                    None
+                }
+            })
+            .unwrap()
+    }
+
     #[test]
     fn collect_variables_finds_all_variable_references() {
         let op = parse_op("query Q($a: ID!, $b: Int) { field(id: $a, limit: $b) }");
         let vars = op.collect_variables();
         assert_that!(vars.contains("a")).is_true();
         assert_that!(vars.contains("b")).is_true();
+    }
+
+    #[test]
+    fn prune_unused_variables_removes_variable_not_in_operation_or_fragments() {
+        let mut op = parse_op("query Q($used: ID!, $unused: ID!) { field(id: $used) }");
+        op.make_mut().prune_unused_variables(&[]);
+        let var_names: Vec<&str> = op.variables.iter().map(|v| v.name.as_str()).collect();
+        assert_that!(var_names.contains(&"used")).is_true();
+        assert_that!(var_names.contains(&"unused")).is_false();
+    }
+
+    #[test]
+    fn prune_unused_variables_keeps_variable_used_only_in_fragment() {
+        let mut op = parse_op("query Q($fragVar: ID!) { ...Frag }");
+        let frag = parse_fragment("fragment Frag on T { field(id: $fragVar) }");
+        let source = Arc::from("fragment Frag on T { field(id: $fragVar) }");
+        op.make_mut().prune_unused_variables(&[(frag, source)]);
+        assert_that!(
+            op.variables
+                .iter()
+                .map(|v| v.name.as_str())
+                .any(|x| x == "fragVar")
+        )
+        .is_true();
     }
 }
