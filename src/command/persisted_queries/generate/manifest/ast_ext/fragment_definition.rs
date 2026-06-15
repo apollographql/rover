@@ -46,13 +46,13 @@ mod tests {
     fn collect_variables_finds_variables_in_field_arguments() {
         let frag = parse_fragment("fragment F on T { user(id: $userId) { name } }");
         let vars = frag.collect_variables();
-        assert_that!(&vars).contains(&"userId".to_string());
+        assert_that!(&vars).contains("userId".to_string());
     }
 
     #[test]
     fn collect_variables_finds_variables_in_directives() {
         let frag = parse_fragment("fragment F on T @include(if: $show) { field }");
         let vars = frag.collect_variables();
-        assert_that!(&vars).contains(&"show".to_string());
+        assert_that!(&vars).contains("show".to_string());
     }
 }

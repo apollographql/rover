@@ -329,19 +329,19 @@ mod tests {
     #[test]
     fn prints_field_with_alias() {
         let out = parse_print("query Q { display: name }");
-        assert_that!(out).contains("display: name".to_string());
+        assert_that!(out).contains("display: name");
     }
 
     #[test]
     fn prints_inline_fragment_without_type_condition() {
         let out = parse_print("query Q { ... { id } }");
-        assert_that!(out).contains("... {".to_string());
+        assert_that!(out).contains("... {");
     }
 
     #[test]
     fn prints_inline_fragment_with_type_condition() {
         let out = parse_print("query Q { ... on User { id } }");
-        assert_that!(out).contains("... on User {".to_string());
+        assert_that!(out).contains("... on User {");
     }
 
     #[test]
@@ -414,9 +414,9 @@ mod tests {
     #[test]
     fn print_value_float() {
         assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(
-            3.14_f64
+            1.5_f64
         ))))
-        .is_equal_to("3.14".to_string());
+        .is_equal_to("1.5".to_string());
     }
 
     #[test]
