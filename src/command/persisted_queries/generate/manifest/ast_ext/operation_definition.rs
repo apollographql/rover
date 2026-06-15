@@ -136,6 +136,12 @@ mod tests {
         let frag = parse_fragment("fragment Frag on T { field(id: $fragVar) }");
         let source = Arc::from("fragment Frag on T { field(id: $fragVar) }");
         op.make_mut().prune_unused_variables(&[(frag, source)]);
-        assert_that!(op.variables.iter().map(|v| v.name.as_str()).any(|x| x == "fragVar")).is_true();
+        assert_that!(
+            op.variables
+                .iter()
+                .map(|v| v.name.as_str())
+                .any(|x| x == "fragVar")
+        )
+        .is_true();
     }
 }
