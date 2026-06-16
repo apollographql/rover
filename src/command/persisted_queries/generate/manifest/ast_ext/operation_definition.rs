@@ -6,7 +6,9 @@ use apollo_compiler::{Node, ast};
 
 use super::{selection_set::SelectionSetExt, variables::collect_variables_from_directives};
 
+/// Extension methods for [`ast::OperationDefinition`].
 pub trait OperationDefinitionExt {
+    /// Returns all variable names referenced in the operation's directives and selection set.
     fn collect_variables(&self) -> BTreeSet<String>;
 }
 

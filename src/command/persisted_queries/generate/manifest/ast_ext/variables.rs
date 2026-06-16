@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 
 use apollo_compiler::{Node, ast};
 
+/// Returns all variable names referenced in any argument of any directive in `directives`.
 pub(super) fn collect_variables_from_directives(
     directives: &ast::DirectiveList,
 ) -> BTreeSet<String> {
@@ -13,6 +14,7 @@ pub(super) fn collect_variables_from_directives(
         .collect()
 }
 
+/// Returns all variable names referenced across the given `arguments`.
 pub(super) fn collect_variables_from_arguments(
     arguments: &[Node<ast::Argument>],
 ) -> BTreeSet<String> {
@@ -22,6 +24,7 @@ pub(super) fn collect_variables_from_arguments(
         .collect()
 }
 
+/// Recursively returns every variable name found within `value`.
 pub(super) fn collect_variables_from_value(value: &Node<ast::Value>) -> BTreeSet<String> {
     match value.as_ref() {
         ast::Value::Variable(name) => std::iter::once(name.to_string()).collect(),

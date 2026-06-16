@@ -9,10 +9,13 @@ use super::{
     variables::{collect_variables_from_arguments, collect_variables_from_directives},
 };
 
+/// Extension methods for a selection set (`Vec<ast::Selection>`).
 pub trait SelectionSetExt {
     /// Collects named fragment spreads reachable from this set, excluding spreads under `@client`-annotated selections.
     fn collect_spreads(&self) -> BTreeSet<String>;
+    /// Returns all variable names referenced anywhere in this selection set.
     fn collect_variables(&self) -> BTreeSet<String>;
+    /// Recursively removes all selections annotated with `@client`.
     fn remove_client_selections(&mut self);
 }
 

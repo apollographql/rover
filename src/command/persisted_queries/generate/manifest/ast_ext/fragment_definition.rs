@@ -6,7 +6,9 @@ use apollo_compiler::ast;
 
 use super::{selection_set::SelectionSetExt, variables::collect_variables_from_directives};
 
+/// Extension methods for [`ast::FragmentDefinition`].
 pub trait FragmentDefinitionExt {
+    /// Returns all variable names referenced in the fragment's directives and selection set.
     fn collect_variables(&self) -> BTreeSet<String>;
 }
 

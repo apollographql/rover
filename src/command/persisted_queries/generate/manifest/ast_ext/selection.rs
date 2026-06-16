@@ -2,7 +2,9 @@
 
 use apollo_compiler::ast;
 
+/// Extension methods for [`ast::Selection`].
 pub trait SelectionExt {
+    /// Returns `true` if this selection carries a directive with the given `name`.
     fn has_directive(&self, name: &str) -> bool;
 }
 
