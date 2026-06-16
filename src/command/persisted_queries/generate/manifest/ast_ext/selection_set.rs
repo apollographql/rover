@@ -59,6 +59,17 @@ impl SelectionSetExt for Vec<ast::Selection> {
 
     fn remove_client_selections(&mut self) {
         self.retain(|s| !s.has_directive("client"));
+        for selection in self.iter_mut() {
+            match selection {
+                ast::Selection::Field(field) => {
+                    field.make_mut().selection_set.remove_client_selections();
+                }
+                ast::Selection::InlineFragment(inf) => {
+                    inf.make_mut().selection_set.remove_client_selections();
+                }
+                ast::Selection::FragmentSpread(_) => {}
+            }
+        }
     }
 }
 
