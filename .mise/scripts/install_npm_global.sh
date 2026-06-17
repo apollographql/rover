@@ -22,5 +22,33 @@ fi
 # Artifact downloads don't preserve execute permissions on Unix.
 [[ -f "${PLATFORM_PKG_DIR}/bin/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/bin/rover"
 
-npm install --install-links=true -g "$INSTALLERS_DIR" "$PLATFORM_PKG_DIR"
+PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
+
+# Use npm overrides so the local platform package satisfies @apollo/rover's
+# optionalDependency instead of npm trying (and silently failing) to fetch
+# the not-yet-published version from the registry.
+cat > package.json << EOF
+{
+  "name": "rover-global-install-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "@apollo/rover": "file:${INSTALLERS_DIR}"
+  },
+  "overrides": {
+    "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
+  }
+}
+EOF
+
+npm install --install-links=true
+
+# Install globally from the already-resolved local packages. --omit=optional
+# prevents npm from re-running optional dependency resolution on these
+# already-resolved packages and hitting EBADPLATFORM on non-matching platforms.
+npm install --install-links=true --omit=optional \
+  -g "${TMPDIR}/node_modules/@apollo/rover" \
+  "${TMPDIR}/node_modules/${PLATFORM_PKG_NAME}"
+
 rover --version
