@@ -1,0 +1,13 @@
+{
+  "name": "@apollo/rover-win32-x64",
+  "version": "0.40.0",
+  "description": "Windows x64 binary for @apollo/rover",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apollographql/rover.git"
+  },
+  "files": ["bin"]
+}

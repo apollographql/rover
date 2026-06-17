@@ -8,9 +8,19 @@ use crate::{
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
+const PLATFORM_PACKAGE_DIRS: &[&str] = &[
+    "rover-darwin-arm64",
+    "rover-darwin-x64",
+    "rover-linux-arm64",
+    "rover-linux-x64",
+    "rover-linux-x64-musl",
+    "rover-win32-x64",
+];
+
 pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
+    platforms_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -20,6 +30,7 @@ impl NpmRunner {
 
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
+        let platforms_directory = npm_installer_package_directory.join("platforms");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -38,6 +49,7 @@ impl NpmRunner {
         Ok(Self {
             runner,
             npm_installer_package_directory,
+            platforms_directory,
         })
     }
 
@@ -48,6 +60,9 @@ impl NpmRunner {
 
         self.update_version()
             .with_context(|| "Could not update Rover's version in package.json.")?;
+
+        self.update_platform_package_versions()
+            .with_context(|| "Could not update platform package versions.")?;
 
         self.install_dependencies()
             .with_context(|| "Could not install dependencies.")?;
@@ -64,8 +79,7 @@ impl NpmRunner {
     }
 
     fn install_dependencies(&self) -> Result<()> {
-        // we --ignore-scripts so that we do not attempt to download and unpack a
-        // released rover tarball
+        // --ignore-scripts so we do not attempt to run any postinstall hooks
         self.npm_exec(
             &["install", "--ignore-scripts"],
             &self.npm_installer_package_directory,
@@ -78,6 +92,53 @@ impl NpmRunner {
             &["version", &PKG_VERSION, "--allow-same-version"],
             &self.npm_installer_package_directory,
         )?;
+        Ok(())
+    }
+
+    /// Bumps the version in every platform package and syncs the
+    /// optionalDependencies version refs in the main package.json.
+    fn update_platform_package_versions(&self) -> Result<()> {
+        for dir_name in PLATFORM_PACKAGE_DIRS {
+            let pkg_dir = self.platforms_directory.join(dir_name);
+            self.npm_exec(&["version", &PKG_VERSION, "--allow-same-version"], &pkg_dir)
+                .with_context(|| {
+                    format!("Could not update version in platform package: {}", dir_name)
+                })?;
+        }
+
+        self.sync_optional_dep_versions()
+            .with_context(|| "Could not sync optionalDependencies versions in package.json.")
+    }
+
+    /// Reads the main package.json, updates every value under optionalDependencies
+    /// to PKG_VERSION, and writes it back.
+    fn sync_optional_dep_versions(&self) -> Result<()> {
+        let pkg_json_path = self
+            .npm_installer_package_directory
+            .join("package.json")
+            .into_std_path_buf();
+
+        let contents = std::fs::read_to_string(&pkg_json_path)
+            .with_context(|| format!("Could not read {}", pkg_json_path.display()))?;
+
+        let mut json: serde_json::Value = serde_json::from_str(&contents)
+            .with_context(|| "Could not parse package.json as JSON")?;
+
+        if let Some(optional_deps) = json
+            .get_mut("optionalDependencies")
+            .and_then(|v| v.as_object_mut())
+        {
+            for value in optional_deps.values_mut() {
+                *value = serde_json::Value::String(PKG_VERSION.clone());
+            }
+        }
+
+        let updated = serde_json::to_string_pretty(&json)
+            .with_context(|| "Could not serialize package.json")?;
+
+        std::fs::write(&pkg_json_path, updated + "\n")
+            .with_context(|| format!("Could not write {}", pkg_json_path.display()))?;
+
         Ok(())
     }
 

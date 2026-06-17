@@ -1,0 +1,14 @@
+{
+  "name": "@apollo/rover-linux-x64",
+  "version": "0.40.0",
+  "description": "Linux x64 glibc binary for @apollo/rover",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "libc": ["glibc"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apollographql/rover.git"
+  },
+  "files": ["bin"]
+}
