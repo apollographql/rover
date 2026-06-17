@@ -14,6 +14,9 @@ pub trait SelectionSetExt {
     /// Collects named fragment spreads reachable from this set, excluding spreads under `@client`-annotated selections.
     fn collect_spreads(&self) -> BTreeSet<String>;
     /// Returns all variable names referenced anywhere in this selection set.
+    /// Unlike `collect_spreads`, this intentionally includes variables inside
+    /// `@client`-annotated selections: those variables are still declared on the
+    /// operation and must be counted as used so they are not incorrectly pruned.
     fn collect_variables(&self) -> BTreeSet<String>;
     /// Recursively removes all selections annotated with `@client`.
     fn remove_client_selections(&mut self);
@@ -134,6 +137,12 @@ mod tests {
     fn collect_spreads_skips_client_annotated_spread() {
         let selections = parse_selections("query Q { ...LocalFrag @client }");
         assert_that!(selections.collect_spreads().contains("LocalFrag")).is_false();
+    }
+
+    #[test]
+    fn collect_spreads_skips_spread_inside_client_annotated_inline_fragment() {
+        let selections = parse_selections("query Q { ... @client { ...Frag } }");
+        assert_that!(selections.collect_spreads().contains("Frag")).is_false();
     }
 
     #[test]
