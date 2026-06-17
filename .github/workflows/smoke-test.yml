@@ -152,6 +152,7 @@ jobs:
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
         with:
           max_attempts: 2
+          timeout_minutes: 10
           shell: bash
           command: |
             E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
@@ -171,6 +172,7 @@ jobs:
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
         with:
           max_attempts: 2
+          timeout_minutes: 10
           shell: pwsh
           command: |
             $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
