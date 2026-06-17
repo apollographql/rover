@@ -1,3 +1,4 @@
+mod generate;
 mod publish;
 
 use clap::Parser;
