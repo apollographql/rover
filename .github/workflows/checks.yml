@@ -103,7 +103,15 @@ jobs:
         git symbolic-ref HEAD || echo "Detached HEAD detected"
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
     - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      with:
+        install: false
       env:
         CARGO_NET_RETRY: "5"
+    - name: Install mise tools
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+      with:
+        max_attempts: 3
+        timeout_minutes: 30
+        command: mise install
     - run: mise run test
     - run: mise run check-glibc
