@@ -29,11 +29,14 @@ TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
 # pnpm v9 uses strict virtual-store isolation: installing @apollo/rover from a
-# local path causes it to try the npm registry for its optionalDependencies
-# (e.g. @apollo/rover-linux-x64@0.40.0), which doesn't exist yet.  The dep
-# is silently skipped and require.resolve() returns null at runtime.
-# Using pnpm.overrides in the project package.json forces pnpm to wire the
-# local platform package into @apollo/rover's virtual node_modules instead.
+# local path causes it to silently skip its optionalDependencies (e.g.
+# @apollo/rover-linux-x64@0.40.0) because the version doesn't exist on the
+# registry yet. pnpm.overrides only redirects version resolution but won't
+# force installation of a dep pnpm has already decided to skip.
+# pnpm.packageExtensions injects the platform package directly into
+# @apollo/rover's optional deps before the dependency graph is computed,
+# so pnpm installs it into @apollo/rover's virtual node_modules and
+# require.resolve() finds it at runtime.
 cat > package.json << EOF
 {
   "name": "rover-install-test",
@@ -42,8 +45,12 @@ cat > package.json << EOF
     "@apollo/rover": "file:${INSTALLERS_DIR}"
   },
   "pnpm": {
-    "overrides": {
-      "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
+    "packageExtensions": {
+      "@apollo/rover": {
+        "optionalDependencies": {
+          "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
+        }
+      }
     }
   }
 }
