@@ -19,5 +19,8 @@ if [[ -z "$PLATFORM_PKG_DIR" ]]; then
   exit 1
 fi
 
+# Artifact downloads don't preserve execute permissions on Unix.
+[[ -f "${PLATFORM_PKG_DIR}/bin/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/bin/rover"
+
 npm install --install-links=true -g "$INSTALLERS_DIR" "$PLATFORM_PKG_DIR"
 rover --version
