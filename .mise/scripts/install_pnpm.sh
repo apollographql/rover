@@ -28,33 +28,22 @@ PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
-# pnpm v9 uses strict virtual-store isolation: installing @apollo/rover from a
-# local path causes it to silently skip its optionalDependencies (e.g.
-# @apollo/rover-linux-x64@0.40.0) because the version doesn't exist on the
-# registry yet. pnpm.overrides only redirects version resolution but won't
-# force installation of a dep pnpm has already decided to skip.
-# pnpm.packageExtensions injects the platform package directly into
-# @apollo/rover's optional deps before the dependency graph is computed,
-# so pnpm installs it into @apollo/rover's virtual node_modules and
-# require.resolve() finds it at runtime.
+# Add the platform package as a direct dependency so pnpm actually installs it.
+# pnpm.packageExtensions doesn't override the version already declared in
+# @apollo/rover's own package.json — pnpm resolves the original "0.40.0" and
+# silently skips the optional dep because that version isn't on the registry.
+# --shamefully-hoist flattens node_modules so require.resolve() in rover.js
+# can find the platform package just as it would with npm.
 cat > package.json << EOF
 {
   "name": "rover-install-test",
   "version": "1.0.0",
   "dependencies": {
-    "@apollo/rover": "file:${INSTALLERS_DIR}"
-  },
-  "pnpm": {
-    "packageExtensions": {
-      "@apollo/rover": {
-        "optionalDependencies": {
-          "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
-        }
-      }
-    }
+    "@apollo/rover": "file:${INSTALLERS_DIR}",
+    "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
   }
 }
 EOF
 
-pnpm install --no-frozen-lockfile
+pnpm install --no-frozen-lockfile --shamefully-hoist
 ./node_modules/.bin/rover --version
