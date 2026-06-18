@@ -26,17 +26,16 @@ PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
-# Use npm overrides so the local platform package satisfies @apollo/rover's
-# optionalDependency instead of npm trying (and silently failing) to fetch
-# the not-yet-published version from the registry.
+# Add the platform package as a direct dependency so npm actually installs it.
+# npm `overrides` won't force-install an optional dep whose version doesn't
+# exist on the registry — the dep is silently skipped before the override is
+# ever evaluated.
 cat > package.json << EOF
 {
   "name": "rover-global-install-test",
   "version": "1.0.0",
   "dependencies": {
-    "@apollo/rover": "file:${INSTALLERS_DIR}"
-  },
-  "overrides": {
+    "@apollo/rover": "file:${INSTALLERS_DIR}",
     "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
   }
 }
