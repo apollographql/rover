@@ -54,16 +54,15 @@ impl NpmRunner {
 
     fn generate_packages(&self) -> Result<()> {
         let runner = Runner::new("cargo");
-        runner.exec(
-            &["npm", "generate"],
-            &PKG_PROJECT_ROOT,
-            None,
-        )?;
+        runner.exec(&["npm", "generate"], &PKG_PROJECT_ROOT, None)?;
         Ok(())
     }
 
     fn patch_shim(&self) -> Result<()> {
-        let shim_path = self.npm_installer_package_directory.join("bin").join("rover.js");
+        let shim_path = self
+            .npm_installer_package_directory
+            .join("bin")
+            .join("rover.js");
         let content = std::fs::read_to_string(&shim_path)
             .with_context(|| format!("Could not read shim at {}", shim_path))?;
         let patched = content.replace(
