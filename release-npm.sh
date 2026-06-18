@@ -26,5 +26,7 @@ for target in "${TARGETS[@]}"; do
 done
 
 cargo npm generate -p rover
-# TODO: set up a shim to staged-publish instead.
+
+# add a wrapper to rewrite `npm publish` to `npm stage publish` for staged publishing
+export PATH="$(pwd)/scripts/npm-publish-wrapper:$PATH"
 # cargo npm publish -p rover --access public
