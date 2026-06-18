@@ -25,24 +25,17 @@ fi
 npm install -g pnpm@v9.3.0
 
 PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
-
-# On Windows (Git Bash), pwd returns /d/a/... but pnpm needs file:///D:/a/... format.
-# (Unlike npm, pnpm treats file:D:/... as relative and prepends cwd to it.)
-if command -v cygpath >/dev/null 2>&1; then
-  INSTALLERS_DIR="file:///$(cygpath -m "$INSTALLERS_DIR")"
-  PLATFORM_PKG_DIR="file:///$(cygpath -m "$PLATFORM_PKG_DIR")"
-else
-  INSTALLERS_DIR="file:${INSTALLERS_DIR}"
-  PLATFORM_PKG_DIR="file:${PLATFORM_PKG_DIR}"
-fi
+PLATFORM_PKG_DIRNAME="$(basename "$PLATFORM_PKG_DIR")"
 
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
-# Add the platform package as a direct dependency so pnpm actually installs it.
-# pnpm.packageExtensions doesn't override the version already declared in
-# @apollo/rover's own package.json — pnpm resolves the original "0.40.0" and
-# silently skips the optional dep because that version isn't on the registry.
+# Copy packages into the temp dir so pnpm can reference them with relative
+# file: paths. pnpm doesn't reliably handle Windows absolute paths (e.g.
+# file:D:/a/...) and prepends cwd to them — copying sidesteps the issue.
+cp -r "$INSTALLERS_DIR" ./rover
+cp -r "$PLATFORM_PKG_DIR" "./${PLATFORM_PKG_DIRNAME}"
+
 # --shamefully-hoist flattens node_modules so require.resolve() in rover.js
 # can find the platform package just as it would with npm.
 cat > package.json << EOF
@@ -50,8 +43,8 @@ cat > package.json << EOF
   "name": "rover-install-test",
   "version": "1.0.0",
   "dependencies": {
-    "@apollo/rover": "${INSTALLERS_DIR}",
-    "${PLATFORM_PKG_NAME}": "${PLATFORM_PKG_DIR}"
+    "@apollo/rover": "file:rover",
+    "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIRNAME}"
   }
 }
 EOF
