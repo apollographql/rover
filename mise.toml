@@ -3,7 +3,7 @@ idiomatic_version_file_enable_tools = ["rust"]
 
 [tools]
 "cargo:lychee" = "0.24.2"
-node = "24.16.0"
+node = "24.17.0"
 "npm:npm" = "11.17.0"
 "cargo:cargo-deny" = "0.19"
 "cargo:graphql_client_cli" = "0.16.0"
