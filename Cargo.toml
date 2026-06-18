@@ -325,3 +325,19 @@ which = { workspace = true }
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.
 [profile.test.package.sputnik]
 debug-assertions = false
+
+
+[[package.metadata.npm]]
+name = "@apollo/rover"
+bins = ["rover"]
+targets = [  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin"]
+
+# Generate mode. In "create" mode (default), package directories are
+# recreated from scratch on every run. In "merge" mode, the main package
+# is edited in-place, preserving any custom files or package.json fields.
+mode = "create"
