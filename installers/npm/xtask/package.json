@@ -1,0 +1,19 @@
+{
+  "name": "xtask",
+  "version": "0.1.0",
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "bin": {
+    "xtask": "bin/xtask.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "optionalDependencies": {
+    "xtask-darwin-arm64": "0.1.0",
+    "xtask-darwin-x64": "0.1.0",
+    "xtask-linux-arm64": "0.1.0",
+    "xtask-linux-x64": "0.1.0",
+    "xtask-linux-x64-musl": "0.1.0",
+    "xtask-win32-x64": "0.1.0"
+  }
+}

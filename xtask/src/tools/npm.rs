@@ -1,5 +1,3 @@
-use std::str;
-
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 
@@ -8,19 +6,9 @@ use crate::{
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
-const PLATFORM_PACKAGE_DIRS: &[&str] = &[
-    "rover-darwin-arm64",
-    "rover-darwin-x64",
-    "rover-linux-arm64",
-    "rover-linux-x64",
-    "rover-linux-x64-musl",
-    "rover-win32-x64",
-];
-
 pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
-    platforms_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -28,41 +16,32 @@ impl NpmRunner {
         let runner = Runner::new("npm");
         let project_root = PKG_PROJECT_ROOT.clone();
 
-        let rover_client_lint_directory = project_root.join("crates").join("rover-client");
-        let npm_installer_package_directory = project_root.join("installers").join("npm");
-        let platforms_directory = npm_installer_package_directory.join("platforms");
+        let npm_installer_package_directory = project_root
+            .join("installers")
+            .join("npm")
+            .join("@apollo")
+            .join("rover");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
-                "Rover's npm installer package does not seem to be located here:\n{}",
+                "Rover's npm installer package does not seem to be located here:\n{}\nRun `cargo npm generate` first.",
                 &npm_installer_package_directory
-            ));
-        }
-
-        if !rover_client_lint_directory.exists() {
-            return Err(anyhow!(
-                "Rover's GraphQL linter package does not seem to be located here:\n{}",
-                &rover_client_lint_directory
             ));
         }
 
         Ok(Self {
             runner,
             npm_installer_package_directory,
-            platforms_directory,
         })
     }
 
     /// prepares our npm installer package for release
     pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.update_dependency_tree()
-            .with_context(|| "Could not update the dependency tree.")?;
+        self.generate_packages()
+            .with_context(|| "Could not generate npm packages.")?;
 
-        self.update_version()
-            .with_context(|| "Could not update Rover's version in package.json.")?;
-
-        self.update_platform_package_versions()
-            .with_context(|| "Could not update platform package versions.")?;
+        self.patch_shim()
+            .with_context(|| "Could not patch npm shim.")?;
 
         self.install_dependencies()
             .with_context(|| "Could not install dependencies.")?;
@@ -73,8 +52,26 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn update_dependency_tree(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_installer_package_directory)?;
+    fn generate_packages(&self) -> Result<()> {
+        let runner = Runner::new("cargo");
+        runner.exec(
+            &["npm", "generate"],
+            &PKG_PROJECT_ROOT,
+            None,
+        )?;
+        Ok(())
+    }
+
+    fn patch_shim(&self) -> Result<()> {
+        let shim_path = self.npm_installer_package_directory.join("bin").join("rover.js");
+        let content = std::fs::read_to_string(&shim_path)
+            .with_context(|| format!("Could not read shim at {}", shim_path))?;
+        let patched = content.replace(
+            "const bin = require.resolve(binPath)",
+            "const bin = require.resolve(binPath)\nprocess.env.APOLLO_NODE_MODULES_BIN_DIR = require('path').dirname(bin)",
+        );
+        std::fs::write(&shim_path, patched)
+            .with_context(|| format!("Could not write shim at {}", shim_path))?;
         Ok(())
     }
 
@@ -84,61 +81,6 @@ impl NpmRunner {
             &["install", "--ignore-scripts"],
             &self.npm_installer_package_directory,
         )?;
-        Ok(())
-    }
-
-    fn update_version(&self) -> Result<()> {
-        self.npm_exec(
-            &["version", &PKG_VERSION, "--allow-same-version"],
-            &self.npm_installer_package_directory,
-        )?;
-        Ok(())
-    }
-
-    /// Bumps the version in every platform package and syncs the
-    /// optionalDependencies version refs in the main package.json.
-    fn update_platform_package_versions(&self) -> Result<()> {
-        for dir_name in PLATFORM_PACKAGE_DIRS {
-            let pkg_dir = self.platforms_directory.join(dir_name);
-            self.npm_exec(&["version", &PKG_VERSION, "--allow-same-version"], &pkg_dir)
-                .with_context(|| {
-                    format!("Could not update version in platform package: {}", dir_name)
-                })?;
-        }
-
-        self.sync_optional_dep_versions()
-            .with_context(|| "Could not sync optionalDependencies versions in package.json.")
-    }
-
-    /// Reads the main package.json, updates every value under optionalDependencies
-    /// to PKG_VERSION, and writes it back.
-    fn sync_optional_dep_versions(&self) -> Result<()> {
-        let pkg_json_path = self
-            .npm_installer_package_directory
-            .join("package.json")
-            .into_std_path_buf();
-
-        let contents = std::fs::read_to_string(&pkg_json_path)
-            .with_context(|| format!("Could not read {}", pkg_json_path.display()))?;
-
-        let mut json: serde_json::Value = serde_json::from_str(&contents)
-            .with_context(|| "Could not parse package.json as JSON")?;
-
-        if let Some(optional_deps) = json
-            .get_mut("optionalDependencies")
-            .and_then(|v| v.as_object_mut())
-        {
-            for value in optional_deps.values_mut() {
-                *value = serde_json::Value::String(PKG_VERSION.clone());
-            }
-        }
-
-        let updated = serde_json::to_string_pretty(&json)
-            .with_context(|| "Could not serialize package.json")?;
-
-        std::fs::write(&pkg_json_path, updated + "\n")
-            .with_context(|| format!("Could not write {}", pkg_json_path.display()))?;
-
         Ok(())
     }
 

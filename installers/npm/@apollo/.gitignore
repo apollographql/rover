@@ -1,0 +1,3 @@
+# Binaries are placed here by CI artifact downloads; don't commit them
+rover-*/rover
+rover-*/rover.exe

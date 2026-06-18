@@ -1,0 +1,13 @@
+{
+  "name": "xtask-linux-arm64",
+  "version": "0.1.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ]
+}

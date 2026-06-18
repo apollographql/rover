@@ -2,12 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm"
-PLATFORMS_DIR="$INSTALLERS_DIR/platforms"
+INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm/@apollo/rover"
+PLATFORMS_DIR="$SCRIPT_DIR/../../installers/npm/@apollo"
 
 PLATFORM_PKG_DIR=""
-for dir in "$PLATFORMS_DIR"/*/; do
-  if [[ -f "${dir}bin/rover" || -f "${dir}bin/rover.exe" ]]; then
+for dir in "$PLATFORMS_DIR"/rover-*/; do
+  if [[ -f "${dir}rover" || -f "${dir}rover.exe" ]]; then
     PLATFORM_PKG_DIR="${dir%/}"
     break
   fi
@@ -15,12 +15,12 @@ done
 
 if [[ -z "$PLATFORM_PKG_DIR" ]]; then
   echo "No built rover binary found under $PLATFORMS_DIR"
-  echo "Place the rover binary in the appropriate platforms/<pkg>/bin/ directory first."
+  echo "Place the rover binary in the appropriate platforms/<pkg>/ directory first."
   exit 1
 fi
 
 # Artifact downloads don't preserve execute permissions on Unix.
-[[ -f "${PLATFORM_PKG_DIR}/bin/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/bin/rover"
+[[ -f "${PLATFORM_PKG_DIR}/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/rover"
 
 npm install -g pnpm@v9.3.0
 

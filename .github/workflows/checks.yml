@@ -67,7 +67,7 @@ jobs:
       - uses: ./.github/actions/download-artifact-with-retry
         with:
           name: installer-binary-${{ matrix.pkg }}
-          path: installers/npm/platforms/${{ matrix.pkg }}/bin
+          path: installers/npm/@apollo/${{ matrix.pkg }}
       - run: mise run install_${{ matrix.package_manager }}
 
   test:

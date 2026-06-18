@@ -249,11 +249,10 @@ jobs:
           NPM_TAG: ${{ steps.params.outputs.npm_tag }}
           BINARY_EXT: ${{ matrix.binary_ext }}
         run: |
-          pkg_dir="installers/npm/platforms/${{ matrix.pkg }}"
-          bin_dir="${pkg_dir}/bin"
-          mkdir -p "$bin_dir"
+          pkg_dir="installers/npm/@apollo/${{ matrix.pkg }}"
+          mkdir -p "$pkg_dir"
           tar -xzf "artifacts/rover-v${VERSION}-${{ matrix.target }}.tar.gz" \
-              --strip-components=1 -C "$bin_dir" "dist/rover${BINARY_EXT}"
+              --strip-components=1 -C "$pkg_dir" "dist/rover${BINARY_EXT}"
           args=(--access public)
           if [ -n "$NPM_TAG" ]; then
             args+=(--tag "$NPM_TAG")
@@ -350,7 +349,7 @@ jobs:
             artifacts/*
 
       - name: Publish to npm
-        working-directory: installers/npm
+        working-directory: installers/npm/@apollo/rover
         env:
           DRY_RUN: ${{ steps.params.outputs.dry_run }}
           NPM_TAG: ${{ steps.params.outputs.npm_tag }}
