@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.compile_target.compiles_on }}
     container: ${{ matrix.compile_target.container }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: "Checkout rover repo"
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
         with:
@@ -101,7 +101,7 @@ jobs:
 
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: "Checkout rover repo"
 
       - uses: actions/download-artifact@v8
@@ -191,7 +191,7 @@ jobs:
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
