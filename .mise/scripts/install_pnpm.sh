@@ -25,6 +25,13 @@ fi
 npm install -g pnpm@v9.3.0
 
 PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
+
+# On Windows (Git Bash), pwd returns /d/a/... but pnpm needs D:/a/... format.
+if command -v cygpath >/dev/null 2>&1; then
+  INSTALLERS_DIR=$(cygpath -m "$INSTALLERS_DIR")
+  PLATFORM_PKG_DIR=$(cygpath -m "$PLATFORM_PKG_DIR")
+fi
+
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
