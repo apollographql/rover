@@ -225,42 +225,27 @@ jobs:
         id: params
         env:
           EVENT_NAME: ${{ github.event_name }}
-          VERSION: ${{ needs.validate_tag.outputs.version }}
         run: |
           if [ "$EVENT_NAME" = "push" ]; then
             dry_run="false"
           else
             dry_run="true"
           fi
-          if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
-            npm_tag="beta"
-          else
-            npm_tag=""
-          fi
-          {
-            echo "dry_run=$dry_run"
-            echo "npm_tag=$npm_tag"
-          } >> "$GITHUB_OUTPUT"
+          echo "dry_run=$dry_run" >> "$GITHUB_OUTPUT"
 
       - name: Publish ${{ matrix.pkg }} to npm
         env:
           VERSION: ${{ needs.validate_tag.outputs.version }}
           DRY_RUN: ${{ steps.params.outputs.dry_run }}
-          NPM_TAG: ${{ steps.params.outputs.npm_tag }}
           BINARY_EXT: ${{ matrix.binary_ext }}
         run: |
           pkg_dir="installers/npm/@apollo/${{ matrix.pkg }}"
           mkdir -p "$pkg_dir"
           tar -xzf "artifacts/rover-v${VERSION}-${{ matrix.target }}.tar.gz" \
               --strip-components=1 -C "$pkg_dir" "dist/rover${BINARY_EXT}"
-          args=(--access public)
-          if [ -n "$NPM_TAG" ]; then
-            args+=(--tag "$NPM_TAG")
-          fi
-          if [ "$DRY_RUN" = "true" ]; then
-            args+=(--dry-run)
-          fi
-          (cd "$pkg_dir" && npm publish "${args[@]}")
+          dry_run_flag=""
+          [ "$DRY_RUN" = "true" ] && dry_run_flag="--dry-run"
+          cargo xtask publish-npm --dir "$pkg_dir" $dry_run_flag
 
   publish:
     name: Publish release artifacts
@@ -308,17 +293,14 @@ jobs:
           # an identifier appended after a `-`.
           if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-.+$ ]]; then
             is_prerelease="true"
-            npm_tag="beta"
           else
             is_prerelease="false"
-            npm_tag=""
           fi
 
           {
             echo "extra=$extra"
             echo "dry_run=$dry_run"
             echo "is_prerelease=$is_prerelease"
-            echo "npm_tag=$npm_tag"
           } >> "$GITHUB_OUTPUT"
 
       - name: Compute checksums
@@ -349,19 +331,12 @@ jobs:
             artifacts/*
 
       - name: Publish to npm
-        working-directory: installers/npm/@apollo/rover
         env:
           DRY_RUN: ${{ steps.params.outputs.dry_run }}
-          NPM_TAG: ${{ steps.params.outputs.npm_tag }}
         run: |
-          args=()
-          if [ -n "$NPM_TAG" ]; then
-            args+=(--tag "$NPM_TAG")
-          fi
-          if [ "$DRY_RUN" = "true" ]; then
-            args+=(--dry-run)
-          fi
-          npm publish "${args[@]}"
+          dry_run_flag=""
+          [ "$DRY_RUN" = "true" ] && dry_run_flag="--dry-run"
+          cargo xtask publish-npm $dry_run_flag
 
       # tag_latest=false on prereleases keeps :latest pointing at the most
       # recent stable release

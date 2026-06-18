@@ -83,6 +83,24 @@ impl NpmRunner {
         Ok(())
     }
 
+    pub(crate) fn publish(
+        &self,
+        package_dir: &Utf8PathBuf,
+        dry_run: bool,
+        npm_tag: Option<&str>,
+    ) -> Result<()> {
+        // npm stage publish — staged so the release can be inspected before going live.
+        let mut args: Vec<&str> = vec!["stage", "publish", "--access", "public"];
+        if let Some(tag) = npm_tag {
+            args.extend(["--tag", tag]);
+        }
+        if dry_run {
+            args.push("--dry-run");
+        }
+        self.npm_exec(&args, package_dir)?;
+        Ok(())
+    }
+
     fn publish_dry_run(&self) -> Result<()> {
         let version = semver::Version::parse(&PKG_VERSION).with_context(|| {
             format!(

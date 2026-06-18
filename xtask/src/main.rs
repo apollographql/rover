@@ -34,6 +34,9 @@ pub enum Command {
 
     /// Prepare Rover for a release
     Prep(commands::Prep),
+
+    /// Publish an npm package via staged publishing
+    PublishNpm(commands::PublishNpm),
 }
 
 impl Xtask {
@@ -42,6 +45,7 @@ impl Xtask {
             Command::Dist(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
+            Command::PublishNpm(command) => command.run(),
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())
