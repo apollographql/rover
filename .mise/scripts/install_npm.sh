@@ -3,19 +3,23 @@ set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm"
+PLATFORMS_DIR="$INSTALLERS_DIR/platforms"
+
+PLATFORM_PKG_DIR=""
+for dir in "$PLATFORMS_DIR"/*/; do
+  if [[ -f "${dir}bin/rover" || -f "${dir}bin/rover.exe" ]]; then
+    PLATFORM_PKG_DIR="${dir%/}"
+    break
+  fi
+done
+
+if [[ -z "$PLATFORM_PKG_DIR" ]]; then
+  echo "No built rover binary found under $PLATFORMS_DIR"
+  echo "Place the rover binary in the appropriate platforms/<pkg>/bin/ directory first."
+  exit 1
+fi
 
 cd "$(mktemp -d)"
-echo "Created test directory"
 npm init -y
-echo "Initialised new npm package"
-# The choice of version here is arbitrary (we just need something we know exists) so that we can test if the
-# installer works, given an existing version. This way we're not at the mercy of whether the binary that corresponds
-# to the latest commit exists.
-npm --prefix "$INSTALLERS_DIR" version --allow-same-version 0.23.0
-echo "Temporarily patched package.json to fixed stable binary"
-npm install --install-links=true "$INSTALLERS_DIR"
-echo "Installed rover as local npm package"
-cd node_modules/.bin/
-echo "Checking version"
-./rover --version
-echo "Checked version, all ok!"
+npm install --install-links=true "$INSTALLERS_DIR" "$PLATFORM_PKG_DIR"
+./node_modules/.bin/rover --version

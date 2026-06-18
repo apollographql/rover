@@ -47,24 +47,43 @@ jobs:
       run: cargo clippy --locked --workspace --all-features --all-targets
 
   test_installers:
+    needs: test
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
         package_manager: [npm, npm_global, pnpm]
+        include:
+          - runner: ubuntu-latest
+            pkg: rover-linux-x64
+          - runner: macos-latest
+            pkg: rover-darwin-arm64
+          - runner: windows-latest
+            pkg: rover-win32-x64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
-        env:
-          CARGO_NET_RETRY: "5"
-      - run: mise run install_${{matrix.package_manager}}
+      - uses: ./.github/actions/download-artifact-with-retry
+        with:
+          name: installer-binary-${{ matrix.pkg }}
+          path: installers/npm/platforms/${{ matrix.pkg }}/bin
+      - run: mise run install_${{ matrix.package_manager }}
 
   test:
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - runner: ubuntu-latest
+            pkg: rover-linux-x64
+            binary_path: target/x86_64-unknown-linux-musl/debug/rover
+          - runner: macos-latest
+            pkg: rover-darwin-arm64
+            binary_path: target/debug/rover
+          - runner: windows-latest
+            pkg: rover-win32-x64
+            binary_path: target/debug/rover.exe
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -81,6 +100,10 @@ jobs:
         name: Install musl-tools for cross-compiling
         run: sudo apt-get install --yes --no-install-recommends musl-tools
       - run: mise run test ${{ matrix.runner == 'ubuntu-latest' && ' --target x86_64-unknown-linux-musl' || '' }}
+      - uses: ./.github/actions/upload-artifact-with-retry
+        with:
+          name: installer-binary-${{ matrix.pkg }}
+          path: ${{ matrix.binary_path }}
 
 
   test_minimal_glibc:

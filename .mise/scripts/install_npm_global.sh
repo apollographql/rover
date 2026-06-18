@@ -3,16 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm"
+PLATFORMS_DIR="$INSTALLERS_DIR/platforms"
 
-cd "$(mktemp -d)"
-echo "Created test directory"
-# The choice of version here is arbitrary (we just need something we know exists) so that we can test if the
-# installer works, given an existing version. This way we're not at the mercy of whether the binary that corresponds
-# to the latest commit exists.
-npm version --prefix="$INSTALLERS_DIR" --allow-same-version 0.23.0
-echo "Temporarily patched package.json to fixed stable binary"
-npm install --install-links=true -g "$INSTALLERS_DIR"
-echo "Installed rover as global npm package"
-echo "Checking version"
+PLATFORM_PKG_DIR=""
+for dir in "$PLATFORMS_DIR"/*/; do
+  if [[ -f "${dir}bin/rover" || -f "${dir}bin/rover.exe" ]]; then
+    PLATFORM_PKG_DIR="${dir%/}"
+    break
+  fi
+done
+
+if [[ -z "$PLATFORM_PKG_DIR" ]]; then
+  echo "No built rover binary found under $PLATFORMS_DIR"
+  echo "Place the rover binary in the appropriate platforms/<pkg>/bin/ directory first."
+  exit 1
+fi
+
+npm install --install-links=true -g "$INSTALLERS_DIR" "$PLATFORM_PKG_DIR"
 rover --version
-echo "Checked version, all ok!"
