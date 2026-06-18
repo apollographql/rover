@@ -26,10 +26,14 @@ npm install -g pnpm@v9.3.0
 
 PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
 
-# On Windows (Git Bash), pwd returns /d/a/... but pnpm needs D:/a/... format.
+# On Windows (Git Bash), pwd returns /d/a/... but pnpm needs file:///D:/a/... format.
+# (Unlike npm, pnpm treats file:D:/... as relative and prepends cwd to it.)
 if command -v cygpath >/dev/null 2>&1; then
-  INSTALLERS_DIR=$(cygpath -m "$INSTALLERS_DIR")
-  PLATFORM_PKG_DIR=$(cygpath -m "$PLATFORM_PKG_DIR")
+  INSTALLERS_DIR="file:///$(cygpath -m "$INSTALLERS_DIR")"
+  PLATFORM_PKG_DIR="file:///$(cygpath -m "$PLATFORM_PKG_DIR")"
+else
+  INSTALLERS_DIR="file:${INSTALLERS_DIR}"
+  PLATFORM_PKG_DIR="file:${PLATFORM_PKG_DIR}"
 fi
 
 TMPDIR=$(mktemp -d)
@@ -46,8 +50,8 @@ cat > package.json << EOF
   "name": "rover-install-test",
   "version": "1.0.0",
   "dependencies": {
-    "@apollo/rover": "file:${INSTALLERS_DIR}",
-    "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
+    "@apollo/rover": "${INSTALLERS_DIR}",
+    "${PLATFORM_PKG_NAME}": "${PLATFORM_PKG_DIR}"
   }
 }
 EOF

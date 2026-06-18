@@ -22,39 +22,18 @@ fi
 # Artifact downloads don't preserve execute permissions on Unix.
 [[ -f "${PLATFORM_PKG_DIR}/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/rover"
 
-PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
-
 # On Windows (Git Bash), pwd returns /d/a/... but npm needs D:/a/... format.
 if command -v cygpath >/dev/null 2>&1; then
   INSTALLERS_DIR=$(cygpath -m "$INSTALLERS_DIR")
   PLATFORM_PKG_DIR=$(cygpath -m "$PLATFORM_PKG_DIR")
 fi
 
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR"
-
-# Add the platform package as a direct dependency so npm actually installs it.
-# npm `overrides` won't force-install an optional dep whose version doesn't
-# exist on the registry — the dep is silently skipped before the override is
-# ever evaluated.
-cat > package.json << EOF
-{
-  "name": "rover-global-install-test",
-  "version": "1.0.0",
-  "dependencies": {
-    "@apollo/rover": "file:${INSTALLERS_DIR}",
-    "${PLATFORM_PKG_NAME}": "file:${PLATFORM_PKG_DIR}"
-  }
-}
-EOF
-
-npm install --install-links=true
-
-# Install globally from the already-resolved packages. --omit=optional prevents
-# npm from re-running optional dependency resolution on these already-resolved
-# packages and hitting EBADPLATFORM on non-matching platforms.
+# Install @apollo/rover and the platform package directly into global node_modules.
+# --omit=optional prevents npm from trying to resolve platform-specific packages
+# from the registry (they don't exist at the test version) for non-matching platforms.
 npm install --install-links=true --omit=optional \
-  -g "${TMPDIR}/node_modules/@apollo/rover" \
-  "${TMPDIR}/node_modules/${PLATFORM_PKG_NAME}"
+  -g \
+  "file:${INSTALLERS_DIR}" \
+  "file:${PLATFORM_PKG_DIR}"
 
 rover --version
