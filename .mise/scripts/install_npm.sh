@@ -23,6 +23,13 @@ fi
 [[ -f "${PLATFORM_PKG_DIR}/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/rover"
 
 PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
+
+# On Windows (Git Bash), pwd returns /d/a/... but npm needs D:/a/... format.
+if command -v cygpath >/dev/null 2>&1; then
+  INSTALLERS_DIR=$(cygpath -m "$INSTALLERS_DIR")
+  PLATFORM_PKG_DIR=$(cygpath -m "$PLATFORM_PKG_DIR")
+fi
+
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
 
