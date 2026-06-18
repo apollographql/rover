@@ -55,19 +55,27 @@ jobs:
         include:
           - runner: ubuntu-latest
             pkg: rover-linux-x64
+            target: x86_64-unknown-linux-gnu
           - runner: macos-latest
             pkg: rover-darwin-arm64
+            target: aarch64-apple-darwin
           - runner: windows-latest
             pkg: rover-win32-x64
+            target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        env:
+          CARGO_NET_RETRY: "5"
       - uses: ./.github/actions/download-artifact-with-retry
         with:
           name: installer-binary-${{ matrix.pkg }}
-          path: installers/npm/@apollo/${{ matrix.pkg }}
+          path: target/${{ matrix.target }}/release
+      - run: cargo npm generate --target ${{ matrix.target }}
+      - run: node .mise/scripts/patch-npm-shim.js
       - run: mise run install_${{ matrix.package_manager }}
 
   test:

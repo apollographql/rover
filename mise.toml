@@ -30,16 +30,7 @@ run = "cargo test --locked --workspace --exclude regressions"
 description = "Generate npm packages via cargo-npm and patch the shim"
 run = """
 cargo npm generate
-node -e "
-const fs = require('fs');
-const file = 'installers/npm/@apollo/rover/bin/rover.js';
-const content = fs.readFileSync(file, 'utf8');
-const patched = content.replace(
-  'const bin = require.resolve(binPath)',
-  \\\"const bin = require.resolve(binPath)\\\\nprocess.env.APOLLO_NODE_MODULES_BIN_DIR = require('path').dirname(bin)\\\"
-);
-fs.writeFileSync(file, patched);
-"
+node .mise/scripts/patch-npm-shim.js
 """
 
 [tasks.install_npm]
