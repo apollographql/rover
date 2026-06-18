@@ -12,8 +12,6 @@ TARGETS=(
 	"aarch64-apple-darwin"
 )
 
-# clean
-
 rm -r target || true
 rm -r npm || true
 
@@ -27,6 +25,7 @@ done
 
 cargo npm generate -p rover
 
-# add a wrapper to rewrite `npm publish` to `npm stage publish` for staged publishing
-export PATH="$(pwd)/scripts/npm-publish-wrapper:$PATH"
-# cargo npm publish -p rover --access public
+for pkg_dir in installers/npm/@apollo/rover-*/; do
+	cargo xtask publish-npm --dir "$pkg_dir"
+done
+cargo xtask publish-npm
