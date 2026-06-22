@@ -1,34 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm/@apollo/rover"
-PLATFORMS_DIR="$SCRIPT_DIR/../../installers/npm/@apollo"
-
-PLATFORM_PKG_DIR=""
-for dir in "$PLATFORMS_DIR"/rover-*/; do
-  if [[ -f "${dir}rover" || -f "${dir}rover.exe" ]]; then
-    PLATFORM_PKG_DIR="${dir%/}"
-    break
-  fi
-done
-
-if [[ -z "$PLATFORM_PKG_DIR" ]]; then
-  echo "No built rover binary found under $PLATFORMS_DIR"
-  echo "Place the rover binary in the appropriate platforms/<pkg>/ directory first."
-  exit 1
+# In CI, $GITHUB_WORKSPACE is already in the native OS path format npm needs
+# (D:/a/... on Windows, /home/runner/... on Linux/Mac) — no cygpath required.
+# Backslashes from Windows $GITHUB_WORKSPACE are normalized to forward slashes
+# so the path is safe to embed in JSON file: specs.
+if [[ -n "${GITHUB_WORKSPACE:-}" ]]; then
+  BASE_DIR="${GITHUB_WORKSPACE//\\//}"
+else
+  SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+  BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
 
-# Artifact downloads don't preserve execute permissions on Unix.
-[[ -f "${PLATFORM_PKG_DIR}/rover" ]] && chmod +x "${PLATFORM_PKG_DIR}/rover"
-
-PLATFORM_PKG_NAME="@apollo/$(basename "$PLATFORM_PKG_DIR")"
-
-# On Windows (Git Bash), pwd returns /d/a/... but npm needs D:/a/... format.
-if command -v cygpath >/dev/null 2>&1; then
-  INSTALLERS_DIR=$(cygpath -m "$INSTALLERS_DIR")
-  PLATFORM_PKG_DIR=$(cygpath -m "$PLATFORM_PKG_DIR")
-fi
+INSTALLERS_DIR="${BASE_DIR}/installers/npm/@apollo/rover"
+PLATFORM_PKG_DIR="${BASE_DIR}/installers/npm/@apollo/${PLATFORM_PKG:?PLATFORM_PKG env var is required}"
+PLATFORM_PKG_NAME="@apollo/${PLATFORM_PKG}"
 
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
