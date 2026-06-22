@@ -108,6 +108,7 @@ mod tests {
 
     #[test]
     fn swapi_structural_parity_with_legacy_introspection_from_schema() {
+        // Fixtures: see fixtures/README.md for source endpoint and regeneration steps.
         let sdl = include_str!("fixtures/swapi.graphql");
         let reference: Value =
             serde_json::from_str(include_str!("fixtures/swapi-introspection.json")).unwrap();
