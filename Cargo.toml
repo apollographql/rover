@@ -194,7 +194,7 @@ tokio-test = "0.4"
 tokio-util = "0.7"
 toml = "1.0"
 tower = { version = "0.5.3", features = ["make", "retry", "timeout"] }
-tower-http = "0.6.8"
+tower-http = "0.7.0"
 tower-test = "0.4"
 tracing = "0.1"
 tracing-core = "0.1"
