@@ -2,7 +2,9 @@ use std::{collections::HashMap, time::Duration};
 
 use clap::Parser;
 use reqwest::Client;
-use rover_client::operations::graph::introspect::{self, GraphIntrospectInput};
+use rover_client::operations::graph::introspect::{
+    self, GraphIntrospectInput, sdl_to_introspection_json,
+};
 use serde::Serialize;
 
 use crate::{
@@ -26,6 +28,12 @@ pub struct Introspect {
     #[arg(long)]
     #[serde(skip_serializing)]
     pub legacy_introspection_query: bool,
+
+    /// Return the schema as GraphQL introspection JSON (`{ "__schema": ... }`)
+    /// instead of SDL, matching the legacy `apollo schema:download` format.
+    #[arg(long)]
+    #[serde(skip_serializing)]
+    pub introspection_json: bool,
 }
 
 impl Introspect {
@@ -40,7 +48,7 @@ impl Introspect {
                 .await
         } else {
             let sdl = self.exec(&client, true, retry_period).await?;
-            Ok(RoverOutput::Introspection(sdl))
+            Ok(self.sdl_to_output(sdl)?)
         }
     }
 
@@ -72,6 +80,16 @@ impl Introspect {
         .schema_sdl)
     }
 
+    fn sdl_to_output(&self, sdl: String) -> RoverResult<RoverOutput> {
+        if self.introspection_json {
+            Ok(RoverOutput::IntrospectionJson(sdl_to_introspection_json(
+                &sdl,
+            )?))
+        } else {
+            Ok(RoverOutput::Introspection(sdl))
+        }
+    }
+
     pub async fn exec_and_watch(
         &self,
         client: &Client,
@@ -80,7 +98,11 @@ impl Introspect {
         retry_period: Duration,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(client, false, retry_period),
+                |sdl| self.sdl_to_output(sdl),
+                output_opts,
+            )
             .await
     }
 }

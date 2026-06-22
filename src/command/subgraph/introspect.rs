@@ -68,7 +68,11 @@ impl Introspect {
         retry_period: Duration,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(client, false, retry_period),
+                |sdl| Ok(RoverOutput::Introspection(sdl)),
+                output_opts,
+            )
             .await
     }
 }

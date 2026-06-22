@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `--introspection-json` to `graph introspect` - @SharkBaitDLS**
+
+  `rover graph introspect` now accepts `--introspection-json` to emit the schema as GraphQL introspection JSON (`{ "__schema": ... }`) instead of SDL, matching the legacy `apollo schema:download` format. With `--format json`, `data.introspection_response` is the introspection object rather than an SDL string.
+
 - **Add `--changelog-message` to `graph publish` and `subgraph publish` - @SharkBaitDLS PR #3398 fixes #1884 #292**
 
   `rover graph publish` and `rover subgraph publish` now accept `--changelog-message <MESSAGE>` to attach a note to the publish in the Studio schema changelog. The publish output has also been enriched: `graph publish` now reports the schema hash and total named type count and `subgraph publish` now includes the resulting supergraph composition hash when one is available.
