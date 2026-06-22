@@ -84,7 +84,11 @@ jobs:
           path: target/${{ matrix.target }}/release
       - run: cargo npm generate --target ${{ matrix.target }}
       - run: node .mise/scripts/patch-npm-shim.js
+      - if: runner.os != 'Windows'
+        run: chmod +x installers/npm/@apollo/${{ matrix.pkg }}/rover
       - run: mise run install_${{ matrix.package_manager }}
+        env:
+          PLATFORM_PKG: ${{ matrix.pkg }}
 
   test:
     strategy:
