@@ -10,13 +10,17 @@ import AuthNotice from '../../shared/auth-notice.mdx';
 
 <AuthNotice />
 
-Use `rover client check` to validate that every GraphQL operation in your client project is compatible with your graph's published schema in GraphOS.
+### Overview
+
+The `rover client check` command validates every GraphQL operation in your client project against your graph's published schema in GraphOS. It scans for `.graphql` files, parses all operations and fragments, and reports any operations that are incompatible with the schema — making it straightforward to catch breaking changes before deployment.
+
+### Usage
 
 ```bash
-rover client check my-graph@my-variant --include "src/**/*.graphql"
+rover client check [GRAPH_REF] [OPTIONS]
 ```
 
-The argument `my-graph@my-variant` is a [graph ref](../conventions/#graph-refs) that identifies the GraphOS graph and [variant](/graphos/graphs/#variants) to validate against. If you omit the variant, Rover uses the default variant named `current`.
+`GRAPH_REF` is a [graph ref](../conventions/#graph-refs) in `graph@variant` form. If you omit the variant, Rover uses the default variant named `current`.
 
 ### File discovery
 
@@ -66,21 +70,111 @@ Fragments defined identically across multiple files are deduplicated automatical
 | `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
 | `--output <FILE>` | Write output to a file instead of `stdout`. |
 
-### Output
+### Examples
 
-For each operation, `rover client check` reports whether it passed validation and, for failures, the specific error code and description. The first line shows the total operations and files scanned, followed by one entry per result:
+#### All operations pass
+
+```bash
+rover client check my-graph@current --include "src/**/*.graphql"
+```
 
 ```
-Validated 10 operations (5 files scanned)
+Validated 3 operations (5 files scanned)
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "client_check": {
+    "graph_ref": "my-graph@current",
+    "files_scanned": 5,
+    "operations_sent": 3,
+    "failures": [],
+    "validation_results": []
+  }
+}
+```
+
+</details>
+
+---
+
+#### Validation failures
+
+When an operation references a field that has been removed or renamed in the schema, `rover client check` reports a `FAILURE` for that operation and exits with code `1`.
+
+```bash
+rover client check my-graph@current --include "src/**/*.graphql"
+```
+
+```
+Validated 3 operations (5 files scanned)
 GetUser: src/queries/user.graphql:4:1
   FAILURE Field "legacyId" was removed from type "User".
 ```
 
-The command exits with code `1` if any operation fails validation, making it straightforward to fail a CI pipeline.
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
 
-### Continuous integration
+```json
+{
+  "client_check": {
+    "graph_ref": "my-graph@current",
+    "files_scanned": 5,
+    "operations_sent": 3,
+    "failures": [],
+    "validation_results": [
+      {
+        "operation_name": "GetUser",
+        "type": "FAILURE",
+        "code": "FIELD_REMOVED",
+        "description": "Field \"legacyId\" was removed from type \"User\".",
+        "file": "src/queries/user.graphql",
+        "line": 4,
+        "column": 1
+      }
+    ]
+  }
+}
+```
 
-Use `rover client check` in CI pipelines to check operations against the variant that matches your deployment environment:
+</details>
+
+---
+
+#### Parse errors
+
+Files containing anonymous operations or invalid GraphQL syntax produce local parse errors. These are listed separately from schema validation results and always cause a non-zero exit.
+
+```bash
+rover client check my-graph@current --include "src/**/*.graphql"
+```
+
+```
+Validated 2 operations (4 files scanned)
+Local parse errors:
+  src/queries/draft.graphql: Operation must have a name
+```
+
+---
+
+#### Exclude generated files
+
+Use `--include` and `--exclude` together to scan only the files you own.
+
+```bash
+rover client check my-graph@staging \
+  --include "src/**/*.graphql" \
+  --exclude "src/__generated__/**"
+```
+
+---
+
+#### Continuous integration
+
+Use `rover client check` in CI pipelines to validate operations against the variant that matches your deployment environment.
 
 ```yaml title="config.yml"
 # Example: GitHub Actions
@@ -92,15 +186,21 @@ Use `rover client check` in CI pipelines to check operations against the variant
     APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
 ```
 
+---
+
 ## `client extract`
 
-Use `rover client extract` to scan source files and extract embedded GraphQL documents into standalone `.graphql` files.
+### Overview
+
+The `rover client extract` command scans your source files for embedded GraphQL documents and writes each one to a standalone `.graphql` file. This makes it easy to feed client operations into other Rover commands, code generation pipelines, or source control review.
+
+### Usage
 
 ```bash
-rover client extract --out-dir graphql
+rover client extract [OPTIONS]
 ```
 
-By default, Rover scans all supported file types (`.ts`, `.tsx`, `.swift`, `.kt`, and `.kts`) under the current working directory.
+By default, Rover scans all supported file types (`.ts`, `.tsx`, `.swift`, `.kt`, and `.kts`) under the current working directory and writes extracted documents to a `graphql/` directory.
 
 ### Supported languages
 
@@ -180,11 +280,139 @@ Each skipped document is listed in the output with its source path, line number,
 | `--format <FORMAT>` | Output format: `plain` (default) or `json`. |
 | `--output <FILE>` | Write output to a file instead of `stdout`. |
 
-### Output
+### Examples
+
+#### Basic extraction
+
+```bash
+rover client extract --out-dir graphql
+```
 
 ```
 Processed 12 source files; 4 contained GraphQL.
 Wrote 7 documents to /path/to/graphql
+```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "client_extract": {
+    "out_dir": "/path/to/graphql",
+    "source_files_processed": 12,
+    "source_files_with_graphql": 4,
+    "documents_extracted": 7,
+    "documents_skipped": 0,
+    "files": [
+      {
+        "source": "src/components/UserCard.ts",
+        "target": "graphql/src/components/UserCard.graphql",
+        "documents": 2
+      },
+      {
+        "source": "src/queries/user.ts",
+        "target": "graphql/src/queries/user.graphql",
+        "documents": 3
+      },
+      {
+        "source": "src/mutations/createPost.ts",
+        "target": "graphql/src/mutations/createPost.graphql",
+        "documents": 1
+      },
+      {
+        "source": "src/fragments/userFields.ts",
+        "target": "graphql/src/fragments/userFields.graphql",
+        "documents": 1
+      }
+    ],
+    "skipped": []
+  }
+}
+```
+
+</details>
+
+---
+
+#### TypeScript only
+
+```bash
+rover client extract --language ts --out-dir graphql
+```
+
+```
+Processed 8 source files; 3 contained GraphQL.
+Wrote 5 documents to /path/to/graphql
+```
+
+---
+
+#### Custom output directory
+
+```bash
+rover client extract --out-dir dist/graphql
+```
+
+```
+Processed 12 source files; 4 contained GraphQL.
+Wrote 7 documents to /path/to/dist/graphql
+```
+
+---
+
+#### Overwrite existing files
+
+By default, if `graphql/src/queries/user.graphql` already exists, Rover writes to `graphql/src/queries/user.generated.graphql` instead. Pass `--overwrite` to replace the original file.
+
+```bash
+rover client extract --out-dir graphql --overwrite
+```
+
+---
+
+#### With skipped documents
+
+Documents that contain template interpolations or GraphQL syntax errors are skipped. The command still exits with code `0`.
+
+```bash
+rover client extract --out-dir graphql
+```
+
+```
+Processed 12 source files; 4 contained GraphQL.
+Wrote 6 documents to /path/to/graphql
 Skipped documents:
   /path/to/src/DynamicQuery.ts:14 contains a template interpolation (${...}); only static strings can be extracted
 ```
+
+<details>
+<summary>JSON output (<code>--format json</code>)</summary>
+
+```json
+{
+  "client_extract": {
+    "out_dir": "/path/to/graphql",
+    "source_files_processed": 12,
+    "source_files_with_graphql": 4,
+    "documents_extracted": 6,
+    "documents_skipped": 1,
+    "files": [
+      {
+        "source": "src/components/UserCard.ts",
+        "target": "graphql/src/components/UserCard.graphql",
+        "documents": 2
+      }
+    ],
+    "skipped": [
+      {
+        "source": "/path/to/src/DynamicQuery.ts",
+        "line": 14,
+        "reason": "contains a template interpolation (${...}); only static strings can be extracted"
+      }
+    ]
+  }
+}
+```
+
+</details>
