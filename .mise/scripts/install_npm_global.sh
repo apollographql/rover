@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -n "${GITHUB_WORKSPACE:-}" ]]; then
-  BASE_DIR="${GITHUB_WORKSPACE//\\//}"
+if [[ -n "${ROVER_PACKAGES_BASE:-}" ]]; then
+  BASE_DIR="${ROVER_PACKAGES_BASE//\\//}"
 else
   SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
   BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"

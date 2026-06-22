@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# In CI, $GITHUB_WORKSPACE is already in the native OS path format npm needs
-# (D:/a/... on Windows, /home/runner/... on Linux/Mac) — no cygpath required.
-# Backslashes from Windows $GITHUB_WORKSPACE are normalized to forward slashes
-# so the path is safe to embed in JSON file: specs.
-if [[ -n "${GITHUB_WORKSPACE:-}" ]]; then
-  BASE_DIR="${GITHUB_WORKSPACE//\\//}"
+# ROVER_PACKAGES_BASE is passed explicitly from the workflow (github.workspace).
+# On Windows runners it arrives as D:\a\... so backslashes are normalized to
+# forward slashes before embedding in JSON file: specs.
+if [[ -n "${ROVER_PACKAGES_BASE:-}" ]]; then
+  BASE_DIR="${ROVER_PACKAGES_BASE//\\//}"
 else
   SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
   BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
