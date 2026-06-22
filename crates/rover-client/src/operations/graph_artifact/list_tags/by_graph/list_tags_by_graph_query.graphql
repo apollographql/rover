@@ -1,0 +1,17 @@
+query ListTagsByGraphQuery($graphId: ID!, $first: Int, $after: String) {
+    graphArtifactTags(graphID: $graphId, first: $first, after: $after) {
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+        edges {
+            node {
+                tag
+                graphArtifact {
+                    digest
+                    createdAt
+                }
+            }
+        }
+    }
+}

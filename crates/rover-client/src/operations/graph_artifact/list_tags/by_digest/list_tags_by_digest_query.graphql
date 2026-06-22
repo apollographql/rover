@@ -1,0 +1,19 @@
+query ListTagsByDigestQuery($digest: String!, $graphId: ID!, $first: Int, $after: String) {
+    graphArtifactByDigest(digest: $digest, graphID: $graphId) {
+        tags(first: $first, after: $after) {
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+            edges {
+                node {
+                    tag
+                    graphArtifact {
+                        digest
+                        createdAt
+                    }
+                }
+            }
+        }
+    }
+}
