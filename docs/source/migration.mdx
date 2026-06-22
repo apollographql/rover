@@ -1,7 +1,7 @@
 ---
 title: Migrating to Rover
 subtitle: Migrate to the Rover CLI from the Apollo CLI
-description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services.
+description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services, including replacing `service:download` with introspection JSON output.
 
 ---
 
@@ -123,6 +123,8 @@ This separation of steps makes Rover's use of introspection more flexible and tr
 
 If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` directly to a file. Find more about how stdin/stdout works with Rover [here](./conventions#io).
 
+If you need introspection JSON (`{ "__schema": ... }`) instead of SDL—for example, to replace `apollo service:download` or `apollo schema:download`—pass `--introspection-json` to `graph introspect`. See [`graph introspect`](/rover/commands/graphs#graph-introspect) for details.
+
 ## Monolithic vs. federated graphs
 
 The Apollo CLI's API uses the `apollo service:*` command set for working with both monolithic and federated graphs. Rover treats graphs and federated graphs separately.
@@ -175,14 +177,12 @@ rover graph fetch my-graph@prod --output schema.graphql
 
 ```bash
 ## Apollo CLI ##
-# automatically outputs to schema.graphql
-# can ONLY output introspection results in JSON
+# outputs introspection JSON
 apollo service:download --endpoint http://localhost:4000
 
 ## Rover ##
-# automatically outputs to stdout. Can redirect to schema.graphql with the `--output <OUTPUT_FILE>` argument
-# can ONLY output SDL
-rover graph introspect http://localhost:4000 --output schema.graphql
+# use --introspection-json for the legacy JSON format; default output is SDL
+rover graph introspect http://localhost:4000 --introspection-json --output schema.json
 ```
 
 ### Publishing a monolithic schema to the Apollo graph registry
