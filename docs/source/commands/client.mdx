@@ -10,9 +10,9 @@ import AuthNotice from '../../shared/auth-notice.mdx';
 
 <AuthNotice />
 
-### Overview
+### Validating operations against your schema
 
-The `rover client check` command validates every GraphQL operation in your client project against your graph's published schema in GraphOS. It scans for `.graphql` files, parses all operations and fragments, and reports any operations that are incompatible with the schema — making it straightforward to catch breaking changes before deployment.
+The `rover client check` command validates every GraphQL operation in your client project against your graph's published schema in GraphOS. It scans for `.graphql` files, parses all operations and fragments, and reports any operations that are incompatible with the schema — so you can catch breaking schema changes before they reach production.
 
 ### Usage
 
@@ -20,7 +20,7 @@ The `rover client check` command validates every GraphQL operation in your clien
 rover client check [GRAPH_REF] [OPTIONS]
 ```
 
-`GRAPH_REF` is a [graph ref](../conventions/#graph-refs) in `graph@variant` form. If you omit the variant, Rover uses the default variant named `current`.
+`GRAPH_REF` is a [graph ref](../conventions/#graph-refs) in `graph@variant` form. Always specify the variant explicitly; if you omit it, Rover defaults to `current`.
 
 ### File discovery
 
@@ -42,7 +42,7 @@ rover client check my-graph@staging \
 
 ### Operation requirements
 
-All operations must have names. Anonymous operations (for example, `{ user { name } }`) are rejected with an error. Give every operation an explicit name:
+All operations must have names. Rover rejects anonymous operations (for example, `{ user { name } }`) with an error. Give every operation an explicit name:
 
 ```graphql
 # Invalid — will error
@@ -56,7 +56,7 @@ query GetUser {
 
 ### Fragment deduplication and conflicts
 
-Fragments defined identically across multiple files are deduplicated automatically. However, if two files define a fragment with the **same name but different bodies**, `rover client check` returns an error listing the conflicting fragment names. Resolve conflicts by ensuring each fragment name is unique or that all files use an identical definition.
+Rover automatically deduplicates fragments defined identically across multiple files. However, if two files define a fragment with the **same name but different bodies**, `rover client check` returns an error listing the conflicting fragment names. Make each fragment name globally unique to avoid conflicts.
 
 ### Options
 
@@ -174,10 +174,9 @@ rover client check my-graph@staging \
 
 #### Continuous integration
 
-Use `rover client check` in CI pipelines to validate operations against the variant that matches your deployment environment.
+Run `rover client check` in your CI pipeline against the same variant you deploy to.
 
-```yaml title="config.yml"
-# Example: GitHub Actions
+```yaml title=".github/workflows/ci.yml"
 - name: Validate client operations
   run: |
     rover client check my-graph@production \
@@ -190,9 +189,9 @@ Use `rover client check` in CI pipelines to validate operations against the vari
 
 ## `client extract`
 
-### Overview
+### Extracting GraphQL from source files
 
-The `rover client extract` command scans your source files for embedded GraphQL documents and writes each one to a standalone `.graphql` file. This makes it easy to feed client operations into other Rover commands, code generation pipelines, or source control review.
+The `rover client extract` command scans your source files for embedded GraphQL documents and writes each one to a standalone `.graphql` file. Use the extracted files with other Rover commands, code generation pipelines, or source control review.
 
 ### Usage
 
@@ -238,7 +237,7 @@ rover client extract \
   --out-dir graphql
 ```
 
-To restrict extraction to specific languages, use `--language`. Accepted values: `ts` (scans `.ts` and `.tsx`), `swift`, `kotlin` (scans `.kt` and `.kts`). You can select multiple languages by repeating `--language` with different values:
+To restrict extraction to specific languages, use `--language`. Accepted values are `ts` (scans `.ts` and `.tsx`), `swift`, or `kotlin` (scans `.kt` and `.kts`). Repeat `--language` to select multiple languages:
 
 ```bash
 rover client extract --language ts --language swift
@@ -260,10 +259,10 @@ rover client extract --out-dir graphql --overwrite
 
 ### Skipped documents
 
-Rover reports documents it cannot statically extract but does not exit with a non-zero code. Common skip reasons:
+Rover skips documents it cannot statically extract but always exits with code `0`. Common skip reasons:
 
 - Template interpolation — TypeScript documents containing `${...}` expressions cannot be extracted
-- GraphQL syntax error — The document could not be parsed as valid GraphQL
+- GraphQL syntax error — the document could not be parsed as valid GraphQL
 
 Each skipped document is listed in the output with its source path, line number, and reason.
 
@@ -373,7 +372,7 @@ rover client extract --out-dir graphql --overwrite
 
 #### With skipped documents
 
-Documents that contain template interpolations or GraphQL syntax errors are skipped. The command still exits with code `0`.
+Rover skips documents that contain template interpolations or GraphQL syntax errors and still exits with code `0`.
 
 ```bash
 rover client extract --out-dir graphql
