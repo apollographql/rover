@@ -4,12 +4,11 @@ mod operation;
 mod printer;
 
 use camino::Utf8PathBuf;
+pub(super) use error::GenerateError;
+use operation::{ParsedInputs, PersistedQueryOperation};
 use serde::Serialize;
 
 use crate::RoverResult;
-
-use operation::{ParsedInputs, PersistedQueryOperation};
-pub(super) use error::GenerateError;
 
 const MANIFEST_FORMAT: &str = "apollo-persisted-query-manifest";
 const MANIFEST_VERSION: u8 = 1;

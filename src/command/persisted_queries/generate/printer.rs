@@ -286,12 +286,14 @@ mod tests {
             .definitions
             .into_iter()
             .filter_map(|d| match d {
-                ast::Definition::OperationDefinition(op) => {
-                    Some(PrintableDefinition::Operation { operation: op, source: source.clone() })
-                }
-                ast::Definition::FragmentDefinition(frag) => {
-                    Some(PrintableDefinition::Fragment { fragment: frag, source: source.clone() })
-                }
+                ast::Definition::OperationDefinition(op) => Some(PrintableDefinition::Operation {
+                    operation: op,
+                    source: source.clone(),
+                }),
+                ast::Definition::FragmentDefinition(frag) => Some(PrintableDefinition::Fragment {
+                    fragment: frag,
+                    source: source.clone(),
+                }),
                 _ => None,
             })
             .collect();
@@ -338,14 +340,18 @@ mod tests {
 
     #[test]
     fn print_type_named() {
-        assert_that!(print_type_str(ast::Type::Named(apollo_compiler::name!("User"))))
-            .is_equal_to("User".to_string());
+        assert_that!(print_type_str(ast::Type::Named(apollo_compiler::name!(
+            "User"
+        ))))
+        .is_equal_to("User".to_string());
     }
 
     #[test]
     fn print_type_non_null_named() {
-        assert_that!(print_type_str(ast::Type::NonNullNamed(apollo_compiler::name!("ID"))))
-            .is_equal_to("ID!".to_string());
+        assert_that!(print_type_str(ast::Type::NonNullNamed(
+            apollo_compiler::name!("ID")
+        )))
+        .is_equal_to("ID!".to_string());
     }
 
     #[test]
@@ -358,9 +364,9 @@ mod tests {
 
     #[test]
     fn print_type_non_null_list() {
-        assert_that!(print_type_str(ast::Type::NonNullList(Box::new(ast::Type::Named(
-            apollo_compiler::name!("Int")
-        )))))
+        assert_that!(print_type_str(ast::Type::NonNullList(Box::new(
+            ast::Type::Named(apollo_compiler::name!("Int"))
+        ))))
         .is_equal_to("[Int]!".to_string());
     }
 
@@ -371,14 +377,18 @@ mod tests {
 
     #[test]
     fn print_value_enum() {
-        assert_that!(print_value_str(ast::Value::Enum(apollo_compiler::name!("ACTIVE"))))
-            .is_equal_to("ACTIVE".to_string());
+        assert_that!(print_value_str(ast::Value::Enum(apollo_compiler::name!(
+            "ACTIVE"
+        ))))
+        .is_equal_to("ACTIVE".to_string());
     }
 
     #[test]
     fn print_value_variable() {
-        assert_that!(print_value_str(ast::Value::Variable(apollo_compiler::name!("userId"))))
-            .is_equal_to("$userId".to_string());
+        assert_that!(print_value_str(ast::Value::Variable(
+            apollo_compiler::name!("userId")
+        )))
+        .is_equal_to("$userId".to_string());
     }
 
     #[test]
@@ -389,14 +399,18 @@ mod tests {
 
     #[test]
     fn print_value_int() {
-        assert_that!(print_value_str(ast::Value::Int(ast::IntValue::from(42_i32))))
-            .is_equal_to("42".to_string());
+        assert_that!(print_value_str(ast::Value::Int(ast::IntValue::from(
+            42_i32
+        ))))
+        .is_equal_to("42".to_string());
     }
 
     #[test]
     fn print_value_float() {
-        assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(3.14_f64))))
-            .is_equal_to("3.14".to_string());
+        assert_that!(print_value_str(ast::Value::Float(ast::FloatValue::from(
+            3.14_f64
+        ))))
+        .is_equal_to("3.14".to_string());
     }
 
     #[test]
@@ -423,4 +437,3 @@ mod tests {
         assert_that!(print_value_str(obj)).is_equal_to("{id: $userId}".to_string());
     }
 }
-

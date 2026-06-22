@@ -130,7 +130,6 @@ mod tests {
             file: "ops.graphql".into(),
             message: "syntax error".to_string(),
         };
-        assert_that!(err.to_string())
-            .is_equal_to("ops.graphql: syntax error".to_string());
+        assert_that!(err.to_string()).is_equal_to("ops.graphql: syntax error".to_string());
     }
 }

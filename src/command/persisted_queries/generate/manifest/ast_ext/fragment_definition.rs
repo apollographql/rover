@@ -2,10 +2,7 @@ use std::collections::BTreeSet;
 
 use apollo_compiler::ast;
 
-use super::{
-    selection_set::SelectionSetExt,
-    variables::collect_variables_from_directives,
-};
+use super::{selection_set::SelectionSetExt, variables::collect_variables_from_directives};
 
 pub trait FragmentDefinitionExt {
     fn collect_variables(&self) -> BTreeSet<String>;

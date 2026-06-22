@@ -10,11 +10,12 @@ use rover_std::Fs;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use super::{
+    super::printer::{PrintableDefinition, operation_type_str, print_document},
+    ast_ext::{OperationDefinitionExt, SelectionSetExt},
+    error::{GenerateError, GenerateFailure},
+};
 use crate::RoverResult;
-
-use super::ast_ext::{OperationDefinitionExt, SelectionSetExt};
-use super::error::{GenerateError, GenerateFailure};
-use super::super::printer::{PrintableDefinition, operation_type_str, print_document};
 
 #[derive(Debug, Clone)]
 struct ParsedOperation {
@@ -41,18 +42,14 @@ impl ParsedOperation {
             if !reachable.insert(fragment_name.to_string()) {
                 continue;
             }
-            let fragment = all_fragments
-                .get(fragment_name)
-                .ok_or_else(|| GenerateError::MissingFragment {
-                    operation_name: name.to_string(),
-                    fragment_name: fragment_name.to_string(),
-                })?;
-            queue.extend(
-                fragment
-                    .direct_fragment_spreads
-                    .iter()
-                    .map(String::as_str),
-            );
+            let fragment =
+                all_fragments
+                    .get(fragment_name)
+                    .ok_or_else(|| GenerateError::MissingFragment {
+                        operation_name: name.to_string(),
+                        fragment_name: fragment_name.to_string(),
+                    })?;
+            queue.extend(fragment.direct_fragment_spreads.iter().map(String::as_str));
         }
 
         Ok(reachable)
@@ -704,7 +701,10 @@ mod tests {
     fn duplicate_operation_across_files_returns_error() {
         let temp = tempfile::tempdir().unwrap();
         let mut combined = ParsedInputs::default();
-        for (name, src) in &[("a.graphql", "query GetUser { id }"), ("b.graphql", "query GetUser { name }")] {
+        for (name, src) in &[
+            ("a.graphql", "query GetUser { id }"),
+            ("b.graphql", "query GetUser { name }"),
+        ] {
             let file = Utf8PathBuf::from_path_buf(temp.path().join(name)).unwrap();
             std::fs::write(&file, src).unwrap();
             let parsed = ParsedInputs::from_file(&file).unwrap();

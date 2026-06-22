@@ -238,8 +238,7 @@ mod tests {
 
     #[test]
     fn add_typenames_skips_typename_on_export_annotated_fields() {
-        let mut selections =
-            parse_selections(r#"query Q { data @export(as: "data") { id } }"#);
+        let mut selections = parse_selections(r#"query Q { data @export(as: "data") { id } }"#);
         selections.add_typenames();
         if let ast::Selection::Field(data) = &selections[0] {
             assert_that!(field_names(&data.selection_set)).does_not_contain("__typename");
