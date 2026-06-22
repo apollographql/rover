@@ -147,7 +147,7 @@ httpmock = "0.8"
 hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }
-itertools = "0.14"
+itertools = "0.15"
 lazycell = "1"
 lazy_static = "1"
 mockall = "0.14.0"
