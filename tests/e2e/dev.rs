@@ -47,9 +47,7 @@ fn write_router_config_with_health_port(
     });
     std::fs::write(
         &router_config_path,
-        format!(
-            "health_check:\n  listen: 127.0.0.1:{health_port}\n{base_router_config}"
-        ),
+        format!("health_check:\n  listen: 127.0.0.1:{health_port}\n{base_router_config}"),
     )
     .unwrap_or_else(|err| {
         panic!(
