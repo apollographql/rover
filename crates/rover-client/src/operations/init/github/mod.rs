@@ -3,8 +3,7 @@ use std::{fmt, future::Future, pin::Pin, time::Duration};
 use apollo_http_client::{HttpClient, HttpClientConfig};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Empty};
-use serde::Deserialize;
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt};
 
 use crate::error::RoverClientError;
 
@@ -83,13 +82,35 @@ impl GetTarRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Release {
-    pub name: String,
-    pub tag_name: String,
-    pub html_url: String,
-    pub tarball_url: String,
-    pub zipball_url: String,
+type HttpResponse = <HttpClient as Service<http::Request<Empty<Bytes>>>>::Response;
+
+/// Sends a single GET request through `client` with the given `timeout` and returns the response.
+async fn dispatch(
+    client: HttpClient,
+    timeout: Duration,
+    request: http::Request<Empty<Bytes>>,
+) -> Result<HttpResponse, GitHubServiceError> {
+    ServiceBuilder::new()
+        .timeout(timeout)
+        .service(client)
+        .oneshot(request)
+        .await
+        .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
+}
+
+/// Builds a `GET` request to `uri` with the rover `User-Agent` header.
+fn build_get_request(
+    uri: impl AsRef<str>,
+) -> Result<http::Request<Empty<Bytes>>, GitHubServiceError> {
+    http::Request::builder()
+        .method(http::Method::GET)
+        .uri(uri.as_ref())
+        .header(
+            http::header::USER_AGENT,
+            format!("rover-client/{PKG_VERSION}"),
+        )
+        .body(Empty::<Bytes>::new())
+        .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
 }
 
 impl Service<GetTarRequest> for GitHubService {
@@ -113,22 +134,8 @@ impl Service<GetTarRequest> for GitHubService {
         let timeout = self.timeout;
 
         Box::pin(async move {
-            let request = http::Request::builder()
-                .method(http::Method::GET)
-                .uri(&url)
-                .header(
-                    http::header::USER_AGENT,
-                    format!("rover-client/{PKG_VERSION}"),
-                )
-                .body(Empty::<Bytes>::new())
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-            let response = ServiceBuilder::new()
-                .timeout(timeout)
-                .service(client.clone())
-                .oneshot(request)
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+            let request = build_get_request(&url)?;
+            let response = dispatch(client.clone(), timeout, request).await?;
 
             // GitHub's tarball endpoint issues a 302 redirect to S3/CDN.
             // Follow at most one hop.
@@ -144,22 +151,7 @@ impl Service<GetTarRequest> for GitHubService {
                     })?
                     .to_owned();
 
-                let redirect_request = http::Request::builder()
-                    .method(http::Method::GET)
-                    .uri(location)
-                    .header(
-                        http::header::USER_AGENT,
-                        format!("rover-client/{PKG_VERSION}"),
-                    )
-                    .body(Empty::<Bytes>::new())
-                    .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-                ServiceBuilder::new()
-                    .timeout(timeout)
-                    .service(client)
-                    .oneshot(redirect_request)
-                    .await
-                    .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
+                dispatch(client, timeout, build_get_request(location)?).await?
             } else {
                 response
             };
@@ -182,79 +174,6 @@ impl Service<GetTarRequest> for GitHubService {
         })
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct GetAllReleasesRequest {
-    pub owner: String,
-    pub repo: String,
-}
-
-impl GetAllReleasesRequest {
-    pub const fn new(owner: String, repo: String) -> Self {
-        Self { owner, repo }
-    }
-}
-
-impl Service<GetAllReleasesRequest> for GitHubService {
-    type Response = Vec<Release>;
-    type Error = GitHubServiceError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(
-        &mut self,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: GetAllReleasesRequest) -> Self::Future {
-        let url = format!(
-            "{}/repos/{}/{}/releases",
-            self.base_url, req.owner, req.repo
-        );
-        let client = self.client.clone();
-        let timeout = self.timeout;
-
-        Box::pin(async move {
-            let request = http::Request::builder()
-                .method(http::Method::GET)
-                .uri(&url)
-                .header(
-                    http::header::USER_AGENT,
-                    format!("rover-client/{PKG_VERSION}"),
-                )
-                .body(Empty::<Bytes>::new())
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-            let response = ServiceBuilder::new()
-                .timeout(timeout)
-                .service(client)
-                .oneshot(request)
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-            if !response.status().is_success() {
-                return Err(GitHubServiceError::ClientError(format!(
-                    "GitHub API request failed with status: {}",
-                    response.status()
-                )));
-            }
-
-            let bytes = response
-                .into_body()
-                .collect()
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
-                .to_bytes();
-
-            serde_json::from_slice(&bytes)
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
-        })
-    }
-}
-
-pub type BoxedGitHubService =
-    BoxCloneService<GetAllReleasesRequest, Vec<Release>, GitHubServiceError>;
 
 #[cfg(test)]
 mod tests {
