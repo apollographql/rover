@@ -1,6 +1,10 @@
 use std::{
+    collections::VecDeque,
     env,
+    io::{BufRead, BufReader},
     process::{Command, Stdio},
+    sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 
@@ -9,7 +13,6 @@ use json_matcher::{
     AnyMatcher, JsonMatcher, JsonMatcherError, JsonPath, JsonPathElement, ObjectMatcher, assert_jm,
 };
 use mime::APPLICATION_JSON;
-use portpicker::pick_unused_port;
 use reqwest::{Client, header::CONTENT_TYPE};
 use rstest::*;
 use serde_json::{Value, json};
@@ -21,19 +24,44 @@ use tracing::error;
 use tracing_test::traced_test;
 
 use super::{
-    GRAPHQL_TIMEOUT_DURATION, RunningRetailSupergraph, run_subgraphs_retail_supergraph,
-    test_graphql_connection,
+    GRAPHQL_TIMEOUT_DURATION, RunningRetailSupergraph, reserve_local_port,
+    run_subgraphs_retail_supergraph, test_graphql_connection,
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 const ROVER_DEV_SUPERGRAPH_OUTPUT_FILE: &str = "composed-supergraph.graphql";
+const ROVER_DEV_LOG_LINE_CAP: usize = 200;
+
+fn spawn_rover_dev_log_reader<R: BufRead + Send + 'static>(
+    reader: R,
+    logs: Arc<Mutex<VecDeque<String>>>,
+) {
+    thread::spawn(move || {
+        for line in reader.lines() {
+            match line {
+                Ok(line) => {
+                    eprintln!("{line}");
+                    let mut logs = logs.lock().expect("rover dev log buffer poisoned");
+                    if logs.len() >= ROVER_DEV_LOG_LINE_CAP {
+                        logs.pop_front();
+                    }
+                    logs.push_back(line);
+                }
+                Err(err) => {
+                    eprintln!("failed to read rover dev output: {err}");
+                    break;
+                }
+            }
+        }
+    });
+}
 
 #[fixture]
 #[once]
 #[allow(clippy::zombie_processes)]
 fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> String {
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-    let port = pick_unused_port().expect("No ports free");
+    let (listener, port) = reserve_local_port().expect("No ports free");
     let router_url = format!("http://localhost:{port}");
     let client = Client::new();
 
@@ -44,7 +72,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{port}"),
+        &port.to_string(),
         "--supergraph-output",
         ROVER_DEV_SUPERGRAPH_OUTPUT_FILE,
         "--elv2-license",
@@ -64,16 +92,38 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_MCP_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", version);
     };
-    cmd.spawn().expect("Could not run rover dev command");
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    drop(listener);
+    let logs = Arc::new(Mutex::new(VecDeque::with_capacity(ROVER_DEV_LOG_LINE_CAP)));
+    let mut child = cmd.spawn().expect("Could not run rover dev command");
+    if let Some(stdout) = child.stdout.take() {
+        spawn_rover_dev_log_reader(BufReader::new(stdout), Arc::clone(&logs));
+    }
+    if let Some(stderr) = child.stderr.take() {
+        spawn_rover_dev_log_reader(BufReader::new(stderr), Arc::clone(&logs));
+    }
     tokio::task::block_in_place(|| {
         let handle = tokio::runtime::Handle::current();
         handle.block_on(test_graphql_connection(
             &client,
             &router_url,
             ROVER_DEV_TIMEOUT,
+            Some(&mut child),
         ))
     })
-    .expect("Could not execute check");
+    .unwrap_or_else(|e| {
+        let captured = logs
+            .lock()
+            .expect("rover dev log buffer poisoned")
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!(
+            "rover dev failed to become reachable at {router_url}: {e}\n--- captured rover dev output ---\n{captured}"
+        );
+    });
     router_url
 }
 
@@ -277,8 +327,9 @@ subgraphs:
     )
     .expect("Could not write supergraph.yaml");
 
-    let port = pick_unused_port().expect("No ports free");
-    let health_port = pick_unused_port().expect("No ports free for health check");
+    let (supergraph_listener, port) = reserve_local_port().expect("No ports free");
+    let (health_listener, health_port) =
+        reserve_local_port().expect("No ports free for health check");
 
     // Router config with env var reference - the key part of this test
     std::fs::write(
@@ -323,12 +374,15 @@ telemetry:
         cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", v);
     }
 
-    let child = cmd.spawn().expect("Failed to spawn rover dev");
+    drop(supergraph_listener);
+    drop(health_listener);
+    let mut child = cmd.spawn().expect("Failed to spawn rover dev");
 
     // Wait for the router to start and make a request
     let client = Client::new();
     let router_url = format!("http://localhost:{port}");
-    let graphql_result = test_graphql_connection(&client, &router_url, ROVER_DEV_TIMEOUT).await;
+    let graphql_result =
+        test_graphql_connection(&client, &router_url, ROVER_DEV_TIMEOUT, Some(&mut child)).await;
 
     // On Unix, send SIGINT so Rover can gracefully shut down the router (rover handles ctrl_c/SIGINT)
     // On Windows, use taskkill /T to kill the entire process tree since child.kill() only kills
