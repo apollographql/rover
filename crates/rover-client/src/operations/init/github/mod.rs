@@ -1,8 +1,10 @@
-use std::{future::Future, pin::Pin};
+use std::{fmt, future::Future, pin::Pin, time::Duration};
 
-use reqwest::Client;
+use apollo_http_client::{HttpClient, HttpClientConfig};
+use bytes::Bytes;
+use http_body_util::{BodyExt, Empty};
 use serde::Deserialize;
-use tower::{util::BoxCloneService, Service};
+use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 
 use crate::error::RoverClientError;
 
@@ -25,10 +27,24 @@ impl From<GitHubServiceError> for RoverClientError {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Tower [`Service`] that sends requests to the GitHub REST API.
+///
+/// Constructed via [`GitHubService::builder`]. All clones share the same
+/// underlying connection pool.
+#[derive(Clone)]
 pub struct GitHubService {
-    client: Client,
+    client: HttpClient,
     base_url: String,
+    timeout: Duration,
+}
+
+impl fmt::Debug for GitHubService {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GitHubService")
+            .field("base_url", &self.base_url)
+            .field("timeout", &self.timeout)
+            .finish_non_exhaustive()
+    }
 }
 
 #[bon::bon]
@@ -37,12 +53,16 @@ impl GitHubService {
     pub fn new(
         #[builder(default = "https://api.github.com".to_string())] base_url: String,
         #[builder(default)] accept_invalid_certs: bool,
+        #[builder(default = Duration::from_secs(30))] timeout: Duration,
     ) -> Self {
-        let client = Client::builder()
-            .danger_accept_invalid_certs(accept_invalid_certs)
-            .build()
-            .expect("Failed to build HTTP client");
-        Self { client, base_url }
+        let mut config = HttpClientConfig::default();
+        config.tls.danger_accept_invalid_certs = accept_invalid_certs;
+        let client = HttpClient::new(&config).expect("Failed to build HTTP client");
+        Self {
+            client,
+            base_url,
+            timeout,
+        }
     }
 }
 
@@ -90,14 +110,59 @@ impl Service<GetTarRequest> for GitHubService {
             self.base_url, req.owner, req.repo, req.reference
         );
         let client = self.client.clone();
+        let timeout = self.timeout;
 
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
-                .send()
+            let request = http::Request::builder()
+                .method(http::Method::GET)
+                .uri(&url)
+                .header(
+                    http::header::USER_AGENT,
+                    format!("rover-client/{PKG_VERSION}"),
+                )
+                .body(Empty::<Bytes>::new())
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+
+            let response = ServiceBuilder::new()
+                .timeout(timeout)
+                .service(client.clone())
+                .oneshot(request)
                 .await
                 .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+
+            // GitHub's tarball endpoint issues a 302 redirect to S3/CDN.
+            // Follow at most one hop.
+            let response = if response.status().is_redirection() {
+                let location = response
+                    .headers()
+                    .get(http::header::LOCATION)
+                    .and_then(|v| v.to_str().ok())
+                    .ok_or_else(|| {
+                        GitHubServiceError::ClientError(
+                            "redirect with missing or non-UTF-8 Location header".to_string(),
+                        )
+                    })?
+                    .to_owned();
+
+                let redirect_request = http::Request::builder()
+                    .method(http::Method::GET)
+                    .uri(location)
+                    .header(
+                        http::header::USER_AGENT,
+                        format!("rover-client/{PKG_VERSION}"),
+                    )
+                    .body(Empty::<Bytes>::new())
+                    .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+
+                ServiceBuilder::new()
+                    .timeout(timeout)
+                    .service(client)
+                    .oneshot(redirect_request)
+                    .await
+                    .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
+            } else {
+                response
+            };
 
             if !response.status().is_success() {
                 return Err(GitHubServiceError::ClientError(format!(
@@ -107,9 +172,11 @@ impl Service<GetTarRequest> for GitHubService {
             }
 
             let bytes = response
-                .bytes()
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
+                .to_bytes();
 
             Ok(bytes.to_vec())
         })
@@ -146,12 +213,23 @@ impl Service<GetAllReleasesRequest> for GitHubService {
             self.base_url, req.owner, req.repo
         );
         let client = self.client.clone();
+        let timeout = self.timeout;
 
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
-                .send()
+            let request = http::Request::builder()
+                .method(http::Method::GET)
+                .uri(&url)
+                .header(
+                    http::header::USER_AGENT,
+                    format!("rover-client/{PKG_VERSION}"),
+                )
+                .body(Empty::<Bytes>::new())
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+
+            let response = ServiceBuilder::new()
+                .timeout(timeout)
+                .service(client)
+                .oneshot(request)
                 .await
                 .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
 
@@ -162,12 +240,15 @@ impl Service<GetAllReleasesRequest> for GitHubService {
                 )));
             }
 
-            let releases: Vec<Release> = response
-                .json()
+            let bytes = response
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
+                .to_bytes();
 
-            Ok(releases)
+            serde_json::from_slice(&bytes)
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
         })
     }
 }

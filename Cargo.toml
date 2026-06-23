@@ -91,6 +91,9 @@ timber = { path = "./crates/timber" }
 apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
 
+# https://github.com/apollographql/apollo-platform-rs
+apollo-http-client = "0.3.0"
+
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
 apollo-language-server = { version = "0.8.0", default-features = false, features = ["tokio"] }
