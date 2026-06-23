@@ -30,7 +30,35 @@ use super::{
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 const ROVER_DEV_SUPERGRAPH_OUTPUT_FILE: &str = "composed-supergraph.graphql";
+const ROVER_DEV_DYNAMIC_ROUTER_CONFIG_FILE: &str = "router-config-dev.dynamic.yaml";
 const ROVER_DEV_LOG_LINE_CAP: usize = 200;
+
+fn write_router_config_with_health_port(
+    working_dir: &std::path::Path,
+    health_port: u16,
+) -> std::path::PathBuf {
+    let base_config_path = working_dir.join("router-config-dev.yaml");
+    let router_config_path = working_dir.join(ROVER_DEV_DYNAMIC_ROUTER_CONFIG_FILE);
+    let base_router_config = std::fs::read_to_string(&base_config_path).unwrap_or_else(|err| {
+        panic!(
+            "Could not read router config at {}: {err}",
+            base_config_path.display()
+        )
+    });
+    std::fs::write(
+        &router_config_path,
+        format!(
+            "health_check:\n  listen: 127.0.0.1:{health_port}\n{base_router_config}"
+        ),
+    )
+    .unwrap_or_else(|err| {
+        panic!(
+            "Could not write router config at {}: {err}",
+            router_config_path.display()
+        )
+    });
+    router_config_path
+}
 
 fn spawn_rover_dev_log_reader<R: BufRead + Send + 'static>(
     reader: R,
@@ -61,7 +89,18 @@ fn spawn_rover_dev_log_reader<R: BufRead + Send + 'static>(
 #[allow(clippy::zombie_processes)]
 fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> String {
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
-    let (listener, port) = reserve_local_port().expect("No ports free");
+    let working_dir = run_subgraphs_retail_supergraph
+        .retail_supergraph
+        .working_dir
+        .path();
+    let (supergraph_listener, port) = reserve_local_port().expect("No ports free");
+    let (health_listener, health_port) =
+        reserve_local_port().expect("No ports free for health check");
+    let router_config_path = write_router_config_with_health_port(working_dir, health_port);
+    let router_config_arg = router_config_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("valid router config file name");
     let router_url = format!("http://localhost:{port}");
     let client = Client::new();
 
@@ -70,7 +109,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
         "--supergraph-config",
         "supergraph-config-dev.yaml",
         "--router-config",
-        "router-config-dev.yaml",
+        router_config_arg,
         "--supergraph-port",
         &port.to_string(),
         "--supergraph-output",
@@ -78,11 +117,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
         "--elv2-license",
         "accept",
     ]);
-    cmd.current_dir(
-        &run_subgraphs_retail_supergraph
-            .retail_supergraph
-            .working_dir,
-    );
+    cmd.current_dir(working_dir);
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
     };
@@ -94,7 +129,8 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
     };
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-    drop(listener);
+    drop(supergraph_listener);
+    drop(health_listener);
     let logs = Arc::new(Mutex::new(VecDeque::with_capacity(ROVER_DEV_LOG_LINE_CAP)));
     let mut child = cmd.spawn().expect("Could not run rover dev command");
     if let Some(stdout) = child.stdout.take() {
