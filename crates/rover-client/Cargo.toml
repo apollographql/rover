@@ -13,10 +13,13 @@ testing = ["dep:mockall", "rover-tower/test"]
 [dependencies]
 ariadne = { workspace = true }
 apollo-compiler = { workspace = true }
+apollo-http-client = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 backon = { workspace = true }
 bon = { workspace = true }
+bytes = { workspace = true }
+http-body-util = { workspace = true }
 buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}
@@ -50,7 +53,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true, features = ["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "macros", "time"] }
 url = { workspace = true }
 
 [build-dependencies]
