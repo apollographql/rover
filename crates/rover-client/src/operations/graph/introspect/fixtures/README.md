@@ -12,7 +12,7 @@ Used by `introspection_json::tests::swapi_structural_parity_with_legacy_introspe
 | `swapi-introspection.json` | Reference output: `{ "__schema": ... }` from graphql-js `introspectionFromSchema`, matching legacy `apollo schema:download` |
 | `swapi.json` | Raw GraphQL introspection **response envelope** (`{ "data": { "__schema": ... } }`) from the server; used by `schema.rs` encode tests |
 
-**Source endpoint:** https://swapi-graphql.netlify.app/graphql
+**Source endpoint:** `https://swapi-graphql.netlify.app/graphql`
 
 ### Regenerate `swapi.graphql` and `swapi-introspection.json`
 
