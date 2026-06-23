@@ -56,7 +56,7 @@ query GetUser {
 
 ### Fragment deduplication and conflicts
 
-Rover automatically deduplicates fragments defined identically across multiple files. However, if two files define a fragment with the **same name but different bodies**, `rover client check` returns an error listing the conflicting fragment names. Make each fragment name globally unique to avoid conflicts.
+Rover automatically deduplicates fragments defined identically across multiple files. However, if two files define a fragment with the **same name but different bodies**, `rover client check` returns an error listing the conflicting fragment names. In this case, make each fragment name globally unique to avoid conflicts.
 
 ### Options
 
