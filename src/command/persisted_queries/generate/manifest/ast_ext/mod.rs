@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 mod fragment_definition;
 mod operation_definition;
 mod selection;

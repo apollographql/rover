@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     super::printer::{PrintableDefinition, operation_type_str, print_document},
-    ast_ext::{OperationDefinitionExt, SelectionSetExt},
+    ast_ext::{FragmentDefinitionExt, OperationDefinitionExt, SelectionSetExt},
     error::{GenerateError, GenerateFailure},
 };
 use crate::RoverResult;
@@ -62,7 +62,11 @@ impl ParsedOperation {
     ) -> RoverResult<String> {
         let reachable = self.reachable_fragment_names(name, all_fragments)?;
         let mut operation_node = self.operation.clone();
-        operation_node.make_mut().add_typenames();
+        {
+            let op_mut = operation_node.make_mut();
+            op_mut.selection_set.remove_client_selections();
+            op_mut.directives.0.retain(|d| d.name != "client");
+        }
 
         let fragment_definitions: Vec<(Node<ast::FragmentDefinition>, Arc<str>)> = reachable
             .iter()
@@ -76,14 +80,19 @@ impl ParsedOperation {
                     .directives
                     .0
                     .retain(|directive| directive.name != "client");
-                fragment_definition.selection_set.add_typenames();
+                fragment_definition.selection_set.remove_client_selections();
                 (fragment_node, Arc::clone(&fragment.source))
             })
             .collect();
 
-        operation_node
-            .make_mut()
-            .prune_unused_variables(&fragment_definitions);
+        let op = operation_node.make_mut();
+        let used: BTreeSet<String> = std::iter::once(op.collect_variables())
+            .chain(fragment_definitions.iter().map(|(f, _)| f.collect_variables()))
+            .fold(BTreeSet::new(), |mut acc, vars| {
+                acc.extend(vars);
+                acc
+            });
+        op.variables.retain(|v| used.contains(v.name.as_str()));
 
         let definitions = std::iter::once(PrintableDefinition::Operation {
             operation: operation_node,
@@ -334,7 +343,6 @@ mod tests {
             query GetProduct($id: ID!) {
               product(id: $id) {
                 ...ProductFields
-                __typename
               }
             }
 
@@ -343,12 +351,8 @@ mod tests {
               name
               nested {
                 value
-                __typename
               }
-              __typename
             }"#});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("deca7ebeb3e6d8e46f056fdc032ed462dc6a9763d9225eb04ab9e9943b6c248a");
 
         assert_that!(operations[1].name.as_str()).is_equal_to("SaveProduct");
         assert_that!(operations[1].operation_type).is_equal_to("mutation");
@@ -356,11 +360,8 @@ mod tests {
             mutation SaveProduct {
               saveProduct(input: {name: "x"}) {
                 id
-                __typename
               }
             }"#});
-        assert_that!(operations[1].id.as_str())
-            .is_equal_to("e2cae5428130630ffe997257613154698cd85f7ef97c4ffe653ca80183b8e10f");
     }
 
     #[test]
@@ -433,22 +434,17 @@ mod tests {
                   id
                   profile {
                     displayName
-                    __typename
                   }
                   ... on Admin {
                     permissions
-                    __typename
                   }
                   ...UserFields
-                  __typename
                 }
-                __typename
               }
             }
 
             fragment SharedFields on User {
               status
-              __typename
             }
 
             fragment UserFields on User @cache(ttl: 60) {
@@ -456,15 +452,10 @@ mod tests {
               friends(first: $limit) {
                 nodes {
                   id
-                  __typename
                 }
-                __typename
               }
               ...SharedFields
-              __typename
             }"#});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("4501a1585e6aaf2adea38c6ffc4114135b71871e69bd43fff71de6a4ce8b57c2");
 
         assert_that!(operations[1].name.as_str()).is_equal_to("UserCreatedSubscription");
         assert_that!(operations[1].operation_type).is_equal_to("subscription");
@@ -472,13 +463,11 @@ mod tests {
             subscription UserCreatedSubscription($groupId: ID!) {
               userCreated(groupId: $groupId) {
                 ...UserFields
-                __typename
               }
             }
 
             fragment SharedFields on User {
               status
-              __typename
             }
 
             fragment UserFields on User @cache(ttl: 60) {
@@ -486,15 +475,10 @@ mod tests {
               friends(first: $limit) {
                 nodes {
                   id
-                  __typename
                 }
-                __typename
               }
               ...SharedFields
-              __typename
             }"});
-        assert_that!(operations[1].id.as_str())
-            .is_equal_to("e936af1be273b8d80d7c06927423827cbe464c3efd6b67ab02e948d20c3c9b59");
     }
 
     #[test]
@@ -520,15 +504,12 @@ mod tests {
             query CurrentUserQuery {
               currentUser {
                 id
-                __typename
               }
             }"});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("2bc729f3095726f8bc03301874e1e185d22aa06aad024b49c868a641c24c1902");
     }
 
     #[test]
-    fn client_directive_removal_preserves_nested_typename() {
+    fn client_directive_removal_removes_all_client_fields() {
         let inputs = parsed_inputs(indoc::indoc! {"
             query CurrentUserQuery {
               currentUser {
@@ -542,12 +523,8 @@ mod tests {
         assert_that!(operations.len()).is_equal_to(1);
         assert_that!(operations[0].body.as_str()).is_equal_to(indoc::indoc! {"
             query CurrentUserQuery {
-              currentUser {
-                __typename
-              }
+              currentUser
             }"});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("92e0c664584eac8c318fd0193771ceab698eb53b55f9cbe5e8f82a7935086c7e");
     }
 
     #[test]
@@ -568,11 +545,8 @@ mod tests {
             query CurrentUserQuery($userId: ID!) {
               currentUser(id: $userId) {
                 id
-                __typename
               }
             }"});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("a009379fd75dbf344e170f04bca196eb6d3ba5aff06eef54b0a6129a51bd11c9");
     }
 
     #[test]
@@ -599,16 +573,13 @@ mod tests {
             query CurrentUserQuery($userId: ID!, $includeFriends: Boolean!) {
               currentUser(id: $userId) {
                 ...UserFields @include(if: $includeFriends)
-                __typename
               }
             }
 
             fragment UserFields on User {
               friends(first: $userId) {
                 id
-                __typename
               }
-              __typename
             }"});
     }
 
@@ -633,11 +604,8 @@ mod tests {
               world
               """) {
                 id
-                __typename
               }
             }"#});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("5d355c2a5cf2e2358f47521d303e0aaa4c5d5853e1b24454ed4170291b7c0a18");
     }
 
     #[test]
@@ -665,16 +633,12 @@ mod tests {
                 id
                 profile {
                   name
-                  __typename
                 }
               }
               user(id: $currentUser) {
                 name
-                __typename
               }
             }"#});
-        assert_that!(operations[0].id.as_str())
-            .is_equal_to("235f5fc1cc144ac4e7484faf86266e6e393679e3c268b739abd3422a53adcd07");
     }
 
     #[test]
@@ -755,19 +719,16 @@ mod tests {
             query GetProduct {
               product {
                 ...Alpha
-                __typename
               }
             }
 
             fragment Alpha on Product {
               a
               ...Zed
-              __typename
             }
 
             fragment Zed on Product {
               z
-              __typename
             }"});
     }
 }

@@ -31,7 +31,7 @@ impl PersistedQueryManifest {
         })
     }
 
-    pub(super) fn operation_count(&self) -> usize {
+    pub(super) const fn operation_count(&self) -> usize {
         self.operations.len()
     }
 }
