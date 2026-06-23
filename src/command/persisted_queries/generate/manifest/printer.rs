@@ -438,4 +438,42 @@ mod tests {
         )]);
         assert_that!(print_value_str(obj)).is_equal_to("{id: $userId}".to_string());
     }
+
+    #[test]
+    fn prints_full_document_with_operation_and_fragment() {
+        use indoc::indoc;
+
+        let src = indoc! {r#"
+            query GetUser($id: ID!, $includeEmail: Boolean = false) {
+              user(id: $id) {
+                ...UserFields
+                ... on Admin {
+                  role
+                }
+              }
+            }
+
+            fragment UserFields on User {
+              id
+              name
+              email @include(if: $includeEmail)
+            }
+        "#};
+        let expected = indoc! {r#"
+            query GetUser($id: ID!, $includeEmail: Boolean = false) {
+              user(id: $id) {
+                ...UserFields
+                ... on Admin {
+                  role
+                }
+              }
+            }
+
+            fragment UserFields on User {
+              id
+              name
+              email @include(if: $includeEmail)
+            }"#};
+        assert_that!(parse_print(src)).is_equal_to(expected.to_string());
+    }
 }
