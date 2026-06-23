@@ -15,8 +15,16 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          install: false
         env:
           CARGO_NET_RETRY: "5"
+      - name: Install mise tools
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          timeout_minutes: 10
+          command: mise install
       - run: mise run cargo-deny
 
   fmt:
