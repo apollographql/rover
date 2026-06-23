@@ -101,6 +101,12 @@ Validated 3 operations (5 files scanned)
 
 ---
 
+<Note>
+
+The `failures` array contains schema-extension validation errors — produced when `.graphql` files include SDL extensions (`extend type` and similar) that are incompatible with the graph's published schema. Operation check results (broken fields, removed types, etc.) are always returned in `validation_results`, even when they represent failures.
+
+</Note>
+
 #### Validation failures
 
 When an operation references a field that has been removed or renamed in the schema, `rover client check` reports a `FAILURE` for that operation and exits with code `1`.
