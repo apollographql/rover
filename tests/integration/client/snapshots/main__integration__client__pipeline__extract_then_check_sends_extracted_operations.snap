@@ -1,0 +1,18 @@
+---
+source: tests/integration/client/pipeline.rs
+expression: check_json
+---
+{
+  "json_version": "1",
+  "data": {
+    "client_check": {
+      "graph_ref": "graph@current",
+      "files_scanned": 1,
+      "operations_sent": 2,
+      "failures": [],
+      "validation_results": []
+    },
+    "success": true
+  },
+  "error": null
+}
