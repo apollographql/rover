@@ -69,6 +69,11 @@ impl NpmRunner {
             "const bin = require.resolve(binPath)",
             "const bin = require.resolve(binPath)\nprocess.env.APOLLO_NODE_MODULES_BIN_DIR = require('path').dirname(bin)",
         );
+        if patched == content {
+            anyhow::bail!(
+                "patch-npm-shim: marker not found — shim may have already been patched or changed format"
+            );
+        }
         std::fs::write(&shim_path, patched)
             .with_context(|| format!("Could not write shim at {}", shim_path))?;
         Ok(())
