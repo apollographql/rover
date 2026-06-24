@@ -140,6 +140,8 @@ subgraphs:
 
 The `supergraph.yaml` file supports variable expansion using [the same syntax as GraphOS Router](/router/configuration/overview/#variable-expansion).
 
+To preview how Rover resolves these references, use [`supergraph config expand`](#supergraph-config-expand).
+
 ### Output format
 
 By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-schemas) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/apollo-server/using-federation/api/apollo-gateway/) or the [🦀 GraphOS Router](/router/) on startup.
@@ -249,3 +251,17 @@ After you generate the schema, configure your text editor. Here are the instruct
 - [IntelliJ](https://www.jetbrains.com/help/idea/json.html#ws_json_using_schemas)
 - [Sublime](https://github.com/sublimelsp/LSP-yaml)
 - [Vim](https://github.com/Quramy/vison)
+
+## Expanding a configuration
+
+### `supergraph config expand`
+
+Your `supergraph.yaml` file can include [variable references](#variable-expansion) such as `${env.PRODUCTS_URL}` and `${file.path}`. To see how Rover resolves these references—without running composition—use `supergraph config expand`:
+
+```bash
+rover supergraph config expand --config ./supergraph.yaml
+```
+
+Rover prints the configuration with every reference expanded. This is useful for confirming that the correct environment variables and files are picked up before you compose. Pass `-` to `--config` to read the configuration from `stdin` instead of a file.
+
+By default the expanded configuration is printed as YAML. Add `--format json` to receive it under an `expanded_config` field instead.

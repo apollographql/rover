@@ -1,0 +1,12 @@
+federation_version: =2.9.0
+subgraphs:
+  products:
+    routing_url: ${env.PRODUCTS_ROUTING_URL}
+    schema:
+      subgraph_url: ${env.PRODUCTS_ROUTING_URL}
+      introspection_headers:
+        Authorization: ${env.PRODUCTS_AUTH_TOKEN:-default-token}
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      file: ./users.graphql
