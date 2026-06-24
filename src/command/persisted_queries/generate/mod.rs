@@ -1,5 +1,4 @@
 mod manifest;
-pub(super) mod printer;
 
 // Full Generate command (file discovery, glob args, output) coming in a later PR.
 

@@ -4,7 +4,6 @@ mod operation;
 mod printer;
 
 use camino::Utf8PathBuf;
-pub(super) use error::GenerateError;
 use operation::{ParsedInputs, PersistedQueryOperation};
 use serde::Serialize;
 

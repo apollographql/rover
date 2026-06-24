@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use apollo_compiler::{Node, ast, parser::Parser as ApolloParser};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -11,16 +8,15 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use super::{
-    super::printer::{PrintableDefinition, operation_type_str, print_document},
     ast_ext::{FragmentDefinitionExt, OperationDefinitionExt, SelectionSetExt},
     error::{GenerateError, GenerateFailure},
+    printer::{PrintableDefinition, print_document},
 };
 use crate::RoverResult;
 
 #[derive(Debug, Clone)]
 struct ParsedOperation {
     file: Utf8PathBuf,
-    source: Arc<str>,
     operation: Node<ast::OperationDefinition>,
     direct_fragment_spreads: BTreeSet<String>,
 }
@@ -68,7 +64,7 @@ impl ParsedOperation {
             op_mut.directives.0.retain(|d| d.name != "client");
         }
 
-        let fragment_definitions: Vec<(Node<ast::FragmentDefinition>, Arc<str>)> = reachable
+        let fragment_definitions: Vec<Node<ast::FragmentDefinition>> = reachable
             .iter()
             .map(|fragment_name| {
                 let fragment = all_fragments
@@ -81,29 +77,22 @@ impl ParsedOperation {
                     .0
                     .retain(|directive| directive.name != "client");
                 fragment_definition.selection_set.remove_client_selections();
-                (fragment_node, Arc::clone(&fragment.source))
+                fragment_node
             })
             .collect();
 
         let op = operation_node.make_mut();
         let used: BTreeSet<String> = std::iter::once(op.collect_variables())
-            .chain(fragment_definitions.iter().map(|(f, _)| f.collect_variables()))
+            .chain(fragment_definitions.iter().map(|f| f.collect_variables()))
             .fold(BTreeSet::new(), |mut acc, vars| {
                 acc.extend(vars);
                 acc
             });
         op.variables.retain(|v| used.contains(v.name.as_str()));
 
-        let definitions = std::iter::once(PrintableDefinition::Operation {
-            operation: operation_node,
-            source: Arc::clone(&self.source),
-        })
-        .chain(
-            fragment_definitions
-                .into_iter()
-                .map(|(fragment, source)| PrintableDefinition::Fragment { fragment, source }),
-        )
-        .collect::<Vec<_>>();
+        let definitions = std::iter::once(PrintableDefinition::Operation(operation_node))
+            .chain(fragment_definitions.into_iter().map(PrintableDefinition::Fragment))
+            .collect::<Vec<_>>();
 
         Ok(print_document(&definitions))
     }
@@ -112,7 +101,6 @@ impl ParsedOperation {
 #[derive(Debug, Clone)]
 struct ParsedFragment {
     file: Utf8PathBuf,
-    source: Arc<str>,
     fragment: Node<ast::FragmentDefinition>,
     direct_fragment_spreads: BTreeSet<String>,
 }
@@ -129,7 +117,6 @@ impl ParsedInputs {
             file: file.to_path_buf(),
             message: err.to_string(),
         })?;
-        let source: Arc<str> = Arc::from(contents.as_str());
         let document = ApolloParser::new()
             .parse_ast(contents, file.as_std_path())
             .map_err(|err| GenerateFailure {
@@ -168,7 +155,6 @@ impl ParsedInputs {
                         name,
                         ParsedOperation {
                             file: file.to_path_buf(),
-                            source: Arc::clone(&source),
                             direct_fragment_spreads: operation.selection_set.collect_spreads(),
                             operation,
                         },
@@ -190,7 +176,6 @@ impl ParsedInputs {
                         fragment.name.to_string(),
                         ParsedFragment {
                             file: file.to_path_buf(),
-                            source: Arc::clone(&source),
                             direct_fragment_spreads: fragment.selection_set.collect_spreads(),
                             fragment,
                         },
@@ -267,7 +252,7 @@ impl ParsedInputs {
                 Ok(PersistedQueryOperation {
                     id,
                     name: name.clone(),
-                    operation_type: operation_type_str(operation.operation.operation_type),
+                    operation_type: operation.operation.operation_type.name(),
                     body,
                 })
             })
@@ -599,10 +584,7 @@ mod tests {
         assert_that!(operations.len()).is_equal_to(1);
         assert_that!(operations[0].body.as_str()).is_equal_to(indoc::indoc! {r#"
             query BlockStringQuery {
-              search(text: """
-              hello
-              world
-              """) {
+              search(text: "hello\nworld") {
                 id
               }
             }"#});
