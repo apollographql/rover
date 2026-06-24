@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::fmt;
+
 use apollo_compiler::{Node, ast};
 
 pub(super) enum PrintableDefinition {
@@ -7,13 +9,19 @@ pub(super) enum PrintableDefinition {
     Fragment(Node<ast::FragmentDefinition>),
 }
 
+impl fmt::Display for PrintableDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PrintableDefinition::Operation(op) => write!(f, "{}", op.serialize()),
+            PrintableDefinition::Fragment(frag) => write!(f, "{}", frag.serialize()),
+        }
+    }
+}
+
 pub(super) fn print_document(definitions: &[PrintableDefinition]) -> String {
     definitions
         .iter()
-        .map(|d| match d {
-            PrintableDefinition::Operation(op) => op.serialize().to_string(),
-            PrintableDefinition::Fragment(frag) => frag.serialize().to_string(),
-        })
+        .map(|d| d.to_string())
         .collect::<Vec<_>>()
         .join("\n\n")
 }
