@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     ast_ext::{FragmentDefinitionExt, OperationDefinitionExt, SelectionSetExt},
-    error::{GenerateError, GenerateFailure},
+    error::{GenerateError, ParseFailure},
     printer::{PrintableDefinition, print_document},
 };
 use crate::RoverResult;
@@ -112,14 +112,14 @@ pub(super) struct ParsedInputs {
 }
 
 impl ParsedInputs {
-    pub(super) fn from_file(file: &Utf8Path) -> Result<Self, GenerateFailure> {
-        let contents = Fs::read_file(file).map_err(|err| GenerateFailure {
+    pub(super) fn from_file(file: &Utf8Path) -> Result<Self, ParseFailure> {
+        let contents = Fs::read_file(file).map_err(|err| ParseFailure {
             file: file.to_path_buf(),
             message: err.to_string(),
         })?;
         let document = ApolloParser::new()
             .parse_ast(contents, file.as_std_path())
-            .map_err(|err| GenerateFailure {
+            .map_err(|err| ParseFailure {
                 file: file.to_path_buf(),
                 message: err.to_string(),
             })?;
@@ -132,7 +132,7 @@ impl ParsedInputs {
                         .name
                         .as_ref()
                         .map(ToString::to_string)
-                        .ok_or_else(|| GenerateFailure {
+                        .ok_or_else(|| ParseFailure {
                             file: file.to_path_buf(),
                             message: GenerateError::AnonymousOperation {
                                 file: file.to_path_buf(),
@@ -141,7 +141,7 @@ impl ParsedInputs {
                             .to_string(),
                         })?;
                     if parsed.operations.contains_key(&name) {
-                        return Err(GenerateFailure {
+                        return Err(ParseFailure {
                             file: file.to_path_buf(),
                             message: GenerateError::DuplicateOperation {
                                 name,
@@ -162,7 +162,7 @@ impl ParsedInputs {
                 }
                 ast::Definition::FragmentDefinition(fragment) => {
                     if parsed.fragments.contains_key(fragment.name.as_str()) {
-                        return Err(GenerateFailure {
+                        return Err(ParseFailure {
                             file: file.to_path_buf(),
                             message: GenerateError::DuplicateFragment {
                                 name: fragment.name.to_string(),

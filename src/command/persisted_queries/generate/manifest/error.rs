@@ -7,7 +7,7 @@ pub(crate) enum GenerateError {
     NonUtf8CurrentDir,
     #[error("Failed to parse {} .graphql file(s):\n{}", .parse_failures.len(), .parse_failures.iter().join("\n"))]
     ParseFailures {
-        parse_failures: Vec<GenerateFailure>,
+        parse_failures: Vec<ParseFailure>,
     },
     #[error(
         "Anonymous GraphQL operations are not supported. Please name your {operation_type} in {file}."
@@ -51,7 +51,7 @@ pub(crate) enum GenerateError {
 
 #[derive(Debug, thiserror::Error)]
 #[error("{file}: {message}")]
-pub(super) struct GenerateFailure {
+pub(super) struct ParseFailure {
     pub(super) file: Utf8PathBuf,
     pub(super) message: String,
 }
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn generate_failure_display_includes_file_and_message() {
-        let err = GenerateFailure {
+        let err = ParseFailure {
             file: "ops.graphql".into(),
             message: "syntax error".to_string(),
         };
