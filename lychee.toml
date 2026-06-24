@@ -1,0 +1,21 @@
+# Configuration for the lychee markdown link checker (run via `mise run check-links`).
+# Keep this as the single place to tune link-checking behavior so we don't have to
+# ignore otherwise-valid links (e.g. https://www.apollographql.com) to work around
+# transient network/TLS hiccups in CI.
+
+# Don't check private/local network links.
+exclude_all_private = true
+
+# Retry transient failures (including TLS handshake resets seen in CI) before
+# treating a link as broken.
+max_retries = 5
+retry_wait_time = 30
+
+# Give the host more time before timing out the connection.
+timeout = 30
+
+# Treat rate-limit responses as OK rather than broken links.
+accept = ["100..=103", "200..=299", "429"]
+
+# Some hosts reject the default client; present a browser-like user agent.
+user_agent = "Mozilla/5.0 (compatible; lychee/0.24; +https://github.com/apollographql/rover)"
