@@ -9,6 +9,7 @@ use std::{
 use assert_cmd::cargo;
 use graphql_schema_diff::diff;
 use regex::Regex;
+use rover_client::operations::graph::introspect::introspection_json_to_validated_sdl;
 use rstest::rstest;
 use serde_json::Value;
 use speculoos::{
@@ -62,13 +63,15 @@ async fn e2e_test_rover_graph_introspect(
     // Slurp the output and then compare it to the canonical one
     let response: Value =
         serde_json::from_reader(out_file.as_file()).expect("Cannot read JSON from response file");
-    let actual_schema = response["data"]["introspection_response"]
-        .as_str()
-        .expect("Could not extract schema from response");
+    // `--format json` now emits a GraphQL introspection object (`{ "__schema": ... }`),
+    // so convert it back to SDL before diffing against the canonical schema.
+    let actual_schema =
+        introspection_json_to_validated_sdl(&response["data"]["introspection_response"])
+            .expect("Could not convert introspection JSON to SDL");
     let expected_schema = read_to_string(test_artifacts_directory.join("graph/inventory.graphql"))
         .expect("Could not read in canonical schema");
 
-    let changes = diff(actual_schema, &expected_schema).unwrap();
+    let changes = diff(&actual_schema, &expected_schema).unwrap();
 
     asserting(&format!("changes which was {changes:?}, has no elements"))
         .that(&changes)
@@ -164,16 +167,17 @@ async fn e2e_test_rover_graph_introspect_watch(
     // Ensure that the two are different
     assert_that!(new_value).is_not_equal_to(original_value);
 
-    // Ensure the changed schema is what we expect it to be
-    let new_schema = new_value["data"]["introspection_response"]
-        .as_str()
-        .expect("Could not extract schema from response");
+    // Ensure the changed schema is what we expect it to be. `--format json` now emits a
+    // GraphQL introspection object, so convert it back to SDL before diffing.
+    let new_schema =
+        introspection_json_to_validated_sdl(&new_value["data"]["introspection_response"])
+            .expect("Could not convert introspection JSON to SDL");
     let expected_new_schema =
         read_to_string(test_artifacts_directory.join("graph/pandas_changed_introspect.graphql"))
             .expect("Could not read in canonical schema");
 
     info!("Check new schema is as expected...");
-    let changes = diff(new_schema, &expected_new_schema).unwrap();
+    let changes = diff(&new_schema, &expected_new_schema).unwrap();
 
     asserting(&format!("changes which was {changes:?}, has no elements"))
         .that(&changes)

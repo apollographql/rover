@@ -56,6 +56,18 @@ pub fn sdl_to_introspection_json(sdl: &str) -> Result<Value, RoverClientError> {
         msg: err.message().to_string(),
     })?;
 
+    if !response.errors.is_empty() {
+        let msg = response
+            .errors
+            .iter()
+            .map(|err| err.message.clone())
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(RoverClientError::IntrospectionError {
+            msg: format!("introspection query returned errors: {msg}"),
+        });
+    }
+
     let data = response
         .data
         .ok_or_else(|| RoverClientError::IntrospectionError {
