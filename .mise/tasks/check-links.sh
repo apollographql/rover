@@ -12,4 +12,4 @@ find . -type f -name "*.md" \
   -not -path "*/target/*" \
   -not -path "*/docs/*" \
   -not -path "*/.*/*" \
-  -exec lychee --retry-wait-time 30 --max-retries 5 --exclude-all-private {} +
+  -exec lychee --config lychee.toml {} +

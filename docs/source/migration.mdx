@@ -133,14 +133,6 @@ When working with federated graphs in Rover, you typically use the `subgraph` co
 
 For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
 
-## Limitations of Rover
-
-For the sake of maintainability, roadmap considerations, and time, Rover intentionally lacks certain features of the Apollo CLI. Some of these features might be added at a later date, but there is no timeline for their release.
-
-### Client commands
-
-Rover's focus is around providing an excellent graph management experience. For that reason, we have intentionally omitted commands that focus on client project development, such as `client:codegen` and `client:check`.
-
 ### Globs
 
 The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover intentionally leaves globs off of file specifiers for initial release.
@@ -295,4 +287,25 @@ apollo service:push --serviceName users
 # globs don't work natively with Rover, so you can use a command like `awk 1`
 # to combine multiple files on *nix machines
 awk 1 *.graphql | rover subgraph publish my-graph@prod --name users --schema -
+```
+
+### Validate client operations against a schema
+
+```bash
+## Apollo CLI ##
+apollo client:check --variant=staging
+
+## Rover ##
+rover client check my-graph@staging \
+  --include "src/**/*.graphql"
+```
+
+### Extract embedded GraphQL from source files
+
+```bash
+## Apollo CLI ##
+apollo client:extract --variant=staging --outputFile operations.json
+
+## Rover ##
+rover client extract --out-dir graphql
 ```
