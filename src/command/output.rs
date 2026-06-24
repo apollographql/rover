@@ -1839,6 +1839,21 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             .unwrap();
         assert!(stdout.contains("\"__schema\""));
         assert!(stdout.contains('\n'));
+
+        let swapi: serde_json::Value = serde_json::from_str(include_str!(
+            "../../crates/rover-client/src/operations/graph/introspect/fixtures/swapi-introspection.json"
+        ))
+        .unwrap();
+        let actual_json = JsonOutput::from(&RoverOutput::IntrospectionJson(swapi.clone()));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "introspection_response": swapi,
+                "success": true
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]

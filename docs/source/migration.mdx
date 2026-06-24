@@ -123,7 +123,7 @@ This separation of steps makes Rover's use of introspection more flexible and tr
 
 If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` directly to a file. Find more about how stdin/stdout works with Rover [here](./conventions#io).
 
-If you need introspection JSON (`{ "__schema": ... }`) instead of SDL—for example, to replace `apollo service:download` or `apollo schema:download`—pass `--introspection-json` to `graph introspect`. See [`graph introspect`](/rover/commands/graphs#graph-introspect) for details.
+If you need introspection JSON (`{ "__schema": ... }`) instead of SDL—for example, to replace `apollo service:download` or `apollo schema:download`—use `--format json` with `graph introspect`. See [`graph introspect`](/rover/commands/graphs#graph-introspect) for details.
 
 ## Monolithic vs. federated graphs
 
@@ -173,8 +173,8 @@ rover graph fetch my-graph@prod --output schema.graphql
 apollo service:download --endpoint http://localhost:4000
 
 ## Rover ##
-# use --introspection-json for the legacy JSON format; default output is SDL
-rover graph introspect http://localhost:4000 --introspection-json --output schema.json
+# use --format json for introspection JSON; default output is SDL
+rover graph introspect http://localhost:4000 --format json | jq '.data.introspection_response' > schema.json
 ```
 
 ### Publishing a monolithic schema to the Apollo graph registry

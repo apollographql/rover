@@ -59,14 +59,14 @@ rover graph introspect http://example.com/graphql --header "Authorization: Beare
 
 #### Introspection JSON output
 
-By default, `graph introspect` outputs the schema as SDL. Pass `--introspection-json` to emit GraphQL introspection JSON (`{ "__schema": ... }`) instead. This matches the format produced by legacy Apollo CLI commands such as `apollo service:download` and `apollo schema:download`, and is useful when migrating workflows that expect introspection JSON (for example, tools that consumed output from `apollo client:download-schema` against a running endpoint).
+By default, `graph introspect` outputs the schema as SDL. Use `--format json` to get machine-readable GraphQL introspection JSON. In the JSON envelope, `data.introspection_response` is the `{ "__schema": ... }` object. This matches the format produced by legacy Apollo CLI commands such as `apollo service:download` and `apollo schema:download`, and is useful when migrating workflows that expect introspection JSON (for example, tools that consumed output from `apollo client:download-schema` against a running endpoint).
 
 ```shell
-rover graph introspect http://localhost:4000 --introspection-json
-rover graph introspect http://localhost:4000 --introspection-json --output schema.json
+rover graph introspect http://localhost:4000 --format json
+rover graph introspect http://localhost:4000 --format json | jq '.data.introspection_response' > schema.json
 ```
 
-With `--format json`, `data.introspection_response` contains the introspection object rather than an SDL string.
+To save the bare introspection JSON file (without Rover's envelope), pipe through `jq` as shown above. No field or value transformation is needed beyond traversing the envelope.
 
 SDL remains the default output format and is still recommended when publishing schemas to GraphOS.
 
@@ -85,7 +85,7 @@ You can also save SDL output to a local `.graphql` file like so:
 rover graph fetch my-graph@my-variant --output prod-schema.graphql
 ```
 
-To save introspection JSON instead of SDL, pass `--introspection-json` to `graph introspect`. See [Introspection JSON output](#introspection-json-output) for details.
+To save introspection JSON instead of SDL, use `--format json` with `graph introspect`. See [Introspection JSON output](#introspection-json-output) for details.
 
 For more on passing values via `stdout`, see [Conventions](/rover/conventions#using-stdout).
 
