@@ -170,3 +170,67 @@ impl ParsedInputs {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use speculoos::prelude::*;
+
+    use super::ParsedInputs;
+
+    #[test]
+    fn anonymous_operation_in_file_returns_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
+        std::fs::write(&file, "query { field }").unwrap();
+        let result = ParsedInputs::from_file(&file);
+        assert_that!(result).is_err();
+        assert_that!(result.unwrap_err().to_string()).contains("Please name your query");
+    }
+
+    #[test]
+    fn duplicate_operation_in_same_file_returns_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
+        std::fs::write(&file, "query GetUser { id }\nquery GetUser { name }").unwrap();
+        let result = ParsedInputs::from_file(&file);
+        assert_that!(result).is_err();
+        assert_that!(result.unwrap_err().to_string()).contains("GetUser");
+    }
+
+    #[test]
+    fn duplicate_operation_across_files_returns_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut combined = ParsedInputs::default();
+        for (name, src) in &[
+            ("a.graphql", "query GetUser { id }"),
+            ("b.graphql", "query GetUser { name }"),
+        ] {
+            let file = Utf8PathBuf::from_path_buf(temp.path().join(name)).unwrap();
+            std::fs::write(&file, src).unwrap();
+            let parsed = ParsedInputs::from_file(&file).unwrap();
+            if combined.merge(parsed).is_err() {
+                return; // expected error path reached
+            }
+        }
+        panic!("expected duplicate operation error");
+    }
+
+    #[test]
+    fn duplicate_fragment_across_files_returns_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut combined = ParsedInputs::default();
+        for (name, src) in &[
+            ("a.graphql", "fragment F on T { id }"),
+            ("b.graphql", "fragment F on T { name }"),
+        ] {
+            let file = Utf8PathBuf::from_path_buf(temp.path().join(name)).unwrap();
+            std::fs::write(&file, src).unwrap();
+            let parsed = ParsedInputs::from_file(&file).unwrap();
+            if combined.merge(parsed).is_err() {
+                return; // expected error path reached
+            }
+        }
+        panic!("expected duplicate fragment error");
+    }
+}
