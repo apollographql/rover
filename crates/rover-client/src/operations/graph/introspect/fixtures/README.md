@@ -9,70 +9,38 @@ Used by `introspection_json::tests::swapi_structural_parity_with_legacy_introspe
 | File | Role |
 |------|------|
 | `swapi.graphql` | SDL input for `sdl_to_introspection_json()` |
-| `swapi-introspection.json` | Reference output: `{ "__schema": ... }` from graphql-js `introspectionFromSchema`, matching legacy `apollo schema:download` |
+| `swapi-introspection.json` | Reference output: server-sourced `{ "__schema": ... }`, the external baseline the parity test compares against |
 | `swapi.json` | Raw GraphQL introspection **response envelope** (`{ "data": { "__schema": ... } }`) from the server; used by `schema.rs` encode tests |
 
 **Source endpoint:** `https://swapi-graphql.netlify.app/graphql`
 
 ### Regenerate `swapi.graphql` and `swapi-introspection.json`
 
-These two files should be regenerated together. The JSON file is **not** the raw server response; it is introspection JSON rebuilt from the resolved schema, same as the old Apollo CLI (`JSON.stringify(introspectionFromSchema(schema))`).
+These are committed **static baselines** and rarely need refreshing. They only need to change if the upstream SWAPI schema changes meaningfully. No JavaScript toolchain is required to regenerate them.
 
-**Option A — graphql-js (recommended; works on current Node):**
+`swapi-introspection.json` is the server-sourced introspection JSON envelope's inner `__schema` (`{ "__schema": ... }`). It is kept independent of our own `sdl_to_introspection_json()` on purpose, so the parity test compares our output against an external reference rather than against itself.
 
-```bash
-cd crates/rover-client/src/operations/graph/introspect/fixtures
-
-node <<'EOF'
-const { buildClientSchema, getIntrospectionQuery, printSchema, introspectionFromSchema } = require('graphql');
-const https = require('https');
-const fs = require('fs');
-
-const endpoint = 'https://swapi-graphql.netlify.app/graphql';
-const body = JSON.stringify({ query: getIntrospectionQuery() });
-
-const url = new URL(endpoint);
-const req = https.request({
-  hostname: url.hostname,
-  path: url.pathname,
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'Content-Length': body.length },
-}, res => {
-  let data = '';
-  res.on('data', c => data += c);
-  res.on('end', () => {
-    const result = JSON.parse(data);
-    if (result.errors) throw new Error(JSON.stringify(result.errors));
-    const schema = buildClientSchema(result.data);
-    fs.writeFileSync('swapi.graphql', printSchema(schema));
-    fs.writeFileSync('swapi-introspection.json', JSON.stringify(introspectionFromSchema(schema), null, 2));
-    console.log('Wrote swapi.graphql and swapi-introspection.json');
-  });
-});
-req.on('error', e => { console.error(e); process.exit(1); });
-req.write(body);
-req.end();
-EOF
-```
-
-Requires `npm install graphql` in a temp directory, or run from a folder that already has `graphql` installed.
-
-**Option B — legacy Apollo CLI:**
+**Refresh `swapi.graphql` (SDL input) with Rover itself:**
 
 ```bash
 cd crates/rover-client/src/operations/graph/introspect/fixtures
 
-# Apollo CLI requires Node < 17; use nvm if needed:
-# nvm install 16 && nvm use 16
-
-npx apollo client:download-schema swapi.graphql \
-  --endpoint=https://swapi-graphql.netlify.app/graphql
-
-npx apollo client:download-schema swapi-introspection.json \
-  --endpoint=https://swapi-graphql.netlify.app/graphql
+cargo rover graph introspect https://swapi-graphql.netlify.app/graphql > swapi.graphql
 ```
 
-Use the `.graphql` extension for SDL and `.json` for introspection JSON.
+**Refresh `swapi-introspection.json` (reference) with `curl` + `jq`:**
+
+Run the same introspection query used by the operation (`../introspect_query.graphql`) against the endpoint and keep only the `__schema` object, dropping the `{ "data": ... }` envelope:
+
+```bash
+cd crates/rover-client/src/operations/graph/introspect/fixtures
+
+QUERY=$(jq -Rs . < ../introspect_query.graphql)
+curl -s https://swapi-graphql.netlify.app/graphql \
+  -H 'Content-Type: application/json' \
+  -d "{\"query\": $QUERY}" \
+  | jq '{ "__schema": .data.__schema }' > swapi-introspection.json
+```
 
 ### Regenerate `swapi.json` (raw server response)
 
@@ -94,7 +62,7 @@ cargo test -p rover-client introspection_json
 cargo test -p rover-client graph::introspect::schema
 ```
 
-The parity test compares structurally, not byte-for-byte, because apollo-compiler `partial_execute` and graphql-js `introspectionFromSchema` may differ on meta-type fields, key ordering, and spec additions such as `specifiedBy` / `isRepeatable`.
+The parity test compares structurally, not byte-for-byte, because apollo-compiler `partial_execute` and the server's introspection response may differ on meta-type fields, key ordering, and spec additions such as `specifiedBy` / `isRepeatable`.
 
 ## Other fixtures
 

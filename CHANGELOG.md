@@ -22,7 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **Add `--introspection-json` to `graph introspect` - @SharkBaitDLS**
+- **Add `--introspection-json` to `graph introspect` - @smyrick**
 
   `rover graph introspect` now accepts `--introspection-json` to emit the schema as GraphQL introspection JSON (`{ "__schema": ... }`) instead of SDL, matching the legacy `apollo schema:download` format. With `--format json`, `data.introspection_response` is the introspection object rather than an SDL string.
 
