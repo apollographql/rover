@@ -36,6 +36,11 @@ rover client check my-graph@staging \
 
 If your operations are embedded in TypeScript source files as `gql` tagged template literals, use [`rover client extract`](./commands/client#client-extract) first to generate standalone `.graphql` files, then run `rover client check` against those.
 
+```bash
+rover client extract --out-dir graphql
+rover client check my-graph@staging --include "graphql/**/*.graphql"
+```
+
 All operations must have names. Anonymous operations are rejected with an error.
 
 ## Authentication
@@ -51,7 +56,7 @@ APOLLO_KEY=your-api-key rover client check my-graph@my-variant \
 
 During development, your application might be executing GraphQL operations against a locally running server with a schema that differs from your production server's schema. Because schemas can differ, it's important to always check your operations against the schema for a particular environment before you push client changes to that environment.
 
-Specify the target variant directly in the graph ref:
+Specify the target variant, `production` in this example, directly in the graph ref:
 
 ```bash
 rover client check my-graph@production --include "src/**/*.graphql"
@@ -61,7 +66,7 @@ rover client check my-graph@production --include "src/**/*.graphql"
 
 Your application can incorporate `rover client check` into its continuous delivery pipeline to help ensure that new and modified operations are valid before they go live.
 
-Here's a GitHub Actions configuration excerpt that incorporates the command:
+For example, the following GitHub Actions configuration excerpt incorporates the command:
 
 ```yaml title=".github/workflows/check.yml"
 - name: Validate client operations
