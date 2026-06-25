@@ -80,7 +80,7 @@ pub fn sdl_to_introspection_json(sdl: &str) -> Result<Value, RoverClientError> {
 }
 
 /// Decode `{ "__schema": ... }` introspection JSON to SDL and validate with apollo-compiler.
-#[cfg(any(test, feature = "introspection-test-support"))]
+#[cfg(any(test, feature = "testing"))]
 pub fn introspection_json_to_validated_sdl(
     introspection: &Value,
 ) -> Result<String, RoverClientError> {

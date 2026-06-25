@@ -8,7 +8,6 @@ version = "0.0.0"
 publish = false
 
 [features]
-introspection-test-support = []
 testing = ["dep:mockall", "rover-tower/test"]
 
 [dependencies]
