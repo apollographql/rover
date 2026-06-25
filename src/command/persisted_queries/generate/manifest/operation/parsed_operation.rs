@@ -4,7 +4,7 @@ use apollo_compiler::{Node, ast};
 use camino::Utf8PathBuf;
 
 use super::parsed_fragment::ParsedFragment;
-use super::super::{
+use crate::command::persisted_queries::generate::manifest::{
     ast_ext::{FragmentDefinitionExt, OperationDefinitionExt, SelectionSetExt},
     error::GenerateError,
     printer::{PrintableDefinition, print_document},
@@ -104,7 +104,7 @@ mod tests {
 
     use super::ParsedOperation;
     use super::super::parsed_fragment::ParsedFragment;
-    use super::super::super::ast_ext::SelectionSetExt;
+    use crate::command::persisted_queries::generate::manifest::ast_ext::SelectionSetExt;
 
     fn parse_doc(src: &str) -> (BTreeMap<String, ParsedOperation>, BTreeMap<String, ParsedFragment>) {
         let doc = ApolloParser::new().parse_ast(src, "test.graphql").unwrap();

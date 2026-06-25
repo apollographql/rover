@@ -10,7 +10,7 @@ use super::{
     parsed_operation::ParsedOperation,
     persisted_query_operation::{PersistedQueryOperation, sha256_hex},
 };
-use super::super::{
+use crate::command::persisted_queries::generate::manifest::{
     ast_ext::SelectionSetExt,
     error::{GenerateError, ParseFailure},
 };
