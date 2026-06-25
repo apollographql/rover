@@ -143,7 +143,9 @@ impl ParsedInputs {
         Ok(())
     }
 
-    pub(crate) fn generate_operations(&self) -> Result<Vec<PersistedQueryOperation>, GenerateError> {
+    pub(crate) fn generate_operations(
+        &self,
+    ) -> Result<Vec<PersistedQueryOperation>, GenerateError> {
         let mut operation_ids = HashMap::new();
         self.operations
             .iter()

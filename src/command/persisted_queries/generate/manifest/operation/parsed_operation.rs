@@ -87,7 +87,11 @@ impl ParsedOperation {
         op.variables.retain(|v| used.contains(v.name.as_str()));
 
         let definitions = std::iter::once(PrintableDefinition::Operation(operation_node))
-            .chain(fragment_definitions.into_iter().map(PrintableDefinition::Fragment))
+            .chain(
+                fragment_definitions
+                    .into_iter()
+                    .map(PrintableDefinition::Fragment),
+            )
             .collect::<Vec<_>>();
 
         Ok(print_document(&definitions))
@@ -102,11 +106,15 @@ mod tests {
     use camino::Utf8PathBuf;
     use speculoos::prelude::*;
 
-    use super::ParsedOperation;
-    use super::super::parsed_fragment::ParsedFragment;
+    use super::{super::parsed_fragment::ParsedFragment, ParsedOperation};
     use crate::command::persisted_queries::generate::manifest::ast_ext::SelectionSetExt;
 
-    fn parse_doc(src: &str) -> (BTreeMap<String, ParsedOperation>, BTreeMap<String, ParsedFragment>) {
+    fn parse_doc(
+        src: &str,
+    ) -> (
+        BTreeMap<String, ParsedOperation>,
+        BTreeMap<String, ParsedFragment>,
+    ) {
         let doc = ApolloParser::new().parse_ast(src, "test.graphql").unwrap();
         let mut operations = BTreeMap::new();
         let mut fragments = BTreeMap::new();
