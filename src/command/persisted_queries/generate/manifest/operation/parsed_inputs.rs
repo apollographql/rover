@@ -184,9 +184,11 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
         std::fs::write(&file, "query { field }").unwrap();
-        let result = ParsedInputs::from_file(&file);
-        assert_that!(result).is_err();
-        assert_that!(result.unwrap_err().to_string()).contains("Please name your query");
+        let result = ParsedInputs::from_file(&file).map_err(|e| e.to_string());
+
+        assert_that!(result).is_err().is_equal_to(format!(
+            "{file}: Anonymous GraphQL operations are not supported. Please name your query in {file}."
+        ));
     }
 
     #[test]
@@ -194,9 +196,11 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
         std::fs::write(&file, "query GetUser { id }\nquery GetUser { name }").unwrap();
-        let result = ParsedInputs::from_file(&file);
-        assert_that!(result).is_err();
-        assert_that!(result.unwrap_err().to_string()).contains("GetUser");
+        let result = ParsedInputs::from_file(&file).map_err(|e| e.to_string());
+
+        assert_that!(result).is_err().is_equal_to(format!(
+            "{file}: Operation named \"GetUser\" is already defined in {file}. Duplicate found in {file}."
+        ));
     }
 
     #[test]
