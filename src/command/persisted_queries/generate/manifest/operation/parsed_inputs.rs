@@ -202,36 +202,38 @@ mod tests {
     #[test]
     fn duplicate_operation_across_files_returns_error() {
         let temp = tempfile::tempdir().unwrap();
+        let a = Utf8PathBuf::from_path_buf(temp.path().join("a.graphql")).unwrap();
+        let b = Utf8PathBuf::from_path_buf(temp.path().join("b.graphql")).unwrap();
+        std::fs::write(&a, "query GetUser { id }").unwrap();
+        std::fs::write(&b, "query GetUser { name }").unwrap();
+
         let mut combined = ParsedInputs::default();
-        for (name, src) in &[
-            ("a.graphql", "query GetUser { id }"),
-            ("b.graphql", "query GetUser { name }"),
-        ] {
-            let file = Utf8PathBuf::from_path_buf(temp.path().join(name)).unwrap();
-            std::fs::write(&file, src).unwrap();
-            let parsed = ParsedInputs::from_file(&file).unwrap();
-            if combined.merge(parsed).is_err() {
-                return; // expected error path reached
-            }
-        }
-        panic!("expected duplicate operation error");
+        combined.merge(ParsedInputs::from_file(&a).unwrap()).unwrap();
+        let result = combined
+            .merge(ParsedInputs::from_file(&b).unwrap())
+            .map_err(|e| e.to_string());
+
+        assert_that!(result).is_err().is_equal_to(format!(
+            "Operation named \"GetUser\" is already defined in {a}. Duplicate found in {b}."
+        ));
     }
 
     #[test]
     fn duplicate_fragment_across_files_returns_error() {
         let temp = tempfile::tempdir().unwrap();
+        let a = Utf8PathBuf::from_path_buf(temp.path().join("a.graphql")).unwrap();
+        let b = Utf8PathBuf::from_path_buf(temp.path().join("b.graphql")).unwrap();
+        std::fs::write(&a, "fragment F on T { id }").unwrap();
+        std::fs::write(&b, "fragment F on T { name }").unwrap();
+
         let mut combined = ParsedInputs::default();
-        for (name, src) in &[
-            ("a.graphql", "fragment F on T { id }"),
-            ("b.graphql", "fragment F on T { name }"),
-        ] {
-            let file = Utf8PathBuf::from_path_buf(temp.path().join(name)).unwrap();
-            std::fs::write(&file, src).unwrap();
-            let parsed = ParsedInputs::from_file(&file).unwrap();
-            if combined.merge(parsed).is_err() {
-                return; // expected error path reached
-            }
-        }
-        panic!("expected duplicate fragment error");
+        combined.merge(ParsedInputs::from_file(&a).unwrap()).unwrap();
+        let result = combined
+            .merge(ParsedInputs::from_file(&b).unwrap())
+            .map_err(|e| e.to_string());
+
+        assert_that!(result).is_err().is_equal_to(format!(
+            "Fragment named \"F\" is already defined in {a}. Duplicate found in {b}."
+        ));
     }
 }
