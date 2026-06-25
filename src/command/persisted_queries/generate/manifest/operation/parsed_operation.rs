@@ -106,7 +106,8 @@ mod tests {
     use camino::Utf8PathBuf;
     use speculoos::prelude::*;
 
-    use super::{super::parsed_fragment::ParsedFragment, ParsedOperation};
+    use super::ParsedOperation;
+    use crate::command::persisted_queries::generate::manifest::operation::parsed_fragment::ParsedFragment;
     use crate::command::persisted_queries::generate::manifest::ast_ext::SelectionSetExt;
 
     fn parse_doc(
