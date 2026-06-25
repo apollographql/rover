@@ -228,11 +228,11 @@ impl UseCaseSelected {
     pub async fn select_template(
         self,
         options: &ProjectTemplateOpt,
-        accept_invalid_certs: bool,
+        client_config: &StudioClientConfig,
     ) -> RoverResult<TemplateSelected> {
         // Fetch the template to get the list of files
         let repo_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new(accept_invalid_certs);
+        let mut template_fetcher = InitTemplateFetcher::new(client_config);
         let template_options = template_fetcher.call(repo_ref).await?;
 
         // MCP flow is handled in separate state machine, should not reach here with --mcp flag
@@ -818,12 +818,12 @@ impl MCPSetupTypeSelected {
 }
 
 impl MCPDataSourceSelected {
-    pub async fn select_organization(
+    pub async fn select_organization<'c>(
         self,
         options: &ProjectOrganizationOpt,
         profile: &ProfileOpt,
-        client_config: &StudioClientConfig,
-    ) -> RoverResult<MCPOrganizationSelected> {
+        client_config: &'c StudioClientConfig,
+    ) -> RoverResult<MCPOrganizationSelected<'c>> {
         let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
             Err(_) => {
@@ -855,12 +855,12 @@ impl MCPDataSourceSelected {
             organization,
             setup_type: self.setup_type,
             data_source_type: self.data_source_type,
-            accept_invalid_certs: client_config.accept_invalid_certs(),
+            client_config,
         })
     }
 }
 
-impl MCPOrganizationSelected {
+impl MCPOrganizationSelected<'_> {
     pub async fn compose_mcp_template(self) -> RoverResult<MCPTemplateComposed> {
         // Determine use case and template based on data source type
         let use_case = match self.data_source_type {
@@ -869,7 +869,7 @@ impl MCPOrganizationSelected {
         };
 
         let repo_ref = "release/v3";
-        let mut template_fetcher = InitTemplateFetcher::new(self.accept_invalid_certs);
+        let mut template_fetcher = InitTemplateFetcher::new(self.client_config);
 
         // Select template based on data source type
         let template_id = match self.data_source_type {
