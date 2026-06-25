@@ -212,7 +212,9 @@ mod tests {
         std::fs::write(&b, "query GetUser { name }").unwrap();
 
         let mut combined = ParsedInputs::default();
-        combined.merge(ParsedInputs::from_file(&a).unwrap()).unwrap();
+        combined
+            .merge(ParsedInputs::from_file(&a).unwrap())
+            .unwrap();
         let result = combined
             .merge(ParsedInputs::from_file(&b).unwrap())
             .map_err(|e| e.to_string());
@@ -231,7 +233,9 @@ mod tests {
         std::fs::write(&b, "fragment F on T { name }").unwrap();
 
         let mut combined = ParsedInputs::default();
-        combined.merge(ParsedInputs::from_file(&a).unwrap()).unwrap();
+        combined
+            .merge(ParsedInputs::from_file(&a).unwrap())
+            .unwrap();
         let result = combined
             .merge(ParsedInputs::from_file(&b).unwrap())
             .map_err(|e| e.to_string());

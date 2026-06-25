@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod manifest;
 
 // Full Generate command (file discovery, glob args, output) coming in a later PR.

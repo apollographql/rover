@@ -107,8 +107,9 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::ParsedOperation;
-    use crate::command::persisted_queries::generate::manifest::operation::parsed_fragment::ParsedFragment;
-    use crate::command::persisted_queries::generate::manifest::ast_ext::SelectionSetExt;
+    use crate::command::persisted_queries::generate::manifest::{
+        ast_ext::SelectionSetExt, operation::parsed_fragment::ParsedFragment,
+    };
 
     fn parse_doc(
         src: &str,
