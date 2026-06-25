@@ -14,7 +14,6 @@ use super::super::{
     ast_ext::SelectionSetExt,
     error::{GenerateError, ParseFailure},
 };
-use crate::RoverResult;
 
 #[derive(Debug, Default)]
 pub(crate) struct ParsedInputs {
@@ -98,7 +97,7 @@ impl ParsedInputs {
         Ok(parsed)
     }
 
-    pub(crate) fn from_files(files: Vec<Utf8PathBuf>) -> RoverResult<Self> {
+    pub(crate) fn from_files(files: Vec<Utf8PathBuf>) -> Result<Self, GenerateError> {
         let (parsed, failures): (Vec<_>, Vec<_>) = files
             .into_iter()
             .map(|file| Self::from_file(&file))
@@ -118,7 +117,7 @@ impl ParsedInputs {
             })
     }
 
-    pub(super) fn merge(&mut self, other: ParsedInputs) -> RoverResult<()> {
+    pub(super) fn merge(&mut self, other: ParsedInputs) -> Result<(), GenerateError> {
         for (name, operation) in other.operations {
             if let Some(existing) = self.operations.get(&name) {
                 Err(GenerateError::DuplicateOperation {
@@ -144,7 +143,7 @@ impl ParsedInputs {
         Ok(())
     }
 
-    pub(crate) fn generate_operations(&self) -> RoverResult<Vec<PersistedQueryOperation>> {
+    pub(crate) fn generate_operations(&self) -> Result<Vec<PersistedQueryOperation>, GenerateError> {
         let mut operation_ids = HashMap::new();
         self.operations
             .iter()

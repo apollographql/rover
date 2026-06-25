@@ -9,7 +9,6 @@ use super::super::{
     error::GenerateError,
     printer::{PrintableDefinition, print_document},
 };
-use crate::RoverResult;
 
 #[derive(Debug, Clone)]
 pub(super) struct ParsedOperation {
@@ -23,7 +22,7 @@ impl ParsedOperation {
         &self,
         name: &str,
         all_fragments: &BTreeMap<String, ParsedFragment>,
-    ) -> RoverResult<BTreeSet<String>> {
+    ) -> Result<BTreeSet<String>, GenerateError> {
         let mut reachable = BTreeSet::new();
         let mut queue: Vec<&str> = self
             .direct_fragment_spreads
@@ -52,7 +51,7 @@ impl ParsedOperation {
         &self,
         name: &str,
         all_fragments: &BTreeMap<String, ParsedFragment>,
-    ) -> RoverResult<String> {
+    ) -> Result<String, GenerateError> {
         let reachable = self.reachable_fragment_names(name, all_fragments)?;
         let mut operation_node = self.operation.clone();
         {
