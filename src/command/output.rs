@@ -122,6 +122,7 @@ pub enum RoverOutput {
     },
     Profiles(Vec<String>),
     Introspection(String),
+    IntrospectionJson(serde_json::Value),
     ErrorExplanation(String),
     ReadmeFetchResponse {
         graph_ref: GraphRef,
@@ -488,6 +489,9 @@ impl RoverOutput {
             RoverOutput::Introspection(introspection_response) => {
                 Some((introspection_response).to_string())
             }
+            RoverOutput::IntrospectionJson(introspection_response) => Some(
+                serde_json::to_string_pretty(introspection_response).map_err(io::Error::other)?,
+            ),
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
@@ -761,6 +765,9 @@ impl RoverOutput {
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
             }
+            RoverOutput::IntrospectionJson(introspection_response) => {
+                json!({ "introspection_response": introspection_response })
+            }
             RoverOutput::ErrorExplanation(explanation_markdown) => {
                 json!({ "explanation_markdown": explanation_markdown })
             }
@@ -923,7 +930,9 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
-            RoverOutput::Introspection(_) => Some("Introspection Response"),
+            RoverOutput::Introspection(_) | RoverOutput::IntrospectionJson(_) => {
+                Some("Introspection Response")
+            }
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
             _ => None,
@@ -1795,6 +1804,51 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "json_version": "1",
             "data": {
                 "introspection_response": "i cant believe its not a real introspection response",
+                "success": true
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn introspection_json_object_output() {
+        let introspection = json!({
+            "__schema": {
+                "queryType": { "name": "Query" },
+                "mutationType": null,
+                "subscriptionType": null,
+                "types": [],
+                "directives": []
+            }
+        });
+        let actual_json = JsonOutput::from(&RoverOutput::IntrospectionJson(introspection.clone()));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "introspection_response": introspection,
+                "success": true
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+
+        let stdout = RoverOutput::IntrospectionJson(introspection)
+            .get_stdout()
+            .unwrap()
+            .unwrap();
+        assert!(stdout.contains("\"__schema\""));
+        assert!(stdout.contains('\n'));
+
+        let swapi: serde_json::Value = serde_json::from_str(include_str!(
+            "../../crates/rover-client/src/operations/graph/introspect/fixtures/swapi-introspection.json"
+        ))
+        .unwrap();
+        let actual_json = JsonOutput::from(&RoverOutput::IntrospectionJson(swapi.clone()));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "introspection_response": swapi,
                 "success": true
             },
             "error": null

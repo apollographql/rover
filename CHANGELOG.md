@@ -20,6 +20,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`graph introspect --format json` now returns GraphQL introspection JSON - @smyrick**
+
+  `rover graph introspect` with `--format json` now puts the schema as a GraphQL introspection object (`{ "__schema": ... }`) under `data.introspection_response` instead of an SDL string. Default plain output remains SDL. This is a behavior change for existing `--format json` consumers: traverse `data.introspection_response` to get the introspection object (for example, `jq '.data.introspection_response'`). No field or value transformation is needed beyond envelope traversal.
+
 ## 🚀 Features
 
 - **Add `rover supergraph config expand` to preview an expanded supergraph config - @SharkBaitDLS PR #3447 fixes #1579**
