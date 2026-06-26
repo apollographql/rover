@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `rover supergraph config expand` to preview an expanded supergraph config - @SharkBaitDLS PR #3447 fixes #1579**
+
+  `rover supergraph config expand --config ./supergraph.yaml` prints your supergraph configuration file with all variable references (e.g. `${env.PRODUCTS_URL}` and `${file.path}`) expanded. This makes it easy to confirm what Rover actually resolves your config to before a composition run. Use `--format json` to get the expanded config under an `expanded_config` field.
+
 - **Add `--changelog-message` to `graph publish` and `subgraph publish` - @SharkBaitDLS PR #3398 fixes #1884 #292**
 
   `rover graph publish` and `rover subgraph publish` now accept `--changelog-message <MESSAGE>` to attach a note to the publish in the Studio schema changelog. The publish output has also been enriched: `graph publish` now reports the schema hash and total named type count and `subgraph publish` now includes the resulting supergraph composition hash when one is available.

@@ -1,0 +1,12 @@
+---
+source: tests/integration/supergraph/config.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "expanded_config": "federation_version: =2.9.0\nsubgraphs:\n  products:\n    routing_url: https://products.example.com\n    schema:\n      subgraph_url: https://products.example.com\n      introspection_headers:\n        Authorization: default-token\n  users:\n    routing_url: http://localhost:4002\n    schema:\n      file: ./users.graphql\n",
+    "success": true
+  },
+  "error": null
+}

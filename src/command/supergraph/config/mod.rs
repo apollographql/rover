@@ -1,3 +1,4 @@
+mod expand;
 mod schema;
 
 use clap::Parser;
@@ -15,12 +16,17 @@ pub struct Config {
 pub enum Command {
     /// Print the Schema associated with the `supergraph.yaml` file for use in editors
     Schema(schema::Schema),
+
+    /// Print the `supergraph.yaml` file with all variable references (e.g. `${env.X}` and
+    /// `${file.X}`) expanded
+    Expand(expand::Expand),
 }
 
 impl Config {
     pub fn run(&self) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Schema(command) => command.run(),
+            Command::Expand(command) => command.run(),
         }
     }
 }
