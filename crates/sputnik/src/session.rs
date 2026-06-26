@@ -4,9 +4,9 @@ use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
 use reqwest::{Client, Url};
 use rover_client::shared::GitContext;
+use rover_std::sha256_hex;
 use semver::Version;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use wsl::is_wsl;
 
@@ -162,20 +162,12 @@ impl Session {
 
 /// returns sha256 digest of the directory the tool was executed from.
 fn get_cwd_hash(current_dir: &Utf8PathBuf) -> String {
-    Sha256::digest(current_dir.as_str().as_bytes())
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    sha256_hex(current_dir.as_str())
 }
 
 /// returns sha256 digest of the repository the tool was executed from.
 fn get_repo_hash() -> Option<String> {
-    GitContext::default().remote_url.map(|remote_url| {
-        Sha256::digest(remote_url.as_bytes())
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
-    })
+    GitContext::default().remote_url.map(sha256_hex)
 }
 
 #[cfg(test)]

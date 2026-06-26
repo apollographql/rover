@@ -3,12 +3,11 @@ use std::collections::{BTreeMap, HashMap};
 use apollo_compiler::{ast, parser::Parser as ApolloParser};
 use camino::{Utf8Path, Utf8PathBuf};
 use itertools::Itertools;
-use rover_std::Fs;
+use rover_std::{Fs, sha256_hex};
 
 use super::{
-    parsed_fragment::ParsedFragment,
-    parsed_operation::ParsedOperation,
-    persisted_query_operation::{PersistedQueryOperation, sha256_hex},
+    parsed_fragment::ParsedFragment, parsed_operation::ParsedOperation,
+    persisted_query_operation::PersistedQueryOperation,
 };
 use crate::command::persisted_queries::generate::manifest::{
     ast_ext::SelectionSetExt,
