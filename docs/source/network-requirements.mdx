@@ -4,41 +4,41 @@ subtitle: Hostnames Rover contacts at runtime
 description: A complete list of hostnames Rover contacts at runtime, whether each is required or optional, and which environment variables can override them for air-gapped or proxy environments.
 ---
 
-If your environment restricts outbound network traffic, use this page to configure your firewall allowlist for Rover. For proxy server configuration, see [Using Rover with a Proxy Server](./proxy).
+If your environment restricts outbound network traffic, use the table below to configure your firewall allowlist. For proxy server configuration, see [Using Rover with a Proxy Server](./proxy).
 
 ## Runtime endpoints
 
-The following table lists every hostname Rover contacts at runtime, why it contacts it, and which environment variable (if any) can override or disable the connection.
+The following table lists every hostname Rover contacts at runtime, its purpose, whether it's required, and the environment variable (if any) that overrides or disables the connection.
 
 | Hostname | Purpose | Required? | Override env var |
 |---|---|---|---|
-| `api.apollographql.com` | GraphOS schema registry API — used by all commands that publish, check, or fetch schemas and graph configurations | Yes | `APOLLO_REGISTRY_URL` |
-| `rover.apollo.dev` | Plugin and binary downloads — `rover dev` and `rover supergraph compose` download the composition plugin and router binary on first run | When using `dev` or `supergraph compose` | `APOLLO_ROVER_DOWNLOAD_HOST` |
-| `rover.apollo.dev` | Anonymous usage telemetry | No | Set `APOLLO_TELEMETRY_DISABLED=true` to disable; set `APOLLO_TELEMETRY_URL` to redirect to an internal endpoint |
+| `api.apollographql.com` | GraphOS schema registry API. All commands that publish, check, or fetch schemas and graph configurations use this endpoint. | Yes | `APOLLO_REGISTRY_URL` |
+| `rover.apollo.dev` | Plugin and binary downloads. `rover dev` and `rover supergraph compose` download the composition plugin and router binary on first run. | When using `dev` or `supergraph compose` | `APOLLO_ROVER_DOWNLOAD_HOST` |
+| `rover.apollo.dev` | Anonymous usage telemetry | No | Set `APOLLO_TELEMETRY_DISABLED=true` to disable. Set `APOLLO_TELEMETRY_URL` to redirect to an internal endpoint. |
 | `rover.apollo.dev` | Template metadata for `rover template list` | No | `APOLLO_TEMPLATES_API` |
-| `github.com` / `api.github.com` | Automatic version update checks (background, all commands); template archive downloads for `rover template use` and `rover init` | No | Set `APOLLO_ROVER_SKIP_UPDATE=true` to disable update checks |
-| `codeload.github.com` | GitHub's download CDN — `api.github.com` redirects template archive requests here; contacted automatically when `rover template use` or `rover init` downloads a template | When using those commands | — |
-| `specs.apollo.dev` | Federation spec URLs embedded in schema directives — these are identifiers in your SDL, not fetched by Rover at runtime | No | — |
+| `github.com` / `api.github.com` | Automatic version update checks that run in the background with every command. Template archive downloads for `rover template use` and `rover init`. | No | Set `APOLLO_ROVER_SKIP_UPDATE=true` to disable update checks. |
+| `codeload.github.com` | GitHub's download CDN. `api.github.com` redirects template archive requests here when `rover template use` or `rover init` downloads a template. | When using those commands | — |
+| `specs.apollo.dev` | Federation spec URLs embedded in schema directives. Rover doesn't fetch these at runtime—they're identifiers in your SDL. | No | — |
 
 <Note>
 
-Only `api.apollographql.com` is required for core registry operations. All other hostnames are either optional or only contacted when you use specific commands.
+Only `api.apollographql.com` is required for core registry operations. You only need the others when running specific commands.
 
 </Note>
 
 ## Plugin downloads
 
-`rover dev` and `rover supergraph compose` silently download binaries from `rover.apollo.dev` on first run in a given environment. In air-gapped or locked-down environments, these downloads will fail without a clear error message.
+`rover dev` and `rover supergraph compose` automatically download binaries from `rover.apollo.dev` on first run. In air-gapped or restricted environments, these downloads will fail without a clear error message.
 
 <Caution>
 
-If Rover cannot reach `rover.apollo.dev`, commands that require the composition plugin or router binary will fail. Pre-download the required plugins on a reachable machine and transfer them to the restricted environment, or ensure `rover.apollo.dev` is included in your allowlist.
+If Rover can't reach `rover.apollo.dev`, commands that require the composition plugin or router binary will fail. Download the required plugins on a machine with internet access and transfer them to the restricted environment, or include `rover.apollo.dev` in your allowlist.
 
 </Caution>
 
 ## Environment variable reference
 
-The following environment variables control which endpoints Rover contacts. For a full reference of all Rover environment variables, see [Configuring Rover](./configuring).
+The following environment variables control which endpoints Rover contacts. For all Rover environment variables, see [Configuring Rover](./configuring).
 
 | Environment variable | Effect |
 |---|---|
@@ -47,4 +47,4 @@ The following environment variables control which endpoints Rover contacts. For 
 | `APOLLO_TELEMETRY_URL` | Override the telemetry reporting endpoint (default: `https://rover.apollo.dev/telemetry`) |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `true` to disable telemetry entirely |
 | `APOLLO_TEMPLATES_API` | Override the templates metadata endpoint (default: `https://rover.apollo.dev/templates`) |
-| `APOLLO_ROVER_SKIP_UPDATE` | Set to `true` to disable automatic version update checks against GitHub |
+| `APOLLO_ROVER_SKIP_UPDATE` | Set to `true` to disable automatic version update checks |
