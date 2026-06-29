@@ -5088,6 +5088,7 @@ dependencies = [
  "globwalk",
  "notify",
  "rstest",
+ "sha2 0.11.0",
  "speculoos",
  "tap",
  "tempfile",
