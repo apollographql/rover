@@ -10,7 +10,6 @@ pub mod telemetry;
 pub mod template;
 pub mod version;
 
-#[cfg(feature = "composition-js")]
 pub(crate) mod expansion;
 
 /// The environment variable that opts out of *all* of Rover's auto-updating at
