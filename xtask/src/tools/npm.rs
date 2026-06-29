@@ -22,13 +22,6 @@ impl NpmRunner {
             .join("@apollo")
             .join("rover");
 
-        if !npm_installer_package_directory.exists() {
-            return Err(anyhow!(
-                "Rover's npm installer package does not seem to be located here:\n{}\nRun `cargo npm generate` first.",
-                &npm_installer_package_directory
-            ));
-        }
-
         Ok(Self {
             runner,
             npm_installer_package_directory,
@@ -54,7 +47,9 @@ impl NpmRunner {
 
     fn generate_packages(&self) -> Result<()> {
         let runner = Runner::new("cargo");
-        runner.exec(&["npm", "generate"], &PKG_PROJECT_ROOT, None)?;
+        // --stub generates the package structure without cross-compiled binaries;
+        // CI publishes real per-platform packages via the publish_platform_packages job.
+        runner.exec(&["npm", "generate", "--stub"], &PKG_PROJECT_ROOT, None)?;
         Ok(())
     }
 
