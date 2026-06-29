@@ -7,13 +7,8 @@ pub(crate) enum GenerateError {
     NonUtf8CurrentDir,
     #[error("Failed to parse {} .graphql file(s):\n{}", .parse_failures.len(), .parse_failures.iter().join("\n"))]
     ParseFailures { parse_failures: Vec<ParseFailure> },
-    #[error(
-        "Anonymous GraphQL operations are not supported. Please name your {operation_type} in {file}."
-    )]
-    AnonymousOperation {
-        file: Utf8PathBuf,
-        operation_type: String,
-    },
+    #[error("Anonymous GraphQL operations are not supported. Please name your {operation_type}.")]
+    AnonymousOperation { operation_type: String },
     #[error(
         "Operation named \"{name}\" is already defined in {first_file}. Duplicate found in {second_file}."
     )]
@@ -38,7 +33,7 @@ pub(crate) enum GenerateError {
         fragment_name: String,
     },
     #[error(
-        "Generated operation ID {id} for operation \"{operation_name}\" was already used for operation \"{existing_operation_name}\"."
+        "Operations \"{operation_name}\" and \"{existing_operation_name}\" produced the same ID ({id}). This can happen when two operations are identical after formatting is standardized."
     )]
     DuplicateOperationId {
         id: String,
@@ -61,14 +56,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn anonymous_operation_error_message_names_the_file_and_operation_type() {
+    fn anonymous_operation_error_message_names_the_operation_type() {
         let err = GenerateError::AnonymousOperation {
-            file: "ops.graphql".into(),
             operation_type: "query".to_string(),
         };
         assert_that!(err.to_string()).is_equal_to(
-            "Anonymous GraphQL operations are not supported. Please name your query in ops.graphql."
-                .to_string(),
+            "Anonymous GraphQL operations are not supported. Please name your query.".to_string(),
         );
     }
 
@@ -117,7 +110,7 @@ mod tests {
             existing_operation_name: "FetchUser".to_string(),
         };
         assert_that!(err.to_string()).is_equal_to(
-            r#"Generated operation ID abc123 for operation "GetUser" was already used for operation "FetchUser"."#
+            r#"Operations "GetUser" and "FetchUser" produced the same ID (abc123). This can happen when two operations are identical after formatting is standardized."#
                 .to_string(),
         );
     }

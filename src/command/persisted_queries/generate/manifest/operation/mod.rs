@@ -31,6 +31,18 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_operation_id_returns_error() {
+        let inputs = parsed_inputs_from_files(&[
+            ("a.graphql", "query GetFoo { id }"),
+            ("b.graphql", "query GetBar { id }"),
+        ]);
+        let result = inputs.generate_operations_with_id(|_| "fixed-id".to_string());
+        assert_that!(result).is_err();
+        let msg = result.unwrap_err().to_string();
+        assert_that!(msg).contains("fixed-id");
+    }
+
+    #[test]
     fn generated_body_matches_default_typescript_manifest_formatting() {
         let inputs = parsed_inputs(indoc::indoc! {r#"
             fragment ProductFields on Product {

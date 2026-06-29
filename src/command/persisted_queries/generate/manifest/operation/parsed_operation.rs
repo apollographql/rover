@@ -62,10 +62,13 @@ impl ParsedOperation {
 
         let fragment_definitions: Vec<Node<ast::FragmentDefinition>> = reachable
             .iter()
-            .map(|fragment_name| {
-                let fragment = all_fragments
-                    .get(fragment_name)
-                    .expect("reachable fragments are validated before returning");
+            .map(|fragment_name| -> Result<_, GenerateError> {
+                let fragment = all_fragments.get(fragment_name).ok_or_else(|| {
+                    GenerateError::MissingFragment {
+                        operation_name: name.to_string(),
+                        fragment_name: fragment_name.to_string(),
+                    }
+                })?;
                 let mut fragment_node = fragment.fragment.clone();
                 let fragment_definition = fragment_node.make_mut();
                 fragment_definition
@@ -73,9 +76,9 @@ impl ParsedOperation {
                     .0
                     .retain(|directive| directive.name != "client");
                 fragment_definition.selection_set.remove_client_selections();
-                fragment_node
+                Ok(fragment_node)
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         let op = operation_node.make_mut();
         let used: BTreeSet<String> = std::iter::once(op.collect_variables())

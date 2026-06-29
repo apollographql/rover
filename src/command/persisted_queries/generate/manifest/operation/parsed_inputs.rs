@@ -44,7 +44,6 @@ impl ParsedInputs {
                         .ok_or_else(|| ParseFailure {
                             file: file.to_path_buf(),
                             message: GenerateError::AnonymousOperation {
-                                file: file.to_path_buf(),
                                 operation_type: operation.operation_type.to_string(),
                             }
                             .to_string(),
@@ -145,12 +144,19 @@ impl ParsedInputs {
     pub(crate) fn generate_operations(
         &self,
     ) -> Result<Vec<PersistedQueryOperation>, GenerateError> {
+        self.generate_operations_with_id(|s| sha256_hex(s))
+    }
+
+    pub(super) fn generate_operations_with_id(
+        &self,
+        id_fn: impl Fn(&str) -> String,
+    ) -> Result<Vec<PersistedQueryOperation>, GenerateError> {
         let mut operation_ids = HashMap::new();
         self.operations
             .iter()
             .map(|(name, operation)| {
                 let body = operation.body(name, &self.fragments)?;
-                let id = sha256_hex(&body);
+                let id = id_fn(&body);
                 if let Some(existing_operation_name) =
                     operation_ids.insert(id.clone(), name.clone())
                 {
@@ -186,7 +192,7 @@ mod tests {
         let result = ParsedInputs::from_file(&file).map_err(|e| e.to_string());
 
         assert_that!(result).is_err().is_equal_to(format!(
-            "{file}: Anonymous GraphQL operations are not supported. Please name your query in {file}."
+            "{file}: Anonymous GraphQL operations are not supported. Please name your query."
         ));
     }
 
@@ -221,6 +227,22 @@ mod tests {
         assert_that!(result).is_err().is_equal_to(format!(
             "Operation named \"GetUser\" is already defined in {a}. Duplicate found in {b}."
         ));
+    }
+
+    #[test]
+    fn multiple_files_with_parse_errors_returns_all_failures() {
+        let temp = tempfile::tempdir().unwrap();
+        let a = Utf8PathBuf::from_path_buf(temp.path().join("a.graphql")).unwrap();
+        let b = Utf8PathBuf::from_path_buf(temp.path().join("b.graphql")).unwrap();
+        std::fs::write(&a, "query { field }").unwrap();
+        std::fs::write(&b, "query { other }").unwrap();
+
+        let result = ParsedInputs::from_files(vec![a.clone(), b.clone()]);
+
+        assert_that!(result).is_err();
+        let msg = result.unwrap_err().to_string();
+        assert_that!(msg).contains(a.as_str());
+        assert_that!(msg).contains(b.as_str());
     }
 
     #[test]
