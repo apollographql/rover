@@ -1,5 +1,3 @@
-use std::str;
-
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 
@@ -18,20 +16,16 @@ impl NpmRunner {
         let runner = Runner::new("npm");
         let project_root = PKG_PROJECT_ROOT.clone();
 
-        let rover_client_lint_directory = project_root.join("crates").join("rover-client");
-        let npm_installer_package_directory = project_root.join("installers").join("npm");
+        let npm_installer_package_directory = project_root
+            .join("installers")
+            .join("npm")
+            .join("@apollo")
+            .join("rover");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
-                "Rover's npm installer package does not seem to be located here:\n{}",
+                "Rover's npm installer package does not seem to be located here:\n{}\nRun `cargo npm generate` first.",
                 &npm_installer_package_directory
-            ));
-        }
-
-        if !rover_client_lint_directory.exists() {
-            return Err(anyhow!(
-                "Rover's GraphQL linter package does not seem to be located here:\n{}",
-                &rover_client_lint_directory
             ));
         }
 
@@ -43,11 +37,11 @@ impl NpmRunner {
 
     /// prepares our npm installer package for release
     pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.update_dependency_tree()
-            .with_context(|| "Could not update the dependency tree.")?;
+        self.generate_packages()
+            .with_context(|| "Could not generate npm packages.")?;
 
-        self.update_version()
-            .with_context(|| "Could not update Rover's version in package.json.")?;
+        self.patch_shim()
+            .with_context(|| "Could not patch npm shim.")?;
 
         self.install_dependencies()
             .with_context(|| "Could not install dependencies.")?;
@@ -58,24 +52,33 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn update_dependency_tree(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_installer_package_directory)?;
-        Ok(())
-    }
-
-    fn install_dependencies(&self) -> Result<()> {
-        // we --ignore-scripts so that we do not attempt to download and unpack a
-        // released rover tarball
-        self.npm_exec(
-            &["install", "--ignore-scripts"],
-            &self.npm_installer_package_directory,
+    fn generate_packages(&self) -> Result<()> {
+        let runner = Runner::new("cargo");
+        runner.exec(
+            &["npm", "generate"],
+            &PKG_PROJECT_ROOT,
+            None,
         )?;
         Ok(())
     }
 
-    fn update_version(&self) -> Result<()> {
+    fn patch_shim(&self) -> Result<()> {
+        let shim_path = self.npm_installer_package_directory.join("bin").join("rover.js");
+        let content = std::fs::read_to_string(&shim_path)
+            .with_context(|| format!("Could not read shim at {}", shim_path))?;
+        let patched = content.replace(
+            "const bin = require.resolve(binPath)",
+            "const bin = require.resolve(binPath)\nprocess.env.APOLLO_NODE_MODULES_BIN_DIR = require('path').dirname(bin)",
+        );
+        std::fs::write(&shim_path, patched)
+            .with_context(|| format!("Could not write shim at {}", shim_path))?;
+        Ok(())
+    }
+
+    fn install_dependencies(&self) -> Result<()> {
+        // --ignore-scripts so we do not attempt to run any postinstall hooks
         self.npm_exec(
-            &["version", &PKG_VERSION, "--allow-same-version"],
+            &["install", "--ignore-scripts"],
             &self.npm_installer_package_directory,
         )?;
         Ok(())

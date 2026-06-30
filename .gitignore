@@ -15,6 +15,9 @@
 # Used by `installers/npm`
 node_modules
 
+# Platform package binaries — injected at release time, not committed
+installers/npm/platforms/*/bin/
+
 # rover is in charge of reading/writing .apollo configuration
 # and rover devs may want to have one local to the rover repo
 # for testing purposes, though it should not be committed
@@ -29,3 +32,5 @@ node_modules
 
 # Nix-related
 *.nix
+
+/npm

@@ -16,6 +16,23 @@ default-run = "rover"
 
 publish = false
 
+[package.metadata.npm]
+name = "@apollo/rover"
+prefix = "@apollo/rover-"
+bins = ["rover"]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+]
+mode = "merge"
+
+[package.metadata.npm.custom.engines]
+node = ">=22.14.0"
+
 [[bin]]
 name = "rover"
 path = "src/bin/rover.rs"
@@ -23,6 +40,9 @@ path = "src/bin/rover.rs"
 [[test]]
 name = "e2e"
 path = "tests/test_e2e.rs"
+
+[workspace.metadata.npm]
+out-dir = "installers/npm"
 
 [workspace]
 members = [
