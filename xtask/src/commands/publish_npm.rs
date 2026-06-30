@@ -37,6 +37,11 @@ impl PublishNpm {
             .tag
             .clone()
             .or_else(|| resolve_tag_from_version().ok().flatten());
+        if self.dir.is_none() {
+            runner
+                .prepare_package()
+                .with_context(|| "Could not prepare npm package.")?;
+        }
         runner
             .publish(&dir, self.dry_run, tag.as_deref())
             .with_context(|| format!("Failed to publish npm package at {dir}"))
