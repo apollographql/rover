@@ -47,8 +47,8 @@ impl NpmRunner {
 
     fn generate_packages(&self) -> Result<()> {
         let runner = Runner::new("cargo");
-        // --stub generates the package structure without cross-compiled binaries;
-        // CI publishes real per-platform packages via the publish_platform_packages job.
+        // --stub generates the main @apollo/rover wrapper package without cross-compiled binaries.
+        // Platform packages (@apollo/rover-{os}-{cpu}) are generated per-target in CI.
         runner.exec(&["npm", "generate", "--stub"], &PKG_PROJECT_ROOT, None)?;
         Ok(())
     }

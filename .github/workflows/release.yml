@@ -239,6 +239,7 @@ jobs:
           DRY_RUN: ${{ steps.params.outputs.dry_run }}
           BINARY_EXT: ${{ matrix.binary_ext }}
         run: |
+          cargo npm generate --target "${{ matrix.target }}"
           pkg_dir="installers/npm/@apollo/${{ matrix.pkg }}"
           mkdir -p "$pkg_dir"
           tar -xzf "artifacts/rover-v${VERSION}-${{ matrix.target }}.tar.gz" \
