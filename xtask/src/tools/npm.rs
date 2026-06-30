@@ -89,8 +89,7 @@ impl NpmRunner {
         dry_run: bool,
         npm_tag: Option<&str>,
     ) -> Result<()> {
-        // npm stage publish — staged so the release can be inspected before going live.
-        let mut args: Vec<&str> = vec!["stage", "publish", "--access", "public"];
+        let mut args: Vec<&str> = vec!["stage", "publish", "--provenance", "--access", "public"];
         if let Some(tag) = npm_tag {
             args.extend(["--tag", tag]);
         }
