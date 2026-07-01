@@ -150,7 +150,7 @@ insta = { version = "1", features = ["json"] }
 itertools = "0.15"
 lazycell = "1"
 lazy_static = "1"
-mockall = "0.14.0"
+mockall = "0.15.0"
 notify = "8"
 oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.8"
@@ -306,7 +306,7 @@ insta = { workspace = true }
 json-matcher = "0.1"
 jsonschema = "0.46"
 mime = "0.3"
-mockall = "0.14"
+mockall = "0.15"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.19"
