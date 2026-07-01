@@ -133,7 +133,7 @@ dotenvy = "0.15"
 dunce = "1"
 encoding_rs = "0.8"
 flate2 = "1"
-fs-mistrust = "0.14.0"
+fs-mistrust = "0.15.0"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.21", default-features = false }
