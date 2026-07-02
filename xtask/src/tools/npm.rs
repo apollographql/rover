@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 
 use crate::{
     tools::Runner,
-    utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
+    utils::{CommandOutput, PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
 pub(crate) struct NpmRunner {
@@ -29,8 +29,14 @@ impl NpmRunner {
     }
 
     /// prepares our npm installer package for release
-    pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.generate_packages()
+    ///
+    /// `stub` skips embedding cross-compiled binaries and omits
+    /// `optionalDependencies`/`PLATFORMS`. Use `true` for local dry runs
+    /// (e.g. `xtask prep`) where platform packages haven't been built or
+    /// published yet; use `false` when actually publishing the package so
+    /// it ships with a populated `PLATFORMS` map.
+    pub(crate) fn prepare_package(&self, stub: bool) -> Result<()> {
+        self.generate_packages(stub)
             .with_context(|| "Could not generate npm packages.")?;
 
         self.patch_shim()
@@ -45,11 +51,19 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn generate_packages(&self) -> Result<()> {
+    fn generate_packages(&self, stub: bool) -> Result<()> {
         let runner = Runner::new("cargo");
-        // --stub generates the package structure without cross-compiled binaries;
-        // CI publishes real per-platform packages via the publish_platform_packages job.
-        runner.exec(&["npm", "generate", "--stub"], &PKG_PROJECT_ROOT, None)?;
+        // -p is required: without it, `cargo npm generate` fails with
+        // "no targets configured" instead of reading [package.metadata.npm]
+        // from the workspace root's own package.
+        let mut args: Vec<&str> = vec!["npm", "generate", "-p", PKG_PROJECT_NAME];
+        if stub {
+            // --stub generates the main @apollo/rover wrapper package without cross-compiled
+            // binaries or optionalDependencies. Platform packages (@apollo/rover-{os}-{cpu})
+            // are generated per-target in CI.
+            args.push("--stub");
+        }
+        runner.exec(&args, &PKG_PROJECT_ROOT, None)?;
         Ok(())
     }
 
