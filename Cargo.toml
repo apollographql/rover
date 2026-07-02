@@ -1,12 +1,11 @@
 [package]
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 categories = ["command-line-interface"]
-description = """
-Rover is a tool for working with the Apollo GraphQL Registry.
-"""
+description = "Rover is a tool for working with the Apollo GraphQL Registry."
 documentation = "https://go.apollo.dev/r/docs"
 edition = "2024"
-keywords = ["graphql", "cli", "apollo", "graph", "registry"]
+homepage = "https://github.com/apollographql/rover#readme"
+keywords = ["rover", "graphql", "apollo", "federation", "data", "tooling", "tools"]
 license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
@@ -30,8 +29,14 @@ targets = [
 ]
 mode = "merge"
 
+[package.metadata.npm.custom]
+license = "MIT"
+
 [package.metadata.npm.custom.engines]
 node = ">=22.14.0"
+
+[package.metadata.npm.custom.bugs]
+url = "https://github.com/apollographql/rover/issues"
 
 [[bin]]
 name = "rover"

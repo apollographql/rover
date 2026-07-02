@@ -38,8 +38,11 @@ impl PublishNpm {
             .clone()
             .or_else(|| resolve_tag_from_version().ok().flatten());
         if self.dir.is_none() {
+            // No --dir means we're publishing the main @apollo/rover package for real, after
+            // its platform packages have already been published — generate in full (non-stub)
+            // mode so it ships with real optionalDependencies and a populated PLATFORMS map.
             runner
-                .prepare_package()
+                .prepare_package(false)
                 .with_context(|| "Could not prepare npm package.")?;
         }
         runner

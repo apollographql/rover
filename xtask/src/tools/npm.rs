@@ -29,8 +29,14 @@ impl NpmRunner {
     }
 
     /// prepares our npm installer package for release
-    pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.generate_packages()
+    ///
+    /// `stub` skips embedding cross-compiled binaries and omits
+    /// `optionalDependencies`/`PLATFORMS`. Use `true` for local dry runs
+    /// (e.g. `xtask prep`) where platform packages haven't been built or
+    /// published yet; use `false` when actually publishing the package so
+    /// it ships with a populated `PLATFORMS` map.
+    pub(crate) fn prepare_package(&self, stub: bool) -> Result<()> {
+        self.generate_packages(stub)
             .with_context(|| "Could not generate npm packages.")?;
 
         self.patch_shim()
@@ -45,11 +51,16 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn generate_packages(&self) -> Result<()> {
+    fn generate_packages(&self, stub: bool) -> Result<()> {
         let runner = Runner::new("cargo");
-        // --stub generates the main @apollo/rover wrapper package without cross-compiled binaries.
-        // Platform packages (@apollo/rover-{os}-{cpu}) are generated per-target in CI.
-        runner.exec(&["npm", "generate", "--stub"], &PKG_PROJECT_ROOT, None)?;
+        let mut args: Vec<&str> = vec!["npm", "generate"];
+        if stub {
+            // --stub generates the main @apollo/rover wrapper package without cross-compiled
+            // binaries or optionalDependencies. Platform packages (@apollo/rover-{os}-{cpu})
+            // are generated per-target in CI.
+            args.push("--stub");
+        }
+        runner.exec(&args, &PKG_PROJECT_ROOT, None)?;
         Ok(())
     }
 
