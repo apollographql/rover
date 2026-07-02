@@ -10,7 +10,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.40.1-PR3430.3"
+version = "0.40.1-PR3430.4"
 default-run = "rover"
 
 publish = false

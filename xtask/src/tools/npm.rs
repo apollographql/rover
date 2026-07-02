@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 
 use crate::{
     tools::Runner,
-    utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
+    utils::{CommandOutput, PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
 pub(crate) struct NpmRunner {
@@ -53,7 +53,10 @@ impl NpmRunner {
 
     fn generate_packages(&self, stub: bool) -> Result<()> {
         let runner = Runner::new("cargo");
-        let mut args: Vec<&str> = vec!["npm", "generate"];
+        // -p is required: without it, `cargo npm generate` fails with
+        // "no targets configured" instead of reading [package.metadata.npm]
+        // from the workspace root's own package.
+        let mut args: Vec<&str> = vec!["npm", "generate", "-p", PKG_PROJECT_NAME];
         if stub {
             // --stub generates the main @apollo/rover wrapper package without cross-compiled
             // binaries or optionalDependencies. Platform packages (@apollo/rover-{os}-{cpu})
