@@ -384,6 +384,9 @@ enum AuditStatus {
   FAILED
   IN_PROGRESS
   QUEUED
+
+  """The audit export is being delivered to the configured S3 destination"""
+  SYNCING
 }
 
 """The error returned when the required inputs are not passed"""
@@ -460,6 +463,9 @@ enum BuildPipelineTrack {
 
   """Federation 2.14"""
   FED_2_14
+
+  """Federation 2.15"""
+  FED_2_15
   FED_2_3
   FED_2_4
   FED_2_5
