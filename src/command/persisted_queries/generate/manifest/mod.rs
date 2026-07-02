@@ -9,6 +9,8 @@ use serde::Serialize;
 
 use crate::RoverResult;
 
+pub(super) use error::GenerateError;
+
 const MANIFEST_FORMAT: &str = "apollo-persisted-query-manifest";
 const MANIFEST_VERSION: u8 = 1;
 
