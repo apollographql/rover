@@ -4,7 +4,7 @@ use apollo_compiler::{Node, ast};
 use camino::Utf8PathBuf;
 
 use super::parsed_fragment::ParsedFragment;
-use crate::command::persisted_queries::generate::manifest::{
+use crate::command::persisted_query::generate::manifest::{
     ast_ext::{FragmentDefinitionExt, OperationDefinitionExt, SelectionSetExt},
     error::GenerateError,
     printer::{PrintableDefinition, print_document},
@@ -110,7 +110,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::ParsedOperation;
-    use crate::command::persisted_queries::generate::manifest::{
+    use crate::command::persisted_query::generate::manifest::{
         ast_ext::SelectionSetExt, operation::parsed_fragment::ParsedFragment,
     };
 

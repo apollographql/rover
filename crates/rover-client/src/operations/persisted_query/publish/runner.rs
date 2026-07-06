@@ -2,9 +2,9 @@ use graphql_client::*;
 
 use crate::{
     blocking::StudioClient,
-    operations::persisted_queries::publish::{
-        PersistedQueriesOperationCounts, PersistedQueriesPublishInput,
-        PersistedQueriesPublishResponse, PersistedQueryPublishOperationResult,
+    operations::persisted_query::publish::{
+        PersistedQueryOperationCounts, PersistedQueryPublishInput,
+        PersistedQueryPublishResponse, PersistedQueryPublishOperationResult,
     },
     RoverClientError,
 };
@@ -15,7 +15,7 @@ type GraphQLDocument = String;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/persisted_queries/publish/publish_mutation.graphql",
+    query_path = "src/operations/persisted_query/publish/publish_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -23,9 +23,9 @@ type GraphQLDocument = String;
 pub struct PublishOperationsMutation;
 
 pub async fn run(
-    input: PersistedQueriesPublishInput,
+    input: PersistedQueryPublishInput,
     client: &StudioClient,
-) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
+) -> Result<PersistedQueryPublishResponse, RoverClientError> {
     let graph_id = input.graph_id.clone();
     let list_id = input.list_id.clone();
     let total_operations = input.operation_manifest.operations.len();
@@ -40,7 +40,7 @@ fn build_response(
     graph_id: String,
     list_id: String,
     total_published_operations: usize,
-) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
+) -> Result<PersistedQueryPublishResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphIdNotFound {
         graph_id: graph_id.clone(),
     })?;
@@ -50,14 +50,14 @@ fn build_response(
             Err(RoverClientError::PermissionError { msg: error.message })
         }
         PersistedQueryPublishOperationResult::PublishOperationsResult(result) => {
-            Ok(PersistedQueriesPublishResponse {
+            Ok(PersistedQueryPublishResponse {
                 revision: result.build.revision,
                 graph_id,
                 list_id,
                 total_published_operations,
                 list_name: result.build.list.name,
                 unchanged: result.unchanged,
-                operation_counts: PersistedQueriesOperationCounts {
+                operation_counts: PersistedQueryOperationCounts {
                     added: result.build.publish.operation_counts.added,
                     updated: result.build.publish.operation_counts.updated,
                     removed: result.build.publish.operation_counts.removed,

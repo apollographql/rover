@@ -1,6 +1,6 @@
 use rover_studio::types::GraphRef;
 
-use crate::operations::persisted_queries::resolve::runner::resolve_persisted_query_list_query;
+use crate::operations::persisted_query::resolve::runner::resolve_persisted_query_list_query;
 
 type QueryVariables = resolve_persisted_query_list_query::Variables;
 

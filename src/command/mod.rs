@@ -18,7 +18,7 @@ mod license;
 #[cfg(feature = "composition-js")]
 mod lsp;
 pub(crate) mod output;
-mod persisted_queries;
+mod persisted_query;
 mod readme;
 mod schema;
 pub(crate) mod subgraph;
@@ -46,7 +46,7 @@ pub use license::License;
 #[cfg(feature = "composition-js")]
 pub use lsp::Lsp;
 pub use output::{CliOutput, RoverOutput};
-pub use persisted_queries::PersistedQueries;
+pub use persisted_query::PersistedQuery;
 pub use readme::Readme;
 pub use schema::Schema;
 pub use subgraph::Subgraph;

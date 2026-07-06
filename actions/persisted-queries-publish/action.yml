@@ -1,5 +1,5 @@
 name: "Run Apollo Rover Persisted Queries Publish"
-description: "Run the `rover persisted-queries publish` command."
+description: "Run the `rover persisted-query publish` command."
 author: "Apollo GraphQL"
 branding:
   icon: "terminal"
@@ -67,7 +67,7 @@ runs:
       [ -n "${INPUT_FORMAT:-}" ] && ARGS+=(--format "$INPUT_FORMAT")
       [ -n "${INPUT_CLIENT_TIMEOUT:-}" ] && ARGS+=(--client-timeout "$INPUT_CLIENT_TIMEOUT")
 
-      exec rover --skip-update-check persisted-queries publish "${ARGS[@]}"
+      exec rover --skip-update-check persisted-query publish "${ARGS[@]}"
   env:
     APOLLO_KEY: ${{ inputs.apollo-key }}
     INPUT_GRAPH_REF: ${{ inputs.graph-ref }}

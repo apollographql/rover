@@ -73,8 +73,8 @@ Commands:
           Interact with Rover's documentation
   update
           Commands related to updating rover
-  persisted-queries
-          Commands for persisted queries [aliases: pq]
+  persisted-query
+          Commands for persisted queries [aliases: pq, persisted-queries]
   install
           Installs Rover
   explain

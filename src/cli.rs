@@ -258,7 +258,7 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
-            Command::PersistedQueries(command) => {
+            Command::PersistedQuery(command) => {
                 let client_config = if command.requires_client_config() {
                     Some(self.get_client_config()?)
                 } else {
@@ -455,8 +455,8 @@ pub enum Command {
     Update(command::Update),
 
     /// Commands for persisted queries
-    #[command(visible_alias = "pq")]
-    PersistedQueries(command::PersistedQueries),
+    #[command(visible_aliases = ["pq", "persisted-queries"])]
+    PersistedQuery(command::PersistedQuery),
 
     /// Installs Rover
     Install(command::Install),

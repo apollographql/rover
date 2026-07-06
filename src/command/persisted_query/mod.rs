@@ -9,11 +9,11 @@ use serde::Serialize;
 use rover_print::print::Print;
 
 use crate::{
-    RoverOutput, RoverResult, command::persisted_queries, utils::client::StudioClientConfig,
+    RoverOutput, RoverResult, command::persisted_query, utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Serialize, Parser)]
-pub struct PersistedQueries {
+pub struct PersistedQuery {
     #[clap(subcommand)]
     command: Command,
 }
@@ -21,12 +21,12 @@ pub struct PersistedQueries {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Generate a persisted query manifest from GraphQL operation files
-    Generate(persisted_queries::Generate),
+    Generate(persisted_query::Generate),
     /// Persist a list of queries (or mutations) to a graph in Apollo Studio
-    Publish(persisted_queries::Publish),
+    Publish(persisted_query::Publish),
 }
 
-impl PersistedQueries {
+impl PersistedQuery {
     pub const fn requires_client_config(&self) -> bool {
         matches!(self.command, Command::Publish(_))
     }

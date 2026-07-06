@@ -12,7 +12,7 @@ enum FileDiscoveryError {
 }
 
 /// Shared glob-based file-discovery options for commands that scan a directory tree
-/// (e.g. `persisted-queries generate`, `client check`, `client extract`).
+/// (e.g. `persisted-query generate`, `client check`, `client extract`).
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct FileDiscoveryOpt {
     /// Glob patterns to include (relative to `--root-dir`, or absolute).

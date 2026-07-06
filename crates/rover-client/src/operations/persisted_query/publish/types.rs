@@ -9,9 +9,9 @@ use serde::{
     Deserialize, Serialize,
 };
 
-pub use crate::operations::persisted_queries::publish::runner::publish_operations_mutation::PublishOperationsMutationGraphPersistedQueryListPublishOperations as PersistedQueryPublishOperationResult;
+pub use crate::operations::persisted_query::publish::runner::publish_operations_mutation::PublishOperationsMutationGraphPersistedQueryListPublishOperations as PersistedQueryPublishOperationResult;
 use crate::{
-    operations::persisted_queries::publish::runner::publish_operations_mutation::{
+    operations::persisted_query::publish::runner::publish_operations_mutation::{
         self, OperationType as RoverClientOperationType, PersistedQueryInput,
     },
     RoverClientError,
@@ -20,7 +20,7 @@ use crate::{
 type QueryVariables = publish_operations_mutation::Variables;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct PersistedQueriesPublishInput {
+pub struct PersistedQueryPublishInput {
     pub graph_id: String,
     pub list_id: String,
     pub operation_manifest: ApolloPersistedQueryManifest,
@@ -83,8 +83,8 @@ impl Display for PersistedQueryOperationType {
     }
 }
 
-impl From<PersistedQueriesPublishInput> for QueryVariables {
-    fn from(input: PersistedQueriesPublishInput) -> Self {
+impl From<PersistedQueryPublishInput> for QueryVariables {
+    fn from(input: PersistedQueryPublishInput) -> Self {
         Self {
             graph_id: input.graph_id,
             list_id: input.list_id,
@@ -256,18 +256,18 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PersistedQueriesPublishResponse {
+pub struct PersistedQueryPublishResponse {
     pub revision: i64,
     pub graph_id: String,
     pub list_id: String,
     pub list_name: String,
     pub total_published_operations: usize,
     pub unchanged: bool,
-    pub operation_counts: PersistedQueriesOperationCounts,
+    pub operation_counts: PersistedQueryOperationCounts,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PersistedQueriesOperationCounts {
+pub struct PersistedQueryOperationCounts {
     pub added: i64,
     pub identical: i64,
     pub removed: i64,
@@ -275,7 +275,7 @@ pub struct PersistedQueriesOperationCounts {
     pub updated: i64,
 }
 
-impl PersistedQueriesOperationCounts {
+impl PersistedQueryOperationCounts {
     pub fn added_str(&self) -> Option<String> {
         Self::ops_str(self.added)
     }

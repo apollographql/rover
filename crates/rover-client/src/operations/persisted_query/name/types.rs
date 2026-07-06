@@ -1,4 +1,4 @@
-use crate::operations::persisted_queries::name::runner::persisted_query_list_name_query;
+use crate::operations::persisted_query::name::runner::persisted_query_list_name_query;
 
 type QueryVariables = persisted_query_list_name_query::Variables;
 
