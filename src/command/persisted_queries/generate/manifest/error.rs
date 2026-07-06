@@ -3,8 +3,6 @@ use itertools::Itertools;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum GenerateError {
-    #[error("current directory is not utf-8")]
-    NonUtf8CurrentDir,
     #[error("Failed to parse {} .graphql file(s):\n{}", .parse_failures.len(), .parse_failures.iter().join("\n"))]
     ParseFailures { parse_failures: Vec<ParseFailure> },
     #[error("Anonymous GraphQL operations are not supported. Please name your {operation_type}.")]

@@ -4,16 +4,14 @@ mod graphql;
 mod language;
 mod output;
 
-use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::{Parser, ValueEnum};
 use documents::SkippedDocument;
 use file::{ExtractFile, MaterializeFileError, MaterializeFileOptions};
 use itertools::{Either, Itertools};
-use rover_std::FileSearch;
 use serde::Serialize;
 
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, options::FileDiscoveryOpt};
 
 #[derive(Debug, Serialize)]
 pub struct ExtractedDocument {
@@ -45,13 +43,9 @@ pub struct ExtractionSummary {
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Extract {
-    /// Glob patterns to include (e.g. `src/**/*.ts`). Defaults to all supported extensions.
-    #[arg(long = "include", value_name = "PATTERN", action = clap::ArgAction::Append)]
-    include: Vec<String>,
-
-    /// Glob patterns to exclude (e.g. `**/__generated__/**`).
-    #[arg(long = "exclude", value_name = "PATTERN", action = clap::ArgAction::Append)]
-    exclude: Vec<String>,
+    #[clap(flatten)]
+    #[serde(flatten)]
+    file_discovery: FileDiscoveryOpt,
 
     /// Restrict extraction to these languages.
     #[arg(
@@ -61,10 +55,6 @@ pub struct Extract {
         value_name = "LANG"
     )]
     language: Vec<LanguageOpt>,
-
-    /// Root directory to scan. Defaults to the current working directory.
-    #[arg(long = "root-dir", value_name = "DIR")]
-    root_dir: Option<Utf8PathBuf>,
 
     /// Output directory for .graphql files.
     #[arg(long = "out-dir", value_name = "DIR", default_value = "graphql")]
@@ -94,14 +84,7 @@ impl LanguageOpt {
 
 impl Extract {
     pub async fn run(&self) -> RoverResult<RoverOutput> {
-        let root = match &self.root_dir {
-            Some(r) => r.clone(),
-            None => {
-                let cwd = std::env::current_dir()?;
-                Utf8PathBuf::from_path_buf(cwd)
-                    .map_err(|_| RoverError::new(anyhow!("current directory is not utf-8")))?
-            }
-        };
+        let root = self.file_discovery.canonical_root()?;
         let out_dir = absolutize(&root, &self.out_dir);
 
         let extensions: Vec<&str> = if self.language.is_empty() {
@@ -115,12 +98,7 @@ impl Extract {
         };
 
         tracing::info!("scanning {} for source files...", root);
-        let files = FileSearch::builder()
-            .root(root.clone())
-            .includes(self.include.clone())
-            .excludes(self.exclude.clone())
-            .build()
-            .find(&extensions)?;
+        let files = self.file_discovery.find(&extensions)?;
         tracing::info!(
             "found {} source file(s), extracting GraphQL...",
             files.len()
