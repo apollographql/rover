@@ -18,7 +18,7 @@ use rover_client::{
             untag::DeleteGraphArtifactTagResponse,
         },
         init::memberships::InitMembershipsResponse,
-        persisted_query::publish::PersistedQueryPublishResponse,
+        persisted_queries::publish::PersistedQueriesPublishResponse,
         subgraph::{
             delete::SubgraphDeleteResponse, list::SubgraphListResponse,
             publish::SubgraphPublishResponse,
@@ -134,7 +134,7 @@ pub enum RoverOutput {
         new_content: String,
         last_updated_time: Option<String>,
     },
-    PersistedQueryPublishResponse(PersistedQueryPublishResponse),
+    PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
     LicenseResponse {
         graph_id: String,
         jwt: String,
@@ -512,7 +512,7 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
-            RoverOutput::PersistedQueryPublishResponse(response) => {
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
                 let result = if response.unchanged {
                     format!(
                         "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
@@ -786,7 +786,7 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
-            RoverOutput::PersistedQueryPublishResponse(response) => {
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
                   "revision": response.revision,
                   "list": {
@@ -952,7 +952,7 @@ mod tests {
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
-            persisted_query::publish::PersistedQueryOperationCounts,
+            persisted_queries::publish::PersistedQueriesOperationCounts,
             subgraph::{
                 delete::SubgraphDeleteResponse,
                 list::{SubgraphInfo, SubgraphUpdatedAt},
@@ -2039,14 +2039,14 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         let unaffected = 2;
         let updated = 2;
         let total = added + identical - removed + unaffected + updated;
-        let operation_counts = PersistedQueryOperationCounts {
+        let operation_counts = PersistedQueriesOperationCounts {
             added,
             identical,
             removed,
             unaffected,
             updated,
         };
-        let mock_publish_response = PersistedQueryPublishResponse {
+        let mock_publish_response = PersistedQueriesPublishResponse {
             unchanged: true,
             graph_id,
             list_id: list_id.clone(),
@@ -2055,7 +2055,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             revision,
             operation_counts,
         };
-        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueryPublishResponse(
+        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueriesPublishResponse(
             mock_publish_response,
         ));
         let expected_json = json!(
@@ -2097,14 +2097,14 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         let unaffected = 2;
         let updated = 2;
         let total = added + identical - removed + unaffected + updated;
-        let operation_counts = PersistedQueryOperationCounts {
+        let operation_counts = PersistedQueriesOperationCounts {
             added,
             identical,
             removed,
             unaffected,
             updated,
         };
-        let mock_publish_response = PersistedQueryPublishResponse {
+        let mock_publish_response = PersistedQueriesPublishResponse {
             revision,
             graph_id,
             list_id: list_id.clone(),
@@ -2113,7 +2113,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             unchanged: false,
             operation_counts,
         };
-        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueryPublishResponse(
+        let actual_json = JsonOutput::from(&RoverOutput::PersistedQueriesPublishResponse(
             mock_publish_response,
         ));
         let expected_json = json!(

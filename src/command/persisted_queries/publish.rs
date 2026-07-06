@@ -1,9 +1,9 @@
 use anyhow::{Context, anyhow};
 use clap::Parser;
-use rover_client::operations::persisted_query::{
+use rover_client::operations::persisted_queries::{
     name::{self, PersistedQueryListNameInput},
     publish::{
-        self, ApolloPersistedQueryManifest, PersistedQueryPublishInput,
+        self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
         RelayPersistedQueryManifest,
     },
     resolve::{self, ResolvePersistedQueryListInput},
@@ -13,7 +13,7 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
-    options::{OptionalGraphRefOpt, PersistedQueryManifestFormat, ProfileOpt},
+    options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -38,8 +38,8 @@ pub struct Publish {
     manifest: FileDescriptorType,
 
     /// The format of the manifest file.
-    #[arg(long, value_enum, default_value_t = PersistedQueryManifestFormat::Apollo)]
-    manifest_format: PersistedQueryManifestFormat,
+    #[arg(long, value_enum, default_value_t = PersistedQueriesManifestFormat::Apollo)]
+    manifest_format: PersistedQueriesManifestFormat,
 
     /// If provided, overrides the `clientName` field in all operations in
     /// the manifest file.
@@ -63,11 +63,11 @@ impl Publish {
         };
 
         let mut operation_manifest = match self.manifest_format {
-            PersistedQueryManifestFormat::Apollo => {
+            PersistedQueriesManifestFormat::Apollo => {
                 serde_json::from_str::<ApolloPersistedQueryManifest>(&raw_manifest)
                     .with_context(|| invalid_json_err(&self.manifest, "apollo"))?
             }
-            PersistedQueryManifestFormat::Relay => {
+            PersistedQueriesManifestFormat::Relay => {
                 serde_json::from_str::<RelayPersistedQueryManifest>(&raw_manifest)
                     .with_context(|| invalid_json_err(&self.manifest, "relay"))?
                     .try_into()?
@@ -111,7 +111,7 @@ impl Publish {
         );
 
         let result = publish::run(
-            PersistedQueryPublishInput {
+            PersistedQueriesPublishInput {
                 graph_id,
                 list_id,
                 operation_manifest,
@@ -119,6 +119,6 @@ impl Publish {
             &client,
         )
         .await?;
-        Ok(RoverOutput::PersistedQueryPublishResponse(result))
+        Ok(RoverOutput::PersistedQueriesPublishResponse(result))
     }
 }

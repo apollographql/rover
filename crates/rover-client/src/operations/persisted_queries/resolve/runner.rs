@@ -8,7 +8,7 @@ use crate::{blocking::StudioClient, RoverClientError};
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/persisted_query/resolve/resolve_pql_query.graphql",
+    query_path = "src/operations/persisted_queries/resolve/resolve_pql_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"

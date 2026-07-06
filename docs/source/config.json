@@ -26,7 +26,7 @@
       "install": "/commands/install",
       "graph": "/commands/graphs",
       "license": "/commands/license",
-      "persisted-query": "/commands/persisted-query",
+      "persisted-queries": "/commands/persisted-queries",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
       "supergraph": "/commands/supergraphs",

@@ -7,7 +7,7 @@ mod introspect;
 mod license;
 mod lint;
 mod output;
-mod persisted_query;
+mod persisted_queries;
 mod profile;
 
 mod schema;
@@ -23,7 +23,7 @@ pub(crate) use introspect::*;
 pub(crate) use license::*;
 pub(crate) use lint::*;
 pub(crate) use output::*;
-pub(crate) use persisted_query::*;
+pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;

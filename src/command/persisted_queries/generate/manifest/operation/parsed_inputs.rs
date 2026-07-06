@@ -9,7 +9,7 @@ use super::{
     parsed_fragment::ParsedFragment, parsed_operation::ParsedOperation,
     persisted_query_operation::PersistedQueryOperation,
 };
-use crate::command::persisted_query::generate::manifest::{
+use crate::command::persisted_queries::generate::manifest::{
     ast_ext::SelectionSetExt,
     error::{GenerateError, ParseFailure},
 };
