@@ -264,7 +264,9 @@ impl Rover {
                 } else {
                     None
                 };
-                command.run(client_config, &rover_print::stderr::default()).await
+                command
+                    .run(client_config, &rover_print::stderr::default())
+                    .await
             }
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]

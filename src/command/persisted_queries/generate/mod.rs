@@ -3,14 +3,13 @@ mod output;
 
 use camino::Utf8PathBuf;
 use clap::Parser;
+use manifest::PersistedQueryManifest;
+use output::GenerateOutput;
 use rover_print::print::PrintExt;
 use rover_std::Fs;
 use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::FileDiscoveryOpt};
-
-use manifest::PersistedQueryManifest;
-use output::GenerateOutput;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Generate {

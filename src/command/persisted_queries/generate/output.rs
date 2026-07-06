@@ -57,9 +57,8 @@ mod tests {
             path: "manifest.json".into(),
             operation_count: 1,
         };
-        assert_that!(out.text()).is_equal_to(
-            "Manifest written to manifest.json with 1 operation.".to_string(),
-        );
+        assert_that!(out.text())
+            .is_equal_to("Manifest written to manifest.json with 1 operation.".to_string());
     }
 
     #[test]
@@ -68,9 +67,8 @@ mod tests {
             path: "manifest.json".into(),
             operation_count: 0,
         };
-        assert_that!(out.text()).is_equal_to(
-            "Manifest written to manifest.json with 0 operations.".to_string(),
-        );
+        assert_that!(out.text())
+            .is_equal_to("Manifest written to manifest.json with 0 operations.".to_string());
     }
 
     #[test]
@@ -79,9 +77,8 @@ mod tests {
             path: "manifest.json".into(),
             operation_count: 42,
         };
-        assert_that!(out.text()).is_equal_to(
-            "Manifest written to manifest.json with 42 operations.".to_string(),
-        );
+        assert_that!(out.text())
+            .is_equal_to("Manifest written to manifest.json with 42 operations.".to_string());
     }
 
     #[test]

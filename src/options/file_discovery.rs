@@ -35,7 +35,8 @@ impl FileDiscoveryOpt {
             Some(r) => r.clone(),
             None => {
                 let cwd = std::env::current_dir()?;
-                Utf8PathBuf::from_path_buf(cwd).map_err(|_| FileDiscoveryError::NonUtf8CurrentDir)?
+                Utf8PathBuf::from_path_buf(cwd)
+                    .map_err(|_| FileDiscoveryError::NonUtf8CurrentDir)?
             }
         };
 

@@ -4,9 +4,8 @@ mod publish;
 use clap::Parser;
 pub use generate::Generate;
 pub use publish::Publish;
-use serde::Serialize;
-
 use rover_print::print::Print;
+use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, command::persisted_queries, utils::client::StudioClientConfig,
