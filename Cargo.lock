@@ -2610,6 +2610,7 @@ dependencies = [
  "assert_fs",
  "camino",
  "directories-next",
+ "rover-print",
  "rover-std",
  "rover-storage",
  "serde",

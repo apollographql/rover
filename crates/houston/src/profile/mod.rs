@@ -110,7 +110,8 @@ impl Profile {
     ) -> Result<Profile, HoustonProblem> {
         if Profile::dir(profile_name, config).exists() {
             if opts.sensitive {
-                let sensitive = Sensitive::load(profile_name, config)?;
+                let stderr = rover_print::print::stderr::default();
+                let sensitive = Sensitive::load(profile_name, config, &stderr)?;
                 return Ok(Profile { sensitive });
             }
             Err(HoustonProblem::NoNonSensitiveConfigFound(

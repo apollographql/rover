@@ -14,6 +14,7 @@ workspace = true
 anyhow = { workspace = true }
 camino = { workspace = true }
 directories-next = { workspace = true }
+rover-print = { workspace = true }
 rover-std = { workspace = true }
 rover-storage = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -23,3 +24,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 assert_fs = { workspace = true }
+rover-print = { workspace = true, features = ["testing"] }

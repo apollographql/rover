@@ -1,6 +1,7 @@
 use std::fmt;
 
 use camino::Utf8PathBuf;
+use rover_print::print::{Print, PrintExt};
 use rover_std::Fs;
 use rover_storage::secret::RoverSecretStore;
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,15 @@ impl Sensitive {
     /// Loads a credential for a profile from the OS keychain (or its secure
     /// file-based fallback). Falls back to, and transparently migrates, a legacy
     /// plaintext `.sensitive` file left over from older versions of Rover.
-    pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
+    ///
+    /// `stderr` is taken as a parameter (rather than constructed here) so the
+    /// migration warnings below can be captured in tests instead of going
+    /// straight to a real terminal.
+    pub fn load(
+        profile_name: &str,
+        config: &Config,
+        stderr: &impl Print,
+    ) -> Result<Sensitive, HoustonProblem> {
         let store = Sensitive::store(config)?;
         if let Some(sensitive) = store.read::<Sensitive>(&Sensitive::key(profile_name))? {
             return Sensitive::validate(sensitive, profile_name);
@@ -73,17 +82,20 @@ impl Sensitive {
                 Ok(()) => {
                     tracing::debug!(profile = profile_name, "migrated legacy credential to secret store")
                 }
-                Err(error) => tracing::warn!(
-                    profile = profile_name,
-                    %error,
-                    "migrated credential to the secret store but failed to remove the legacy file"
-                ),
+                Err(error) => {
+                    let _ = stderr.warnln(format!(
+                        "failed to remove unused legacy credential file '{legacy_path}': {error}. \
+                        You can delete it by hand, or check write permissions on its parent directory."
+                    ));
+                }
             },
-            Err(error) => tracing::warn!(
-                profile = profile_name,
-                %error,
-                "failed to migrate legacy credential into the secret store; will retry next time"
-            ),
+            Err(error) => {
+                let _ = stderr.warnln(format!(
+                    "failed to migrate credential for profile '{profile_name}' into the secret store: {error}. \
+                    Using the legacy credential for now; will retry automatically. If this persists, run \
+                    `rover config auth --profile {profile_name}` to re-save it."
+                ));
+            }
         }
 
         Ok(sensitive)
@@ -109,5 +121,70 @@ impl Sensitive {
 impl fmt::Display for Sensitive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", super::mask_key(&self.api_key))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use rover_print::print::testing::TerminalCapture;
+
+    use super::*;
+
+    fn test_config() -> (Config, TempDir) {
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let config = Config::new(Some(&tmp_path), None).unwrap();
+        (config, tmp_home)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_warns_via_stderr_when_legacy_file_cannot_be_removed_after_migration() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (config, _tmp_home) = test_config();
+        let profile_name = "warn-test";
+
+        // simulate a legacy plaintext credential from before the secret store existed.
+        let profile_dir = Profile::dir(profile_name, &config);
+        std::fs::create_dir_all(profile_dir.as_std_path()).unwrap();
+        std::fs::write(
+            Sensitive::legacy_path(profile_name, &config).as_std_path(),
+            "api_key = \"legacy-key\"\n",
+        )
+        .unwrap();
+        // remove write permission on the profile directory so the legacy
+        // file can be read but not deleted.
+        std::fs::set_permissions(
+            profile_dir.as_std_path(),
+            std::fs::Permissions::from_mode(0o500),
+        )
+        .unwrap();
+
+        let legacy_path = Sensitive::legacy_path(profile_name, &config);
+        // reproduce the exact OS error `Sensitive::load` will hit, rather
+        // than hardcoding OS-specific error text. This attempt fails the
+        // same way (permission denied) and leaves the file in place.
+        let removal_error = std::fs::remove_file(legacy_path.as_std_path()).unwrap_err();
+
+        let stderr = TerminalCapture::new(false);
+        let result = Sensitive::load(profile_name, &config, &stderr);
+
+        std::fs::set_permissions(
+            profile_dir.as_std_path(),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().api_key, "legacy-key");
+
+        let expected = format!(
+            "warning: failed to remove unused legacy credential file '{legacy_path}': {removal_error}. \
+            You can delete it by hand, or check write permissions on its parent directory."
+        );
+        assert_eq!(stderr.lines(), vec![expected]);
     }
 }
