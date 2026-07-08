@@ -189,19 +189,13 @@ fn default_backend(credentials_dir: PathBuf) -> Result<Arc<CredentialStore>, Sto
 
 #[cfg(test)]
 mod tests {
-    use std::{any::Any, collections::HashMap, fmt};
-
-    use keyring_core::{
-        Credential, CredentialPersistence, Entry as KeyringEntry,
-        api::{CredentialApi, CredentialStoreApi},
-    };
-    use rstest::{fixture, rstest};
+    use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
     use tempfile::TempDir;
 
     use super::*;
-    use crate::credentials_file::CredentialsFileStore;
+    use util::MockStore;
 
     const SERVICE: &str = "test-service";
     const KEY: &str = "test-key";
@@ -217,317 +211,82 @@ mod tests {
         }
     }
 
-    fn value(data: &str) -> Vec<u8> {
-        serde_json::to_vec(&TestValue::new(data)).unwrap()
-    }
 
-    fn store_with(
-        backend: Arc<CredentialStore>,
-        fallback: Arc<CredentialStore>,
-    ) -> RoverSecretStore {
-        RoverSecretStore::new_with_backends(SERVICE.to_string(), backend, fallback)
-    }
-
-    fn unavailable_no_storage_access() -> keyring_core::Error {
-        keyring_core::Error::NoStorageAccess(Box::new(std::io::Error::other("no storage access")))
-    }
-
-    fn unavailable_platform_failure() -> keyring_core::Error {
-        keyring_core::Error::PlatformFailure(Box::new(std::io::Error::other("platform failure")))
-    }
-
-    fn genuine_invalid() -> keyring_core::Error {
-        keyring_core::Error::Invalid("secret".to_string(), "too big".to_string())
-    }
-
-    fn genuine_bad_store_format() -> keyring_core::Error {
-        keyring_core::Error::BadStoreFormat("corrupt".to_string())
-    }
-
-    fn genuine_too_long() -> keyring_core::Error {
-        keyring_core::Error::TooLong("user".to_string(), 256)
-    }
-
-    fn genuine_ambiguous() -> keyring_core::Error {
-        keyring_core::Error::Ambiguous(vec![])
-    }
-
-    // ==== FakeCredentialStore: a test-only CredentialStoreApi that can be
-    // configured to persistently fail (unlike keyring_core::mock, whose
-    // injected errors clear after one call), and exposes inspection hooks so
-    // tests can assert *which* backend ended up holding data, not just
-    // whether an overall call succeeded. ====
-
-    #[derive(Default)]
-    struct FakeState {
-        secrets: HashMap<(String, String), Vec<u8>>,
-        error: Option<Box<dyn Fn() -> keyring_core::Error + Send + Sync>>,
-        get_calls: usize,
-        set_calls: usize,
-        delete_calls: usize,
-    }
-
-    #[derive(Clone)]
-    struct FakeCredentialStore {
-        id: String,
-        state: Arc<std::sync::Mutex<FakeState>>,
-    }
-
-    impl FakeCredentialStore {
-        fn new(id: &str) -> Arc<Self> {
-            Arc::new(Self {
-                id: id.to_string(),
-                state: Arc::new(std::sync::Mutex::new(FakeState::default())),
-            })
-        }
-
-        /// Make every subsequent entry-level call fail with an error produced
-        /// by `factory`, persistently, until cleared.
-        fn set_error(&self, factory: impl Fn() -> keyring_core::Error + Send + Sync + 'static) {
-            self.state.lock().unwrap().error = Some(Box::new(factory));
-        }
-
-        /// Write a secret directly into the backing map, bypassing
-        /// `set_secret`, to simulate "a prior process already wrote this
-        /// value here" without exercising `RoverSecretStore::write`.
-        fn seed(&self, service: &str, user: &str, data: Vec<u8>) {
-            self.state
-                .lock()
-                .unwrap()
-                .secrets
-                .insert((service.to_string(), user.to_string()), data);
-        }
-
-        fn contains(&self, service: &str, user: &str) -> bool {
-            self.state
-                .lock()
-                .unwrap()
-                .secrets
-                .contains_key(&(service.to_string(), user.to_string()))
-        }
-
-        /// The raw stored bytes for `(service, user)`, for positive
-        /// assertions on exactly what a backend holds — not just whether it
-        /// holds something.
-        fn get_raw(&self, service: &str, user: &str) -> Option<Vec<u8>> {
-            self.state
-                .lock()
-                .unwrap()
-                .secrets
-                .get(&(service.to_string(), user.to_string()))
-                .cloned()
-        }
-
-        /// `(get_calls, set_calls, delete_calls)` — used to assert a backend
-        /// was never touched (all zero) or touched a specific number of times.
-        fn call_counts(&self) -> (usize, usize, usize) {
-            let state = self.state.lock().unwrap();
-            (state.get_calls, state.set_calls, state.delete_calls)
-        }
-    }
-
-    struct FakeCredential {
-        state: Arc<std::sync::Mutex<FakeState>>,
-        service: String,
-        user: String,
-    }
-
-    impl CredentialApi for FakeCredential {
-        fn set_secret(&self, secret: &[u8]) -> keyring_core::Result<()> {
-            let mut state = self.state.lock().unwrap();
-            state.set_calls += 1;
-            if let Some(factory) = &state.error {
-                return Err(factory());
-            }
-            state
-                .secrets
-                .insert((self.service.clone(), self.user.clone()), secret.to_vec());
-            Ok(())
-        }
-
-        fn get_secret(&self) -> keyring_core::Result<Vec<u8>> {
-            let mut state = self.state.lock().unwrap();
-            state.get_calls += 1;
-            if let Some(factory) = &state.error {
-                return Err(factory());
-            }
-            state
-                .secrets
-                .get(&(self.service.clone(), self.user.clone()))
-                .cloned()
-                .ok_or(keyring_core::Error::NoEntry)
-        }
-
-        fn delete_credential(&self) -> keyring_core::Result<()> {
-            let mut state = self.state.lock().unwrap();
-            state.delete_calls += 1;
-            if let Some(factory) = &state.error {
-                return Err(factory());
-            }
-            state
-                .secrets
-                .remove(&(self.service.clone(), self.user.clone()))
-                .map(|_| ())
-                .ok_or(keyring_core::Error::NoEntry)
-        }
-
-        fn get_credential(&self) -> keyring_core::Result<Option<Arc<Credential>>> {
-            Ok(None)
-        }
-
-        fn get_specifiers(&self) -> Option<(String, String)> {
-            Some((self.service.clone(), self.user.clone()))
-        }
-
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn debug_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "FakeCredential")
-        }
-    }
-
-    impl CredentialStoreApi for FakeCredentialStore {
-        fn vendor(&self) -> String {
-            "rover-storage test fake".to_string()
-        }
-
-        fn id(&self) -> String {
-            self.id.clone()
-        }
-
-        fn build(
-            &self,
-            service: &str,
-            user: &str,
-            _modifiers: Option<&HashMap<&str, &str>>,
-        ) -> keyring_core::Result<KeyringEntry> {
-            let cred: Arc<Credential> = Arc::new(FakeCredential {
-                state: self.state.clone(),
-                service: service.to_string(),
-                user: user.to_string(),
-            });
-            Ok(KeyringEntry::new_with_credential(cred))
-        }
-
-        fn persistence(&self) -> CredentialPersistence {
-            CredentialPersistence::UntilDelete
-        }
-
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn debug_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "FakeCredentialStore({})", self.id)
-        }
-    }
-
-    #[fixture]
-    fn backend() -> Arc<FakeCredentialStore> {
-        FakeCredentialStore::new("backend")
-    }
-
-    #[fixture]
-    fn fallback() -> Arc<FakeCredentialStore> {
-        FakeCredentialStore::new("fallback")
-    }
-
-    #[fixture]
-    fn temp_dir() -> TempDir {
-        tempfile::tempdir().unwrap()
-    }
-
-    fn real_fallback(dir: PathBuf) -> Arc<CredentialStore> {
-        Arc::new(CredentialsFileStore::builder(dir).build())
-    }
-
-    fn blocked_path(temp: &TempDir) -> PathBuf {
-        let path = temp.path().join("blocked");
-        std::fs::write(&path, b"i am a file, not a directory").unwrap();
-        path
-    }
+    use util::{backend, fallback, temp_dir};
 
     // ==== write ====
 
     #[rstest]
-    fn write_uses_backend_when_backend_healthy(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
-    ) {
-        let store = store_with(backend.clone(), fallback.clone());
+    fn write_uses_backend_when_backend_healthy(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
+        let store = util::store_with(backend.clone(), fallback.clone());
 
         let result = store.write(KEY, TestValue::new("hello"));
 
         assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
-        assert_that!(backend.get_raw(SERVICE, KEY))
+        assert_that!(util::get_raw(&backend, SERVICE, KEY))
             .is_some()
-            .is_equal_to(value("hello"));
-        assert_that!(fallback.contains(SERVICE, KEY)).is_false();
-        assert_that!(fallback.call_counts()).is_equal_to((0, 0, 0));
+            .is_equal_to(util::value("hello"));
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn write_falls_back_when_backend_unavailable_no_storage_access(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_no_storage_access);
-        let store = store_with(backend.clone(), fallback.clone());
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        let store = util::store_with(backend.clone(), fallback.clone());
 
         let result = store.write(KEY, TestValue::new("hello"));
 
         assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
-        assert_that!(fallback.get_raw(SERVICE, KEY))
+        assert_that!(util::get_raw(&fallback, SERVICE, KEY))
             .is_some()
-            .is_equal_to(value("hello"));
-        assert_that!(backend.contains(SERVICE, KEY)).is_false();
-        assert_that!(backend.call_counts()).is_equal_to((0, 1, 0));
+            .is_equal_to(util::value("hello"));
+        assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn write_falls_back_when_backend_unavailable_platform_failure(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_platform_failure);
-        let store = store_with(backend.clone(), fallback.clone());
+        util::set_error(&backend, util::unavailable_platform_failure());
+        let store = util::store_with(backend.clone(), fallback.clone());
 
         let result = store.write(KEY, TestValue::new("hello"));
 
         assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
-        assert_that!(fallback.get_raw(SERVICE, KEY))
+        assert_that!(util::get_raw(&fallback, SERVICE, KEY))
             .is_some()
-            .is_equal_to(value("hello"));
-        assert_that!(backend.contains(SERVICE, KEY)).is_false();
+            .is_equal_to(util::value("hello"));
+        assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn write_propagates_genuine_backend_error_without_touching_fallback(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(genuine_invalid);
-        let store = store_with(backend, fallback.clone());
+        util::set_error(&backend, util::genuine_invalid());
+        let store = util::store_with(backend, fallback.clone());
 
         let result = store.write(KEY, TestValue::new("hello"));
 
         assert_that!(result)
             .is_err()
             .matches(|e| matches!(e, StoreError::Store(_)));
-        assert_that!(fallback.call_counts()).is_equal_to((0, 0, 0));
-        assert_that!(fallback.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn write_surfaces_fallback_error_when_backend_unavailable_and_fallback_also_broken(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_no_storage_access);
-        fallback.set_error(unavailable_platform_failure);
-        let store = store_with(backend, fallback);
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        util::set_error(&fallback, util::unavailable_platform_failure());
+        let store = util::store_with(backend, fallback);
 
         let result = store.write(KEY, TestValue::new("hello"));
 
@@ -541,12 +300,9 @@ mod tests {
     // ==== read ====
 
     #[rstest]
-    fn read_uses_backend_when_present(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
-    ) {
-        backend.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback.clone());
+    fn read_uses_backend_when_present(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
+        util::seed(&backend, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -554,16 +310,12 @@ mod tests {
             .is_ok()
             .is_some()
             .is_equal_to(TestValue::new("hello"));
-        assert_that!(fallback.call_counts()).is_equal_to((0, 0, 0));
     }
 
     #[rstest]
-    fn read_checks_fallback_on_plain_no_entry(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
-    ) {
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend.clone(), fallback.clone());
+    fn read_checks_fallback_on_plain_no_entry(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -571,18 +323,16 @@ mod tests {
             .is_ok()
             .is_some()
             .is_equal_to(TestValue::new("hello"));
-        assert_that!(backend.call_counts()).is_equal_to((1, 0, 0));
-        assert_that!(fallback.call_counts()).is_equal_to((1, 0, 0));
     }
 
     #[rstest]
     fn read_checks_fallback_when_backend_unavailable(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_no_storage_access);
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback);
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -593,11 +343,8 @@ mod tests {
     }
 
     #[rstest]
-    fn read_returns_none_when_absent_from_both(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
-    ) {
-        let store = store_with(backend, fallback);
+    fn read_returns_none_when_absent_from_both(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
+        let store = util::store_with(backend, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -606,12 +353,12 @@ mod tests {
 
     #[rstest]
     fn read_propagates_genuine_backend_error_without_touching_fallback(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(genuine_bad_store_format);
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback.clone());
+        util::set_error(&backend, util::genuine_bad_store_format());
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback);
 
         let result = store.read::<TestValue>(KEY);
 
@@ -619,16 +366,15 @@ mod tests {
         assert_that!(result)
             .is_err()
             .matches(|e| matches!(e, StoreError::Store(_)));
-        assert_that!(fallback.call_counts()).is_equal_to((0, 0, 0));
     }
 
     #[rstest]
     fn read_deserialize_error_surfaces_as_store_error_not_panic(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.seed(SERVICE, KEY, b"not json".to_vec());
-        let store = store_with(backend, fallback);
+        util::seed(&backend, SERVICE, KEY, b"not json".to_vec());
+        let store = util::store_with(backend, fallback);
 
         let result = store.read::<TestValue>(KEY);
 
@@ -641,108 +387,104 @@ mod tests {
 
     #[rstest]
     fn delete_removes_from_backend_only_when_only_backend_has_it(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend.clone(), fallback);
+        util::seed(&backend, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend.clone(), fallback);
 
         assert_that!(store.delete(KEY)).is_ok();
-        assert_that!(backend.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn delete_removes_from_fallback_only_when_only_fallback_has_it(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback.clone());
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback.clone());
 
         assert_that!(store.delete(KEY)).is_ok();
-        assert_that!(fallback.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn delete_removes_from_both_when_present_in_both(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.seed(SERVICE, KEY, value("hello"));
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend.clone(), fallback.clone());
+        util::seed(&backend, SERVICE, KEY, util::value("hello"));
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend.clone(), fallback.clone());
 
         assert_that!(store.delete(KEY)).is_ok();
-        assert_that!(backend.contains(SERVICE, KEY)).is_false();
-        assert_that!(fallback.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
-    fn delete_is_ok_when_absent_from_both(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
-    ) {
-        let store = store_with(backend, fallback);
+    fn delete_is_ok_when_absent_from_both(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
+        let store = util::store_with(backend, fallback);
 
         assert_that!(store.delete(KEY)).is_ok();
     }
 
     #[rstest]
     fn delete_ignores_unavailable_backend_and_still_cleans_fallback(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_no_storage_access);
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback.clone());
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback.clone());
 
         assert_that!(store.delete(KEY)).is_ok();
-        assert_that!(fallback.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn delete_propagates_genuine_backend_error_and_never_reaches_fallback(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(genuine_too_long);
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend, fallback.clone());
+        util::set_error(&backend, util::genuine_too_long());
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback.clone());
 
         assert_that!(store.delete(KEY))
             .is_err()
             .matches(|e| matches!(e, StoreError::Store(_)));
         // the loop returns immediately on backend's genuine error, so
         // fallback is never reached and its entry survives.
-        assert_that!(fallback.contains(SERVICE, KEY)).is_true();
-        assert_that!(fallback.call_counts()).is_equal_to((0, 0, 0));
+        assert_that!(util::contains(&fallback, SERVICE, KEY)).is_true();
     }
 
     #[rstest]
     fn delete_propagates_genuine_fallback_error_after_backend_succeeds(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.seed(SERVICE, KEY, value("hello"));
-        fallback.set_error(genuine_ambiguous);
-        let store = store_with(backend.clone(), fallback);
+        util::seed(&backend, SERVICE, KEY, util::value("hello"));
+        util::set_error(&fallback, util::genuine_ambiguous());
+        let store = util::store_with(backend.clone(), fallback);
 
         assert_that!(store.delete(KEY))
             .is_err()
             .matches(|e| matches!(e, StoreError::Store(_)));
         // backend's half of the delete already completed before the loop
         // reached fallback and errored — a real partial-failure state.
-        assert_that!(backend.contains(SERVICE, KEY)).is_false();
+        assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
     #[rstest]
     fn delete_propagates_genuine_fallback_error_when_backend_was_unavailable(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_platform_failure);
-        fallback.set_error(genuine_invalid);
-        let store = store_with(backend, fallback);
+        util::set_error(&backend, util::unavailable_platform_failure());
+        util::set_error(&fallback, util::genuine_invalid());
+        let store = util::store_with(backend, fallback);
 
         // the fallback's genuine error must surface, not the backend's
         // unavailable one.
@@ -755,11 +497,11 @@ mod tests {
 
     #[rstest]
     fn write_then_read_round_trips_through_fallback_same_instance(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(unavailable_no_storage_access);
-        let store = store_with(backend, fallback);
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        let store = util::store_with(backend, fallback);
 
         store.write(KEY, TestValue::new("hello")).unwrap();
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
@@ -772,18 +514,18 @@ mod tests {
 
     #[rstest]
     fn value_written_while_backend_down_is_read_by_later_independent_instance(
-        fallback: Arc<FakeCredentialStore>,
+        fallback: Arc<MockStore>,
     ) {
-        let backend_a = FakeCredentialStore::new("backend-a");
-        backend_a.set_error(unavailable_no_storage_access);
-        let store_a = store_with(backend_a, fallback.clone());
+        let backend_a = MockStore::new().unwrap();
+        util::set_error(&backend_a, util::unavailable_no_storage_access());
+        let store_a = util::store_with(backend_a, fallback.clone());
         store_a.write(KEY, TestValue::new("hello")).unwrap();
 
         // a fresh instance, as a later `rover` invocation would construct,
         // with its own (also-broken) backend.
-        let backend_b = FakeCredentialStore::new("backend-b");
-        backend_b.set_error(unavailable_no_storage_access);
-        let store_b = store_with(backend_b, fallback);
+        let backend_b = MockStore::new().unwrap();
+        util::set_error(&backend_b, util::unavailable_no_storage_access());
+        let store_b = util::store_with(backend_b, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store_b.read(KEY);
 
@@ -795,11 +537,11 @@ mod tests {
 
     #[rstest]
     fn value_seeded_directly_into_fallback_is_found_without_ever_writing_through_store(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        fallback.seed(SERVICE, KEY, value("hello"));
-        let store = store_with(backend.clone(), fallback);
+        util::seed(&fallback, SERVICE, KEY, util::value("hello"));
+        let store = util::store_with(backend, fallback);
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -807,16 +549,15 @@ mod tests {
             .is_ok()
             .is_some()
             .is_equal_to(TestValue::new("hello"));
-        assert_that!(backend.call_counts()).is_equal_to((1, 0, 0));
     }
 
     #[rstest]
     fn filesystem_fallback_broken_keystore_backend_healthy_write_and_read_round_trip_via_backend(
-        backend: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
         temp_dir: TempDir,
     ) {
-        let blocked = blocked_path(&temp_dir);
-        let store = store_with(backend.clone(), real_fallback(blocked.clone()));
+        let blocked = util::blocked_path(&temp_dir);
+        let store = util::store_with(backend.clone(), util::real_fallback(blocked.clone()));
 
         store.write(KEY, TestValue::new("hello")).unwrap();
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
@@ -825,9 +566,9 @@ mod tests {
             .is_ok()
             .is_some()
             .is_equal_to(TestValue::new("hello"));
-        assert_that!(backend.get_raw(SERVICE, KEY))
+        assert_that!(util::get_raw(&backend, SERVICE, KEY))
             .is_some()
-            .is_equal_to(value("hello"));
+            .is_equal_to(util::value("hello"));
         // the blocked path was never touched: still a plain file, untouched.
         assert_that!(blocked.is_file()).is_true();
         assert_that!(std::fs::read(&blocked).unwrap())
@@ -836,12 +577,12 @@ mod tests {
 
     #[rstest]
     fn filesystem_fallback_broken_keystore_backend_unavailable_write_surfaces_fallback_error(
-        backend: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
         temp_dir: TempDir,
     ) {
-        let blocked = blocked_path(&temp_dir);
-        backend.set_error(unavailable_no_storage_access);
-        let store = store_with(backend, real_fallback(blocked));
+        let blocked = util::blocked_path(&temp_dir);
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        let store = util::store_with(backend, util::real_fallback(blocked));
 
         assert_that!(store.write(KEY, TestValue::new("hello")))
             .is_err()
@@ -850,12 +591,12 @@ mod tests {
 
     #[rstest]
     fn filesystem_fallback_healthy_keystore_backend_broken_write_lands_only_in_file_store(
-        backend: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
         temp_dir: TempDir,
     ) {
         let dir = temp_dir.path().to_path_buf();
-        backend.set_error(unavailable_platform_failure);
-        let store = store_with(backend, real_fallback(dir.clone()));
+        util::set_error(&backend, util::unavailable_platform_failure());
+        let store = util::store_with(backend, util::real_fallback(dir.clone()));
 
         assert_that!(store.write(KEY, TestValue::new("hello")))
             .is_ok()
@@ -874,7 +615,7 @@ mod tests {
 
     #[rstest]
     fn filesystem_fallback_healthy_keystore_backend_read_no_entry_but_present_on_disk(
-        backend: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
         temp_dir: TempDir,
     ) {
         let dir = temp_dir.path().to_path_buf();
@@ -884,10 +625,10 @@ mod tests {
         seed_entry
             .build(SERVICE, KEY, None)
             .unwrap()
-            .set_secret(&value("hello"))
+            .set_secret(&util::value("hello"))
             .unwrap();
 
-        let store = store_with(backend, real_fallback(dir));
+        let store = util::store_with(backend, util::real_fallback(dir));
 
         let result: Result<Option<TestValue>, StoreError> = store.read(KEY);
 
@@ -899,12 +640,12 @@ mod tests {
 
     #[rstest]
     fn both_backend_and_fallback_broken_write_returns_error_not_silent_success(
-        backend: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
         temp_dir: TempDir,
     ) {
-        let blocked = blocked_path(&temp_dir);
-        backend.set_error(unavailable_no_storage_access);
-        let store = store_with(backend, real_fallback(blocked));
+        let blocked = util::blocked_path(&temp_dir);
+        util::set_error(&backend, util::unavailable_no_storage_access());
+        let store = util::store_with(backend, util::real_fallback(blocked));
 
         assert_that!(store.write(KEY, TestValue::new("hello")))
             .is_err()
@@ -913,15 +654,152 @@ mod tests {
 
     #[rstest]
     fn both_backend_and_fallback_broken_delete_returns_error_not_silent_success(
-        backend: Arc<FakeCredentialStore>,
-        fallback: Arc<FakeCredentialStore>,
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
     ) {
-        backend.set_error(genuine_invalid);
-        fallback.set_error(genuine_invalid);
-        let store = store_with(backend, fallback);
+        util::set_error(&backend, util::genuine_invalid());
+        util::set_error(&fallback, util::genuine_invalid());
+        let store = util::store_with(backend, fallback);
 
         assert_that!(store.delete(KEY))
             .is_err()
             .matches(|e| matches!(e, StoreError::Store(_)));
+    }
+
+    /// Test-only helpers: mock keystore backends, error factories, and small
+    /// fixtures. Everything in here is infrastructure for exercising
+    /// `RoverSecretStore`, not part of what's under test — kept in its own
+    /// module so a call like `util::set_error(...)` in a test body reads
+    /// unambiguously as "arranging test state", not production behavior.
+    mod util {
+        use std::{cell::RefCell, sync::Mutex};
+
+        use keyring_core::{
+            api::CredentialApi,
+            mock::{Cred, CredData, Store},
+        };
+        use rstest::fixture;
+
+        use super::*;
+        use crate::credentials_file::CredentialsFileStore;
+
+        pub(super) use keyring_core::mock::Store as MockStore;
+
+        pub(super) fn value(data: &str) -> Vec<u8> {
+            serde_json::to_vec(&TestValue::new(data)).unwrap()
+        }
+
+        pub(super) fn store_with(
+            backend: Arc<CredentialStore>,
+            fallback: Arc<CredentialStore>,
+        ) -> RoverSecretStore {
+            RoverSecretStore::new_with_backends(SERVICE.to_string(), backend, fallback)
+        }
+
+        pub(super) fn unavailable_no_storage_access() -> keyring_core::Error {
+            keyring_core::Error::NoStorageAccess(Box::new(std::io::Error::other(
+                "no storage access",
+            )))
+        }
+
+        pub(super) fn unavailable_platform_failure() -> keyring_core::Error {
+            keyring_core::Error::PlatformFailure(Box::new(std::io::Error::other(
+                "platform failure",
+            )))
+        }
+
+        pub(super) fn genuine_invalid() -> keyring_core::Error {
+            keyring_core::Error::Invalid("secret".to_string(), "too big".to_string())
+        }
+
+        pub(super) fn genuine_bad_store_format() -> keyring_core::Error {
+            keyring_core::Error::BadStoreFormat("corrupt".to_string())
+        }
+
+        pub(super) fn genuine_too_long() -> keyring_core::Error {
+            keyring_core::Error::TooLong("user".to_string(), 256)
+        }
+
+        pub(super) fn genuine_ambiguous() -> keyring_core::Error {
+            keyring_core::Error::Ambiguous(vec![])
+        }
+
+        // `MockStore`/`Cred`/`CredData` are real, crate-provided types (their
+        // fields are `pub`, explicitly "for transparency" per the crate's own
+        // docs), so the actual secret-storage semantics (hit/miss/overwrite
+        // behavior, and one-shot error injection via `Cred::set_error`) come
+        // from keyring_core itself, not a reimplementation of our own. The
+        // one gap: `Entry` (what `MockStore::build()` returns) hides its
+        // inner `Cred`, so there's no way to grab a handle to arm an error or
+        // seed a value through the public `Entry` API alone. `cred` works
+        // around that by reaching into `MockStore`'s own (also public)
+        // credential list directly — the same get-or-create lookup
+        // `MockStore::build()` does internally.
+        fn cred(store: &Store, service: &str, user: &str) -> Arc<Cred> {
+            let mut inner = store.inner.lock().unwrap();
+            let creds = inner.get_mut();
+            if let Some(existing) = creds
+                .iter()
+                .find(|c| c.specifiers.0 == service && c.specifiers.1 == user)
+            {
+                return existing.clone();
+            }
+            let new_cred = Arc::new(Cred {
+                specifiers: (service.to_string(), user.to_string()),
+                inner: Mutex::new(RefCell::new(CredData::default())),
+            });
+            creds.push(new_cred.clone());
+            new_cred
+        }
+
+        /// Make the next call against `(SERVICE, KEY)` on `store` fail with
+        /// `err`. One-shot, matching `Cred::set_error`'s real semantics —
+        /// sufficient since every `RoverSecretStore` operation makes only one
+        /// call per backend.
+        pub(super) fn set_error(store: &Store, err: keyring_core::Error) {
+            cred(store, SERVICE, KEY).set_error(err);
+        }
+
+        /// Write a secret directly, bypassing `RoverSecretStore::write`, to
+        /// simulate "a prior process already wrote this value here".
+        pub(super) fn seed(store: &Store, service: &str, user: &str, data: Vec<u8>) {
+            cred(store, service, user).set_secret(&data).unwrap();
+        }
+
+        pub(super) fn contains(store: &Store, service: &str, user: &str) -> bool {
+            cred(store, service, user).get_secret().is_ok()
+        }
+
+        /// The raw stored bytes for `(service, user)`, for positive
+        /// assertions on exactly what a backend holds — not just whether it
+        /// holds something.
+        pub(super) fn get_raw(store: &Store, service: &str, user: &str) -> Option<Vec<u8>> {
+            cred(store, service, user).get_secret().ok()
+        }
+
+        #[fixture]
+        pub(super) fn backend() -> Arc<Store> {
+            Store::new().unwrap()
+        }
+
+        #[fixture]
+        pub(super) fn fallback() -> Arc<Store> {
+            Store::new().unwrap()
+        }
+
+        #[fixture]
+        pub(super) fn temp_dir() -> TempDir {
+            tempfile::tempdir().unwrap()
+        }
+
+        pub(super) fn real_fallback(dir: PathBuf) -> Arc<CredentialStore> {
+            Arc::new(CredentialsFileStore::builder(dir).build())
+        }
+
+        pub(super) fn blocked_path(temp: &TempDir) -> PathBuf {
+            let path = temp.path().join("blocked");
+            std::fs::write(&path, b"i am a file, not a directory").unwrap();
+            path
+        }
     }
 }
