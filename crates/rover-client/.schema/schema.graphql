@@ -29,7 +29,12 @@ type Organization {
 
   """The session length in seconds for a user in this org"""
   sessionDurationInSeconds: Int
-  auditLogExports: [AuditLogExport!]
+  auditLogExports(
+    """
+    When true, only exports explicitly requested by a user are returned. Set to false to also include exports created by scheduled / system jobs.
+    """
+    onlyUserInitiated: Boolean! = true
+  ): [AuditLogExport!]
 
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
@@ -74,6 +79,11 @@ type AccountMembership {
 }
 
 type OrganizationMutation {
+  """
+  Create a new AI Agent and mint a v2 API key tied to it. The returned GraphOsKey includes the plaintext secret, shown exactly once.
+  """
+  createAgenticAppApiKey(name: String!): GraphOsKey!
+
   """Create an ApiKey"""
   createKey(name: String!, resources: ApiKeyResourceInput, type: GraphOsKeyType!): GraphOsKey!
 
@@ -363,7 +373,12 @@ type AuditLogExport {
   id: ID!
 
   """The user that initiated the audit export"""
-  requester: User
+  requester: User @deprecated(reason: "Use requesterActor instead, which is also populated for non-user (e.g. scheduled / system) exports.")
+
+  """
+  The actor that initiated the audit export. Unlike `requester`, this is populated for non-user actors such as scheduled / system exports.
+  """
+  requesterActor: Actor!
 
   """The status of the audit export"""
   status: AuditStatus!
@@ -379,6 +394,9 @@ enum AuditStatus {
   FAILED
   IN_PROGRESS
   QUEUED
+
+  """The audit export is being delivered to the configured S3 destination"""
+  SYNCING
 }
 
 """The error returned when the required inputs are not passed"""
@@ -455,6 +473,9 @@ enum BuildPipelineTrack {
 
   """Federation 2.14"""
   FED_2_14
+
+  """Federation 2.15"""
+  FED_2_15
   FED_2_3
   FED_2_4
   FED_2_5
@@ -1683,6 +1704,30 @@ input ExcludedOperationInput {
   ID: ID!
 }
 
+"""A recorded report that a specific diff item is a false positive."""
+type FalsePositiveFlag {
+  """When this false-positive report was created."""
+  createdAt: Timestamp!
+
+  """
+  The type of diff change that was flagged as a false positive. Null for note-only reports.
+  """
+  diffItemType: FlatDiffType
+
+  """Unique identifier for this false-positive report."""
+  id: ID!
+
+  """
+  The schema coordinate that was flagged, e.g. "User.name" or "Query.users". Null for note-only reports.
+  """
+  schemaCoordinate: String
+
+  """
+  '#@!api!@#' for api schema, '#@!supergraph!@#' for supergraph schema, subgraph otherwise
+  """
+  schemaScope: String!
+}
+
 """
 A single subgraph in a supergraph. Every supergraph managed by Apollo Studio includes at least one subgraph. See https://www.apollographql.com/docs/federation/managed-federation/overview/ for more information.
 """
@@ -2177,6 +2222,50 @@ input GitContextInput {
 }
 
 """
+A single diff element being reported as a false positive. beforeText and afterText are the full type-level SDL blocks (oldType.printed / newType.printed from the diff view) captured at report time.
+"""
+input GQLFalsePositiveFlagElementInput {
+  """
+  Full type-level SDL for the after state. Empty string when the type was fully removed.
+  """
+  afterText: String!
+
+  """
+  Full type-level SDL for the before state. Empty string when the type had no before state.
+  """
+  beforeText: String!
+
+  """The type of diff change being flagged."""
+  diffItemType: FlatDiffType!
+
+  """
+  The schema coordinate being flagged, e.g. "User.name" or "Query.users".
+  """
+  schemaCoordinate: String!
+}
+
+"""
+Input for reporting one or more diff items as false positives on a proposal revision.
+"""
+input GQLReportFalsePositiveDiffItemsInput {
+  """
+  The individual diff elements being flagged. May be empty when submitting a note-only report.
+  """
+  elements: [GQLFalsePositiveFlagElementInput!]!
+
+  """Optional free-text note that applies to all elements in this batch."""
+  notes: String
+
+  """The revision whose diff contains the suspected false positives."""
+  revisionId: ID!
+
+  """
+  '#@!api!@#' for api schema, '#@!supergraph!@#' for supergraph schema, subgraph otherwise
+  """
+  schemaScope: String!
+}
+
+"""
 Represents a graph API key, which has permissions scoped to a
 user role for a single Apollo graph.
 """
@@ -2655,6 +2744,35 @@ type GraphVariant {
     """
     first: Int
   ): GraphArtifactConnection!
+
+  """
+  Returns the current state of every schema coordinate (object field, input object field, and enum value) for this variant, describing whether each coordinate is used and whether it is deprecated. Unlike the timeseries reports, this returns a single snapshot row per coordinate rather than metrics bucketed over time. A coordinate is reported as 'used' if it was referenced or executed at any point since the 'since' timestamp. The report can be filtered by coordinate kind, used status, deprecation status, and client. Using the groupByClient input flag will cause the report to output one record per combination of schema coordinate, client, and version name instead of one record per schema coordinate. Note that insights on enum values and input object types are only supported if extended reference reporting is enabled (see https://www.apollographql.com/docs/graphos/routing/configuration/yaml#extended-reference-reporting).
+  """
+  schemaCoordinateInsightsUsageReport(
+    """
+    Filtering criteria for the results. Defaults to showing all unfiltered results.
+    """
+    filters: SchemaCoordinateInsightsUsageReportFilterInput
+
+    """
+    When false (default), each row represents a single schema coordinate aggregated across all clients.
+    When true, each row represents a single (coordinate, client name, client version) combination with per-client metrics.
+    """
+    groupByClient: Boolean! = false
+
+    """Maximum number of records to return (default: 1000, max 100000)."""
+    limit: Int! = 1000
+
+    """
+    Sorting criteria for the results. Defaults to ordering by coordinate kind, then named type, then named attribute.
+    """
+    orderBy: SchemaCoordinateInsightsUsageReportOrderByInput
+
+    """
+    The lower bound of the usage window. A schema coordinate is reported as 'used' if it was referenced or executed at any point at or after this timestamp. Must be within the last 90 days and in the format: 2025-01-01T00:00:00Z (ISO 8601).
+    """
+    since: Timestamp!
+  ): SchemaCoordinateInsightsUsageReportResult!
 
   """
   Returns a list of the top operations reported for this variant within a given time range. This API is rate limited,
@@ -5073,6 +5191,11 @@ type ProposalMutation {
   publishSubgraphs(input: PublishProposalSubgraphsInput!): PublishProposalSubgraphResult!
 
   """
+  Report one or more diff items as suspected false positives on a proposal revision.
+  """
+  reportFalsePositiveDiffItems(input: GQLReportFalsePositiveDiffItemsInput!): ReportFalsePositiveDiffItemsResult!
+
+  """
   Updates the description of this Proposal variant. Returns ValidationError if description exceeds max length of 10k characters.
   """
   updateDescription(input: UpdateDescriptionInput!): UpdateProposalResult!
@@ -5177,6 +5300,11 @@ type ProposalRevision {
   checkWorkflow: CheckWorkflow
   createdAt: Timestamp!
   createdBy: Identity
+
+  """
+  Look up a single false-positive flag by its ID on this revision. Returns null if the flag does not exist, belongs to a different revision, or the caller cannot view the proposal.
+  """
+  falsePositiveFlag(id: ID!): FalsePositiveFlag
   isMerge: Boolean!
   launch: Launch
 
@@ -5289,29 +5417,6 @@ enum ProposalStatus {
   DRAFT
   IMPLEMENTED
   OPEN
-}
-
-"""Filtering options for graph connections."""
-input ProposalVariantsFilter {
-  """
-  Only include proposals that were created with these variants as a base.
-  """
-  sourceVariants: [String!]
-
-  """Only include proposals of a certain status."""
-  status: [ProposalStatus!]
-
-  """Only include proposals that have updated these subgraph names"""
-  subgraphs: [String!]
-}
-
-"""
-Proposal variants, limited & offset based on Service.proposalVariants & the total count
-"""
-type ProposalVariantsResult {
-  """The total number of proposal variants on this graph"""
-  totalCount: Int!
-  variants: [GraphVariant!]!
 }
 
 """
@@ -5573,6 +5678,19 @@ type ReplyGeneralProposalComment implements GeneralProposalComment & ProposalCom
 
   """null if never updated"""
   updatedAt: Timestamp
+}
+
+"""
+The result of reporting one or more diff items as false positives on a proposal revision.
+"""
+union ReportFalsePositiveDiffItemsResult = NotFoundError | PermissionError | ReportFalsePositiveDiffItemsSuccess | ValidationError
+
+"""Returned when false positive flags were recorded successfully."""
+type ReportFalsePositiveDiffItemsSuccess {
+  """
+  IDs of the flag rows that were newly inserted (empty list means all were duplicates).
+  """
+  flagIds: [ID!]!
 }
 
 input RerunAsyncInput {
@@ -6009,6 +6127,145 @@ type SchemaCoordinateInsightsTimeseriesReportRow {
 
   """The start of the time bucket for this row."""
   startTimestamp: Timestamp!
+}
+
+"""
+A client filter entry. At least one of clientName or clientVersion must be provided. Omitting clientVersion matches all versions of the given client; omitting clientName matches all clients with the given version.
+"""
+input SchemaCoordinateInsightsUsageReportClientInput {
+  """The client name. If omitted, matches any client name."""
+  clientName: String
+
+  """The client version. If omitted, matches any client version."""
+  clientVersion: String
+}
+
+"""A sortable column of the schema coordinate usage report."""
+enum SchemaCoordinateInsightsUsageReportColumn {
+  """
+  The estimated total number of times that the coordinate was executed taking into account sampling. This will always be zero for input object fields and enum values.
+  """
+  ESTIMATED_EXECUTION_COUNT
+
+  """The timestamp that the coordinate was last executed or referenced."""
+  LAST_SEEN_AT
+
+  """
+  The number of times that the coordinate was reported as executed. This will always be zero for input object fields and enum values.
+  """
+  OBSERVED_EXECUTION_COUNT
+
+  """
+  The number of operation executions that contained a reference to the coordinate.
+  """
+  REFERENCING_OPERATION_COUNT
+}
+
+"""The filters available when using the schema coordinate usage report."""
+input SchemaCoordinateInsightsUsageReportFilterInput {
+  """
+  If set, include only schema coordinates used by at least one of the specified client name and version pairs. Cannot contain more than 100 pairs.
+  """
+  clients: [SchemaCoordinateInsightsUsageReportClientInput!]
+
+  """
+  Include only certain kinds of schema coordinates (object fields, input object fields, enum values).
+  """
+  coordinateKinds: [CoordinateKind!]
+
+  """
+  If set, include only schema coordinates whose `@deprecated` status in the active schema matches this value.
+  """
+  deprecated: Boolean
+
+  """
+  If set, include only schema coordinates whose used status matches this value. A coordinate is 'used' if it was referenced or executed at any point since the requested 'since' timestamp.
+  """
+  used: Boolean
+}
+
+"""
+The column and direction to use when ordering the schema coordinate usage report.
+"""
+input SchemaCoordinateInsightsUsageReportOrderByInput {
+  """The column used to order the results."""
+  column: SchemaCoordinateInsightsUsageReportColumn!
+
+  """The direction used to order the results."""
+  direction: Ordering!
+}
+
+"""
+The data that is returned by the schema coordinate insights usage report.
+"""
+type SchemaCoordinateInsightsUsageReportResult {
+  """
+  A CSV representation of the results. This includes a header and a row per schema coordinate with all of its columns.
+  """
+  csv: String!
+
+  """
+  The result records, one per schema coordinate, describing its current usage and deprecation status.
+  """
+  records: [SchemaCoordinateInsightsUsageReportRow!]!
+}
+
+"""
+A single schema coordinate (object field, input object field, or enum value) and its current usage and deprecation status.
+"""
+type SchemaCoordinateInsightsUsageReportRow {
+  """
+  The name of the client that used this coordinate. Populated only when 'groupByClient' is true.
+  """
+  clientName: String
+
+  """
+  The version of the client that used this coordinate. Populated only when 'groupByClient' is true.
+  """
+  clientVersion: String
+
+  """The schema coordinate's kind."""
+  coordinateKind: CoordinateKind!
+
+  """
+  Whether this schema coordinate is marked `@deprecated` in the active schema for the variant.
+  """
+  deprecated: Boolean!
+
+  """
+  The estimated total number of executions for this schema coordinate since the requested 'since' timestamp, based on the field execution sample rate.
+  """
+  estimatedExecutionCount: Long!
+
+  """
+  The most recent timestamp at which this schema coordinate was seen (referenced or executed). Null if it has not been seen since the requested 'since' timestamp.
+  """
+  lastSeenAt: Timestamp
+
+  """
+  The named attribute. This is the field name for object and input object fields, or the enum value for enums.
+  """
+  namedAttribute: String!
+
+  """
+  The named type. This is the parent type for object and input object fields, or the enum name for enums.
+  """
+  namedType: String!
+
+  """
+  The total number of observed executions recorded for this schema coordinate since the requested 'since' timestamp.
+  """
+  observedExecutionCount: Long!
+
+  """
+  The total number of operations that referenced this schema coordinate since the requested 'since' timestamp.
+  """
+  referencingOperationCount: Long!
+
+  """
+  Whether this schema coordinate has been referenced or executed at any point since the requested 'since' timestamp.
+  """
+  used: Boolean!
 }
 
 """
