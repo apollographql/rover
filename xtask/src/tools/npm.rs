@@ -1,11 +1,9 @@
-use std::str;
-
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 
 use crate::{
     tools::Runner,
-    utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
+    utils::{CommandOutput, PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
 pub(crate) struct NpmRunner {
@@ -18,22 +16,11 @@ impl NpmRunner {
         let runner = Runner::new("npm");
         let project_root = PKG_PROJECT_ROOT.clone();
 
-        let rover_client_lint_directory = project_root.join("crates").join("rover-client");
-        let npm_installer_package_directory = project_root.join("installers").join("npm");
-
-        if !npm_installer_package_directory.exists() {
-            return Err(anyhow!(
-                "Rover's npm installer package does not seem to be located here:\n{}",
-                &npm_installer_package_directory
-            ));
-        }
-
-        if !rover_client_lint_directory.exists() {
-            return Err(anyhow!(
-                "Rover's GraphQL linter package does not seem to be located here:\n{}",
-                &rover_client_lint_directory
-            ));
-        }
+        let npm_installer_package_directory = project_root
+            .join("installers")
+            .join("npm")
+            .join("@apollo")
+            .join("rover");
 
         Ok(Self {
             runner,
@@ -42,12 +29,18 @@ impl NpmRunner {
     }
 
     /// prepares our npm installer package for release
-    pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.update_dependency_tree()
-            .with_context(|| "Could not update the dependency tree.")?;
+    ///
+    /// `stub` skips embedding cross-compiled binaries and omits
+    /// `optionalDependencies`/`PLATFORMS`. Use `true` for local dry runs
+    /// (e.g. `xtask prep`) where platform packages haven't been built or
+    /// published yet; use `false` when actually publishing the package so
+    /// it ships with a populated `PLATFORMS` map.
+    pub(crate) fn prepare_package(&self, stub: bool) -> Result<()> {
+        self.generate_packages(stub)
+            .with_context(|| "Could not generate npm packages.")?;
 
-        self.update_version()
-            .with_context(|| "Could not update Rover's version in package.json.")?;
+        self.patch_shim()
+            .with_context(|| "Could not patch npm shim.")?;
 
         self.install_dependencies()
             .with_context(|| "Could not install dependencies.")?;
@@ -58,14 +51,45 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn update_dependency_tree(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_installer_package_directory)?;
+    fn generate_packages(&self, stub: bool) -> Result<()> {
+        let runner = Runner::new("cargo");
+        // -p is required: without it, `cargo npm generate` fails with
+        // "no targets configured" instead of reading [package.metadata.npm]
+        // from the workspace root's own package.
+        let mut args: Vec<&str> = vec!["npm", "generate", "-p", PKG_PROJECT_NAME];
+        if stub {
+            // --stub generates the main @apollo/rover wrapper package without cross-compiled
+            // binaries or optionalDependencies. Platform packages (@apollo/rover-{os}-{cpu})
+            // are generated per-target in CI.
+            args.push("--stub");
+        }
+        runner.exec(&args, &PKG_PROJECT_ROOT, None)?;
+        Ok(())
+    }
+
+    fn patch_shim(&self) -> Result<()> {
+        let shim_path = self
+            .npm_installer_package_directory
+            .join("bin")
+            .join("rover.js");
+        let content = std::fs::read_to_string(&shim_path)
+            .with_context(|| format!("Could not read shim at {}", shim_path))?;
+        let patched = content.replace(
+            "const bin = require.resolve(binPath)",
+            "const bin = require.resolve(binPath)\nprocess.env.APOLLO_NODE_MODULES_BIN_DIR = require('path').dirname(bin)",
+        );
+        if patched == content {
+            anyhow::bail!(
+                "patch-npm-shim: marker not found — shim may have already been patched or changed format"
+            );
+        }
+        std::fs::write(&shim_path, patched)
+            .with_context(|| format!("Could not write shim at {}", shim_path))?;
         Ok(())
     }
 
     fn install_dependencies(&self) -> Result<()> {
-        // we --ignore-scripts so that we do not attempt to download and unpack a
-        // released rover tarball
+        // --ignore-scripts so we do not attempt to run any postinstall hooks
         self.npm_exec(
             &["install", "--ignore-scripts"],
             &self.npm_installer_package_directory,
@@ -73,11 +97,21 @@ impl NpmRunner {
         Ok(())
     }
 
-    fn update_version(&self) -> Result<()> {
-        self.npm_exec(
-            &["version", &PKG_VERSION, "--allow-same-version"],
-            &self.npm_installer_package_directory,
-        )?;
+    pub(crate) fn publish(
+        &self,
+        package_dir: &Utf8PathBuf,
+        dry_run: bool,
+        npm_tag: Option<&str>,
+    ) -> Result<()> {
+        // npm stage publish — staged so the release can be inspected before going live.
+        let mut args: Vec<&str> = vec!["stage", "publish", "--access", "public"];
+        if let Some(tag) = npm_tag {
+            args.extend(["--tag", tag]);
+        }
+        if dry_run {
+            args.push("--dry-run");
+        }
+        self.npm_exec(&args, package_dir)?;
         Ok(())
     }
 
