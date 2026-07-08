@@ -193,9 +193,9 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
     use tempfile::TempDir;
+    use util::MockStore;
 
     use super::*;
-    use util::MockStore;
 
     const SERVICE: &str = "test-service";
     const KEY: &str = "test-key";
@@ -211,7 +211,6 @@ mod tests {
         }
     }
 
-
     use util::{backend, fallback, temp_dir};
 
     // ==== write ====
@@ -223,7 +222,9 @@ mod tests {
 
         let result = store.write(KEY, TestValue::new("hello"));
 
-        assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(TestValue::new("hello"));
         assert_that!(util::get_raw(&backend, SERVICE, KEY))
             .is_some()
             .is_equal_to(util::value("hello"));
@@ -241,7 +242,9 @@ mod tests {
 
         let result = store.write(KEY, TestValue::new("hello"));
 
-        assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(TestValue::new("hello"));
         assert_that!(util::get_raw(&fallback, SERVICE, KEY))
             .is_some()
             .is_equal_to(util::value("hello"));
@@ -261,7 +264,9 @@ mod tests {
 
         let result = store.write(KEY, TestValue::new("hello"));
 
-        assert_that!(result).is_ok().is_equal_to(TestValue::new("hello"));
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(TestValue::new("hello"));
         assert_that!(util::get_raw(&fallback, SERVICE, KEY))
             .is_some()
             .is_equal_to(util::value("hello"));
@@ -528,9 +533,9 @@ mod tests {
 
         // the fallback's genuine error must surface, not the backend's
         // unavailable one.
-        assert_that!(store.delete(KEY)).is_err().matches(|e| {
-            matches!(e, StoreError::Store(inner) if inner.to_string().contains("too big"))
-        });
+        assert_that!(store.delete(KEY)).is_err().matches(
+            |e| matches!(e, StoreError::Store(inner) if inner.to_string().contains("too big")),
+        );
     }
 
     // ==== cross-system consistency scenarios ====
@@ -744,6 +749,7 @@ mod tests {
     mod util {
         use std::{cell::RefCell, sync::Mutex};
 
+        pub(super) use keyring_core::mock::Store as MockStore;
         use keyring_core::{
             api::CredentialApi,
             mock::{Cred, CredData, Store},
@@ -752,8 +758,6 @@ mod tests {
 
         use super::*;
         use crate::credentials_file::CredentialsFileStore;
-
-        pub(super) use keyring_core::mock::Store as MockStore;
 
         pub(super) fn value(data: &str) -> Vec<u8> {
             serde_json::to_vec(&TestValue::new(data)).unwrap()
