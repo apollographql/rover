@@ -25,3 +25,4 @@ tracing = { workspace = true }
 [dev-dependencies]
 assert_fs = { workspace = true }
 rover-print = { workspace = true, features = ["testing"] }
+speculoos = { workspace = true }

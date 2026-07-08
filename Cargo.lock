@@ -2614,6 +2614,7 @@ dependencies = [
  "rover-std",
  "rover-storage",
  "serde",
+ "speculoos",
  "thiserror 2.0.18",
  "toml",
  "tracing",

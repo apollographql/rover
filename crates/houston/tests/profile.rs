@@ -2,6 +2,7 @@ use assert_fs::TempDir;
 use camino::Utf8Path;
 use config::Config;
 use houston as config;
+use speculoos::prelude::*;
 
 #[test]
 fn it_lists_many_profiles() {
@@ -24,15 +25,35 @@ fn it_lists_many_profiles() {
     assert!(profiles.contains(&String::from(pprofile_name)));
     assert!(profiles.contains(&String::from(cprofile_name)));
 
+    // each profile's credential must resolve independently, not just be
+    // listed - guards against the two profiles' secrets being cross-wired.
+    assert_eq!(
+        config::Profile::get_credential(cprofile_name, &config)
+            .expect("getting corporate credential failed")
+            .api_key,
+        cprofile_pass
+    );
+    assert_eq!(
+        config::Profile::get_credential(pprofile_name, &config)
+            .expect("getting personal credential failed")
+            .api_key,
+        pprofile_pass
+    );
+
     // clearing must purge every profile's secret-store entry (not just the
     // on-disk index directories) without erroring.
     config.clear().expect("clearing configuration failed");
 
-    assert!(
-        config::Profile::list(&config)
-            .expect("listing profiles failed")
-            .is_empty()
-    );
+    assert_that!(config::Profile::list(&config).expect("listing profiles failed")).is_empty();
+}
+
+#[test]
+fn it_lists_no_profiles_when_none_exist() {
+    let config = get_config(None);
+
+    let profiles = config::Profile::list(&config).expect("listing profiles failed");
+
+    assert_that!(profiles).is_empty();
 }
 
 fn get_config(override_api_key: Option<String>) -> Config {
