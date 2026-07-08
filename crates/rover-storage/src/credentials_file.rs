@@ -267,6 +267,7 @@ mod tests {
         }
     }
 
+    // write() returns the value that was just written.
     #[rstest]
     fn write_returns_the_written_value(store: TestStore) {
         let value = TestValue::new("hello");
@@ -276,6 +277,8 @@ mod tests {
         assert_that!(result).is_ok().is_equal_to(value);
     }
 
+    // A key that was never written returns None, even though the
+    // credentials file exists and holds a different key.
     #[rstest]
     fn read_returns_none_when_key_does_not_exist(store: TestStore) {
         let value = TestValue::new("hello");
@@ -286,6 +289,8 @@ mod tests {
         assert_that!(result).is_ok().is_none();
     }
 
+    // Reading before credentials.json has ever been created returns None,
+    // not an error.
     #[rstest]
     fn read_returns_none_when_file_does_not_exist(store: TestStore) {
         let result = store.read::<TestValue>("key");
@@ -293,6 +298,7 @@ mod tests {
         assert_that!(result).is_ok().is_none();
     }
 
+    // A written value round-trips back out unchanged.
     #[rstest]
     fn read_returns_written_value(store: TestStore) {
         let value = TestValue::new("hello");
@@ -303,6 +309,8 @@ mod tests {
         assert_that!(result).is_ok().is_some().is_equal_to(value);
     }
 
+    // Writing the same key twice overwrites the old value rather than
+    // erroring or merging.
     #[rstest]
     fn write_overwrites_existing_value(store: TestStore) {
         store.write("key", TestValue::new("first")).unwrap();
@@ -316,6 +324,7 @@ mod tests {
             .is_equal_to(TestValue::new("second"));
     }
 
+    // Writing one key doesn't disturb other keys already in the file.
     #[rstest]
     fn write_preserves_other_keys(store: TestStore) {
         store.write("a", TestValue::new("first")).unwrap();
@@ -333,6 +342,7 @@ mod tests {
             .is_equal_to(TestValue::new("second"));
     }
 
+    // Deleting a key removes it; a subsequent read returns None.
     #[rstest]
     fn delete_removes_key(store: TestStore) {
         store.write("key", TestValue::new("hello")).unwrap();
@@ -344,6 +354,7 @@ mod tests {
             .is_none();
     }
 
+    // Deleting a key that was never there is a no-op success, not an error.
     #[rstest]
     fn delete_is_ok_when_key_does_not_exist(store: TestStore) {
         let result = store.delete("missing");
@@ -351,6 +362,7 @@ mod tests {
         assert_that!(result).is_ok();
     }
 
+    // Deleting one key leaves other keys in the file intact.
     #[rstest]
     fn delete_preserves_other_keys(store: TestStore) {
         store.write("a", TestValue::new("keep")).unwrap();
@@ -364,6 +376,7 @@ mod tests {
             .is_equal_to(TestValue::new("keep"));
     }
 
+    // The credentials directory is created with secure 0700 permissions.
     #[cfg(unix)]
     #[rstest]
     fn dir_is_created_with_0700_permissions(store: TestStore) {
@@ -375,6 +388,8 @@ mod tests {
         assert_that!(mode & 0o777).is_equal_to(0o700);
     }
 
+    // The credentials.json file itself is created with secure 0600
+    // permissions.
     #[cfg(unix)]
     #[rstest]
     fn file_is_created_with_0600_permissions(store: TestStore) {
@@ -409,6 +424,10 @@ mod tests {
         }
     }
 
+    // A pre-existing directory with loose (0755) permissions — simulating an
+    // old `$APOLLO_CONFIG_HOME` created before secrets moved into this store
+    // — gets tightened to 0700 the first time it's written to, instead of
+    // `fs-mistrust` hard-failing on it.
     #[cfg(unix)]
     #[rstest]
     fn self_heals_preexisting_directory_with_insecure_permissions_on_write(
@@ -434,6 +453,8 @@ mod tests {
         assert_that!(mode_after & 0o777).is_equal_to(0o700);
     }
 
+    // Same self-heal as above, but triggered by a read instead of a write —
+    // confirms the fix isn't write-only.
     #[cfg(unix)]
     #[rstest]
     fn self_heals_preexisting_directory_with_insecure_permissions_on_read(
@@ -451,6 +472,8 @@ mod tests {
         assert_that!(mode_after & 0o777).is_equal_to(0o700);
     }
 
+    // A credentials.json file containing invalid (non-parseable) JSON
+    // surfaces a clean Deserialize error instead of panicking.
     #[rstest]
     fn corrupted_credentials_file_surfaces_deserialize_error_not_panic(store: TestStore) {
         store.write("key", TestValue::new("hello")).unwrap();
@@ -463,6 +486,8 @@ mod tests {
             .matches(|e| matches!(e, StoreError::Deserialize(_)));
     }
 
+    // Syntactically valid JSON that isn't the expected map shape (a bare
+    // array here) also surfaces a clean Deserialize error, not a panic.
     #[rstest]
     fn wrong_shape_json_surfaces_deserialize_error_not_panic(store: TestStore) {
         // valid JSON, but not the `BTreeMap<String, Value>` shape the store expects.
@@ -475,6 +500,9 @@ mod tests {
             .matches(|e| matches!(e, StoreError::Deserialize(_)));
     }
 
+    // A target path that's already a plain file (not a directory) surfaces a
+    // clean error and leaves the file untouched, rather than panicking or
+    // destructively deleting and recreating it.
     #[test]
     fn directory_creation_blocked_by_preexisting_file_returns_store_error_not_panic() {
         let temp = tempfile::tempdir().unwrap();

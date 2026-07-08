@@ -216,6 +216,7 @@ mod tests {
 
     // ==== write ====
 
+    // Backend is healthy: the write lands there and fallback is never touched.
     #[rstest]
     fn write_uses_backend_when_backend_healthy(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
         let store = util::store_with(backend.clone(), fallback.clone());
@@ -229,6 +230,7 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
+    // Backend reports NoStorageAccess: the write falls back to the file store.
     #[rstest]
     fn write_falls_back_when_backend_unavailable_no_storage_access(
         backend: Arc<MockStore>,
@@ -246,6 +248,9 @@ mod tests {
         assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
+    // Backend reports PlatformFailure (e.g. a missing macOS keychain
+    // entitlement on an unsigned binary): the write falls back too, not just
+    // on the more specific NoStorageAccess.
     #[rstest]
     fn write_falls_back_when_backend_unavailable_platform_failure(
         backend: Arc<MockStore>,
@@ -263,6 +268,8 @@ mod tests {
         assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
+    // A genuine (non-"unavailable") backend error propagates immediately;
+    // fallback is never attempted.
     #[rstest]
     fn write_propagates_genuine_backend_error_without_touching_fallback(
         backend: Arc<MockStore>,
@@ -279,6 +286,9 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
+    // Backend unavailable *and* fallback also broken: the fallback's own
+    // error surfaces, not the original backend error, and it isn't silently
+    // swallowed as success.
     #[rstest]
     fn write_surfaces_fallback_error_when_backend_unavailable_and_fallback_also_broken(
         backend: Arc<MockStore>,
@@ -299,6 +309,8 @@ mod tests {
 
     // ==== read ====
 
+    // Backend has the value: read returns it directly without ever
+    // consulting fallback.
     #[rstest]
     fn read_uses_backend_when_present(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
         util::seed(&backend, SERVICE, KEY, util::value("hello"));
@@ -312,6 +324,10 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // Backend has nothing — a plain NoEntry, no outage involved at all — but
+    // the value lives in fallback (e.g. from a prior write during an
+    // outage): read still checks fallback and finds it. This is the core
+    // cross-backend consistency case.
     #[rstest]
     fn read_checks_fallback_on_plain_no_entry(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
         util::seed(&fallback, SERVICE, KEY, util::value("hello"));
@@ -325,6 +341,7 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // Backend unavailable: read falls back and finds the value there.
     #[rstest]
     fn read_checks_fallback_when_backend_unavailable(
         backend: Arc<MockStore>,
@@ -342,6 +359,7 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // Value missing from both backend and fallback: read returns None.
     #[rstest]
     fn read_returns_none_when_absent_from_both(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
         let store = util::store_with(backend, fallback);
@@ -351,6 +369,9 @@ mod tests {
         assert_that!(result).is_ok().is_none();
     }
 
+    // A genuine backend error propagates even though fallback happens to
+    // have a value — a real error must never be masked by a lucky fallback
+    // hit.
     #[rstest]
     fn read_propagates_genuine_backend_error_without_touching_fallback(
         backend: Arc<MockStore>,
@@ -368,6 +389,8 @@ mod tests {
             .matches(|e| matches!(e, StoreError::Store(_)));
     }
 
+    // Corrupted (non-JSON) stored bytes surface a clean Deserialize error
+    // instead of panicking.
     #[rstest]
     fn read_deserialize_error_surfaces_as_store_error_not_panic(
         backend: Arc<MockStore>,
@@ -385,6 +408,7 @@ mod tests {
 
     // ==== delete ====
 
+    // Value only in backend: delete removes it.
     #[rstest]
     fn delete_removes_from_backend_only_when_only_backend_has_it(
         backend: Arc<MockStore>,
@@ -397,6 +421,8 @@ mod tests {
         assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
+    // Value only in fallback (e.g. it was written there during an outage):
+    // delete removes it there too.
     #[rstest]
     fn delete_removes_from_fallback_only_when_only_fallback_has_it(
         backend: Arc<MockStore>,
@@ -409,6 +435,9 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
+    // Value present in both backend and fallback (a stale leftover from a
+    // flip-flopping backend, say): delete removes it from both, not just
+    // wherever it's found first.
     #[rstest]
     fn delete_removes_from_both_when_present_in_both(
         backend: Arc<MockStore>,
@@ -423,6 +452,7 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
+    // Nothing to delete in either backend: delete is a no-op success.
     #[rstest]
     fn delete_is_ok_when_absent_from_both(backend: Arc<MockStore>, fallback: Arc<MockStore>) {
         let store = util::store_with(backend, fallback);
@@ -430,6 +460,8 @@ mod tests {
         assert_that!(store.delete(KEY)).is_ok();
     }
 
+    // Backend unavailable: its error is ignored (not propagated) and
+    // fallback still gets cleaned up.
     #[rstest]
     fn delete_ignores_unavailable_backend_and_still_cleans_fallback(
         backend: Arc<MockStore>,
@@ -443,6 +475,8 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
     }
 
+    // A genuine backend error aborts the delete loop immediately, so
+    // fallback is never reached — its entry survives the failed attempt.
     #[rstest]
     fn delete_propagates_genuine_backend_error_and_never_reaches_fallback(
         backend: Arc<MockStore>,
@@ -460,6 +494,9 @@ mod tests {
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_true();
     }
 
+    // Backend's half of the delete succeeds, then fallback errors
+    // genuinely: the error still surfaces even though backend already
+    // completed — a real partial-failure state.
     #[rstest]
     fn delete_propagates_genuine_fallback_error_after_backend_succeeds(
         backend: Arc<MockStore>,
@@ -477,6 +514,9 @@ mod tests {
         assert_that!(util::contains(&backend, SERVICE, KEY)).is_false();
     }
 
+    // Backend unavailable (ignored, as usual) and fallback errors
+    // genuinely: the fallback's error surfaces, not the backend's
+    // unavailable one.
     #[rstest]
     fn delete_propagates_genuine_fallback_error_when_backend_was_unavailable(
         backend: Arc<MockStore>,
@@ -495,6 +535,8 @@ mod tests {
 
     // ==== cross-system consistency scenarios ====
 
+    // Backend down for the whole test: a write-then-read round trip on the
+    // same store instance works entirely through fallback.
     #[rstest]
     fn write_then_read_round_trips_through_fallback_same_instance(
         backend: Arc<MockStore>,
@@ -512,6 +554,11 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // A value written by one RoverSecretStore while its backend was down is
+    // still readable from a second, independently-constructed instance that
+    // shares only the fallback — the realistic "written during one `rover`
+    // invocation, read during a later one" case, not just a same-process
+    // round trip.
     #[rstest]
     fn value_written_while_backend_down_is_read_by_later_independent_instance(
         fallback: Arc<MockStore>,
@@ -535,6 +582,10 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // A value that only ever existed in fallback (seeded directly, never
+    // written via `write()`) is still found by `read()` — decouples "does
+    // read correctly consult fallback" from "does write correctly land
+    // there".
     #[rstest]
     fn value_seeded_directly_into_fallback_is_found_without_ever_writing_through_store(
         backend: Arc<MockStore>,
@@ -551,6 +602,10 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // Fallback is a real `CredentialsFileStore` pointed at a path blocked by
+    // a pre-existing file (not a directory); since the backend is healthy,
+    // fallback is never touched and the round trip succeeds entirely through
+    // backend.
     #[rstest]
     fn filesystem_fallback_broken_keystore_backend_healthy_write_and_read_round_trip_via_backend(
         backend: Arc<MockStore>,
@@ -575,6 +630,10 @@ mod tests {
             .is_equal_to(b"i am a file, not a directory".to_vec());
     }
 
+    // Backend unavailable *and* the real filesystem fallback is broken
+    // (blocked path): write surfaces a clean, real `fs-mistrust` error
+    // rather than panicking — the actual "keystore down and filesystem
+    // broken" scenario.
     #[rstest]
     fn filesystem_fallback_broken_keystore_backend_unavailable_write_surfaces_fallback_error(
         backend: Arc<MockStore>,
@@ -589,6 +648,10 @@ mod tests {
             .matches(|e| matches!(e, StoreError::Store(_)));
     }
 
+    // Backend broken, fallback a real working `CredentialsFileStore`: the
+    // value actually lands in the on-disk `credentials.json`, verified by
+    // reading the file directly rather than trusting the store's own
+    // round trip.
     #[rstest]
     fn filesystem_fallback_healthy_keystore_backend_broken_write_lands_only_in_file_store(
         backend: Arc<MockStore>,
@@ -613,6 +676,9 @@ mod tests {
             .is_equal_to(&serde_json::to_value(TestValue::new("hello")).unwrap());
     }
 
+    // Backend plain NoEntry, value pre-written directly to a real on-disk
+    // `credentials.json`: read still finds it — the real-filesystem analogue
+    // of `read_checks_fallback_on_plain_no_entry` above.
     #[rstest]
     fn filesystem_fallback_healthy_keystore_backend_read_no_entry_but_present_on_disk(
         backend: Arc<MockStore>,
@@ -638,6 +704,8 @@ mod tests {
             .is_equal_to(TestValue::new("hello"));
     }
 
+    // Backend down and the real filesystem fallback broken too: write must
+    // return an error, never silently report success.
     #[rstest]
     fn both_backend_and_fallback_broken_write_returns_error_not_silent_success(
         backend: Arc<MockStore>,
@@ -652,6 +720,8 @@ mod tests {
             .matches(|e| matches!(e, StoreError::Store(_)));
     }
 
+    // Both backend and fallback broken: delete must return an error, never
+    // silently report success.
     #[rstest]
     fn both_backend_and_fallback_broken_delete_returns_error_not_silent_success(
         backend: Arc<MockStore>,
