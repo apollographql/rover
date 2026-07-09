@@ -14,17 +14,27 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
-## 🛠 Maintenance
-
-## 📚 Documentation -->
+## 🛠 Maintenance  -->
 
 # [Unreleased]
+
+> Important: 0 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+## 🚀 Features
+
+## 🐛 Fixes
+
+## 🛠 Maintenance
+
+# [0.41.0] - 2026-07-09
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
 
-- **`graph introspect --format json` now returns GraphQL introspection JSON - @smyrick**
+- **`graph introspect --format json` now returns GraphQL introspection JSON - @smyrick PR #3440**
 
   `rover graph introspect` with `--format json` now puts the schema as a GraphQL introspection object (`{ "__schema": ... }`) under `data.introspection_response` instead of an SDL string. Default plain output remains SDL. This is a behavior change for existing `--format json` consumers: traverse `data.introspection_response` to get the introspection object (for example, `jq '.data.introspection_response'`). No field or value transformation is needed beyond envelope traversal.
 
@@ -41,6 +51,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Add `rover dev --supergraph-output` to control the output of the composed supergraph - @SharkBaitDLS PR #3383 fixes #1864**
 
   `rover dev` can now write the supergraph schema it composes to a path of your choosing and keep it updated on every recomposition, e.g. `rover dev --supergraph-output build/supergraph.graphql`. Previously the composed supergraph only lived in a temp file, and the global `--output`/`-o` flag (which controls a command's own CLI output, not its artifacts) appeared to be silently ignored by `dev`. The global `--output` help text now clarifies that distinction.
+
+- **Add `rover graph-artifact tag` command - @zw428 PR #3282**
+
+  Adds the `rover graph-artifact tag` command for [Graph Artifact](https://www.apollographql.com/docs/graphos/platform/schema-management/delivery/graph-artifacts) tagging.
+
+- **Add `rover persisted-queries generate` command - @dotdat PR #3481**
+
+  Scans GraphQL operation files and generates a persisted query manifest, written to a file (`--manifest-path`) or stdout. Supports `--include`/`--exclude` glob filtering and a configurable `--root-dir`.
+
+- **Add `--check` flag to the `subgraph-publish` GitHub Action - @SharkBaitDLS PR #3375**
 
 - **Add `APOLLO_ROVER_SKIP_UPDATE` to disable all auto-updating at once - @SharkBaitDLS PR #3378 fixes #1892**
 
@@ -73,6 +93,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Restore the "pin your federation version" warning on `supergraph compose` - @SharkBaitDLS PR #3347**
 
   `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version, reinstating the documented notice that future versions will require one. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again warns and recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.
+
+- **Report a clearer error when schema-check polling fails on large schemas - @SharkBaitDLS PR #3349**
+
+  Centralizes the poll loop between `graph`/`subgraph check`, and surfaces a more helpful error when a check likely failed because the schema was too large to download in time. Relates to #1383.
+
+## 🛠 Maintenance
+
+- **Migrate npm packaging to `cargo-npm`, removing the `postinstall` script - @dotdat PR #3430**
+- **Fix `cargo npm generate` invocation in the release workflow - @dotdat PR #3492**
+- **Migrate to `keyring-core` (keyring 4.0) - @SharkBaitDLS PR #3370**
+- **Remove unused Pandas npm package from test tooling - @SharkBaitDLS PR #3335**
+- **Upgrade default Federation version to 2.15 - @SharkBaitDLS PR #3472**
 
 # [0.40.0] - 2026-05-28
 

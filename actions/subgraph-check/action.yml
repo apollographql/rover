@@ -42,7 +42,7 @@ runs:
   using: "docker"
   # The image tag is rewritten by `cargo xtask prep` so each release tag pins
   # the action to the matching Rover version. Do not edit by hand.
-  image: "docker://ghcr.io/apollographql/rover:0.41.0-rc.2"
+  image: "docker://ghcr.io/apollographql/rover:0.41.0"
   entrypoint: "/bin/bash"
   args:
     - "-c"
