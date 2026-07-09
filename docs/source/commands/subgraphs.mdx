@@ -277,13 +277,13 @@ By default, `rover subgraph publish` will fail if an unparsable routing URL is a
 <tr>
 <td>
 
-###### `--check`
+###### `--allow-invalid-routing-url`
 
 </td>
 
 <td>
 
-Run all configured checks for the subgraph before publishing. If any of the checks fail a publish operation will not continue and an error will be displayed instead.
+By default, `rover subgraph publish` will fail if an unparsable routing URL is associated with a subgraph. If you need to disable this warning and allow the invalid URL to be published anyway, you can pass this option.
 
 </td>
 </tr>
@@ -302,8 +302,6 @@ This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will 
 </tr>
 </tbody>
 </table>
-
-
 
 #### Creating variants
 
