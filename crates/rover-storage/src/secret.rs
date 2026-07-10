@@ -11,12 +11,13 @@ pub struct RoverSecretStore {
     /// The platform's native credential backend (or the file store, if the
     /// platform has none).
     backend: Arc<CredentialStore>,
-    /// Always a [`CredentialsFileStore`], used to retry an operation when
-    /// `backend` reports it's unavailable. Backend *construction* failing is
-    /// one such case, but a native store can also construct successfully and
-    /// still fail a specific operation — e.g. macOS's `protected` Keychain
-    /// store requires an entitlement that unsigned/ad-hoc binaries don't have,
-    /// which only surfaces once a secret is actually read or written.
+    /// A [`CredentialsFileStore`] — unlike `backend`, whose type varies by
+    /// platform, `fallback` is always this same file-backed store. Used to
+    /// retry an operation when `backend` is unavailable: either it failed to
+    /// construct at all, or it constructed fine but fails a specific operation
+    /// later — e.g. macOS's `protected` Keychain store requires an entitlement
+    /// that unsigned/ad-hoc binaries don't have, which only surfaces once a
+    /// secret is actually read or written.
     fallback: Arc<CredentialStore>,
 }
 
