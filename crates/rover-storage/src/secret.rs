@@ -87,15 +87,21 @@ impl RoverSecretStore {
     pub fn delete(&self, key: &str) -> Result<(), StoreError> {
         // as with `read`, a credential may live in either backend depending on
         // where a prior write for this key landed, so attempt deletion
-        // against both rather than stopping once one succeeds.
-        for backend in [&self.backend, &self.fallback] {
-            match self.attempt(backend, key, |entry| entry.delete_credential()) {
-                Ok(()) => {}
-                Err(e) if matches!(e, keyring_core::Error::NoEntry) || is_unavailable(&e) => {}
-                Err(e) => return Err(e.into()),
-            }
+        // against both rather than stopping once one succeeds. Unlike
+        // `backend`, `fallback` has nowhere further to fall back to, so
+        // `is_unavailable` is only ever consulted for `backend` — any error
+        // out of `fallback` (which always reports its own failures as
+        // `PlatformFailure`, "unavailable" or not) is genuine and must
+        // propagate rather than being swallowed as a no-op.
+        match self.attempt(&self.backend, key, |entry| entry.delete_credential()) {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => {}
+            Err(e) if is_unavailable(&e) => {}
+            Err(e) => return Err(e.into()),
         }
-        Ok(())
+        match self.attempt(&self.fallback, key, |entry| entry.delete_credential()) {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Run `op` against an entry built from `backend`; if that reports the
@@ -478,6 +484,42 @@ mod tests {
 
         assert_that!(store.delete(KEY)).is_ok();
         assert_that!(util::contains(&fallback, SERVICE, KEY)).is_false();
+    }
+
+    // Fallback reports PlatformFailure — the shape `CredentialsFileStore`
+    // wraps *every* internal error in, "unavailable" or not. Since fallback
+    // has nowhere further to fall back to, this must surface as a real
+    // error rather than being swallowed by `is_unavailable`'s "safe to
+    // ignore" arm.
+    #[rstest]
+    fn delete_propagates_platform_failure_from_fallback_instead_of_swallowing_it(
+        backend: Arc<MockStore>,
+        fallback: Arc<MockStore>,
+    ) {
+        util::set_error(&fallback, util::unavailable_platform_failure());
+        let store = util::store_with(backend, fallback);
+
+        assert_that!(store.delete(KEY))
+            .is_err()
+            .matches(|e| matches!(e, StoreError::Store(_)));
+    }
+
+    // Real-filesystem analogue of the above: fallback is an actual
+    // `CredentialsFileStore` pointed at a path blocked by a pre-existing
+    // file, so `delete_credential` genuinely fails and comes back wrapped as
+    // `PlatformFailure` — not a synthetic error injected via MockStore. Must
+    // still surface as an error, not `Ok(())`.
+    #[rstest]
+    fn delete_propagates_real_fallback_failure_instead_of_reporting_success(
+        backend: Arc<MockStore>,
+        temp_dir: TempDir,
+    ) {
+        let blocked = util::blocked_path(&temp_dir);
+        let store = util::store_with(backend, util::real_fallback(blocked));
+
+        assert_that!(store.delete(KEY))
+            .is_err()
+            .matches(|e| matches!(e, StoreError::Store(_)));
     }
 
     // A genuine backend error aborts the delete loop immediately, so
