@@ -5,3 +5,4 @@ mod info;
 mod installers;
 mod output;
 mod schema;
+mod supergraph;

@@ -1,3 +1,4 @@
+use apollo_parser::Parser;
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
@@ -31,9 +32,29 @@ pub async fn run(
     client: &StudioClient,
 ) -> Result<GraphPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
+    let total_type_count = count_schema_types(&input.proposed_schema);
     let data = client.post::<GraphPublishMutation>(input.into()).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
-    build_response(publish_response)
+    build_response(publish_response, total_type_count)
+}
+
+fn count_schema_types(schema: &str) -> u64 {
+    use apollo_parser::cst::Definition;
+    let cst = Parser::new(schema).parse();
+    cst.document()
+        .definitions()
+        .filter(|def| {
+            matches!(
+                def,
+                Definition::ObjectTypeDefinition(_)
+                    | Definition::InputObjectTypeDefinition(_)
+                    | Definition::InterfaceTypeDefinition(_)
+                    | Definition::EnumTypeDefinition(_)
+                    | Definition::UnionTypeDefinition(_)
+                    | Definition::ScalarTypeDefinition(_)
+            )
+        })
+        .count() as u64
 }
 
 fn get_publish_response_from_data(
@@ -54,6 +75,7 @@ fn get_publish_response_from_data(
 
 fn build_response(
     publish_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema,
+    total_type_count: u64,
 ) -> Result<GraphPublishResponse, RoverClientError> {
     if !publish_response.success {
         let msg = format!(
@@ -100,6 +122,7 @@ fn build_response(
     Ok(GraphPublishResponse {
         api_schema_hash: hash,
         change_summary,
+        total_type_count,
     })
 }
 
@@ -146,6 +169,26 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn count_schema_types_counts_named_type_definitions() {
+        let schema = r#"
+            type Query { hello: String }
+            type Foo { id: ID! }
+            input CreateFooInput { name: String! }
+            interface Node { id: ID! }
+            enum Status { ACTIVE INACTIVE }
+            union SearchResult = Foo
+            scalar DateTime
+            extend type Foo { extra: String }
+        "#;
+        assert_eq!(count_schema_types(schema), 7);
+    }
+
+    #[test]
+    fn count_schema_types_returns_zero_for_empty_schema() {
+        assert_eq!(count_schema_types(""), 0);
+    }
 
     #[test]
     fn get_publish_response_from_data_gets_data() {
@@ -223,7 +266,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, 5);
 
         assert!(output.is_ok());
         assert_eq!(
@@ -231,6 +274,7 @@ mod tests {
             GraphPublishResponse {
                 api_schema_hash: "123456".to_string(),
                 change_summary: ChangeSummary::none(),
+                total_type_count: 5,
             }
         );
     }
@@ -245,7 +289,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, 0);
 
         assert!(output.is_err());
     }
@@ -260,7 +304,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, 0);
 
         assert!(output.is_err());
     }

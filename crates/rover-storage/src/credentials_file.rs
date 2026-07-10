@@ -1,10 +1,21 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    any::Any,
+    collections::{BTreeMap, HashMap},
+    fmt,
+    fmt::{Debug, Formatter},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use fs_mistrust::Mistrust;
+use keyring_core::{
+    Credential, Entry as KeyringEntry,
+    api::{CredentialApi, CredentialPersistence, CredentialStoreApi},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Store, StoreError};
+use crate::StoreError;
 
 const DEFAULT_CREDENTIALS_FILE: &str = "credentials.json";
 
@@ -41,7 +52,7 @@ impl CredentialsFileStore {
     }
 }
 
-impl Store for CredentialsFileStore {
+impl CredentialsFileStore {
     fn write<T>(&self, key: &str, value: T) -> Result<T, StoreError>
     where
         T: Serialize + 'static,
@@ -75,6 +86,104 @@ impl Store for CredentialsFileStore {
     }
 }
 
+#[derive(Clone, Debug)]
+struct CredentialsFileCredential {
+    store: CredentialsFileStore,
+    service: String,
+    user: String,
+}
+
+impl CredentialApi for CredentialsFileCredential {
+    fn set_secret(&self, secret: &[u8]) -> keyring_core::Result<()> {
+        let value: Value = serde_json::from_slice(secret).map_err(|e| {
+            keyring_core::Error::Invalid("secret".to_string(), format!("not valid JSON: {e}"))
+        })?;
+        self.store
+            .write(&self.user, value)
+            .map(|_| ())
+            .map_err(|e| keyring_core::Error::PlatformFailure(Box::new(e)))
+    }
+
+    fn get_secret(&self) -> keyring_core::Result<Vec<u8>> {
+        match self.store.read::<Value>(&self.user) {
+            Ok(Some(value)) => serde_json::to_vec(&value).map_err(|e| {
+                keyring_core::Error::BadStoreFormat(format!(
+                    "credential value cannot be re-serialized: {e}"
+                ))
+            }),
+            Ok(None) => Err(keyring_core::Error::NoEntry),
+            Err(e) => Err(keyring_core::Error::PlatformFailure(Box::new(e))),
+        }
+    }
+
+    fn delete_credential(&self) -> keyring_core::Result<()> {
+        self.store
+            .delete(&self.user)
+            .map_err(|e| keyring_core::Error::PlatformFailure(Box::new(e)))
+    }
+
+    fn get_credential(&self) -> keyring_core::Result<Option<Arc<Credential>>> {
+        match self.store.read::<Value>(&self.user) {
+            Ok(Some(_)) => Ok(None),
+            Ok(None) => Err(keyring_core::Error::NoEntry),
+            Err(e) => Err(keyring_core::Error::PlatformFailure(Box::new(e))),
+        }
+    }
+
+    fn get_specifiers(&self) -> Option<(String, String)> {
+        Some((self.service.clone(), self.user.clone()))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn debug_fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl CredentialStoreApi for CredentialsFileStore {
+    fn vendor(&self) -> String {
+        String::from("rover, https://github.com/apollographql/rover")
+    }
+
+    fn id(&self) -> String {
+        format!("CredentialsFileStore({})", self.dir.display())
+    }
+
+    fn build(
+        &self,
+        service: &str,
+        user: &str,
+        modifiers: Option<&HashMap<&str, &str>>,
+    ) -> keyring_core::Result<KeyringEntry> {
+        if modifiers.is_some_and(|m| !m.is_empty()) {
+            return Err(keyring_core::Error::NotSupportedByStore(
+                "CredentialsFileStore does not support entry modifiers".to_string(),
+            ));
+        }
+        let cred: Arc<Credential> = Arc::new(CredentialsFileCredential {
+            store: self.clone(),
+            service: service.to_string(),
+            user: user.to_string(),
+        });
+        Ok(KeyringEntry::new_with_credential(cred))
+    }
+
+    fn persistence(&self) -> CredentialPersistence {
+        CredentialPersistence::UntilDelete
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn debug_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -85,7 +194,6 @@ mod tests {
     use tempfile::TempDir;
 
     use super::CredentialsFileStore;
-    use crate::Store;
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct TestValue {

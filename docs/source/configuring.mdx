@@ -244,6 +244,8 @@ Represents any errors that occurred during the command's execution (or `null` if
 
 If present, always contains at least `message` and `code` fields. Other present fields depend on the command.
 
+When an error has underlying causes (the `Caused by:` lines shown in plain-text output), a `causes` field is included with an array of those cause messages, outermost first.
+
 </td>
 </tr>
 

@@ -22,6 +22,7 @@ pub struct SubgraphPublishInput {
     pub schema: String,
     pub git_context: GitContext,
     pub convert_to_federated_graph: bool,
+    pub changelog_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
@@ -54,20 +55,14 @@ impl From<SubgraphPublishInput> for MutationVariables {
                 sdl: Some(publish_input.schema),
                 hash: None,
             },
-            git_context: publish_input.git_context.into(),
+            git_context: GitContextInput {
+                branch: publish_input.git_context.branch,
+                commit: publish_input.git_context.commit,
+                committer: publish_input.git_context.author,
+                remote_url: publish_input.git_context.remote_url,
+                message: publish_input.changelog_message,
+            },
             revision: "".to_string(),
-        }
-    }
-}
-
-impl From<GitContext> for GitContextInput {
-    fn from(git_context: GitContext) -> GitContextInput {
-        GitContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
         }
     }
 }

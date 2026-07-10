@@ -3,14 +3,14 @@
     "repository": "https://github.com/apollographql/federation-rs",
     "versions": {
       "latest-0": "v0.37.1",
-      "latest-2": "v2.14.0"
+      "latest-2": "v2.15.0"
     }
   },
   "router": {
     "repository": "https://github.com/apollographql/router",
     "versions": {
       "latest-1": "v1.61.13",
-      "latest-2": "v2.15.0"
+      "latest-2": "v2.16.0"
     }
   }
 }

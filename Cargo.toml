@@ -1,20 +1,42 @@
 [package]
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 categories = ["command-line-interface"]
-description = """
-Rover is a tool for working with the Apollo GraphQL Registry.
-"""
+description = "Rover is a tool for working with the Apollo GraphQL Registry."
 documentation = "https://go.apollo.dev/r/docs"
 edition = "2024"
-keywords = ["graphql", "cli", "apollo", "graph", "registry"]
+homepage = "https://github.com/apollographql/rover#readme"
+keywords = ["rover", "graphql", "apollo", "federation", "data", "tooling", "tools"]
 license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.40.0"
+version = "0.41.0"
 default-run = "rover"
 
 publish = false
+
+[package.metadata.npm]
+name = "@apollo/rover"
+prefix = "@apollo/rover-"
+bins = ["rover"]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+]
+mode = "merge"
+
+[package.metadata.npm.custom]
+license = "MIT"
+
+[package.metadata.npm.custom.engines]
+node = ">=22.14.0"
+
+[package.metadata.npm.custom.bugs]
+url = "https://github.com/apollographql/rover/issues"
 
 [[bin]]
 name = "rover"
@@ -24,17 +46,22 @@ path = "src/bin/rover.rs"
 name = "e2e"
 path = "tests/test_e2e.rs"
 
+[workspace.metadata.npm]
+out-dir = "installers/npm"
+
 [workspace]
 members = [
     ".",
     "xtask",
     "crates/houston",
     "crates/robot-panic",
+    "crates/rover-auth",
     "crates/rover-schema",
     "crates/rover-tower",
     "crates/rover-http",
     "crates/rover-graphql",
     "crates/rover-open",
+    "crates/rover-print",
     "crates/rover-storage",
     "crates/rover-studio",
     "crates/sputnik",
@@ -73,10 +100,12 @@ rover-client = { path = "./crates/rover-client" }
 rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-open = { path = "./crates/rover-open" }
+rover-print = { path = "./crates/rover-print" }
 rover-std = { path = "./crates/rover-std" }
 rover-storage = { path = "./crates/rover-storage" }
 rover-studio = { path = "./crates/rover-studio" }
 rover-schema = { path = "./crates/rover-schema" }
+rover-auth = { path = "./crates/rover-auth" }
 rover-tower = { path = "./crates/rover-tower" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
@@ -88,8 +117,8 @@ apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "0.17.0", features = ["json_schema"] }
-apollo-language-server = { version = "0.8.0", default-features = false, features = ["tokio"] }
+apollo-federation-types = { version = "=0.17.6", features = ["json_schema"] }
+apollo-language-server = { version = "=0.9.0", default-features = false, features = ["tokio"] }
 
 # tree-sitter grammars for client extraction
 tree-sitter = "0.26"
@@ -104,6 +133,7 @@ assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
 async-trait = "0.1"
+axum = "0.8.8"
 backtrace = "0.3"
 backon = { version = "1.4", features = ["std", "tokio-sleep"] }
 base64 = "0.22"
@@ -128,7 +158,7 @@ dotenvy = "0.15"
 dunce = "1"
 encoding_rs = "0.8"
 flate2 = "1"
-fs-mistrust = "0.14.0"
+fs-mistrust = "0.15.0"
 futures = "0.3"
 git-url-parse = "0.6"
 git2 = { version = "0.21", default-features = false }
@@ -142,17 +172,18 @@ httpmock = "0.8"
 hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }
-itertools = "0.14"
-keyring = "3.6.3"
+itertools = "0.15"
 lazycell = "1"
 lazy_static = "1"
-mockall = "0.14.0"
+mockall = "0.15.0"
 notify = "8"
+oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.8"
 os_info = "3"
 os_type = "2"
 pathfinding = "4"
 pastey = "0.2.1"
+pin-project = "1.1.10"
 predicates = "3"
 pretty_assertions = "1"
 rand = "0.10"
@@ -188,7 +219,7 @@ tokio-test = "0.4"
 tokio-util = "0.7"
 toml = "1.0"
 tower = { version = "0.5.3", features = ["make", "retry", "timeout"] }
-tower-http = "0.6.8"
+tower-http = "0.7.0"
 tower-test = "0.4"
 tracing = "0.1"
 tracing-core = "0.1"
@@ -200,6 +231,12 @@ uuid = "1"
 url = "2"
 webbrowser = "1"
 zip = "8"
+
+### keyring ecosystem
+keyring-core = "1.0"
+apple-native-keyring-store = { version = "1.0", features = ["protected"] }
+linux-keyutils-keyring-store = "1.0"
+windows-native-keyring-store = "1.0"
 
 ### rover specific dependencies
 [dependencies]
@@ -244,6 +281,7 @@ robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-print = { workspace = true }
 rover-schema = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
@@ -294,11 +332,12 @@ insta = { workspace = true }
 json-matcher = "0.1"
 jsonschema = "0.46"
 mime = "0.3"
-mockall = "0.14"
+mockall = "0.15"
 portpicker = "0.1"
 predicates = { workspace = true }
 rand_regex = "0.19"
 reqwest = { workspace = true, features = ["rustls"] }
+rover-client = { workspace = true, features = ["testing"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
 serial_test = { workspace = true }

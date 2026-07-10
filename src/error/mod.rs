@@ -22,36 +22,48 @@ use crate::options::JsonVersion;
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
 /// on the specific error they encountered.
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
 pub struct RoverError {
-    #[serde(flatten, serialize_with = "serialize_anyhow")]
     error: anyhow::Error,
-
-    #[serde(flatten)]
     metadata: RoverErrorMetadata,
 }
 
-fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let top_level_struct = "error";
-    let message_field_name = "message";
-    let details_struct = "details";
-
-    if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>()
-        && let Some(rover_client_error_source) = rover_client_error.source()
-        && let Some(build_errors) = rover_client_error_source.downcast_ref::<BuildErrors>()
+impl Serialize for RoverError {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
     {
-        let mut top_level_data = serializer.serialize_struct(top_level_struct, 2)?;
-        top_level_data.serialize_field(message_field_name, &error.to_string())?;
-        top_level_data.serialize_field(details_struct, &build_errors)?;
-        return top_level_data.end();
-    }
+        let mut data = serializer.serialize_struct("error", 3)?;
+        data.serialize_field("message", &self.error.to_string())?;
 
-    let mut data = serializer.serialize_struct(top_level_struct, 1)?;
-    data.serialize_field(message_field_name, &error.to_string())?;
-    data.end()
+        // `BuildErrors` already carry their own structured detail, so surface that directly.
+        // Otherwise, surface the rest of the `anyhow` cause chain (the "Caused by:" lines shown
+        // in plain-text output) so that `--format json` consumers get the same file-level detail
+        // — e.g. which schema file could not be found during `supergraph compose`. We respect
+        // `skip_printing_cause` for parity with the `Display` impl: some errors (e.g. reqwest)
+        // already fold their cause into the top-level message.
+        if let Some(build_errors) = self
+            .error
+            .downcast_ref::<RoverClientError>()
+            .and_then(Error::source)
+            .and_then(|source| source.downcast_ref::<BuildErrors>())
+        {
+            data.serialize_field("details", build_errors)?;
+        } else if !self.metadata.skip_printing_cause {
+            let causes: Vec<String> = self
+                .error
+                .chain()
+                .skip(1)
+                .map(ToString::to_string)
+                .collect();
+            if !causes.is_empty() {
+                data.serialize_field("causes", &causes)?;
+            }
+        }
+
+        data.serialize_field("code", &self.metadata.code)?;
+        data.end()
+    }
 }
 
 impl RoverError {
@@ -164,5 +176,39 @@ impl Display for RoverError {
 impl<E: Into<anyhow::Error>> From<E> for RoverError {
     fn from(error: E) -> Self {
         Self::new(error)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::anyhow;
+    use serde_json::json;
+
+    use super::RoverError;
+
+    #[test]
+    fn json_output_surfaces_the_anyhow_cause_chain() {
+        // Mirrors the `supergraph compose` file-not-found case: the io error is the outermost
+        // message and "could not find '<path>'" is the cause (see rover_std::Fs::read_file).
+        let error = anyhow!("could not find '/path/to/schema.graphql'")
+            .context("No such file or directory (os error 2)");
+        let value = serde_json::to_value(RoverError::new(error)).unwrap();
+
+        assert_eq!(
+            value["message"],
+            json!("No such file or directory (os error 2)")
+        );
+        assert_eq!(
+            value["causes"],
+            json!(["could not find '/path/to/schema.graphql'"])
+        );
+    }
+
+    #[test]
+    fn json_output_omits_causes_for_a_single_error() {
+        let value = serde_json::to_value(RoverError::new(anyhow!("a flat error"))).unwrap();
+
+        assert_eq!(value["message"], json!("a flat error"));
+        assert!(value.get("causes").is_none());
     }
 }

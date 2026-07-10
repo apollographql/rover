@@ -67,6 +67,10 @@ pub struct Publish {
 
     #[clap(flatten)]
     check_config: CheckConfigOpts,
+
+    /// A message to associate with this publish in the Studio changelog
+    #[arg(long, value_name = "MESSAGE")]
+    changelog_message: Option<String>,
 }
 
 impl Publish {
@@ -192,6 +196,7 @@ impl Publish {
                 schema,
                 git_context,
                 convert_to_federated_graph: self.convert,
+                changelog_message: self.changelog_message.clone(),
             },
             &client,
         )

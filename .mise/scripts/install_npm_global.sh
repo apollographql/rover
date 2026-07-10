@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-INSTALLERS_DIR="$SCRIPT_DIR/../../installers/npm"
+if [[ -n "${ROVER_PACKAGES_BASE:-}" ]]; then
+  BASE_DIR="${ROVER_PACKAGES_BASE//\\//}"
+else
+  SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+  BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 
-cd "$(mktemp -d)"
-echo "Created test directory"
-# The choice of version here is arbitrary (we just need something we know exists) so that we can test if the
-# installer works, given an existing version. This way we're not at the mercy of whether the binary that corresponds
-# to the latest commit exists.
-npm version --prefix="$INSTALLERS_DIR" --allow-same-version 0.23.0
-echo "Temporarily patched package.json to fixed stable binary"
-npm install --install-links=true -g "$INSTALLERS_DIR"
-echo "Installed rover as global npm package"
-echo "Checking version"
+INSTALLERS_DIR="${BASE_DIR}/installers/npm/@apollo/rover"
+PLATFORM_PKG_DIR="${BASE_DIR}/installers/npm/@apollo/${PLATFORM_PKG:?PLATFORM_PKG env var is required}"
+
+# Install @apollo/rover and the platform package directly into global node_modules.
+# --omit=optional prevents npm from trying to resolve platform-specific packages
+# from the registry (they don't exist at the test version) for non-matching platforms.
+npm install --install-links=true --omit=optional \
+  -g \
+  "file:${INSTALLERS_DIR}" \
+  "file:${PLATFORM_PKG_DIR}"
+
 rover --version
-echo "Checked version, all ok!"

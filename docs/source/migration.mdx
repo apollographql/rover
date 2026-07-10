@@ -1,7 +1,7 @@
 ---
 title: Migrating to Rover
 subtitle: Migrate to the Rover CLI from the Apollo CLI
-description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services.
+description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services, including replacing `service:download` with introspection JSON output.
 
 ---
 
@@ -123,6 +123,8 @@ This separation of steps makes Rover's use of introspection more flexible and tr
 
 If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` directly to a file. Find more about how stdin/stdout works with Rover [here](./conventions#io).
 
+If you need introspection JSON (`{ "__schema": ... }`) instead of SDL—for example, to replace `apollo service:download` or `apollo schema:download`—use `--format json` with `graph introspect`. See [`graph introspect`](/rover/commands/graphs#graph-introspect) for details.
+
 ## Monolithic vs. federated graphs
 
 The Apollo CLI's API uses the `apollo service:*` command set for working with both monolithic and federated graphs. Rover treats graphs and federated graphs separately.
@@ -130,14 +132,6 @@ The Apollo CLI's API uses the `apollo service:*` command set for working with bo
 When working with federated graphs in Rover, you typically use the `subgraph` command set, because most operations on a federated graph interact with one of its subgraphs (e.g., checking changes to a single subgraph). Rover also provides a  `supergraph` command set, which is used for composing and working with supergraph schemas.
 
 For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
-
-## Limitations of Rover
-
-For the sake of maintainability, roadmap considerations, and time, Rover intentionally lacks certain features of the Apollo CLI. Some of these features might be added at a later date, but there is no timeline for their release.
-
-### Client commands
-
-Rover's focus is around providing an excellent graph management experience. For that reason, we have intentionally omitted commands that focus on client project development, such as `client:codegen` and `client:check`.
 
 ### Globs
 
@@ -175,14 +169,12 @@ rover graph fetch my-graph@prod --output schema.graphql
 
 ```bash
 ## Apollo CLI ##
-# automatically outputs to schema.graphql
-# can ONLY output introspection results in JSON
+# outputs introspection JSON
 apollo service:download --endpoint http://localhost:4000
 
 ## Rover ##
-# automatically outputs to stdout. Can redirect to schema.graphql with the `--output <OUTPUT_FILE>` argument
-# can ONLY output SDL
-rover graph introspect http://localhost:4000 --output schema.graphql
+# use --format json for introspection JSON; default output is SDL
+rover graph introspect http://localhost:4000 --format json | jq '.data.introspection_response' > schema.json
 ```
 
 ### Publishing a monolithic schema to the Apollo graph registry
@@ -295,4 +287,25 @@ apollo service:push --serviceName users
 # globs don't work natively with Rover, so you can use a command like `awk 1`
 # to combine multiple files on *nix machines
 awk 1 *.graphql | rover subgraph publish my-graph@prod --name users --schema -
+```
+
+### Validate client operations against a schema
+
+```bash
+## Apollo CLI ##
+apollo client:check --variant=staging
+
+## Rover ##
+rover client check my-graph@staging \
+  --include "src/**/*.graphql"
+```
+
+### Extract embedded GraphQL from source files
+
+```bash
+## Apollo CLI ##
+apollo client:extract --variant=staging --outputFile operations.json
+
+## Rover ##
+rover client extract --out-dir graphql
 ```

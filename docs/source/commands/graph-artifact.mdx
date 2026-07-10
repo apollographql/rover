@@ -15,19 +15,21 @@ The `rover graph-artifact` set of commands lets you manage graph artifacts from 
 
 ## Tagging a graph artifact
 
-You can use Rover to assign a tag to a graph artifact in your graph. Tagging an artifact enables GraphOS Router to fetch it by tag name rather than by digest, which makes it easier to promote a specific artifact across environments.
 
 ### `graph-artifact tag`
 
-Run the `graph-artifact tag` command, like so:
+Use Rover to assign a tag to a graph artifact in your graph. Tagging an artifact enables GraphOS Router to fetch it by tag name instead of by digest, which makes it easier to promote a specific artifact across environments.
 
-```bash
+
+Run the `graph-artifact tag` command:
+
+```bash showLineNumbers=false
 rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --digest <DIGEST>
 ```
 
 Alternatively, you can identify the artifact by its ID instead of its digest:
 
-```bash
+```bash showLineNumbers=false
 rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_ARTIFACT_ID>
 ```
 
@@ -37,11 +39,11 @@ rover graph-artifact tag <TAG> --graph-id <GRAPH_ID> --graph-artifact-id <GRAPH_
 
 ## Removing a tag from a graph artifact
 
-You can use Rover to remove a tag from your graph. Deleting a tag removes it and its full history. Tags managed by Apollo, such as a variant's latest tag, cannot be deleted.
-
 ### `graph-artifact untag`
 
-Run the `graph-artifact untag` command, like so:
+Use Rover to remove a tag from your graph. Deleting a tag removes it and its full history. Tags managed by Apollo can't be deleted.
+
+Run the `graph-artifact untag` command:
 
 ```bash
 rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
@@ -49,3 +51,79 @@ rover graph-artifact untag <TAG> --graph-id <GRAPH_ID>
 
 - The `--graph-id <GRAPH_ID>` option is the ID of the graph that owns the tag you want to remove.
 - The `<TAG>` argument is the name of the tag to remove from the graph.
+
+## Fetching a graph artifact
+
+
+### `graph-artifact fetch`
+
+Use `rover graph-artifact fetch` to fetch metadata about a graph artifact from Apollo's OCI distribution. This command returns an artifact's content-addressed digest, the launch that produced it, and (when fetching by tag) its assignment history.
+
+Identify the artifact using one of the following mutually exclusive options:
+
+- By tag name (`--tag-name`)
+- By artifact ID (`--graph-artifact-id `)
+- By content-addressed digest (`--digest`)
+
+You must provide exactly one of `--tag-name`, `--graph-artifact-id`, or `--digest`.
+
+#### Options
+
+| Option | Description |
+|---|---|
+| `--graph-id` | **Required.** The ID of the graph that owns the artifact. |
+| `-t, --tag-name` | Fetch by tag name. Mutually exclusive with `--graph-artifact-id` and `--digest`. |
+| `-g, --graph-artifact-id` | Fetch by artifact ID. Mutually exclusive with `--tag-name` and `--digest`. |
+| `-d, --digest` | Fetch by content-addressed digest. Mutually exclusive with `--tag-name` and `--graph-artifact-id`. |
+| `--history-limit` | When fetching by tag, the number of tag history entries to include (default: `5`, max: `20`). |
+| `--format` | Output format: `plain` (default) or `json`. |
+
+#### Output
+
+The command prints the following fields for the resolved artifact:
+
+- **Graph ID** – the ID of the graph
+- **Artifact ID** – the unique identifier for the artifact
+- **Digest** – the content-addressed hash of the artifact
+- **Launch ID** – the ID of the launch that produced the artifact
+- **Tag** – the tag name (only shown when fetching by tag)
+- **Created at** / **Updated at** – timestamps for when the artifact was created and last updated
+
+When fetching by tag, the output also includes a history table showing recent tag reassignments. Each row lists the digest that was assigned and when the reassignment occurred. Use `--history-limit` to control how many entries are shown.
+
+#### Errors
+
+If the artifact cannot be resolved, the command exits with an error describing the cause:
+
+- **Artifact not found** – no artifact matches the given tag name, artifact ID, or digest.
+- **Artifact is still being built** – the artifact's build is pending. Wait for the launch to complete and retry.
+- **Artifact failed to build** – the artifact's build failed. Check the associated launch for details.
+## List tags
+
+List the tags applied to artifacts in your graph, either across the entire graph or scoped to a single artifact identified by digest.
+
+### `graph-artifact list-tags`
+
+List every tag applied to any artifact in a graph:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID>
+```
+
+List only the tags applied to a specific artifact by passing its digest:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID> --digest <DIGEST>
+```
+
+Change how many tags are returned with `--limit`:
+
+```bash
+rover graph-artifact list-tags --graph-id <GRAPH_ID> --limit <LIMIT>
+```
+
+- The `--graph-id <GRAPH_ID>` option is the ID of the graph whose tags you want to list
+- The `--digest <DIGEST>` option is optional. When provided, the output narrows to tags on the artifact with that digest; when omitted, the output includes tags across all artifacts in the graph
+- The `--limit <LIMIT>` option sets the maximum number of tags to return and defaults to `100`.
+
+By default Rover prints one tag per line on stdout, which makes the output easy to pipe to other tools. Pass `--format json` to get machine-readable output of the form `{ "data": { "tags": [...] } }`.

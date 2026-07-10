@@ -10,6 +10,7 @@ pub struct GraphPublishInput {
     pub graph_ref: GraphRef,
     pub proposed_schema: String,
     pub git_context: GitContext,
+    pub changelog_message: Option<String>,
 }
 
 type MutationVariables = graph_publish_mutation::Variables;
@@ -20,20 +21,13 @@ impl From<GraphPublishInput> for MutationVariables {
             graph_id,
             variant,
             proposed_schema: input.proposed_schema,
-            git_context: input.git_context.into(),
-        }
-    }
-}
-
-type GraphPublishContextInput = graph_publish_mutation::GitContextInput;
-impl From<GitContext> for GraphPublishContextInput {
-    fn from(git_context: GitContext) -> GraphPublishContextInput {
-        GraphPublishContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
+            git_context: graph_publish_mutation::GitContextInput {
+                branch: input.git_context.branch,
+                commit: input.git_context.commit,
+                committer: input.git_context.author,
+                remote_url: input.git_context.remote_url,
+                message: input.changelog_message,
+            },
         }
     }
 }
@@ -43,6 +37,7 @@ pub struct GraphPublishResponse {
     pub api_schema_hash: String,
     #[serde(flatten)]
     pub change_summary: ChangeSummary,
+    pub total_type_count: u64,
 }
 
 #[derive(Clone, Serialize, Debug, Eq, PartialEq)]

@@ -16,7 +16,6 @@ use rover_client::operations::graph::{
 };
 use rover_graphql::GraphQLLayer;
 use rover_http::HttpService;
-use rover_std::FileSearch;
 use rover_studio::types::GraphRef;
 use serde::Serialize;
 use tower::{Service, ServiceBuilder, ServiceExt};
@@ -24,7 +23,7 @@ use tower::{Service, ServiceBuilder, ServiceExt};
 use crate::{
     RoverOutput, RoverResult,
     command::client::extensions::{ExtensionFailure, ExtensionSnippet, validate_extensions},
-    options::{OptionalGraphRefOpt, ProfileOpt},
+    options::{FileDiscoveryOpt, OptionalGraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,
 };
 
@@ -39,17 +38,9 @@ pub struct Check {
     #[clap(flatten)]
     profile: ProfileOpt,
 
-    /// Glob patterns to include (e.g. `src/**/*.graphql`).
-    #[arg(long = "include", value_name = "PATTERN", action = clap::ArgAction::Append)]
-    include: Vec<String>,
-
-    /// Glob patterns to exclude (e.g. `**/__generated__/**`).
-    #[arg(long = "exclude", value_name = "PATTERN", action = clap::ArgAction::Append)]
-    exclude: Vec<String>,
-
-    /// Root directory to scan. Defaults to the current working directory.
-    #[arg(long = "root-dir", value_name = "DIR")]
-    root_dir: Option<Utf8PathBuf>,
+    #[clap(flatten)]
+    #[serde(flatten)]
+    file_discovery: FileDiscoveryOpt,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -62,8 +53,6 @@ enum ClientCheckError {
     NoOperations,
     #[error("A graph ref is required for client check.")]
     MissingGraphRef,
-    #[error("current directory is not utf-8")]
-    NonUtf8CurrentDir,
     #[error(
         "Conflicting fragment bodies detected across multiple files:\n  {}",
         .0.iter().join("\n  ")
@@ -144,47 +133,7 @@ impl Check {
     }
 
     fn find_and_parse_files(&self) -> RoverResult<Vec<ParsedFile>> {
-        let root = match &self.root_dir {
-            Some(r) => r.clone(),
-            None => {
-                let cwd = std::env::current_dir()?;
-                Utf8PathBuf::from_path_buf(cwd).map_err(|_| ClientCheckError::NonUtf8CurrentDir)?
-            }
-        };
-
-        // Use dunce::canonicalize so paths on Windows don't carry the \\?\ UNC prefix that
-        // std::fs::canonicalize adds. This keeps error messages readable and lets test code
-        // independently compute expected paths with the same function.
-        let canonical_root = dunce::canonicalize(root.as_std_path())
-            .unwrap_or_else(|_| root.as_std_path().to_path_buf());
-        let canonical_root_utf8 =
-            Utf8PathBuf::from_path_buf(canonical_root.clone()).unwrap_or(root);
-
-        let includes: Vec<String> = self
-            .include
-            .iter()
-            .map(|p| {
-                let path = std::path::Path::new(p);
-                if path.is_absolute() {
-                    let canonical =
-                        dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-                    canonical
-                        .strip_prefix(&canonical_root)
-                        .map(|rel| rel.to_string_lossy().into_owned())
-                        .unwrap_or_else(|_| p.clone())
-                } else {
-                    p.clone()
-                }
-            })
-            .collect();
-
-        let files = FileSearch::builder()
-            .root(canonical_root_utf8)
-            .includes(includes)
-            .excludes(self.exclude.clone())
-            .build()
-            .find(&["graphql"])?;
-
+        let files = self.file_discovery.find(&["graphql"])?;
         parse_graphql_files(files)
     }
 

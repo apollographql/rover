@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use bytes::Bytes;
 use http::StatusCode;
 use http_body_util::Full;
@@ -42,6 +44,9 @@ pub enum HttpServiceError {
     /// An unexpected error
     #[error("Unexpected HTTP error. {}", .0)]
     Unexpected(Box<dyn std::error::Error + Send + Sync + 'static>),
+    /// An infallible body error — this variant can never be constructed
+    #[error("Infallible body error")]
+    InfallibleBody(#[from] Infallible),
 }
 
 impl HttpServiceError {

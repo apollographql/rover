@@ -3,67 +3,76 @@ title: Validating Client Operations
 subtitle: Confirm that all client operations are supported by your schema
 ---
 
-You can confirm that all of the GraphQL operations defined in your client application are valid against the types, fields, and arguments in your graph's published schema. To do so, you use the `apollo client:check` command of the [Apollo CLI](/rover/apollo-cli/):
+You can confirm that all of the GraphQL operations defined in your client application are valid against the types, fields, and arguments in your graph's published schema. To do so, use the [`rover client check`](./commands/client#client-check) command:
+
+```bash
+rover client check my-graph@my-variant --include "src/**/*.graphql"
+```
+
+The argument `my-graph@my-variant` is a [graph ref](./conventions/#graph-refs) that identifies the GraphOS graph and [variant](/graphos/graphs/#variants) to validate against. If you omit the variant, Rover uses the default variant named `current`.
+
+For each operation, `rover client check` reports whether it passed validation and, for failures, the specific error:
 
 ```
-$ apollo client:check
-
-  ✔ Loading Apollo Project
-  ✔ Checking client compatibility with service
-
-GetTeamGrid: src/components/TeamGrid.jsx:4
-
-    FAILURE    Field "league" must not have a selection since type "SportsLeague" has no subfields.
+Validated 4 operations (3 files scanned)
+GetTeamGrid: src/components/TeamGrid.graphql:4:1
+  FAILURE Field "league" must not have a selection since type "SportsLeague" has no subfields.
 
 4 total operations validated
 1 failure
 ```
 
-You run this command from your client application's root. It recursively scans your project for the following:
+The command exits with a non-zero exit code if any operation fails validation.
 
-- GraphQL operations wrapped in the `gql` tag
-- [Client-side schema extensions](/react/local-state/client-side-schema/) wrapped in the `gql` tag
+## Scanning operations
 
-By combining your registered graph's schema with your client-side schema extensions, the `apollo client:check` command can confirm whether the shape of each defined operation conforms to the shape of your combined schema.
+Run this command from your client application's root directory. Rover scans for `.graphql` files using the glob patterns you provide with `--include`. You can specify multiple patterns and optionally exclude paths with `--exclude`:
 
-Make sure that your project [provides a graph API key](/devtools/cli/#provide-an-api-key) to the Apollo CLI. This both authenticates the CLI with Studio and specifies which graph's schema you're checking against.
+```bash
+rover client check my-graph@staging \
+  --include "src/**/*.graphql" \
+  --exclude "src/__generated__/**"
+```
+
+If your operations are embedded in TypeScript source files as `gql` tagged template literals, use [`rover client extract`](./commands/client#client-extract) first to generate standalone `.graphql` files, then run `rover client check` against those.
+
+```bash
+rover client extract --out-dir graphql
+rover client check my-graph@staging --include "graphql/**/*.graphql"
+```
+
+All operations must have names. Anonymous operations are rejected with an error.
+
+## Authentication
+
+Make sure you set the `APOLLO_KEY` environment variable so Rover can authenticate with GraphOS and identify which graph's schema to check against:
+
+```bash
+APOLLO_KEY=your-api-key rover client check my-graph@my-variant \
+  --include "src/**/*.graphql"
+```
 
 ## Checking against a particular variant
 
-During development, your application might be executing GraphQL operations against a locally running server with a schema that differs somewhat from your production server's schema. Because schemas can differ, it's important to always check your operations against the current schema for a particular environment before you push client changes to that environment.
+During development, your application might be executing GraphQL operations against a locally running server with a schema that differs from your production server's schema. Because schemas can differ, it's important to always check your operations against the schema for a particular environment before you push client changes to that environment.
 
-If you represent each of your server's environments with a separate [graph variant](/graphos/graphs#variants) (recommended), you can check your operations against a particular variant's schema like so:
+Specify the target variant, `production` in this example, directly in the graph ref:
 
-```
-$ apollo client:check --variant=production
+```bash
+rover client check my-graph@production --include "src/**/*.graphql"
 ```
 
 ## Using with continuous integration
 
-Your application can incorporate `client:check` into its continuous delivery pipeline to help ensure that new and modified operations are valid before they go live.
+Your application can incorporate `rover client check` into its continuous delivery pipeline to help ensure that new and modified operations are valid before they go live.
 
-Here's a Circle CI configuration excerpt that incorporates the command:
+For example, the following GitHub Actions configuration excerpt incorporates the command:
 
-```yaml {30} title="config.yml"
-version: 2
-
-jobs:
-  # ...other jobs...
-
-  # Define a separate job for each environment you validate against.
-  check_against_staging:
-    docker:
-      - image: circleci/node:12
-
-    steps:
-      - checkout
-
-      - run: npm install
-
-      # CircleCI needs global installs to be sudo
-      - run: sudo npm install --global apollo
-
-      # This command authenticates using the `APOLLO_KEY` environment variable.
-      # Don't forget to provide your API key in it.
-      - run: npx apollo client:check --variant=staging
+```yaml title=".github/workflows/check.yml"
+- name: Validate client operations
+  run: |
+    rover client check my-graph@production \
+      --include "src/**/*.graphql"
+  env:
+    APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
 ```

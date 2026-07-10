@@ -11,10 +11,20 @@ jobs:
     name: Cargo Deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          install: false
+        env:
+          CARGO_NET_RETRY: "5"
+      - name: Install mise tools
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          timeout_minutes: 10
+          command: mise install
       - run: mise run cargo-deny
 
   fmt:
@@ -24,7 +34,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install nightly@nightly toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       with:
         toolchain: nightly
         components: rustfmt
@@ -38,36 +48,72 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       with:
         components: clippy
     - name: Run Clippy
       run: cargo clippy --locked --workspace --all-features --all-targets
 
   test_installers:
+    needs: test
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
         package_manager: [npm, npm_global, pnpm]
+        include:
+          - runner: ubuntu-latest
+            pkg: rover-linux-x64
+            target: x86_64-unknown-linux-gnu
+          - runner: macos-latest
+            pkg: rover-darwin-arm64
+            target: aarch64-apple-darwin
+          - runner: windows-latest
+            pkg: rover-win32-x64
+            target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
-      - run: mise run install_${{matrix.package_manager}}
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        env:
+          CARGO_NET_RETRY: "5"
+      - uses: ./.github/actions/download-artifact-with-retry
+        with:
+          name: installer-binary-${{ matrix.pkg }}
+          path: target/${{ matrix.target }}/release
+      - run: cargo npm generate --target ${{ matrix.target }}
+      - run: node .mise/scripts/patch-npm-shim.js
+      - if: runner.os != 'Windows'
+        run: chmod +x installers/npm/@apollo/${{ matrix.pkg }}/rover
+      - run: mise run install_${{ matrix.package_manager }}
+        env:
+          PLATFORM_PKG: ${{ matrix.pkg }}
+          ROVER_PACKAGES_BASE: ${{ github.workspace }}
 
   test:
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - runner: ubuntu-latest
+            pkg: rover-linux-x64
+            binary_path: target/x86_64-unknown-linux-musl/debug/rover
+          - runner: macos-latest
+            pkg: rover-darwin-arm64
+            binary_path: target/debug/rover
+          - runner: windows-latest
+            pkg: rover-win32-x64
+            binary_path: target/debug/rover.exe
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
-      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        env:
+          CARGO_NET_RETRY: "5"
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
         with:
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
           target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
@@ -75,15 +121,19 @@ jobs:
         name: Install musl-tools for cross-compiling
         run: sudo apt-get install --yes --no-install-recommends musl-tools
       - run: mise run test ${{ matrix.runner == 'ubuntu-latest' && ' --target x86_64-unknown-linux-musl' || '' }}
+      - uses: ./.github/actions/upload-artifact-with-retry
+        with:
+          name: installer-binary-${{ matrix.pkg }}
+          path: ${{ matrix.binary_path }}
 
 
   test_minimal_glibc:
     name: Test with minimal glibc versions
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.8
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.9
 
     steps:
-    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         persist-credentials: false
         ref: ${{ github.head_ref || github.ref_name }}
@@ -95,7 +145,17 @@ jobs:
         git branch -a
         git log --oneline -1
         git symbolic-ref HEAD || echo "Detached HEAD detected"
-    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
-    - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
+    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      with:
+        install: false
+      env:
+        CARGO_NET_RETRY: "5"
+    - name: Install mise tools
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+      with:
+        max_attempts: 3
+        timeout_minutes: 30
+        command: mise install
     - run: mise run test
     - run: mise run check-glibc

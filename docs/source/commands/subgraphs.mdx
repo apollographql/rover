@@ -317,15 +317,128 @@ rover subgraph introspect http://localhost:4000 \
   --schema - --name accounts
 ```
 
-As shown, arguments and options are similar to [`subgraph publish`](#subgraph-publish).
+To configure schema check defaults for every check run on a graph variant, use [check configurations in GraphOS Studio](/graphos/platform/schema-management/checks/configure#using-graphos-studio-recommended).
 
-To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
+To override the default check configuration for a single check run, see the [validation period](#validation-period) and [threshold values](#threshold-values) options below.
 
-If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in GraphOS Studio on the Checks tab.
+#### Options
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="required">
+<td>
+
+###### `--schema`
+
+</td>
+<td>
+
+**Required.** The path to a local `.graphql` or `.gql` file, in SDL format. You can also provide `-`, in which case the command uses an SDL string piped to `stdin`.
+
+</td>
+</tr>
+
+<tr class="required">
+<td>
+
+###### `--name`
+
+</td>
+<td>
+
+**Required.** The name of the subgraph to check.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `--background`
+
+</td>
+<td>
+
+**Optional.** If provided, the check runs asynchronously and Rover exits without waiting for the check results. View the check's result in GraphOS Studio on the Checks page.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--validation-period`
+
+</td>
+<td>
+
+**Optional.** The time range of past operations to check against. See [Validation period](#validation-period) for more details.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--query-count-threshold`, `--query-percentage-threshold`
+
+</td>
+<td>
+
+**Optional.** The minimum number of times a query or mutation must have been executed to count in the check. See [Threshold values](#threshold-values) for more details.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 #### Running checks in CI
 
 If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but not await their result. If you've [connected GraphOS Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+
+#### Validation period
+
+By default, schema checks compare your changes against the operations seen in the last seven days, or whatever default you've configured in GraphOS Studio. Use `--validation-period` to override that default setting:
+
+```shell {4}
+rover subgraph check my-graph@my-variant \
+  --schema ./schema.graphql \
+  --name accounts \
+  --validation-period=2w
+```
+
+Valid durations are any combination of units supported by [`humantime`](https://docs.rs/humantime/latest/humantime/fn.parse_duration.html), such as `months`/`M`, `weeks`/`w`, `days`/`d`, `min`/`m`, and `sec`/`s`. Values that contain spaces must be quoted:
+
+- `2w` (no quotes needed)
+- `"1month 2weeks"` (quoted because of the space)
+
+<Note>
+
+If you specify a `--validation-period` that exceeds your organization's operation retention period, the command fails with an error.
+
+</Note>
+
+#### Threshold values
+
+Use `--query-count-threshold` and `--query-percentage-threshold` to ignore historical operations that are rare—for example, to safely remove a field still used only by an old, low-traffic client.
+
+- `--query-count-threshold`: Only check against operations executed at least this many times within the validation period.
+- `--query-percentage-threshold`: Only check against operations that account for at least this percentage of total operation volume (e.g., `3` for 3%).
+
+If you provide both flags, an operation must meet or exceed both thresholds to be included.
+
+```shell {5-6}
+rover subgraph check my-graph@my-variant \
+  --schema ./schema.graphql \
+  --name accounts \
+  --validation-period=5d \
+  --query-count-threshold=5 \
+  --query-percentage-threshold=3
+```
 
 ### `subgraph lint`
 

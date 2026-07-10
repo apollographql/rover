@@ -2,6 +2,8 @@
 
 GitHub Action that runs [`rover subgraph check`](https://www.apollographql.com/docs/rover/commands/subgraphs#subgraph-check) inside the official `ghcr.io/apollographql/rover` container. No separate install step is required — the action bundles a pinned Rover version.
 
+If your workflow checks then immediately publishes the same schema, consider using the `check` input on the [subgraph-publish action](https://github.com/marketplace/actions/run-apollo-rover-subgraph-publish) instead which runs checks and publishes in a single workflow step.
+
 > **Note:** This is a Docker container action and runs only on Linux runners (`ubuntu-*`). For Windows or macOS workflows, use [`install-rover`](https://github.com/apollographql-gh-actions/install-rover) plus a `run:` step that invokes `rover subgraph check` directly.
 
 ## Inputs

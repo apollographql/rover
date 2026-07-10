@@ -2,11 +2,12 @@
 idiomatic_version_file_enable_tools = ["rust"]
 
 [tools]
-"github:lycheeverse/lychee" = { version = "0.24.2", version_prefix = "lychee-v" }
-node = "24.16.0"
-"npm:npm" = "11.16.0"
+"cargo:lychee" = "0.24.2"
+node = "24.18.0"
+"npm:npm" = "11.18.0"
 "cargo:cargo-deny" = "0.19"
 "cargo:graphql_client_cli" = "0.16.0"
+"cargo:cargo-npm" = "0.1.2"
 
 [tasks.check]
 description = "Run the same checks as CI"
@@ -24,6 +25,13 @@ run = "cargo clippy --locked --workspace --all-features --all-targets"
 
 [tasks.test]
 run = "cargo test --locked --workspace --exclude regressions"
+
+[tasks.generate-npm]
+description = "Generate npm packages via cargo-npm and patch the shim"
+run = """
+cargo npm generate
+node .mise/scripts/patch-npm-shim.js
+"""
 
 [tasks.install_npm]
 run = "bash .mise/scripts/install_npm.sh"

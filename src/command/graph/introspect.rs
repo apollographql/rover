@@ -2,11 +2,14 @@ use std::{collections::HashMap, time::Duration};
 
 use clap::Parser;
 use reqwest::Client;
-use rover_client::operations::graph::introspect::{self, GraphIntrospectInput};
+use rover_client::operations::graph::introspect::{
+    self, GraphIntrospectInput, sdl_to_introspection_json,
+};
 use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
+    cli::RoverOutputFormatKind,
     options::{IntrospectOpts, OutputOpts},
 };
 
@@ -40,7 +43,7 @@ impl Introspect {
                 .await
         } else {
             let sdl = self.exec(&client, true, retry_period).await?;
-            Ok(RoverOutput::Introspection(sdl))
+            Self::sdl_to_output(sdl, output_opts.format_kind)
         }
     }
 
@@ -72,6 +75,15 @@ impl Introspect {
         .schema_sdl)
     }
 
+    fn sdl_to_output(sdl: String, format_kind: RoverOutputFormatKind) -> RoverResult<RoverOutput> {
+        match format_kind {
+            RoverOutputFormatKind::Json => Ok(RoverOutput::IntrospectionJson(
+                sdl_to_introspection_json(&sdl)?,
+            )),
+            RoverOutputFormatKind::Plain => Ok(RoverOutput::Introspection(sdl)),
+        }
+    }
+
     pub async fn exec_and_watch(
         &self,
         client: &Client,
@@ -80,7 +92,95 @@ impl Introspect {
         retry_period: Duration,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(client, false, retry_period),
+                |sdl| Self::sdl_to_output(sdl, output_opts.format_kind),
+                output_opts,
+            )
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Introspect;
+    use crate::{RoverOutput, cli::RoverOutputFormatKind, options::JsonOutput};
+
+    const SWAPI_SDL: &str = include_str!(
+        "../../../crates/rover-client/src/operations/graph/introspect/fixtures/swapi.graphql"
+    );
+    const SWAPI_REFERENCE_JSON: &str = include_str!(
+        "../../../crates/rover-client/src/operations/graph/introspect/fixtures/swapi-introspection.json"
+    );
+
+    #[test]
+    fn format_json_matches_swapi_reference_structurally() {
+        use rover_client::operations::graph::introspect::assert_structural_parity;
+
+        let reference: serde_json::Value = serde_json::from_str(SWAPI_REFERENCE_JSON).unwrap();
+        let output =
+            Introspect::sdl_to_output(SWAPI_SDL.to_string(), RoverOutputFormatKind::Json).unwrap();
+
+        let RoverOutput::IntrospectionJson(actual) = output else {
+            panic!("expected IntrospectionJson, got {output:?}");
+        };
+
+        assert_structural_parity(&actual, &reference);
+    }
+
+    #[test]
+    fn format_json_round_trips_through_sdl_to_valid_schema() {
+        use rover_client::operations::graph::introspect::introspection_json_to_validated_sdl;
+
+        let output =
+            Introspect::sdl_to_output(SWAPI_SDL.to_string(), RoverOutputFormatKind::Json).unwrap();
+
+        let RoverOutput::IntrospectionJson(introspection) = output else {
+            panic!("expected IntrospectionJson, got {output:?}");
+        };
+
+        introspection_json_to_validated_sdl(&introspection).unwrap();
+    }
+
+    #[test]
+    fn format_json_returns_introspection_object() {
+        let output =
+            Introspect::sdl_to_output(SWAPI_SDL.to_string(), RoverOutputFormatKind::Json).unwrap();
+
+        let RoverOutput::IntrospectionJson(v) = output else {
+            panic!("expected IntrospectionJson, got {output:?}");
+        };
+        assert!(v["__schema"].is_object());
+        assert!(v.get("data").is_none());
+        assert!(v.get("errors").is_none());
+    }
+
+    #[test]
+    fn format_json_envelope_exposes_schema_under_data() {
+        let output =
+            Introspect::sdl_to_output(SWAPI_SDL.to_string(), RoverOutputFormatKind::Json).unwrap();
+
+        let RoverOutput::IntrospectionJson(v) = output else {
+            panic!("expected IntrospectionJson");
+        };
+
+        let envelope = JsonOutput::from(&RoverOutput::IntrospectionJson(v.clone()));
+        let envelope_json: serde_json::Value = serde_json::from_str(&envelope.to_string()).unwrap();
+        assert_eq!(
+            envelope_json["data"]["introspection_response"]["__schema"],
+            v["__schema"]
+        );
+    }
+
+    #[test]
+    fn format_plain_returns_sdl() {
+        let output =
+            Introspect::sdl_to_output(SWAPI_SDL.to_string(), RoverOutputFormatKind::Plain).unwrap();
+
+        let RoverOutput::Introspection(ref sdl) = output else {
+            panic!("expected Introspection, got {output:?}");
+        };
+        assert_eq!(sdl, SWAPI_SDL);
+        assert_eq!(output.get_stdout().unwrap().unwrap(), SWAPI_SDL);
     }
 }

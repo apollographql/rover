@@ -41,10 +41,16 @@ pub struct IntrospectOpts {
 }
 
 impl IntrospectOpts {
-    pub async fn exec_and_watch<F, G>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
+    pub async fn exec_and_watch<F, G, H>(
+        &self,
+        exec_fn: F,
+        to_output: H,
+        output_opts: &OutputOpts,
+    ) -> !
     where
         F: Fn() -> G,
         G: Future<Output = RoverResult<String>>,
+        H: Fn(String) -> RoverResult<RoverOutput>,
     {
         let mut last_result = None;
         loop {
@@ -59,9 +65,11 @@ impl IntrospectOpts {
 
                     if was_updated {
                         let sdl = sdl.to_string();
-                        let output = RoverOutput::Introspection(sdl.clone());
+                        let output = to_output(sdl.clone());
 
-                        let _ = output.write_or_print(output_opts).map_err(|e| e.print());
+                        let _ = output
+                            .and_then(|output| output.write_or_print(output_opts))
+                            .map_err(|e| e.print());
                         if let Some(channel) = &output_opts.channel {
                             // TODO: error handling
                             let _ = channel.send(OutputChannelKind::Sdl(sdl));

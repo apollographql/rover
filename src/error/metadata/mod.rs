@@ -342,6 +342,17 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::GraphArtifactOperationInProgress { .. } => {
                     (Some(RoverErrorSuggestion::TryAgainLater), None)
                 }
+                RoverClientError::GraphArtifactBuildFailed {
+                    graph_id,
+                    launch_id,
+                    ..
+                } => (
+                    Some(RoverErrorSuggestion::RetryLaunch {
+                        graph_id: graph_id.clone(),
+                        launch_id: launch_id.clone(),
+                    }),
+                    None,
+                ),
                 RoverClientError::GraphArtifactNotFound { .. }
                 | RoverClientError::GraphArtifactDigestInvalid { .. }
                 | RoverClientError::GraphArtifactTagInvalid { .. }

@@ -1,0 +1,48 @@
+[package]
+name = "rover-auth"
+version = "0.0.0"
+edition = "2024"
+
+publish = false
+
+[features]
+testing = ["mockall", "rover-http/test", "rover-open/testing", "rover-print/testing", "rover-tower/test"]
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+bon = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+mockall = { workspace = true, optional = true }
+oauth2 = { workspace = true }
+pin-project = { workspace = true }
+rover-http = { workspace = true }
+rover-open = { workspace = true }
+rover-print = { workspace = true }
+rover-tower = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+tower = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+bytes = { workspace = true }
+futures = { workspace = true }
+httpmock = { workspace = true }
+mockall = { workspace = true }
+reqwest = { workspace = true }
+rover-http = { workspace = true, features = ["test"] }
+rover-open = { workspace = true, features = ["testing"] }
+rover-print = { workspace = true, features = ["testing"] }
+rover-tower = { workspace = true, features = ["test"] }
+rstest = { workspace = true }
+speculoos = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+
+[lints]
+workspace = true

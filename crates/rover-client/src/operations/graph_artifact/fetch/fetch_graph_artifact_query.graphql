@@ -1,0 +1,67 @@
+query GraphArtifactByDigestQuery($graphId: ID!, $digest: String!) {
+    graphArtifactByDigest(graphID: $graphId, digest: $digest) {
+        id
+        digest
+        status
+        errors {
+            message
+        }
+        createdAt
+        updatedAt
+        content {
+            launch {
+                id
+            }
+        }
+    }
+}
+
+query GraphArtifactByIdQuery($graphId: ID!, $id: ID!) {
+    graphArtifactById(graphID: $graphId, id: $id) {
+        id
+        digest
+        status
+        errors {
+            message
+        }
+        createdAt
+        updatedAt
+        content {
+            launch {
+                id
+            }
+        }
+    }
+}
+
+query GraphArtifactByTagQuery($graphId: ID!, $tag: String!, $historyFirst: Int!) {
+    graphArtifactTag(graphID: $graphId, tag: $tag) {
+        tag
+        graphArtifact {
+            id
+            digest
+            status
+            errors {
+                message
+            }
+            createdAt
+            updatedAt
+            content {
+                launch {
+                    id
+                }
+            }
+        }
+        history(first: $historyFirst) {
+            edges {
+                node {
+                    changedAt
+                    graphArtifactAssigned {
+                        digest
+                        createdAt
+                    }
+                }
+            }
+        }
+    }
+}

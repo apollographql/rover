@@ -97,14 +97,16 @@ pub struct Rover {
     accept_invalid_hostnames: bool,
 
     /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
-    #[arg(
-        long = "client-timeout",
-        global = true,
-        default_value_t = ClientTimeout::default()
-    )]
-    client_timeout: ClientTimeout,
+    ///
+    /// Defaults to 30s for standard operations and 300s for plugin downloads.
+    #[arg(long = "client-timeout", global = true)]
+    client_timeout: Option<ClientTimeout>,
 
     /// Skip checking for newer versions of rover.
+    ///
+    /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
+    /// to disable all of Rover's auto-updating at once — both this self-update
+    /// check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
@@ -183,7 +185,7 @@ impl Rover {
         // do their own checks.
         // the check is also skipped if the `--skip-update-check` flag is passed.
         if let Command::Update(_) = &self.command { /* skip check */
-        } else if !self.skip_update_check {
+        } else if !self.skip_update_check && !crate::utils::skip_all_updates() {
             let config = self.get_rover_config();
             if let Ok(config) = config {
                 let _ = version::check_for_update(config, false, self.get_reqwest_client()?).await;
@@ -256,7 +258,16 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
-            Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
+            Command::PersistedQueries(command) => {
+                let client_config = if command.requires_client_config() {
+                    Some(self.get_client_config()?)
+                } else {
+                    None
+                };
+                command
+                    .run(client_config, &rover_print::stderr::default())
+                    .await
+            }
             Command::License(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
@@ -287,13 +298,18 @@ impl Rover {
             false
         };
         let config = self.get_rover_config()?;
-        Ok(StudioClientConfig::new(
+        let client_config = StudioClientConfig::new(
             override_endpoint,
             config,
             is_sudo,
             self.get_reqwest_client_builder(),
-            self.client_timeout,
-        ))
+            self.client_timeout.unwrap_or_default(),
+        );
+        // Downloads should honor the client timeout if set despite having a different default
+        Ok(match self.client_timeout {
+            Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
+            None => client_config,
+        })
     }
 
     pub(crate) fn get_install_override_path(&self) -> RoverResult<Option<Utf8PathBuf>> {
@@ -339,7 +355,7 @@ impl Rover {
                     ClientBuilder::new()
                         .accept_invalid_certs(self.accept_invalid_certs)
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
-                        .with_timeout(self.client_timeout.get_duration()),
+                        .with_timeout(self.client_timeout.unwrap_or_default().get_duration()),
                 )
                 .ok();
             self.get_reqwest_client_builder()

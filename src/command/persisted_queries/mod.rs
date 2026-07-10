@@ -1,7 +1,10 @@
+mod generate;
 mod publish;
 
 use clap::Parser;
+pub use generate::Generate;
 pub use publish::Publish;
+use rover_print::print::Print;
 use serde::Serialize;
 
 use crate::{
@@ -16,14 +19,29 @@ pub struct PersistedQueries {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
+    /// Generate a persisted query manifest from GraphQL operation files
+    Generate(persisted_queries::Generate),
     /// Persist a list of queries (or mutations) to a graph in Apollo Studio
     Publish(persisted_queries::Publish),
 }
 
 impl PersistedQueries {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub const fn requires_client_config(&self) -> bool {
+        matches!(self.command, Command::Publish(_))
+    }
+
+    pub async fn run<P: Print>(
+        &self,
+        client_config: Option<StudioClientConfig>,
+        stderr: &P,
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Publish(command) => command.run(client_config).await,
+            Command::Generate(command) => command.run(stderr).await,
+            Command::Publish(command) => {
+                command
+                    .run(client_config.expect("publish requires client config"))
+                    .await
+            }
         }
     }
 }

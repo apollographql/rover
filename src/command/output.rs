@@ -14,7 +14,8 @@ use rover_client::{
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
         graph_artifact::{
-            tag::AssignGraphArtifactTagResponse, untag::DeleteGraphArtifactTagResponse,
+            fetch::FetchGraphArtifactResponse, tag::AssignGraphArtifactTagResponse,
+            untag::DeleteGraphArtifactTagResponse,
         },
         init::memberships::InitMembershipsResponse,
         persisted_queries::publish::PersistedQueriesPublishResponse,
@@ -98,6 +99,7 @@ pub enum RoverOutput {
     LintResponse(LintResponse),
     AssignGraphArtifactTagResponse(AssignGraphArtifactTagResponse),
     DeleteGraphArtifactTagResponse(DeleteGraphArtifactTagResponse),
+    FetchGraphArtifactResponse(FetchGraphArtifactResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -120,6 +122,7 @@ pub enum RoverOutput {
     },
     Profiles(Vec<String>),
     Introspection(String),
+    IntrospectionJson(serde_json::Value),
     ErrorExplanation(String),
     ReadmeFetchResponse {
         graph_ref: GraphRef,
@@ -260,10 +263,11 @@ impl RoverOutput {
                 publish_response,
             } => {
                 stderrln!(
-                    "{}#{} published successfully {}",
+                    "{}#{} published successfully {} ({} total types)",
                     graph_ref,
                     publish_response.api_schema_hash,
-                    publish_response.change_summary
+                    publish_response.change_summary,
+                    publish_response.total_type_count
                 )?;
                 Some((publish_response.api_schema_hash).to_string())
             }
@@ -272,14 +276,26 @@ impl RoverOutput {
                 subgraph,
                 publish_response,
             } => {
+                let hash_suffix = publish_response
+                    .api_schema_hash
+                    .as_deref()
+                    .map(|h| format!(" (#{h})"))
+                    .unwrap_or_default();
+
                 if publish_response.subgraph_was_created {
                     stderrln!(
-                        "A new subgraph called '{}' was created in '{}'",
+                        "A new subgraph called '{}' was created in '{}'{}",
                         subgraph,
-                        graph_ref
+                        graph_ref,
+                        hash_suffix
                     )?;
                 } else if publish_response.subgraph_was_updated {
-                    stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
+                    stderrln!(
+                        "The '{}' subgraph in '{}' was updated{}",
+                        subgraph,
+                        graph_ref,
+                        hash_suffix
+                    )?;
                 } else {
                     stderrln!(
                         "The '{}' subgraph was NOT updated because no changes were detected",
@@ -473,6 +489,9 @@ impl RoverOutput {
             RoverOutput::Introspection(introspection_response) => {
                 Some((introspection_response).to_string())
             }
+            RoverOutput::IntrospectionJson(introspection_response) => Some(
+                serde_json::to_string_pretty(introspection_response).map_err(io::Error::other)?,
+            ),
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
@@ -624,6 +643,38 @@ impl RoverOutput {
 
                 None
             }
+            RoverOutput::FetchGraphArtifactResponse(response) => {
+                let mut output = format!(
+                    "Digest: {}\nLaunch: {}\nLatest Graph Artifact ID: {}\nCreated At: {}\nUpdated At: {}",
+                    response.digest,
+                    response.launch_id,
+                    response.graph_artifact_id,
+                    response.created_at,
+                    response.updated_at,
+                );
+
+                if let Some(history) = &response.history
+                    && !history.is_empty()
+                {
+                    let mut table = table::get_table();
+                    table.add_row(vec![
+                        &Style::Success.paint("Digest"),
+                        &Style::Success.paint("Changed At"),
+                    ]);
+                    for entry in history {
+                        table.add_row(vec![
+                            entry.digest.clone().unwrap_or_else(|| "N/A".to_string()),
+                            entry.changed_at.clone(),
+                        ]);
+                    }
+                    let tag = response.tag.as_deref().unwrap_or_default();
+                    write!(output, "\n\nHistory for tag '{tag}':\n{table}")
+                        .expect("writing to a String cannot fail");
+                    // https://github.com/rust-lang/rust/blob/18bf6b4f01a6feaf7259ba7cdae58031af1b7b39/library/alloc/src/string.rs#L2414-L2427
+                }
+
+                Some(output)
+            }
             RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
         })
     }
@@ -714,6 +765,9 @@ impl RoverOutput {
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
             }
+            RoverOutput::IntrospectionJson(introspection_response) => {
+                json!({ "introspection_response": introspection_response })
+            }
             RoverOutput::ErrorExplanation(explanation_markdown) => {
                 json!({ "explanation_markdown": explanation_markdown })
             }
@@ -793,6 +847,7 @@ impl RoverOutput {
             RoverOutput::DeleteGraphArtifactTagResponse(response) => {
                 json!({ "tag": response.tag })
             }
+            RoverOutput::FetchGraphArtifactResponse(response) => json!(response),
             RoverOutput::CliOutput(cli_output) => {
                 cli_output.json().unwrap_or(serde_json::Value::Null)
             }
@@ -875,7 +930,9 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
-            RoverOutput::Introspection(_) => Some("Introspection Response"),
+            RoverOutput::Introspection(_) | RoverOutput::IntrospectionJson(_) => {
+                Some("Introspection Response")
+            }
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
             _ => None,
@@ -1552,6 +1609,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     edits: 7,
                 },
             },
+            total_type_count: 50,
         };
         let actual_json = JsonOutput::from(&RoverOutput::GraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
@@ -1572,6 +1630,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     "removals": 0,
                     "edits": 7
                 },
+                "total_type_count": 50,
                 "success": true
             },
             "error": null
@@ -1745,6 +1804,51 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "json_version": "1",
             "data": {
                 "introspection_response": "i cant believe its not a real introspection response",
+                "success": true
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn introspection_json_object_output() {
+        let introspection = json!({
+            "__schema": {
+                "queryType": { "name": "Query" },
+                "mutationType": null,
+                "subscriptionType": null,
+                "types": [],
+                "directives": []
+            }
+        });
+        let actual_json = JsonOutput::from(&RoverOutput::IntrospectionJson(introspection.clone()));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "introspection_response": introspection,
+                "success": true
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+
+        let stdout = RoverOutput::IntrospectionJson(introspection)
+            .get_stdout()
+            .unwrap()
+            .unwrap();
+        assert!(stdout.contains("\"__schema\""));
+        assert!(stdout.contains('\n'));
+
+        let swapi: serde_json::Value = serde_json::from_str(include_str!(
+            "../../crates/rover-client/src/operations/graph/introspect/fixtures/swapi-introspection.json"
+        ))
+        .unwrap();
+        let actual_json = JsonOutput::from(&RoverOutput::IntrospectionJson(swapi.clone()));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "introspection_response": swapi,
                 "success": true
             },
             "error": null

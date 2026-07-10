@@ -75,10 +75,15 @@ impl Fs {
 
         // Grab the parent path then attempt to canonicalize it, we can't just canonicalize the
         // entire path because that would entail the file existing, which of course it doesn't yet.
-        let mut canonical_final_path = path
-            .parent()
-            .map(Self::upsert_path_exists)
-            .ok_or_else(|| anyhow!("cannot write file to root or prefix {path}"))??;
+        let parent = match path.parent() {
+            // A bare file name (e.g. `schema.graphql`) has an empty parent, which refers to the
+            // current directory. That always exists, so we mustn't try to create/canonicalize an
+            // empty path — doing so fails with "No such file or directory".
+            Some(parent) if parent.as_str().is_empty() => Utf8Path::new("."),
+            Some(parent) => parent,
+            None => return Err(anyhow!("cannot write file to root or prefix {path}").into()),
+        };
+        let mut canonical_final_path = Self::upsert_path_exists(parent)?;
 
         // Create the final version of the path we want to create
         canonical_final_path.push(file_name);

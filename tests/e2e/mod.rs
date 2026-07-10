@@ -2,8 +2,9 @@ use std::{
     collections::HashMap,
     env,
     io::{BufRead, BufReader},
+    net::TcpListener,
     path::PathBuf,
-    process::ChildStderr,
+    process::{Child, ChildStderr},
     time::Duration,
 };
 
@@ -182,6 +183,7 @@ fn run_subgraphs_retail_supergraph(
                 &client,
                 &subgraph_config.routing_url,
                 GRAPHQL_TIMEOUT_DURATION,
+                None,
             ))
         })
         .expect("Could not execute connectivity check");
@@ -258,7 +260,7 @@ async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> Singl
 
     info!("Testing subgraph connectivity");
     let client = Client::new();
-    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)
+    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION, None)
         .await
         .expect("Could not execute connectivity check");
     SingleMutableSubgraph {
@@ -269,15 +271,32 @@ async fn run_single_mutable_subgraph(test_artifacts_directory: PathBuf) -> Singl
     }
 }
 
+/// Bind to `127.0.0.1:0` and hold the listener until dropped so no other process can
+/// claim the port before a child process starts.
+pub fn reserve_local_port() -> Result<(TcpListener, u16), std::io::Error> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let port = listener.local_addr()?.port();
+    Ok((listener, port))
+}
+
 async fn test_graphql_connection(
     client: &Client,
     url: &str,
     timeout_duration: Duration,
+    mut child: Option<&mut Child>,
 ) -> Result<(), Error> {
     let introspection_query = json!({"query": "{__schema{types{name}}}"});
     // Loop until we get a response, but timeout if it takes too long
     timeout(timeout_duration, async {
         loop {
+            if let Some(child) = child.as_deref_mut()
+                && let Some(status) = child.try_wait()?
+            {
+                return Err(Error::msg(format!(
+                    "GraphQL process exited with status {:?} before becoming reachable at {url}",
+                    status.code()
+                )));
+            }
             match client.post(url).json(&introspection_query).send().await {
                 Ok(res) => {
                     if res.status().is_success() {
@@ -293,8 +312,9 @@ async fn test_graphql_connection(
             }
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
+        Ok::<(), Error>(())
     })
-    .await?;
+    .await??;
     info!("Established connection to {}", url);
     Ok(())
 }

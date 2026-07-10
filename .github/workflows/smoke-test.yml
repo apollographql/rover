@@ -38,9 +38,9 @@ jobs:
     runs-on: ${{ matrix.compile_target.compiles_on }}
     container: ${{ matrix.compile_target.container }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: "Checkout rover repo"
-      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
         with:
           target: ${{ matrix.compile_target.target }}
       - name: Build binaries
@@ -101,7 +101,7 @@ jobs:
 
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: "Checkout rover repo"
 
       - uses: actions/download-artifact@v8
@@ -141,7 +141,7 @@ jobs:
 
       - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
-        shell: bash
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
@@ -150,13 +150,18 @@ jobs:
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
-        run: |
-          E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
-          echo "Found '$E2E_BINARY'"
-          $E2E_BINARY --ignored --nocapture
+        with:
+          max_attempts: 2
+          timeout_minutes: 10
+          shell: bash
+          command: |
+            E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
+            echo "Found '$E2E_BINARY'"
+            $E2E_BINARY --ignored --nocapture
 
       - name: Run Smoke Tests (Windows)
         if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
@@ -165,10 +170,14 @@ jobs:
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
-        run: |
-          $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
-          Write-Output "Found '$E2E_BINARY'"
-          & $E2E_BINARY --ignored --nocapture
+        with:
+          max_attempts: 2
+          timeout_minutes: 10
+          shell: pwsh
+          command: |
+            $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
+            Write-Output "Found '$E2E_BINARY'"
+            & $E2E_BINARY --ignored --nocapture
 
   docker_smoke_tests:
     name: Build & smoke-test Docker image (${{ matrix.platform }})
@@ -182,14 +191,14 @@ jobs:
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Build image
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: ./Dockerfile
