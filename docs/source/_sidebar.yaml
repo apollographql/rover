@@ -39,6 +39,8 @@ items:
         href: ./commands/install
       - label: graph
         href: ./commands/graphs
+      - label: graph-artifact
+        href: ./commands/graph-artifact
       - label: init
         href: ./commands/init
       - label: license
