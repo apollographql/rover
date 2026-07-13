@@ -39,3 +39,5 @@ merge your pull-request, but by following these guidelines we can try to
 avoid disappointment.
 
 -->
+
+[ ] A CHANGELOG.md entry is not needed for this PR

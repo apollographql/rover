@@ -7,6 +7,33 @@ on:
 
 name: Commit Checks
 jobs:
+  changelog:
+    name: Changelog Entry
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for a CHANGELOG.md entry or opt-out checkbox
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only | grep -qx "CHANGELOG.md"; then
+            echo "CHANGELOG.md was updated in this PR."
+            exit 0
+          fi
+
+          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
+            echo "PR description confirms a changelog entry is not needed."
+            exit 0
+          fi
+
+          echo "::error::This PR doesn't modify CHANGELOG.md. Add an entry under 'Unreleased' (see CONTRIBUTING.md), or check the 'A CHANGELOG.md entry is not needed for this PR' box in the PR description."
+          exit 1
+
   cargo-deny:
     name: Cargo Deny
     runs-on: ubuntu-latest
