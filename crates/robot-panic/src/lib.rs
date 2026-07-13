@@ -172,7 +172,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
             &mut buffer,
             "You can submit an \
                  issue with the crash report at this link: {}",
-            &issue_link,
+            issue_link,
         )?;
     } else {
         let path = crash_report.persist();
@@ -193,7 +193,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
                             &mut buffer,
                             "We have generated a report which you can submit to \
                         the authors of this tool.\n\n{}",
-                            &crash_report
+                            crash_report
                         )?;
                     }
                     None => {

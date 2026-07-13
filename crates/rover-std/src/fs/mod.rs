@@ -40,9 +40,9 @@ impl Fs {
                 if metadata.is_file() {
                     tracing::info!("reading {} from disk", &path);
                     let bytes =
-                        fs::read(path).with_context(|| format!("could not read {}", &path))?;
+                        fs::read(path).with_context(|| format!("could not read {}", path))?;
                     let contents = decode_to_string(&bytes)
-                        .with_context(|| format!("could not read {}", &path))?;
+                        .with_context(|| format!("could not read {}", path))?;
                     if contents.is_empty() {
                         Err(RoverStdError::EmptyFile {
                             empty_file: path.to_string(),
@@ -98,13 +98,13 @@ impl Fs {
             .with_context(|| {
                 format!(
                     "tried to open {} but was unable to do so",
-                    &canonical_final_path
+                    canonical_final_path
                 )
             })?;
         tracing::info!("writing {} to disk", &canonical_final_path);
         // Actually write the file out to where it needs to be
         file.write(contents.as_ref())
-            .with_context(|| format!("could not write {}", &canonical_final_path))?;
+            .with_context(|| format!("could not write {}", canonical_final_path))?;
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl Fs {
                     // If the canonicalization fails, then some part of the chain must not exist,
                     // so we need to call create_dir_all to fix this
                     Self::create_dir_all(path).with_context(|| {
-                        format!("{} does not exist and it could not be created", &path)
+                        format!("{} does not exist and it could not be created", path)
                     })?;
                     tracing::debug!("interim paths created for {}", path);
                 }
@@ -142,8 +142,7 @@ impl Fs {
     {
         let path = path.as_ref();
         tracing::info!("creating {} directory", &path);
-        fs::create_dir_all(path)
-            .with_context(|| format!("could not create {} directory", &path))?;
+        fs::create_dir_all(path).with_context(|| format!("could not create {} directory", path))?;
         Ok(())
     }
 
@@ -192,7 +191,7 @@ impl Fs {
         // but do not error if it doesn't exist.
         let _ = fs::remove_file(out_path);
         fs::copy(in_path, out_path)
-            .with_context(|| format!("could not copy {} to {}", &in_path, &out_path))?;
+            .with_context(|| format!("could not copy {} to {}", in_path, out_path))?;
         Ok(())
     }
 
@@ -237,7 +236,7 @@ impl Fs {
                         let out_file = out_dir.join(entry_name);
                         tracing::info!("copying {} to {}", &entry_path, &out_file);
                         fs::copy(entry_path, &out_file).with_context(|| {
-                            format!("could not copy {} to {}", &entry_path, &out_file)
+                            format!("could not copy {} to {}", entry_path, out_file)
                         })?;
                     }
                 } else if metadata.is_dir() && entry_path != in_dir {

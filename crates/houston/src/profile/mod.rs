@@ -159,7 +159,7 @@ impl Profile {
 
 impl fmt::Display for Profile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.sensitive)
+        write!(f, "{}", self.sensitive)
     }
 }
 

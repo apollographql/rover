@@ -60,7 +60,7 @@ async fn do_update_check(
     if latest_version > Version::parse(PKG_VERSION)? {
         let message = format!(
             "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",
-            &pretty_latest,
+            pretty_latest,
             PKG_VERSION,
             Style::Command.paint("`rover docs open start`")
         );
@@ -71,7 +71,7 @@ async fn do_update_check(
     } else if should_output_if_updated {
         eprintln!(
             "Rover is up to date with the latest release {}.",
-            &pretty_latest
+            pretty_latest
         );
     }
 

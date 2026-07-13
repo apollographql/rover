@@ -41,7 +41,7 @@ impl Installer {
 
         self.create_bin_dir()?;
 
-        eprintln!("writing binary to {}", &bin_destination);
+        eprintln!("writing binary to {}", bin_destination);
         self.write_bin_to_fs()?;
 
         self.add_binary_to_path()?;
@@ -86,7 +86,7 @@ impl Installer {
 
         eprintln!(
             "the '{}' plugin was successfully installed to {}",
-            &plugin_name, &plugin_bin_destination
+            plugin_name, plugin_bin_destination
         );
 
         Ok(Some(plugin_bin_destination))
@@ -159,7 +159,7 @@ impl Installer {
         } else {
             crate::get_home_dir_path()
         }?;
-        Ok(base_dir.join(format!(".{}", &self.binary_name)))
+        Ok(base_dir.join(format!(".{}", self.binary_name)))
     }
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
