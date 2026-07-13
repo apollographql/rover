@@ -24,11 +24,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- Add `--check` flag to `rover graph publish` or `rover subgraph publish` to run all configured schema checks before publishing. If any check fails, the publish is aborted and no schema changes are pushed to the registry.
-
 ## 🐛 Fixes
 
 ## 🛠 Maintenance
+
+## 📚 Documentation
+
+- Add `--check` flag to `rover graph publish` or `rover subgraph publish` to run all configured schema checks before publishing. If any check fails, the publish is aborted and no schema changes are pushed to the registry.
 
 # [0.41.0] - 2026-07-09
 
