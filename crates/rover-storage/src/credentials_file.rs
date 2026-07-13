@@ -29,10 +29,33 @@ pub struct CredentialsFileStore {
 
 impl CredentialsFileStore {
     fn checked_dir(&self) -> Result<fs_mistrust::CheckedDir, StoreError> {
+        self.ensure_secure_permissions()?;
         Mistrust::new()
             .verifier()
             .make_secure_dir(&self.dir)
             .map_err(|e| StoreError::Store(Box::new(e)))
+    }
+
+    /// `make_secure_dir` only sets secure (`0700`) permissions on a directory
+    /// it creates; if `self.dir` already exists with looser permissions (for
+    /// example, a pre-existing `$APOLLO_CONFIG_HOME` created before secrets
+    /// moved into this store), it fails outright rather than fixing them.
+    /// Tighten permissions on an existing directory ourselves so the store
+    /// keeps working instead of hard-failing.
+    #[cfg(unix)]
+    fn ensure_secure_permissions(&self) -> Result<(), StoreError> {
+        use std::os::unix::fs::PermissionsExt;
+
+        if self.dir.is_dir() {
+            std::fs::set_permissions(&self.dir, std::fs::Permissions::from_mode(0o700))
+                .map_err(|e| StoreError::Store(Box::new(e)))?;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    fn ensure_secure_permissions(&self) -> Result<(), StoreError> {
+        Ok(())
     }
 
     fn read_data(&self) -> Result<BTreeMap<String, Value>, StoreError> {
@@ -194,6 +217,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::CredentialsFileStore;
+    use crate::StoreError;
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct TestValue {
@@ -243,6 +267,7 @@ mod tests {
         }
     }
 
+    // write() returns the value that was just written.
     #[rstest]
     fn write_returns_the_written_value(store: TestStore) {
         let value = TestValue::new("hello");
@@ -252,6 +277,8 @@ mod tests {
         assert_that!(result).is_ok().is_equal_to(value);
     }
 
+    // A key that was never written returns None, even though the
+    // credentials file exists and holds a different key.
     #[rstest]
     fn read_returns_none_when_key_does_not_exist(store: TestStore) {
         let value = TestValue::new("hello");
@@ -262,6 +289,8 @@ mod tests {
         assert_that!(result).is_ok().is_none();
     }
 
+    // Reading before credentials.json has ever been created returns None,
+    // not an error.
     #[rstest]
     fn read_returns_none_when_file_does_not_exist(store: TestStore) {
         let result = store.read::<TestValue>("key");
@@ -269,6 +298,7 @@ mod tests {
         assert_that!(result).is_ok().is_none();
     }
 
+    // A written value round-trips back out unchanged.
     #[rstest]
     fn read_returns_written_value(store: TestStore) {
         let value = TestValue::new("hello");
@@ -279,6 +309,8 @@ mod tests {
         assert_that!(result).is_ok().is_some().is_equal_to(value);
     }
 
+    // Writing the same key twice overwrites the old value rather than
+    // erroring or merging.
     #[rstest]
     fn write_overwrites_existing_value(store: TestStore) {
         store.write("key", TestValue::new("first")).unwrap();
@@ -292,6 +324,7 @@ mod tests {
             .is_equal_to(TestValue::new("second"));
     }
 
+    // Writing one key doesn't disturb other keys already in the file.
     #[rstest]
     fn write_preserves_other_keys(store: TestStore) {
         store.write("a", TestValue::new("first")).unwrap();
@@ -309,6 +342,7 @@ mod tests {
             .is_equal_to(TestValue::new("second"));
     }
 
+    // Deleting a key removes it; a subsequent read returns None.
     #[rstest]
     fn delete_removes_key(store: TestStore) {
         store.write("key", TestValue::new("hello")).unwrap();
@@ -320,6 +354,7 @@ mod tests {
             .is_none();
     }
 
+    // Deleting a key that was never there is a no-op success, not an error.
     #[rstest]
     fn delete_is_ok_when_key_does_not_exist(store: TestStore) {
         let result = store.delete("missing");
@@ -327,6 +362,7 @@ mod tests {
         assert_that!(result).is_ok();
     }
 
+    // Deleting one key leaves other keys in the file intact.
     #[rstest]
     fn delete_preserves_other_keys(store: TestStore) {
         store.write("a", TestValue::new("keep")).unwrap();
@@ -340,6 +376,7 @@ mod tests {
             .is_equal_to(TestValue::new("keep"));
     }
 
+    // The credentials directory is created with secure 0700 permissions.
     #[cfg(unix)]
     #[rstest]
     fn dir_is_created_with_0700_permissions(store: TestStore) {
@@ -351,6 +388,8 @@ mod tests {
         assert_that!(mode & 0o777).is_equal_to(0o700);
     }
 
+    // The credentials.json file itself is created with secure 0600
+    // permissions.
     #[cfg(unix)]
     #[rstest]
     fn file_is_created_with_0600_permissions(store: TestStore) {
@@ -363,5 +402,122 @@ mod tests {
             .permissions()
             .mode();
         assert_that!(mode & 0o777).is_equal_to(0o600);
+    }
+
+    /// Like [`store`], but leaves the directory at insecure (`0o755`)
+    /// permissions instead of pre-tightening it to `0700`, to simulate a
+    /// pre-existing `$APOLLO_CONFIG_HOME` created before secrets moved into
+    /// this store. The `store` fixture always starts at `0700` already, so it
+    /// can never exercise the self-heal path this fixture is for.
+    #[cfg(unix)]
+    #[fixture]
+    fn insecure_store() -> TestStore {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        let dir = temp.path().to_path_buf();
+        TestStore {
+            store: CredentialsFileStore::builder(dir.clone()).build(),
+            dir,
+            _temp: temp,
+        }
+    }
+
+    // A pre-existing directory with loose (0755) permissions — simulating an
+    // old `$APOLLO_CONFIG_HOME` created before secrets moved into this store
+    // — gets tightened to 0700 the first time it's written to, instead of
+    // `fs-mistrust` hard-failing on it.
+    #[cfg(unix)]
+    #[rstest]
+    fn self_heals_preexisting_directory_with_insecure_permissions_on_write(
+        insecure_store: TestStore,
+    ) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mode_before = std::fs::metadata(&insecure_store.dir)
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_that!(mode_before & 0o777).is_equal_to(0o755);
+
+        let result = insecure_store.write("key", TestValue::new("hello"));
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(TestValue::new("hello"));
+
+        let mode_after = std::fs::metadata(&insecure_store.dir)
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_that!(mode_after & 0o777).is_equal_to(0o700);
+    }
+
+    // Same self-heal as above, but triggered by a read instead of a write —
+    // confirms the fix isn't write-only.
+    #[cfg(unix)]
+    #[rstest]
+    fn self_heals_preexisting_directory_with_insecure_permissions_on_read(
+        insecure_store: TestStore,
+    ) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let result = insecure_store.read::<TestValue>("key");
+        assert_that!(result).is_ok().is_none();
+
+        let mode_after = std::fs::metadata(&insecure_store.dir)
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_that!(mode_after & 0o777).is_equal_to(0o700);
+    }
+
+    // A credentials.json file containing invalid (non-parseable) JSON
+    // surfaces a clean Deserialize error instead of panicking.
+    #[rstest]
+    fn corrupted_credentials_file_surfaces_deserialize_error_not_panic(store: TestStore) {
+        store.write("key", TestValue::new("hello")).unwrap();
+        std::fs::write(store.dir.join("credentials.json"), b"{not valid json").unwrap();
+
+        let result = store.read::<TestValue>("key");
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, StoreError::Deserialize(_)));
+    }
+
+    // Syntactically valid JSON that isn't the expected map shape (a bare
+    // array here) also surfaces a clean Deserialize error, not a panic.
+    #[rstest]
+    fn wrong_shape_json_surfaces_deserialize_error_not_panic(store: TestStore) {
+        // valid JSON, but not the `BTreeMap<String, Value>` shape the store expects.
+        std::fs::write(store.dir.join("credentials.json"), b"[1,2,3]").unwrap();
+
+        let result = store.read::<TestValue>("key");
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, StoreError::Deserialize(_)));
+    }
+
+    // A target path that's already a plain file (not a directory) surfaces a
+    // clean error and leaves the file untouched, rather than panicking or
+    // destructively deleting and recreating it.
+    #[test]
+    fn directory_creation_blocked_by_preexisting_file_returns_store_error_not_panic() {
+        let temp = tempfile::tempdir().unwrap();
+        let blocked = temp.path().join("blocked");
+        std::fs::write(&blocked, b"i am a file, not a directory").unwrap();
+
+        let store = CredentialsFileStore::builder(blocked.clone()).build();
+        let result = store.write("key", TestValue::new("hello"));
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, StoreError::Store(_)));
+        // no destructive delete-and-recreate silently kicked in.
+        assert_that!(std::fs::read(&blocked))
+            .is_ok()
+            .is_equal_to(b"i am a file, not a directory".to_vec());
     }
 }
