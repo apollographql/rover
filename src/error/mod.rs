@@ -161,9 +161,9 @@ impl Display for RoverError {
         let error_descriptor = Style::ErrorPrefix.paint(error_descriptor_message);
 
         if self.metadata.skip_printing_cause {
-            writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
+            writeln!(formatter, "{} {}", error_descriptor, self.error)?;
         } else {
-            writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
+            writeln!(formatter, "{} {:?}", error_descriptor, self.error)?;
         }
 
         for suggestion in &self.metadata.suggestions {

@@ -67,7 +67,7 @@ fn apply_subgraph_event(
         SubgraphEvent::SubgraphSchemaChanged(subgraph_schema_changed) => {
             let name = subgraph_schema_changed.name().clone();
             let schema_source = subgraph_schema_changed.schema_source().clone();
-            let message = format!("Schema change detected for subgraph: {}", &name);
+            let message = format!("Schema change detected for subgraph: {}", name);
             infoln!("{}", message);
             tracing::info!(message);
             if supergraph_config

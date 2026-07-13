@@ -220,7 +220,7 @@ impl RoverOutput {
             }
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
-                description = &describe_response.description,
+                description = describe_response.description,
                 variant_config = Style::Link.paint(format!(
                     "{}/graph/{}/settings/variant?variant={}",
                     describe_response.root_url,
@@ -235,7 +235,7 @@ impl RoverOutput {
                     .unwrap_or_else(|| "No launch was triggered for this publish.".to_string());
                 Some(format!(
                     "{description}\n{launch_cli_copy}",
-                    description = &publish_response.config_description
+                    description = publish_response.config_description
                 ))
             }
             RoverOutput::DocsList(shortlinks) => {

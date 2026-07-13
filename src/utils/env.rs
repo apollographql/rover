@@ -45,7 +45,7 @@ impl RoverEnv {
                             io::ErrorKind::InvalidInput,
                             format!(
                                 "The value of the environment variable \"{}\" is not valid Unicode.",
-                                &key
+                                key
                             ),
                         )),
                     },

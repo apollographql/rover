@@ -49,7 +49,7 @@ impl Check {
 
         eprintln!(
             "Checking the proposed schema for subgraph {} against {}",
-            &self.subgraph.subgraph_name,
+            self.subgraph.subgraph_name,
             Style::Link.paint(self.graph.graph_ref.to_string())
         );
 

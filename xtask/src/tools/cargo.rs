@@ -37,7 +37,7 @@ impl CargoRunner {
             let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
             let versioned_schema_url = format!(
                     "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
-                    &version);
+                    version);
             crate::info!("downloading schema from {}", &versioned_schema_url);
             let schema_response =
                 reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;

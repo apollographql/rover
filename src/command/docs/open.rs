@@ -23,7 +23,7 @@ impl Open {
         if let Some(browser_override) = std::env::var_os("BROWSER") {
             eprintln!(
                 "Opening {} with the application specified by {}.",
-                &painted_url, &painted_browser_var
+                painted_url, painted_browser_var
             );
             if let Err(e) = Command::new(&browser_override).arg(&url).status() {
                 Err(anyhow!(
@@ -37,7 +37,7 @@ impl Open {
         } else {
             eprintln!(
                 "Opening {} with your default browser. This can be overridden by setting the {} environment variable.",
-                &painted_url, &painted_browser_var
+                painted_url, painted_browser_var
             );
             opener::open(&url)?;
             Ok(())

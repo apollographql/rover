@@ -37,7 +37,7 @@ impl Runner {
     ) -> Result<CommandOutput> {
         let mut task = ShellTask::new(&format!(
             "{bin} {args}",
-            bin = &self.bin,
+            bin = self.bin,
             args = args.join(" ")
         ))?;
         task.current_dir(directory);

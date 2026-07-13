@@ -63,7 +63,7 @@ impl Install {
 
             if install_location.is_some() {
                 let bin_dir_path = rover_installer.get_bin_dir_path()?;
-                eprintln!("{} was successfully installed. Great!", &binary_name);
+                eprintln!("{} was successfully installed. Great!", binary_name);
 
                 if !cfg!(windows)
                     && let Some(path_var) = env::var_os("PATH")
@@ -74,12 +74,12 @@ impl Install {
                 {
                     eprintln!(
                         "\nTo get started you need Rover's bin directory ({}) in your PATH environment variable. Next time you log in this will be done automatically.",
-                        &bin_dir_path
+                        bin_dir_path
                     );
                     if let Ok(shell_var) = env::var("SHELL") {
                         eprintln!(
                             "\nTo configure your current shell, you can run:\nexec {} -l",
-                            &shell_var
+                            shell_var
                         );
                     }
                 }
@@ -97,7 +97,7 @@ impl Install {
             } else {
                 eprintln!(
                     "{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.",
-                    &binary_name
+                    binary_name
                 );
             }
 

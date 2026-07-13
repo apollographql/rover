@@ -20,7 +20,7 @@ pub struct Delete {
 impl Delete {
     pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         config::Profile::delete(&self.name, &config)?;
-        eprintln!("Successfully deleted profile \"{}\"", &self.name);
+        eprintln!("Successfully deleted profile \"{}\"", self.name);
         Ok(RoverOutput::EmptySuccess)
     }
 }

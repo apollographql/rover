@@ -63,7 +63,7 @@ impl MCPOperations {
             "{}",
             Style::Success.paint(format!(
                 "✓ Claude Desktop config will be generated with MCP server '{}'",
-                &connector_name
+                connector_name
             ))
         );
 

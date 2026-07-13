@@ -96,18 +96,18 @@ impl fmt::Display for RouterLog {
                         "INFO" => tracing::info!(%message),
                         "DEBUG" => tracing::debug!(%message),
                         "TRACE" => tracing::trace!(%message),
-                        "WARN" => write!(f, "{} {}", warn_prefix, &message)?,
-                        "ERROR" => write!(f, "{} {}", error_prefix, &message)?,
-                        "UNKNOWN" => write!(f, "{} {}", unknown_prefix, &message)?,
-                        _ => write!(f, "{} {}", unknown_prefix, &message)?,
+                        "WARN" => write!(f, "{} {}", warn_prefix, message)?,
+                        "ERROR" => write!(f, "{} {}", error_prefix, message)?,
+                        "UNKNOWN" => write!(f, "{} {}", unknown_prefix, message)?,
+                        _ => write!(f, "{} {}", unknown_prefix, message)?,
                     };
                     Ok(())
                 } else {
-                    write!(f, "{} {}", warn_prefix, &stdout)
+                    write!(f, "{} {}", warn_prefix, stdout)
                 }
             }
             Self::Stderr(stderr) => {
-                write!(f, "{} {}", error_prefix, &stderr)
+                write!(f, "{} {}", error_prefix, stderr)
             }
         }
     }

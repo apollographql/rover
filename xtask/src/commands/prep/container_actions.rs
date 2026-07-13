@@ -20,7 +20,7 @@ pub(crate) fn update_versions() -> Result<()> {
     crate::info!("updating container action image tags.");
     let actions_root = PKG_PROJECT_ROOT.join(CONTAINER_ACTIONS_DIR);
     let entries = fs::read_dir(actions_root.as_path())
-        .with_context(|| format!("Could not read {}", &actions_root))?
+        .with_context(|| format!("Could not read {}", actions_root))?
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| Utf8PathBuf::from_path_buf(entry.path()).ok())
         .filter(|path| path.is_dir())

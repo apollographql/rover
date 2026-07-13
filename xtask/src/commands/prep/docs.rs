@@ -36,7 +36,7 @@ impl DocsRunner {
         for raw_code_file in raw_code_files {
             let raw_code_file = raw_code_file?;
             if raw_code_file.file_type()?.is_dir() {
-                return Err(anyhow!("Error code directory {} contains a directory {:?}. It must only contain markdown files.", &codes_dir, raw_code_file.file_name()));
+                return Err(anyhow!("Error code directory {} contains a directory {:?}. It must only contain markdown files.", codes_dir, raw_code_file.file_name()));
             } else {
                 code_files.push(raw_code_file);
             }
@@ -54,7 +54,7 @@ impl DocsRunner {
             let contents = Fs::read_file(&path)?;
             let code_name = path
                 .file_name()
-                .ok_or_else(|| anyhow!("Path {} doesn't have a file name", &path))?
+                .ok_or_else(|| anyhow!("Path {} doesn't have a file name", path))?
                 .replace(".md", "");
 
             let description = format!("### {code_name}\n\n{contents}\n\n");
@@ -72,7 +72,7 @@ impl DocsRunner {
         let destination_path = self.docs_root.join("source").join("contributing.md");
 
         let source_content_with_header = Fs::read_file(&source_path)
-            .with_context(|| format!("Could not read contents of {} to a String", &source_path))?;
+            .with_context(|| format!("Could not read contents of {} to a String", source_path))?;
         // Don't include the first header and the empty newline after it.
         let source_content = source_content_with_header
             .splitn(3, '\n')
@@ -92,7 +92,7 @@ impl DocsRunner {
         let destination_content = Fs::read_file(destination_path).with_context(|| {
             format!(
                 "Could not read contents of {} to a String",
-                &destination_path
+                destination_path
             )
         })?;
         let mut new_content = String::new();

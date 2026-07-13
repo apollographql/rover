@@ -69,8 +69,8 @@ impl WhoAmI {
 
     fn get_origin(&self, client: &StudioClient) -> String {
         match client.get_credential_origin() {
-            CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
-            CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
+            CredentialOrigin::ConfigFile(path) => format!("--profile {}", path),
+            CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
         }
     }
 

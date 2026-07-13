@@ -176,18 +176,18 @@ impl FromStr for Plugin {
                     .with_context(|| {
                         format!(
                             "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-0', 'latest-2', or an exact version preceded with an '='.",
-                            &plugin_version
+                            plugin_version
                         )
                     })?;
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", &plugin_version)
+                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", plugin_version)
                 })?;
                 Ok(Plugin::Router(router_version))
             } else if plugin_name == "apollo-mcp-server" {
                 let mcp_version = mcp::Version::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'apollo-mcp-server' plugin. Must be 'latest' or an exact version preceded with 'v' or '=' (e.g. v1.0.0 or =1.0.0).", &plugin_version)
+                    || format!("Invalid version '{}' for 'apollo-mcp-server' plugin. Must be 'latest' or an exact version preceded with 'v' or '=' (e.g. v1.0.0 or =1.0.0).", plugin_version)
                 })?;
                 Ok(Plugin::McpServer(mcp_version))
             } else {
@@ -372,8 +372,8 @@ impl PluginInstaller {
         if installed_plugins.is_empty() {
             let mut err = RoverError::new(anyhow!(
                 "You do not have any '{}' plugins installed in '{}'.",
-                &plugin_name,
-                &plugin_dir
+                plugin_name,
+                plugin_dir
             ));
             err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 "Re-run this command without the `--skip-update` flag to install the proper plugin."
@@ -524,7 +524,7 @@ fn find_installed_plugin(
     if Fs::assert_path_exists(&maybe_plugin).is_ok() {
         Ok(maybe_plugin)
     } else {
-        let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
+        let mut err = RoverError::new(anyhow!("Could not find plugin at {}", maybe_plugin));
         if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
             err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 "Try running `npm install` to reinstall the plugin.".to_string(),
