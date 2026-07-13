@@ -3,6 +3,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   merge_group:
 
 name: Commit Checks
@@ -43,6 +44,7 @@ jobs:
 
   cargo-deny:
     name: Cargo Deny
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -63,6 +65,7 @@ jobs:
 
   fmt:
     name: Format
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
 
     steps:
@@ -77,6 +80,7 @@ jobs:
 
   clippy:
     name: Clippy
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
 
     steps:
@@ -126,6 +130,7 @@ jobs:
           ROVER_PACKAGES_BASE: ${{ github.workspace }}
 
   test:
+    if: github.event.action != 'edited'
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
@@ -163,6 +168,7 @@ jobs:
 
   test_minimal_glibc:
     name: Test with minimal glibc versions
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.10
 
