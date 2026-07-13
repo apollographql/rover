@@ -11,24 +11,24 @@ With [GraphOS Enterprise](https://www.apollographql.com/pricing), you can enhanc
 
 Registering operations to a PQL has two steps:
 
-1. Generating persisted query manifests (PQMs) from client operations
-2. Publishing PQMs to the PQL using Rover
+1. Generate persisted query manifests (PQMs) from client operations
+2. Publish PQMs to the PQL using Rover
 
 For more information on persisted query implementation steps, see the [GraphOS persisted queries documentation](/graphos/operations/persisted-queries).
 
-## Generating a PQM
+## Generate a PQM
 
 ### `persisted-queries generate`
 
 <MinVersionBadge version="Rover v0.41.0" />
 
-Use `rover persisted-queries generate` to generate an Apollo PQM from `.graphql` operation files. This command runs locally and doesn't require GraphOS authentication.
+Use `rover persisted-queries generate` to generate Apollo PQM from `.graphql` operation files. This command runs locally and doesn't require an API key.
 
 ```bash
 rover persisted-queries generate
 ```
 
-By default, Rover scans the current directory for all `.graphql` files and prints the generated manifest to stdout. Pass `--manifest-path` (`-m`) to write it to a file instead. This pairs with `rover client extract`, which extracts operations from client source code into a `graphql` directory:
+By default, Rover scans the current directory for all `.graphql` files and prints the generated manifest to `stdout`. Pass `--manifest-path` (`-m`) to write it to a file instead. This pairs with `rover client extract`, which extracts operations from client source code into a `graphql` directory:
 
 ```bash
 rover client extract --out-dir graphql --overwrite
@@ -95,7 +95,7 @@ Without `--manifest-path`, the `data` field contains the full manifest instead o
 
 The generate command doesn't write `clientName` values into the manifest. To associate every generated operation with a client name, use `persisted-queries publish --for-client-name`.
 
-## Publishing a PQM
+## Publish a PQM
 
 ### `persisted-queries publish`
 
