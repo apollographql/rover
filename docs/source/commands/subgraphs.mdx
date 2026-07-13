@@ -287,8 +287,56 @@ This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will 
 
 </td>
 </tr>
+<tr>
+<td>
+
+###### `--check`
+
+</td>
+
+<td>
+
+Run all configured checks before publishing. If any checks fail, the publish is aborted and no schema changes are pushed. Equivalent to running `rover subgraph check` with the same arguments before publishing.
+
+</td>
+</tr>
 </tbody>
 </table>
+
+#### Running checks before publishing
+
+Use the `--check` flag to run all configured schema checks and then publish in a single command. If any checks fail, the publish is aborted and no schema changes are pushed to the registry.
+
+Running check and publish as two separate commands introduces two risks:
+
+- **Human error** — You must type or paste both commands with identical arguments. A mismatched `--schema` path, `--name`, or graph ref means you could publish a schema that was never actually checked.
+- **Race conditions** — Another team member could publish a change between your check and your publish, so the check result no longer reflects the state of the subgraph at publish time.
+
+`--check` eliminates both risks by treating the check and publish as one atomic operation.
+
+The `--check` flag honors all schema check settings configured for your graph variant in GraphOS Studio—including linting rules, operation checks, and any other check configurations—exactly as a standalone `rover subgraph check` would.
+
+To illustrate the difference, here is the previous two-step approach:
+
+```shell
+# Step 1: check
+rover subgraph check my-graph@current --schema ./schema.graphql --name accounts
+
+# Step 2: publish (only safe if nothing changed between the two commands)
+rover subgraph publish my-graph@current --schema ./schema.graphql --name accounts \
+  --routing-url "https://my-running-subgraph.com/api"
+```
+
+With `--check`, both steps happen in one command:
+
+```shell
+rover subgraph publish my-graph@current --schema ./schema.graphql --name accounts \
+  --routing-url "https://my-running-subgraph.com/api" --check
+```
+
+If all checks pass, Rover publishes the subgraph schema. If any check fails, Rover prints the check output and exits without publishing.
+
+For details on configuring checks (time range, operation thresholds, linting rules), see the [`subgraph check`](#subgraph-check) section.
 
 #### Creating variants
 
