@@ -80,7 +80,10 @@ impl Sensitive {
         match store.write(&Sensitive::key(profile_name), sensitive.clone()) {
             Ok(_) => match std::fs::remove_file(legacy_path.as_std_path()) {
                 Ok(()) => {
-                    tracing::debug!(profile = profile_name, "migrated legacy credential to secret store")
+                    tracing::debug!(
+                        profile = profile_name,
+                        "migrated legacy credential to secret store"
+                    )
                 }
                 Err(error) => {
                     let _ = stderr.warnln(format!(

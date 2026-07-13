@@ -101,8 +101,8 @@ fn it_prioritizes_env_var_override_even_when_a_profile_credential_exists() {
         .expect("setting api key failed");
 
     let config = Config::new(Some(&tmp_home_path), Some(override_key.to_string())).unwrap();
-    let credential = config::Profile::get_credential(profile, &config)
-        .expect("retreiving api key failed");
+    let credential =
+        config::Profile::get_credential(profile, &config).expect("retreiving api key failed");
 
     assert_eq!(credential.api_key, override_key);
     assert_eq!(credential.origin, config::CredentialOrigin::EnvVar);
@@ -180,7 +180,10 @@ fn it_surfaces_malformed_legacy_toml_as_a_deserialization_error() {
     let error = config::Profile::get_credential(profile, &config)
         .expect_err("expected malformed legacy toml to error");
 
-    assert!(matches!(error, config::HoustonProblem::TomlDeserialization(_)));
+    assert!(matches!(
+        error,
+        config::HoustonProblem::TomlDeserialization(_)
+    ));
 }
 
 #[test]
