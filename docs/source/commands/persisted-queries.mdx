@@ -28,11 +28,11 @@ Use `rover persisted-queries generate` to generate an Apollo PQM from `.graphql`
 rover persisted-queries generate
 ```
 
-By default, Rover scans `graphql/**/*.graphql` from the current directory and writes `persisted-query-manifest.json`. This default pairs with `rover client extract`, which extracts operations from client source code into a `graphql` directory:
+By default, Rover scans the current directory for all `.graphql` files and prints the generated manifest to stdout. Pass `--manifest-path` (`-m`) to write it to a file instead. This pairs with `rover client extract`, which extracts operations from client source code into a `graphql` directory:
 
 ```bash
 rover client extract --out-dir graphql --overwrite
-rover persisted-queries generate
+rover persisted-queries generate --manifest-path persisted-query-manifest.json
 rover persisted-queries publish my-graph@my-variant \
   --manifest ./persisted-query-manifest.json
 ```
@@ -47,7 +47,7 @@ The generated manifest uses the Apollo persisted query manifest format:
 }
 ```
 
-`persisted-queries generate` supports multiple operations in a single `.graphql` file. It emits one manifest entry per operation, adds `__typename` fields using Apollo Client's default behavior, and generates each operation ID as the SHA-256 hash of the final operation body.
+`persisted-queries generate` supports multiple operations in a single `.graphql` file, emitting one manifest entry per operation. For each operation it removes `@client` fields and directives (pruning any variables they leave unused), includes the operation's transitively referenced fragment definitions, and generates the operation ID as the SHA-256 hash of the final operation body.
 
 To change the files Rover scans, use `--include`, `--exclude`, and `--root-dir`:
 
@@ -65,11 +65,14 @@ rover persisted-queries generate \
   --manifest-path ./dist/persisted-query-manifest.json
 ```
 
-To get a machine-readable JSON response (path and operation count), use Rover's global `--format json` flag:
+When you write the manifest to a file, add Rover's global `--format json` flag to get a machine-readable `{ path, operation_count }` response:
 
 ```bash
-rover persisted-queries generate --format json
+rover persisted-queries generate \
+  --manifest-path persisted-query-manifest.json --format json
 ```
+
+Without `--manifest-path`, `--format json` prints the manifest itself as JSON to stdout.
 
 The generate command doesn't write `clientName` values into the manifest. To associate every generated operation with a client name, use `persisted-queries publish --for-client-name`.
 
