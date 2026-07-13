@@ -21,8 +21,15 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          if gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only | grep -qx "CHANGELOG.md"; then
+          CHANGED_FILES="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)"
+
+          if printf '%s\n' "$CHANGED_FILES" | grep -qx "CHANGELOG.md"; then
             echo "CHANGELOG.md was updated in this PR."
+            exit 0
+          fi
+
+          if ! printf '%s\n' "$CHANGED_FILES" | grep -qvE '^docs/'; then
+            echo "This PR only touches docs/, no changelog entry required."
             exit 0
           fi
 
