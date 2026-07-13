@@ -5,7 +5,10 @@ use directories_next::ProjectDirs;
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 
-use crate::HoustonProblem;
+use crate::{
+    profile::{self, Profile},
+    HoustonProblem,
+};
 
 /// Config allows end users to override default settings
 /// usually determined by Houston. They are intended to
@@ -62,9 +65,25 @@ impl Config {
         })
     }
 
-    /// Removes all configuration files from filesystem
+    /// Removes all configuration files from the filesystem, including every
+    /// profile's credential in the secret store (the directory wipe below
+    /// doesn't reach OS-keychain-backed secrets, so they're purged explicitly).
+    ///
+    /// `clear` is the escape-hatch recovery command for a broken config, so
+    /// purging secrets is best-effort: a single profile's credential failing
+    /// to delete (e.g. a corrupted secret store) must not prevent the
+    /// directory wipe that follows.
     pub fn clear(&self) -> Result<(), HoustonProblem> {
         tracing::debug!(home_dir = ?self.home);
+        for profile_name in Profile::list(self)? {
+            if let Err(error) = profile::delete_credential(&profile_name, self) {
+                tracing::warn!(
+                    profile = profile_name,
+                    %error,
+                    "failed to remove credential from the secret store while clearing config"
+                );
+            }
+        }
         Fs::remove_dir_all(&self.home)
             .map_err(|_| HoustonProblem::NoConfigFound(self.home.to_string()))
     }

@@ -10,11 +10,12 @@ publish = false
 workspace = true
 
 [dependencies]
-# workspace dependencies 
+# workspace dependencies
 anyhow = { workspace = true }
 camino = { workspace = true }
 directories-next = { workspace = true }
 rover-std = { workspace = true }
+rover-storage = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 toml = { workspace = true }

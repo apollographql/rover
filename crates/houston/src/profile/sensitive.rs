@@ -2,43 +2,102 @@ use std::fmt;
 
 use camino::Utf8PathBuf;
 use rover_std::Fs;
+use rover_storage::secret::RoverSecretStore;
 use serde::{Deserialize, Serialize};
 
 use crate::{profile::Profile, Config, HoustonProblem};
 
+/// The keyring/file-store service name under which all Rover credentials are stored.
+const SECRET_STORE_SERVICE: &str = "rover";
+
 /// Holds sensitive information regarding authentication.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sensitive {
     pub api_key: String,
 }
 
 impl Sensitive {
-    fn path(profile_name: &str, config: &Config) -> Utf8PathBuf {
+    /// The legacy location of a profile's credential, from before credentials were
+    /// moved into the OS keychain: `$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`.
+    fn legacy_path(profile_name: &str, config: &Config) -> Utf8PathBuf {
         Profile::dir(profile_name, config).join(".sensitive")
     }
 
-    /// Serializes to toml and saves to file system at `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
+    /// The key under which a profile's credential is stored in the secret store.
+    fn key(profile_name: &str) -> String {
+        format!("profile:{profile_name}")
+    }
+
+    fn store(config: &Config) -> Result<RoverSecretStore, HoustonProblem> {
+        Ok(RoverSecretStore::new(
+            SECRET_STORE_SERVICE.to_string(),
+            config.home.clone().into_std_path_buf(),
+        )?)
+    }
+
+    /// Saves a credential to the OS keychain (or its secure file-based fallback),
+    /// keyed by profile name.
     pub fn save(&self, profile_name: &str, config: &Config) -> Result<(), HoustonProblem> {
-        let path = Sensitive::path(profile_name, config);
-        let data = toml::to_string(self)?;
+        // the profile directory continues to exist as a lightweight index of known
+        // profile names; it no longer holds the credential itself.
+        Fs::create_dir_all(Profile::dir(profile_name, config))?;
 
-        if let Some(dirs) = &path.parent() {
-            Fs::create_dir_all(dirs)?;
-        }
-
-        Fs::write_file(&path, &data)?;
-        tracing::debug!(path = ?path, data_len = ?data.len());
+        let store = Sensitive::store(config)?;
+        store.write(&Sensitive::key(profile_name), self.clone())?;
+        tracing::debug!(profile = profile_name, "saved credential to secret store");
         Ok(())
     }
 
-    /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
+    /// Loads a credential for a profile from the OS keychain (or its secure
+    /// file-based fallback). Falls back to, and transparently migrates, a legacy
+    /// plaintext `.sensitive` file left over from older versions of Rover.
     pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
-        let path = Sensitive::path(profile_name, config);
-        let data = Fs::read_file(&path)?;
-        tracing::debug!(path = ?path, data_len = ?data.len());
+        let store = Sensitive::store(config)?;
+        if let Some(sensitive) = store.read::<Sensitive>(&Sensitive::key(profile_name))? {
+            return Sensitive::validate(sensitive, profile_name);
+        }
+
+        let legacy_path = Sensitive::legacy_path(profile_name, config);
+        let data = Fs::read_file(&legacy_path)?;
+        tracing::debug!(path = ?legacy_path, data_len = ?data.len());
         let sensitive: Self = toml::from_str(&data)?;
-        // old versions of rover used to allow profiles to be created
-        // with these contents in certain PowerShell environments
+        let sensitive = Sensitive::validate(sensitive, profile_name)?;
+
+        // migrating into the secret store is best-effort: the caller already
+        // has a valid credential at this point, and a migration hiccup (e.g.
+        // the secret store is temporarily unavailable, or the legacy file
+        // can't be removed) shouldn't fail the whole lookup. If it doesn't
+        // complete now, it's retried on the next load.
+        match store.write(&Sensitive::key(profile_name), sensitive.clone()) {
+            Ok(_) => match std::fs::remove_file(legacy_path.as_std_path()) {
+                Ok(()) => {
+                    tracing::debug!(profile = profile_name, "migrated legacy credential to secret store")
+                }
+                Err(error) => tracing::warn!(
+                    profile = profile_name,
+                    %error,
+                    "migrated credential to the secret store but failed to remove the legacy file"
+                ),
+            },
+            Err(error) => tracing::warn!(
+                profile = profile_name,
+                %error,
+                "failed to migrate legacy credential into the secret store; will retry next time"
+            ),
+        }
+
+        Ok(sensitive)
+    }
+
+    /// Removes a profile's credential from the secret store, if present.
+    pub fn delete(profile_name: &str, config: &Config) -> Result<(), HoustonProblem> {
+        Sensitive::store(config)?.delete(&Sensitive::key(profile_name))?;
+        Ok(())
+    }
+
+    // old versions of rover used to allow profiles to be created
+    // with these contents in certain PowerShell environments
+    fn validate(sensitive: Sensitive, profile_name: &str) -> Result<Sensitive, HoustonProblem> {
         if sensitive.api_key.as_bytes() == [22] {
             Err(HoustonProblem::CorruptedProfile(profile_name.to_string()))
         } else {

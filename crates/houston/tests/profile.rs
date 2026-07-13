@@ -24,7 +24,15 @@ fn it_lists_many_profiles() {
     assert!(profiles.contains(&String::from(pprofile_name)));
     assert!(profiles.contains(&String::from(cprofile_name)));
 
+    // clearing must purge every profile's secret-store entry (not just the
+    // on-disk index directories) without erroring.
     config.clear().expect("clearing configuration failed");
+
+    assert!(
+        config::Profile::list(&config)
+            .expect("listing profiles failed")
+            .is_empty()
+    );
 }
 
 fn get_config(override_api_key: Option<String>) -> Config {

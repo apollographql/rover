@@ -2611,6 +2611,7 @@ dependencies = [
  "camino",
  "directories-next",
  "rover-std",
+ "rover-storage",
  "serde",
  "thiserror 2.0.18",
  "toml",
