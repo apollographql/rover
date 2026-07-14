@@ -131,10 +131,12 @@ impl fmt::Display for Sensitive {
 mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    #[cfg(unix)]
     use rover_print::print::testing::TerminalCapture;
 
     use super::*;
 
+    #[cfg(unix)]
     fn test_config() -> (Config, TempDir) {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -142,10 +144,30 @@ mod tests {
         (config, tmp_home)
     }
 
+    /// Whether the current process is running as root. Root bypasses the
+    /// directory write-permission check that `unlink` normally enforces, so
+    /// the permission-based failure this test forces (below) can't be forced
+    /// at all under root — e.g. some CI containers run tests as root.
+    #[cfg(unix)]
+    fn is_root() -> bool {
+        // SAFETY: `geteuid` takes no arguments and has no failure mode.
+        unsafe { geteuid() == 0 }
+    }
+
+    #[cfg(unix)]
+    extern "C" {
+        fn geteuid() -> u32;
+    }
+
     #[cfg(unix)]
     #[test]
     fn load_warns_via_stderr_when_legacy_file_cannot_be_removed_after_migration() {
         use std::os::unix::fs::PermissionsExt;
+
+        if is_root() {
+            eprintln!("skipping: this test forces a permission failure, which root can bypass");
+            return;
+        }
 
         let (config, _tmp_home) = test_config();
         let profile_name = "warn-test";
