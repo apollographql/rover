@@ -28,7 +28,7 @@ pub struct ProfileData {
 }
 
 /// Struct containing info about an API Key
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Credential {
     /// Apollo API Key
     pub api_key: String,
@@ -110,7 +110,8 @@ impl Profile {
     ) -> Result<Profile, HoustonProblem> {
         if Profile::dir(profile_name, config).exists() {
             if opts.sensitive {
-                let sensitive = Sensitive::load(profile_name, config)?;
+                let stderr = rover_print::print::stderr::default();
+                let sensitive = Sensitive::load(profile_name, config, &stderr)?;
                 return Ok(Profile { sensitive });
             }
             Err(HoustonProblem::NoNonSensitiveConfigFound(
@@ -127,8 +128,13 @@ impl Profile {
         }
     }
 
-    /// Deletes profile data from file system.
+    /// Deletes profile data from the file system and removes its credential
+    /// from the secret store.
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
+        // delete the credential before the index directory: if this fails, the
+        // profile stays visible in `list` (and deletable again) instead of
+        // silently disappearing while its secret is still orphaned.
+        delete_credential(name, config)?;
         let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
         Fs::remove_dir_all(dir)?;
@@ -155,6 +161,13 @@ impl Profile {
         }
         Ok(profiles)
     }
+}
+
+/// Removes a profile's credential from the secret store, if present. Shared by
+/// [`Profile::delete`] and [`Config::clear`](crate::Config::clear), which also
+/// needs to purge secrets for every known profile before wiping the config directory.
+pub(crate) fn delete_credential(name: &str, config: &Config) -> Result<(), HoustonProblem> {
+    Sensitive::delete(name, config)
 }
 
 impl fmt::Display for Profile {

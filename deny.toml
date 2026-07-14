@@ -34,6 +34,16 @@ ignore = [
     # `proc-macro-error2`, a dependency of `getset` via `git-url-parse`, is unmaintained.
     # No safe upgrade is available.
     "RUSTSEC-2026-0173",
+    # `paste` is unmaintained (RUSTSEC-2024-0436), pulled in transitively via
+    # `fs-mistrust` -> `pwd-grp` -> `paste`. Its maintained fork, `pastey`, is a
+    # drop-in replacement, but every published version of `pwd-grp` still depends
+    # on `paste` directly, and Cargo's `[patch]` can't alias one crates.io package
+    # to a differently-named one on the same registry source (only to a different
+    # source, e.g. git/path) — so we can't switch without an upstream `pwd-grp`
+    # change. `paste` is a compile-time proc-macro crate with no runtime attack
+    # surface, so this is no security risk to us. Remove once `pwd-grp` migrates
+    # to `pastey` upstream.
+    "RUSTSEC-2024-0436",
 ]
 
 # This section is considered when running `cargo deny check licenses`

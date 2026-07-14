@@ -61,4 +61,9 @@ pub enum HoustonProblem {
     /// RoverStdError comes from RoverStdError
     #[error(transparent)]
     RoverStdError(#[from] RoverStdError),
+
+    /// SecretStoreError occurs when reading, writing, or deleting a credential
+    /// through the OS keychain (or its secure file-based fallback) fails.
+    #[error(transparent)]
+    SecretStoreError(#[from] rover_storage::StoreError),
 }
