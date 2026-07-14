@@ -2,6 +2,7 @@ use assert_fs::TempDir;
 use camino::Utf8Path;
 use config::Config;
 use houston as config;
+use rover_print::print::testing::TerminalCapture;
 use speculoos::prelude::*;
 
 #[test]
@@ -42,7 +43,9 @@ fn it_lists_many_profiles() {
 
     // clearing must purge every profile's secret-store entry (not just the
     // on-disk index directories) without erroring.
-    config.clear().expect("clearing configuration failed");
+    config
+        .clear(&TerminalCapture::new(false))
+        .expect("clearing configuration failed");
 
     assert_that!(config::Profile::list(&config).expect("listing profiles failed")).is_empty();
 }

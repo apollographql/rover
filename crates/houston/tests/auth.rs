@@ -2,6 +2,7 @@ use assert_fs::TempDir;
 use camino::Utf8Path;
 use config::Config;
 use houston as config;
+use rover_print::print::testing::TerminalCapture;
 
 #[test]
 fn it_can_set_and_get_an_api_key() {
@@ -32,7 +33,9 @@ fn it_can_set_and_get_an_api_key() {
 
     assert!(!profile_home.exists());
 
-    config.clear().expect("deleting profiles dir failed.");
+    config
+        .clear(&TerminalCapture::new(false))
+        .expect("deleting profiles dir failed.");
 
     assert!(!profiles_home.exists());
 }
@@ -240,9 +243,11 @@ fn it_errors_when_clearing_an_already_cleared_config() {
     config::Profile::set_api_key("clear-twice", &config, "some-key")
         .expect("setting api key failed");
 
-    config.clear().expect("clearing configuration failed");
+    config
+        .clear(&TerminalCapture::new(false))
+        .expect("clearing configuration failed");
     let error = config
-        .clear()
+        .clear(&TerminalCapture::new(false))
         .expect_err("expected clearing an already-cleared config to error");
 
     assert!(matches!(error, config::HoustonProblem::NoConfigFound(_)));

@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use directories_next::ProjectDirs;
+use rover_print::print::{Print, PrintExt};
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 
@@ -73,15 +74,14 @@ impl Config {
     /// purging secrets is best-effort: a single profile's credential failing
     /// to delete (e.g. a corrupted secret store) must not prevent the
     /// directory wipe that follows.
-    pub fn clear(&self) -> Result<(), HoustonProblem> {
+    pub fn clear(&self, stderr: &impl Print) -> Result<(), HoustonProblem> {
         tracing::debug!(home_dir = ?self.home);
         for profile_name in Profile::list(self)? {
             if let Err(error) = profile::delete_credential(&profile_name, self) {
-                tracing::warn!(
-                    profile = profile_name,
-                    %error,
-                    "failed to remove credential from the secret store while clearing config"
-                );
+                let _ = stderr.warnln(format!(
+                    "failed to remove credential for profile '{profile_name}' from the secret \
+                    store while clearing config: {error}"
+                ));
             }
         }
         Fs::remove_dir_all(&self.home)
@@ -124,15 +124,48 @@ mod tests {
 
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    use rover_print::print::testing::TerminalCapture;
 
     use super::Config;
+    use crate::profile::Profile;
+
     #[test]
     fn it_can_clear_global_config() {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         let config = Config::new(Some(&tmp_path), None).unwrap();
         assert!(config.home.exists());
-        config.clear().unwrap();
+        config.clear(&TerminalCapture::new(false)).unwrap();
         assert!(!config.home.exists());
+    }
+
+    // a profile's credential failing to delete must not abort the rest of
+    // `clear`: it's the escape-hatch recovery command for a broken config, so
+    // it warns and keeps going rather than leaving the config half-wiped.
+    #[test]
+    fn clear_warns_via_stderr_and_still_wipes_config_when_a_credential_fails_to_delete() {
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let config = Config::new(Some(&tmp_path), None).unwrap();
+        let profile = "clear-broken-credential";
+        Profile::set_api_key(profile, &config, "some-key").unwrap();
+
+        // corrupt the shared credentials file directly so this profile's
+        // secret-store delete fails genuinely (not just "unavailable"). A
+        // chmod-based approach doesn't work here: `CredentialsFileStore`
+        // self-heals the credentials directory's permissions back to `0700`
+        // on every access, which would silently undo a chmod before the
+        // write it's supposed to block.
+        std::fs::write(config.home.join("credentials.json"), b"not valid json {{{").unwrap();
+
+        let stderr = TerminalCapture::new(false);
+        let result = config.clear(&stderr);
+
+        assert!(result.is_ok());
+        assert!(!config.home.exists());
+        assert!(stderr
+            .lines()
+            .iter()
+            .any(|line| line.contains(profile) && line.contains("secret store")));
     }
 }

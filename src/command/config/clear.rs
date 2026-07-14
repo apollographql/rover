@@ -12,7 +12,7 @@ pub struct Clear {}
 
 impl Clear {
     pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
-        config.clear()?;
+        config.clear(&rover_print::print::stderr::default())?;
         eprintln!("Successfully cleared all configuration.");
         Ok(RoverOutput::EmptySuccess)
     }
