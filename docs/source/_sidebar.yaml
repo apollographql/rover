@@ -21,8 +21,6 @@ items:
     children:
       - label: api-key
         href: ./commands/api-key
-      - label: cloud
-        href: ./commands/cloud    
       - label: completion
         href: ./commands/completion
       - label: config

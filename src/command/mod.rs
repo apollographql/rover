@@ -1,6 +1,5 @@
 mod api_key;
 mod client;
-mod cloud;
 mod completion;
 mod config;
 #[cfg(feature = "composition-js")]
@@ -28,7 +27,6 @@ mod update;
 
 pub use api_key::ApiKeys;
 pub use client::Client;
-pub use cloud::Cloud;
 pub use completion::Completion;
 pub use config::Config;
 #[cfg(feature = "composition-js")]

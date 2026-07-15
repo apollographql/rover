@@ -18,9 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 0 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
+
+- **Remove `rover cloud` commands - @dotdat**
+
+  `rover cloud config fetch`, `rover cloud config update`, and `rover cloud config validate` have been removed, along with their underlying GraphQL operations.
 
 ## 🚀 Features
 
