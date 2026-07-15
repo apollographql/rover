@@ -194,7 +194,6 @@ impl Rover {
 
         match &self.command {
             Command::Init(command) => command.run(self.get_client_config()?).await,
-            Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Completion(command) => command.run(),
             Command::Config(command) => command.run(self.get_client_config()?).await,
             #[cfg(feature = "composition-js")]
@@ -407,9 +406,6 @@ pub enum Command {
     /// API Key Related Commands
     #[clap(name = "api-key")]
     ApiKeys(command::ApiKeys),
-
-    /// Cloud configuration commands
-    Cloud(command::Cloud),
 
     #[cfg(feature = "composition-js")]
     Connector(command::Connector),

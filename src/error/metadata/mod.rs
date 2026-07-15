@@ -332,8 +332,6 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationIDNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
-                RoverClientError::InvalidRouterConfig { .. } => (None, None),
-                RoverClientError::NonCloudGraphRef { .. } => (None, None),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

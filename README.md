@@ -45,8 +45,6 @@ Commands:
           Initialize a federated graph in your current directory
   api-key
           API Key Related Commands
-  cloud
-          Cloud configuration commands
   connector
           Work with Apollo Connectors
   completion

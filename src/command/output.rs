@@ -140,9 +140,6 @@ pub enum RoverOutput {
         jwt: String,
     },
     EmptySuccess,
-    CloudConfigFetchResponse {
-        config: String,
-    },
     MessageResponse {
         msg: String,
     },
@@ -571,7 +568,6 @@ impl RoverOutput {
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
-            RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorRunResponse { output } => {
@@ -807,9 +803,6 @@ impl RoverOutput {
             }
             RoverOutput::LicenseResponse { jwt, .. } => {
                 json!({"jwt": jwt })
-            }
-            RoverOutput::CloudConfigFetchResponse { config } => {
-                json!({ "config": config })
             }
             RoverOutput::MessageResponse { msg } => {
                 json!({ "message": msg })
