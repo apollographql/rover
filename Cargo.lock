@@ -2614,6 +2614,7 @@ dependencies = [
  "rover-print",
  "rover-std",
  "rover-storage",
+ "rstest",
  "serde",
  "speculoos",
  "thiserror 2.0.19",

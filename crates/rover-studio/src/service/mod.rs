@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use buildstructor::buildstructor;
-use houston::Credential;
+use houston::{Credential, CredentialOrigin};
 use http::{HeaderMap, HeaderValue, Uri};
 use rover_http::HttpRequest;
 use tower::{Layer, Service};
@@ -53,9 +53,18 @@ impl HttpStudioServiceLayer {
         let client_version = HeaderValue::from_str(&client_version)?;
         headers.insert("apollographql-client-version", client_version);
 
-        let mut api_key = HeaderValue::from_str(&credential.api_key)?;
-        api_key.set_sensitive(true);
-        headers.insert("x-api-key", api_key);
+        match &credential.origin {
+            CredentialOrigin::OAuth(_) => {
+                let mut auth = HeaderValue::from_str(&format!("Bearer {}", credential.api_key))?;
+                auth.set_sensitive(true);
+                headers.insert(http::header::AUTHORIZATION, auth);
+            }
+            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                let mut api_key = HeaderValue::from_str(&credential.api_key)?;
+                api_key.set_sensitive(true);
+                headers.insert("x-api-key", api_key);
+            }
+        }
 
         if is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_static("true"));
@@ -134,6 +143,7 @@ mod tests {
         Credential {
             api_key: "api_key".to_string(),
             origin: CredentialOrigin::EnvVar,
+            expires_at: None,
         }
     }
 
@@ -147,6 +157,8 @@ mod tests {
         Url::from_str("https://example.com").unwrap()
     }
 
+    // The layer should inject client identification and x-api-key headers on every
+    // request, plus apollo-sudo when the credential is a sudo one.
     #[rstest]
     #[case::is_sudo(true)]
     #[case::is_not_sudo(false)]
@@ -201,6 +213,66 @@ mod tests {
                     .is_some()
                     .is_equal_to(&HeaderValue::from_static("true"));
             }
+            let resp = http::Response::builder()
+                .status(StatusCode::CREATED)
+                .body(Full::new(Bytes::default()))
+                .unwrap();
+            send_response.send_response(resp);
+        });
+
+        let result = service_call_fut.await?;
+        assert_that!(result)
+            .is_ok()
+            .matches(|req| req.status() == StatusCode::CREATED);
+        Ok(())
+    }
+
+    // An OAuth credential should be sent as an `Authorization: Bearer` header instead
+    // of `x-api-key`.
+    #[rstest]
+    #[tokio::test]
+    pub async fn test_studio_layer_sends_bearer_for_an_oauth_credential(
+        studio_endpoint: Url,
+        client_version: String,
+    ) -> Result<()> {
+        let credential = Credential {
+            api_key: "an-access-token".to_string(),
+            origin: CredentialOrigin::OAuth("default".to_string()),
+            expires_at: None,
+        };
+        let (mut service, mut handle) =
+            mock::spawn_with(move |inner: Mock<HttpRequest, HttpResponse>| {
+                ServiceBuilder::new()
+                    .layer(
+                        HttpStudioServiceLayer::new(
+                            studio_endpoint.clone(),
+                            credential.clone(),
+                            client_version.to_string(),
+                            false,
+                        )
+                        .unwrap(),
+                    )
+                    .map_err(HttpServiceError::Unexpected)
+                    .service(inner)
+            });
+        assert_ready_ok!(service.poll_ready());
+
+        let req = http::Request::builder()
+            .uri("https://example.com")
+            .method(Method::POST)
+            .body(Full::default())?;
+
+        let service_call_fut = task::spawn(service.call(req));
+        task::spawn(async move {
+            let (actual, send_response) = match handle.next_request().await {
+                Some(r) => r,
+                None => panic!("expected a request but none was received."),
+            };
+            let headers = actual.headers();
+            assert_that!(headers.get(http::header::AUTHORIZATION))
+                .is_some()
+                .is_equal_to(&HeaderValue::from_static("Bearer an-access-token"));
+            assert_that!(headers.get("x-api-key")).is_none();
             let resp = http::Response::builder()
                 .status(StatusCode::CREATED)
                 .body(Full::new(Bytes::default()))

@@ -513,6 +513,7 @@ mod tests {
             Credential {
                 api_key: "test".to_string(),
                 origin: CredentialOrigin::EnvVar,
+                expires_at: None,
             },
             &server.url("/"),
             "test-version",

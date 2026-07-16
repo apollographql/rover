@@ -37,7 +37,7 @@ impl WhoAmI {
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
                 RoverError::new(anyhow!(
-                    "The API key at `{origin}` is invalid - {msg}.",
+                    "The credential at `{origin}` is invalid - {msg}.",
                     origin = self.get_origin(&client)
                 ))
             }
@@ -70,6 +70,7 @@ impl WhoAmI {
     fn get_origin(&self, client: &StudioClient) -> String {
         match client.get_credential_origin() {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", path),
+            CredentialOrigin::OAuth(path) => format!("--profile {} (OAuth)", path),
             CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
         }
     }
@@ -130,6 +131,7 @@ mod tests {
         config::Credential {
             origin: CredentialOrigin::EnvVar,
             api_key: "profile_credential_api_key".to_string(),
+            expires_at: None,
         }
     }
 

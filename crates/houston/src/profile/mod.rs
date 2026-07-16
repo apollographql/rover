@@ -30,11 +30,16 @@ pub struct ProfileData {
 /// Struct containing info about an API Key
 #[derive(Clone, Debug)]
 pub struct Credential {
-    /// Apollo API Key
+    /// The secret to authenticate with: either a Personal API Key, or (when
+    /// `origin` is [`CredentialOrigin::OAuth`]) an OAuth access token.
     pub api_key: String,
 
     /// The origin of the credential
     pub origin: CredentialOrigin,
+
+    /// Unix timestamp at which an OAuth access token expires. Always `None`
+    /// unless `origin` is [`CredentialOrigin::OAuth`].
+    pub expires_at: Option<i64>,
 }
 
 /// Info about where the API key was retrieved
@@ -43,8 +48,11 @@ pub enum CredentialOrigin {
     /// The credential is from an environment variable
     EnvVar,
 
-    /// The credential is from a profile
+    /// The credential is a Personal API Key from a profile
     ConfigFile(String),
+
+    /// The credential is an OAuth token from a profile, obtained via `rover auth login`
+    OAuth(String),
 }
 
 impl Profile {
@@ -65,10 +73,30 @@ impl Profile {
         Ok(())
     }
 
-    /// Returns an API key for interacting with Apollo services.
+    /// Writes an OAuth token, obtained via `rover auth login`, to the secret store.
+    /// Overwrites any credential (API key or OAuth) previously stored for this profile.
+    pub fn set_oauth_tokens(
+        name: &str,
+        config: &Config,
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_at: Option<i64>,
+    ) -> Result<(), HoustonProblem> {
+        Sensitive::OAuth {
+            access_token,
+            refresh_token,
+            expires_at,
+        }
+        .save(name, config)?;
+        Ok(())
+    }
+
+    /// Returns a credential for interacting with Apollo services.
     ///
     /// Checks for the presence of an `APOLLO_KEY` env var, and returns its value
-    /// if it finds it. Otherwise looks for credentials on the file system.
+    /// if it finds it. Otherwise looks for a credential on the file system: an
+    /// OAuth token from `rover auth login`, or a legacy pasted-in API key from
+    /// `rover config auth` — whichever is currently stored for the profile.
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_credential(name: &str, config: &Config) -> Result<Credential, HoustonProblem> {
@@ -76,13 +104,26 @@ impl Profile {
             Some(api_key) => Credential {
                 api_key: api_key.to_string(),
                 origin: CredentialOrigin::EnvVar,
+                expires_at: None,
             },
             None => {
                 let opts = LoadOpts { sensitive: true };
                 let profile = Profile::load(name, config, opts)?;
-                Credential {
-                    api_key: profile.sensitive.api_key,
-                    origin: CredentialOrigin::ConfigFile(name.to_string()),
+                match profile.sensitive {
+                    Sensitive::OAuth {
+                        access_token,
+                        expires_at,
+                        ..
+                    } => Credential {
+                        api_key: access_token,
+                        origin: CredentialOrigin::OAuth(name.to_string()),
+                        expires_at,
+                    },
+                    Sensitive::ApiKey { api_key } => Credential {
+                        api_key,
+                        origin: CredentialOrigin::ConfigFile(name.to_string()),
+                        expires_at: None,
+                    },
                 }
             }
         };
@@ -96,7 +137,7 @@ impl Profile {
     /// splitting sensitive information into a separate file.
     pub fn save(name: &str, config: &Config, data: ProfileData) -> Result<(), HoustonProblem> {
         if let Some(api_key) = data.api_key {
-            Sensitive { api_key }.save(name, config)?;
+            Sensitive::ApiKey { api_key }.save(name, config)?;
         }
         Ok(())
     }
@@ -240,5 +281,138 @@ mod tests {
     fn it_can_mask_short() {
         let input = "short";
         assert_eq!(mask_key(input), "short".to_string());
+    }
+}
+
+#[cfg(test)]
+mod credential_resolution_tests {
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::*;
+    use crate::Config;
+
+    const PROFILE: &str = "default";
+
+    #[fixture]
+    fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let config = Config::new(Some(&tmp_path), override_api_key).unwrap();
+        (config, tmp_home)
+    }
+
+    // The `APOLLO_KEY` env var must win even when a profile has a stored OAuth token.
+    #[rstest]
+    fn get_credential_prefers_env_var_over_a_stored_oauth_token(
+        #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_oauth_tokens(
+            PROFILE,
+            &config,
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            Some(1_700_000_000),
+        )
+        .unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
+        assert_that!(credential.expires_at).is_none();
+    }
+
+    // The `APOLLO_KEY` env var must win even when a profile has a stored legacy API key.
+    #[rstest]
+    fn get_credential_prefers_env_var_over_a_stored_legacy_api_key(
+        #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
+    }
+
+    // With no env var set, a stored OAuth token should be returned as the credential.
+    #[rstest]
+    fn get_credential_returns_a_stored_oauth_token_when_no_env_var_is_set(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_oauth_tokens(
+            PROFILE,
+            &config,
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            Some(1_700_000_000),
+        )
+        .unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(PROFILE.to_string()));
+        assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
+    }
+
+    // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
+    #[rstest]
+    fn get_credential_falls_back_to_the_legacy_api_key_when_no_oauth_token_is_stored(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
+        assert_that!(credential.origin)
+            .is_equal_to(CredentialOrigin::ConfigFile(PROFILE.to_string()));
+        assert_that!(credential.expires_at).is_none();
+    }
+
+    // `set_oauth_tokens` must replace a previously stored legacy API key, not coexist with it.
+    #[rstest]
+    fn set_oauth_tokens_overwrites_a_previously_stored_legacy_api_key(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+        Profile::set_oauth_tokens(PROFILE, &config, "access-token".to_string(), None, None)
+            .unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(PROFILE.to_string()));
+    }
+
+    // `set_api_key` must replace a previously stored OAuth token, not coexist with it.
+    #[rstest]
+    fn set_api_key_overwrites_a_previously_stored_oauth_token(test_config: (Config, TempDir)) {
+        let (config, _tmp_home) = test_config;
+        Profile::set_oauth_tokens(
+            PROFILE,
+            &config,
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            Some(1_700_000_000),
+        )
+        .unwrap();
+        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+
+        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
+        assert_that!(credential.origin)
+            .is_equal_to(CredentialOrigin::ConfigFile(PROFILE.to_string()));
+        assert_that!(credential.expires_at).is_none();
     }
 }
