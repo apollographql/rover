@@ -243,8 +243,6 @@ mod tests {
     use super::*;
     use crate::Config;
 
-    const PROFILE: &str = "default";
-
     #[fixture]
     fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {
         let tmp_home = TempDir::new().unwrap();
@@ -304,8 +302,9 @@ mod tests {
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
+        let profile = "prefers-env-over-oauth";
         Profile::set_oauth_tokens(
-            PROFILE,
+            profile,
             &config,
             "access-token".to_string(),
             Some("refresh-token".to_string()),
@@ -313,7 +312,7 @@ mod tests {
         )
         .unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
@@ -326,9 +325,10 @@ mod tests {
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+        let profile = "prefers-env-over-legacy";
+        Profile::set_api_key(profile, &config, "profile-key").unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
@@ -340,8 +340,9 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
+        let profile = "returns-stored-oauth";
         Profile::set_oauth_tokens(
-            PROFILE,
+            profile,
             &config,
             "access-token".to_string(),
             Some("refresh-token".to_string()),
@@ -349,10 +350,10 @@ mod tests {
         )
         .unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
-        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(PROFILE.to_string()));
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(profile.to_string()));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
     }
 
@@ -362,13 +363,14 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+        let profile = "falls-back-to-legacy";
+        Profile::set_api_key(profile, &config, "profile-key").unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
         assert_that!(credential.origin)
-            .is_equal_to(CredentialOrigin::ConfigFile(PROFILE.to_string()));
+            .is_equal_to(CredentialOrigin::ConfigFile(profile.to_string()));
         assert_that!(credential.expires_at).is_none();
     }
 
@@ -378,35 +380,37 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
-        Profile::set_oauth_tokens(PROFILE, &config, "access-token".to_string(), None, None)
+        let profile = "oauth-overwrites-legacy";
+        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+        Profile::set_oauth_tokens(profile, &config, "access-token".to_string(), None, None)
             .unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
-        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(PROFILE.to_string()));
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(profile.to_string()));
     }
 
     // `set_api_key` must replace a previously stored OAuth token, not coexist with it.
     #[rstest]
     fn set_api_key_overwrites_a_previously_stored_oauth_token(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
+        let profile = "api-key-overwrites-oauth";
         Profile::set_oauth_tokens(
-            PROFILE,
+            profile,
             &config,
             "access-token".to_string(),
             Some("refresh-token".to_string()),
             Some(1_700_000_000),
         )
         .unwrap();
-        Profile::set_api_key(PROFILE, &config, "profile-key").unwrap();
+        Profile::set_api_key(profile, &config, "profile-key").unwrap();
 
-        let credential = Profile::get_credential(PROFILE, &config).unwrap();
+        let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
         assert_that!(credential.origin)
-            .is_equal_to(CredentialOrigin::ConfigFile(PROFILE.to_string()));
+            .is_equal_to(CredentialOrigin::ConfigFile(profile.to_string()));
         assert_that!(credential.expires_at).is_none();
     }
 }
