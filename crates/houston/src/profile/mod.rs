@@ -87,8 +87,7 @@ impl Profile {
             refresh_token,
             expires_at,
         }
-        .save(name, config)?;
-        Ok(())
+        .save(name, config)
     }
 
     /// Returns a credential for interacting with Apollo services.
