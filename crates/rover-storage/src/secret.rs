@@ -57,6 +57,7 @@ impl RoverSecretStore {
     {
         let data = serde_json::to_vec(&value).map_err(StoreError::Serialize)?;
         self.with_fallback(key, |entry| entry.set_secret(&data))?;
+        self.verify_write_visible(key, &data)?;
         Ok(value)
     }
 
@@ -64,18 +65,7 @@ impl RoverSecretStore {
     where
         T: for<'de> Deserialize<'de> + 'static,
     {
-        // a value written while `backend` was unavailable lives in `fallback`
-        // instead, so `backend` reporting "no entry" isn't conclusive on its
-        // own — a prior write for this key may have landed in `fallback`
-        // (in a previous process, even), so check there too before giving up.
-        let data = match self.attempt(&self.backend, key, |entry| entry.get_secret()) {
-            Ok(data) => Ok(data),
-            Err(e) if matches!(e, keyring_core::Error::NoEntry) || is_unavailable(&e) => {
-                self.attempt(&self.fallback, key, |entry| entry.get_secret())
-            }
-            Err(e) => Err(e),
-        };
-        match data {
+        match self.read_raw(key) {
             Ok(data) => {
                 let value = serde_json::from_slice(&data).map_err(StoreError::Deserialize)?;
                 Ok(Some(value))
@@ -83,6 +73,60 @@ impl RoverSecretStore {
             Err(keyring_core::Error::NoEntry) => Ok(None),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// Reads the raw bytes stored under `key`, checking `backend` then
+    /// `fallback`. A value written while `backend` was unavailable lives in
+    /// `fallback` instead, so `backend` reporting "no entry" isn't conclusive
+    /// on its own — a prior write for this key may have landed in `fallback`
+    /// (in a previous process, even), so check there too before giving up.
+    fn read_raw(&self, key: &str) -> keyring_core::Result<Vec<u8>> {
+        match self.attempt(&self.backend, key, |entry| entry.get_secret()) {
+            Ok(data) => Ok(data),
+            Err(e) if matches!(e, keyring_core::Error::NoEntry) || is_unavailable(&e) => {
+                self.attempt(&self.fallback, key, |entry| entry.get_secret())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Confirms a just-written secret is actually readable before `write`
+    /// reports success. Some native keyring backends don't reliably make a
+    /// write visible to an immediately-following read — `windows-native-
+    /// keyring-store`'s own docs warn that operating on an entry from
+    /// multiple threads "does not reliably sequence the operations", and
+    /// that a read immediately after a write "may cause the read to fail,
+    /// especially if the credential manager is busy on multiple threads".
+    /// Silently returning `Ok` from `write` in that case would let a caller
+    /// believe a credential is saved when a subsequent read might not find
+    /// it. This retries briefly before treating it as a genuine failure; on
+    /// the common path (write lands immediately) it succeeds on the first
+    /// check with no delay.
+    ///
+    /// Compares parsed JSON values rather than raw bytes: the file-store
+    /// backend round-trips a written value through `serde_json::Value` (an
+    /// unordered map), which re-serializes object keys in a different order
+    /// than the original bytes — semantically identical, but not byte-equal.
+    fn verify_write_visible(&self, key: &str, expected: &[u8]) -> Result<(), StoreError> {
+        let expected: serde_json::Value =
+            serde_json::from_slice(expected).map_err(StoreError::Deserialize)?;
+        const MAX_ATTEMPTS: u32 = 5;
+        for attempt in 0..MAX_ATTEMPTS {
+            let visible = self
+                .read_raw(key)
+                .ok()
+                .and_then(|data| serde_json::from_slice::<serde_json::Value>(&data).ok())
+                .is_some_and(|value| value == expected);
+            if visible {
+                return Ok(());
+            }
+            if attempt + 1 < MAX_ATTEMPTS {
+                std::thread::sleep(std::time::Duration::from_millis(
+                    20 * u64::from(attempt + 1),
+                ));
+            }
+        }
+        Err(StoreError::WriteNotVisible)
     }
 
     pub fn delete(&self, key: &str) -> Result<(), StoreError> {
@@ -218,6 +262,31 @@ mod tests {
         }
     }
 
+    // A struct whose declared field order doesn't match alphabetical order,
+    // so a JSON re-encode that sorts keys (as the file store's `Value`
+    // round-trip does) produces different bytes than the original - on
+    // purpose, to exercise `verify_write_visible`'s key-reordering tolerance.
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct MultiFieldValue {
+        zebra: String,
+        mango: String,
+        apple: String,
+    }
+
+    impl MultiFieldValue {
+        fn new(
+            zebra: impl Into<String>,
+            mango: impl Into<String>,
+            apple: impl Into<String>,
+        ) -> Self {
+            MultiFieldValue {
+                zebra: zebra.into(),
+                mango: mango.into(),
+                apple: apple.into(),
+            }
+        }
+    }
+
     use util::{backend, fallback, temp_dir};
 
     // ==== write ====
@@ -317,6 +386,46 @@ mod tests {
         assert_that!(result).is_err().matches(|e| {
             matches!(e, StoreError::Store(inner) if inner.to_string().to_lowercase().contains("platform"))
         });
+    }
+
+    // ==== write verification ====
+
+    // Regression test for a real bug caught while writing this: comparing
+    // raw bytes (rather than parsed JSON values) between what was written and
+    // what a follow-up read returns. The real file store round-trips a value
+    // through `serde_json::Value` (an unordered map), which re-serializes
+    // object keys in a different order than the original bytes - semantically
+    // identical, but byte-different. A multi-field value exercises that: its
+    // fields' declared order doesn't match alphabetical order.
+    #[rstest]
+    fn write_succeeds_despite_the_file_store_reordering_keys_on_readback(temp_dir: TempDir) {
+        let real_store = util::real_fallback(temp_dir.path().to_path_buf());
+        let store = util::store_with(real_store.clone(), real_store);
+
+        let result = store.write(KEY, MultiFieldValue::new("a", "b", "c"));
+
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(MultiFieldValue::new("a", "b", "c"));
+    }
+
+    // If a backend reports a write as successful but never actually makes it
+    // readable (the exact failure mode `windows-native-keyring-store`'s own
+    // docs warn about under concurrent access), `write` must surface an
+    // error instead of silently reporting success for a credential that a
+    // subsequent read won't find.
+    #[rstest]
+    fn write_returns_write_not_visible_when_the_store_never_reflects_the_write(
+        fallback: Arc<MockStore>,
+    ) {
+        let amnesiac = util::amnesiac_backend();
+        let store = util::store_with(amnesiac, fallback);
+
+        let result = store.write(KEY, TestValue::new("hello"));
+
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, StoreError::WriteNotVisible));
     }
 
     // ==== read ====
@@ -917,6 +1026,85 @@ mod tests {
             let path = temp.path().join("blocked");
             std::fs::write(&path, b"i am a file, not a directory").unwrap();
             path
+        }
+
+        /// A backend that reports every `set_secret` as successful but never
+        /// actually makes anything readable - `get_secret` always returns
+        /// `NoEntry`. Models a backend that lies about a write succeeding,
+        /// which `keyring_core`'s own (honest) mock `Store` can't represent.
+        pub(super) fn amnesiac_backend() -> Arc<CredentialStore> {
+            Arc::new(AmnesiacStore)
+        }
+
+        #[derive(Debug)]
+        struct AmnesiacStore;
+
+        #[derive(Debug)]
+        struct AmnesiacCredential;
+
+        impl keyring_core::api::CredentialApi for AmnesiacCredential {
+            fn set_secret(&self, _secret: &[u8]) -> keyring_core::Result<()> {
+                Ok(())
+            }
+
+            fn get_secret(&self) -> keyring_core::Result<Vec<u8>> {
+                Err(keyring_core::Error::NoEntry)
+            }
+
+            fn delete_credential(&self) -> keyring_core::Result<()> {
+                Ok(())
+            }
+
+            fn get_credential(
+                &self,
+            ) -> keyring_core::Result<Option<Arc<keyring_core::Credential>>> {
+                Err(keyring_core::Error::NoEntry)
+            }
+
+            fn get_specifiers(&self) -> Option<(String, String)> {
+                None
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn debug_fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                std::fmt::Debug::fmt(self, f)
+            }
+        }
+
+        impl keyring_core::api::CredentialStoreApi for AmnesiacStore {
+            fn vendor(&self) -> String {
+                "amnesiac test double".to_string()
+            }
+
+            fn id(&self) -> String {
+                "amnesiac".to_string()
+            }
+
+            fn build(
+                &self,
+                _service: &str,
+                _user: &str,
+                _modifiers: Option<&std::collections::HashMap<&str, &str>>,
+            ) -> keyring_core::Result<keyring_core::Entry> {
+                Ok(keyring_core::Entry::new_with_credential(Arc::new(
+                    AmnesiacCredential,
+                )))
+            }
+
+            fn persistence(&self) -> keyring_core::api::CredentialPersistence {
+                keyring_core::api::CredentialPersistence::UntilDelete
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn debug_fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                std::fmt::Debug::fmt(self, f)
+            }
         }
     }
 }
