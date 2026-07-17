@@ -236,7 +236,23 @@ pub fn mask_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::mask_key;
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::*;
+    use crate::Config;
+
+    const PROFILE: &str = "default";
+
+    #[fixture]
+    fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let config = Config::new(Some(&tmp_path), override_api_key).unwrap();
+        (config, tmp_home)
+    }
 
     #[test]
     fn it_can_mask_user_key() {
@@ -281,27 +297,6 @@ mod tests {
     fn it_can_mask_short() {
         let input = "short";
         assert_eq!(mask_key(input), "short".to_string());
-    }
-}
-
-#[cfg(test)]
-mod credential_resolution_tests {
-    use assert_fs::TempDir;
-    use camino::Utf8PathBuf;
-    use rstest::{fixture, rstest};
-    use speculoos::prelude::*;
-
-    use super::*;
-    use crate::Config;
-
-    const PROFILE: &str = "default";
-
-    #[fixture]
-    fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {
-        let tmp_home = TempDir::new().unwrap();
-        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        let config = Config::new(Some(&tmp_path), override_api_key).unwrap();
-        (config, tmp_home)
     }
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored OAuth token.
