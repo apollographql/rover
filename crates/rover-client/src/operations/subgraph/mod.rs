@@ -27,3 +27,6 @@ pub mod list;
 
 /// "subgraph introspect"
 pub mod introspect;
+
+/// "subgraph preview" command execution
+pub mod preview;

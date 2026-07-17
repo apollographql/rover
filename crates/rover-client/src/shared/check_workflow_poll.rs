@@ -38,7 +38,7 @@ pub(crate) async fn poll_check_workflow<T>(
                 }
             }
             Err(e) if e.is_transient() => {
-                eprintln!("error while checking status of check: {e}\nretrying...");
+                eprintln!("error while checking status: {e}\nretrying...");
             }
             Err(e) => return Err(e),
         }
