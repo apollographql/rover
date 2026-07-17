@@ -16,6 +16,12 @@ const SECRET_STORE_SERVICE: &str = "rover";
 /// `#[serde(untagged)]` lets legacy data (which only ever looked like
 /// `{"api_key": "..."}`) keep deserializing straight into `ApiKey` with no
 /// migration step, while new OAuth logins serialize into `OAuth`.
+///
+/// Untagged discrimination only works because `ApiKey` and `OAuth` have
+/// disjoint required fields (`api_key` vs `access_token`) - serde picks the
+/// first variant whose required fields are all present. Keep it that way:
+/// if `OAuth` ever gained an `api_key`-shaped field, or `api_key` became
+/// optional, payloads could silently deserialize into the wrong variant.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Sensitive {
