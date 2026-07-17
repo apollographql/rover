@@ -277,4 +277,25 @@ mod tests {
             )
         });
     }
+
+    // `Display` must mask each variant's actual secret (`api_key`/`access_token`),
+    // and for `OAuth` specifically must never print `refresh_token` in its place.
+    #[rstest]
+    #[case::api_key(
+        Sensitive::ApiKey {
+            api_key: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
+        },
+        "user**************************LOLO"
+    )]
+    #[case::oauth(
+        Sensitive::OAuth {
+            access_token: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
+            refresh_token: Some("should-never-appear-in-output".to_string()),
+            expires_at: Some(1_700_000_000),
+        },
+        "user**************************LOLO"
+    )]
+    fn display_masks_the_underlying_secret(#[case] sensitive: Sensitive, #[case] expected: &str) {
+        assert_that!(sensitive.to_string()).is_equal_to(expected.to_string());
+    }
 }

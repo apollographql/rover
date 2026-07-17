@@ -135,6 +135,45 @@ mod tests {
         }
     }
 
+    fn get_studio_client(origin: CredentialOrigin) -> StudioClient {
+        StudioClient::new(
+            config::Credential {
+                origin,
+                api_key: "an-api-key".to_string(),
+                expires_at: None,
+            },
+            "https://example.com",
+            "test-version",
+            false,
+            reqwest::Client::new(),
+            std::time::Duration::from_secs(1),
+        )
+    }
+
+    #[test]
+    fn it_can_get_origin() {
+        let wai = get_who_am_i(false);
+
+        assert_eq!(
+            WhoAmI::get_origin(&wai, &get_studio_client(CredentialOrigin::EnvVar)),
+            format!("${}", RoverEnvKey::Key)
+        );
+        assert_eq!(
+            WhoAmI::get_origin(
+                &wai,
+                &get_studio_client(CredentialOrigin::ConfigFile("default".to_string()))
+            ),
+            "--profile default".to_string()
+        );
+        assert_eq!(
+            WhoAmI::get_origin(
+                &wai,
+                &get_studio_client(CredentialOrigin::OAuth("default".to_string()))
+            ),
+            "--profile default (OAuth)".to_string()
+        );
+    }
+
     #[test]
     fn it_can_validate_actor_type() {
         let woi = get_who_am_i(false);
