@@ -331,7 +331,7 @@ httpmock = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.47"
+jsonschema = "0.48"
 mime = "0.3"
 mockall = "0.15"
 portpicker = "0.1"
