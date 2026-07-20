@@ -12,9 +12,33 @@ use crate::{profile::Profile, Config, HoustonProblem};
 const SECRET_STORE_SERVICE: &str = "rover";
 
 /// Holds sensitive information regarding authentication.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Sensitive {
-    pub api_key: String,
+///
+/// `#[serde(untagged)]` lets legacy data (which only ever looked like
+/// `{"api_key": "..."}`) keep deserializing straight into `ApiKey` with no
+/// migration step, while new OAuth logins serialize into `OAuth`.
+///
+/// Untagged discrimination only works because `ApiKey` and `OAuth` have
+/// disjoint required fields (`api_key` vs `access_token`) - serde picks the
+/// first variant whose required fields are all present. Keep it that way:
+/// if `OAuth` ever gained an `api_key`-shaped field, or `api_key` became
+/// optional, payloads could silently deserialize into the wrong variant.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum Sensitive {
+    /// A long-lived Personal API Key, pasted in via `rover config auth`.
+    ApiKey {
+        /// The Apollo API Key.
+        api_key: String,
+    },
+    /// An OAuth2 token issued via `rover auth login`.
+    OAuth {
+        /// The current access token.
+        access_token: String,
+        /// A refresh token, if the authorization server issued one.
+        refresh_token: Option<String>,
+        /// Unix timestamp at which `access_token` expires, if known.
+        expires_at: Option<i64>,
+    },
 }
 
 impl Sensitive {
@@ -111,19 +135,26 @@ impl Sensitive {
     }
 
     // old versions of rover used to allow profiles to be created
-    // with these contents in certain PowerShell environments
+    // with these contents in certain PowerShell environments. This only ever
+    // affected pasted-in API keys, never OAuth tokens.
     fn validate(sensitive: Sensitive, profile_name: &str) -> Result<Sensitive, HoustonProblem> {
-        if sensitive.api_key.as_bytes() == [22] {
-            Err(HoustonProblem::CorruptedProfile(profile_name.to_string()))
-        } else {
-            Ok(sensitive)
+        match &sensitive {
+            Sensitive::ApiKey { api_key } if api_key.as_bytes() == [22] => {
+                Err(HoustonProblem::CorruptedProfile(profile_name.to_string()))
+            }
+            _ => Ok(sensitive),
         }
     }
 }
 
 impl fmt::Display for Sensitive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", super::mask_key(&self.api_key))
+        match self {
+            Sensitive::ApiKey { api_key } => write!(f, "{}", super::mask_key(api_key)),
+            Sensitive::OAuth { access_token, .. } => {
+                write!(f, "{}", super::mask_key(access_token))
+            }
+        }
     }
 }
 
@@ -132,9 +163,12 @@ mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use rover_print::print::testing::TerminalCapture;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
 
     use super::*;
 
+    #[fixture]
     fn test_config() -> (Config, TempDir) {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -193,13 +227,79 @@ mod tests {
         )
         .unwrap();
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().api_key, "legacy-key");
+        assert_that!(result).is_ok().is_equal_to(Sensitive::ApiKey {
+            api_key: "legacy-key".to_string(),
+        });
 
         let expected = format!(
             "warning: failed to remove unused legacy credential file '{legacy_path}': {removal_error}. \
             You can delete it by hand, or check write permissions on its parent directory."
         );
         assert_eq!(stderr.lines(), vec![expected]);
+    }
+
+    // A secret-store read that fails for a reason other than "nothing stored"
+    // (e.g. a corrupted value) must propagate as an error rather than being
+    // treated as "nothing stored" - which would otherwise send `load` down the
+    // legacy-file fallback path and silently hand back a stale legacy API key
+    // instead of surfacing the failure.
+    #[rstest]
+    fn load_does_not_fall_back_to_a_legacy_api_key_when_the_stored_credential_is_corrupted(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        let profile_name = "corrupt-test";
+
+        // A valid legacy credential that `load` would happily return if it
+        // mistakenly treated the corrupt secret-store entry below as "nothing
+        // stored" and fell through to the legacy-file path.
+        std::fs::create_dir_all(Profile::dir(profile_name, &config).as_std_path()).unwrap();
+        std::fs::write(
+            Sensitive::legacy_path(profile_name, &config).as_std_path(),
+            "api_key = \"legacy-key\"\n",
+        )
+        .unwrap();
+
+        // Store a payload that doesn't match either `Sensitive` variant, simulating
+        // a corrupted/unrecoverable secret-store entry (e.g. one written by some
+        // future or otherwise-incompatible version of Rover).
+        Sensitive::store(&config)
+            .unwrap()
+            .write(
+                &Sensitive::key(profile_name),
+                "not-a-valid-sensitive-payload".to_string(),
+            )
+            .unwrap();
+
+        let stderr = TerminalCapture::new(false);
+        let result = Sensitive::load(profile_name, &config, &stderr);
+
+        assert_that!(result).is_err().matches(|err| {
+            matches!(
+                err,
+                HoustonProblem::SecretStoreError(rover_storage::StoreError::Deserialize(_))
+            )
+        });
+    }
+
+    // `Display` must mask each variant's actual secret (`api_key`/`access_token`),
+    // and for `OAuth` specifically must never print `refresh_token` in its place.
+    #[rstest]
+    #[case::api_key(
+        Sensitive::ApiKey {
+            api_key: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
+        },
+        "user**************************LOLO"
+    )]
+    #[case::oauth(
+        Sensitive::OAuth {
+            access_token: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
+            refresh_token: Some("should-never-appear-in-output".to_string()),
+            expires_at: Some(1_700_000_000),
+        },
+        "user**************************LOLO"
+    )]
+    fn display_masks_the_underlying_secret(#[case] sensitive: Sensitive, #[case] expected: &str) {
+        assert_that!(sensitive.to_string()).is_equal_to(expected.to_string());
     }
 }

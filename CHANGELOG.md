@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover config auth` now stores each profile's API key in the OS-native credential store (Keychain on macOS, Credential Manager on Windows, the kernel keyring on Linux), falling back to a permission-hardened (`0600`/`0700`) JSON file when no native keychain is available — for example, headless Linux/CI, or an unsigned local build on macOS. Existing plaintext `$APOLLO_CONFIG_HOME/profiles/<profile>/.sensitive` files are transparently migrated the first time they're read, then removed. `rover config auth`, `whoami`, `list`, `delete`, and `clear` all behave the same as before, and the `APOLLO_KEY` environment variable override is unaffected. On some platforms the OS may now prompt for keychain access the first time a credential is read or written in a session. If Rover ever fails to read, write, or delete a credential, it now surfaces a dedicated error, E046, instead of a generic failure.
 
+- **Add OAuth token storage to the credential model - @dotdat**
+
+  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing only — no command yet writes an OAuth credential, so existing workflows are unaffected.
+
 # [0.41.0] - 2026-07-09
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**

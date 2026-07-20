@@ -37,7 +37,7 @@ impl WhoAmI {
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
                 RoverError::new(anyhow!(
-                    "The API key at `{origin}` is invalid - {msg}.",
+                    "The credential at `{origin}` is invalid - {msg}.",
                     origin = self.get_origin(&client)
                 ))
             }
@@ -70,6 +70,7 @@ impl WhoAmI {
     fn get_origin(&self, client: &StudioClient) -> String {
         match client.get_credential_origin() {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", path),
+            CredentialOrigin::OAuth(path) => format!("--profile {} (OAuth)", path),
             CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
         }
     }
@@ -130,7 +131,47 @@ mod tests {
         config::Credential {
             origin: CredentialOrigin::EnvVar,
             api_key: "profile_credential_api_key".to_string(),
+            expires_at: None,
         }
+    }
+
+    fn get_studio_client(origin: CredentialOrigin) -> StudioClient {
+        StudioClient::new(
+            config::Credential {
+                origin,
+                api_key: "an-api-key".to_string(),
+                expires_at: None,
+            },
+            "https://example.com",
+            "test-version",
+            false,
+            reqwest::Client::new(),
+            std::time::Duration::from_secs(1),
+        )
+    }
+
+    #[test]
+    fn it_can_get_origin() {
+        let wai = get_who_am_i(false);
+
+        assert_eq!(
+            WhoAmI::get_origin(&wai, &get_studio_client(CredentialOrigin::EnvVar)),
+            format!("${}", RoverEnvKey::Key)
+        );
+        assert_eq!(
+            WhoAmI::get_origin(
+                &wai,
+                &get_studio_client(CredentialOrigin::ConfigFile("default".to_string()))
+            ),
+            "--profile default".to_string()
+        );
+        assert_eq!(
+            WhoAmI::get_origin(
+                &wai,
+                &get_studio_client(CredentialOrigin::OAuth("default".to_string()))
+            ),
+            "--profile default (OAuth)".to_string()
+        );
     }
 
     #[test]
