@@ -1,8 +1,5 @@
-use crate::RoverClientError;
-use crate::blocking::StudioClient;
-use crate::shared::check_workflow_poll::PollState;
-
 use super::types::{PreviewJobResponse, PreviewStatusInput};
+use crate::{blocking::StudioClient, shared::check_workflow_poll::PollState, RoverClientError};
 
 /// Check the results of a preview job
 pub async fn results(
@@ -43,7 +40,9 @@ pub(crate) fn map_preview_errors(job_id: &str, err: RoverClientError) -> RoverCl
         },
         RoverClientError::CheckWorkflowResultUnavailable { source, .. } => {
             RoverClientError::AdhocError {
-                msg: format!("Job {job_id} finished, but Rover couldn't fetch the result: {source}"),
+                msg: format!(
+                    "Job {job_id} finished, but Rover couldn't fetch the result: {source}"
+                ),
             }
         }
         other => other,

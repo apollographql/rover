@@ -1,7 +1,9 @@
 use anyhow::anyhow;
 use clap::{ArgGroup, Parser};
-use rover_client::operations::contract::preview::{self, ContractFilterConfig, ContractPreviewInput};
-use rover_client::operations::preview_status::{self, PreviewStatusInput};
+use rover_client::operations::{
+    contract::preview::{self, ContractFilterConfig, ContractPreviewInput},
+    preview_status::{self, PreviewStatusInput},
+};
 use rover_std::Style;
 use serde::Serialize;
 

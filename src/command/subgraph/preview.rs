@@ -3,9 +3,12 @@ use std::collections::BTreeMap;
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::{ArgGroup, Parser};
-use rover_client::operations::preview_status::{self, PreviewStatusInput};
-use rover_client::operations::subgraph::preview::{
-    self, ComposeAndFilterPreviewInput, ContractFilterConfig, SubgraphChange, SubgraphChangeInfo,
+use rover_client::operations::{
+    preview_status::{self, PreviewStatusInput},
+    subgraph::preview::{
+        self, ComposeAndFilterPreviewInput, ContractFilterConfig, SubgraphChange,
+        SubgraphChangeInfo,
+    },
 };
 use rover_std::{Fs, Style};
 use serde::{Deserialize, Serialize};
@@ -91,7 +94,7 @@ pub struct Preview {
     /// Start the build and return immediately with a job ID, instead of
     /// waiting for it to complete.
     ///
-    /// Omit this flag to have Rover poll for the preview to complete. 
+    /// Omit this flag to have Rover poll for the preview to complete.
     /// Polling will timeout after APOLLO_CHECKS_TIMEOUT_SECONDS
     #[arg(long = "async")]
     asynchronous: bool,
@@ -285,9 +288,8 @@ impl Preview {
         let contents =
             file_descriptor.read_file_descriptor("subgraph changes", &mut std::io::stdin())?;
 
-        let parsed: SubgraphChangesFile = serde_yaml::from_str(&contents).map_err(|err| {
-            RoverError::new(anyhow!("Invalid --subgraph-changes file: {err}"))
-        })?;
+        let parsed: SubgraphChangesFile = serde_yaml::from_str(&contents)
+            .map_err(|err| RoverError::new(anyhow!("Invalid --subgraph-changes file: {err}")))?;
 
         parsed
             .subgraphs

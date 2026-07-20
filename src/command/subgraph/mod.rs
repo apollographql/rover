@@ -79,9 +79,7 @@ impl Subgraph {
             Command::Fetch(command) => command.run(client_config).await,
             Command::Lint(command) => command.run(client_config).await,
             Command::List(command) => command.run(client_config).await,
-            Command::Preview(command) => {
-                command.run(client_config, checks_timeout_seconds).await
-            }
+            Command::Preview(command) => command.run(client_config, checks_timeout_seconds).await,
             Command::Publish(command) => {
                 command
                     .run(client_config, git_context, checks_timeout_seconds)

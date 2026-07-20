@@ -30,6 +30,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `rover contract preview` and `rover subgraph preview` - @sirdodger PR #4333**
+
+  `rover contract preview` previews a contract by applying filters to the current schema and `rover subgraph preview` composes a preview supergraph from `--subgraph-changes` and optional contract filters. Both run asynchronously with `--async` and can poll for results with `--job-id`. Otherwise, Rover will poll until completion or timeout.
+
 - **Add `rover supergraph config expand` to preview an expanded supergraph config - @SharkBaitDLS PR #3447 fixes #1579**
 
   `rover supergraph config expand --config ./supergraph.yaml` prints your supergraph configuration file with all variable references (e.g. `${env.PRODUCTS_URL}` and `${file.path}`) expanded. This makes it easy to confirm what Rover actually resolves your config to before a composition run. Use `--format json` to get the expanded config under an `expanded_config` field.

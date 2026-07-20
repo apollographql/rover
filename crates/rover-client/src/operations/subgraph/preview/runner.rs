@@ -1,9 +1,10 @@
-use crate::RoverClientError;
-use crate::blocking::StudioClient;
-use crate::operations::preview_status::{self, PreviewStatusInput};
-use crate::shared::check_workflow_poll::poll_check_workflow;
-
 use super::types::{ComposeAndFilterPreviewInput, PreviewJobResponse};
+use crate::{
+    blocking::StudioClient,
+    operations::preview_status::{self, PreviewStatusInput},
+    shared::check_workflow_poll::poll_check_workflow,
+    RoverClientError,
+};
 
 /// Start an async compose-and-filter preview job, incorporating subgraph
 /// changes and optionally a contract filter, and poll until it is complete,

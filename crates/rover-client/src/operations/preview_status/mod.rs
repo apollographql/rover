@@ -1,6 +1,6 @@
 mod runner;
 mod types;
 
-pub(crate) use runner::{status, map_preview_errors};
 pub use runner::results;
+pub(crate) use runner::{map_preview_errors, status};
 pub use types::*;

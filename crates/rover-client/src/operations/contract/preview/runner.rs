@@ -1,9 +1,10 @@
-use crate::RoverClientError;
-use crate::blocking::StudioClient;
-use crate::operations::preview_status::{self, PreviewStatusInput};
-use crate::shared::check_workflow_poll::poll_check_workflow;
-
 use super::types::{ContractPreviewInput, PreviewJobResponse};
+use crate::{
+    blocking::StudioClient,
+    operations::preview_status::{self, PreviewStatusInput},
+    shared::check_workflow_poll::poll_check_workflow,
+    RoverClientError,
+};
 
 /// Start an async contract preview job and poll until it completes, errors or
 /// times out.
