@@ -42,7 +42,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add OAuth token storage to the credential model - @dotdat**
 
-  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing only — no command yet writes an OAuth credential, so existing workflows are unaffected.
+  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing — see `rover auth login` below for the command that now writes one.
+
+- **Add `rover auth login`, gated behind an experimental `oauth` feature flag - @dotdat**
+
+  `rover auth login` authenticates via OAuth 2.0 (PKCE authorization-code flow): it opens your browser, completes the login against Apollo's Identity service, and stores the resulting session the same way `rover config auth` stores a Personal API Key (`--profile <name>` works the same way). Only compiled in when built with `--features oauth` — off by default, and not part of any released binary yet. Uses a static, pre-registered OAuth client (one per environment) rather than registering a new client per install; `APOLLO_OAUTH_AUTHORIZATION_URL`/`APOLLO_OAUTH_TOKEN_URL`/`APOLLO_OAUTH_CLIENT_ID` override the defaults (Apollo's production OAuth server and its registered `rover` client) for testing against other environments.
 
 # [0.41.0] - 2026-07-09
 
