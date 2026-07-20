@@ -105,6 +105,9 @@ pub enum RoverEnvKey {
     VcsAuthor,
     NodeModulesBin,
     ChecksTimeoutSeconds,
+    OauthAuthorizationUrl,
+    OauthTokenUrl,
+    OauthClientId,
 }
 
 impl fmt::Display for RoverEnvKey {
@@ -127,6 +130,15 @@ mod tests {
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_oauth_authorization_url() {
+        let expected_key = "APOLLO_OAUTH_AUTHORIZATION_URL";
+        assert_eq!(
+            &RoverEnvKey::OauthAuthorizationUrl.to_string(),
+            expected_key
+        );
     }
 
     #[test]

@@ -1,4 +1,6 @@
 mod api_key;
+#[cfg(feature = "oauth")]
+pub mod auth;
 mod client;
 mod completion;
 mod config;
@@ -26,6 +28,8 @@ pub(crate) mod template;
 mod update;
 
 pub use api_key::ApiKeys;
+#[cfg(feature = "oauth")]
+pub use auth::Auth;
 pub use client::Client;
 pub use completion::Completion;
 pub use config::Config;

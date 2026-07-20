@@ -23,12 +23,15 @@ serde_json = { workspace = true }
 tar = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "rustls", "json"] }
+rover-auth = { workspace = true }
+rover-http = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-stream = { workspace = true }
+tower = { workspace = true }
 url = { workspace = true }
 which = { workspace = true }
 zip = { workspace = true }

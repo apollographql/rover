@@ -196,6 +196,12 @@ impl Rover {
             Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Completion(command) => command.run(),
             Command::Config(command) => command.run(self.get_client_config()?).await,
+            #[cfg(feature = "oauth")]
+            Command::Auth(command) => {
+                command
+                    .run(self.get_client_config()?, self.get_oauth_config()?)
+                    .await
+            }
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
                 command
@@ -286,6 +292,15 @@ impl Rover {
             .map(|p| Utf8PathBuf::from(&p));
         let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
         Ok(Config::new(override_home.as_ref(), override_api_key)?)
+    }
+
+    #[cfg(feature = "oauth")]
+    pub(crate) fn get_oauth_config(&self) -> RoverResult<command::auth::OauthConfig> {
+        command::auth::OauthConfig::builder()
+            .maybe_authorization_url(self.get_env_var(RoverEnvKey::OauthAuthorizationUrl)?)
+            .maybe_token_url(self.get_env_var(RoverEnvKey::OauthTokenUrl)?)
+            .maybe_client_id(self.get_env_var(RoverEnvKey::OauthClientId)?)
+            .build()
     }
 
     pub(crate) fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
@@ -406,6 +421,10 @@ pub enum Command {
     /// API Key Related Commands
     #[clap(name = "api-key")]
     ApiKeys(command::ApiKeys),
+
+    /// Authentication commands
+    #[cfg(feature = "oauth")]
+    Auth(command::Auth),
 
     #[cfg(feature = "composition-js")]
     Connector(command::Connector),
