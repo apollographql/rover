@@ -89,6 +89,7 @@ fn expires_at(expires_in: Option<Duration>) -> Option<i64> {
 #[cfg(test)]
 mod tests {
     use speculoos::prelude::*;
+    use url::Url;
 
     use super::*;
 
@@ -138,9 +139,8 @@ mod tests {
     #[test]
     fn oauth_config_honors_a_url_override() {
         let config = OauthConfig::builder()
-            .authorization_url("https://custom.example.com/authorize".to_string())
-            .build()
-            .unwrap();
+            .authorization_url(Url::parse("https://custom.example.com/authorize").unwrap())
+            .build();
 
         assert_that!(config.authorization_url.as_str())
             .is_equal_to("https://custom.example.com/authorize");
@@ -150,20 +150,8 @@ mod tests {
     fn oauth_config_honors_a_client_id_override() {
         let config = OauthConfig::builder()
             .client_id("a-real-client-id".to_string())
-            .build()
-            .unwrap();
-
-        assert_that!(config.client_id).is_equal_to("a-real-client-id".to_string());
-    }
-
-    #[test]
-    fn oauth_config_errors_clearly_on_an_invalid_url_override() {
-        let result = OauthConfig::builder()
-            .authorization_url("not a url".to_string())
             .build();
 
-        assert_that!(result).is_err().matches(|err| {
-            err.message() == "'not a url' is not a valid URL: relative URL without a base"
-        });
+        assert_that!(config.client_id).is_equal_to("a-real-client-id".to_string());
     }
 }

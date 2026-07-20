@@ -110,6 +110,10 @@ pub struct Rover {
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
+    #[cfg(feature = "oauth")]
+    #[clap(flatten)]
+    oauth_opts: command::auth::OauthOpts,
+
     #[arg(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
@@ -199,7 +203,7 @@ impl Rover {
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
-                    .run(self.get_client_config()?, self.get_oauth_config()?)
+                    .run(self.get_client_config()?, self.get_oauth_config())
                     .await
             }
             #[cfg(feature = "composition-js")]
@@ -295,11 +299,11 @@ impl Rover {
     }
 
     #[cfg(feature = "oauth")]
-    pub(crate) fn get_oauth_config(&self) -> RoverResult<command::auth::OauthConfig> {
+    pub(crate) fn get_oauth_config(&self) -> command::auth::OauthConfig {
         command::auth::OauthConfig::builder()
-            .maybe_authorization_url(self.get_env_var(RoverEnvKey::OauthAuthorizationUrl)?)
-            .maybe_token_url(self.get_env_var(RoverEnvKey::OauthTokenUrl)?)
-            .maybe_client_id(self.get_env_var(RoverEnvKey::OauthClientId)?)
+            .authorization_url(self.oauth_opts.authorization_url.clone())
+            .token_url(self.oauth_opts.token_url.clone())
+            .client_id(self.oauth_opts.client_id.clone())
             .build()
     }
 

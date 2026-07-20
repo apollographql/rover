@@ -2,7 +2,7 @@ mod config;
 mod login;
 
 use clap::{Parser, Subcommand};
-pub use config::OauthConfig;
+pub use config::{OauthConfig, OauthOpts};
 use serde::Serialize;
 
 use crate::{RoverResult, utils::client::StudioClientConfig};
@@ -10,11 +10,11 @@ use crate::{RoverResult, utils::client::StudioClientConfig};
 #[derive(Debug, Serialize, Parser)]
 pub struct Auth {
     #[clap(subcommand)]
-    command: Command,
+    command: AuthCommand,
 }
 
 #[derive(Debug, Serialize, Subcommand)]
-pub enum Command {
+pub enum AuthCommand {
     /// Log in via your browser to authenticate `rover` with Apollo
     Login(login::Login),
 }
@@ -26,7 +26,7 @@ impl Auth {
         oauth_config: OauthConfig,
     ) -> RoverResult<crate::RoverOutput> {
         match &self.command {
-            Command::Login(command) => command.run(client_config, oauth_config).await,
+            AuthCommand::Login(command) => command.run(client_config, oauth_config).await,
         }
     }
 }
