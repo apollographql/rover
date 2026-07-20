@@ -17,7 +17,7 @@ pub enum AsyncBuildStatus {
 
 impl AsyncBuildStatus {
     /// Whether this status is terminal or in flight
-    pub fn is_terminal(&self) -> bool {
+    pub const fn is_terminal(&self) -> bool {
         !matches!(self, AsyncBuildStatus::Pending | AsyncBuildStatus::Running)
     }
 }
