@@ -16,7 +16,7 @@ const SECRET_STORE_SERVICE: &str = "rover";
 /// `#[serde(untagged)]` lets legacy data (which only ever looked like
 /// `{"api_key": "..."}`) keep deserializing straight into `ApiKey` with no
 /// migration step, while new OAuth logins serialize into `OAuth`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Sensitive {
     /// A long-lived Personal API Key, pasted in via `rover config auth`.
@@ -221,11 +221,9 @@ mod tests {
         )
         .unwrap();
 
-        assert!(result.is_ok());
-        match result.unwrap() {
-            Sensitive::ApiKey { api_key } => assert_eq!(api_key, "legacy-key"),
-            Sensitive::OAuth { .. } => panic!("expected a legacy ApiKey credential"),
-        }
+        assert_that!(result).is_ok().is_equal_to(Sensitive::ApiKey {
+            api_key: "legacy-key".to_string(),
+        });
 
         let expected = format!(
             "warning: failed to remove unused legacy credential file '{legacy_path}': {removal_error}. \

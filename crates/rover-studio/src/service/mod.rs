@@ -118,22 +118,22 @@ where
 }
 
 #[cfg(test)]
-#[expect(clippy::panic)]
 mod tests {
-    use std::str::FromStr;
+    use std::{
+        str::FromStr,
+        sync::{Arc, Mutex},
+    };
 
     use anyhow::Result;
     use bytes::Bytes;
     use houston::{Credential, CredentialOrigin};
-    use http::{HeaderValue, Method, StatusCode};
+    use http::{HeaderMap, HeaderValue, Method, StatusCode};
     use http_body_util::Full;
-    use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
+    use rover_http::test::MockHttpService;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tokio::task;
-    use tokio_test::assert_ready_ok;
-    use tower::ServiceBuilder;
-    use tower_test::mock::{self, Mock};
+    use tower::{Layer, ServiceExt};
     use url::Url;
 
     use crate::service::HttpStudioServiceLayer;
@@ -157,81 +157,82 @@ mod tests {
         Url::from_str("https://example.com").unwrap()
     }
 
-    // The layer should inject client identification and x-api-key headers on every
-    // request, plus apollo-sudo when the credential is a sudo one.
-    #[rstest]
-    #[case::is_sudo(true)]
-    #[case::is_not_sudo(false)]
-    #[tokio::test]
-    pub async fn test_studio_layer(
+    /// Wraps a [`MockHttpService`] (via [`MockCloneService`]) in the layer under test, sends one
+    /// request through it, and returns the headers the mock actually received - so tests can
+    /// assert on what the layer injects without spawning a task to drive a mock handle.
+    fn headers_seen_by_inner_service(
         studio_endpoint: Url,
         credential: Credential,
         client_version: String,
-        #[case] is_sudo: bool,
-    ) -> Result<()> {
-        let expected_client_version_header = HeaderValue::from_str(&client_version)?;
-        let (mut service, mut handle) =
-            mock::spawn_with(move |inner: Mock<HttpRequest, HttpResponse>| {
-                ServiceBuilder::new()
-                    .layer(
-                        HttpStudioServiceLayer::new(
-                            studio_endpoint.clone(),
-                            credential.clone(),
-                            client_version.to_string(),
-                            is_sudo,
-                        )
-                        .unwrap(),
-                    )
-                    .map_err(HttpServiceError::Unexpected)
-                    .service(inner)
-            });
-        assert_ready_ok!(service.poll_ready());
+        is_sudo: bool,
+    ) -> Result<HeaderMap> {
+        let captured = Arc::new(Mutex::new(None));
+        let captured_in_mock = captured.clone();
+
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |req| {
+            *captured_in_mock.lock().unwrap() = Some(req.headers().clone());
+            futures::future::ready(Ok(http::Response::builder()
+                .status(StatusCode::CREATED)
+                .body(Full::new(Bytes::default()))
+                .unwrap()))
+        });
+
+        let service =
+            HttpStudioServiceLayer::new(studio_endpoint, credential, client_version, is_sudo)?
+                .layer(MockCloneService::new(mock));
 
         let req = http::Request::builder()
             .uri("https://example.com")
             .method(Method::POST)
             .body(Full::default())?;
 
-        let service_call_fut = task::spawn(service.call(req));
-        task::spawn(async move {
-            let (actual, send_response) = match handle.next_request().await {
-                Some(r) => r,
-                None => panic!("expected a request but none was received."),
-            };
-            let headers = actual.headers();
-            assert_that!(headers.get("apollographql-client-version"))
-                .is_some()
-                .is_equal_to(&expected_client_version_header);
-            assert_that!(headers.get("apollographql-client-name"))
-                .is_some()
-                .is_equal_to(&HeaderValue::from_static("rover-client"));
-            assert_that!(headers.get("x-api-key"))
-                .is_some()
-                .is_equal_to(&HeaderValue::from_static("api_key"));
-            if is_sudo {
-                assert_that!(headers.get("apollo-sudo"))
-                    .is_some()
-                    .is_equal_to(&HeaderValue::from_static("true"));
-            }
-            let resp = http::Response::builder()
-                .status(StatusCode::CREATED)
-                .body(Full::new(Bytes::default()))
-                .unwrap();
-            send_response.send_response(resp);
-        });
-
-        let result = service_call_fut.await?;
+        let result = futures::executor::block_on(service.oneshot(req));
         assert_that!(result)
             .is_ok()
-            .matches(|req| req.status() == StatusCode::CREATED);
+            .matches(|resp| resp.status() == StatusCode::CREATED);
+
+        let headers = captured.lock().unwrap().take().unwrap();
+        Ok(headers)
+    }
+
+    // The layer should inject client identification and x-api-key headers on every
+    // request, plus apollo-sudo when the credential is a sudo one.
+    #[rstest]
+    #[case::is_sudo(true)]
+    #[case::is_not_sudo(false)]
+    fn test_studio_layer(
+        studio_endpoint: Url,
+        credential: Credential,
+        client_version: String,
+        #[case] is_sudo: bool,
+    ) -> Result<()> {
+        let expected_client_version_header = HeaderValue::from_str(&client_version)?;
+        let headers =
+            headers_seen_by_inner_service(studio_endpoint, credential, client_version, is_sudo)?;
+
+        assert_that!(headers.get("apollographql-client-version"))
+            .is_some()
+            .is_equal_to(&expected_client_version_header);
+        assert_that!(headers.get("apollographql-client-name"))
+            .is_some()
+            .is_equal_to(&HeaderValue::from_static("rover-client"));
+        assert_that!(headers.get("x-api-key"))
+            .is_some()
+            .is_equal_to(&HeaderValue::from_static("api_key"));
+        if is_sudo {
+            assert_that!(headers.get("apollo-sudo"))
+                .is_some()
+                .is_equal_to(&HeaderValue::from_static("true"));
+        }
         Ok(())
     }
 
     // An OAuth credential should be sent as an `Authorization: Bearer` header instead
     // of `x-api-key`.
     #[rstest]
-    #[tokio::test]
-    pub async fn test_studio_layer_sends_bearer_for_an_oauth_credential(
+    fn test_studio_layer_sends_bearer_for_an_oauth_credential(
         studio_endpoint: Url,
         client_version: String,
     ) -> Result<()> {
@@ -240,50 +241,13 @@ mod tests {
             origin: CredentialOrigin::OAuth("default".to_string()),
             expires_at: None,
         };
-        let (mut service, mut handle) =
-            mock::spawn_with(move |inner: Mock<HttpRequest, HttpResponse>| {
-                ServiceBuilder::new()
-                    .layer(
-                        HttpStudioServiceLayer::new(
-                            studio_endpoint.clone(),
-                            credential.clone(),
-                            client_version.to_string(),
-                            false,
-                        )
-                        .unwrap(),
-                    )
-                    .map_err(HttpServiceError::Unexpected)
-                    .service(inner)
-            });
-        assert_ready_ok!(service.poll_ready());
+        let headers =
+            headers_seen_by_inner_service(studio_endpoint, credential, client_version, false)?;
 
-        let req = http::Request::builder()
-            .uri("https://example.com")
-            .method(Method::POST)
-            .body(Full::default())?;
-
-        let service_call_fut = task::spawn(service.call(req));
-        task::spawn(async move {
-            let (actual, send_response) = match handle.next_request().await {
-                Some(r) => r,
-                None => panic!("expected a request but none was received."),
-            };
-            let headers = actual.headers();
-            assert_that!(headers.get(http::header::AUTHORIZATION))
-                .is_some()
-                .is_equal_to(&HeaderValue::from_static("Bearer an-access-token"));
-            assert_that!(headers.get("x-api-key")).is_none();
-            let resp = http::Response::builder()
-                .status(StatusCode::CREATED)
-                .body(Full::new(Bytes::default()))
-                .unwrap();
-            send_response.send_response(resp);
-        });
-
-        let result = service_call_fut.await?;
-        assert_that!(result)
-            .is_ok()
-            .matches(|req| req.status() == StatusCode::CREATED);
+        assert_that!(headers.get(http::header::AUTHORIZATION))
+            .is_some()
+            .is_equal_to(&HeaderValue::from_static("Bearer an-access-token"));
+        assert_that!(headers.get("x-api-key")).is_none();
         Ok(())
     }
 }
