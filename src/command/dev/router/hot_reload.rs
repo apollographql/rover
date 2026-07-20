@@ -91,7 +91,7 @@ where
                                     }
                                     Err(err) => {
                                         let error_message =
-                                            format!("Router config failed to update. {}", &err);
+                                            format!("Router config failed to update. {}", err);
                                         let message =
                                             HotReloadEvent::ConfigWritten(Err(Box::new(err)));
                                         let _ = sender.send(message).tap_err(|err| {

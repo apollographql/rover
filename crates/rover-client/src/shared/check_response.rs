@@ -127,7 +127,7 @@ impl CheckWorkflowResponse {
     fn task_title(title: &str, status: CheckTaskStatus) -> String {
         format!(
             "\n{} [{}]:\n",
-            &Style::Heading.paint(title),
+            Style::Heading.paint(title),
             match status {
                 CheckTaskStatus::BLOCKED => status.as_ref().to_string(),
                 CheckTaskStatus::FAILED => Style::Failure.paint(status),

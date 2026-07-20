@@ -16,6 +16,6 @@ pub struct ProfileOpt {
 
 impl Display for ProfileOpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.profile_name)
+        write!(f, "{}", self.profile_name)
     }
 }

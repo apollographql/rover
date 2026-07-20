@@ -444,7 +444,7 @@ impl Prompt for SubgraphPrompt {
     }
 
     fn prompt_for_subgraph_url(&self) -> Result<Url, ResolveSubgraphError> {
-        let url_context = |input| format!("'{}' is not a valid subgraph URL.", &input);
+        let url_context = |input| format!("'{}' is not a valid subgraph URL.", input);
         if std::io::stderr().is_terminal() {
             let input: String = Input::new()
                 .with_prompt("what URL is your subgraph running on?")

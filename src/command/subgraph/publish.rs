@@ -283,7 +283,7 @@ impl Publish {
                     let reason = format!(
                         "`{}` is not a valid routing URL. The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`.",
                         Style::Link.paint(routing_url),
-                        &parsed_url.scheme()
+                        parsed_url.scheme()
                     );
                     if !["http", "https", "unix"].contains(&parsed_url.scheme()) {
                         if is_atty {
@@ -320,7 +320,7 @@ impl Publish {
                     );
                     if is_atty {
                         Self::prompt_for_publish(
-                        format!("{} Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &reason).as_str(),
+                        format!("{} Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", reason).as_str(),
                             reader,
                             writer,
                         )?;

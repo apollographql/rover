@@ -135,8 +135,8 @@ fn latest_plugins_are_valid_versions() {
     .expect("JSON malformed: `router.repository` is not a valid URL");
 
     // after validating the fields, make sure we can download the binaries from GitHub
-    let supergraph_release_url = format!("{}/releases/download/", &supergraph_repository);
-    let router_release_url = format!("{}/releases/download/", &router_repository);
+    let supergraph_release_url = format!("{}/releases/download/", supergraph_repository);
+    let router_release_url = format!("{}/releases/download/", router_repository);
     let arch = match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "aarch64" | "arm") => "aarch64-unknown-linux-gnu",
         ("linux", _) => "x86_64-unknown-linux-gnu",
@@ -147,23 +147,23 @@ fn latest_plugins_are_valid_versions() {
 
     let latest_federation_one = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
-        url = &supergraph_release_url,
-        version = &latest_federation_one
+        url = supergraph_release_url,
+        version = latest_federation_one
     );
     let latest_federation_two = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
-        url = &supergraph_release_url,
-        version = &latest_federation_two
+        url = supergraph_release_url,
+        version = latest_federation_two
     );
     let latest_router_one = format!(
         "{url}{version}/router-{version}-{arch}.tar.gz",
-        url = &router_release_url,
-        version = &latest_router_one
+        url = router_release_url,
+        version = latest_router_one
     );
     let latest_router_two = format!(
         "{url}{version}/router-{version}-{arch}.tar.gz",
-        url = &router_release_url,
-        version = &latest_router_two
+        url = router_release_url,
+        version = latest_router_two
     );
 
     let client = Client::new();
@@ -173,14 +173,14 @@ fn latest_plugins_are_valid_versions() {
         .unwrap_or_else(|e| {
             panic!(
                 "could not send HEAD request to {}: {}",
-                &latest_federation_one, e
+                latest_federation_one, e
             )
         })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_federation_one, e
+                latest_federation_one, e
             )
         });
     client
@@ -189,14 +189,14 @@ fn latest_plugins_are_valid_versions() {
         .unwrap_or_else(|e| {
             panic!(
                 "could not send HEAD request to {}: {}",
-                &latest_federation_two, e
+                latest_federation_two, e
             )
         })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_federation_two, e
+                latest_federation_two, e
             )
         });
     client
@@ -205,14 +205,14 @@ fn latest_plugins_are_valid_versions() {
         .unwrap_or_else(|e| {
             panic!(
                 "could not send HEAD request to {}: {}",
-                &latest_router_one, e
+                latest_router_one, e
             )
         })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_router_one, e
+                latest_router_one, e
             )
         });
     client
@@ -221,14 +221,14 @@ fn latest_plugins_are_valid_versions() {
         .unwrap_or_else(|e| {
             panic!(
                 "could not send HEAD request to {}: {}",
-                &latest_router_two, e
+                latest_router_two, e
             )
         })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_router_two, e
+                latest_router_two, e
             )
         });
 }

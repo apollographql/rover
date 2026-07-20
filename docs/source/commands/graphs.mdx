@@ -121,27 +121,38 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 For more on accepting input via `stdin`, see [Conventions](/rover/conventions#using-stdin).
 
-Run all configured checks before publishing via the `--check` option. This flag takes no value, and it runs all the standard checks configured for your graph.
+#### Running checks before publishing
 
-If any checks fail, an error message appears and the publish action stops. If all checks pass, the schema publishing proceeds.
+Use the `--check` flag to run all configured schema checks and then publish in a single command. If any checks fail, the publish is aborted and no schema changes are pushed to the registry.
 
-For example, to check a schema change for `test-graph` and then publish it, run these two commands:
+Running check and publish as two separate commands introduces two risks:
+
+- **Human error** — You must type or paste both commands with identical arguments. A mismatched `--schema` path or graph ref means you could publish a schema that was never actually checked.
+- **Race conditions** — Another team member could publish a change between your check and your publish, so the check result no longer reflects the state of the graph at publish time.
+
+`--check` eliminates both risks by treating the check and publish as one atomic operation.
+
+The `--check` flag honors all schema check settings configured for your graph variant in GraphOS Studio—including linting rules, operation checks, and any other check configurations—exactly as a standalone `rover graph check` would.
+
+To exemplify the difference, here is the previous two-step approach:
 
 ```shell
-# Check that schema.graphql works
-rover graph check --schema schemas/schema.graphql test-graph@current
+# Step 1: check
+rover graph check my-graph@current --schema ./schema.graphql
 
-# Publish what we just checked
-rover graph publish --schema schemas/schema.graphql test-graph@current
+# Step 2: publish (only safe if nothing changed between the two commands)
+rover graph publish my-graph@current --schema ./schema.graphql
 ```
 
-Or you could use the `--check` flag and do both in one command
+With `--check`, both steps happen in one command:
 
 ```shell
-graph publish --check --schema schemas/schema.graphql test-graph@current
+rover graph publish my-graph@current --schema ./schema.graphql --check
 ```
 
-For more information on checks, see the following section on `graph check`. Passing the `--check` option runs the same checks `rover graph check` would with the same arguments.
+If all checks pass, Rover publishes the schema. If any check fails, Rover prints the check output and exits without publishing.
+
+For details on configuring checks (time range, operation thresholds, linting rules), see the [`graph check`](#graph-check) section.
 
 ## Validating schema changes
 

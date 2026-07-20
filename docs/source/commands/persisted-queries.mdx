@@ -1,8 +1,8 @@
 ---
 title: The Rover persisted-queries Command
-subtitle: Publish persisted query manifests to your persisted queries list
+subtitle: Generate and publish persisted query manifests
 minVersion: Rover v0.17.2
-description: Publish persisted query manifests for safelisting and performance optimization by using the Rover CLI persisted-queries command.
+description: Generate and publish persisted query manifests for safelisting and performance optimization by using the Rover CLI persisted-queries command.
 ---
 
 import AuthNotice from '../../shared/auth-notice.mdx';
@@ -11,12 +11,91 @@ With [GraphOS Enterprise](https://www.apollographql.com/pricing), you can enhanc
 
 Registering operations to a PQL has two steps:
 
-1. Generating persisted queries manifests (PQMs) using client-specific tooling
-2. Publishing PQMs to the PQL using Rover
+1. Generate persisted query manifests (PQMs) from client operations
+2. Publish PQMs to the PQL using Rover
 
-This article details the latter. For more information on PQM generation and other implementation steps, see the [GraphOS persisted queries documentation](/graphos/operations/persisted-queries).
+For more information on persisted query implementation steps, see the [GraphOS persisted queries documentation](/graphos/operations/persisted-queries).
 
-## Publishing a PQM
+## Generate a PQM
+
+### `persisted-queries generate`
+
+<MinVersionBadge version="Rover v0.41.0" />
+
+Use `rover persisted-queries generate` to generate Apollo PQM from `.graphql` operation files. This command runs locally and doesn't require an API key.
+
+```bash
+rover persisted-queries generate
+```
+
+By default, Rover scans the current directory for all `.graphql` files and prints the generated manifest to `stdout`. Pass `--manifest-path` (`-m`) to write it to a file instead. This pairs with `rover client extract`, which extracts operations from client source code into a `graphql` directory:
+
+```bash
+rover client extract --out-dir graphql --overwrite
+rover persisted-queries generate --manifest-path persisted-query-manifest.json
+rover persisted-queries publish my-graph@my-variant \
+  --manifest ./persisted-query-manifest.json
+```
+
+The generated manifest uses the Apollo persisted query manifest format. Each entry has the operation's `id` (the SHA-256 hash of its `body`), its `name`, its `type` (`query`, `mutation`, or `subscription`), and its `body`:
+
+```json
+{
+  "format": "apollo-persisted-query-manifest",
+  "version": 1,
+  "operations": [
+    {
+      "id": "e5c9c9f2d1a0a9f4f6b6a1e2d3c4b5a6978869504132a1b2c3d4e5f60718293a",
+      "name": "GetProduct",
+      "type": "query",
+      "body": "query GetProduct($id: ID!) {\n  product(id: $id) {\n    id\n    name\n  }\n}"
+    }
+  ]
+}
+```
+
+`persisted-queries generate` supports multiple operations in a single `.graphql` file, emitting one manifest entry per operation. For each operation it removes `@client` fields and directives (pruning any variables they leave unused), includes the operation's transitively referenced fragment definitions, and generates the operation ID as the SHA-256 hash of the final operation body.
+
+To change the files Rover scans, use `--include`, `--exclude`, and `--root-dir`:
+
+```bash
+rover persisted-queries generate \
+  --root-dir ./client \
+  --include "operations/**/*.graphql" \
+  --exclude "operations/**/*.test.graphql"
+```
+
+To change the manifest output path, use `--manifest-path` (`-m`):
+
+```bash
+rover persisted-queries generate \
+  --manifest-path ./dist/persisted-query-manifest.json
+```
+
+When you write the manifest to a file, add Rover's global `--format json` flag to report the output path and operation count in Rover's standard JSON envelope:
+
+```bash
+rover persisted-queries generate \
+  --manifest-path persisted-query-manifest.json --format json
+```
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "path": "persisted-query-manifest.json",
+    "operation_count": 1,
+    "success": true
+  },
+  "error": null
+}
+```
+
+Without `--manifest-path`, the `data` field contains the full manifest instead of the path and count.
+
+The generate command doesn't write `clientName` values into the manifest. To associate every generated operation with a client name, use `persisted-queries publish --for-client-name`.
+
+## Publish a PQM
 
 ### `persisted-queries publish`
 

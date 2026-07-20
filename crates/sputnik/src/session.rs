@@ -247,7 +247,7 @@ mod tests {
 
         let server = MockServer::start();
         let addr = server.address().to_string();
-        let mocked_addr = Url::parse(format!("http://{}/{}", &addr, report_path).as_str()).unwrap();
+        let mocked_addr = Url::parse(format!("http://{}/{}", addr, report_path).as_str()).unwrap();
         session.reporting_info.endpoint = mocked_addr;
 
         let mocked = server.mock(|when, then| {

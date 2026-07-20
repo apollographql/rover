@@ -54,11 +54,12 @@ pub enum RoverErrorCode {
     E043,
     E044,
     E045,
+    E046,
 }
 
 impl Display for RoverErrorCode {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{:?}", &self)
+        write!(formatter, "{:?}", self)
     }
 }
 
@@ -247,6 +248,10 @@ impl RoverErrorCode {
                 RoverErrorCode::E045,
                 include_str!("./codes/E045.md").to_string(),
             ),
+            (
+                RoverErrorCode::E046,
+                include_str!("./codes/E046.md").to_string(),
+            ),
         ];
         contents.into_iter().collect()
     }
@@ -257,7 +262,7 @@ impl RoverErrorCode {
         let all_explanations = RoverErrorCode::explanations();
         let explanation = all_explanations.get(self);
         if let Some(explanation) = explanation {
-            format!("**{}**\n\n{}\n\n", &self, &explanation)
+            format!("**{}**\n\n{}\n\n", self, explanation)
         } else {
             "Explanation not available".to_string()
         }

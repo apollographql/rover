@@ -313,12 +313,6 @@ pub enum RoverClientError {
     #[error("You've encountered a rate limit.")]
     RateLimitExceeded,
 
-    #[error("Invalid router config: {msg}")]
-    InvalidRouterConfig { msg: String },
-
-    #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
-    NonCloudGraphRef { graph_ref: GraphRef },
-
     #[error("Something went wrong on our end. This isn't your fault! Please try again.")]
     GraphProjectInitError,
 

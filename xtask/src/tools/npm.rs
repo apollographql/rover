@@ -152,7 +152,7 @@ fn assert_publish_includes(output: &CommandOutput) -> Result<()> {
     } else {
         Err(anyhow!(
             "The npm tarball is missing the following files: {:?}",
-            &missing_files
+            missing_files
         ))
     }
 }

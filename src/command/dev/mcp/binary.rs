@@ -35,10 +35,10 @@ impl fmt::Display for McpServerLog {
         match self {
             Self::Stdout(stdout) => {
                 // TODO: add a JSON output option to the MCP Server so we can parse it
-                write!(f, "{}", &stdout)
+                write!(f, "{}", stdout)
             }
             Self::Stderr(stderr) => {
-                write!(f, "{} {}", Style::ErrorPrefix.paint("ERROR:"), &stderr)
+                write!(f, "{} {}", Style::ErrorPrefix.paint("ERROR:"), stderr)
             }
         }
     }

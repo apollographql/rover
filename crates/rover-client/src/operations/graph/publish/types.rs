@@ -64,7 +64,7 @@ impl fmt::Display for ChangeSummary {
         if self.is_none() {
             write!(f, "[No Changes]")
         } else {
-            write!(f, "[{}, {}]", &self.field_changes, &self.type_changes)
+            write!(f, "[{}, {}]", self.field_changes, self.type_changes)
         }
     }
 }
@@ -103,7 +103,7 @@ impl fmt::Display for FieldChanges {
         write!(
             f,
             "Fields: +{} -{} △ {}",
-            &self.additions, &self.removals, &self.edits
+            self.additions, self.removals, self.edits
         )
     }
 }
@@ -142,7 +142,7 @@ impl fmt::Display for TypeChanges {
         write!(
             f,
             "Types: +{} -{} △ {}",
-            &self.additions, &self.removals, &self.edits
+            self.additions, self.removals, self.edits
         )
     }
 }

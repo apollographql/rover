@@ -1415,7 +1415,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             Some(DEFAULT_VARIANT.to_string()),
         )?;
 
-        for (_file_path, content) in string_files.iter_mut() {
+        for content in string_files.values_mut() {
             // Replace template placeholders - use both formats for compatibility
             // ${} format for YAML files (avoids linting issues)
             // {{}} format for other templates and conditionals

@@ -3,18 +3,54 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   merge_group:
 
 name: Commit Checks
 jobs:
-  cargo-deny:
-    name: Cargo Deny
+  changelog:
+    name: Changelog Entry
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Check for a CHANGELOG.md entry or opt-out checkbox
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          CHANGED_FILES="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)"
+
+          if printf '%s\n' "$CHANGED_FILES" | grep -qx "CHANGELOG.md"; then
+            echo "CHANGELOG.md was updated in this PR."
+            exit 0
+          fi
+
+          if ! printf '%s\n' "$CHANGED_FILES" | grep -qvE '^docs/'; then
+            echo "This PR only touches docs/, no changelog entry required."
+            exit 0
+          fi
+
+          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
+            echo "PR description confirms a changelog entry is not needed."
+            exit 0
+          fi
+
+          echo "::error::This PR doesn't modify CHANGELOG.md. Add an entry under 'Unreleased' (see CONTRIBUTING.md), or check the 'A CHANGELOG.md entry is not needed for this PR' box in the PR description."
+          exit 1
+
+  cargo-deny:
+    name: Cargo Deny
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           install: false
         env:
@@ -29,6 +65,7 @@ jobs:
 
   fmt:
     name: Format
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
 
     steps:
@@ -43,6 +80,7 @@ jobs:
 
   clippy:
     name: Clippy
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
 
     steps:
@@ -72,10 +110,10 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         env:
           CARGO_NET_RETRY: "5"
       - uses: ./.github/actions/download-artifact-with-retry
@@ -92,6 +130,7 @@ jobs:
           ROVER_PACKAGES_BASE: ${{ github.workspace }}
 
   test:
+    if: github.event.action != 'edited'
     strategy:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
@@ -107,10 +146,10 @@ jobs:
             binary_path: target/debug/rover.exe
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         env:
           CARGO_NET_RETRY: "5"
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
@@ -129,11 +168,12 @@ jobs:
 
   test_minimal_glibc:
     name: Test with minimal glibc versions
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.9
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.10
 
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
         ref: ${{ github.head_ref || github.ref_name }}
@@ -146,7 +186,7 @@ jobs:
         git log --oneline -1
         git symbolic-ref HEAD || echo "Detached HEAD detected"
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
-    - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+    - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
       with:
         install: false
       env:

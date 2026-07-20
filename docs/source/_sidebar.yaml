@@ -21,8 +21,8 @@ items:
     children:
       - label: api-key
         href: ./commands/api-key
-      - label: cloud
-        href: ./commands/cloud    
+      - label: client
+        href: ./commands/client
       - label: completion
         href: ./commands/completion
       - label: config
@@ -39,6 +39,8 @@ items:
         href: ./commands/install
       - label: graph
         href: ./commands/graphs
+      - label: graph-artifact
+        href: ./commands/graph-artifact
       - label: init
         href: ./commands/init
       - label: license

@@ -169,9 +169,9 @@ impl Display for RoverErrorSuggestion {
                     let num_valid_variants = valid_variants.len();
                     let color_graph_name = Style::Link.paint(graph_ref.graph_id());
                     match num_valid_variants {
-                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Style::Command.paint("`rover graph publish`"), Style::Command.paint("`rover subgraph publish`")),
-                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Style::Link.paint(&valid_variants[0])),
-                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Style::Link.paint(&valid_variants[0]), Style::Link.paint(&valid_variants[1])),
+                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", color_graph_name, Style::Command.paint("`rover graph publish`"), Style::Command.paint("`rover subgraph publish`")),
+                        1 => format!("The only existing variant for graph {} is {}.", color_graph_name, Style::Link.paint(&valid_variants[0])),
+                        2 => format!("The existing variants for graph {} are {} and {}.", color_graph_name, Style::Link.paint(&valid_variants[0]), Style::Link.paint(&valid_variants[1])),
                         3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
@@ -183,11 +183,11 @@ impl Display for RoverErrorSuggestion {
                                     valid_variants_msg.push_str(", ");
                                 }
                             }
-                            format!("The existing variants for graph {} are {}.", &color_graph_name, &valid_variants_msg)
+                            format!("The existing variants for graph {} are {}.", color_graph_name, valid_variants_msg)
                         }
                         _ => {
-                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(graph_url))
+                            let graph_url = format!("{}/graph/{}/settings", frontend_url_root, color_graph_name);
+                            format!("You can view the variants for graph \"{}\" by visiting {}", color_graph_name, Style::Link.paint(graph_url))
                         }
                     }
                 }
@@ -289,7 +289,7 @@ impl Display for RoverErrorSuggestion {
                 subgraph_name, supergraph_yaml_path
             } => format!("Make sure the specified path for subgraph '{}' is relative to the location of the supergraph schema file ({})", subgraph_name, Style::Path.paint(supergraph_yaml_path))
         };
-        write!(formatter, "{}", &suggestion)
+        write!(formatter, "{}", suggestion)
     }
 }
 

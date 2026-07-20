@@ -1,6 +1,5 @@
 mod check;
 mod compose;
-mod file;
 mod file_discovery;
 mod graph;
 mod introspect;
@@ -16,7 +15,6 @@ pub(crate) mod template;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;
-pub(crate) use file::*;
 pub(crate) use file_discovery::*;
 pub(crate) use graph::*;
 pub(crate) use introspect::*;

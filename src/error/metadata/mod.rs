@@ -332,8 +332,6 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationIDNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
-                RoverClientError::InvalidRouterConfig { .. } => (None, None),
-                RoverClientError::NonCloudGraphRef { .. } => (None, None),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),
@@ -431,6 +429,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 ),
                 HoustonProblem::AdhocError(_) => (None, None),
                 HoustonProblem::RoverStdError(_) => (None, None),
+                HoustonProblem::SecretStoreError(_) => (
+                    Some(RoverErrorSuggestion::SubmitIssue),
+                    Some(RoverErrorCode::E046),
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

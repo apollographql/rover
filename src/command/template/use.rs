@@ -85,9 +85,9 @@ impl Use {
                 if dir.count() > 1 {
                     let mut err = RoverError::new(anyhow!(
                         "Cannot use the template because the '{}' directory is not empty.",
-                        &path
+                        path
                     ));
-                    err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("Either rename or remove the existing '{}' directory, or re-run this command with a different `<PATH>` argument.", &path)));
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("Either rename or remove the existing '{}' directory, or re-run this command with a different `<PATH>` argument.", path)));
                     Err(err)
                 } else {
                     Ok(path)
@@ -96,7 +96,7 @@ impl Use {
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     std::fs::create_dir_all(&path)
-                        .with_context(|| format!("Could not create the '{}' directory", &path))?;
+                        .with_context(|| format!("Could not create the '{}' directory", path))?;
                     Ok(path)
                 } else {
                     Err(RoverError::new(e))

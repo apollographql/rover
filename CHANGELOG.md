@@ -14,9 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
-## 🛠 Maintenance
-
-## 📚 Documentation -->
+## 🛠 Maintenance  -->
 
 # [Unreleased]
 
@@ -24,7 +22,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## ❗ BREAKING ❗
 
-- **`graph introspect --format json` now returns GraphQL introspection JSON - @smyrick**
+- **Remove `rover cloud` commands - @dotdat**
+
+  `rover cloud config fetch`, `rover cloud config update`, and `rover cloud config validate` have been removed, along with their underlying GraphQL operations.
+
+## 🚀 Features
+
+## 🐛 Fixes
+
+## 🛠 Maintenance
+
+- **Retry the Check Markdown Links CI job on transient network failures - @dotdat**
+
+  The `Check Markdown Links` job now retries up to 3 times if it fails, since transient connection resets to external hosts were occasionally failing the job on a link that was never actually broken. `lychee` (the link checker) doesn't retry connection-establishment errors regardless of its own retry config, so this is handled at the CI level instead, matching how other flaky steps are already retried in this repo. No user-facing change.
+
+- **Store profile credentials in the OS keychain instead of a plaintext file - @dotdat**
+
+  `rover config auth` now stores each profile's API key in the OS-native credential store (Keychain on macOS, Credential Manager on Windows, the kernel keyring on Linux), falling back to a permission-hardened (`0600`/`0700`) JSON file when no native keychain is available — for example, headless Linux/CI, or an unsigned local build on macOS. Existing plaintext `$APOLLO_CONFIG_HOME/profiles/<profile>/.sensitive` files are transparently migrated the first time they're read, then removed. `rover config auth`, `whoami`, `list`, `delete`, and `clear` all behave the same as before, and the `APOLLO_KEY` environment variable override is unaffected. On some platforms the OS may now prompt for keychain access the first time a credential is read or written in a session. If Rover ever fails to read, write, or delete a credential, it now surfaces a dedicated error, E046, instead of a generic failure.
+
+- **Add OAuth token storage to the credential model - @dotdat**
+
+  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing only — no command yet writes an OAuth credential, so existing workflows are unaffected.
+
+# [0.41.0] - 2026-07-09
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`graph introspect --format json` now returns GraphQL introspection JSON - @smyrick PR #3440**
 
   `rover graph introspect` with `--format json` now puts the schema as a GraphQL introspection object (`{ "__schema": ... }`) under `data.introspection_response` instead of an SDL string. Default plain output remains SDL. This is a behavior change for existing `--format json` consumers: traverse `data.introspection_response` to get the introspection object (for example, `jq '.data.introspection_response'`). No field or value transformation is needed beyond envelope traversal.
 
@@ -45,6 +71,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Add `rover dev --supergraph-output` to control the output of the composed supergraph - @SharkBaitDLS PR #3383 fixes #1864**
 
   `rover dev` can now write the supergraph schema it composes to a path of your choosing and keep it updated on every recomposition, e.g. `rover dev --supergraph-output build/supergraph.graphql`. Previously the composed supergraph only lived in a temp file, and the global `--output`/`-o` flag (which controls a command's own CLI output, not its artifacts) appeared to be silently ignored by `dev`. The global `--output` help text now clarifies that distinction.
+
+- **Add `rover graph-artifact tag` command - @zw428 PR #3282**
+
+  Adds the `rover graph-artifact tag` command for [Graph Artifact](https://www.apollographql.com/docs/graphos/platform/schema-management/delivery/graph-artifacts) tagging.
+
+- **Add `rover persisted-queries generate` command - @dotdat PR #3481**
+
+  Scans GraphQL operation files and generates a persisted query manifest, written to a file (`--manifest-path`) or stdout. Supports `--include`/`--exclude` glob filtering and a configurable `--root-dir`.
+
+- **Add `--check` flag to the `subgraph-publish` GitHub Action - @SharkBaitDLS PR #3375**
 
 - **Add `APOLLO_ROVER_SKIP_UPDATE` to disable all auto-updating at once - @SharkBaitDLS PR #3378 fixes #1892**
 
@@ -77,6 +113,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Restore the "pin your federation version" warning on `supergraph compose` - @SharkBaitDLS PR #3347**
 
   `rover supergraph compose` again warns when `federation_version` is not pinned to an exact version, reinstating the documented notice that future versions will require one. This nudge was added in #1524 and inadvertently dropped in v0.27.2 (#2411) during the supergraph-config resolution rewrite; composing against a floating `1`/`2` (or omitting the key) now once again warns and recommends pinning, to avoid pulling in breaking changes when a new federation release ships. `rover dev` and the language server remain silent. Fixes #1510.
+
+- **Report a clearer error when schema-check polling fails on large schemas - @SharkBaitDLS PR #3349**
+
+  Centralizes the poll loop between `graph`/`subgraph check`, and surfaces a more helpful error when a check likely failed because the schema was too large to download in time. Relates to #1383.
+
+## 🛠 Maintenance
+
+- **Migrate npm packaging to `cargo-npm`, removing the `postinstall` script - @dotdat PR #3430**
+- **Fix `cargo npm generate` invocation in the release workflow - @dotdat PR #3492**
+- **Migrate to `keyring-core` (keyring 4.0) - @SharkBaitDLS PR #3370**
+- **Remove unused Pandas npm package from test tooling - @SharkBaitDLS PR #3335**
+- **Upgrade default Federation version to 2.15 - @SharkBaitDLS PR #3472**
 
 # [0.40.0] - 2026-05-28
 

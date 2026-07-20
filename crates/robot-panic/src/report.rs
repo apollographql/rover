@@ -132,7 +132,7 @@ impl Report {
     pub fn persist(&self) -> Result<Utf8PathBuf, Box<dyn Error + 'static>> {
         let uuid = Uuid::new_v4().hyphenated().to_string();
         let tmp_dir = env::temp_dir();
-        let file_name = format!("report-{}.toml", &uuid);
+        let file_name = format!("report-{}.toml", uuid);
         let base_file_path = Utf8PathBuf::try_from(tmp_dir)?;
         let file_path = base_file_path.join(file_name);
         Fs::write_file(&file_path, self.serialize().unwrap())?;
@@ -170,7 +170,7 @@ impl Report {
                             Describe the issue that you're seeing.\n\n\n
                             **Crash Report**\n\n
                             ```toml\n{}\n```\n",
-                            &crash_report
+                            crash_report
                         ),
                     ),
                     ("labels", "bug 🐞, triage"),

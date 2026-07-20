@@ -10,7 +10,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.40.0"
+version = "0.41.0"
 default-run = "rover"
 
 publish = false
@@ -176,6 +176,7 @@ itertools = "0.15"
 lazycell = "1"
 lazy_static = "1"
 mockall = "0.15.0"
+nix = "0.31.3"
 notify = "8"
 oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.8"
@@ -211,7 +212,7 @@ termcolor = "1"
 thiserror = "2"
 tap = "1"
 tar = "0.4"
-termimad = "0.34"
+termimad = "0.35"
 tempfile = "3"
 tokio = { version = "1", features = ["signal", "io-std"] }
 tokio-stream = "0.1"
@@ -330,7 +331,7 @@ httpmock = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.46"
+jsonschema = "0.48"
 mime = "0.3"
 mockall = "0.15"
 portpicker = "0.1"

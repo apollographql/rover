@@ -117,9 +117,19 @@ impl StudioClient {
         let client_version = HeaderValue::from_str(&self.version)?;
         headers.insert("apollographql-client-version", client_version);
 
-        let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
-        api_key.set_sensitive(true);
-        headers.insert("x-api-key", api_key);
+        match &self.credential.origin {
+            CredentialOrigin::OAuth(_) => {
+                let mut auth =
+                    HeaderValue::from_str(&format!("Bearer {}", self.credential.api_key))?;
+                auth.set_sensitive(true);
+                headers.insert(reqwest::header::AUTHORIZATION, auth);
+            }
+            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
+                api_key.set_sensitive(true);
+                headers.insert("x-api-key", api_key);
+            }
+        }
 
         if self.is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_str("true")?);
@@ -160,5 +170,65 @@ impl StudioClient {
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?
             .boxed_clone();
         Ok(service)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[fixture]
+    fn credential() -> Credential {
+        Credential {
+            api_key: "an-api-key".to_string(),
+            origin: CredentialOrigin::ConfigFile("default".to_string()),
+            expires_at: None,
+        }
+    }
+
+    #[fixture]
+    fn client(credential: Credential) -> StudioClient {
+        StudioClient::new(
+            credential,
+            "https://example.com",
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+    }
+
+    // A legacy API key credential should be sent as `x-api-key`, not as a bearer token.
+    #[rstest]
+    fn build_studio_headers_sends_x_api_key_for_a_legacy_api_key(client: StudioClient) {
+        let headers = client.build_studio_headers().unwrap();
+
+        assert_that!(headers.get("x-api-key"))
+            .is_some()
+            .is_equal_to(&HeaderValue::from_static("an-api-key"));
+        assert_that!(headers.get(reqwest::header::AUTHORIZATION)).is_none();
+    }
+
+    // An OAuth token credential should be sent as an `Authorization: Bearer` header, not `x-api-key`.
+    #[rstest]
+    fn build_studio_headers_sends_authorization_bearer_for_an_oauth_token(
+        #[with(Credential {
+            api_key: "an-access-token".to_string(),
+            origin: CredentialOrigin::OAuth("default".to_string()),
+            expires_at: None,
+        })]
+        client: StudioClient,
+    ) {
+        let headers = client.build_studio_headers().unwrap();
+
+        assert_that!(headers.get(reqwest::header::AUTHORIZATION))
+            .is_some()
+            .is_equal_to(&HeaderValue::from_static("Bearer an-access-token"));
+        assert_that!(headers.get("x-api-key")).is_none();
     }
 }

@@ -45,8 +45,6 @@ Commands:
           Initialize a federated graph in your current directory
   api-key
           API Key Related Commands
-  cloud
-          Cloud configuration commands
   connector
           Work with Apollo Connectors
   completion
@@ -83,6 +81,8 @@ Commands:
           Commands for fetching offline licenses
   client
           Client workflow commands
+  graph-artifact
+          Graph artifact commands
   help
           Print this message or the help of the given subcommand(s)
 
@@ -97,7 +97,7 @@ Options:
           [possible values: plain, json]
 
   -o, --output <OUTPUT_FILE>
-          Specify a file to write Rover's output to
+          Specify a file to write Rover's console output to instead of stdout
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
@@ -114,12 +114,14 @@ Options:
           If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
 
       --client-timeout <CLIENT_TIMEOUT>
-          Configure the timeout length (in seconds) when performing HTTP(S) requests
+          Configure the timeout length (in seconds) when performing HTTP(S) requests.
 
-          [default: 30]
+          Defaults to 30s for standard operations and 300s for plugin downloads.
 
       --skip-update-check
-          Skip checking for newer versions of rover
+          Skip checking for newer versions of rover.
+
+          Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) to disable all of Rover's auto-updating at once — both this self-update check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
 
   -h, --help
           Print help (see a summary with '-h')

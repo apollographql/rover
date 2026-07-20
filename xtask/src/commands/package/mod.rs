@@ -73,7 +73,7 @@ impl Package {
         let output_path = if self.output.is_dir() {
             self.output.join(format!(
                 "{}-v{}-{}.tar.gz",
-                &bin_name, *PKG_VERSION, self.target
+                bin_name, *PKG_VERSION, self.target
             ))
         } else {
             bail!("--output must be a path to a directory, not a file.");
