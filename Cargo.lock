@@ -5002,6 +5002,7 @@ dependencies = [
  "serde_json",
  "speculoos",
  "strip-ansi-escapes",
+ "temp-env",
  "thiserror 2.0.19",
  "tokio",
  "tokio-test",

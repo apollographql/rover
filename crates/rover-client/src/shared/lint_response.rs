@@ -145,7 +145,18 @@ type Query {
             proposed_schema: input.to_string(),
         };
 
-        let s = mock_response.get_ariadne().unwrap();
+        // `get_ariadne` branches on the ambient `NO_COLOR`/`APOLLO_NO_COLOR` env vars
+        // (via `rover_std::is_no_color_set`), which changes not just color but the
+        // literal report-kind text ("Warning" vs the raw "WARNING" level string).
+        // Pin both unset so this test is deterministic regardless of the environment
+        // it happens to run in.
+        let s = temp_env::with_vars(
+            [
+                ("NO_COLOR", None::<&str>),
+                ("APOLLO_NO_COLOR", None::<&str>),
+            ],
+            || mock_response.get_ariadne().unwrap(),
+        );
         assert_eq!(
             strip_ansi_escapes::strip_str(&s),
             r#"Warning: Schema element Query.key is missing a description.
