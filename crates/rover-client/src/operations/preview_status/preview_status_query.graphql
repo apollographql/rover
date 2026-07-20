@@ -1,0 +1,40 @@
+# Fetch the schema after a asynchronous filter mutation completes.
+#
+# Stub based on ComposeAndFilterPreviewSuccess/ComposeFailure/FilterFailure types.
+# Not referenced by any `#[derive(GraphQLQuery)]` and not compiled; wire it up
+# in runner.rs once `previewStatus` lands and the schema is re-vendored.
+query PreviewStatusQuery($job_id: ID!) {
+  previewStatus(jobId: $job_id) {
+    status
+    result {
+      __typename
+      ... on ComposeAndFilterPreviewSuccess {
+        composeResults {
+          apiSchemaDocument
+          supergraphSchemaDocument
+        }
+        filterResults {
+          apiSchemaDocument
+          supergraphSchemaDocument
+        }
+      }
+      ... on ComposeAndFilterPreviewComposeFailure {
+        composeErrors {
+          message
+          code
+          failedStep
+        }
+      }
+      ... on ComposeAndFilterPreviewFilterFailure {
+        composeResults {
+          apiSchemaDocument
+          supergraphSchemaDocument
+        }
+        filterErrors {
+          message
+          failedStep
+        }
+      }
+    }
+  }
+}

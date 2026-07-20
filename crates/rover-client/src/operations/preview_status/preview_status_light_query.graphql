@@ -1,0 +1,9 @@
+# Lightweight polling for status on a filtered preview schema.
+#
+# Not referenced by any `#[derive(GraphQLQuery)]` and not compiled; wire it up
+# in runner.rs once `previewStatus` lands and the schema is re-vendored.
+query PreviewStatusLightQuery($job_id: ID!) {
+  previewStatus(jobId: $job_id) {
+    status
+  }
+}

@@ -30,3 +30,7 @@ pub mod init;
 
 /// all rover-client functionality for the "graph-artifact" commands in rover
 pub mod graph_artifact;
+
+/// the shared, top-level `previewStatus(jobId)` query — polls a job started
+/// by either `contract::preview::start` or `subgraph::preview::start`
+pub mod preview_status;

@@ -1,0 +1,24 @@
+# Mutation to asynchronously compose and filter a contract and view a preview of the
+# resulting schema.
+#
+# Not referenced by any `#[derive(GraphQLQuery)]` and not compiled; wire it up
+# in runner.rs once `previewStatus` lands and the schema is re-vendored.
+query ComposeAndFilterPreviewAsyncMutation(
+  $graph_id: ID!
+  $variant: String!
+  $filter_config: FilterConfigInput
+  $subgraph_changes: [ComposeAndFilterPreviewSubgraphChange!]
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      ... on GraphVariant {
+        composeAndFilterPreviewAsync(
+          filterConfig: $filter_config
+          subgraphChanges: $subgraph_changes
+        ) {
+          jobId
+        }
+      }
+    }
+  }
+}

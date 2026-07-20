@@ -4,6 +4,7 @@ mod fetch;
 pub mod introspect;
 mod lint;
 mod list;
+mod preview;
 mod publish;
 
 use clap::Parser;
@@ -20,17 +21,20 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Check for build errors and breaking changes caused by an updated subgraph schema
-    /// against the federated graph in the Apollo graph registry
+    /// Check for build errors and breaking changes caused by an updated
+    /// subgraph schema against the federated graph in the Apollo graph
+    /// registry
     Check(check::Check),
 
-    /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
+    /// Delete a subgraph from the Apollo registry and trigger composition in
+    /// the graph router
     Delete(delete::Delete),
 
     /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
-    /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
+    /// Introspect a running subgraph endpoint to retrieve its schema
+    /// definition (SDL)
     Introspect(introspect::Introspect),
 
     /// Lint a subgraph schema
@@ -39,7 +43,12 @@ pub enum Command {
     /// List all subgraphs for a federated graph
     List(list::List),
 
-    /// Publish an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
+    /// Preview the supergraph schema (and optionally a contract filter)
+    /// produced by hypothetical subgraph changes (without publishing them)
+    Preview(preview::Preview),
+
+    /// Publish an updated subgraph schema to the Apollo graph registry and
+    /// trigger composition in the graph router
     Publish(publish::Publish),
 }
 
@@ -70,6 +79,7 @@ impl Subgraph {
             Command::Fetch(command) => command.run(client_config).await,
             Command::Lint(command) => command.run(client_config).await,
             Command::List(command) => command.run(client_config).await,
+            Command::Preview(command) => command.run(client_config, checks_timeout_seconds).await,
             Command::Publish(command) => {
                 command
                     .run(client_config, git_context, checks_timeout_seconds)

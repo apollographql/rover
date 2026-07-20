@@ -202,7 +202,14 @@ impl Rover {
                     .run(self.get_install_override_path()?, self.get_client_config()?)
                     .await
             }
-            Command::Contract(command) => command.run(self.get_client_config()?).await,
+            Command::Contract(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_checks_timeout_seconds()?,
+                    )
+                    .await
+            }
             Command::Schema(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
                 command
@@ -362,6 +369,7 @@ impl Rover {
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
+        // TODO: Should this have a maximum value to avoid near-infinite polling?
         if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
             Ok(seconds.parse::<u64>()?)
         } else {

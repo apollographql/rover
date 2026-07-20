@@ -25,7 +25,8 @@ use rover_client::{
         },
     },
     shared::{
-        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
+        AsyncBuildStatus, CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse,
+        LintResponse, PreviewJobResponse, SdlType,
     },
 };
 use rover_std::Style;
@@ -87,6 +88,7 @@ pub enum RoverOutput {
     InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
+    PreviewJob(PreviewJobResponse),
     DocsList(BTreeMap<&'static str, ShortlinkInfo>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
@@ -225,6 +227,34 @@ impl RoverOutput {
                     describe_response.graph_ref.variant(),
                 ))
             )),
+            RoverOutput::PreviewJob(preview_response) => {
+                let mut lines = vec![format!(
+                    "Job {job_id} {status}",
+                    job_id = &preview_response.job_id,
+                    status = &preview_response.status,
+                )];
+                match preview_response.status {
+                    AsyncBuildStatus::Pending | AsyncBuildStatus::Running => {
+                        // --job-id behaves identically on both commands (previewStatus
+                        // doesn't care which one started the job), so either works here.
+                        lines.push(format!(
+                            "Check the result with {} on either {} or {}",
+                            Style::Command.paint(format!("--job-id {}", preview_response.job_id)),
+                            Style::Command.paint("`rover contract preview`"),
+                            Style::Command.paint("`rover subgraph preview`")
+                        ));
+                    }
+                    AsyncBuildStatus::Success => {
+                        if let Some(api_schema) = &preview_response.api_schema {
+                            lines.push(api_schema.clone());
+                        }
+                    }
+                    AsyncBuildStatus::ComposeFailed | AsyncBuildStatus::FilterFailed => {
+                        lines.extend(preview_response.errors.iter().cloned());
+                    }
+                }
+                Some(lines.join("\n"))
+            }
             RoverOutput::ContractPublish(publish_response) => {
                 let launch_cli_copy = publish_response
                     .launch_cli_copy
@@ -704,6 +734,7 @@ impl RoverOutput {
             }
             RoverOutput::InitMembershipsOutput(memberships_response) => json!(memberships_response),
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
+            RoverOutput::PreviewJob(preview_response) => json!(preview_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
@@ -911,6 +942,7 @@ impl RoverOutput {
     pub(crate) const fn descriptor(&self) -> Option<&str> {
         match &self {
             RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
+            RoverOutput::PreviewJob(_) => Some("Preview Job"),
             RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
             RoverOutput::FetchResponse(fetch_response) => match fetch_response.sdl.r#type {
                 SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
