@@ -239,7 +239,7 @@ impl RoverOutput {
                         // doesn't care which one started the job), so either works here.
                         lines.push(format!(
                             "Check the result with {} on either {} or {}",
-                            Style::Command.paint(format!("--job-id {}", &preview_response.job_id)),
+                            Style::Command.paint(format!("--job-id {}", preview_response.job_id)),
                             Style::Command.paint("`rover contract preview`"),
                             Style::Command.paint("`rover subgraph preview`")
                         ));
