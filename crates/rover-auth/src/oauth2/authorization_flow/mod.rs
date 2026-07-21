@@ -135,6 +135,7 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
             .authorize_url(CsrfToken::new_random)
             .add_scopes(scopes)
             .set_pkce_challenge(pkce_challenge)
+            .add_extra_param("prompt", "login")
             .url();
 
         if let Err(err) = open_auth_url.open_url(&auth_url) {

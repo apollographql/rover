@@ -88,6 +88,10 @@ default = ["composition-js"]
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 
+# gates `rover auth login` and its supporting OAuth machinery, which is still
+# under active development (ROVER-391) and not yet ready for general release.
+oauth = ["dep:rover-auth", "dep:rover-open"]
+
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }
@@ -230,6 +234,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
+url-static = "0.2"
 webbrowser = "1"
 zip = "8"
 
@@ -279,9 +284,11 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
+rover-auth = { workspace = true, optional = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-open = { workspace = true, optional = true }
 rover-print = { workspace = true }
 rover-schema = { workspace = true }
 rover-std = { workspace = true }
@@ -312,6 +319,7 @@ tower-lsp = { version = "0.20" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+url-static = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }

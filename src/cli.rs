@@ -18,6 +18,8 @@ use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
+#[cfg(feature = "oauth")]
+use crate::options::OauthOpts;
 use crate::{
     RoverResult,
     command::{self, RoverOutput},
@@ -110,6 +112,10 @@ pub struct Rover {
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
+    #[cfg(feature = "oauth")]
+    #[clap(flatten)]
+    oauth_opts: OauthOpts,
+
     #[arg(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
@@ -196,6 +202,12 @@ impl Rover {
             Command::Init(command) => command.run(self.get_client_config()?).await,
             Command::Completion(command) => command.run(),
             Command::Config(command) => command.run(self.get_client_config()?).await,
+            #[cfg(feature = "oauth")]
+            Command::Auth(command) => {
+                command
+                    .run(self.get_rover_config()?, self.get_oauth_config())
+                    .await
+            }
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
                 command
@@ -286,6 +298,15 @@ impl Rover {
             .map(|p| Utf8PathBuf::from(&p));
         let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
         Ok(Config::new(override_home.as_ref(), override_api_key)?)
+    }
+
+    #[cfg(feature = "oauth")]
+    pub(crate) fn get_oauth_config(&self) -> command::auth::OauthConfig {
+        command::auth::OauthConfig::builder()
+            .authorization_url(self.oauth_opts.authorization_url.clone())
+            .token_url(self.oauth_opts.token_url.clone())
+            .client_id(self.oauth_opts.client_id.clone())
+            .build()
     }
 
     pub(crate) fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
@@ -406,6 +427,10 @@ pub enum Command {
     /// API Key Related Commands
     #[clap(name = "api-key")]
     ApiKeys(command::ApiKeys),
+
+    /// Authentication commands
+    #[cfg(feature = "oauth")]
+    Auth(command::Auth),
 
     #[cfg(feature = "composition-js")]
     Connector(command::Connector),

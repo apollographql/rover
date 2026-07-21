@@ -24,7 +24,7 @@ run = "cargo +nightly fmt --all -- --check"
 run = "cargo clippy --locked --workspace --all-features --all-targets"
 
 [tasks.test]
-run = "cargo test --locked --workspace --exclude regressions"
+run = "cargo test --locked --workspace --exclude regressions --features oauth"
 
 [tasks.generate-npm]
 description = "Generate npm packages via cargo-npm and patch the shim"
