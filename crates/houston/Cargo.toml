@@ -27,4 +27,5 @@ assert_fs = { workspace = true }
 nix = { workspace = true, features = ["user"] }
 rover-print = { workspace = true, features = ["testing"] }
 rstest = { workspace = true }
+serial_test = { workspace = true }
 speculoos = { workspace = true }

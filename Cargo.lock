@@ -2616,6 +2616,7 @@ dependencies = [
  "rover-storage",
  "rstest",
  "serde",
+ "serial_test",
  "speculoos",
  "thiserror 2.0.19",
  "toml",

@@ -18,6 +18,8 @@ use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
+#[cfg(feature = "oauth")]
+use crate::options::OauthOpts;
 use crate::{
     RoverResult,
     command::{self, RoverOutput},
@@ -112,7 +114,7 @@ pub struct Rover {
 
     #[cfg(feature = "oauth")]
     #[clap(flatten)]
-    oauth_opts: command::auth::OauthOpts,
+    oauth_opts: OauthOpts,
 
     #[arg(skip)]
     #[serde(skip_serializing)]

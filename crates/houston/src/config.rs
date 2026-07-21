@@ -125,11 +125,16 @@ mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use rover_print::print::testing::TerminalCapture;
+    use serial_test::serial;
 
     use super::Config;
     use crate::profile::Profile;
 
+    // `#[serial]`: these tests exercise the real OS credential store (not a
+    // mock), which doesn't reliably sequence concurrent multi-threaded access
+    // on Windows - see `RoverSecretStore::verify_write_visible`.
     #[test]
+    #[serial]
     fn it_can_clear_global_config() {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -143,6 +148,7 @@ mod tests {
     // `clear`: it's the escape-hatch recovery command for a broken config, so
     // it warns and keeps going rather than leaving the config half-wiped.
     #[test]
+    #[serial]
     fn clear_warns_via_stderr_and_still_wipes_config_when_a_credential_fails_to_delete() {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();

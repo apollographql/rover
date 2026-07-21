@@ -2,7 +2,7 @@ mod config;
 mod login;
 
 use clap::{Parser, Subcommand};
-pub use config::{OauthConfig, OauthOpts};
+pub use config::OauthConfig;
 use serde::Serialize;
 
 use crate::{RoverResult, utils::client::StudioClientConfig};

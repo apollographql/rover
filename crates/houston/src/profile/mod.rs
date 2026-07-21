@@ -238,6 +238,7 @@ mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use rstest::{fixture, rstest};
+    use serial_test::serial;
     use speculoos::prelude::*;
 
     use super::*;
@@ -297,7 +298,12 @@ mod tests {
     }
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored OAuth token.
+    //
+    // `#[serial]`: these tests exercise the real OS credential store (not a
+    // mock), which doesn't reliably sequence concurrent multi-threaded access
+    // on Windows - see `RoverSecretStore::verify_write_visible`.
     #[rstest]
+    #[serial]
     fn get_credential_prefers_env_var_over_a_stored_oauth_token(
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
@@ -321,6 +327,7 @@ mod tests {
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored legacy API key.
     #[rstest]
+    #[serial]
     fn get_credential_prefers_env_var_over_a_stored_legacy_api_key(
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
@@ -336,6 +343,7 @@ mod tests {
 
     // With no env var set, a stored OAuth token should be returned as the credential.
     #[rstest]
+    #[serial]
     fn get_credential_returns_a_stored_oauth_token_when_no_env_var_is_set(
         test_config: (Config, TempDir),
     ) {
@@ -359,6 +367,7 @@ mod tests {
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
     #[rstest]
+    #[serial]
     fn get_credential_falls_back_to_the_legacy_api_key_when_no_oauth_token_is_stored(
         test_config: (Config, TempDir),
     ) {
@@ -376,6 +385,7 @@ mod tests {
 
     // `set_oauth_tokens` must replace a previously stored legacy API key, not coexist with it.
     #[rstest]
+    #[serial]
     fn set_oauth_tokens_overwrites_a_previously_stored_legacy_api_key(
         test_config: (Config, TempDir),
     ) {
@@ -393,6 +403,7 @@ mod tests {
 
     // `set_api_key` must replace a previously stored OAuth token, not coexist with it.
     #[rstest]
+    #[serial]
     fn set_api_key_overwrites_a_previously_stored_oauth_token(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
         let profile = "api-key-overwrites-oauth";
