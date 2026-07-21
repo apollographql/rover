@@ -205,7 +205,7 @@ impl Rover {
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
-                    .run(self.get_client_config()?, self.get_oauth_config())
+                    .run(self.get_rover_config()?, self.get_oauth_config())
                     .await
             }
             #[cfg(feature = "composition-js")]

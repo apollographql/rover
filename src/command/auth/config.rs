@@ -41,3 +41,53 @@ impl Default for OauthConfig {
         OauthConfig::builder().build()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn oauth_config_defaults_to_the_apollo_production_authorization_url() {
+        let config = OauthConfig::default();
+
+        assert_that!(config.authorization_url.as_str())
+            .is_equal_to("https://auth.apollographql.com/oauth2/authorize");
+    }
+
+    #[test]
+    fn oauth_config_defaults_to_the_apollo_production_token_url() {
+        let config = OauthConfig::default();
+
+        assert_that!(config.token_url.as_str())
+            .is_equal_to("https://auth.apollographql.com/oauth2/token");
+    }
+
+    #[test]
+    fn oauth_config_defaults_to_the_registered_static_client_id() {
+        let config = OauthConfig::default();
+
+        assert_that!(config.client_id)
+            .is_equal_to("52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY".to_string());
+    }
+
+    #[test]
+    fn oauth_config_honors_a_url_override() {
+        let config = OauthConfig::builder()
+            .authorization_url(Url::parse("https://custom.example.com/authorize").unwrap())
+            .build();
+
+        assert_that!(config.authorization_url.as_str())
+            .is_equal_to("https://custom.example.com/authorize");
+    }
+
+    #[test]
+    fn oauth_config_honors_a_client_id_override() {
+        let config = OauthConfig::builder()
+            .client_id("a-real-client-id".to_string())
+            .build();
+
+        assert_that!(config.client_id).is_equal_to("a-real-client-id".to_string());
+    }
+}

@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use clap::Parser;
-use houston::Profile;
+use houston::{Config, Profile};
 use rover_auth::oauth2::authorization_flow::{
     AuthorizationFlow, redirect::server::AxumRedirectServer,
 };
@@ -10,7 +10,7 @@ use rover_open::SystemOpenUrl;
 use serde::Serialize;
 
 use super::OauthConfig;
-use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt};
 
 #[derive(Debug, Serialize, Parser)]
 /// Log in via your browser to authenticate `rover` with Apollo
@@ -24,11 +24,7 @@ pub struct Login {
 }
 
 impl Login {
-    pub async fn run(
-        &self,
-        client_config: StudioClientConfig,
-        oauth_config: OauthConfig,
-    ) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, config: Config, oauth_config: OauthConfig) -> RoverResult<RoverOutput> {
         let http_service = ReqwestService::builder()
             .client(reqwest::Client::new())
             .build()
@@ -56,7 +52,7 @@ impl Login {
 
         Profile::set_oauth_tokens(
             &self.profile.profile_name,
-            &client_config.config,
+            &config,
             tokens.access_token.secret().to_string(),
             tokens.refresh_token.map(|t| t.secret().to_string()),
             expires_at(tokens.expires_in),
@@ -89,7 +85,6 @@ fn expires_at(expires_in: Option<Duration>) -> Option<i64> {
 #[cfg(test)]
 mod tests {
     use speculoos::prelude::*;
-    use url::Url;
 
     use super::*;
 
@@ -110,48 +105,5 @@ mod tests {
         assert_that!(result).is_some().matches(|expires_at| {
             *expires_at > now && *expires_at <= now + 3600 + 5 // small tolerance for test runtime
         });
-    }
-
-    #[test]
-    fn oauth_config_defaults_to_the_apollo_production_authorization_url() {
-        let config = OauthConfig::default();
-
-        assert_that!(config.authorization_url.as_str())
-            .is_equal_to("https://auth.apollographql.com/oauth2/authorize");
-    }
-
-    #[test]
-    fn oauth_config_defaults_to_the_apollo_production_token_url() {
-        let config = OauthConfig::default();
-
-        assert_that!(config.token_url.as_str())
-            .is_equal_to("https://auth.apollographql.com/oauth2/token");
-    }
-
-    #[test]
-    fn oauth_config_defaults_to_the_registered_static_client_id() {
-        let config = OauthConfig::default();
-
-        assert_that!(config.client_id)
-            .is_equal_to("52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY".to_string());
-    }
-
-    #[test]
-    fn oauth_config_honors_a_url_override() {
-        let config = OauthConfig::builder()
-            .authorization_url(Url::parse("https://custom.example.com/authorize").unwrap())
-            .build();
-
-        assert_that!(config.authorization_url.as_str())
-            .is_equal_to("https://custom.example.com/authorize");
-    }
-
-    #[test]
-    fn oauth_config_honors_a_client_id_override() {
-        let config = OauthConfig::builder()
-            .client_id("a-real-client-id".to_string())
-            .build();
-
-        assert_that!(config.client_id).is_equal_to("a-real-client-id".to_string());
     }
 }
