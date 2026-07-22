@@ -28,6 +28,7 @@ use tokio::{
 };
 use tracing::{info, warn};
 
+mod auth;
 mod config;
 mod dev;
 mod graph;

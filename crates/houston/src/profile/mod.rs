@@ -42,6 +42,16 @@ pub struct Credential {
     pub expires_at: Option<i64>,
 }
 
+/// A profile's stored OAuth session (both tokens), as opposed to
+/// [`Credential`] which only carries the token used to authenticate.
+#[derive(Clone, Debug)]
+pub struct OAuthSession {
+    /// The current access token.
+    pub access_token: String,
+    /// A refresh token, if the authorization server issued one.
+    pub refresh_token: Option<String>,
+}
+
 /// Info about where the API key was retrieved
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CredentialOrigin {
@@ -88,6 +98,34 @@ impl Profile {
             expires_at,
         }
         .save(name, config)
+    }
+
+    /// Returns the profile's stored OAuth session, or `None` if the profile's
+    /// stored credential is a legacy API key (from `rover config auth`)
+    /// rather than an OAuth session (from `rover auth login`). Used by
+    /// `rover auth logout` to revoke both tokens before deleting local storage.
+    ///
+    /// Unlike [`Profile::get_credential`], this does not consult
+    /// `config.override_api_key` (the `APOLLO_KEY` env var) — logout always
+    /// acts on the profile's own stored credential, regardless of any
+    /// runtime override.
+    pub fn get_oauth_session(
+        name: &str,
+        config: &Config,
+    ) -> Result<Option<OAuthSession>, HoustonProblem> {
+        let opts = LoadOpts { sensitive: true };
+        let profile = Profile::load(name, config, opts)?;
+        Ok(match profile.sensitive {
+            Sensitive::OAuth {
+                access_token,
+                refresh_token,
+                ..
+            } => Some(OAuthSession {
+                access_token,
+                refresh_token,
+            }),
+            Sensitive::ApiKey { .. } => None,
+        })
     }
 
     /// Returns a credential for interacting with Apollo services.

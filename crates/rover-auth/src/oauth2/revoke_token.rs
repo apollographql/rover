@@ -49,6 +49,12 @@ impl RevokeTokenRequest {
 #[derive(Debug)]
 pub struct RevokeTokenResponse {}
 
+/// [`RevokeToken`] specialized to the body type produced by rover's own HTTP
+/// services (e.g. [`rover_http::ReqwestService`]), so callers don't need a
+/// direct dependency on `bytes`/`http-body-util` just to name this service's
+/// second generic parameter.
+pub type RevokeTokenService<S> = RevokeToken<S, rover_http::Full<bytes::Bytes>>;
+
 /// Tower service that revokes an OAuth2 token (RFC 7009).
 pub struct RevokeToken<S, B> {
     inner: S,
