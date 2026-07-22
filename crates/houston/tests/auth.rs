@@ -4,6 +4,7 @@ use config::Config;
 use houston as config;
 use rover_print::print::testing::TerminalCapture;
 use serial_test::serial;
+use speculoos::prelude::*;
 
 // Tests below that exercise `Profile`/`Config::clear` touch the real OS
 // credential store (not a mock), which - per `windows-native-keyring-store`'s
@@ -102,8 +103,8 @@ fn it_can_set_and_get_an_oauth_session() {
     let session = config::Profile::get_oauth_session(profile, &config)
         .expect("retrieving oauth session failed")
         .expect("expected a stored oauth session");
-    assert_eq!(session.access_token, "access-token");
-    assert_eq!(session.refresh_token, Some("refresh-token".to_string()));
+    assert_that!(session.access_token).is_equal_to("access-token".to_string());
+    assert_that!(session.refresh_token).is_equal_to(Some("refresh-token".to_string()));
 }
 
 #[test]
@@ -116,7 +117,7 @@ fn it_returns_no_oauth_session_for_a_legacy_api_key_profile() {
 
     let session = config::Profile::get_oauth_session(profile, &config)
         .expect("retrieving oauth session failed");
-    assert!(session.is_none());
+    assert_that!(session).is_none();
 }
 
 #[test]
