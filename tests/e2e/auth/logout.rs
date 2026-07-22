@@ -15,7 +15,11 @@ const LEGACY_PROFILE: &str = "e2e-test-logout-legacy-profile";
 #[ignore]
 fn e2e_test_rover_auth_logout_help() {
     let mut cmd = cargo_bin_cmd!("rover");
-    cmd.arg("auth").arg("logout").arg("--help").assert().success();
+    cmd.arg("auth")
+        .arg("logout")
+        .arg("--help")
+        .assert()
+        .success();
 }
 
 #[rstest]
