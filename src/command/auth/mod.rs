@@ -1,5 +1,6 @@
 mod config;
 mod login;
+mod logout;
 
 use clap::{Parser, Subcommand};
 use houston::Config;
@@ -18,6 +19,8 @@ pub struct Auth {
 pub enum AuthCommand {
     /// Log in via your browser to authenticate `rover` with Apollo
     Login(login::Login),
+    /// Log out, clearing your stored OAuth session
+    Logout(logout::Logout),
 }
 
 impl Auth {
@@ -28,6 +31,7 @@ impl Auth {
     ) -> RoverResult<crate::RoverOutput> {
         match &self.command {
             AuthCommand::Login(command) => command.run(config, oauth_config).await,
+            AuthCommand::Logout(command) => command.run(config, oauth_config).await,
         }
     }
 }

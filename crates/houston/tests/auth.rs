@@ -85,6 +85,41 @@ fn it_migrates_a_legacy_plaintext_credential() {
 }
 
 #[test]
+#[serial]
+fn it_can_set_and_get_an_oauth_session() {
+    let config = get_config(None);
+    let profile = "oauth-session-roundtrip";
+
+    config::Profile::set_oauth_tokens(
+        profile,
+        &config,
+        "access-token".to_string(),
+        Some("refresh-token".to_string()),
+        Some(1_700_000_000),
+    )
+    .expect("storing oauth tokens failed");
+
+    let session = config::Profile::get_oauth_session(profile, &config)
+        .expect("retrieving oauth session failed")
+        .expect("expected a stored oauth session");
+    assert_eq!(session.access_token, "access-token");
+    assert_eq!(session.refresh_token, Some("refresh-token".to_string()));
+}
+
+#[test]
+#[serial]
+fn it_returns_no_oauth_session_for_a_legacy_api_key_profile() {
+    let config = get_config(None);
+    let profile = "legacy-api-key-has-no-oauth-session";
+
+    config::Profile::set_api_key(profile, &config, "some-key").expect("setting api key failed");
+
+    let session = config::Profile::get_oauth_session(profile, &config)
+        .expect("retrieving oauth session failed");
+    assert!(session.is_none());
+}
+
+#[test]
 fn it_can_get_an_api_key_via_env_var() {
     let profile = "env-var-override";
     let api_key = "superdupersecret";

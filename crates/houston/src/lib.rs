@@ -10,4 +10,4 @@ pub use config::Config;
 pub use error::HoustonProblem;
 pub use profile::mask_key;
 /// Utilities for saving, loading, and deleting configuration profiles.
-pub use profile::{Credential, CredentialOrigin, LoadOpts, Profile};
+pub use profile::{Credential, CredentialOrigin, LoadOpts, OAuthSession, Profile};

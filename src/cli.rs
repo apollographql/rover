@@ -305,6 +305,7 @@ impl Rover {
         command::auth::OauthConfig::builder()
             .authorization_url(self.oauth_opts.authorization_url.clone())
             .token_url(self.oauth_opts.token_url.clone())
+            .revocation_url(self.oauth_opts.revocation_url.clone())
             .client_id(self.oauth_opts.client_id.clone())
             .build()
     }
