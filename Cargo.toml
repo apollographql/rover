@@ -140,7 +140,7 @@ async-trait = "0.1"
 axum = "0.8.8"
 backtrace = "0.3"
 backon = { version = "1.4", features = ["std", "tokio-sleep"] }
-base64 = "0.22"
+base64 = "0.23"
 billboard = "0.2"
 bon = "3.8.2"
 buildstructor = "0.6"
