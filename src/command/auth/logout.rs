@@ -1,16 +1,40 @@
+use std::time::Duration;
+
 use clap::Parser;
 use houston::{Config, OAuthSession, Profile};
 use rover_auth::oauth2::{
     AccessToken, RefreshToken, StandardRevocableToken,
-    revoke_token::{RevokeToken, RevokeTokenRequest, RevokeTokenService},
+    revoke_token::{RevokeToken, RevokeTokenError, RevokeTokenRequest, RevokeTokenService},
 };
 use rover_http::ReqwestService;
 use rover_print::print::PrintExt;
 use serde::Serialize;
-use tower::{Service, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt};
 
 use super::OauthConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options::ProfileOpt};
+
+/// How long to wait for the OAuth server to respond to a single token
+/// revocation request, matching `src/utils/client.rs`'s `ClientTimeout`
+/// default used everywhere else Rover makes an HTTP call.
+const REVOKE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Wraps a `tower` middleware error (e.g. [`tower::timeout::Timeout`]'s) in a
+/// concrete type that implements [`std::error::Error`] — `tower::BoxError`
+/// itself doesn't, since (unlike `Display`) there's no blanket `impl Error
+/// for dyn Error + Send + Sync` in `std`.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+struct RevokeHttpError(tower::BoxError);
+
+impl From<std::convert::Infallible> for RevokeHttpError {
+    // Required by `RevokeToken`'s `S::Error: From<B::Error>` bound (`B` is
+    // `Full<Bytes>`, whose body error type is `Infallible`) - unreachable in
+    // practice, the same way `rover_http::HttpServiceError` handles it.
+    fn from(error: std::convert::Infallible) -> Self {
+        match error {}
+    }
+}
 
 #[derive(Debug, Serialize, Parser)]
 /// Log out, clearing your stored OAuth session
@@ -35,14 +59,37 @@ impl Logout {
             ))));
         };
 
-        let http_service = ReqwestService::builder()
-            .client(reqwest::Client::new())
-            .build()
-            .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
-        let stderr = rover_print::print::stderr::default();
-        let mut revoke: RevokeTokenService<ReqwestService> = RevokeToken::new(http_service);
+        let http_service = ServiceBuilder::new()
+            .map_err(RevokeHttpError)
+            .timeout(REVOKE_TIMEOUT)
+            .service(
+                ReqwestService::builder()
+                    .client(reqwest::Client::new())
+                    .build()
+                    .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?,
+            );
+        let revoke: RevokeTokenService<_> = RevokeToken::new(http_service);
 
-        for token in revocable_tokens(&session) {
+        Self::revoke_and_delete(profile_name, &config, &oauth_config, &session, revoke).await
+    }
+
+    /// Revokes every token in `session` with the OAuth server (best-effort —
+    /// a revoke failure is only ever a warning), then deletes the profile's
+    /// local credential. Generic over the revoking service so it can be
+    /// exercised in tests against a mock HTTP layer instead of a live server.
+    async fn revoke_and_delete<S>(
+        profile_name: &str,
+        config: &Config,
+        oauth_config: &OauthConfig,
+        session: &OAuthSession,
+        mut revoke: RevokeTokenService<S>,
+    ) -> RoverResult<RoverOutput>
+    where
+        RevokeTokenService<S>: Service<RevokeTokenRequest, Error = RevokeTokenError>,
+    {
+        let stderr = rover_print::print::stderr::default();
+
+        for token in revocable_tokens(session) {
             let req = RevokeTokenRequest::builder()
                 .client_id(oauth_config.client_id.clone())
                 .revocation_url(oauth_config.revocation_url.clone())
@@ -60,7 +107,7 @@ impl Logout {
             }
         }
 
-        Profile::delete(profile_name, &config)?;
+        Profile::delete(profile_name, config)?;
 
         Ok(RoverOutput::MessageResponse {
             msg: format!("Successfully logged out of profile \"{profile_name}\"."),
@@ -86,8 +133,11 @@ fn revocable_tokens(session: &OAuthSession) -> Vec<StandardRevocableToken> {
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
+    use bytes::Bytes;
     use camino::Utf8Path;
-    use houston::Profile;
+    use houston::{HoustonProblem, Profile};
+    use rover_http::{Full, HttpServiceError, test::MockHttpService};
+    use rover_tower::{expect_poll_ready, test::MockCloneService};
     use serial_test::serial;
     use speculoos::prelude::*;
 
@@ -105,6 +155,103 @@ mod tests {
                 profile_name: profile_name.to_string(),
             },
         }
+    }
+
+    fn empty_200() -> http::Response<Full<Bytes>> {
+        http::Response::builder()
+            .body(Full::new(Bytes::new()))
+            .unwrap()
+    }
+
+    // `revoke_and_delete` only reaches the delete step after attempting to
+    // revoke both tokens; these two tests exercise it against a mock HTTP
+    // layer (rather than a live server) to confirm the local credential is
+    // gone afterward, both when the server cooperates and when it doesn't.
+    #[tokio::test]
+    #[serial]
+    async fn revoke_and_delete_deletes_the_local_credential_after_a_successful_revoke() {
+        let (config, _tmp_home) = test_config();
+        // A second profile so the deleted one's absence is unambiguous
+        // (`ProfileNotFound`) rather than "no profiles left at all"
+        // (`NoConfigProfiles`), which would also be true but less precise.
+        Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
+        let profile_name = "revoke-and-delete-success";
+        Profile::set_oauth_tokens(
+            profile_name,
+            &config,
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            None,
+        )
+        .unwrap();
+        let session = OAuthSession {
+            access_token: "access-token".to_string(),
+            refresh_token: Some("refresh-token".to_string()),
+        };
+
+        let mut http_service = MockHttpService::new();
+        expect_poll_ready!(http_service, 2);
+        http_service
+            .expect_call()
+            .times(2)
+            .returning(|_| futures::future::ready(Ok(empty_200())));
+        let revoke: RevokeTokenService<_> = RevokeToken::new(MockCloneService::new(http_service));
+
+        let result = Logout::revoke_and_delete(
+            profile_name,
+            &config,
+            &OauthConfig::default(),
+            &session,
+            revoke,
+        )
+        .await;
+
+        assert_that!(result).is_ok();
+        let error = Profile::get_oauth_session(profile_name, &config)
+            .expect_err("expected the profile to be fully deleted");
+        assert_that!(error).matches(|e| matches!(e, HoustonProblem::ProfileNotFound(_)));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn revoke_and_delete_still_deletes_the_local_credential_when_revocation_fails() {
+        let (config, _tmp_home) = test_config();
+        Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
+        let profile_name = "revoke-and-delete-failure";
+        Profile::set_oauth_tokens(
+            profile_name,
+            &config,
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            None,
+        )
+        .unwrap();
+        let session = OAuthSession {
+            access_token: "access-token".to_string(),
+            refresh_token: Some("refresh-token".to_string()),
+        };
+
+        let mut http_service = MockHttpService::new();
+        expect_poll_ready!(http_service, 2);
+        http_service
+            .expect_call()
+            .times(2)
+            .returning(|_| futures::future::ready(Err(HttpServiceError::TimedOut)));
+        let revoke: RevokeTokenService<_> = RevokeToken::new(MockCloneService::new(http_service));
+
+        let result = Logout::revoke_and_delete(
+            profile_name,
+            &config,
+            &OauthConfig::default(),
+            &session,
+            revoke,
+        )
+        .await;
+
+        assert_that!(result).is_ok();
+        let error = Profile::get_oauth_session(profile_name, &config)
+            .expect_err("expected the profile to be fully deleted even though revocation failed");
+        assert_that!(error).matches(|e| matches!(e, HoustonProblem::ProfileNotFound(_)));
     }
 
     // The two error branches a user can hit before any network call is made:
