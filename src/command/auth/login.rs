@@ -6,8 +6,11 @@ use rover_auth::oauth2::authorization_flow::{
     AuthorizationFlow, redirect::server::AxumRedirectServer,
 };
 use rover_http::ReqwestService;
-use rover_open::SystemOpenUrl;
+#[cfg(feature = "testing")]
+use rover_open::PrintOnlyOpenUrl;
+use rover_open::{OpenUrl, SystemOpenUrl};
 use serde::Serialize;
+use url::Url;
 
 use super::OauthConfig;
 use crate::{RoverOutput, RoverResult, options::ProfileOpt};
@@ -21,6 +24,31 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt};
 pub struct Login {
     #[clap(flatten)]
     profile: ProfileOpt,
+
+    /// Skip attempting to open a browser; instead print the authorization
+    /// URL so a test harness can drive the redirect itself.
+    #[cfg(feature = "testing")]
+    #[arg(long = "skip-browser-for-testing", hide = true)]
+    skip_browser_for_testing: bool,
+}
+
+/// Picks which [`OpenUrl`] implementation `authorize()` uses, since it's
+/// generic over a single concrete type rather than a trait object.
+enum BrowserOpener {
+    System(SystemOpenUrl),
+    #[cfg(feature = "testing")]
+    PrintOnly(PrintOnlyOpenUrl),
+}
+
+impl OpenUrl for BrowserOpener {
+    type Error = std::io::Error;
+    fn open_url(&self, url: &Url) -> Result<(), Self::Error> {
+        match self {
+            Self::System(opener) => opener.open_url(url),
+            #[cfg(feature = "testing")]
+            Self::PrintOnly(opener) => opener.open_url(url),
+        }
+    }
 }
 
 impl Login {
@@ -29,6 +57,15 @@ impl Login {
             .client(reqwest::Client::new())
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
+
+        #[cfg(feature = "testing")]
+        let browser_opener = if self.skip_browser_for_testing {
+            BrowserOpener::PrintOnly(PrintOnlyOpenUrl::default())
+        } else {
+            BrowserOpener::System(SystemOpenUrl::default())
+        };
+        #[cfg(not(feature = "testing"))]
+        let browser_opener = BrowserOpener::System(SystemOpenUrl::default());
 
         let stderr = rover_print::print::stderr::default();
         let authorization_flow = AuthorizationFlow::builder()
@@ -39,7 +76,7 @@ impl Login {
         let authorization_flow = authorization_flow
             .authorize(
                 Vec::new(),
-                &SystemOpenUrl::default(),
+                &browser_opener,
                 &stderr,
                 AxumRedirectServer::default(),
             )
