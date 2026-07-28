@@ -1375,7 +1375,15 @@ mod tests {
                 "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
                     .to_string(),
             maybe_core_schema_modified: Some(true),
-            maybe_operations_response: None,
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
+                        .to_string(),
+                ),
+                0,
+                vec![],
+            )),
             maybe_lint_response: Some(LintCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
                 target_url: Some(
@@ -1405,7 +1413,13 @@ mod tests {
         let actual_text = strip_ansi_codes(&actual_text);
 
         let expected_text = "
+Build Check [PASSED]:
 There were no changes detected in the composed API schema, but the core schema was modified.
+
+Operation Check [PASSED]:
+Compared 0 schema changes against 0 operations.
+No schema changes detected.
+View operation check details at: https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1
 
 Linter Check [PASSED]:
 No linting errors or warnings found.

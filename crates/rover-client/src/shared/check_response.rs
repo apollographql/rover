@@ -32,6 +32,7 @@ impl CheckWorkflowResponse {
 
         if let Some(core_schema_modified) = self.maybe_core_schema_modified {
             msg.push('\n');
+            msg.push_str(&Self::task_title("Build Check", CheckTaskStatus::PASSED));
             if core_schema_modified {
                 msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
             } else {
@@ -40,14 +41,12 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(operations_response) = &self.maybe_operations_response {
-            if !operations_response.changes.is_empty() {
-                msg.push('\n');
-                msg.push_str(&Self::task_title(
-                    "Operation Check",
-                    operations_response.task_status.clone(),
-                ));
-                msg.push_str(operations_response.get_output().as_str());
-            }
+            msg.push('\n');
+            msg.push_str(&Self::task_title(
+                "Operation Check",
+                operations_response.task_status.clone(),
+            ));
+            msg.push_str(operations_response.get_output().as_str());
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
@@ -202,7 +201,11 @@ impl OperationCheckResponse {
 
         msg.push('\n');
 
-        msg.push_str(&self.get_table());
+        if self.changes.is_empty() {
+            msg.push_str("No schema changes detected.\n");
+        } else {
+            msg.push_str(&self.get_table());
+        }
 
         if let Some(url) = &self.target_url {
             msg.push_str("View operation check details at: ");
