@@ -6,8 +6,9 @@ use rover_auth::oauth2::authorization_flow::{
     AuthorizationFlow, redirect::server::AxumRedirectServer,
 };
 use rover_http::ReqwestService;
-use rover_open::SystemOpenUrl;
+use rover_open::{NoopOpenUrl, OpenUrl, SystemOpenUrl};
 use serde::Serialize;
+use url::Url;
 
 use super::OauthConfig;
 use crate::{RoverOutput, RoverResult, options::ProfileOpt};
@@ -21,6 +22,28 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt};
 pub struct Login {
     #[clap(flatten)]
     profile: ProfileOpt,
+
+    /// Don't attempt to open a browser automatically; the authorization URL
+    /// is always printed, so pass this if you'd rather open it yourself.
+    #[arg(long)]
+    no_open: bool,
+}
+
+/// Picks which [`OpenUrl`] implementation `authorize()` uses, since it's
+/// generic over a single concrete type rather than a trait object.
+enum BrowserOpener {
+    System(SystemOpenUrl),
+    Noop(NoopOpenUrl),
+}
+
+impl OpenUrl for BrowserOpener {
+    type Error = std::io::Error;
+    fn open_url(&self, url: &Url) -> Result<(), Self::Error> {
+        match self {
+            Self::System(opener) => opener.open_url(url),
+            Self::Noop(opener) => opener.open_url(url),
+        }
+    }
 }
 
 impl Login {
@@ -29,6 +52,12 @@ impl Login {
             .client(reqwest::Client::new())
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
+
+        let browser_opener = if self.no_open {
+            BrowserOpener::Noop(NoopOpenUrl::default())
+        } else {
+            BrowserOpener::System(SystemOpenUrl::default())
+        };
 
         let stderr = rover_print::print::stderr::default();
         let authorization_flow = AuthorizationFlow::builder()
@@ -39,7 +68,7 @@ impl Login {
         let authorization_flow = authorization_flow
             .authorize(
                 Vec::new(),
-                &SystemOpenUrl::default(),
+                &browser_opener,
                 &stderr,
                 AxumRedirectServer::default(),
             )

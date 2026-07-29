@@ -85,14 +85,11 @@ fn read_until_matching(reader: &mut BufReader<ChildStderr>, matcher: &Regex) -> 
 }
 
 // `rover auth login` always prints the authorization URL (state + local
-// callback port included) to stderr before attempting to open a browser,
-// regardless of whether that succeeds - so this test doesn't need a real
-// browser, a hidden flag, or any platform-specific trickery at all. It
-// scrapes that URL, forges the browser's redirect itself, and confirms
-// `rover auth login` really did complete and store a credential by then
-// successfully logging back out of it. (If a real browser happens to be
-// available, it may also open pointed at the mock IdP - harmless, since the
-// test doesn't depend on what it does.)
+// callback port included) to stderr, regardless of whether a browser opens -
+// `--no-open` skips the open attempt entirely, so this test never launches a
+// real browser. It scrapes the printed URL, forges the browser's redirect
+// itself, and confirms `rover auth login` really did complete and store a
+// credential by then successfully logging back out of it.
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
@@ -120,6 +117,7 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
         .args([
             "auth",
             "login",
+            "--no-open",
             "--profile",
             HAPPY_PATH_PROFILE,
             "--oauth-token-url",
