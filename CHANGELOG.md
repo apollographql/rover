@@ -28,6 +28,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `rover auth logout`, gated behind the experimental `oauth` feature flag - @dotdat**
+
+  `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.
+
 ## 🐛 Fixes
 
 - **Fix a flaky lint-report test - @dotdat**
@@ -50,7 +54,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add `rover auth login`, gated behind an experimental `oauth` feature flag - @dotdat**
 
-  `rover auth login` authenticates via OAuth 2.0 (PKCE authorization-code flow): it opens your browser, completes the login against Apollo's Identity service, and stores the resulting session the same way `rover config auth` stores a Personal API Key (`--profile <name>` works the same way). Only compiled in when built with `--features oauth` — off by default, and not part of any released binary yet. Uses a static, pre-registered OAuth client (one per environment) rather than registering a new client per install; the top-level `--oauth-authorization-url`/`--oauth-token-url`/`--oauth-client-id` flags override the defaults (Apollo's production OAuth server and its registered `rover` client) for testing against other environments. These are top-level flags, not ones scoped to `auth login`, so they'll also apply to any future command that needs to refresh an OAuth token.
+  `rover auth login` authenticates via OAuth 2.0 (PKCE authorization-code flow): it opens your browser, completes the login against Apollo's Identity service, and stores the resulting session the same way `rover config auth` stores a Personal API Key (`--profile <name>` works the same way). Only compiled in when built with `--features oauth` — off by default, and not part of any released binary yet. Uses a static, pre-registered OAuth client (one per environment) rather than registering a new client per install; the top-level `--oauth-authorization-url`/`--oauth-token-url`/`--oauth-client-id` flags override the defaults (Apollo's production OAuth server and its registered `rover` client) for testing against other environments. These are top-level flags, not ones scoped to `auth login`, so they'll also apply to any future command that needs to refresh an OAuth token. The authorization URL is always printed to stderr regardless of whether a browser opens; pass `--no-open` to skip the open attempt entirely — useful over SSH or in any environment without a browser.
 
 # [0.41.0] - 2026-07-09
 

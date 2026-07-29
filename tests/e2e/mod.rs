@@ -28,6 +28,8 @@ use tokio::{
 };
 use tracing::{info, warn};
 
+#[cfg(feature = "oauth")]
+mod auth;
 mod config;
 mod dev;
 mod graph;
