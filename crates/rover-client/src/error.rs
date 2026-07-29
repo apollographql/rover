@@ -439,8 +439,12 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
     fn from(value: GraphQLServiceError<T>) -> Self {
         match value {
-            GraphQLServiceError::NoData(_) => RoverClientError::GraphQl {
-                msg: value.to_string(),
+            GraphQLServiceError::NoData(errors) => RoverClientError::GraphQl {
+                msg: if errors.is_empty() {
+                    "No data field provided".to_string()
+                } else {
+                    errors.iter().map(|err| err.to_string()).join("\n")
+                },
             },
             GraphQLServiceError::PartialError { errors, .. } => {
                 let errors = errors.iter().map(|err| err.to_string()).join("\n");
