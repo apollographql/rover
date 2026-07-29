@@ -16,6 +16,9 @@ pub struct CheckWorkflowResponse {
     // None here means there was no core schema (or build step) for this
     // check which is the case for `graph check`.
     pub maybe_core_schema_modified: Option<bool>,
+    // The status of the build check, when the workflow includes one.
+    #[serde(skip)]
+    pub maybe_core_schema_status: Option<CheckTaskStatus>,
     // TODO: I didn't have time to refactor this into a list with
     // a common task abstraction.
     pub maybe_operations_response: Option<OperationCheckResponse>,
@@ -30,9 +33,11 @@ impl CheckWorkflowResponse {
     pub fn get_output(&self) -> String {
         let mut msg = String::new();
 
-        if let Some(core_schema_modified) = self.maybe_core_schema_modified {
-            msg.push('\n');
-            msg.push_str(&Self::task_title("Build Check", CheckTaskStatus::PASSED));
+        if let (Some(core_schema_modified), Some(core_schema_status)) = (
+            self.maybe_core_schema_modified,
+            self.maybe_core_schema_status.clone(),
+        ) {
+            msg.push_str(&Self::task_title("Build Check", core_schema_status));
             if core_schema_modified {
                 msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
             } else {
@@ -41,7 +46,6 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(operations_response) = &self.maybe_operations_response {
-            msg.push('\n');
             msg.push_str(&Self::task_title(
                 "Operation Check",
                 operations_response.task_status.clone(),
@@ -50,7 +54,6 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            msg.push('\n');
             msg.push_str(&Self::task_title(
                 "Linter Check",
                 lint_response.task_status.clone(),
@@ -59,7 +62,6 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(proposals_response) = &self.maybe_proposals_response {
-            msg.push('\n');
             msg.push_str(&Self::task_title(
                 "Proposals Check",
                 proposals_response.task_status.clone(),
@@ -68,7 +70,6 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(custom_response) = &self.maybe_custom_response {
-            msg.push('\n');
             msg.push_str(&Self::task_title(
                 "Custom Check",
                 custom_response.task_status.clone(),
@@ -78,7 +79,6 @@ impl CheckWorkflowResponse {
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
             if !downstream_response.blocking_variants.is_empty() {
-                msg.push('\n');
                 msg.push_str(&Self::task_title(
                     "Downstream Check",
                     downstream_response.task_status.clone(),

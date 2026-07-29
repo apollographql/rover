@@ -21,7 +21,8 @@ use crate::{
         check_workflow_poll::{poll_check_workflow, PollState},
         CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse,
         LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
+        CheckTaskStatus, ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal,
+        SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -117,6 +118,7 @@ fn get_check_response_from_data(
         })?;
 
     let mut core_schema_modified = false;
+    let mut core_schema_status: Option<CheckTaskStatus> = None;
     let mut composition_errors = Vec::new();
 
     let mut operations_status = None;
@@ -151,6 +153,7 @@ fn get_check_response_from_data(
     for task in check_workflow.tasks {
         match task.on {
             CompositionCheckTask(typed_task) => {
+                core_schema_status = Some(task.status.into());
                 core_schema_modified = typed_task.core_schema_modified;
                 if let Some(result) = typed_task.result {
                     composition_errors = result.errors;
@@ -225,6 +228,7 @@ fn get_check_response_from_data(
     let check_response = CheckWorkflowResponse {
         default_target_url,
         maybe_core_schema_modified: Some(core_schema_modified),
+        maybe_core_schema_status: core_schema_status,
         maybe_operations_response: get_operations_response_from_result(
             operations_target_url,
             number_of_checked_operations,
