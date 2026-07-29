@@ -1,1 +1,2 @@
 mod logout;
+mod whoami;

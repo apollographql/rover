@@ -2,7 +2,7 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
-mod whoami;
+pub(crate) mod whoami;
 
 use clap::Parser;
 use serde::Serialize;
@@ -40,7 +40,11 @@ impl Config {
             Command::List(command) => command.run(client_config.config),
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
-            Command::Whoami(command) => command.run(client_config).await,
+            Command::Whoami(command) => {
+                command
+                    .run(client_config, &rover_print::print::stderr::default())
+                    .await
+            }
         }
     }
 }

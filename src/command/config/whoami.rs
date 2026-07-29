@@ -7,6 +7,7 @@ use rover_client::{
     blocking::StudioClient,
     operations::config::who_am_i::{self, Actor, RegistryIdentity},
 };
+use rover_print::{print::Print, style::StyledText};
 use serde::Serialize;
 
 use crate::{
@@ -30,9 +31,45 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        stderr: &impl Print,
+    ) -> RoverResult<RoverOutput> {
+        #[cfg(feature = "oauth")]
+        stderr.print(&StyledText::plain(
+            "note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.",
+        ))?;
+
+        LegacyWhoami {
+            profile: self.profile.clone(),
+            insecure_unmask_key: self.insecure_unmask_key,
+        }
+        .run(&client_config, stderr)
+        .await
+    }
+}
+
+/// Looks up the identity of a legacy API key (from an env var or a
+/// profile's stored `ApiKey` credential) against Apollo Studio's GraphQL API.
+///
+/// Not a `clap` command itself - shared by `rover config whoami` and the
+/// legacy-credential branch of `rover auth whoami`.
+pub(crate) struct LegacyWhoami {
+    pub(crate) profile: ProfileOpt,
+    pub(crate) insecure_unmask_key: bool,
+}
+
+impl LegacyWhoami {
+    pub(crate) async fn run(
+        &self,
+        client_config: &StudioClientConfig,
+        stderr: &impl Print,
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        eprintln!("Checking identity of your API key against the registry.");
+        stderr.print(&StyledText::plain(
+            "Checking identity of your API key against the registry.",
+        ))?;
 
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
@@ -109,8 +146,8 @@ impl WhoAmI {
 mod tests {
     use super::*;
 
-    pub fn get_who_am_i(unmasked_key: bool) -> WhoAmI {
-        WhoAmI {
+    pub fn get_legacy_whoami(unmasked_key: bool) -> LegacyWhoami {
+        LegacyWhoami {
             profile: ProfileOpt {
                 profile_name: "default".to_string(),
             },
@@ -152,102 +189,100 @@ mod tests {
 
     #[test]
     fn it_can_get_origin() {
-        let wai = get_who_am_i(false);
+        let legacy_whoami = get_legacy_whoami(false);
 
         assert_eq!(
-            WhoAmI::get_origin(&wai, &get_studio_client(CredentialOrigin::EnvVar)),
+            legacy_whoami.get_origin(&get_studio_client(CredentialOrigin::EnvVar)),
             format!("${}", RoverEnvKey::Key)
         );
         assert_eq!(
-            WhoAmI::get_origin(
-                &wai,
-                &get_studio_client(CredentialOrigin::ConfigFile("default".to_string()))
-            ),
+            legacy_whoami.get_origin(&get_studio_client(CredentialOrigin::ConfigFile(
+                "default".to_string()
+            ))),
             "--profile default".to_string()
         );
         assert_eq!(
-            WhoAmI::get_origin(
-                &wai,
-                &get_studio_client(CredentialOrigin::OAuth("default".to_string()))
-            ),
+            legacy_whoami.get_origin(&get_studio_client(CredentialOrigin::OAuth(
+                "default".to_string()
+            ))),
             "--profile default (OAuth)".to_string()
         );
     }
 
     #[test]
     fn it_can_validate_actor_type() {
-        let woi = get_who_am_i(false);
+        let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
-        assert!(WhoAmI::is_valid_actor_type(&woi, &user_identity));
-        assert!(WhoAmI::is_valid_actor_type(&woi, &graph_identity));
-        assert!(!WhoAmI::is_valid_actor_type(&woi, &other_identity));
+        assert!(legacy_whoami.is_valid_actor_type(&user_identity));
+        assert!(legacy_whoami.is_valid_actor_type(&graph_identity));
+        assert!(!legacy_whoami.is_valid_actor_type(&other_identity));
     }
 
     #[test]
     fn it_can_get_maybe_masked_api_key() {
-        let wai_masked = get_who_am_i(false);
-        let wai_unmasked = get_who_am_i(true);
+        let legacy_whoami_masked = get_legacy_whoami(false);
+        let legacy_whoami_unmasked = get_legacy_whoami(true);
 
         let credential = get_credential();
 
         assert_eq!(
-            WhoAmI::get_maybe_masked_api_key(&wai_masked, &credential),
+            legacy_whoami_masked.get_maybe_masked_api_key(&credential),
             mask_key(&credential.api_key)
         );
 
         assert_eq!(
-            WhoAmI::get_maybe_masked_api_key(&wai_unmasked, &credential),
+            legacy_whoami_unmasked.get_maybe_masked_api_key(&credential),
             credential.api_key
         );
     }
 
     #[test]
     fn it_can_get_graph_title() {
-        let wai = get_who_am_i(false);
+        let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
-        assert_eq!(WhoAmI::get_graph_title(&wai, &user_identity), None);
-        assert_eq!(WhoAmI::get_graph_title(&wai, &other_identity), None);
+        assert_eq!(legacy_whoami.get_graph_title(&user_identity), None);
+        assert_eq!(legacy_whoami.get_graph_title(&other_identity), None);
 
         assert_eq!(
-            WhoAmI::get_graph_title(&wai, &graph_identity),
+            legacy_whoami.get_graph_title(&graph_identity),
             graph_identity.graph_title
         );
     }
 
     #[test]
     fn it_can_get_graph_id() {
-        let wai = get_who_am_i(false);
+        let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
-        assert_eq!(WhoAmI::get_graph_id(&wai, &user_identity), None);
-        assert_eq!(WhoAmI::get_graph_id(&wai, &other_identity), None);
+        assert_eq!(legacy_whoami.get_graph_id(&user_identity), None);
+        assert_eq!(legacy_whoami.get_graph_id(&other_identity), None);
 
         assert_eq!(
-            WhoAmI::get_graph_id(&wai, &graph_identity),
+            legacy_whoami.get_graph_id(&graph_identity),
             Some(graph_identity.id)
         );
     }
 
     #[test]
     fn it_can_get_user_id() {
-        let wai = get_who_am_i(false);
+        let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
         assert_eq!(
-            WhoAmI::get_user_id(&wai, &user_identity),
+            legacy_whoami.get_user_id(&user_identity),
             Some(user_identity.id)
         );
-        assert_eq!(WhoAmI::get_user_id(&wai, &graph_identity), None);
-        assert_eq!(WhoAmI::get_user_id(&wai, &other_identity), None);
+        assert_eq!(legacy_whoami.get_user_id(&graph_identity), None);
+        assert_eq!(legacy_whoami.get_user_id(&other_identity), None);
     }
 }

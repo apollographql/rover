@@ -1,0 +1,52 @@
+use assert_cmd::cargo::cargo_bin_cmd;
+use rstest::rstest;
+use serde::Deserialize;
+use serde_json::Value;
+use speculoos::{assert_that, prelude::BooleanAssertions};
+use tempfile::Builder;
+
+#[derive(Deserialize, Debug)]
+#[allow(dead_code)]
+struct WhoAmIResponse {
+    api_key: String,
+    graph_id: Option<String>,
+    graph_title: Option<String>,
+    key_type: String,
+    origin: String,
+    success: bool,
+    user_id: Option<String>,
+}
+
+// Exercises the legacy-credential branch of `rover auth whoami` (an
+// `APOLLO_KEY`-sourced profile), mirroring `tests/e2e/config/whoami.rs`. The
+// OAuth-credential branch isn't covered here - it isn't practical to exercise
+// without a live, previously-completed `rover auth login` session.
+#[rstest]
+#[ignore]
+fn e2e_test_rover_auth_whoami() {
+    let out_file = Builder::new()
+        .suffix(".json")
+        .tempfile()
+        .expect("Could not create output file");
+
+    let mut cmd = cargo_bin_cmd!("rover");
+    cmd.args([
+        "auth",
+        "whoami",
+        "--format",
+        "json",
+        "--output",
+        out_file.path().to_str().unwrap(),
+    ])
+    .assert()
+    .success();
+
+    let response: Value =
+        serde_json::from_reader(out_file.as_file()).expect("Cannot read JSON from response file");
+    // In deserializing the response, we're proving that sensitive details are present without
+    // actually printing them
+    let deserialised_response: WhoAmIResponse =
+        serde_json::from_value(response["data"].clone()).unwrap();
+    // However we should assert on at least one just to double check that were' getting a sensible response
+    assert_that!(deserialised_response.success).is_true();
+}

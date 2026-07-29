@@ -13,6 +13,8 @@ pub(crate) static DEFAULT_TOKEN_URL: LazyLock<Url> =
     LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/token"));
 pub(crate) static DEFAULT_REVOCATION_URL: LazyLock<Url> =
     LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/revoke"));
+pub(crate) static DEFAULT_WHOAMI_URL: LazyLock<Url> =
+    LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/userinfo"));
 
 // Static client ID registered for `rover auth login` against the production
 // Identity server, via `cargo xtask register-oauth-client --env prod`
@@ -45,6 +47,14 @@ pub struct OauthOpts {
         default_value = DEFAULT_TOKEN_URL.as_str()
     )]
     pub(crate) token_url: Url,
+
+    /// Override the OAuth whoami/userinfo endpoint `rover auth whoami` uses.
+    #[arg(
+        long = "oauth-whoami-url",
+        global = true,
+        default_value = DEFAULT_WHOAMI_URL.as_str()
+    )]
+    pub(crate) whoami_url: Url,
 
     /// Override the OAuth client ID `rover auth login` uses.
     #[arg(long = "oauth-client-id", global = true, default_value = DEFAULT_CLIENT_ID)]
