@@ -42,6 +42,16 @@ pub struct Credential {
     pub expires_at: Option<i64>,
 }
 
+/// A profile's stored OAuth session (both tokens), as opposed to
+/// [`Credential`] which only carries the token used to authenticate.
+#[derive(Clone, Debug)]
+pub struct OAuthSession {
+    /// The current access token.
+    pub access_token: String,
+    /// A refresh token, if the authorization server issued one.
+    pub refresh_token: Option<String>,
+}
+
 /// Info about where the API key was retrieved
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CredentialOrigin {
@@ -88,6 +98,34 @@ impl Profile {
             expires_at,
         }
         .save(name, config)
+    }
+
+    /// Returns the profile's stored OAuth session, or `None` if the profile's
+    /// stored credential is a legacy API key (from `rover config auth`)
+    /// rather than an OAuth session (from `rover auth login`). Used by
+    /// `rover auth logout` to revoke both tokens before deleting local storage.
+    ///
+    /// Unlike [`Profile::get_credential`], this does not consult
+    /// `config.override_api_key` (the `APOLLO_KEY` env var) — logout always
+    /// acts on the profile's own stored credential, regardless of any
+    /// runtime override.
+    pub fn get_oauth_session(
+        name: &str,
+        config: &Config,
+    ) -> Result<Option<OAuthSession>, HoustonProblem> {
+        let opts = LoadOpts { sensitive: true };
+        let profile = Profile::load(name, config, opts)?;
+        Ok(match profile.sensitive {
+            Sensitive::OAuth {
+                access_token,
+                refresh_token,
+                ..
+            } => Some(OAuthSession {
+                access_token,
+                refresh_token,
+            }),
+            Sensitive::ApiKey { .. } => None,
+        })
     }
 
     /// Returns a credential for interacting with Apollo services.
@@ -238,6 +276,7 @@ mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use rstest::{fixture, rstest};
+    use serial_test::serial;
     use speculoos::prelude::*;
 
     use super::*;
@@ -297,7 +336,12 @@ mod tests {
     }
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored OAuth token.
+    //
+    // `#[serial]`: these tests exercise the real OS credential store (not a
+    // mock), which doesn't reliably sequence concurrent multi-threaded access
+    // on Windows - see `RoverSecretStore::verify_write_visible`.
     #[rstest]
+    #[serial]
     fn get_credential_prefers_env_var_over_a_stored_oauth_token(
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
@@ -321,6 +365,7 @@ mod tests {
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored legacy API key.
     #[rstest]
+    #[serial]
     fn get_credential_prefers_env_var_over_a_stored_legacy_api_key(
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
@@ -336,6 +381,7 @@ mod tests {
 
     // With no env var set, a stored OAuth token should be returned as the credential.
     #[rstest]
+    #[serial]
     fn get_credential_returns_a_stored_oauth_token_when_no_env_var_is_set(
         test_config: (Config, TempDir),
     ) {
@@ -359,6 +405,7 @@ mod tests {
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
     #[rstest]
+    #[serial]
     fn get_credential_falls_back_to_the_legacy_api_key_when_no_oauth_token_is_stored(
         test_config: (Config, TempDir),
     ) {
@@ -376,6 +423,7 @@ mod tests {
 
     // `set_oauth_tokens` must replace a previously stored legacy API key, not coexist with it.
     #[rstest]
+    #[serial]
     fn set_oauth_tokens_overwrites_a_previously_stored_legacy_api_key(
         test_config: (Config, TempDir),
     ) {
@@ -393,6 +441,7 @@ mod tests {
 
     // `set_api_key` must replace a previously stored OAuth token, not coexist with it.
     #[rstest]
+    #[serial]
     fn set_api_key_overwrites_a_previously_stored_oauth_token(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
         let profile = "api-key-overwrites-oauth";

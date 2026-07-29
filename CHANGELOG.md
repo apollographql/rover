@@ -28,7 +28,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `rover auth logout`, gated behind the experimental `oauth` feature flag - @dotdat**
+
+  `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.
+
 ## 🐛 Fixes
+
+- **Fix a flaky lint-report test - @dotdat**
+
+  `rover-client`'s `utf8_points_to_correct_place` test could fail depending on whether the `NO_COLOR`/`APOLLO_NO_COLOR` environment variables happened to be set in the environment running the test suite, since that changes not just color but the literal report-kind text ("Warning" vs the raw "WARNING" level string). The test now pins both env vars unset for its duration, so it's deterministic regardless of the ambient environment. No user-facing behavior change.
 
 ## 🛠 Maintenance
 
@@ -42,7 +50,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add OAuth token storage to the credential model - @dotdat**
 
-  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing only — no command yet writes an OAuth credential, so existing workflows are unaffected.
+  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing — see `rover auth login` below for the command that now writes one.
+
+- **Add `rover auth login`, gated behind an experimental `oauth` feature flag - @dotdat**
+
+  `rover auth login` authenticates via OAuth 2.0 (PKCE authorization-code flow): it opens your browser, completes the login against Apollo's Identity service, and stores the resulting session the same way `rover config auth` stores a Personal API Key (`--profile <name>` works the same way). Only compiled in when built with `--features oauth` — off by default, and not part of any released binary yet. Uses a static, pre-registered OAuth client (one per environment) rather than registering a new client per install; the top-level `--oauth-authorization-url`/`--oauth-token-url`/`--oauth-client-id` flags override the defaults (Apollo's production OAuth server and its registered `rover` client) for testing against other environments. These are top-level flags, not ones scoped to `auth login`, so they'll also apply to any future command that needs to refresh an OAuth token. The authorization URL is always printed to stderr regardless of whether a browser opens; pass `--no-open` to skip the open attempt entirely — useful over SSH or in any environment without a browser.
 
 # [0.41.0] - 2026-07-09
 

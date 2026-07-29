@@ -13,7 +13,7 @@ pub mod revoke_token;
 /// User status (whoami) service.
 pub mod status;
 
-pub use oauth2::{AccessToken, RefreshToken, RevocableToken, Scope};
+pub use oauth2::{AccessToken, RefreshToken, RevocableToken, Scope, StandardRevocableToken};
 
 /// OAuth2 grant type.
 #[derive(Clone, Copy, Debug, Serialize)]

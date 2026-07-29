@@ -74,6 +74,7 @@ rstest = { workspace = true }
 rover-tower = { workspace = true, features = ["test"] }
 speculoos = { workspace = true }
 strip-ansi-escapes = { workspace = true }
+temp-env = "0.3"
 tower-test = { workspace = true }
 tokio-test = { workspace = true }
 tracing-test = { workspace = true }

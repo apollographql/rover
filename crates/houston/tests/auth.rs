@@ -3,8 +3,16 @@ use camino::Utf8Path;
 use config::Config;
 use houston as config;
 use rover_print::print::testing::TerminalCapture;
+use serial_test::serial;
+use speculoos::prelude::*;
 
+// Tests below that exercise `Profile`/`Config::clear` touch the real OS
+// credential store (not a mock), which - per `windows-native-keyring-store`'s
+// own docs, quoted in `RoverSecretStore::verify_write_visible` - doesn't
+// reliably sequence concurrent multi-threaded access on Windows. `#[serial]`
+// keeps this file's store-touching tests from racing each other on CI.
 #[test]
+#[serial]
 fn it_can_set_and_get_an_api_key() {
     let config = get_config(None);
 
@@ -41,6 +49,7 @@ fn it_can_set_and_get_an_api_key() {
 }
 
 #[test]
+#[serial]
 fn it_migrates_a_legacy_plaintext_credential() {
     let config = get_config(None);
 
@@ -77,6 +86,41 @@ fn it_migrates_a_legacy_plaintext_credential() {
 }
 
 #[test]
+#[serial]
+fn it_can_set_and_get_an_oauth_session() {
+    let config = get_config(None);
+    let profile = "oauth-session-roundtrip";
+
+    config::Profile::set_oauth_tokens(
+        profile,
+        &config,
+        "access-token".to_string(),
+        Some("refresh-token".to_string()),
+        Some(1_700_000_000),
+    )
+    .expect("storing oauth tokens failed");
+
+    let session = config::Profile::get_oauth_session(profile, &config)
+        .expect("retrieving oauth session failed")
+        .expect("expected a stored oauth session");
+    assert_that!(session.access_token).is_equal_to("access-token".to_string());
+    assert_that!(session.refresh_token).is_equal_to(Some("refresh-token".to_string()));
+}
+
+#[test]
+#[serial]
+fn it_returns_no_oauth_session_for_a_legacy_api_key_profile() {
+    let config = get_config(None);
+    let profile = "legacy-api-key-has-no-oauth-session";
+
+    config::Profile::set_api_key(profile, &config, "some-key").expect("setting api key failed");
+
+    let session = config::Profile::get_oauth_session(profile, &config)
+        .expect("retrieving oauth session failed");
+    assert_that!(session).is_none();
+}
+
+#[test]
 fn it_can_get_an_api_key_via_env_var() {
     let profile = "env-var-override";
     let api_key = "superdupersecret";
@@ -91,6 +135,7 @@ fn it_can_get_an_api_key_via_env_var() {
 }
 
 #[test]
+#[serial]
 fn it_prioritizes_env_var_override_even_when_a_profile_credential_exists() {
     let profile = "override-precedence";
     let profile_key = "profile-based-key";
@@ -112,6 +157,7 @@ fn it_prioritizes_env_var_override_even_when_a_profile_credential_exists() {
 }
 
 #[test]
+#[serial]
 fn it_returns_profile_not_found_for_missing_profile_when_others_exist() {
     let config = get_config(None);
     config::Profile::set_api_key("existing-profile", &config, "some-key")
@@ -134,6 +180,7 @@ fn it_returns_no_config_profiles_when_none_exist() {
 }
 
 #[test]
+#[serial]
 fn it_rejects_a_corrupted_legacy_credential() {
     let config = get_config(None);
     let profile = "corrupted-legacy";
@@ -155,6 +202,7 @@ fn it_rejects_a_corrupted_legacy_credential() {
 }
 
 #[test]
+#[serial]
 fn it_rejects_a_corrupted_credential_via_current_api() {
     let config = get_config(None);
     let profile = "corrupted-current";
@@ -168,6 +216,7 @@ fn it_rejects_a_corrupted_credential_via_current_api() {
 }
 
 #[test]
+#[serial]
 fn it_surfaces_malformed_legacy_toml_as_a_deserialization_error() {
     let config = get_config(None);
     let profile = "malformed-legacy";
@@ -190,6 +239,7 @@ fn it_surfaces_malformed_legacy_toml_as_a_deserialization_error() {
 }
 
 #[test]
+#[serial]
 fn it_does_not_leak_an_orphaned_secret_after_delete() {
     let config = get_config(None);
     let profile = "delete-then-recreate-dir";
@@ -212,6 +262,7 @@ fn it_does_not_leak_an_orphaned_secret_after_delete() {
 }
 
 #[test]
+#[serial]
 fn it_errors_cleanly_when_deleting_a_profile_that_does_not_exist() {
     let config = get_config(None);
 
@@ -238,6 +289,7 @@ fn it_rejects_a_non_directory_override_home() {
 }
 
 #[test]
+#[serial]
 fn it_errors_when_clearing_an_already_cleared_config() {
     let config = get_config(None);
     config::Profile::set_api_key("clear-twice", &config, "some-key")

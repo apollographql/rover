@@ -88,6 +88,10 @@ default = ["composition-js"]
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 
+# gates `rover auth login` and its supporting OAuth machinery, which is still
+# under active development (ROVER-391) and not yet ready for general release.
+oauth = ["dep:rover-auth", "dep:rover-open"]
+
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }
@@ -117,7 +121,7 @@ apollo-compiler = "1.31.1"
 apollo-parser = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { version = "=0.17.6", features = ["json_schema"] }
+apollo-federation-types = { version = "=0.17.7", features = ["json_schema"] }
 apollo-language-server = { version = "=0.9.0", default-features = false, features = ["tokio"] }
 
 # tree-sitter grammars for client extraction
@@ -136,7 +140,7 @@ async-trait = "0.1"
 axum = "0.8.8"
 backtrace = "0.3"
 backon = { version = "1.4", features = ["std", "tokio-sleep"] }
-base64 = "0.22"
+base64 = "0.23"
 billboard = "0.2"
 bon = "3.8.2"
 buildstructor = "0.6"
@@ -194,7 +198,7 @@ rstest = "0.26"
 schemars = "1"
 sealed_test = "1.1.0"
 semver = "1"
-serial_test = "3"
+serial_test = "4"
 serde = "1"
 serde_json = "1"
 serde_with = { version = "3", default-features = false, features = ["macros"] }
@@ -230,6 +234,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
+url-static = "0.2"
 webbrowser = "1"
 zip = "8"
 
@@ -279,9 +284,11 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
+rover-auth = { workspace = true, optional = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
+rover-open = { workspace = true, optional = true }
 rover-print = { workspace = true }
 rover-schema = { workspace = true }
 rover-std = { workspace = true }
@@ -312,6 +319,7 @@ tower-lsp = { version = "0.20" }
 tracing = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+url-static = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }
@@ -322,6 +330,7 @@ apollo-compiler = { workspace = true }
 apollo-parser = { workspace = true }
 assert_cmd = { workspace = true }
 assert-json-diff = { workspace = true }
+bytes = { workspace = true }
 dircpy = "0.3"
 dunce = { workspace = true }
 duct = "1"
@@ -331,7 +340,7 @@ httpmock = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 json-matcher = "0.1"
-jsonschema = "0.48"
+jsonschema = "0.49"
 mime = "0.3"
 mockall = "0.15"
 portpicker = "0.1"
@@ -339,6 +348,8 @@ predicates = { workspace = true }
 rand_regex = "0.19"
 reqwest = { workspace = true, features = ["rustls"] }
 rover-client = { workspace = true, features = ["testing"] }
+rover-http = { workspace = true, features = ["test"] }
+rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
 serial_test = { workspace = true }

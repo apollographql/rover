@@ -135,13 +135,23 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
             .authorize_url(CsrfToken::new_random)
             .add_scopes(scopes)
             .set_pkce_challenge(pkce_challenge)
+            .add_extra_param("prompt", "login")
             .url();
 
+        // Printed unconditionally (not just when opening fails) so the link
+        // is always available to copy - over SSH, if the wrong browser
+        // opens, or if opening is skipped/fails for any other reason - and
+        // so nothing about this depends on browser-launch behavior at all.
+        if let Err(print_err) = stderr.print(&StyledText::new(
+            Style::Info,
+            format!(
+                "Opening your browser to authenticate. If it doesn't open automatically, visit this URL: {auth_url}"
+            ),
+        )) {
+            tracing::error!("Failed to print message: {}", print_err);
+        }
         if let Err(err) = open_auth_url.open_url(&auth_url) {
             tracing::error!("Failed to open URL automatically: {}", err);
-            if let Err(print_err) = stderr.print(&StyledText::new(Style::Error, format!("We were unable to open the OAuth Authorization URL automatically. Open {} in a browser to continue.", auth_url))) {
-                tracing::error!("Failed to print message: {}", print_err);
-            }
         }
         let code = redirect_server.await_response(csrf_token).await?;
         Ok(AuthorizationFlow {
@@ -247,7 +257,7 @@ mod tests {
         let scopes = vec![Scope::new("test-scope".to_string())];
         let mut mock_open_auth_url = MockOpenUrl::new();
         let mut mock_redirect_server_bind = MockRedirectServerBind::new();
-        let mock_print = MockPrint::new();
+        let mut mock_print = MockPrint::new();
         let expected_authorization_code = AuthorizationCode::new("authorizationcode".to_string());
         mock_redirect_server_bind.expect_bind().times(1).returning({
             let expected_authorization_code = expected_authorization_code.clone();
@@ -278,6 +288,7 @@ mod tests {
             .times(1)
             .withf(move |url| url.to_string().starts_with(expected_auth_url.as_str()))
             .returning(|_| Ok(()));
+        mock_print.expect_print().times(1).returning(|_| Ok(()));
         let result = pkce_flow
             .authorize(
                 scopes,
@@ -375,10 +386,10 @@ mod tests {
             .expect_print()
             .times(1)
             .withf(|message| {
-                message.style() == &Style::Error
-                    && message.text().contains(
-                        "We were unable to open the OAuth Authorization URL automatically",
-                    )
+                message.style() == &Style::Info
+                    && message
+                        .text()
+                        .contains("If it doesn't open automatically, visit this URL")
             })
             .returning(|_| Ok(()));
         let result = pkce_flow

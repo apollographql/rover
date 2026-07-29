@@ -37,6 +37,9 @@ pub enum Command {
 
     /// Publish an npm package via staged publishing
     PublishNpm(commands::PublishNpm),
+
+    /// Register a static OAuth client for `rover auth login` with an Identity environment
+    RegisterOauthClient(commands::RegisterOauthClient),
 }
 
 impl Xtask {
@@ -46,6 +49,7 @@ impl Xtask {
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
             Command::PublishNpm(command) => command.run(),
+            Command::RegisterOauthClient(command) => command.run().await,
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

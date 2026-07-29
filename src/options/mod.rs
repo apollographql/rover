@@ -5,6 +5,8 @@ mod graph;
 mod introspect;
 mod license;
 mod lint;
+#[cfg(feature = "oauth")]
+mod oauth;
 mod output;
 mod persisted_queries;
 mod profile;
@@ -20,6 +22,8 @@ pub(crate) use graph::*;
 pub(crate) use introspect::*;
 pub(crate) use license::*;
 pub(crate) use lint::*;
+#[cfg(feature = "oauth")]
+pub(crate) use oauth::*;
 pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
