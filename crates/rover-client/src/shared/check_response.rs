@@ -37,7 +37,7 @@ impl CheckWorkflowResponse {
             self.maybe_core_schema_modified,
             self.maybe_core_schema_status.clone(),
         ) {
-            msg.push_str(&Self::task_title("Build Check", core_schema_status));
+            Self::append_task_title(&mut msg, "Build Check", core_schema_status);
             if core_schema_modified {
                 msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
             } else {
@@ -46,43 +46,48 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(operations_response) = &self.maybe_operations_response {
-            msg.push_str(&Self::task_title(
+            Self::append_task_title(
+                &mut msg,
                 "Operation Check",
                 operations_response.task_status.clone(),
-            ));
+            );
             msg.push_str(operations_response.get_output().as_str());
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            msg.push_str(&Self::task_title(
+            Self::append_task_title(
+                &mut msg,
                 "Linter Check",
                 lint_response.task_status.clone(),
-            ));
+            );
             msg.push_str(lint_response.get_output().as_str());
         }
 
         if let Some(proposals_response) = &self.maybe_proposals_response {
-            msg.push_str(&Self::task_title(
+            Self::append_task_title(
+                &mut msg,
                 "Proposals Check",
                 proposals_response.task_status.clone(),
-            ));
+            );
             msg.push_str(proposals_response.get_output().as_str());
         }
 
         if let Some(custom_response) = &self.maybe_custom_response {
-            msg.push_str(&Self::task_title(
+            Self::append_task_title(
+                &mut msg,
                 "Custom Check",
                 custom_response.task_status.clone(),
-            ));
+            );
             msg.push_str(custom_response.get_output().as_str());
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
             if !downstream_response.blocking_variants.is_empty() {
-                msg.push_str(&Self::task_title(
+                Self::append_task_title(
+                    &mut msg,
                     "Downstream Check",
                     downstream_response.task_status.clone(),
-                ));
+                );
                 msg.push_str(downstream_response.get_output().as_str());
             }
         }
@@ -123,9 +128,16 @@ impl CheckWorkflowResponse {
         json_result
     }
 
+    fn append_task_title(msg: &mut String, title: &str, status: CheckTaskStatus) {
+        if !msg.is_empty() {
+            msg.push('\n');
+        }
+        msg.push_str(&Self::task_title(title, status));
+    }
+
     fn task_title(title: &str, status: CheckTaskStatus) -> String {
         format!(
-            "\n{} [{}]:\n",
+            "{} [{}]:\n",
             Style::Heading.paint(title),
             match status {
                 CheckTaskStatus::BLOCKED => status.as_ref().to_string(),

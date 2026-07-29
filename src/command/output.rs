@@ -1414,8 +1414,7 @@ mod tests {
             .expect("Expected response to exist");
         let actual_text = strip_ansi_codes(&actual_text);
 
-        let expected_text = "
-Build Check [PASSED]:
+        let expected_text = "Build Check [PASSED]:
 There were no changes detected in the composed API schema, but the core schema was modified.
 
 Operation Check [PASSED]:
@@ -1461,7 +1460,44 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
         assert_eq!(
             actual_text,
-            "\nOperation Check [PASSED]:\nCompared 0 schema changes against 0 operations.\nNo schema changes detected."
+            "Operation Check [PASSED]:\nCompared 0 schema changes against 0 operations.\nNo schema changes detected."
+        );
+    }
+
+    #[test]
+    fn check_graph_response_text_includes_each_present_task() {
+        let check_response = CheckWorkflowResponse {
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/checks"
+                .to_string(),
+            maybe_core_schema_modified: None,
+            maybe_core_schema_status: None,
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                None,
+                0,
+                vec![],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: None,
+                diagnostics: vec![],
+                errors_count: 0,
+                warnings_count: 0,
+            }),
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+        };
+
+        let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        assert_eq!(
+            actual_text,
+            "Operation Check [PASSED]:\nCompared 0 schema changes against 0 operations.\nNo schema changes detected.\n\nLinter Check [FAILED]:\nNo linting errors or warnings found."
         );
     }
 
@@ -1486,7 +1522,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
 
         assert_eq!(
             actual_text,
-            "\nBuild Check [BLOCKED]:\nThere were no changes detected in the composed schema."
+            "Build Check [BLOCKED]:\nThere were no changes detected in the composed schema."
         );
     }
 
