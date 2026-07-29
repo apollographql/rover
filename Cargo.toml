@@ -92,8 +92,6 @@ composition-js = []
 # under active development (ROVER-391) and not yet ready for general release.
 oauth = ["dep:rover-auth", "dep:rover-open"]
 
-testing = []
-
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
 # my-dependency = { workspace = true }

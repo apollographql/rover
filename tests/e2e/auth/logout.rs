@@ -84,16 +84,15 @@ fn read_until_matching(reader: &mut BufReader<ChildStderr>, matcher: &Regex) -> 
     }
 }
 
-// `rover auth login` normally opens a real browser and waits on a local
-// redirect server for the OAuth consent callback - not something a test can
-// drive without a human. `--skip-browser-for-testing` (hidden, `testing`
-// feature only) sidesteps this deterministically: instead of opening a
-// browser, it forces the same fallback a genuinely browser-less environment
-// would hit, printing the authorization URL (with the PKCE `state` and the
-// redirect server's port) to stderr and then waiting on the callback exactly
-// as it would otherwise. This test scrapes that URL, forges the browser's
-// redirect itself, and confirms `rover auth login` really did complete and
-// store a credential by then successfully logging back out of it.
+// `rover auth login` always prints the authorization URL (state + local
+// callback port included) to stderr before attempting to open a browser,
+// regardless of whether that succeeds - so this test doesn't need a real
+// browser, a hidden flag, or any platform-specific trickery at all. It
+// scrapes that URL, forges the browser's redirect itself, and confirms
+// `rover auth login` really did complete and store a credential by then
+// successfully logging back out of it. (If a real browser happens to be
+// available, it may also open pointed at the mock IdP - harmless, since the
+// test doesn't depend on what it does.)
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
@@ -121,7 +120,6 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
         .args([
             "auth",
             "login",
-            "--skip-browser-for-testing",
             "--profile",
             HAPPY_PATH_PROFILE,
             "--oauth-token-url",
@@ -137,12 +135,9 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
 
     let stderr = login_child.stderr.take().expect("stderr was not piped");
     let mut reader = BufReader::new(stderr);
-    let open_url_line = read_until_matching(
-        &mut reader,
-        &Regex::new("Open (\\S+) in a browser to continue").unwrap(),
-    );
-    let auth_url_str = Regex::new(r"Open (\S+) in a browser to continue")
-        .unwrap()
+    let auth_url_pattern = Regex::new(r"visit this URL: (\S+)").unwrap();
+    let open_url_line = read_until_matching(&mut reader, &auth_url_pattern);
+    let auth_url_str = auth_url_pattern
         .captures(&open_url_line)
         .expect("expected the printed line to contain the authorization URL")
         .get(1)

@@ -58,7 +58,8 @@ async fn test_full_pkce_flow_authorize_and_exchange() {
         Ok(())
     });
 
-    let mock_print = MockPrint::new();
+    let mut mock_print = MockPrint::new();
+    mock_print.expect_print().times(1).returning(|_| Ok(()));
 
     let authorize_result = flow
         .authorize(
@@ -89,7 +90,7 @@ async fn test_full_pkce_flow_authorize_and_exchange() {
 #[rstest]
 #[tokio::test]
 #[timeout(Duration::from_secs(10))]
-async fn test_authorize_open_url_failure_falls_back_to_printed_url() {
+async fn test_authorize_still_completes_when_opening_the_browser_fails() {
     let token_server = MockServer::start();
     token_server.mock(|when, then| {
         when.method(POST).path("/token");
@@ -108,7 +109,9 @@ async fn test_authorize_open_url_failure_falls_back_to_printed_url() {
 
     let mut mock_open_url = MockOpenUrl::new();
     mock_open_url.expect_open_url().times(1).returning(|url| {
-        // Simulate browser open failure; still spawn the callback so the flow can complete.
+        // Simulate a browser-open failure; still spawn the callback so the
+        // flow can complete regardless (the URL is always printed too, but
+        // this test drives the callback directly rather than parsing it).
         let state = url
             .query_pairs()
             .find(|(k, _)| k == "state")

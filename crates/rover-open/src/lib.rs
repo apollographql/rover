@@ -25,17 +25,3 @@ impl OpenUrl for NoopOpenUrl {
         Ok(())
     }
 }
-
-/// Always reports failure, so callers relying on an `OpenUrl` consumer's
-/// open-failure fallback (e.g. printing a URL instead of launching a
-/// browser) take that path deterministically. Exists so a flow that
-/// normally needs a real browser can be driven end-to-end by a test.
-#[derive(Default, Debug)]
-pub struct PrintOnlyOpenUrl {}
-
-impl OpenUrl for PrintOnlyOpenUrl {
-    type Error = std::io::Error;
-    fn open_url(&self, _: &Url) -> Result<(), Self::Error> {
-        Err(std::io::Error::other("browser opening skipped for testing"))
-    }
-}
