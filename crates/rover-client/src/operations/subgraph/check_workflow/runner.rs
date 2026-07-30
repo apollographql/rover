@@ -153,7 +153,7 @@ fn get_check_response_from_data(
     for task in check_workflow.tasks {
         match task.on {
             CompositionCheckTask(typed_task) => {
-                core_schema_status = Some(task.status.into());
+                core_schema_status = Some(Some(task.status).into());
                 core_schema_modified = typed_task.core_schema_modified;
                 if let Some(result) = typed_task.result {
                     composition_errors = result.errors;
@@ -600,6 +600,36 @@ mod tests {
             }
             _ => panic!("Expected CheckWorkflowFailure error"),
         }
+    }
+
+    #[test]
+    fn test_get_check_response_preserves_composition_task_status() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "CompositionCheckTask",
+                    "id": "composition-task",
+                    "status": "PASSED",
+                    "targetUrl": null,
+                    "coreSchemaModified": false,
+                    "result": null
+                }
+            ]),
+        );
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+
+        let response = get_check_response_from_data(
+            data,
+            graph_ref,
+            "test-subgraph".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            response.maybe_core_schema_status,
+            Some(CheckTaskStatus::PASSED)
+        );
     }
 
     #[test]
