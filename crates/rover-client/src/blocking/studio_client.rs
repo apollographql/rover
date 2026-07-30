@@ -79,6 +79,7 @@ impl StudioClient {
         self.client
             .post::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
             .await
+            .map_err(|err| self.refine_rejected_credential_error(err))
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
@@ -93,6 +94,21 @@ impl StudioClient {
         self.client
             .post_no_retry::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
             .await
+            .map_err(|err| self.refine_rejected_credential_error(err))
+    }
+
+    /// Upgrades a registry rejection to [`RoverClientError::MalformedKey`] when the key we
+    /// sent couldn't have been accepted in the first place.
+    ///
+    /// Runs only _after_ a rejection rather than pre-flight, so Rover never refuses to send a
+    /// key that Studio would have accepted.
+    fn refine_rejected_credential_error(&self, err: RoverClientError) -> RoverClientError {
+        match err {
+            RoverClientError::InvalidKey if self.credential.has_malformed_api_key() => {
+                RoverClientError::MalformedKey
+            }
+            err => err,
+        }
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making
@@ -231,5 +247,62 @@ mod tests {
             .is_some()
             .is_equal_to(&HeaderValue::from_static("Bearer an-access-token"));
         assert_that!(headers.get("x-api-key")).is_none();
+    }
+
+    fn client_with(api_key: &str, origin: CredentialOrigin) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: api_key.to_string(),
+                origin,
+                expires_at: None,
+            },
+            "https://example.com",
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+    }
+
+    #[test]
+    fn a_rejected_credential_is_reported_as_malformed_when_the_key_shape_is_wrong() {
+        let client = client_with("not-a-real-key", CredentialOrigin::EnvVar);
+
+        let refined = client.refine_rejected_credential_error(RoverClientError::InvalidKey);
+
+        assert!(matches!(refined, RoverClientError::MalformedKey));
+    }
+
+    // Revoked, expired, and unrecognized keys all land here.
+    #[test]
+    fn a_rejected_credential_stays_invalid_when_the_key_shape_is_fine() {
+        let client = client_with("user:my-username:secretkey", CredentialOrigin::EnvVar);
+
+        let refined = client.refine_rejected_credential_error(RoverClientError::InvalidKey);
+
+        assert!(matches!(refined, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn a_rejected_oauth_token_is_never_reported_as_malformed() {
+        let client = client_with(
+            "an-access-token",
+            CredentialOrigin::OauthAuthorizationPkce("default".to_string()),
+        );
+
+        let refined = client.refine_rejected_credential_error(RoverClientError::InvalidKey);
+
+        assert!(matches!(refined, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn unrelated_errors_pass_through_untouched() {
+        let client = client_with("not-a-real-key", CredentialOrigin::EnvVar);
+
+        let refined = client.refine_rejected_credential_error(RoverClientError::GraphQl {
+            msg: "Something went wrong".to_string(),
+        });
+
+        assert!(matches!(refined, RoverClientError::GraphQl { .. }));
     }
 }

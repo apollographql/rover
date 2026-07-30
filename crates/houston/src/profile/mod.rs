@@ -42,6 +42,30 @@ pub struct Credential {
     pub expires_at: Option<i64>,
 }
 
+impl Credential {
+    /// Whether this credential is a legacy API key that doesn't match the `actor:id:secret`
+    /// shape the registry documents (`user:my-username:secretkey`, `service:graph-id:secretkey`).
+    ///
+    /// A colon inside the secret is tolerated: wrongly calling a working key malformed is worse
+    /// than failing to spot a broken one, and only the registry knows for certain. OAuth access
+    /// tokens are never malformed here - their shape isn't something the user can act on.
+    pub fn has_malformed_api_key(&self) -> bool {
+        match self.origin {
+            CredentialOrigin::OauthAuthorizationPkce(_)
+            | CredentialOrigin::OauthClientCredentials => false,
+            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                let mut parts = self.api_key.splitn(3, ':');
+                let well_formed = matches!(
+                    (parts.next(), parts.next(), parts.next()),
+                    (Some(actor), Some(id), Some(secret))
+                        if !actor.is_empty() && !id.is_empty() && !secret.is_empty()
+                );
+                !well_formed
+            }
+        }
+    }
+}
+
 /// A profile's stored OAuth session (both tokens), as opposed to
 /// [`Credential`] which only carries the token used to authenticate.
 #[derive(Clone, Debug)]
@@ -297,6 +321,41 @@ mod tests {
 
     use super::*;
     use crate::Config;
+
+    fn credential(api_key: &str, origin: CredentialOrigin) -> Credential {
+        Credential {
+            api_key: api_key.to_string(),
+            origin,
+            expires_at: None,
+        }
+    }
+
+    #[rstest]
+    #[case::personal_key("user:my-username:secretkey", false)]
+    #[case::service_key("service:graph-id:secretkey", false)]
+    #[case::colon_in_the_secret("user:my-username:secret:key", false)]
+    #[case::no_colons("not-a-real-key", true)]
+    #[case::too_few_parts("user:secretkey", true)]
+    #[case::empty_id("user::secretkey", true)]
+    #[case::empty_secret("user:my-username:", true)]
+    #[case::empty_key("", true)]
+    fn has_malformed_api_key_follows_the_documented_key_shape(
+        #[case] api_key: &str,
+        #[case] expected: bool,
+    ) {
+        let credential = credential(api_key, CredentialOrigin::EnvVar);
+
+        assert_that!(credential.has_malformed_api_key()).is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::authorization_pkce(CredentialOrigin::OauthAuthorizationPkce("default".to_string()))]
+    #[case::client_credentials(CredentialOrigin::OauthClientCredentials)]
+    fn has_malformed_api_key_ignores_oauth_access_tokens(#[case] origin: CredentialOrigin) {
+        let credential = credential("an-access-token", origin);
+
+        assert_that!(credential.has_malformed_api_key()).is_false();
+    }
 
     #[fixture]
     fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {

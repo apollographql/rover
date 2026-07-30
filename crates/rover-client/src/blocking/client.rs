@@ -205,7 +205,7 @@ impl GraphQLClient {
         match response.json::<GraphQLResponse<Q::ResponseData>>().await {
             Ok(response_body) => {
                 if let Some(response_body_errors) = response_body.errors {
-                    handle_graphql_body_errors(response_body_errors)?;
+                    handle_graphql_body_errors(response_body_errors, endpoint_kind)?;
                 }
                 match response_status {
                     StatusCode::OK => {
@@ -236,13 +236,28 @@ impl GraphQLClient {
     }
 }
 
-fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClientError> {
+/// Studio's response to any rejected credential. The status is in the message because it never
+/// was a status on the response: Studio answers `200` and puts the status line in the body.
+const REJECTED_CREDENTIAL_MESSAGE: &str = "406: Not Acceptable";
+
+fn handle_graphql_body_errors(
+    errors: Vec<GraphQLError>,
+    endpoint_kind: EndpointKind,
+) -> Result<(), RoverClientError> {
     if errors.is_empty() {
         Ok(())
     } else {
         tracing::debug!("GraphQL response errors: {:?}", errors);
-        if errors[0].message == "406: Not Acceptable" {
-            Err(RoverClientError::MalformedKey)
+        // The message says nothing about _why_ the credential was refused, so `StudioClient`
+        // refines this where it can. Only Studio speaks this protocol: a customer's own
+        // subgraph could return the same message for unrelated reasons.
+        // See https://github.com/apollographql/rover/issues/1171.
+        let credential_rejected = endpoint_kind == EndpointKind::ApolloStudio
+            && errors
+                .iter()
+                .any(|error| error.message == REJECTED_CREDENTIAL_MESSAGE);
+        if credential_rejected {
+            Err(RoverClientError::InvalidKey)
         } else {
             Err(RoverClientError::GraphQl {
                 msg: errors
@@ -279,23 +294,52 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn it_is_ok_on_empty_errors() {
-        let errors = vec![];
-        assert!(handle_graphql_body_errors(errors).is_ok());
-    }
-
-    #[test]
-    fn it_returns_malformed_key() {
-        let errors = vec![GraphQLError {
-            message: "406: Not Acceptable".to_string(),
+    fn rejected_credential_error() -> GraphQLError {
+        GraphQLError {
+            message: REJECTED_CREDENTIAL_MESSAGE.to_string(),
             locations: None,
             extensions: None,
             path: None,
-        }];
-        let expected_error = RoverClientError::MalformedKey.to_string();
-        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
-        assert_eq!(actual_error, expected_error);
+        }
+    }
+
+    #[test]
+    fn it_is_ok_on_empty_errors() {
+        let errors = vec![];
+        assert!(handle_graphql_body_errors(errors, EndpointKind::ApolloStudio).is_ok());
+    }
+
+    #[test]
+    fn it_returns_invalid_key_when_studio_rejects_the_credential() {
+        let error = handle_graphql_body_errors(
+            vec![rejected_credential_error()],
+            EndpointKind::ApolloStudio,
+        )
+        .unwrap_err();
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn it_returns_invalid_key_when_the_rejection_is_not_the_first_error() {
+        let errors = vec![
+            GraphQLError {
+                message: "Something went wrong".to_string(),
+                locations: None,
+                extensions: None,
+                path: None,
+            },
+            rejected_credential_error(),
+        ];
+        let error = handle_graphql_body_errors(errors, EndpointKind::ApolloStudio).unwrap_err();
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn it_does_not_blame_the_api_key_for_non_studio_endpoints() {
+        let error =
+            handle_graphql_body_errors(vec![rejected_credential_error()], EndpointKind::Customer)
+                .unwrap_err();
+        assert!(matches!(error, RoverClientError::GraphQl { .. }));
     }
 
     #[test]
@@ -318,7 +362,9 @@ mod tests {
             msg: format!("{}\n{}", errors[0].message, errors[1].message),
         }
         .to_string();
-        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
+        let actual_error = handle_graphql_body_errors(errors, EndpointKind::ApolloStudio)
+            .unwrap_err()
+            .to_string();
         assert_eq!(actual_error, expected_error);
     }
 
