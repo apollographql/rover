@@ -19,10 +19,9 @@ use crate::{
     operations::subgraph::check_workflow::types::QueryResponseData,
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
-        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse,
-        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        CheckTaskStatus, ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal,
-        SchemaChange, Violation,
+        CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
+        DownstreamCheckResponse, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -619,12 +618,8 @@ mod tests {
         );
         let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
-        let response = get_check_response_from_data(
-            data,
-            graph_ref,
-            "test-subgraph".to_string(),
-        )
-        .unwrap();
+        let response =
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string()).unwrap();
 
         assert_eq!(
             response.maybe_core_schema_status,

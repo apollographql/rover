@@ -55,11 +55,7 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            Self::append_task_title(
-                &mut msg,
-                "Linter Check",
-                lint_response.task_status.clone(),
-            );
+            Self::append_task_title(&mut msg, "Linter Check", lint_response.task_status.clone());
             msg.push_str(lint_response.get_output().as_str());
         }
 
@@ -92,7 +88,7 @@ impl CheckWorkflowResponse {
             }
         }
 
-        msg
+        msg.trim_end().to_string()
     }
 
     pub fn get_json(&self) -> Value {
@@ -130,6 +126,9 @@ impl CheckWorkflowResponse {
 
     fn append_task_title(msg: &mut String, title: &str, status: CheckTaskStatus) {
         if !msg.is_empty() {
+            if !msg.ends_with('\n') {
+                msg.push('\n');
+            }
             msg.push('\n');
         }
         msg.push_str(&Self::task_title(title, status));
