@@ -2,7 +2,6 @@ mod config;
 mod login;
 mod logout;
 mod whoami;
-mod whoami_output;
 
 use clap::{Parser, Subcommand};
 use serde::Serialize;

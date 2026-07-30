@@ -90,6 +90,13 @@ impl LegacyWhoami {
         let credential =
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
 
+        #[cfg(feature = "oauth")]
+        if !matches!(credential.origin, CredentialOrigin::OAuth(_)) {
+            stderr.print(&StyledText::plain(
+                "note: OAuth authentication is now available - consider running `rover auth login` instead of a Personal API Key.",
+            ))?;
+        }
+
         Ok(RoverOutput::ConfigWhoAmIOutput {
             api_key: self.get_maybe_masked_api_key(&credential),
             graph_id: self.get_graph_id(&identity),

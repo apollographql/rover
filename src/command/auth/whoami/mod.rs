@@ -1,3 +1,7 @@
+mod output;
+
+use std::time::Duration;
+
 use anyhow::anyhow;
 use clap::Parser;
 use houston::{Credential, CredentialOrigin, Profile, mask_key};
@@ -9,11 +13,18 @@ use rover_http::{ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
 use serde::Serialize;
 use tower::{ServiceBuilder, retry::RetryLayer};
 
-use super::{OauthConfig, whoami_output::AuthWhoAmIOutput};
+use self::output::AuthWhoAmIOutput;
+use super::OauthConfig;
 use crate::{
     RoverError, RoverOutput, RoverResult, command::config::whoami::LegacyWhoami,
     options::ProfileOpt, utils::client::StudioClientConfig,
 };
+
+/// Bounds a single whoami HTTP attempt. Kept short and independent of
+/// `StudioClientConfig::retry_period` (the overall retry budget, default
+/// 30s) - reusing that same duration here would let one hung attempt consume
+/// the entire retry budget, leaving no room for an actual retry.
+const WHOAMI_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Serialize, Parser)]
 /// Display the identity of the currently authenticated profile
@@ -77,10 +88,11 @@ impl WhoAmI {
         // does for the legacy-credential branch's Studio GraphQL request -
         // this REST call didn't have either before, so a hung connection or a
         // flaky IdP could leave `rover auth whoami` stuck indefinitely.
-        let retry_period = client_config.retry_period();
         let http_service = ServiceBuilder::new()
-            .layer(RetryLayer::new(RetryPolicy::new(retry_period)))
-            .layer(TimeoutLayer::new(retry_period))
+            .layer(RetryLayer::new(RetryPolicy::new(
+                client_config.retry_period(),
+            )))
+            .layer(TimeoutLayer::new(WHOAMI_ATTEMPT_TIMEOUT))
             .service(raw_service);
 
         let response = OauthWhoami::fetch(
@@ -162,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn it_maps_not_logged_in_to_a_friendly_error() {
+    fn it_points_users_to_rover_auth_login_when_not_logged_in() {
         let error = map_whoami_error(WhoamiError::NotLoggedIn);
 
         assert_that!(error.to_string()).contains("rover auth login");
