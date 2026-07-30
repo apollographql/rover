@@ -1,5 +1,7 @@
 //! Provides middleware that injects studio headers into all requests
 
+pub mod rejected_credential;
+
 use std::str::FromStr;
 
 use buildstructor::buildstructor;
