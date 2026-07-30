@@ -34,6 +34,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Fail immediately on errors that a retry can't fix - @SharkBaitDLS**
+
+  A rejected API key, a permissions failure, or a bad endpoint URL used to be retried repeatedly for the full `--client-timeout` (30 seconds by default) before Rover said anything, so a mistyped key or URL took the better part of a minute to report. These now fail as soon as the answer comes back. Rate limits and server errors are still retried, since those do clear up on their own.
+
 - **Stop reporting a malformed API key when the format is fine - @SharkBaitDLS fixes #1171**
 
   A revoked, expired, or unrecognized API key used to fail with `error[E014]: The API key you provided is malformed.`, sending you off to fix a format that was already correct. `E014` is now reserved for keys that genuinely aren't shaped like `user:my-username:secretkey` or `service:graph-id:secretkey`. Anything else the registry turns down reports `error[E013]: The registry did not recognize the provided API key`, so you're pointed at whether the key is still valid rather than at how it looks. Introspecting your own subgraph no longer blames your Apollo credentials either.
