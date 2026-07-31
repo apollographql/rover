@@ -1,27 +1,12 @@
-# Mutation to asynchronously filter a contract and view a preview of the
-# resulting schema.
-#
-# Not referenced by any `#[derive(GraphQLQuery)]` and not compiled; wire it up
-# in runner.rs once `previewStatus` lands and the schema is re-vendored.
-query ContractPreviewAsyncMutation(
+mutation ContractPreviewAsyncMutation(
   $graph_id: ID!
   $variant: String!
-  $include: [String!]!
-  $exclude: [String!]!
-  $hide_unreachable_types: Boolean!
+  $filters: FilterConfigInput!
 ) {
   graph(id: $graph_id) {
     variant(name: $variant) {
-      ... on GraphVariant {
-        contractPreviewAsync(
-          filterConfig: {
-            include: $include
-            exclude: $exclude
-            hideUnreachableTypes: $hide_unreachable_types
-          }
-        ) {
-          jobId
-        }
+      contractPreviewAsync(filters: $filters) {
+        buildID
       }
     }
   }

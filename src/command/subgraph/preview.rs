@@ -3,19 +3,16 @@ use std::collections::BTreeMap;
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::{ArgGroup, Parser};
-use rover_client::operations::{
-    preview_status::{self, PreviewStatusInput},
-    subgraph::preview::{
-        self, ComposeAndFilterPreviewInput, ContractFilterConfig, SubgraphChange,
-        SubgraphChangeInfo,
-    },
+use rover_client::operations::subgraph::preview::{
+    self, ComposeAndFilterPreviewInput, ComposeAndFilterPreviewStatusInput, ContractFilterConfig,
+    SubgraphChange, SubgraphChangeInfo,
 };
 use rover_std::{Fs, Style};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
-    options::{OptionalGraphRefOpt, ProfileOpt},
+    options::{GraphRefOpt, ProfileOpt},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -29,10 +26,10 @@ use crate::{
         .args(&["hide_unreachable_types", "no_hide_unreachable_types"])
 )]
 pub struct Preview {
-    /// Required unless --job-id is given (a job's status can be checked
-    /// without knowing which graph/variant started it).
+    /// `composeAndFilterPreviewStatus` is scoped to a `GraphVariant`, so
+    /// <GRAPH_REF> is required even in --build-id mode.
     #[clap(flatten)]
-    graph: OptionalGraphRefOpt,
+    graph: GraphRefOpt,
 
     #[clap(flatten)]
     profile: ProfileOpt,
@@ -105,7 +102,7 @@ pub struct Preview {
     /// implementation of either poll from the start or manage async on your own
     /// okay?
     #[arg(
-        long = "job-id",
+        long = "build-id",
         conflicts_with_all = [
             "asynchronous",
             "include_tag",
@@ -117,7 +114,7 @@ pub struct Preview {
             "subgraph_changes_file",
         ]
     )]
-    job_id: Option<String>,
+    build_id: Option<String>,
 }
 
 /// The `--subgraph-changes` file format: a `subgraphs` map keyed by subgraph
@@ -195,16 +192,19 @@ impl Preview {
         checks_timeout_seconds: u64,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
+        let graph_ref = self.graph.graph_ref.clone();
 
-        if let Some(job_id) = &self.job_id {
+        if let Some(build_id) = &self.build_id {
             eprintln!(
-                "Checking status of subgraph preview job {} using credentials from the {} profile.",
-                Style::Link.paint(job_id),
+                "Checking status of subgraph preview job {} on {} using credentials from the {} profile.",
+                Style::Link.paint(build_id),
+                Style::Link.paint(graph_ref.to_string()),
                 Style::Command.paint(&self.profile.profile_name)
             );
-            let preview_response = preview_status::results(
-                PreviewStatusInput {
-                    job_id: job_id.clone(),
+            let preview_response = preview::status(
+                ComposeAndFilterPreviewStatusInput {
+                    graph_ref,
+                    build_id: build_id.clone(),
                 },
                 &client,
             )
@@ -212,32 +212,40 @@ impl Preview {
             return Ok(RoverOutput::PreviewJob(preview_response));
         }
 
-        let graph_ref = self.graph.graph_ref.clone().ok_or_else(|| {
-            RoverError::new(anyhow!("<GRAPH_REF> is required unless --job-id is given."))
-        })?;
-
         eprintln!(
             "Previewing composed schema for {} using credentials from the {} profile.",
             Style::Link.paint(graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
         );
-        if !self.asynchronous {
-            eprintln!(
-                "Waiting for the preview to complete... or press Ctrl+C and check later with {}.",
-                Style::Command.paint("`rover subgraph preview --job-id <JOB_ID>`")
-            );
-        }
 
         let input = ComposeAndFilterPreviewInput {
-            graph_ref,
+            graph_ref: graph_ref.clone(),
             filter_config: self.filter_config()?,
             subgraph_changes: self.subgraph_changes()?,
         };
-        let preview_response = if self.asynchronous {
-            preview::start(input, &client).await?
-        } else {
-            preview::run(input, &client, checks_timeout_seconds).await?
-        };
+        let started = preview::start(input, &client).await?;
+
+        if self.asynchronous {
+            return Ok(RoverOutput::PreviewJob(started));
+        }
+
+        eprintln!(
+            "Waiting for the preview to complete... or press Ctrl+C and check later with {}.",
+            Style::Command.paint(format!(
+                "`rover subgraph preview {} --build-id {}`",
+                graph_ref, started.build_id
+            ))
+        );
+
+        let preview_response = preview::poll(
+            ComposeAndFilterPreviewStatusInput {
+                graph_ref,
+                build_id: started.build_id,
+            },
+            &client,
+            checks_timeout_seconds,
+        )
+        .await?;
 
         Ok(RoverOutput::PreviewJob(preview_response))
     }

@@ -1,15 +1,14 @@
 use anyhow::anyhow;
 use clap::{ArgGroup, Parser};
-use rover_client::operations::{
-    contract::preview::{self, ContractFilterConfig, ContractPreviewInput},
-    preview_status::{self, PreviewStatusInput},
+use rover_client::operations::contract::preview::{
+    self, ContractFilterConfig, ContractPreviewInput, ContractPreviewStatusInput,
 };
 use rover_std::Style;
 use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
-    options::{OptionalGraphRefOpt, ProfileOpt},
+    options::{GraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,
 };
 
@@ -23,10 +22,11 @@ use crate::{
         .args(&["hide_unreachable_types", "no_hide_unreachable_types"])
 )]
 pub struct Preview {
-    /// Required unless --job-id is given (a job's status can be checked
-    /// without knowing which graph/variant started it).
+    /// `contractPreviewAsync` builds are polled via `contractPreviewStatus`,
+    /// which is scoped to a `GraphVariant`, so <GRAPH_REF> is required even in
+    /// --build-id mode.
     #[clap(flatten)]
-    graph: OptionalGraphRefOpt,
+    graph: GraphRefOpt,
 
     #[clap(flatten)]
     profile: ProfileOpt,
@@ -71,18 +71,14 @@ pub struct Preview {
     /// Every preview build runs asynchronously on the server; without this
     /// flag, Rover starts the build and polls its status every ten seconds
     /// until it finishes. With this flag, Rover only starts the build — check
-    /// on it later with --job-id.
+    /// on it later with --build-id.
     #[arg(long = "async")]
     asynchronous: bool,
 
     /// Check the status of a previously started job instead of starting a new
     /// one. Checks once, without polling.
-    ///
-    /// Unlike starting a build, checking its status isn't scoped to a
-    /// graph/variant, so <GRAPH_REF> has no effect here — only the job ID
-    /// matters.
     #[arg(
-        long = "job-id",
+        long = "build-id",
         conflicts_with_all = [
             "asynchronous",
             "include_tag",
@@ -93,7 +89,7 @@ pub struct Preview {
             "no_hide_unreachable_types",
         ]
     )]
-    job_id: Option<String>,
+    build_id: Option<String>,
 }
 
 impl Preview {
@@ -103,19 +99,19 @@ impl Preview {
         checks_timeout_seconds: u64,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
+        let graph_ref = self.graph.graph_ref.clone();
 
-        // --job-id: check the status of an existing job once, without polling.
-        // This is not scoped to a graph/variant (previewStatus is a top-level
-        // query keyed only by job ID), so <GRAPH_REF> isn't needed here.
-        if let Some(job_id) = &self.job_id {
+        if let Some(build_id) = &self.build_id {
             eprintln!(
-                "Checking status of contract preview job {} using credentials from the {} profile.",
-                Style::Link.paint(job_id),
+                "Checking status of contract preview job {} on {} using credentials from the {} profile.",
+                Style::Link.paint(build_id),
+                Style::Link.paint(graph_ref.to_string()),
                 Style::Command.paint(&self.profile.profile_name)
             );
-            let preview_response = preview_status::results(
-                PreviewStatusInput {
-                    job_id: job_id.clone(),
+            let preview_response = preview::status(
+                ContractPreviewStatusInput {
+                    graph_ref,
+                    build_id: build_id.clone(),
                 },
                 &client,
             )
@@ -123,33 +119,41 @@ impl Preview {
             return Ok(RoverOutput::PreviewJob(preview_response));
         }
 
-        let graph_ref = self.graph.graph_ref.clone().ok_or_else(|| {
-            RoverError::new(anyhow!("<GRAPH_REF> is required unless --job-id is given."))
-        })?;
-
         eprintln!(
             "Previewing contract schema for {} using credentials from the {} profile.",
             Style::Link.paint(graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
         );
-        if !self.asynchronous {
-            eprintln!(
-                "Waiting for the build to complete (checking every 5 seconds)... Press Ctrl+C and check back later with {}.",
-                Style::Command.paint("`rover contract preview --job-id <JOB_ID>`")
-            );
-        }
 
         // contractPreviewAsync: filter the variant's already-composed
         // supergraph. Filtering is mandatory here.
         let input = ContractPreviewInput {
-            graph_ref,
+            graph_ref: graph_ref.clone(),
             filter_config: self.required_filter_config()?,
         };
-        let preview_response = if self.asynchronous {
-            preview::start(input, &client).await?
-        } else {
-            preview::run(input, &client, checks_timeout_seconds).await?
-        };
+        let started = preview::start(input, &client).await?;
+
+        if self.asynchronous {
+            return Ok(RoverOutput::PreviewJob(started));
+        }
+
+        eprintln!(
+            "Waiting for the build to complete (checking every 5 seconds)... Press Ctrl+C and check back later with {}.",
+            Style::Command.paint(format!(
+                "`rover contract preview {} --build-id {}`",
+                graph_ref, started.build_id
+            ))
+        );
+
+        let preview_response = preview::poll(
+            ContractPreviewStatusInput {
+                graph_ref,
+                build_id: started.build_id,
+            },
+            &client,
+            checks_timeout_seconds,
+        )
+        .await?;
 
         Ok(RoverOutput::PreviewJob(preview_response))
     }
@@ -159,7 +163,7 @@ impl Preview {
     ///
     /// This is enforced at runtime rather than with `ArgGroup::required(true)`
     /// (as `contract publish` does) because the pairs are not required in
-    /// `--job-id` mode.
+    /// `--build-id` mode.
     fn required_filter_config(&self) -> RoverResult<ContractFilterConfig> {
         if self.include_tag.is_empty() && !self.no_include_tags {
             return Err(RoverError::new(anyhow!(

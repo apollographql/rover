@@ -1,3 +1,4 @@
+# DEV BUILD for async preview; this file will get overwritten by a `cargo xtask prep` later.
 """
 An organization in Apollo Studio. Can have multiple members and graphs.
 """
@@ -1119,6 +1120,16 @@ enum CommentStatus {
   RESOLVED
 }
 
+"""
+The result of starting an async composeAndFilterPreview build. Use the buildID to poll composeAndFilterPreviewStatus for the outcome.
+"""
+type ComposeAndFilterPreviewAsyncBuild {
+  """
+  The ID of the started preview build. Poll composeAndFilterPreviewStatus with this ID for results.
+  """
+  buildID: ID!
+}
+
 type ComposeAndFilterPreviewBuildResults {
   """The API schema document/SDL generated from composition/filtering."""
   apiSchemaDocument: String!
@@ -1168,7 +1179,30 @@ type ComposeAndFilterPreviewFilterFailure {
   filterErrors: [ComposeAndFilterPreviewFilterError!]!
 }
 
+"""Returned by composeAndFilterPreviewStatus while the async preview build is still in progress."""
+type ComposeAndFilterPreviewPending {
+  """The ID of the in-flight preview build."""
+  buildID: ID!
+
+  """Whether the build is queued (PENDING) or executing (RUNNING)."""
+  status: ComposeAndFilterPreviewPendingStatus!
+}
+
+"""Whether an in-flight async composeAndFilterPreview build is queued or actively executing."""
+enum ComposeAndFilterPreviewPendingStatus {
+  """The build is queued and has not yet started executing."""
+  PENDING
+
+  """The build is actively executing."""
+  RUNNING
+}
+
 union ComposeAndFilterPreviewResult = ComposeAndFilterPreviewComposeFailure | ComposeAndFilterPreviewFilterFailure | ComposeAndFilterPreviewSuccess
+
+"""
+The result of polling an async composeAndFilterPreview build: still pending/running, or the terminal compose/filter outcome.
+"""
+union ComposeAndFilterPreviewStatus = ComposeAndFilterPreviewComposeFailure | ComposeAndFilterPreviewFilterFailure | ComposeAndFilterPreviewPending | ComposeAndFilterPreviewSuccess
 
 input ComposeAndFilterPreviewSubgraphChange {
   """
@@ -1374,6 +1408,47 @@ type ContentSlice {
 input ContractConfigInput {
   baseGraphRef: String!
   filterConfigInput: FilterConfigInput!
+}
+
+"""Returned by contractPreviewStatus when the async preview build failed during filtering."""
+type ContractPreviewAsyncFailure {
+  """The list of errors from failed filtering."""
+  filterErrors: [ComposeAndFilterPreviewFilterError!]!
+}
+
+"""Returned by contractPreviewStatus while the async preview build is still in progress."""
+type ContractPreviewAsyncPending {
+  """The ID of the in-flight preview build."""
+  buildID: ID!
+
+  """Whether the build is queued (PENDING) or executing (RUNNING)."""
+  status: ContractPreviewAsyncPendingStatus!
+}
+
+"""Whether an in-flight async contractPreviewAsync build is queued or actively executing."""
+enum ContractPreviewAsyncPendingStatus {
+  """The build is queued and has not yet started executing."""
+  PENDING
+
+  """The build is actively executing."""
+  RUNNING
+}
+
+"""The result of polling an async contractPreviewAsync build: still pending/running, or the terminal filter outcome."""
+union ContractPreviewAsyncStatus = ContractPreviewAsyncFailure | ContractPreviewAsyncPending | ContractPreviewAsyncSuccess
+
+"""Returned by contractPreviewStatus when the async preview build completed successfully."""
+type ContractPreviewAsyncSuccess {
+  """The results from successful filtering."""
+  filterResults: ComposeAndFilterPreviewBuildResults!
+}
+
+"""
+An asynchronously enqueued contract preview build. Does not indicate the _result_ of the build, only that it was scheduled.
+"""
+type ContractPreviewJob {
+  """The unique ID for this contract preview build."""
+  buildID: ID!
 }
 
 type ContractVariantUpsertErrors {
@@ -2823,6 +2898,29 @@ type GraphVariant {
   ): ComposeAndFilterPreviewResult
 
   """
+  Start an asynchronous compose and filter preview build from this source variant. Returns a build ID; poll composeAndFilterPreviewStatus with it to retrieve the result.
+  """
+  composeAndFilterPreviewAsync(
+    """
+    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run.
+    """
+    filterConfig: FilterConfigInput
+
+    """
+    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
+    """
+    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!]
+  ): ComposeAndFilterPreviewAsyncBuild!
+
+  """
+  Poll the status and result of an async composeAndFilterPreview build started on this variant. Null if no such build exists.
+  """
+  composeAndFilterPreviewStatus(
+    """The build ID returned by composeAndFilterPreviewAsync."""
+    buildID: ID!
+  ): ComposeAndFilterPreviewStatus
+
+  """
   The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema.
   """
   contractFilterConfig: FilterConfig
@@ -2832,6 +2930,14 @@ type GraphVariant {
   variant.
   """
   contractFilterConfigDescription: String
+
+  """
+  Poll the status and result of an async contractPreviewAsync build started on this variant. Null if no such build exists.
+  """
+  contractPreviewStatus(
+    """The build ID returned by contractPreviewAsync."""
+    buildID: ID!
+  ): ContractPreviewAsyncStatus
 
   """Time the variant was created"""
   createdAt: Timestamp!
@@ -2938,6 +3044,15 @@ type GraphVariantMutation {
   """
   customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
   setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
+
+  """
+  _Asynchronously_ previews a Contract schema built from this source variant.
+
+  Enqueues a Temporal workflow and returns immediately with a `ContractPreviewJob` containing
+  a build ID, instead of blocking until the build completes. See `contractPreview` for the
+  synchronous equivalent.
+  """
+  contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewJob!
 
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated

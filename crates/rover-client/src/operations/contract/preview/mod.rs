@@ -1,5 +1,5 @@
 mod runner;
 mod types;
 
-pub use runner::{run, start};
+pub use runner::{poll, run, start, status};
 pub use types::*;

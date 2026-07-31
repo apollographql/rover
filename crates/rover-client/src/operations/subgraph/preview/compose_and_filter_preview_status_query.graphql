@@ -1,0 +1,49 @@
+# Fetches the full result of an async compose-and-filter preview build
+# (mdg-private/monorepo branch samaan/async-builds-3). Used once, after
+# `compose_and_filter_preview_status_light_query.graphql` reports the build
+# is no longer PENDING/RUNNING — this selects the (potentially large) schema
+# documents/error lists that the light query intentionally omits.
+query ComposeAndFilterPreviewStatusQuery(
+  $graph_id: ID!
+  $variant: String!
+  $build_id: ID!
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      composeAndFilterPreviewStatus(buildID: $build_id) {
+        __typename
+        ... on ComposeAndFilterPreviewPending {
+          buildID
+          status
+        }
+        ... on ComposeAndFilterPreviewSuccess {
+          composeResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+          filterResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+        }
+        ... on ComposeAndFilterPreviewComposeFailure {
+          composeErrors {
+            message
+            code
+            failedStep
+          }
+        }
+        ... on ComposeAndFilterPreviewFilterFailure {
+          composeResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+          filterErrors {
+            message
+            failedStep
+          }
+        }
+      }
+    }
+  }
+}

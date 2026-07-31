@@ -26,7 +26,7 @@ use rover_client::{
     },
     shared::{
         AsyncBuildStatus, CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse,
-        LintResponse, PreviewJobResponse, SdlType,
+        LintResponse, PreviewJobResponse, PreviewKind, SdlType,
     },
 };
 use rover_std::Style;
@@ -228,24 +228,33 @@ impl RoverOutput {
                 ))
             )),
             RoverOutput::PreviewJob(preview_response) => {
-                let mut lines = vec![format!(
-                    "Job {job_id} {status}",
-                    job_id = &preview_response.job_id,
-                    status = &preview_response.status,
-                )];
+                let mut lines = vec![
+                    format!("Build id: {}", &preview_response.build_id),
+                    format!("Status: {}", &preview_response.status),
+                ];
                 match preview_response.status {
                     AsyncBuildStatus::Pending | AsyncBuildStatus::Running => {
-                        // --job-id behaves identically on both commands (previewStatus
-                        // doesn't care which one started the job), so either works here.
+                        // Both `rover subgraph preview` and `rover contract preview`
+                        // poll the same GraphVariant-scoped `composeAndFilterPreviewStatus`,
+                        // so both hints need the graph ref; `kind` says which command
+                        // to print.
+                        let command = match preview_response.kind {
+                            PreviewKind::Subgraph => "rover subgraph preview",
+                            PreviewKind::Contract => "rover contract preview",
+                        };
+                        let hint = format!(
+                            "`{} {} --build-id {}`",
+                            command, preview_response.graph_ref, preview_response.build_id
+                        );
                         lines.push(format!(
-                            "Check the result with {} on either {} or {}",
-                            Style::Command.paint(format!("--job-id {}", preview_response.job_id)),
-                            Style::Command.paint("`rover contract preview`"),
-                            Style::Command.paint("`rover subgraph preview`")
+                            "Check the result with {}",
+                            Style::Command.paint(hint)
                         ));
                     }
                     AsyncBuildStatus::Success => {
                         if let Some(api_schema) = &preview_response.api_schema {
+                            lines.push("Schema:".to_string());
+                            lines.push(String::new());
                             lines.push(api_schema.clone());
                         }
                     }

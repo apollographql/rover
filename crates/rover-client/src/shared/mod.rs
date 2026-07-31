@@ -6,8 +6,9 @@ mod fetch_response;
 mod filter_config;
 mod git_context;
 mod lint_response;
+pub(crate) mod preview_poll;
 
-pub use async_build_response::{AsyncBuildStatus, PreviewJobResponse};
+pub use async_build_response::{AsyncBuildStatus, PreviewJobResponse, PreviewKind};
 pub(crate) use async_check_response::map_check_submission_error;
 pub use async_check_response::CheckRequestSuccessResult;
 pub use check_response::{

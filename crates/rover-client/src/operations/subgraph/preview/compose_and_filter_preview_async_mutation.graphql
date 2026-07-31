@@ -1,8 +1,6 @@
-# Mutation to asynchronously compose and filter a contract and view a preview of the
-# resulting schema.
-#
-# Not referenced by any `#[derive(GraphQLQuery)]` and not compiled; wire it up
-# in runner.rs once `previewStatus` lands and the schema is re-vendored.
+# Starts an async compose-and-filter preview build (mdg-private/monorepo
+# branch samaan/async-builds-3). `Graph.variant` returns `GraphVariant`
+# directly (not a union), so no inline fragment is needed here.
 query ComposeAndFilterPreviewAsyncMutation(
   $graph_id: ID!
   $variant: String!
@@ -11,13 +9,11 @@ query ComposeAndFilterPreviewAsyncMutation(
 ) {
   graph(id: $graph_id) {
     variant(name: $variant) {
-      ... on GraphVariant {
-        composeAndFilterPreviewAsync(
-          filterConfig: $filter_config
-          subgraphChanges: $subgraph_changes
-        ) {
-          jobId
-        }
+      composeAndFilterPreviewAsync(
+        filterConfig: $filter_config
+        subgraphChanges: $subgraph_changes
+      ) {
+        buildID
       }
     }
   }
