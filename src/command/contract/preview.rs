@@ -187,3 +187,80 @@ impl Preview {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `Preview` with every include/exclude/hide flag explicitly decided,
+    /// except `--build-id` which changes to polling. Individual tests override
+    /// one field at a time to exercise each validation branch.
+    fn valid_preview() -> Preview {
+        Preview {
+            graph: GraphRefOpt {
+                graph_ref: "test-graph@current".parse().unwrap(),
+            },
+            profile: ProfileOpt::default(),
+            include_tag: vec!["foo".to_string()],
+            no_include_tags: false,
+            exclude_tag: Vec::new(),
+            no_exclude_tags: true,
+            hide_unreachable_types: true,
+            no_hide_unreachable_types: false,
+            asynchronous: false,
+            build_id: None,
+        }
+    }
+
+    #[test]
+    fn required_filter_config_builds_config_when_all_three_pairs_are_decided() {
+        let config = valid_preview().required_filter_config().unwrap();
+        assert_eq!(config.include, vec!["foo".to_string()]);
+        assert_eq!(config.exclude, Vec::<String>::new());
+        assert!(config.hide_unreachable_types);
+    }
+
+    #[test]
+    fn required_filter_config_allows_no_include_tags_for_an_empty_include_list() {
+        let preview = Preview {
+            include_tag: Vec::new(),
+            no_include_tags: true,
+            ..valid_preview()
+        };
+        let config = preview.required_filter_config().unwrap();
+        assert_eq!(config.include, Vec::<String>::new());
+    }
+
+    #[test]
+    fn required_filter_config_errors_when_include_tags_are_undecided() {
+        let preview = Preview {
+            include_tag: Vec::new(),
+            no_include_tags: false,
+            ..valid_preview()
+        };
+        let err = preview.required_filter_config().unwrap_err();
+        assert!(err.to_string().contains("--include-tag"));
+    }
+
+    #[test]
+    fn required_filter_config_errors_when_exclude_tags_are_undecided() {
+        let preview = Preview {
+            exclude_tag: Vec::new(),
+            no_exclude_tags: false,
+            ..valid_preview()
+        };
+        let err = preview.required_filter_config().unwrap_err();
+        assert!(err.to_string().contains("--exclude-tag"));
+    }
+
+    #[test]
+    fn required_filter_config_errors_when_hide_unreachable_types_is_undecided() {
+        let preview = Preview {
+            hide_unreachable_types: false,
+            no_hide_unreachable_types: false,
+            ..valid_preview()
+        };
+        let err = preview.required_filter_config().unwrap_err();
+        assert!(err.to_string().contains("--hide-unreachable-types"));
+    }
+}

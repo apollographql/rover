@@ -123,6 +123,7 @@ pub struct Preview {
 /// explicit `remove` field, and `schema` only supports inline SDL or a local
 /// file (not a remote URL)
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SubgraphChangesFile {
     subgraphs: BTreeMap<String, SubgraphChangeEntry>,
 }
@@ -304,5 +305,177 @@ impl Preview {
             .into_iter()
             .map(|(name, entry)| entry.into_subgraph_change(name))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_fs::prelude::*;
+
+    use super::*;
+
+    /// A `Preview` with no filter flags and no `--subgraph-changes` file, the
+    /// "compose only" baseline. Individual tests override one field at a
+    /// time to exercise each validation branch.
+    fn valid_preview() -> Preview {
+        Preview {
+            graph: GraphRefOpt {
+                graph_ref: "test-graph@current".parse().unwrap(),
+            },
+            profile: ProfileOpt::default(),
+            subgraph_changes_file: None,
+            include_tag: Vec::new(),
+            no_include_tags: false,
+            exclude_tag: Vec::new(),
+            no_exclude_tags: false,
+            hide_unreachable_types: false,
+            no_hide_unreachable_types: false,
+            asynchronous: false,
+            build_id: None,
+        }
+    }
+
+    #[test]
+    fn filter_config_is_none_when_no_flags_are_given() {
+        assert_eq!(valid_preview().filter_config().unwrap(), None);
+    }
+
+    #[test]
+    fn filter_config_builds_config_when_all_three_pairs_are_decided() {
+        let preview = Preview {
+            include_tag: vec!["foo".to_string()],
+            no_exclude_tags: true,
+            hide_unreachable_types: true,
+            ..valid_preview()
+        };
+        let config = preview.filter_config().unwrap().unwrap();
+        assert_eq!(config.include, vec!["foo".to_string()]);
+        assert_eq!(config.exclude, Vec::<String>::new());
+        assert!(config.hide_unreachable_types);
+    }
+
+    #[test]
+    fn filter_config_errors_when_only_some_of_the_pairs_are_decided() {
+        // --no-include-tags is decided, but exclude/hide are left ambiguous;
+        // supplying any one flag requires all three to be decided.
+        let preview = Preview {
+            no_include_tags: true,
+            ..valid_preview()
+        };
+        let err = preview.filter_config().unwrap_err();
+        assert!(err.to_string().contains("--exclude-tag"));
+    }
+
+    #[test]
+    fn subgraph_changes_is_empty_without_a_file() {
+        assert_eq!(valid_preview().subgraph_changes().unwrap(), Vec::new());
+    }
+
+    /// Writes `contents` to a temp `--subgraph-changes` file and returns a
+    /// `Preview` pointed at it. The `TempDir` must outlive the returned
+    /// `Preview`'s use, hence returning both.
+    fn preview_with_changes_file(contents: &str) -> (assert_fs::TempDir, Preview) {
+        let fixture = assert_fs::TempDir::new().unwrap();
+        let file = fixture.child("subgraph-changes.yaml");
+        file.write_str(contents).unwrap();
+        let path = Utf8PathBuf::try_from(file.path().to_path_buf()).unwrap();
+        let preview = Preview {
+            subgraph_changes_file: Some(FileDescriptorType::File(path)),
+            ..valid_preview()
+        };
+        (fixture, preview)
+    }
+
+    #[test]
+    fn subgraph_changes_parses_inline_sdl_and_routing_url() {
+        let (_fixture, preview) = preview_with_changes_file(
+            "subgraphs:\n  foo:\n    routing_url: https://example.com\n    schema:\n      sdl: \"type Query { hello: String }\"\n",
+        );
+
+        let changes = preview.subgraph_changes().unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].name, "foo");
+        let info = changes[0].info.as_ref().unwrap();
+        assert_eq!(info.routing_url, Some("https://example.com".to_string()));
+        assert_eq!(
+            info.schema_document,
+            Some("type Query { hello: String }".to_string())
+        );
+    }
+
+    #[test]
+    fn subgraph_changes_reads_schema_from_a_file_path() {
+        let fixture = assert_fs::TempDir::new().unwrap();
+        let schema_file = fixture.child("foo.graphql");
+        schema_file.write_str("type Query { hi: String }").unwrap();
+
+        let changes_file = fixture.child("subgraph-changes.yaml");
+        changes_file
+            .write_str(&format!(
+                "subgraphs:\n  foo:\n    schema:\n      file: {}\n",
+                schema_file.path().display()
+            ))
+            .unwrap();
+        let path = Utf8PathBuf::try_from(changes_file.path().to_path_buf()).unwrap();
+        let preview = Preview {
+            subgraph_changes_file: Some(FileDescriptorType::File(path)),
+            ..valid_preview()
+        };
+
+        let changes = preview.subgraph_changes().unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(
+            changes[0].info.as_ref().unwrap().schema_document,
+            Some("type Query { hi: String }".to_string())
+        );
+    }
+
+    #[test]
+    fn subgraph_changes_parses_remove() {
+        let (_fixture, preview) =
+            preview_with_changes_file("subgraphs:\n  bar:\n    remove: true\n");
+
+        let changes = preview.subgraph_changes().unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].name, "bar");
+        assert_eq!(changes[0].info, None);
+    }
+
+    #[test]
+    fn subgraph_changes_rejects_remove_combined_with_routing_url() {
+        let (_fixture, preview) = preview_with_changes_file(
+            "subgraphs:\n  bar:\n    remove: true\n    routing_url: https://example.com\n",
+        );
+
+        let err = preview.subgraph_changes().unwrap_err();
+        assert!(err.to_string().contains("remove: true"));
+    }
+
+    #[test]
+    fn subgraph_changes_rejects_an_entry_with_no_fields_set() {
+        let (_fixture, preview) = preview_with_changes_file("subgraphs:\n  bar: {}\n");
+
+        let err = preview.subgraph_changes().unwrap_err();
+        assert!(err.to_string().contains("must specify at least one of"));
+    }
+
+    #[test]
+    fn subgraph_changes_rejects_unknown_top_level_keys() {
+        // `subgraph:` (singular) instead of `subgraphs:` should error rather
+        // than silently produce an empty change list.
+        let (_fixture, preview) =
+            preview_with_changes_file("subgraph:\n  bar:\n    remove: true\n");
+
+        let err = preview.subgraph_changes().unwrap_err();
+        assert!(err.to_string().contains("Invalid --subgraph-changes file"));
+    }
+
+    #[test]
+    fn subgraph_changes_rejects_unknown_entry_fields() {
+        let (_fixture, preview) =
+            preview_with_changes_file("subgraphs:\n  bar:\n    routing_ur: https://example.com\n");
+
+        let err = preview.subgraph_changes().unwrap_err();
+        assert!(err.to_string().contains("Invalid --subgraph-changes file"));
     }
 }

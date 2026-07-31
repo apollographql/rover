@@ -138,7 +138,13 @@ fn map_status_response(
             status: match pending.status {
                 PendingStatus::PENDING => AsyncBuildStatus::Pending,
                 PendingStatus::RUNNING => AsyncBuildStatus::Running,
-                PendingStatus::Other(_) => AsyncBuildStatus::Running,
+                PendingStatus::Other(other) => {
+                    // Report unknown status directly to the user
+                    eprintln!(
+                        "warning: received unrecognized contract preview status '{other}'; treating it as still in progress"
+                    );
+                    AsyncBuildStatus::Running
+                }
             },
             api_schema: None,
             supergraph_schema: None,
@@ -283,6 +289,34 @@ mod tests {
                         "__typename": "ContractPreviewAsyncPending",
                         "buildID": "build-123",
                         "status": "RUNNING"
+                    }
+                } } }
+            }));
+        });
+
+        let response = status(
+            test_status_input("build-123"),
+            &test_client(&server.url("/")),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status, AsyncBuildStatus::Running);
+        assert_eq!(response.build_id, "build-123");
+    }
+
+    #[tokio::test]
+    async fn status_maps_unrecognized_pending_substatus_to_running() {
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ContractPreviewStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "contractPreviewStatus": {
+                        "__typename": "ContractPreviewAsyncPending",
+                        "buildID": "build-123",
+                        "status": "SOME_FUTURE_SUBSTATUS"
                     }
                 } } }
             }));

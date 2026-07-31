@@ -3,6 +3,7 @@ use serde::Serialize;
 
 /// The state of an async preview job
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AsyncBuildStatus {
     /// The build is queued and has not yet started executing.
     Pending,
@@ -69,4 +70,23 @@ pub struct PreviewJobResponse {
     pub supergraph_schema: Option<String>,
     /// Compose or filter errors, present on failure.
     pub errors: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_serialization_matches_display_casing() {
+        for status in [
+            AsyncBuildStatus::Pending,
+            AsyncBuildStatus::Running,
+            AsyncBuildStatus::Success,
+            AsyncBuildStatus::ComposeFailed,
+            AsyncBuildStatus::FilterFailed,
+        ] {
+            let json = serde_json::to_string(&status).unwrap();
+            assert_eq!(json, format!("\"{status}\""));
+        }
+    }
 }

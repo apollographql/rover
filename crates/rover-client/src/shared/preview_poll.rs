@@ -21,12 +21,10 @@ pub(crate) fn require_variant<V>(
         })
 }
 
-/// Polls a preview build to completion (via the shared
-/// `check_workflow_poll::poll_check_workflow`, same as `rover subgraph
-/// check`), then remaps its error messages to preview-appropriate wording.
-/// `poll_check_workflow`'s own error messages assume a check workflow (e.g.
-/// mentioning `APOLLO_CHECKS_TIMEOUT_SECONDS` and Studio check pages),
-/// which would be misleading here.
+/// Polls a preview build to completion then remap its error messages to 
+/// preview-appropriate wording (but `APOLLO_CHECKS_TIMEOUT_SECONDS` still 
+/// controls polling waits, so the remapped message keeps a pointer to it, 
+/// along with `--build-id` for checking status later.
 pub(crate) async fn poll_preview_build<T>(
     checks_timeout_seconds: u64,
     build_id: &str,
@@ -41,12 +39,14 @@ pub(crate) async fn poll_preview_build<T>(
 fn map_preview_errors(build_id: &str, err: RoverClientError) -> RoverClientError {
     match err {
         RoverClientError::ChecksTimeoutError { .. } => RoverClientError::AdhocError {
-            msg: format!("Timed out waiting for job {build_id} to complete."),
+            msg: format!(
+                "Timed out waiting for preview {build_id}, check back with `--build-id {build_id}`, or raise APOLLO_CHECKS_TIMEOUT_SECONDS"
+            ),
         },
         RoverClientError::CheckWorkflowResultUnavailable { source, .. } => {
             RoverClientError::AdhocError {
                 msg: format!(
-                    "Job {build_id} finished, but Rover couldn't fetch the result: {source}"
+                    "Job {build_id} finished, but could not fetch the result: {source}"
                 ),
             }
         }
@@ -88,10 +88,18 @@ mod tests {
         );
         match out {
             RoverClientError::AdhocError { msg } => {
-                assert!(msg.contains("job-1"));
+                assert!(msg.contains("job-1"), "expected build id in: {msg}");
                 assert!(
-                    !msg.contains("APOLLO_CHECKS_TIMEOUT_SECONDS"),
-                    "expected check-specific wording to be stripped, got: {msg}"
+                    msg.contains("--build-id"),
+                    "expected a pointer to re-checking the build in: {msg}"
+                );
+                assert!(
+                    msg.contains("APOLLO_CHECKS_TIMEOUT_SECONDS"),
+                    "expected a pointer to the timeout env var in: {msg}"
+                );
+                assert!(
+                    !msg.contains("check workflow"),
+                    "expected check-workflow-specific wording to be stripped, got: {msg}"
                 );
             }
             other => panic!("expected AdhocError, got {other:?}"),
