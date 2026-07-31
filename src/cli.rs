@@ -391,7 +391,6 @@ impl Rover {
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
-        // TODO: Should this have a maximum value to avoid near-infinite polling?
         if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
             Ok(seconds.parse::<u64>()?)
         } else {

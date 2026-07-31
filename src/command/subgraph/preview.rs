@@ -98,9 +98,6 @@ pub struct Preview {
 
     /// Check the status of a previously started job instead of starting a new
     /// one. Checks once, without polling.
-    /// TODO: Is it important to allow restarting polling? Or is the current
-    /// implementation of either poll from the start or manage async on your own
-    /// okay?
     #[arg(
         long = "build-id",
         conflicts_with_all = [
