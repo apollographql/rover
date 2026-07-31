@@ -43,7 +43,7 @@ pub enum WhoamiError {
 #[serde(rename_all = "snake_case")]
 pub struct WhoamiResponse {
     /// The authenticated user's ID.
-    pub user_id: String,
+    pub sub: String,
     /// The authenticated user's email.
     pub email: String,
     /// The authenticated user's display name.
@@ -206,9 +206,7 @@ mod tests {
             .await;
 
         assert_that!(result).is_ok().matches(|resp| {
-            resp.user_id == "user-123"
-                && resp.email == "test@example.com"
-                && resp.name == "Test User"
+            resp.sub == "user-123" && resp.email == "test@example.com" && resp.name == "Test User"
         });
     }
 

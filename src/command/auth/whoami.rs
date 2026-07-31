@@ -1,5 +1,3 @@
-mod output;
-
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -13,8 +11,7 @@ use rover_http::{ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
 use serde::Serialize;
 use tower::{ServiceBuilder, retry::RetryLayer};
 
-use self::output::AuthWhoAmIOutput;
-use super::OauthConfig;
+use super::{OauthConfig, whoami_output::AuthWhoAmIOutput};
 use crate::{
     RoverError, RoverOutput, RoverResult, command::config::whoami::LegacyWhoami,
     options::ProfileOpt, utils::client::StudioClientConfig,
