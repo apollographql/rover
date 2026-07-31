@@ -138,7 +138,7 @@ impl Preview {
         }
 
         eprintln!(
-            "Waiting for the build to complete (checking every 5 seconds)... Press Ctrl+C and check back later with {}.",
+            "Waiting for the build to complete... or press Ctrl+C and check later with {}.",
             Style::Command.paint(format!(
                 "`rover contract preview {} --build-id {}`",
                 graph_ref, started.build_id

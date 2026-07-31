@@ -68,7 +68,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **Add `rover contract preview` and `rover subgraph preview` - @sirdodger PR #4333**
+- **Add `rover contract preview` and `rover subgraph preview` - @sirdodger PR #3522**
 
   `rover contract preview` previews a contract by applying filters to the current schema and `rover subgraph preview` composes a preview supergraph from `--subgraph-changes` and optional contract filters. Both run asynchronously with `--async` and can poll for results with `--build-id`. Otherwise, Rover will poll until completion or timeout.
 
