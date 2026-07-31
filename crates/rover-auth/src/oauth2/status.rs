@@ -165,9 +165,9 @@ mod tests {
         MockHttpService::new()
     }
 
-    fn whoami_200(user_id: &str, email: &str, name: &str) -> http::Response<Full<Bytes>> {
+    fn whoami_200(sub: &str, email: &str, name: &str) -> http::Response<Full<Bytes>> {
         let body = serde_json::json!({
-            "user_id": user_id,
+            "sub": sub,
             "email": email,
             "name": name,
         })
