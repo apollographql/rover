@@ -573,6 +573,201 @@ By default, this command flags all violations in your local schema.
 </tbody>
 </table>
 
+## Previewing a supergraph
+
+### `subgraph preview`
+
+<AuthNotice />
+
+Before publishing subgraph schema changes, you can preview the supergraph schema that composing (and, optionally, filtering) your subgraphs would produce—without publishing anything.
+
+Run the `subgraph preview` command, like so:
+
+```bash
+rover subgraph preview my-graph@my-variant
+```
+
+The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and [variant](/graphos/graphs/#variants) whose subgraphs you want to compose a preview from.
+
+By default, `subgraph preview` composes the variant's subgraphs exactly as they're currently published. Use `--subgraph-changes` to preview the effect of hypothetical subgraph changes first (see [Previewing subgraph changes](#previewing-subgraph-changes) below). You can also provide the `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` options to preview a contract filter on top of composition.
+
+Preview builds run asynchronously on GraphOS. By default, Rover starts the build and polls its status until it completes, then prints the resulting schema. See [Running previews asynchronously](#running-previews-asynchronously) below to instead return immediately with a build ID and check the result later.
+
+#### Options
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+###### `--subgraph-changes`
+
+</td>
+<td>
+
+**Optional.** The path to a YAML file describing hypothetical changes to one or more subgraphs to apply before composing. You can also provide `-`, in which case the command reads the file from `stdin`. See [Previewing subgraph changes](#previewing-subgraph-changes) below.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--include-tag`
+
+</td>
+<td>
+
+**Optional.** A tag name to [include](/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times:
+
+```bash
+--include-tag foo --include-tag bar
+```
+
+Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, you must decide all three—use `--no-include-tags` instead of this option to specify an empty include list.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-include-tags`
+
+</td>
+<td>
+
+Specifies an empty [include list](/graphos/delivery/contracts/#contract-filters) for the previewed contract schema. To specify a non-empty list, use `--include-tag` instead.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--exclude-tag`
+
+</td>
+<td>
+
+A tag name to [exclude](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times:
+
+```bash
+--exclude-tag foo --exclude-tag bar
+```
+
+To specify an empty exclude list, use `--no-exclude-tags` instead of this option.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-exclude-tags`
+
+</td>
+<td>
+
+Specifies an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for the previewed contract schema. To specify a non-empty list, use `--exclude-tag` instead.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--hide-unreachable-types`
+
+</td>
+<td>
+
+Automatically [hides](/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on the previewed contract schema.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-hide-unreachable-types`
+
+</td>
+<td>
+
+Doesn't automatically hide types that can never be reached in operations on the previewed contract schema.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--async`
+
+</td>
+<td>
+
+**Optional.** If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Check on the build's status later with `--build-id`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--build-id`
+
+</td>
+<td>
+
+**Optional.** Checks the status of a previously started preview build a single time, instead of starting a new one. Can't be combined with `--subgraph-changes`, `--async`, or the include/exclude/hide-unreachable-types options above.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+#### Previewing subgraph changes
+
+Use `--subgraph-changes` to preview what composition would produce if one or more subgraphs were changed or removed first, without publishing those changes. Provide a YAML file with a `subgraphs` map keyed by subgraph name:
+
+```yaml title="changes.yaml"
+subgraphs:
+  foo:
+    routing_url: https://example.com  # optional; omit to keep the existing URL
+    schema:
+      file: ./foo.graphql              # or `sdl: "type Query { ... }"` inline
+  bar:
+    remove: true
+```
+
+```bash
+rover subgraph preview my-graph@my-variant --subgraph-changes ./changes.yaml
+```
+
+Each subgraph entry may set:
+
+- `routing_url`: a hypothetical new routing URL for the subgraph. Omit to keep the subgraph's currently published URL.
+- `schema`: a hypothetical new schema for the subgraph, either `file: <path>` (a local `.graphql`/`.gql` file) or `sdl: "<inline SDL>"`. Omit to keep the subgraph's currently published schema.
+- `remove: true`: preview composition as if the subgraph had been removed. Can't be combined with `routing_url` or `schema`.
+
+Every subgraph entry must set at least one of `routing_url`, `schema`, or `remove: true`. Subgraphs you don't mention in the file are composed exactly as they're currently published.
+
+#### Running previews asynchronously
+
+If a preview build might take a while, pass `--async` to start the build and return immediately with a build ID, instead of waiting (and blocking your terminal) until it completes:
+
+```bash
+rover subgraph preview my-graph@my-variant --subgraph-changes ./changes.yaml --async
+```
+
+Check back on the build later with `--build-id`:
+
+```bash
+rover subgraph preview my-graph@my-variant --build-id <BUILD_ID>
+```
+
+By default (without `--async`), Rover polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) elapses, whichever comes first. If Rover times out while polling, the build itself may still complete in the background—check back with `--build-id`.
+
 ## Deleting a subgraph
 
 ### `subgraph delete`
