@@ -21,10 +21,10 @@ pub(crate) fn require_variant<V>(
         })
 }
 
-/// Polls a preview build to completion then remap its error messages to 
-/// preview-appropriate wording (but `APOLLO_CHECKS_TIMEOUT_SECONDS` still 
-/// controls polling waits, so the remapped message keeps a pointer to it, 
-/// along with `--build-id` for checking status later.
+/// Polls a preview build to completion then remaps its error messages to
+/// preview-appropriate wording (but `APOLLO_CHECKS_TIMEOUT_SECONDS` still
+/// controls polling waits, so the remapped message keeps a pointer to it,
+/// along with `--build-id` for checking status later).
 pub(crate) async fn poll_preview_build<T>(
     checks_timeout_seconds: u64,
     build_id: &str,
