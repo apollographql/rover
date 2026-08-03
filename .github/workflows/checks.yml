@@ -11,11 +11,13 @@ jobs:
   changelog:
     name: Changelog Entry
     if: >-
-      github.event_name == 'pull_request' &&
-      !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+       !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login))
     runs-on: ubuntu-latest
     steps:
       - name: Check for a CHANGELOG.md entry or opt-out checkbox
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
