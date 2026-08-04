@@ -205,7 +205,7 @@ impl Rover {
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
-                    .run(self.get_rover_config()?, self.get_oauth_config())
+                    .run(self.get_client_config()?, self.get_oauth_config())
                     .await
             }
             #[cfg(feature = "composition-js")]
@@ -306,6 +306,7 @@ impl Rover {
             .authorization_url(self.oauth_opts.authorization_url.clone())
             .token_url(self.oauth_opts.token_url.clone())
             .revocation_url(self.oauth_opts.revocation_url.clone())
+            .whoami_url(self.oauth_opts.whoami_url.clone())
             .client_id(self.oauth_opts.client_id.clone())
             .build()
     }

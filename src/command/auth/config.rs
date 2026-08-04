@@ -2,6 +2,7 @@ use url::Url;
 
 use crate::options::{
     DEFAULT_AUTHORIZATION_URL, DEFAULT_CLIENT_ID, DEFAULT_REVOCATION_URL, DEFAULT_TOKEN_URL,
+    DEFAULT_WHOAMI_URL,
 };
 
 /// The OAuth server endpoints (and client ID) `rover auth login`/`rover auth
@@ -15,18 +16,20 @@ pub struct OauthConfig {
     pub(crate) authorization_url: Url,
     pub(crate) token_url: Url,
     pub(crate) revocation_url: Url,
+    pub(crate) whoami_url: Url,
     pub(crate) client_id: String,
 }
 
 #[bon::bon]
 impl OauthConfig {
     /// Builds an [`OauthConfig`], falling back to Apollo's production OAuth
-    /// server for `authorization_url`/`token_url`/`revocation_url` when left `None`.
+    /// server for `authorization_url`/`token_url`/`revocation_url`/`whoami_url` when left `None`.
     #[builder]
     pub fn new(
         authorization_url: Option<Url>,
         token_url: Option<Url>,
         revocation_url: Option<Url>,
+        whoami_url: Option<Url>,
         client_id: Option<String>,
     ) -> OauthConfig {
         OauthConfig {
@@ -34,6 +37,7 @@ impl OauthConfig {
                 .unwrap_or_else(|| DEFAULT_AUTHORIZATION_URL.clone()),
             token_url: token_url.unwrap_or_else(|| DEFAULT_TOKEN_URL.clone()),
             revocation_url: revocation_url.unwrap_or_else(|| DEFAULT_REVOCATION_URL.clone()),
+            whoami_url: whoami_url.unwrap_or_else(|| DEFAULT_WHOAMI_URL.clone()),
             client_id: client_id.unwrap_or_else(|| DEFAULT_CLIENT_ID.to_string()),
         }
     }
@@ -75,6 +79,14 @@ mod tests {
 
         assert_that!(config.revocation_url.as_str())
             .is_equal_to("https://auth.apollographql.com/oauth2/revoke");
+    }
+
+    #[test]
+    fn oauth_config_defaults_to_the_apollo_production_whoami_url() {
+        let config = OauthConfig::default();
+
+        assert_that!(config.whoami_url.as_str())
+            .is_equal_to("https://auth.apollographql.com/oauth2/userinfo");
     }
 
     #[test]
