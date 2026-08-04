@@ -28,6 +28,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add support for native composition, gated behind the experimental `composition-rust` feature flag - @imgood**
+
+  Native composition is currently in opt-in preview. For details, see https://www.apollographql.com/blog/apollo-federation-goes-full-rust.
+
 - **Add `rover auth logout`, gated behind the experimental `oauth` feature flag - @dotdat**
 
   `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.

@@ -10,6 +10,17 @@
       matchPackageNames: ["apollographql/federation-rs"],
       extractVersion: "^supergraph@(?<version>v\\d+\\.\\d+\\.\\d+)$",
       automerge: false,
+      prBodyNotes: [
+        "**If `native_composition_keeps_up_with_the_plugin_version_ci_tests` fails,** native composition cannot compose at the version this bumps to. Fix by bumping `apollo-composition` in `Cargo.toml` and updating `MAX_SUPPORTED_FEDERATION_SPEC` in `src/composition/supergraph/native.rs`. Merging without that leaves `--native-composition` unable to compose at the version everything else defaults to.",
+      ],
+    },
+    {
+      matchManagers: ["cargo"],
+      matchPackageNames: ["apollo-composition"],
+      automerge: false,
+      prBodyNotes: [
+        "**Check the federation spec ceiling.** `MAX_SUPPORTED_FEDERATION_SPEC` in `src/composition/supergraph/native.rs` mirrors a private table in `apollo-federation` and is not updated automatically. If `max_supported_federation_spec_is_accurate` fails, set it to the new ceiling; that test composes at the ceiling and at the next minor up, so it pins the value from both sides.",
+      ],
     },
     {
       matchPackageNames: ["apollographql/router"],

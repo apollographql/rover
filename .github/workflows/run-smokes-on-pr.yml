@@ -40,4 +40,7 @@ jobs:
     with:
       composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
       router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
+      # Builds the e2e binary with native composition so the composition-parity tests are
+      # compiled in. Release artifacts do not enable this feature; only these tests do.
+      features: 'composition-rust'
     secrets: inherit

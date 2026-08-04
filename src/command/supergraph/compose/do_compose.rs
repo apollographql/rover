@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
-    composition::get_supergraph_binary,
+    composition::{CompositionSuccess, get_supergraph_binary},
     options::PluginOpts,
     utils::{
         client::StudioClientConfig,
@@ -59,6 +59,16 @@ pub struct SupergraphComposeOpts {
     /// will automatically determine the version from the supergraph config
     #[arg(long = "federation-version")]
     pub federation_version: Option<FederationVersion>,
+
+    /// Compose natively, in-process, instead of downloading and running the `supergraph` plugin.
+    ///
+    /// Native composition does not require a plugin download and does not embed a JS runtime. It
+    /// implements federation specs up to the version this Rover build was compiled against, but
+    /// is not a guaranteed byte-for-byte reproduction of JS composition during the preview phase.
+    /// Expect minor differences in errors and hints in particular.
+    #[cfg(feature = "composition-rust")]
+    #[arg(long = "native-composition")]
+    pub native_composition: bool,
 }
 
 impl Compose {
@@ -71,18 +81,13 @@ impl Compose {
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
 
-        let composition_pipeline = get_supergraph_binary(
-            self.opts.federation_version.clone(),
-            client_config,
-            override_install_path,
-            self.opts.plugin_opts.clone(),
-            self.opts.supergraph_config_source.supergraph_yaml().clone(),
-            self.opts.supergraph_config_source.graph_ref().clone(),
-            true,
-        )
-        .await?;
-        let composition_success = composition_pipeline
-            .compose(&exec_command_impl, &write_file_impl)
+        let composition_success = self
+            .compose_supergraph(
+                client_config,
+                override_install_path,
+                &exec_command_impl,
+                &write_file_impl,
+            )
             .await?;
 
         if let Some(output_file) = output_file {
@@ -98,5 +103,54 @@ impl Compose {
         }
 
         Ok(RoverOutput::CompositionResult(composition_success.into()))
+    }
+
+    /// Runs composition, either natively or via the `supergraph` plugin binary.
+    async fn compose_supergraph(
+        &self,
+        client_config: StudioClientConfig,
+        override_install_path: Option<Utf8PathBuf>,
+        exec_command_impl: &TokioCommand,
+        write_file_impl: &FsWriteFile,
+    ) -> RoverResult<CompositionSuccess> {
+        #[cfg(feature = "composition-rust")]
+        if self.opts.native_composition {
+            // Stop the pipeline before the install step; native composition needs no binary.
+            let pipeline = crate::composition::resolve_composition_pipeline(
+                self.opts.federation_version.clone(),
+                &client_config,
+                &self.opts.plugin_opts,
+                self.opts.supergraph_config_source.supergraph_yaml().clone(),
+                self.opts.supergraph_config_source.graph_ref().clone(),
+                true,
+            )
+            .await?;
+
+            return match pipeline
+                .compose_native(&client_config, self.opts.plugin_opts.elv2_license_accepter)
+                .await
+            {
+                Ok(success) => Ok(success),
+                // Return the inner error as-is; it carries the suggestion explaining how to
+                // accept the ELv2 license, which wrapping would discard.
+                Err(crate::composition::CompositionError::Elv2LicenseNotAccepted(err)) => Err(*err),
+                Err(err) => Err(err.into()),
+            };
+        }
+
+        let composition_pipeline = get_supergraph_binary(
+            self.opts.federation_version.clone(),
+            client_config,
+            override_install_path,
+            self.opts.plugin_opts.clone(),
+            self.opts.supergraph_config_source.supergraph_yaml().clone(),
+            self.opts.supergraph_config_source.graph_ref().clone(),
+            true,
+        )
+        .await?;
+
+        Ok(composition_pipeline
+            .compose(exec_command_impl, write_file_impl)
+            .await?)
     }
 }

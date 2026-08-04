@@ -13,7 +13,10 @@ use tower::ServiceExt;
 use crate::{
     RoverError,
     composition::{
-        pipeline::{CompositionPipeline, state::Run},
+        pipeline::{
+            CompositionPipeline,
+            state::{InstallSupergraph, Run},
+        },
         supergraph::{
             config::{
                 error::ResolveSubgraphError,
@@ -42,20 +45,21 @@ pub mod types;
 #[cfg(feature = "composition-js")]
 mod watchers;
 
-/// A reusable, shareable, canonical way to get a supergraph binary from the common options
-/// used around Rover.
-pub(crate) async fn get_supergraph_binary(
+/// Builds a composition pipeline up to the resolved federation version.
+///
+/// Split out from [`get_supergraph_binary`] so native composition can stop short of the plugin
+/// download.
+pub(crate) async fn resolve_composition_pipeline(
     federation_version: Option<FederationVersion>,
-    client_config: StudioClientConfig,
-    override_install_path: Option<Utf8PathBuf>,
-    plugin_opts: PluginOpts,
+    client_config: &StudioClientConfig,
+    plugin_opts: &PluginOpts,
     supergraph_yaml: Option<FileDescriptorType>,
     graph_ref: Option<GraphRef>,
     // Only `supergraph compose` nudges users to pin the federation version;
     // `connector` and the LSP share this helper but shouldn't warn.
     warn_on_floating_version: bool,
-) -> Result<CompositionPipeline<Run>, RoverError> {
-    let profile = plugin_opts.profile;
+) -> Result<CompositionPipeline<InstallSupergraph>, RoverError> {
+    let profile = plugin_opts.profile.clone();
 
     let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
         .studio_client_config(client_config.clone())
@@ -70,7 +74,7 @@ pub(crate) async fn get_supergraph_binary(
     let resolve_introspect_subgraph_factory =
         MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
 
-    CompositionPipeline::default()
+    Ok(CompositionPipeline::default()
         .init(
             &mut stdin(),
             fetch_remote_subgraphs_factory,
@@ -85,15 +89,37 @@ pub(crate) async fn get_supergraph_binary(
             federation_version,
             warn_on_floating_version,
         )
-        .await
-        .install_supergraph_binary(
-            client_config,
-            override_install_path,
-            plugin_opts.elv2_license_accepter,
-            plugin_opts.skip_update,
-        )
-        .await
-        .map_err(RoverError::from)
+        .await)
+}
+
+/// A reusable, shareable, canonical way to get a supergraph binary from the common options
+/// used around Rover.
+pub(crate) async fn get_supergraph_binary(
+    federation_version: Option<FederationVersion>,
+    client_config: StudioClientConfig,
+    override_install_path: Option<Utf8PathBuf>,
+    plugin_opts: PluginOpts,
+    supergraph_yaml: Option<FileDescriptorType>,
+    graph_ref: Option<GraphRef>,
+    warn_on_floating_version: bool,
+) -> Result<CompositionPipeline<Run>, RoverError> {
+    resolve_composition_pipeline(
+        federation_version,
+        &client_config,
+        &plugin_opts,
+        supergraph_yaml,
+        graph_ref,
+        warn_on_floating_version,
+    )
+    .await?
+    .install_supergraph_binary(
+        client_config,
+        override_install_path,
+        plugin_opts.elv2_license_accepter,
+        plugin_opts.skip_update,
+    )
+    .await
+    .map_err(RoverError::from)
 }
 
 #[derive(Debug, Clone)]
@@ -159,6 +185,25 @@ pub enum CompositionError {
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
     #[error("Could not install supergraph binary:\n{}", .source)]
     InstallSupergraphBinaryError { source: InstallSupergraphError },
+    #[error(
+        "`federation_version: {requested}` is newer than the federation spec this build of Rover \
+         composes natively, which supports up to {max_supported}. Either lower the version, or \
+         drop `--native-composition` to compose with the supergraph plugin."
+    )]
+    NativeCompositionSpecTooNew {
+        requested: FederationVersion,
+        max_supported: String,
+    },
+    #[error(
+        "Native composition only supports federation 2, but `{requested}` was requested. Drop \
+         `--native-composition` to compose with the supergraph plugin."
+    )]
+    NativeCompositionRequiresFedTwo { requested: FederationVersion },
+    /// Carries the original [`RoverError`] for its suggestion (how to accept the license), which
+    /// only survives if callers return the inner error rather than wrapping it.
+    // Not `#[error(transparent)]`: `RoverError` implements `Display` but not `std::error::Error`.
+    #[error("{}", .0)]
+    Elv2LicenseNotAccepted(Box<RoverError>),
 }
 
 #[derive(Debug, Eq, PartialEq)]

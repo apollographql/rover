@@ -218,6 +218,48 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
     }
 }
 impl CompositionPipeline<state::InstallSupergraph> {
+    /// Composes in-process via `apollo-composition`, with no supergraph plugin binary.
+    ///
+    /// Lives on the `InstallSupergraph` state rather than `Run` because stopping before that
+    /// transition is what skips the plugin download. ELv2 is still required — see the
+    /// [`native`](super::supergraph::native) module docs for why.
+    #[cfg(feature = "composition-rust")]
+    pub async fn compose_native(
+        &self,
+        studio_client_config: &StudioClientConfig,
+        elv2_license_accepter: LicenseAccepter,
+    ) -> Result<CompositionSuccess, CompositionError> {
+        use super::supergraph::native::NativeComposer;
+        use crate::options::Elv2Subject;
+
+        // Unconditional, unlike the plugin install path, which only requires ELv2 for fed 2.
+        // Native composition is always fed 2.
+        elv2_license_accepter
+            .require_elv2_license_for(studio_client_config, Elv2Subject::NativeComposition)
+            .map_err(|err| CompositionError::Elv2LicenseNotAccepted(Box::new(err)))?;
+
+        // Before resolving subgraphs, which can hit the network for introspection and Studio.
+        let composer = NativeComposer::new(&self.state.federation_version)?;
+
+        let (fully_resolved_supergraph_config, errors) = self
+            .state
+            .resolver
+            .fully_resolve_subgraphs(
+                self.state.resolve_introspect_subgraph_factory.clone(),
+                self.state.fetch_remote_subgraph_factory.clone(),
+                &self.state.supergraph_root,
+            )
+            .await?;
+
+        if !errors.is_empty() {
+            return Err(CompositionError::ResolvingSubgraphsError(
+                ResolveSupergraphConfigError::ResolveSubgraphs(errors),
+            ));
+        }
+
+        composer.compose(&fully_resolved_supergraph_config).await
+    }
+
     pub async fn install_supergraph_binary(
         self,
         studio_client_config: StudioClientConfig,

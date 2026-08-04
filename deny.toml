@@ -92,6 +92,12 @@ allow = ["Elastic-2.0"]
 name = "apollo-federation"
 allow = ["Elastic-2.0"]
 
+# Native composition. Rover gates this behind ELv2 acceptance at runtime, the same as the
+# ELv2-licensed `supergraph` plugin it replaces.
+[[licenses.exceptions]]
+name = "apollo-composition"
+allow = ["Elastic-2.0"]
+
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
