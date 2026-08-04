@@ -84,7 +84,7 @@ The source variant must belong to the same graph as the contract variant. It mus
 </td>
 <td>
 
-A tag name to [include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times:
+A tag name to include when filtering. To include multiple tag names, specify `--include-tag` multiple times. For details, see [contract filters](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters):
 
 ```bash
 --include-tag foo --include-tag bar
@@ -98,7 +98,7 @@ Every tag name **must**:
 * Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
 * Have a maximum of 128 characters.
 
-One of `--include-tag` or `--no-include-tags` is required.
+Specify either `--include-tag` or `--no-include-tags`.
 
 </td>
 </tr>
@@ -112,7 +112,7 @@ One of `--include-tag` or `--no-include-tags` is required.
 
 Specifies an empty [include list](/graphos/delivery/contracts/#contract-filters) for the published contract.
 
-One of `--include-tag` or `--no-include-tags` is **required**.
+You must provide either `--include-tag` or `--no-include-tags`.
 
 </td>
 </tr>
@@ -124,7 +124,7 @@ One of `--include-tag` or `--no-include-tags` is **required**.
 </td>
 <td>
 
-Provide a tag name to [exclude](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times:
+Provide a tag name to exclude when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters):
 
 ```
 --exclude-tag foo --exclude-tag bar
@@ -138,7 +138,7 @@ Every tag name **must**:
 * Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
 * Have a maximum of 128 characters.
 
-One of `--exclude-tag` or `--no-exclude-tags` is required.
+Specify either `--exclude-tag` or `--no-exclude-tags`.
 
 </td>
 </tr>
@@ -152,7 +152,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is required.
 
 Specifies an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for the published contract.
 
-One of `--exclude-tag` or `--no-exclude-tags` is **required**.
+One of `--exclude-tag` or `--no-exclude-tags` is required.
 
 </td>
 </tr>
@@ -166,7 +166,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 
 If provided, the contract automatically [hides](/graphos/delivery/contracts/#contract-filters) types that are unreachable from the contract schema's root fields.
 
-One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is required.
+Specify either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 
 </td>
 </tr>
@@ -180,7 +180,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is required.
 
 If provided, the contract doesn't automatically hide types that are unreachable from the contract schema's root fields.
 
-You must provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
+Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 
 </td>
 </tr>
@@ -199,13 +199,13 @@ You must provide either `--hide-unreachable-types` or `--no-hide-unreachable-typ
 </tbody>
 </table>
 
-## Preview a contract
+## Previewing a contract
 
 ### `contract preview`
 
 <AuthNotice />
 
-Before [publishing a contract to GraphOS](#publishing-a-contract-to-graphos), you can preview the contract schema that a given filter would produce, without publishing a contract variant.
+Before publishing a contract to GraphOS, you can preview the contract schema that a given filter would produce, without publishing a contract variant. For details, see [publishing a contract to GraphOS](#publishing-a-contract-to-graphos).
 
 Use the `contract preview` command to view the resulting schema:
 
@@ -239,13 +239,13 @@ Options include:
 </td>
 <td>
 
-A tag name to [include](/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times:
+A tag name to [include in contract filters](/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times:
 
 ```bash
 --include-tag foo --include-tag bar
 ```
 
-To specify an empty include list, provide `--no-include-tags` instead of this option.
+To specify an empty include list, use `--no-include-tags`.
 
 One of `--include-tag` or `--no-include-tags` is **required**.
 
@@ -259,7 +259,7 @@ One of `--include-tag` or `--no-include-tags` is **required**.
 </td>
 <td>
 
-Specify an empty [include list](/graphos/delivery/contracts/#contract-filters) for your previewed contract.
+Specify an empty [include list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
 One of `--include-tag` or `--no-include-tags` is **required**.
 
@@ -273,7 +273,7 @@ One of `--include-tag` or `--no-include-tags` is **required**.
 </td>
 <td>
 
-A tag name to [exclude](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times:
+A tag name to exclude when filtering. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters). To exclude multiple tag names, specify `--exclude-tag` multiple times:
 
 ```bash
 --exclude-tag foo --exclude-tag bar
@@ -293,7 +293,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 </td>
 <td>
 
-Specifies an empty [contract filter list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
+Specify an empty [contract filter list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
 One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 
@@ -307,9 +307,9 @@ One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 </td>
 <td>
 
-If provided, the preview automatically [hides](/graphos/delivery/contracts/#contract-filters) types that are unreachable from your contract schema's root fields.
+If provided, the preview automatically hides types that are unreachable from your contract schema's root fields. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
 
-One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required**.
+You must provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 
 </td>
 </tr>
@@ -323,7 +323,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 
 If provided, the preview doesn't automatically hide types that are unreachable from the contract schema's root fields.
 
-One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required**.
+You must provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 
 </td>
 </tr>
@@ -335,7 +335,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 </td>
 <td>
 
-**Optional.** If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Check the build's status later with `--build-id`.
+Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Check the build's status later with `--build-id`.
 
 </td>
 </tr>
@@ -347,27 +347,29 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 </td>
 <td>
 
-**Optional.** Check the status of a previously started preview build a single time, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options above.
+**Optional.** Check the status of a previously started preview build once, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options following.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-#### Run previews asynchronously
+#### Running previews asynchronously
 
-If a preview build might take a while, pass `--async` to start the build and return a build ID, instead of waiting until it completes:
+If a preview build might take a long time, pass `--async` to start the build and return a build ID, instead of waiting until it completes:
 
 ```bash
 rover contract preview my-graph@my-source-variant \
   --include-tag foo --no-exclude-tags --hide-unreachable-types --async
 ```
 
-Check back on the build later with `--build-id`:
+Check the status of the build later with `--build-id`:
 
 ```bash
 ```bash
+```bash
 rover contract preview my-graph@my-source-variant --build-id <BUILD_ID>
+```
 ```
 ```
 
