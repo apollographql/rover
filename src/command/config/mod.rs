@@ -2,7 +2,7 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
-mod whoami;
+pub(crate) mod whoami;
 
 use clap::Parser;
 use serde::Serialize;
@@ -36,11 +36,17 @@ pub enum Command {
 impl Config {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Auth(command) => command.run(client_config.config),
+            Command::Auth(command) => {
+                command.run(client_config.config, &rover_print::print::stderr::default())
+            }
             Command::List(command) => command.run(client_config.config),
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
-            Command::Whoami(command) => command.run(client_config).await,
+            Command::Whoami(command) => {
+                command
+                    .run(client_config, &rover_print::print::stderr::default())
+                    .await
+            }
         }
     }
 }

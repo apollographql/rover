@@ -34,6 +34,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Show successful build and operation check sections in plain-text check output - fixes #1816**
+
+  `rover subgraph check` and `rover graph check` now show explicit `Build Check [PASSED]` and `Operation Check [PASSED]` sections even when no schema changes or operation warnings were found. This makes successful check results visible alongside linter and other check sections.
+
 - **Fix a flaky lint-report test - @dotdat**
 
   `rover-client`'s `utf8_points_to_correct_place` test could fail depending on whether the `NO_COLOR`/`APOLLO_NO_COLOR` environment variables happened to be set in the environment running the test suite, since that changes not just color but the literal report-kind text ("Warning" vs the raw "WARNING" level string). The test now pins both env vars unset for its duration, so it's deterministic regardless of the ambient environment. No user-facing behavior change.
@@ -55,6 +59,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Add `rover auth login`, gated behind an experimental `oauth` feature flag - @dotdat**
 
   `rover auth login` authenticates via OAuth 2.0 (PKCE authorization-code flow): it opens your browser, completes the login against Apollo's Identity service, and stores the resulting session the same way `rover config auth` stores a Personal API Key (`--profile <name>` works the same way). Only compiled in when built with `--features oauth` — off by default, and not part of any released binary yet. Uses a static, pre-registered OAuth client (one per environment) rather than registering a new client per install; the top-level `--oauth-authorization-url`/`--oauth-token-url`/`--oauth-client-id` flags override the defaults (Apollo's production OAuth server and its registered `rover` client) for testing against other environments. These are top-level flags, not ones scoped to `auth login`, so they'll also apply to any future command that needs to refresh an OAuth token. The authorization URL is always printed to stderr regardless of whether a browser opens; pass `--no-open` to skip the open attempt entirely — useful over SSH or in any environment without a browser.
+
+- **Add `rover auth whoami`, gated behind the same experimental `oauth` feature flag - @dotdat**
+
+  `rover auth whoami` displays the identity of the currently authenticated profile. For a profile logged in via `rover auth login`, it queries the OAuth identity provider's `/userinfo` endpoint directly and shows the account's name, email, and user ID; for a profile still using a legacy Personal API Key (via `rover config auth` or `APOLLO_KEY`), it falls back to the same Apollo Studio lookup `rover config whoami` already does. `rover config whoami` itself is unchanged aside from a new stderr note pointing at `rover auth whoami` going forward. Both lookups now go through a `tower` retry/timeout policy (bounded per-attempt timeout, exponential-backoff retry on transient failures) — the OAuth REST call didn't have either before, so a hung connection or a flaky identity provider could previously leave the command stuck indefinitely. The new `--oauth-whoami-url` flag overrides the `/userinfo` endpoint the same way the existing OAuth endpoint flags do.
 
 # [0.41.0] - 2026-07-09
 

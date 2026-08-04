@@ -1275,6 +1275,7 @@ mod tests {
         let mock_check_response = CheckWorkflowResponse {
             default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(true),
+            maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
                 Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
@@ -1416,7 +1417,16 @@ mod tests {
                 "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
                     .to_string(),
             maybe_core_schema_modified: Some(true),
-            maybe_operations_response: None,
+            maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
+                        .to_string(),
+                ),
+                0,
+                vec![],
+            )),
             maybe_lint_response: Some(LintCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
                 target_url: Some(
@@ -1445,8 +1455,13 @@ mod tests {
             .expect("Expected response to exist");
         let actual_text = strip_ansi_codes(&actual_text);
 
-        let expected_text = "
+        let expected_text = "Build Check [PASSED]:
 There were no changes detected in the composed API schema, but the core schema was modified.
+
+Operation Check [PASSED]:
+Compared 0 schema changes against 0 operations.
+No schema changes detected.
+View operation check details at: https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1
 
 Linter Check [PASSED]:
 No linting errors or warnings found.
@@ -1460,12 +1475,106 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
     }
 
     #[test]
+    fn check_graph_response_text_has_no_build_section() {
+        let check_response = CheckWorkflowResponse {
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/checks"
+                .to_string(),
+            maybe_core_schema_modified: None,
+            maybe_core_schema_status: None,
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                None,
+                0,
+                vec![],
+            )),
+            maybe_lint_response: None,
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+        };
+
+        let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        assert_eq!(
+            actual_text,
+            "Operation Check [PASSED]:\nCompared 0 schema changes against 0 operations.\nNo schema changes detected."
+        );
+    }
+
+    #[test]
+    fn check_graph_response_text_includes_each_present_task() {
+        let check_response = CheckWorkflowResponse {
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/checks"
+                .to_string(),
+            maybe_core_schema_modified: None,
+            maybe_core_schema_status: None,
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                None,
+                0,
+                vec![],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: None,
+                diagnostics: vec![],
+                errors_count: 0,
+                warnings_count: 0,
+            }),
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+        };
+
+        let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        assert_eq!(
+            actual_text,
+            "Operation Check [PASSED]:\nCompared 0 schema changes against 0 operations.\nNo schema changes detected.\n\nLinter Check [FAILED]:\nNo linting errors or warnings found."
+        );
+    }
+
+    #[test]
+    fn check_build_status_uses_response_status() {
+        let check_response = CheckWorkflowResponse {
+            default_target_url: String::new(),
+            maybe_core_schema_modified: Some(false),
+            maybe_core_schema_status: Some(CheckTaskStatus::BLOCKED),
+            maybe_operations_response: None,
+            maybe_lint_response: None,
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+        };
+
+        let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        assert_eq!(
+            actual_text,
+            "Build Check [BLOCKED]:\nThere were no changes detected in the composed schema."
+        );
+    }
+
+    #[test]
     fn check_failure_response_json() {
         let graph_ref = GraphRef::new("name", Some("current")).unwrap();
         let check_response = CheckWorkflowResponse {
             default_target_url:
                 "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(false),
+            maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::FAILED,
                 Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
