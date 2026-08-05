@@ -1,4 +1,4 @@
-use std::{fmt::Display, io, process, time::Duration};
+use std::{fmt::Display, io, process};
 
 use camino::Utf8PathBuf;
 use clap::{
@@ -349,6 +349,8 @@ impl Rover {
     /// neither env var is set, so callers can fall back to a stored profile credential.
     #[cfg(feature = "oauth")]
     async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+        use std::time::Duration;
+
         use bytes::Bytes;
         use rover_auth::oauth2::client_credentials::{ClientCredentials, ClientCredentialsRequest};
         use rover_http::{Full, ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
