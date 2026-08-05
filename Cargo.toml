@@ -256,6 +256,7 @@ apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 bon = { workspace = true }
+bytes = { workspace = true }
 buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }

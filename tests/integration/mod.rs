@@ -1,3 +1,5 @@
+#[cfg(feature = "oauth")]
+mod auth;
 mod client;
 mod completion;
 mod dev;
