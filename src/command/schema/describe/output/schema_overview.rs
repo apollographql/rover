@@ -40,7 +40,7 @@ impl<'a> SchemaOverviewDisplay<'a> {
         }
 
         let mut table = Table::new();
-        table.load_preset(presets::ASCII_FULL);
+        table.load_style(presets::ASCII_FULL);
         table.set_header(["Type", "#", "Fields"]);
 
         if !ov.query_fields.is_empty() {
@@ -62,7 +62,7 @@ impl<'a> SchemaOverviewDisplay<'a> {
     fn types(&self) -> String {
         let ov = self.overview;
         let mut table = Table::new();
-        table.load_preset(presets::ASCII_FULL);
+        table.load_style(presets::ASCII_FULL);
         table.set_header(["Kind", "#", "Names"]);
 
         for (kind, names) in [

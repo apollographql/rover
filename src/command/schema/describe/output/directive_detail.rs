@@ -48,7 +48,7 @@ impl<'a> DirectiveDetailDisplay<'a> {
         }
 
         let mut table = Table::new();
-        table.load_preset(presets::ASCII_FULL);
+        table.load_style(presets::ASCII_FULL);
         table.set_header(["Arg", "Type", "Notes"]);
 
         for arg in &self.detail.args {
