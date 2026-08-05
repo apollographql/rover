@@ -183,7 +183,7 @@ impl OperationCheckResponse {
 
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
+        table.load_style(UTF8_FULL);
 
         table.set_header(
             vec!["Change", "Code", "Description"]
@@ -243,7 +243,7 @@ pub struct LintCheckResponse {
 impl LintCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
+        table.load_style(UTF8_FULL);
 
         table.set_header(
             vec!["Level", "Coordinate", "Line", "Description"]
@@ -343,7 +343,7 @@ pub struct ProposalsCheckResponse {
 impl ProposalsCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
+        table.load_style(UTF8_FULL);
 
         table.set_header(
             vec!["Status", "Proposal Name"]
@@ -414,7 +414,7 @@ pub struct CustomCheckResponse {
 impl CustomCheckResponse {
     pub fn get_table(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
+        table.load_style(UTF8_FULL);
 
         table.set_header(
             vec!["Level", "Rule", "Line", "Message"]
