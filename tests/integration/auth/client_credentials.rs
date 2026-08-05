@@ -86,7 +86,8 @@ fn apollo_key_takes_precedence_over_client_credentials() {
 
     let token_mock = server.mock(|when, then| {
         when.method(POST).path("/token");
-        then.status(500).body("client credentials should not be exchanged");
+        then.status(500)
+            .body("client credentials should not be exchanged");
     });
 
     let whoami_mock = server.mock(|when, then| {

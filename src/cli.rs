@@ -1,4 +1,4 @@
-use std::{fmt::Display, io, process};
+use std::{fmt::Display, io, process, time::Duration};
 
 use camino::Utf8PathBuf;
 use clap::{
@@ -211,7 +211,10 @@ impl Rover {
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config().await?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                    )
                     .await
             }
             Command::Contract(command) => command.run(self.get_client_config().await?).await,
@@ -264,7 +267,10 @@ impl Rover {
             }
             Command::Install(command) => {
                 command
-                    .do_install(self.get_install_override_path()?, self.get_client_config().await?)
+                    .do_install(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                    )
                     .await
             }
             Command::Info(command) => command.run(),
@@ -345,8 +351,13 @@ impl Rover {
     async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
         use bytes::Bytes;
         use rover_auth::oauth2::client_credentials::{ClientCredentials, ClientCredentialsRequest};
-        use rover_http::{Full, ReqwestService};
-        use tower::ServiceExt;
+        use rover_http::{Full, ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
+        use tower::{ServiceBuilder, ServiceExt, retry::RetryLayer};
+
+        // Bounds a single token-endpoint attempt, independent of the overall
+        // retry budget below - mirrors `WHOAMI_ATTEMPT_TIMEOUT` in
+        // `command::auth::whoami`, which this same layering is copied from.
+        const CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
         let client_id = self.get_env_var(RoverEnvKey::ClientId)?;
         let client_secret = self.get_env_var(RoverEnvKey::ClientSecret)?;
@@ -379,10 +390,21 @@ impl Rover {
             .build()
             .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
 
-        let http_service = ReqwestService::builder()
-            .client(reqwest::Client::new())
+        let raw_service = ReqwestService::builder()
+            .client(self.get_reqwest_client()?)
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
+
+        // Bound each attempt and retry transient failures (timeouts, connect
+        // errors, 5xx/429) - a flaky token endpoint shouldn't fail a CI job's
+        // first authenticated request outright. Same layering as the OAuth
+        // whoami lookup in `command::auth::whoami`.
+        let http_service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(
+                self.client_timeout.unwrap_or_default().get_duration(),
+            )))
+            .layer(TimeoutLayer::new(CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT))
+            .service(raw_service);
 
         let service: ClientCredentials<_, Full<Bytes>> = ClientCredentials::new(http_service);
         let response = service.oneshot(request).await.map_err(|e| {
