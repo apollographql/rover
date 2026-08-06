@@ -107,6 +107,7 @@ async fn e2e_test_rover_graph_introspect_watch(
             "--output",
             out_file.path().to_str().unwrap(),
         ])
+        .stdin(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
         .expect("Could not run rover command");
