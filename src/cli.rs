@@ -327,7 +327,8 @@ impl Rover {
         };
         let mut config = self.get_rover_config()?;
         if config.override_api_key.is_none() {
-            config.override_api_key = self.resolve_client_credentials_token().await?;
+            config.override_client_credentials_token =
+                self.resolve_client_credentials_token().await?;
         }
         let client_config = StudioClientConfig::new(
             override_endpoint,

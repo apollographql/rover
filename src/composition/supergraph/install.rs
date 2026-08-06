@@ -130,6 +130,7 @@ mod tests {
             Config {
                 home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
                 override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
             },
             false,
             ClientBuilder::default(),
@@ -242,6 +243,7 @@ mod tests {
             Config {
                 home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
                 override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
             },
             false,
             ClientBuilder::default(),
@@ -300,6 +302,7 @@ mod tests {
             Config {
                 home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
                 override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
             },
             false,
             ClientBuilder::default(),
@@ -369,6 +372,7 @@ mod tests {
             Config {
                 home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
                 override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
             },
             false,
             ClientBuilder::default(),

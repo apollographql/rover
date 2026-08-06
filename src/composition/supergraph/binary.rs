@@ -586,6 +586,7 @@ mod tests {
         let config = Config {
             home: Utf8PathBuf::from_path_buf(home.path().to_path_buf()).unwrap(),
             override_api_key: None,
+            override_client_credentials_token: None,
         };
         StudioClientConfig::new(
             None,

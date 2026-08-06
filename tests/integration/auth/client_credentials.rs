@@ -18,8 +18,8 @@ fn whoami_response() -> Value {
 
 /// End-to-end check that `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` are exchanged
 /// for an access token via the OAuth token endpoint, and that the resulting token
-/// (not the client secret) is what gets sent as the `x-api-key` on the following
-/// Studio request - exercising the same code path CI systems will rely on.
+/// (not the client secret) is what gets sent as `Authorization: Bearer` on the
+/// following Studio request - exercising the same code path CI systems will rely on.
 #[test]
 fn client_credentials_are_exchanged_and_used_as_the_api_key() {
     let server = MockServer::start();
@@ -42,10 +42,13 @@ fn client_credentials_are_exchanged_and_used_as_the_api_key() {
     });
 
     // Only matches if the exchanged access token (not the raw client secret,
-    // and not some other value) is sent as the credential.
+    // and not some other value) is sent as the credential, via `Authorization:
+    // Bearer` - it's an OAuth2 access token from the same token endpoint
+    // `rover auth login` uses, so it's transported the same way (RFC 6750),
+    // not as the proprietary `x-api-key` scheme used for static API keys.
     let whoami_mock = server.mock(|when, then| {
         when.method(POST)
-            .header("x-api-key", "exchanged-access-token");
+            .header("authorization", "Bearer exchanged-access-token");
         then.status(200)
             .header("content-type", "application/json")
             .json_body(whoami_response());
@@ -78,9 +81,8 @@ fn client_credentials_are_exchanged_and_used_as_the_api_key() {
 
     // The snapshot pins the masked `api_key` to "exch**************oken" - proof
     // the *exchanged token*, not the client secret, became the credential - and
-    // `origin` to "$APOLLO_KEY", since the exchanged token is reported the same
-    // way an `APOLLO_KEY` override would be, by design (see
-    // `resolve_client_credentials_token`).
+    // `origin` to "$APOLLO_CLIENT_ID", distinguishing it from a literal `APOLLO_KEY`
+    // (see `CredentialOrigin::OauthClientCredentials`).
     let stdout: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_json_snapshot!(stdout);
 
