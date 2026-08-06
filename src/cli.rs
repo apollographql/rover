@@ -353,7 +353,10 @@ impl Rover {
         use std::time::Duration;
 
         use bytes::Bytes;
-        use rover_auth::oauth2::client_credentials::{ClientCredentials, ClientCredentialsRequest};
+        use rover_auth::oauth2::{
+            Scope,
+            client_credentials::{ClientCredentials, ClientCredentialsRequest},
+        };
         use rover_http::{Full, ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
         use tower::{ServiceBuilder, ServiceExt, retry::RetryLayer};
 
@@ -385,11 +388,19 @@ impl Rover {
             (None, None) => return Ok(None),
         };
 
+        // `rover:cli` identifies this as a rover request to Apollo's auth server -
+        // the same scope `rover-auth`'s dynamic client registration requests
+        // (`crates/rover-auth/src/oauth2/register.rs`), minus the `openid`/`profile`/
+        // `email` trio that flow also requests: those exist to authenticate a
+        // *person* via an ID token, which doesn't apply here - the client
+        // credentials grant authenticates the application itself (already
+        // identified by `client_id`, sent via HTTP Basic auth on every request),
+        // not a human user.
         let request = ClientCredentialsRequest::builder()
             .client_id(client_id)
             .client_secret(client_secret)
             .token_url(self.oauth_opts.token_url.clone())
-            .scopes(Vec::new())
+            .scopes(vec![Scope::new("rover:cli".to_string())])
             .build()
             .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
 
