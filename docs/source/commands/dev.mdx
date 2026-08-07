@@ -174,7 +174,7 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, you can use `1` or `2` (without an equals sign) for the latest release of Federation 1 or 2 respectively.
+You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, you can use `2` (without an equals sign) for the latest release of Federation 2. **Federation 1 is no longer supported**—`rover dev` rejects a Federation 1 version wherever one is specified.
 
 ```bash showLineNumbers=false
 rover dev \

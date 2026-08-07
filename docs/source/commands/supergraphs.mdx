@@ -181,15 +181,17 @@ The ELv2-licensed `supergraph` plugin (built from [this source](https://github.c
 
 Whenever you run `rover supergraph compose`, Rover automatically downloads the composition library for the given federation version you specified either in your [supergraph.yaml](#yaml-configuration-file) or via [stdin](#supergraph-compose).
 
-The command supports both Federation 1 and Federation 2 composition. Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
+Rover only supports Federation 2 composition, implemented by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library.
 
-- **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
-- **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
+<Caution>
+
+**Federation 1 is no longer supported.** Rover rejects a `federation_version` of `1` (or any Federation 1 version, such as `latest-0` in `rover install --plugin`) at every command that accepts one, including `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector`. To keep composing, opt every subgraph in to Federation 2 by adding an `@link` directive—see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2)—then remove any Federation 1 pin from your configuration.
+
+</Caution>
 
 <Note>
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-- If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
 - Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
 
 </Note>
@@ -201,11 +203,11 @@ If you don't specify a `federation_version` in `supergraph.yaml` (which will be 
 ```mermaid
 flowchart TB;
   version("Is the <code>federation_version</code> key<br/>present in <code>supergraph.yaml</code>?");
-  version--No-->optin("Does <strong>at least one</strong> subgraph schema<br/>opt in to Federation 2?");
+  version--No-->optin("Does <strong>every</strong> subgraph schema<br/>opt in to Federation 2?");
   version--Yes-->usesetting("Use the version specified<br/>by <code>federation_version</code>");
-  optin--No-->fed1("Use latest Federation 1<br/>composition");
+  optin--No-->fed1err("Fails: opt in to Federation 2<br/>via <code>@link</code> first");
   optin--Yes-->fed2("Use latest Federation 2<br/>composition");
-  class usesetting,fed1,fed2 tertiary;
+  class usesetting,fed1err,fed2 tertiary;
 ```
 
 A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
