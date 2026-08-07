@@ -63,7 +63,7 @@ impl RoverEnv {
     }
 
     fn get_debug_value(key: RoverEnvKey, value: &str) -> String {
-        let value = if matches!(key, RoverEnvKey::Key) {
+        let value = if matches!(key, RoverEnvKey::Key | RoverEnvKey::ClientSecret) {
             houston::mask_key(value)
         } else {
             value.to_string()
@@ -92,6 +92,8 @@ impl RoverEnv {
 /// For example, `RoverEnvKey::ConfigHome.to_string()` becomes `APOLLO_CONFIG_HOME`
 #[derive(Debug, Copy, Clone, EnumIter)]
 pub enum RoverEnvKey {
+    ClientId,
+    ClientSecret,
     ConfigHome,
     FireFlower,
     Home,
@@ -127,6 +129,18 @@ mod tests {
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_client_id() {
+        let expected_key = "APOLLO_CLIENT_ID";
+        assert_eq!(&RoverEnvKey::ClientId.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_client_secret() {
+        let expected_key = "APOLLO_CLIENT_SECRET";
+        assert_eq!(&RoverEnvKey::ClientSecret.to_string(), expected_key);
     }
 
     #[test]

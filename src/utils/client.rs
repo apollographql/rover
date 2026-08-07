@@ -290,6 +290,7 @@ mod tests {
             houston::Config {
                 home: camino::Utf8PathBuf::from("/tmp/rover-client-test"),
                 override_api_key: None,
+                override_client_credentials_token: None,
             },
             false,
             ClientBuilder::default(),

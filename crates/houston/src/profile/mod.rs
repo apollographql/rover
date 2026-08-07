@@ -31,14 +31,14 @@ pub struct ProfileData {
 #[derive(Clone, Debug)]
 pub struct Credential {
     /// The secret to authenticate with: either a Personal API Key, or (when
-    /// `origin` is [`CredentialOrigin::OAuth`]) an OAuth access token.
+    /// `origin` is [`CredentialOrigin::OauthAuthorizationPkce`]) an OAuth access token.
     pub api_key: String,
 
     /// The origin of the credential
     pub origin: CredentialOrigin,
 
     /// Unix timestamp at which an OAuth access token expires. Always `None`
-    /// unless `origin` is [`CredentialOrigin::OAuth`].
+    /// unless `origin` is [`CredentialOrigin::OauthAuthorizationPkce`].
     pub expires_at: Option<i64>,
 }
 
@@ -62,7 +62,13 @@ pub enum CredentialOrigin {
     ConfigFile(String),
 
     /// The credential is an OAuth token from a profile, obtained via `rover auth login`
-    OAuth(String),
+    OauthAuthorizationPkce(String),
+
+    /// The credential is an OAuth access token obtained via a client credentials
+    /// exchange (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`), for CI/machine-to-machine
+    /// use. Unlike `OauthAuthorizationPkce`, this is never persisted to a profile,
+    /// so it carries no name.
+    OauthClientCredentials,
 }
 
 impl Profile {
@@ -131,19 +137,29 @@ impl Profile {
     /// Returns a credential for interacting with Apollo services.
     ///
     /// Checks for the presence of an `APOLLO_KEY` env var, and returns its value
-    /// if it finds it. Otherwise looks for a credential on the file system: an
-    /// OAuth token from `rover auth login`, or a legacy pasted-in API key from
-    /// `rover config auth` — whichever is currently stored for the profile.
+    /// if it finds it. Otherwise checks for an OAuth token obtained via a client
+    /// credentials exchange (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`). Otherwise
+    /// looks for a credential on the file system: an OAuth token from `rover auth
+    /// login`, or a legacy pasted-in API key from `rover config auth` — whichever
+    /// is currently stored for the profile.
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_credential(name: &str, config: &Config) -> Result<Credential, HoustonProblem> {
-        let credential = match &config.override_api_key {
-            Some(api_key) => Credential {
+        let credential = match (
+            &config.override_api_key,
+            &config.override_client_credentials_token,
+        ) {
+            (Some(api_key), _) => Credential {
                 api_key: api_key.to_string(),
                 origin: CredentialOrigin::EnvVar,
                 expires_at: None,
             },
-            None => {
+            (None, Some(token)) => Credential {
+                api_key: token.to_string(),
+                origin: CredentialOrigin::OauthClientCredentials,
+                expires_at: None,
+            },
+            (None, None) => {
                 let opts = LoadOpts { sensitive: true };
                 let profile = Profile::load(name, config, opts)?;
                 match profile.sensitive {
@@ -153,7 +169,7 @@ impl Profile {
                         ..
                     } => Credential {
                         api_key: access_token,
-                        origin: CredentialOrigin::OAuth(name.to_string()),
+                        origin: CredentialOrigin::OauthAuthorizationPkce(name.to_string()),
                         expires_at,
                     },
                     Sensitive::ApiKey { api_key } => Credential {
@@ -379,6 +395,44 @@ mod tests {
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
     }
 
+    // A client-credentials-exchanged token must win over a stored profile
+    // credential, and be reported with its own origin - not `EnvVar` (which
+    // would misleadingly suggest a literal `APOLLO_KEY` was involved) and not
+    // `ConfigFile`/`OAuth` (no profile is ever touched by this path).
+    #[rstest]
+    #[serial]
+    fn get_credential_prefers_client_credentials_token_over_a_stored_profile(
+        test_config: (Config, TempDir),
+    ) {
+        let (mut config, _tmp_home) = test_config;
+        config.override_client_credentials_token = Some("cc-token".to_string());
+        let profile = "prefers-client-credentials-over-stored-profile";
+        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+
+        let credential = Profile::get_credential(profile, &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("cc-token".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthClientCredentials);
+        assert_that!(credential.expires_at).is_none();
+    }
+
+    // The `APOLLO_KEY` env var must still win even when a client-credentials
+    // token is also present - the exchange should never even need to happen.
+    #[rstest]
+    #[serial]
+    fn get_credential_prefers_env_var_over_client_credentials_token(
+        #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
+    ) {
+        let (mut config, _tmp_home) = test_config;
+        config.override_client_credentials_token = Some("cc-token".to_string());
+
+        let credential =
+            Profile::get_credential("prefers-env-over-client-credentials", &config).unwrap();
+
+        assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
+    }
+
     // With no env var set, a stored OAuth token should be returned as the credential.
     #[rstest]
     #[serial]
@@ -399,7 +453,9 @@ mod tests {
         let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
-        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(profile.to_string()));
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthAuthorizationPkce(
+            profile.to_string(),
+        ));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
     }
 
@@ -436,7 +492,9 @@ mod tests {
         let credential = Profile::get_credential(profile, &config).unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
-        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OAuth(profile.to_string()));
+        assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthAuthorizationPkce(
+            profile.to_string(),
+        ));
     }
 
     // `set_api_key` must replace a previously stored OAuth token, not coexist with it.

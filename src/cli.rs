@@ -199,28 +199,31 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Init(command) => command.run(self.get_client_config()?).await,
+            Command::Init(command) => command.run(self.get_client_config().await?).await,
             Command::Completion(command) => command.run(),
-            Command::Config(command) => command.run(self.get_client_config()?).await,
+            Command::Config(command) => command.run(self.get_client_config().await?).await,
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
-                    .run(self.get_client_config()?, self.get_oauth_config())
+                    .run(self.get_client_config().await?, self.get_oauth_config())
                     .await
             }
             #[cfg(feature = "composition-js")]
             Command::Connector(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                    )
                     .await
             }
-            Command::Contract(command) => command.run(self.get_client_config()?).await,
-            Command::Schema(command) => command.run(self.get_client_config()?).await,
+            Command::Contract(command) => command.run(self.get_client_config().await?).await,
+            Command::Schema(command) => command.run(self.get_client_config().await?).await,
             Command::Dev(command) => {
                 command
                     .run(
                         self.get_install_override_path()?,
-                        self.get_client_config()?,
+                        self.get_client_config().await?,
                         self.log_level,
                     )
                     .await
@@ -229,7 +232,7 @@ impl Rover {
                 command
                     .run(
                         self.get_install_override_path()?,
-                        self.get_client_config()?,
+                        self.get_client_config().await?,
                         self.output_opts.output_file.clone(),
                     )
                     .await
@@ -238,7 +241,7 @@ impl Rover {
             Command::Graph(command) => {
                 command
                     .run(
-                        self.get_client_config()?,
+                        self.get_client_config().await?,
                         self.get_git_context()?,
                         self.get_checks_timeout_seconds()?,
                         &self.output_opts,
@@ -246,11 +249,11 @@ impl Rover {
                     .await
             }
             Command::Template(command) => command.run().await,
-            Command::Readme(command) => command.run(self.get_client_config()?).await,
+            Command::Readme(command) => command.run(self.get_client_config().await?).await,
             Command::Subgraph(command) => {
                 command
                     .run(
-                        self.get_client_config()?,
+                        self.get_client_config().await?,
                         self.get_git_context()?,
                         self.get_checks_timeout_seconds()?,
                         &self.output_opts,
@@ -264,14 +267,17 @@ impl Rover {
             }
             Command::Install(command) => {
                 command
-                    .do_install(self.get_install_override_path()?, self.get_client_config()?)
+                    .do_install(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                    )
                     .await
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => {
                 let client_config = if command.requires_client_config() {
-                    Some(self.get_client_config()?)
+                    Some(self.get_client_config().await?)
                 } else {
                     None
                 };
@@ -279,16 +285,16 @@ impl Rover {
                     .run(client_config, &rover_print::stderr::default())
                     .await
             }
-            Command::License(command) => command.run(self.get_client_config()?).await,
+            Command::License(command) => command.run(self.get_client_config().await?).await,
             #[cfg(feature = "composition-js")]
-            Command::Lsp(command) => command.run(self.get_client_config()?).await,
-            Command::ApiKeys(command) => command.run(self.get_client_config()?).await,
+            Command::Lsp(command) => command.run(self.get_client_config().await?).await,
+            Command::ApiKeys(command) => command.run(self.get_client_config().await?).await,
             Command::Client(command) => {
                 command
-                    .run(self.get_client_config()?, self.get_git_context()?)
+                    .run(self.get_client_config().await?, self.get_git_context()?)
                     .await
             }
-            Command::GraphArtifact(command) => command.run(self.get_client_config()?).await,
+            Command::GraphArtifact(command) => command.run(self.get_client_config().await?).await,
         }
     }
 
@@ -311,7 +317,7 @@ impl Rover {
             .build()
     }
 
-    pub(crate) fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
+    pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
         let override_endpoint = self.get_env_var(RoverEnvKey::RegistryUrl)?;
         let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
@@ -319,7 +325,11 @@ impl Rover {
         } else {
             false
         };
-        let config = self.get_rover_config()?;
+        let mut config = self.get_rover_config()?;
+        if config.override_api_key.is_none() {
+            config.override_client_credentials_token =
+                self.resolve_client_credentials_token().await?;
+        }
         let client_config = StudioClientConfig::new(
             override_endpoint,
             config,
@@ -332,6 +342,95 @@ impl Rover {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
             None => client_config,
         })
+    }
+
+    /// Exchanges `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` for an access token via the
+    /// OAuth 2.0 client credentials grant, for CI/machine-to-machine use where the
+    /// interactive `rover auth login` flow isn't an option. Returns `Ok(None)` when
+    /// neither env var is set, so callers can fall back to a stored profile credential.
+    #[cfg(feature = "oauth")]
+    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+        use std::time::Duration;
+
+        use bytes::Bytes;
+        use rover_auth::oauth2::{
+            Scope,
+            client_credentials::{ClientCredentials, ClientCredentialsRequest},
+        };
+        use rover_http::{Full, ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
+        use tower::{ServiceBuilder, ServiceExt, retry::RetryLayer};
+
+        // Bounds a single token-endpoint attempt, independent of the overall
+        // retry budget below - mirrors `WHOAMI_ATTEMPT_TIMEOUT` in
+        // `command::auth::whoami`, which this same layering is copied from.
+        const CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
+
+        let client_id = self.get_env_var(RoverEnvKey::ClientId)?;
+        let client_secret = self.get_env_var(RoverEnvKey::ClientSecret)?;
+        let (client_id, client_secret) = match (client_id, client_secret) {
+            (Some(client_id), Some(client_secret)) => (client_id, client_secret),
+            (Some(_), None) => {
+                return Err(anyhow::anyhow!(
+                    "{} is set but {} is not; both are required to authenticate with client credentials",
+                    RoverEnvKey::ClientId,
+                    RoverEnvKey::ClientSecret
+                )
+                .into());
+            }
+            (None, Some(_)) => {
+                return Err(anyhow::anyhow!(
+                    "{} is set but {} is not; both are required to authenticate with client credentials",
+                    RoverEnvKey::ClientSecret,
+                    RoverEnvKey::ClientId
+                )
+                .into());
+            }
+            (None, None) => return Ok(None),
+        };
+
+        // `rover:cli` identifies this as a rover request to Apollo's auth server -
+        // the same scope `rover-auth`'s dynamic client registration requests
+        // (`crates/rover-auth/src/oauth2/register.rs`), minus the `openid`/`profile`/
+        // `email` trio that flow also requests: those exist to authenticate a
+        // *person* via an ID token, which doesn't apply here - the client
+        // credentials grant authenticates the application itself (already
+        // identified by `client_id`, sent via HTTP Basic auth on every request),
+        // not a human user.
+        let request = ClientCredentialsRequest::builder()
+            .client_id(client_id)
+            .client_secret(client_secret)
+            .token_url(self.oauth_opts.token_url.clone())
+            .scopes(vec![Scope::new("rover:cli".to_string())])
+            .build()
+            .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
+
+        let raw_service = ReqwestService::builder()
+            .client(self.get_reqwest_client()?)
+            .build()
+            .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
+
+        // Bound each attempt and retry transient failures (timeouts, connect
+        // errors, 5xx/429) - a flaky token endpoint shouldn't fail a CI job's
+        // first authenticated request outright. Same layering as the OAuth
+        // whoami lookup in `command::auth::whoami`.
+        let http_service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(
+                self.client_timeout.unwrap_or_default().get_duration(),
+            )))
+            .layer(TimeoutLayer::new(CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT))
+            .service(raw_service);
+
+        let service: ClientCredentials<_, Full<Bytes>> = ClientCredentials::new(http_service);
+        let response = service.oneshot(request).await.map_err(|e| {
+            anyhow::anyhow!("failed to exchange client credentials for an access token: {e}")
+        })?;
+
+        Ok(Some(response.access_token.secret().to_string()))
+    }
+
+    #[cfg(not(feature = "oauth"))]
+    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+        Ok(None)
     }
 
     pub(crate) fn get_install_override_path(&self) -> RoverResult<Option<Utf8PathBuf>> {

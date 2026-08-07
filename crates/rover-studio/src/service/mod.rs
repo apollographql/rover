@@ -54,7 +54,8 @@ impl HttpStudioServiceLayer {
         headers.insert("apollographql-client-version", client_version);
 
         match &credential.origin {
-            CredentialOrigin::OAuth(_) => {
+            CredentialOrigin::OauthAuthorizationPkce(_)
+            | CredentialOrigin::OauthClientCredentials => {
                 let mut auth = HeaderValue::from_str(&format!("Bearer {}", credential.api_key))?;
                 auth.set_sensitive(true);
                 headers.insert(http::header::AUTHORIZATION, auth);
@@ -238,7 +239,7 @@ mod tests {
     ) -> Result<()> {
         let credential = Credential {
             api_key: "an-access-token".to_string(),
-            origin: CredentialOrigin::OAuth("default".to_string()),
+            origin: CredentialOrigin::OauthAuthorizationPkce("default".to_string()),
             expires_at: None,
         };
         let headers =
