@@ -400,7 +400,7 @@ async fn create_composition_runner(
             federation_version,
             false,
         )
-        .await
+        .await?
         .install_supergraph_binary(
             client_config.clone(),
             None,

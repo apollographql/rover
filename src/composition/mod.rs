@@ -85,7 +85,7 @@ pub(crate) async fn get_supergraph_binary(
             federation_version,
             warn_on_floating_version,
         )
-        .await
+        .await?
         .install_supergraph_binary(
             client_config,
             override_install_path,
