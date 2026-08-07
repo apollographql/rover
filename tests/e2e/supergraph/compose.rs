@@ -1,4 +1,7 @@
-use std::{env, process::Command};
+use std::{
+    env,
+    process::{Command, Stdio},
+};
 
 use assert_cmd::cargo;
 use regex::RegexSet;
@@ -83,6 +86,7 @@ async fn it_fails_without_a_config() {
     //   - an invocation of `rover supergraph compose` without any config file
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args(["supergraph", "compose"]);
+    cmd.stdin(Stdio::null());
 
     // WHEN
     //   - it's invoked
