@@ -18,13 +18,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+> Important: 2 potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
 
 - **Remove `rover cloud` commands - @dotdat**
 
   `rover cloud config fetch`, `rover cloud config update`, and `rover cloud config validate` have been removed, along with their underlying GraphQL operations.
+
+- **Remove Federation 1 support - @dotdat**
+
+  Rover no longer supports Federation 1. `rover supergraph compose`, `rover dev`, `rover lsp`, `rover connector`, and `rover install --plugin supergraph@<version>` now reject any Federation 1 version (for example `federation_version: 1` in `supergraph.yaml`, or `latest-0`/an exact `0.x` version for the plugin installer) with an error pointing at the [Federation 2 migration guide](https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2). `rover init` no longer maps a template's federation version to a Federation 1 build pipeline track. If any of your subgraphs haven't yet opted in to Federation 2 via `@link`, composition will now fail until you do.
 
 ## 🚀 Features
 
