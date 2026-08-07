@@ -22,9 +22,7 @@ use crate::{
         .args(&["hide_unreachable_types", "no_hide_unreachable_types"])
 )]
 pub struct Preview {
-    /// `contractPreviewAsync` builds are polled via `contractPreviewStatus`,
-    /// which is scoped to a `GraphVariant`, so <GRAPH_REF> is required even in
-    /// --build-id mode.
+    /// Required to identify graph and check permissions even though buildId is unique.
     #[clap(flatten)]
     graph: GraphRefOpt,
 
@@ -69,9 +67,8 @@ pub struct Preview {
     /// waiting for it to complete.
     ///
     /// Every preview build runs asynchronously on the server; without this
-    /// flag, Rover starts the build and polls its status every ten seconds
-    /// until it finishes. With this flag, Rover only starts the build — check
-    /// on it later with --build-id.
+    /// flag, Rover starts the build and polls until it finishes. With this
+    /// flag, Rover only starts the build (check on it later with --build-id).
     #[arg(long = "async")]
     asynchronous: bool,
 

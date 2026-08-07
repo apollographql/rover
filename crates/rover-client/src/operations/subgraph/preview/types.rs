@@ -1,12 +1,7 @@
 use rover_studio::types::GraphRef;
 
-// The filter-config/status shapes are shared with the async contract preview
-// operation (`operations::contract::preview`) — both are backed by the same
-// FilterConfigInput/AsyncBuildStatus/PreviewJobResponse types.
 pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse, PreviewKind};
 
-/// A hypothetical change to one subgraph for a compose-and-filter preview,
-/// mirroring `ComposeAndFilterPreviewSubgraphChange` on the platform API.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SubgraphChange {
     pub name: String,
@@ -15,10 +10,7 @@ pub struct SubgraphChange {
     pub info: Option<SubgraphChangeInfo>,
 }
 
-/// The updated info for a changed subgraph, mirroring
-/// `ComposeAndFilterPreviewSubgraphChangeInfo`. Each field independently
-/// falls back to the existing subgraph's value when `None` (only meaningful
-/// for a subgraph that already exists on the variant).
+/// The subgraph changes to compose.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SubgraphChangeInfo {
     pub routing_url: Option<String>,
@@ -36,12 +28,8 @@ pub struct ComposeAndFilterPreviewInput {
     pub subgraph_changes: Vec<SubgraphChange>,
 }
 
-/// Input to poll (or fetch the full result of) a build started by
-/// `composeAndFilterPreviewAsync`. Unlike the earlier assumed top-level
-/// `previewStatus(jobId)` design, `composeAndFilterPreviewStatus` is a field
-/// on `GraphVariant` (per mdg-private/monorepo branch samaan/async-builds-3),
-/// so checking status needs the same `graph_ref` used to start the build,
-/// not just a build ID.
+/// Input to query status or results of a previous
+/// `composeAndFilterPreviewAsync`.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ComposeAndFilterPreviewStatusInput {
     pub graph_ref: GraphRef,

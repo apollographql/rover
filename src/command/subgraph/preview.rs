@@ -26,8 +26,7 @@ use crate::{
         .args(&["hide_unreachable_types", "no_hide_unreachable_types"])
 )]
 pub struct Preview {
-    /// `composeAndFilterPreviewStatus` is scoped to a `GraphVariant`, so
-    /// <GRAPH_REF> is required even in --build-id mode.
+    /// Required to identify graph and check permissions even though buildId is unique.
     #[clap(flatten)]
     graph: GraphRefOpt,
 

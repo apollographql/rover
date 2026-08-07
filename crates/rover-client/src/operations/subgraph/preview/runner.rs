@@ -64,6 +64,32 @@ pub async fn start(
     })
 }
 
+/// Check the status (without fetching the result) of a compose-and-filter
+/// preview build.
+async fn status(
+    input: ComposeAndFilterPreviewStatusInput,
+    client: &StudioClient,
+) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
+    let build_id = input.build_id.clone();
+    let graph_ref = input.graph_ref.clone();
+    let response_data = client
+        .post::<ComposeAndFilterPreviewStatusQuery>(input.into())
+        .await?;
+    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
+        .compose_and_filter_preview_status
+        .ok_or_else(|| RoverClientError::AdhocError {
+            msg: format!("No compose-and-filter preview build found with ID {build_id}."),
+        })?;
+
+    use compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus as Status;
+
+    let finished = !matches!(status, Status::ComposeAndFilterPreviewPending);
+    Ok(Some(crate::shared::check_workflow_poll::PollState {
+        finished,
+        target_url: None,
+    }))
+}
+
 /// Fetch the full result of a previously started compose-and-filter preview build.
 pub async fn result(
     input: ComposeAndFilterPreviewStatusInput,
@@ -99,12 +125,8 @@ pub async fn run(
     poll(status_input, client, checks_timeout_seconds).await
 }
 
-/// Poll an already-started compose-and-filter preview build (via the shared
-/// `crate::shared::check_workflow_poll::poll_check_workflow`, same as
-/// `rover subgraph check`) until it reaches a terminal state. Split out from
-/// `run` so callers that already know the build ID (e.g. the CLI, which
-/// prints it to the user right after starting the build) can poll without
-/// starting a second build.
+/// Continuously poll the status of an already-started compose-and-filter
+/// preview build.
 pub async fn poll(
     status_input: ComposeAndFilterPreviewStatusInput,
     client: &StudioClient,
@@ -123,9 +145,7 @@ type StatusUnion = compose_and_filter_preview_result_query::ComposeAndFilterPrev
 type PendingStatus = compose_and_filter_preview_result_query::ComposeAndFilterPreviewPendingStatus;
 
 /// Maps the `composeAndFilterPreviewStatus` union response into the domain
-/// `PreviewJobResponse`. Pulled out of `status` so the mapping (nested
-/// `Option`s, the filter-vs-compose-result preference, the different
-/// failure shapes) can be unit tested without a real network call.
+/// `PreviewJobResponse`.
 fn map_status_response(
     graph_ref: rover_studio::types::GraphRef,
     build_id: String,
@@ -202,39 +222,6 @@ fn map_status_response(
                 .collect(),
         },
     }
-}
-
-/// Check the status of a previously started compose-and-filter preview build
-/// using the lightweight, `__typename`-only selection. Used as
-/// `poll_check_workflow`'s repeated `poll_status`, so that polling a
-/// long-running build doesn't re-fetch its full (potentially large) schema
-/// documents every few seconds.
-async fn status(
-    input: ComposeAndFilterPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
-    let build_id = input.build_id.clone();
-    let graph_ref = input.graph_ref.clone();
-    let response_data = client
-        .post::<ComposeAndFilterPreviewStatusQuery>(input.into())
-        .await?;
-    // Unlike `SubgraphCheckWorkflowStatusQuery`, there's no eventual-consistency
-    // lag to accommodate here: once `composeAndFilterPreviewAsync` returns a
-    // build ID, that build is immediately pollable, so a missing graph/variant/
-    // build is a genuine error rather than "not ready yet".
-    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-        .compose_and_filter_preview_status
-        .ok_or_else(|| RoverClientError::AdhocError {
-            msg: format!("No compose-and-filter preview build found with ID {build_id}."),
-        })?;
-
-    use compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus as Status;
-
-    let finished = !matches!(status, Status::ComposeAndFilterPreviewPending);
-    Ok(Some(crate::shared::check_workflow_poll::PollState {
-        finished,
-        target_url: None,
-    }))
 }
 
 #[cfg(test)]

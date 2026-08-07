@@ -37,13 +37,10 @@ impl std::fmt::Display for AsyncBuildStatus {
     }
 }
 
-/// Which CLI command started (and therefore knows how to re-poll) a preview
-/// job. Both `composeAndFilterPreviewAsync` (`operations::subgraph::preview`)
-/// and `contractPreviewAsync` (`operations::contract::preview`) builds are
-/// tracked in the same ephemeral build system and polled via the same
-/// `composeAndFilterPreviewStatus`, so the response shape is identical; this
-/// is only here so output formatting knows which command's `--build-id` hint
-/// to print.
+/// Which CLI command started a preview job:
+///   Subgraph: `composeAndFilterPreviewAsync` (`operations::subgraph::preview`)
+///   Contract: `contractPreviewAsync` (`operations::contract::preview`)
+/// Necessary to track in order to know what poll command to show the user.
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum PreviewKind {
     Subgraph,
@@ -52,10 +49,6 @@ pub enum PreviewKind {
 
 /// The result of an async preview job (possibly in-flight), and if finished,
 /// the composed/filtered schema.
-///
-/// Both `composeAndFilterPreviewAsync` and `contractPreviewAsync` are scoped
-/// to a `GraphVariant`, so checking status needs the same graph ref used to
-/// start the build.
 #[derive(Clone, Eq, PartialEq, Debug, Serialize)]
 pub struct PreviewJobResponse {
     #[serde(skip_serializing)]

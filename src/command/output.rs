@@ -235,9 +235,7 @@ impl RoverOutput {
                 match preview_response.status {
                     AsyncBuildStatus::Pending | AsyncBuildStatus::Running => {
                         // Both `rover subgraph preview` and `rover contract preview`
-                        // poll the same GraphVariant-scoped `composeAndFilterPreviewStatus`,
-                        // so both hints need the graph ref; `kind` says which command
-                        // to print.
+                        // poll for completion; `kind` says which command to print.
                         let command = match preview_response.kind {
                             PreviewKind::Subgraph => "rover subgraph preview",
                             PreviewKind::Contract => "rover contract preview",
