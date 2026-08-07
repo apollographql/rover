@@ -8,7 +8,11 @@ use rover_std::{Fs, sanitize_url, warnln};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverResult,
+    composition::supergraph::config::federation::FederationOneUnsupported,
+    utils::client::StudioClientConfig,
+};
 
 mod error;
 mod mcp;
@@ -117,6 +121,10 @@ impl Plugin {
                         } else {
                             // if an old version doesn't have aarch64 binaries,
                             // you're out of luck
+                            //
+                            // `Plugin::from_str` rejects Federation 1 up front, so this arm is
+                            // unreachable via the CLI; kept because `FederationVersion` (from the
+                            // external apollo-federation-types crate) still has Fed1 variants.
                             if v.is_fed_one() {
                                 no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 1` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
                             } else if v.is_fed_two() {
@@ -175,10 +183,13 @@ impl FromStr for Plugin {
                 let federation_version = FederationVersion::from_str(&plugin_version)
                     .with_context(|| {
                         format!(
-                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-0', 'latest-2', or an exact version preceded with an '='.",
+                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-2' or an exact version preceded with an '='.",
                             plugin_version
                         )
                     })?;
+                if federation_version.is_fed_one() {
+                    return Err(FederationOneUnsupported.into());
+                }
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
@@ -274,6 +285,8 @@ impl PluginInstaller {
                     self.find_or_install_exact(plugin, &version, skip_update)
                         .await
                 }
+                // Unreachable via `Plugin::from_str`, which rejects Federation 1 up front; kept
+                // because `FederationVersion` still has Fed1 variants upstream.
                 FederationVersion::LatestFedOne => {
                     let major_version = 0;
                     self.find_or_install_latest_major(plugin, major_version, skip_update)
@@ -548,8 +561,8 @@ mod tests {
         use super::*;
 
         #[rstest::rstest]
-        // Valid supergraph (FederationVersion from apollo-federation-types accepts latest-0, latest-2, =X.Y.Z)
-        #[case::supergraph_latest_0("supergraph@latest-0")]
+        // Valid supergraph (FederationVersion from apollo-federation-types accepts latest-2, =X.Y.Z;
+        // Federation 1 versions parse but are rejected below in `federation_one_is_rejected`)
         #[case::supergraph_latest_2("supergraph@latest-2")]
         #[case::supergraph_exact_fed2("supergraph@=2.8.0")]
         // Valid router (RouterVersion accepts "1", "2", "latest", or =X.Y.Z for exact; 1.x and 2.x)
@@ -626,6 +639,14 @@ mod tests {
         fn invalid_version_per_plugin(#[case] input: &str) {
             let err = Plugin::from_str(input).unwrap_err();
             assert_that!(err.to_string()).is_not_equal_to("Invalid plugin name".to_string());
+        }
+
+        #[rstest::rstest]
+        #[case::latest_0("supergraph@latest-0")]
+        #[case::exact("supergraph@=0.36.0")]
+        fn federation_one_is_rejected(#[case] input: &str) {
+            let err = Plugin::from_str(input).unwrap_err();
+            assert_that!(err.to_string()).contains("Federation 1 is no longer supported");
         }
     }
 
