@@ -33,7 +33,8 @@ fn run_with_retries(cmd_fn: impl Fn() -> Command, max_attempts: u32) -> std::pro
 #[rstest]
 #[case::installs_supergraph_at_pinned_version(Vec::from(["install", "--plugin", "supergraph@=2.8.0"]), "supergraph-v2.8.0")]
 #[case::installs_supergraph_at_latest(Vec::from(["install", "--plugin", "supergraph@latest-2"]), "supergraph-")]
-#[case::installs_supergraph_at_latest_0(Vec::from(["install", "--plugin", "supergraph@latest-0"]), "supergraph-")]
+// installs_supergraph_at_latest_0 (Federation 1) is intentionally absent: `rover install
+// --plugin` now rejects Federation 1 versions outright.
 #[case::installs_router_at_pinned_version(Vec::from(["install", "--plugin", "router@=1.0.0"]), "router-v1.0.0")]
 #[case::installs_router_at_latest(Vec::from(["install", "--plugin", "router@latest"]), "router-")]
 #[case::installs_router_2x(Vec::from(["install", "--plugin", "router@2"]), "router-")]
@@ -181,7 +182,8 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 
 #[rstest]
 #[case::router_latest_1("router", "latest-1")]
-#[case::supergraph_latest_0("supergraph", "latest-0")]
+// supergraph_latest_0 (Federation 1) is intentionally absent: `rover install --plugin`
+// now rejects Federation 1 versions outright.
 #[case::supergraph_latest_2("supergraph", "latest-2")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
