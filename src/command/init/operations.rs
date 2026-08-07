@@ -49,8 +49,6 @@ fn map_federation_version_to_build_pipeline_track(
     })?;
 
     match (version.major, version.minor) {
-        (1, 0) => Ok(BuildPipelineTrack::FED_1_0),
-        (1, 1) => Ok(BuildPipelineTrack::FED_1_1),
         (2, 0) => Ok(BuildPipelineTrack::FED_2_0),
         (2, 1) => Ok(BuildPipelineTrack::FED_2_1),
         (2, 3) => Ok(BuildPipelineTrack::FED_2_3),
@@ -162,14 +160,6 @@ mod tests {
     #[test]
     fn test_map_federation_version_to_build_pipeline_track_valid_versions() {
         assert_eq!(
-            map_federation_version_to_build_pipeline_track("1.0").unwrap(),
-            BuildPipelineTrack::FED_1_0
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("1.1").unwrap(),
-            BuildPipelineTrack::FED_1_1
-        );
-        assert_eq!(
             map_federation_version_to_build_pipeline_track("2.0").unwrap(),
             BuildPipelineTrack::FED_2_0
         );
@@ -241,5 +231,11 @@ mod tests {
         assert!(map_federation_version_to_build_pipeline_track("2.11.2.preview").is_err());
         assert!(map_federation_version_to_build_pipeline_track("2.").is_err());
         assert!(map_federation_version_to_build_pipeline_track(".0").is_err());
+    }
+
+    #[test]
+    fn test_map_federation_version_to_build_pipeline_track_rejects_federation_one() {
+        assert!(map_federation_version_to_build_pipeline_track("1.0").is_err());
+        assert!(map_federation_version_to_build_pipeline_track("1.1").is_err());
     }
 }
