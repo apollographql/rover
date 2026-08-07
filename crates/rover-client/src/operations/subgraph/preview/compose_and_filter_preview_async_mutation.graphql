@@ -1,6 +1,4 @@
-# Starts an async compose-and-filter preview build (mdg-private/monorepo
-# branch samaan/async-builds-3). `Graph.variant` returns `GraphVariant`
-# directly (not a union), so no inline fragment is needed here.
+# Starts an async compose-and-filter preview build.
 query ComposeAndFilterPreviewAsyncMutation(
   $graph_id: ID!
   $variant: String!

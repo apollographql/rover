@@ -49,7 +49,7 @@ pub struct ComposeAndFilterPreviewStatusInput {
 }
 
 use crate::operations::subgraph::preview::runner::{
-    compose_and_filter_preview_async_mutation, compose_and_filter_preview_status_light_query,
+    compose_and_filter_preview_async_mutation, compose_and_filter_preview_result_query,
     compose_and_filter_preview_status_query,
 };
 
@@ -92,7 +92,7 @@ impl From<ComposeAndFilterPreviewInput> for compose_and_filter_preview_async_mut
 }
 
 impl From<ComposeAndFilterPreviewStatusInput>
-    for compose_and_filter_preview_status_query::Variables
+    for compose_and_filter_preview_result_query::Variables
 {
     fn from(input: ComposeAndFilterPreviewStatusInput) -> Self {
         let (graph_id, variant) = input.graph_ref.into_parts();
@@ -105,7 +105,7 @@ impl From<ComposeAndFilterPreviewStatusInput>
 }
 
 impl From<ComposeAndFilterPreviewStatusInput>
-    for compose_and_filter_preview_status_light_query::Variables
+    for compose_and_filter_preview_status_query::Variables
 {
     fn from(input: ComposeAndFilterPreviewStatusInput) -> Self {
         let (graph_id, variant) = input.graph_ref.into_parts();

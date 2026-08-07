@@ -24,6 +24,15 @@ pub(crate) struct ComposeAndFilterPreviewAsyncMutation;
 
 #[derive(GraphQLQuery)]
 #[graphql(
+    query_path = "src/operations/subgraph/preview/compose_and_filter_preview_result_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ComposeAndFilterPreviewResultQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
     query_path = "src/operations/subgraph/preview/compose_and_filter_preview_status_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
@@ -31,19 +40,51 @@ pub(crate) struct ComposeAndFilterPreviewAsyncMutation;
 )]
 pub(crate) struct ComposeAndFilterPreviewStatusQuery;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/subgraph/preview/compose_and_filter_preview_status_light_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-pub(crate) struct ComposeAndFilterPreviewStatusLightQuery;
+/// Start an async compose-and-filter preview job, returning its (pending)
+/// status immediately.
+pub async fn start(
+    input: ComposeAndFilterPreviewInput,
+    client: &StudioClient,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let response_data = client
+        .post::<ComposeAndFilterPreviewAsyncMutation>(input.into())
+        .await?;
+    let build_id = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
+        .compose_and_filter_preview_async
+        .build_id;
+    Ok(PreviewJobResponse {
+        graph_ref,
+        kind: PreviewKind::Subgraph,
+        build_id,
+        status: AsyncBuildStatus::Pending,
+        api_schema: None,
+        supergraph_schema: None,
+        errors: Vec::new(),
+    })
+}
 
-/// Start an async compose-and-filter preview build, incorporating subgraph
-/// changes and optionally a contract filter, and poll it (via the shared
-/// `crate::shared::check_workflow_poll::poll_check_workflow`, same as
-/// `rover subgraph check`) until it reaches a terminal state.
+/// Fetch the full result of a previously started compose-and-filter preview build.
+pub async fn result(
+    input: ComposeAndFilterPreviewStatusInput,
+    client: &StudioClient,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    let build_id = input.build_id.clone();
+    let graph_ref = input.graph_ref.clone();
+    let response_data = client
+        .post::<ComposeAndFilterPreviewResultQuery>(input.into())
+        .await?;
+    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
+        .compose_and_filter_preview_status
+        .ok_or_else(|| RoverClientError::AdhocError {
+            msg: format!("No compose-and-filter preview build found with ID {build_id}."),
+        })?;
+
+    Ok(map_status_response(graph_ref, build_id, status))
+}
+
+/// Start an async compose-and-filter preview build then poll until it reaches
+/// a terminal state.
 pub async fn run(
     input: ComposeAndFilterPreviewInput,
     client: &StudioClient,
@@ -72,60 +113,14 @@ pub async fn poll(
     poll_preview_build(
         checks_timeout_seconds,
         &status_input.build_id,
-        async || light_status(status_input.clone(), client).await,
         async || status(status_input.clone(), client).await,
+        async || result(status_input.clone(), client).await,
     )
     .await
 }
 
-/// Start an async compose-and-filter preview job, returning its (pending)
-/// status immediately, without waiting for it to complete.
-pub async fn start(
-    input: ComposeAndFilterPreviewInput,
-    client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let response_data = client
-        .post::<ComposeAndFilterPreviewAsyncMutation>(input.into())
-        .await?;
-    let build_id = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-        .compose_and_filter_preview_async
-        .build_id;
-    Ok(PreviewJobResponse {
-        graph_ref,
-        kind: PreviewKind::Subgraph,
-        build_id,
-        status: AsyncBuildStatus::Pending,
-        api_schema: None,
-        supergraph_schema: None,
-        errors: Vec::new(),
-    })
-}
-
-/// Check the status of a previously started compose-and-filter preview build
-/// a single time, without polling. Fetches the full result (schema
-/// documents, error details) — used as `poll_check_workflow`'s one-time
-/// `fetch_result`, and directly by `rover subgraph preview --build-id`.
-pub async fn status(
-    input: ComposeAndFilterPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let build_id = input.build_id.clone();
-    let graph_ref = input.graph_ref.clone();
-    let response_data = client
-        .post::<ComposeAndFilterPreviewStatusQuery>(input.into())
-        .await?;
-    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-        .compose_and_filter_preview_status
-        .ok_or_else(|| RoverClientError::AdhocError {
-            msg: format!("No compose-and-filter preview build found with ID {build_id}."),
-        })?;
-
-    Ok(map_status_response(graph_ref, build_id, status))
-}
-
-type StatusUnion = compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus;
-type PendingStatus = compose_and_filter_preview_status_query::ComposeAndFilterPreviewPendingStatus;
+type StatusUnion = compose_and_filter_preview_result_query::ComposeAndFilterPreviewResultQueryGraphVariantComposeAndFilterPreviewStatus;
+type PendingStatus = compose_and_filter_preview_result_query::ComposeAndFilterPreviewPendingStatus;
 
 /// Maps the `composeAndFilterPreviewStatus` union response into the domain
 /// `PreviewJobResponse`. Pulled out of `status` so the mapping (nested
@@ -214,27 +209,26 @@ fn map_status_response(
 /// `poll_check_workflow`'s repeated `poll_status`, so that polling a
 /// long-running build doesn't re-fetch its full (potentially large) schema
 /// documents every few seconds.
-async fn light_status(
+async fn status(
     input: ComposeAndFilterPreviewStatusInput,
     client: &StudioClient,
 ) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
+    let build_id = input.build_id.clone();
+    let graph_ref = input.graph_ref.clone();
     let response_data = client
-        .post::<ComposeAndFilterPreviewStatusLightQuery>(input.into())
+        .post::<ComposeAndFilterPreviewStatusQuery>(input.into())
         .await?;
-    let Some(graph) = response_data.graph else {
-        // The graph (and its build) may not be reportable on the very first
-        // poll; treat that as "not ready yet" and keep polling, mirroring
-        // `SubgraphCheckWorkflowStatusQuery`'s handling of the same lag.
-        return Ok(None);
-    };
-    let Some(variant) = graph.variant else {
-        return Ok(None);
-    };
-    let Some(status) = variant.compose_and_filter_preview_status else {
-        return Ok(None);
-    };
+    // Unlike `SubgraphCheckWorkflowStatusQuery`, there's no eventual-consistency
+    // lag to accommodate here: once `composeAndFilterPreviewAsync` returns a
+    // build ID, that build is immediately pollable, so a missing graph/variant/
+    // build is a genuine error rather than "not ready yet".
+    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
+        .compose_and_filter_preview_status
+        .ok_or_else(|| RoverClientError::AdhocError {
+            msg: format!("No compose-and-filter preview build found with ID {build_id}."),
+        })?;
 
-    use compose_and_filter_preview_status_light_query::ComposeAndFilterPreviewStatusLightQueryGraphVariantComposeAndFilterPreviewStatus as Status;
+    use compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus as Status;
 
     let finished = !matches!(status, Status::ComposeAndFilterPreviewPending);
     Ok(Some(crate::shared::check_workflow_poll::PollState {
@@ -309,11 +303,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_pending_running() {
+    async fn result_maps_pending_running() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -325,7 +319,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -337,11 +331,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_unrecognized_pending_substatus_to_running() {
+    async fn result_maps_unrecognized_pending_substatus_to_running() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -353,7 +347,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -365,11 +359,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_prefers_filter_results_over_compose_results_on_success() {
+    async fn result_prefers_filter_results_over_compose_results_on_success() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -387,7 +381,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -406,11 +400,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_falls_back_to_compose_results_when_filtering_was_skipped() {
+    async fn result_falls_back_to_compose_results_when_filtering_was_skipped() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -425,7 +419,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -440,11 +434,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_compose_failure() {
+    async fn result_maps_compose_failure() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -457,7 +451,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -473,11 +467,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_filter_failure_and_still_returns_the_composed_schema() {
+    async fn result_maps_filter_failure_and_still_returns_the_composed_schema() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -494,7 +488,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -511,7 +505,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_polls_light_status_then_fetches_full_result_once_finished() {
+    async fn run_polls_status_then_fetches_full_result_once_finished() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
@@ -524,7 +518,7 @@ mod tests {
         });
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ComposeAndFilterPreviewStatusLightQuery");
+                .body_includes("ComposeAndFilterPreviewStatusQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": { "__typename": "ComposeAndFilterPreviewSuccess" }
@@ -533,7 +527,7 @@ mod tests {
         });
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("query ComposeAndFilterPreviewStatusQuery");
+                .body_includes("ComposeAndFilterPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "composeAndFilterPreviewStatus": {
@@ -557,6 +551,43 @@ mod tests {
         assert_eq!(
             response.api_schema,
             Some("type Query { hi: String }".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn run_fails_fast_when_the_started_build_is_not_pollable() {
+        // Unlike a check workflow, a compose-and-filter preview build has no
+        // eventual-consistency lag: once `composeAndFilterPreviewAsync` returns
+        // a build ID, `composeAndFilterPreviewStatus` for it should never come
+        // back empty. If it does, that's a real error and must not be retried
+        // until the poll times out.
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewAsyncMutation");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewAsync": { "buildID": "build-123" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewStatus": null
+                } } }
+            }));
+        });
+
+        let err = run(test_input(), &test_client(&server.url("/")), 30)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(err, RoverClientError::AdhocError { .. }),
+            "expected an immediate AdhocError, got {err:?}"
         );
     }
 }

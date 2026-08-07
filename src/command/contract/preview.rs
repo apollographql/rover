@@ -108,7 +108,7 @@ impl Preview {
                 Style::Link.paint(graph_ref.to_string()),
                 Style::Command.paint(&self.profile.profile_name)
             );
-            let preview_response = preview::status(
+            let preview_response = preview::result(
                 ContractPreviewStatusInput {
                     graph_ref,
                     build_id: build_id.clone(),

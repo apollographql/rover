@@ -21,6 +21,15 @@ pub(crate) struct ContractPreviewAsyncMutation;
 
 #[derive(GraphQLQuery)]
 #[graphql(
+    query_path = "src/operations/contract/preview/contract_preview_result_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ContractPreviewResultQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
     query_path = "src/operations/contract/preview/contract_preview_status_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
@@ -28,52 +37,8 @@ pub(crate) struct ContractPreviewAsyncMutation;
 )]
 pub(crate) struct ContractPreviewStatusQuery;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/contract/preview/contract_preview_status_light_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-pub(crate) struct ContractPreviewStatusLightQuery;
-
-/// Start an async contract preview build and poll it (via the shared
-/// `crate::shared::check_workflow_poll::poll_check_workflow`, same as
-/// `rover subgraph check`) until it reaches a terminal state.
-pub async fn run(
-    input: ContractPreviewInput,
-    client: &StudioClient,
-    checks_timeout_seconds: u64,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let started = start(input, client).await?;
-    let status_input = ContractPreviewStatusInput {
-        graph_ref,
-        build_id: started.build_id,
-    };
-    poll(status_input, client, checks_timeout_seconds).await
-}
-
-/// Poll an already-started contract preview build. Split out from `run` so
-/// callers that already know the build ID (e.g. the CLI, which prints it to
-/// the user right after starting the build) can poll without starting a
-/// second build.
-pub async fn poll(
-    status_input: ContractPreviewStatusInput,
-    client: &StudioClient,
-    checks_timeout_seconds: u64,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    poll_preview_build(
-        checks_timeout_seconds,
-        &status_input.build_id,
-        async || light_status(status_input.clone(), client).await,
-        async || status(status_input.clone(), client).await,
-    )
-    .await
-}
-
 /// Start an async contract preview job, returning its (pending) status
-/// immediately, without waiting for it to complete.
+/// immediately.
 pub async fn start(
     input: ContractPreviewInput,
     client: &StudioClient,
@@ -96,14 +61,11 @@ pub async fn start(
     })
 }
 
-/// Check the status of a previously started contract preview build a single
-/// time, without polling. Fetches the full result (schema documents, error
-/// details) — used as `poll_check_workflow`'s one-time `fetch_result`, and
-/// directly by `rover contract preview --build-id`.
-pub async fn status(
+/// Check the status (without fetching the result) of a contract preview build.
+async fn status(
     input: ContractPreviewStatusInput,
     client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
+) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
     let build_id = input.build_id.clone();
     let graph_ref = input.graph_ref.clone();
     let response_data = client
@@ -115,16 +77,71 @@ pub async fn status(
             msg: format!("No contract preview build found with ID {build_id}."),
         })?;
 
+    use contract_preview_status_query::ContractPreviewStatusQueryGraphVariantContractPreviewStatus as Status;
+
+    let finished = !matches!(status, Status::ContractPreviewAsyncPending);
+    Ok(Some(crate::shared::check_workflow_poll::PollState {
+        finished,
+        target_url: None,
+    }))
+}
+
+/// Fetch the full result of a previously started contract preview build.
+pub async fn result(
+    input: ContractPreviewStatusInput,
+    client: &StudioClient,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    let build_id = input.build_id.clone();
+    let graph_ref = input.graph_ref.clone();
+    let response_data = client
+        .post::<ContractPreviewResultQuery>(input.into())
+        .await?;
+    let status = require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
+        .contract_preview_status
+        .ok_or_else(|| RoverClientError::AdhocError {
+            msg: format!("No contract preview build found with ID {build_id}."),
+        })?;
+
     Ok(map_status_response(graph_ref, build_id, status))
 }
 
+/// Continuously poll the status of an already-started contract preview build.
+pub async fn poll(
+    status_input: ContractPreviewStatusInput,
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    poll_preview_build(
+        checks_timeout_seconds,
+        &status_input.build_id,
+        async || status(status_input.clone(), client).await,
+        async || result(status_input.clone(), client).await,
+    )
+    .await
+}
+
+/// Start an async contract preview build then poll until it reaches a
+/// terminal state.
+pub async fn run(
+    input: ContractPreviewInput,
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let started = start(input, client).await?;
+    let status_input = ContractPreviewStatusInput {
+        graph_ref,
+        build_id: started.build_id,
+    };
+    poll(status_input, client, checks_timeout_seconds).await
+}
+
 type StatusUnion =
-    contract_preview_status_query::ContractPreviewStatusQueryGraphVariantContractPreviewStatus;
-type PendingStatus = contract_preview_status_query::ContractPreviewAsyncPendingStatus;
+    contract_preview_result_query::ContractPreviewResultQueryGraphVariantContractPreviewStatus;
+type PendingStatus = contract_preview_result_query::ContractPreviewAsyncPendingStatus;
 
 /// Maps the `contractPreviewStatus` union response into the domain
-/// `PreviewJobResponse`. Pulled out of `status` so the mapping can be unit
-/// tested without a real network call.
+/// `PreviewJobResponse`.
 fn map_status_response(
     graph_ref: rover_studio::types::GraphRef,
     build_id: String,
@@ -150,63 +167,25 @@ fn map_status_response(
             supergraph_schema: None,
             errors: Vec::new(),
         },
-        StatusUnion::ContractPreviewAsyncSuccess(success) => PreviewJobResponse {
+        StatusUnion::ContractPreviewSuccess(success) => PreviewJobResponse {
             graph_ref,
             kind: PreviewKind::Contract,
             build_id,
             status: AsyncBuildStatus::Success,
-            api_schema: Some(success.filter_results.api_schema_document),
-            supergraph_schema: Some(success.filter_results.supergraph_schema_document),
+            api_schema: Some(success.api_document),
+            supergraph_schema: Some(success.core_document),
             errors: Vec::new(),
         },
-        StatusUnion::ContractPreviewAsyncFailure(failure) => PreviewJobResponse {
+        StatusUnion::ContractPreviewErrors(failure) => PreviewJobResponse {
             graph_ref,
             kind: PreviewKind::Contract,
             build_id,
             status: AsyncBuildStatus::FilterFailed,
             api_schema: None,
             supergraph_schema: None,
-            errors: failure
-                .filter_errors
-                .into_iter()
-                .map(|error| error.message)
-                .collect(),
+            errors: failure.errors,
         },
     }
-}
-
-/// Check the status of a previously started contract preview build using the
-/// lightweight, `__typename`-only selection. Used as
-/// `poll_check_workflow`'s repeated `poll_status`, so that polling a
-/// long-running build doesn't re-fetch its full (potentially large) schema
-/// documents every few seconds.
-async fn light_status(
-    input: ContractPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
-    let response_data = client
-        .post::<ContractPreviewStatusLightQuery>(input.into())
-        .await?;
-    let Some(graph) = response_data.graph else {
-        // The graph (and its build) may not be reportable on the very first
-        // poll; treat that as "not ready yet" and keep polling, mirroring
-        // `SubgraphCheckWorkflowStatusQuery`'s handling of the same lag.
-        return Ok(None);
-    };
-    let Some(variant) = graph.variant else {
-        return Ok(None);
-    };
-    let Some(status) = variant.contract_preview_status else {
-        return Ok(None);
-    };
-
-    use contract_preview_status_light_query::ContractPreviewStatusLightQueryGraphVariantContractPreviewStatus as Status;
-
-    let finished = !matches!(status, Status::ContractPreviewAsyncPending);
-    Ok(Some(crate::shared::check_workflow_poll::PollState {
-        finished,
-        target_url: None,
-    }))
 }
 
 #[cfg(test)]
@@ -278,11 +257,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_pending_running() {
+    async fn result_maps_pending_running() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ContractPreviewStatusQuery");
+                .body_includes("ContractPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "contractPreviewStatus": {
@@ -294,7 +273,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -306,11 +285,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_unrecognized_pending_substatus_to_running() {
+    async fn result_maps_unrecognized_pending_substatus_to_running() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ContractPreviewStatusQuery");
+                .body_includes("ContractPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "contractPreviewStatus": {
@@ -322,7 +301,7 @@ mod tests {
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -334,25 +313,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_success() {
+    async fn result_maps_success() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ContractPreviewStatusQuery");
+                .body_includes("ContractPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "contractPreviewStatus": {
-                        "__typename": "ContractPreviewAsyncSuccess",
-                        "filterResults": {
-                            "apiSchemaDocument": "type Query { filtered: String }",
-                            "supergraphSchemaDocument": "filtered supergraph"
-                        }
+                        "__typename": "ContractPreviewSuccess",
+                        "apiDocument": "type Query { filtered: String }",
+                        "coreDocument": "filtered supergraph"
                     }
                 } } }
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -371,24 +348,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_maps_failure() {
+    async fn result_maps_failure() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ContractPreviewStatusQuery");
+                .body_includes("ContractPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "contractPreviewStatus": {
-                        "__typename": "ContractPreviewAsyncFailure",
-                        "filterErrors": [
-                            { "message": "unknown tag 'internal'", "failedStep": "VALIDATE" }
-                        ]
+                        "__typename": "ContractPreviewErrors",
+                        "errors": ["unknown tag 'internal'"],
+                        "failedAt": "TO_FILTER_SCHEMA"
                     }
                 } } }
             }));
         });
 
-        let response = status(
+        let response = result(
             test_status_input("build-123"),
             &test_client(&server.url("/")),
         )
@@ -401,7 +377,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_polls_light_status_then_fetches_full_result_once_finished() {
+    async fn run_polls_status_then_fetches_full_result_once_finished() {
         let server = MockServer::start_async().await;
         server.mock(|when, then| {
             when.method(POST)
@@ -414,24 +390,22 @@ mod tests {
         });
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("ContractPreviewStatusLightQuery");
+                .body_includes("ContractPreviewStatusQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
-                    "contractPreviewStatus": { "__typename": "ContractPreviewAsyncSuccess" }
+                    "contractPreviewStatus": { "__typename": "ContractPreviewSuccess" }
                 } } }
             }));
         });
         server.mock(|when, then| {
             when.method(POST)
-                .body_includes("query ContractPreviewStatusQuery");
+                .body_includes("ContractPreviewResultQuery");
             then.status(200).json_body(json!({
                 "data": { "graph": { "variant": {
                     "contractPreviewStatus": {
-                        "__typename": "ContractPreviewAsyncSuccess",
-                        "filterResults": {
-                            "apiSchemaDocument": "type Query { hi: String }",
-                            "supergraphSchemaDocument": "supergraph"
-                        }
+                        "__typename": "ContractPreviewSuccess",
+                        "apiDocument": "type Query { hi: String }",
+                        "coreDocument": "supergraph"
                     }
                 } } }
             }));
@@ -446,6 +420,43 @@ mod tests {
         assert_eq!(
             response.api_schema,
             Some("type Query { hi: String }".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn run_fails_fast_when_the_started_build_is_not_pollable() {
+        // Unlike a check workflow, a contract preview build has no
+        // eventual-consistency lag: once `contractPreviewAsync` returns a
+        // build ID, `contractPreviewStatus` for it should never come back
+        // empty. If it does, that's a real error and must not be retried
+        // until the poll times out.
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ContractPreviewAsyncMutation");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "contractPreviewAsync": { "buildID": "build-123" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ContractPreviewStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "contractPreviewStatus": null
+                } } }
+            }));
+        });
+
+        let err = run(test_input(), &test_client(&server.url("/")), 30)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(err, RoverClientError::AdhocError { .. }),
+            "expected an immediate AdhocError, got {err:?}"
         );
     }
 }

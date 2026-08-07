@@ -3,22 +3,6 @@ query ContractPreviewStatusQuery($graph_id: ID!, $variant: String!, $build_id: I
     variant(name: $variant) {
       contractPreviewStatus(buildID: $build_id) {
         __typename
-        ... on ContractPreviewAsyncPending {
-          buildID
-          status
-        }
-        ... on ContractPreviewAsyncSuccess {
-          filterResults {
-            apiSchemaDocument
-            supergraphSchemaDocument
-          }
-        }
-        ... on ContractPreviewAsyncFailure {
-          filterErrors {
-            message
-            failedStep
-          }
-        }
       }
     }
   }

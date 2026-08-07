@@ -1,8 +1,7 @@
 use rover_studio::types::GraphRef;
 
 use crate::operations::contract::preview::runner::{
-    contract_preview_async_mutation, contract_preview_status_light_query,
-    contract_preview_status_query,
+    contract_preview_async_mutation, contract_preview_result_query, contract_preview_status_query,
 };
 pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse, PreviewKind};
 
@@ -37,7 +36,7 @@ pub struct ContractPreviewStatusInput {
     pub build_id: String,
 }
 
-impl From<ContractPreviewStatusInput> for contract_preview_status_query::Variables {
+impl From<ContractPreviewStatusInput> for contract_preview_result_query::Variables {
     fn from(input: ContractPreviewStatusInput) -> Self {
         let (graph_id, variant) = input.graph_ref.into_parts();
         Self {
@@ -48,7 +47,7 @@ impl From<ContractPreviewStatusInput> for contract_preview_status_query::Variabl
     }
 }
 
-impl From<ContractPreviewStatusInput> for contract_preview_status_light_query::Variables {
+impl From<ContractPreviewStatusInput> for contract_preview_status_query::Variables {
     fn from(input: ContractPreviewStatusInput) -> Self {
         let (graph_id, variant) = input.graph_ref.into_parts();
         Self {

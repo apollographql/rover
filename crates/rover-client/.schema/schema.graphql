@@ -1410,10 +1410,12 @@ input ContractConfigInput {
   filterConfigInput: FilterConfigInput!
 }
 
-"""Returned by contractPreviewStatus when the async preview build failed during filtering."""
-type ContractPreviewAsyncFailure {
-  """The list of errors from failed filtering."""
-  filterErrors: [ComposeAndFilterPreviewFilterError!]!
+"""
+The result of starting an async contractPreviewAsync build. Use the buildID to poll contractPreviewStatus for the outcome.
+"""
+type ContractPreviewAsyncBuild {
+  """The ID of the started preview build. Poll contractPreviewStatus with this ID for results."""
+  buildID: ID!
 }
 
 """Returned by contractPreviewStatus while the async preview build is still in progress."""
@@ -1435,20 +1437,41 @@ enum ContractPreviewAsyncPendingStatus {
 }
 
 """The result of polling an async contractPreviewAsync build: still pending/running, or the terminal filter outcome."""
-union ContractPreviewAsyncStatus = ContractPreviewAsyncFailure | ContractPreviewAsyncPending | ContractPreviewAsyncSuccess
+union ContractPreviewAsyncStatus = ContractPreviewAsyncPending | ContractPreviewErrors | ContractPreviewSuccess
 
-"""Returned by contractPreviewStatus when the async preview build completed successfully."""
-type ContractPreviewAsyncSuccess {
-  """The results from successful filtering."""
-  filterResults: ComposeAndFilterPreviewBuildResults!
+type ContractPreviewErrors {
+  errors: [String!]!
+  failedAt: ContractVariantFailedStep!
 }
 
-"""
-An asynchronously enqueued contract preview build. Does not indicate the _result_ of the build, only that it was scheduled.
-"""
-type ContractPreviewJob {
-  """The unique ID for this contract preview build."""
-  buildID: ID!
+type ContractPreviewSuccess {
+  apiDocument: String!
+  coreDocument: String!
+  fieldCount: Int!
+  typeCount: Int!
+}
+
+enum ContractVariantFailedStep {
+  ADD_DIRECTIVE_DEFINITIONS_IF_NOT_PRESENT
+  ADD_INACCESSIBLE_SPEC_PURPOSE
+  DIRECTIVE_DEFINITION_LOCATION_AUGMENTING
+  EMPTY_ENUM_MASKING
+  EMPTY_INPUT_OBJECT_MASKING
+  EMPTY_OBJECT_AND_INTERFACE_FIELD_MASKING
+  EMPTY_OBJECT_AND_INTERFACE_MASKING
+  EMPTY_UNION_MASKING
+  INPUT_VALIDATION
+  PARSING
+  PARSING_TAG_DIRECTIVES
+  PARTIAL_INTERFACE_MASKING
+  SCHEMA_RETRIEVAL
+  TAG_INHERITING
+  TAG_MATCHING
+  TO_API_SCHEMA
+  TO_FILTER_SCHEMA
+  UNKNOWN
+  UNREACHABLE_TYPE_MASKING
+  VERSION_CHECK
 }
 
 type ContractVariantUpsertErrors {
@@ -3048,11 +3071,11 @@ type GraphVariantMutation {
   """
   _Asynchronously_ previews a Contract schema built from this source variant.
 
-  Enqueues a Temporal workflow and returns immediately with a `ContractPreviewJob` containing
-  a build ID, instead of blocking until the build completes. See `contractPreview` for the
-  synchronous equivalent.
+  Enqueues a Temporal workflow and returns immediately with a `ContractPreviewAsyncBuild`
+  containing a build ID, instead of blocking until the build completes. See `contractPreview`
+  for the synchronous equivalent.
   """
-  contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewJob!
+  contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewAsyncBuild!
 
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
