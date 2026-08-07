@@ -232,7 +232,7 @@ impl<'a> EnumDetailDisplay<'a> {
 
     fn values(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(presets::ASCII_FULL);
+        table.load_style(presets::ASCII_FULL);
         table.set_header(["Value", "Description"]);
 
         for val in &self.detail.values {
@@ -325,7 +325,7 @@ fn fields_summary(fields: &ExtendedFieldsDetail) -> String {
 
 fn fields_table(fields: &[FieldInfo]) -> Table {
     let mut table = Table::new();
-    table.load_preset(presets::ASCII_FULL);
+    table.load_style(presets::ASCII_FULL);
     table.set_header(["Field", "Type", "Description"]);
 
     for field in fields {
@@ -347,7 +347,7 @@ fn fields_table(fields: &[FieldInfo]) -> Table {
 
 fn input_fields_table(fields: &[InputFieldInfo]) -> Table {
     let mut table = Table::new();
-    table.load_preset(presets::ASCII_FULL);
+    table.load_style(presets::ASCII_FULL);
     table.set_header(["Field", "Type", "Description"]);
 
     for field in fields {

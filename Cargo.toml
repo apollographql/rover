@@ -153,7 +153,7 @@ clap = "4"
 clap_complete = "4"
 chrono = "0.4"
 ci_info = "0.14"
-comfy-table = { version = "7", features = ["custom_styling"] }
+comfy-table = { version = "8", features = ["custom_styling"] }
 console = "0.16"
 derive-getters = "0.5"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
@@ -256,6 +256,7 @@ apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 bon = { workspace = true }
+bytes = { workspace = true }
 buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }

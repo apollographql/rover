@@ -56,11 +56,13 @@ impl WhoAmI {
             Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
 
         match &credential.origin {
-            CredentialOrigin::OAuth(profile_name) => {
+            CredentialOrigin::OauthAuthorizationPkce(profile_name) => {
                 self.run_oauth_whoami(profile_name, &credential, &client_config, oauth_config)
                     .await
             }
-            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+            CredentialOrigin::EnvVar
+            | CredentialOrigin::ConfigFile(_)
+            | CredentialOrigin::OauthClientCredentials => {
                 LegacyWhoami {
                     profile: self.profile.clone(),
                     insecure_unmask_key: self.insecure_unmask_key,
@@ -153,7 +155,7 @@ mod tests {
     #[fixture]
     fn credential() -> Credential {
         Credential {
-            origin: CredentialOrigin::OAuth("default".to_string()),
+            origin: CredentialOrigin::OauthAuthorizationPkce("default".to_string()),
             api_key: "an-access-token".to_string(),
             expires_at: None,
         }

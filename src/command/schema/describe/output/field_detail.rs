@@ -50,7 +50,7 @@ impl<'a> FieldDetailDisplay<'a> {
         }
 
         let mut table = Table::new();
-        table.load_preset(presets::ASCII_FULL);
+        table.load_style(presets::ASCII_FULL);
         table.set_header(["Arg", "Type", "Notes"]);
 
         for arg in &self.detail.args {
@@ -132,7 +132,7 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
                 return None;
             }
             let mut table = Table::new();
-            table.load_preset(presets::ASCII_FULL);
+            table.load_style(presets::ASCII_FULL);
             table.set_header(["Field", "Type"]);
             if !implements.is_empty() {
                 let impl_str = implements
@@ -152,7 +152,7 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
                 return None;
             }
             let mut table = Table::new();
-            table.load_preset(presets::ASCII_FULL);
+            table.load_style(presets::ASCII_FULL);
             table.set_header(["Field", "Type"]);
             for field in fields {
                 table.add_row([field.name.as_str(), field.field_type.as_str()]);
@@ -164,7 +164,7 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
                 return None;
             }
             let mut table = Table::new();
-            table.load_preset(presets::ASCII_FULL);
+            table.load_style(presets::ASCII_FULL);
             table.set_header(["Value"]);
             for val in values {
                 table.add_row([val.name.as_str()]);
@@ -176,7 +176,7 @@ fn expanded_type_table(exp: &ExpandedType) -> Option<Table> {
                 return None;
             }
             let mut table = Table::new();
-            table.load_preset(presets::ASCII_FULL);
+            table.load_style(presets::ASCII_FULL);
             table.set_header(["Member"]);
             for member in members {
                 table.add_row([member.as_str()]);

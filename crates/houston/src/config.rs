@@ -23,6 +23,14 @@ pub struct Config {
     /// override_api_key is used for overriding the API key returned
     /// when loading a profile
     pub override_api_key: Option<String>,
+
+    /// An access token obtained via an OAuth 2.0 client credentials exchange
+    /// (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`), for CI/machine-to-machine use.
+    /// Kept separate from `override_api_key` so `Profile::get_credential` can
+    /// report an accurate origin - reusing `override_api_key` would make
+    /// `whoami` claim the credential came from the literal `APOLLO_KEY` env
+    /// var, and it never touched a real API key at all.
+    pub override_client_credentials_token: Option<String>,
 }
 
 impl Config {
@@ -63,6 +71,7 @@ impl Config {
         Ok(Config {
             home,
             override_api_key,
+            override_client_credentials_token: None,
         })
     }
 

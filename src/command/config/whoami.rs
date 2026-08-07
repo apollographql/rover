@@ -91,7 +91,10 @@ impl LegacyWhoami {
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
 
         #[cfg(feature = "oauth")]
-        if !matches!(credential.origin, CredentialOrigin::OAuth(_)) {
+        if !matches!(
+            credential.origin,
+            CredentialOrigin::OauthAuthorizationPkce(_) | CredentialOrigin::OauthClientCredentials
+        ) {
             stderr.print(&StyledText::plain(
                 "note: OAuth authentication is now available - consider running `rover auth login` instead of a Personal API Key.",
             ))?;
@@ -114,8 +117,9 @@ impl LegacyWhoami {
     fn get_origin(&self, client: &StudioClient) -> String {
         match client.get_credential_origin() {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", path),
-            CredentialOrigin::OAuth(path) => format!("--profile {} (OAuth)", path),
+            CredentialOrigin::OauthAuthorizationPkce(path) => format!("--profile {} (OAuth)", path),
             CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
+            CredentialOrigin::OauthClientCredentials => format!("${}", RoverEnvKey::ClientId),
         }
     }
 
@@ -209,9 +213,9 @@ mod tests {
             "--profile default".to_string()
         );
         assert_eq!(
-            legacy_whoami.get_origin(&get_studio_client(CredentialOrigin::OAuth(
-                "default".to_string()
-            ))),
+            legacy_whoami.get_origin(&get_studio_client(
+                CredentialOrigin::OauthAuthorizationPkce("default".to_string())
+            )),
             "--profile default (OAuth)".to_string()
         );
     }

@@ -118,7 +118,8 @@ impl StudioClient {
         headers.insert("apollographql-client-version", client_version);
 
         match &self.credential.origin {
-            CredentialOrigin::OAuth(_) => {
+            CredentialOrigin::OauthAuthorizationPkce(_)
+            | CredentialOrigin::OauthClientCredentials => {
                 let mut auth =
                     HeaderValue::from_str(&format!("Bearer {}", self.credential.api_key))?;
                 auth.set_sensitive(true);
@@ -219,7 +220,7 @@ mod tests {
     fn build_studio_headers_sends_authorization_bearer_for_an_oauth_token(
         #[with(Credential {
             api_key: "an-access-token".to_string(),
-            origin: CredentialOrigin::OAuth("default".to_string()),
+            origin: CredentialOrigin::OauthAuthorizationPkce("default".to_string()),
             expires_at: None,
         })]
         client: StudioClient,
