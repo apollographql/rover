@@ -217,7 +217,14 @@ impl Rover {
                     )
                     .await
             }
-            Command::Contract(command) => command.run(self.get_client_config().await?).await,
+            Command::Contract(command) => {
+                command
+                    .run(
+                        self.get_client_config().await?,
+                        self.get_checks_timeout_seconds()?,
+                    )
+                    .await
+            }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
             Command::Dev(command) => {
                 command
