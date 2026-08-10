@@ -125,6 +125,7 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_MCP_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_MCP_VERSION", version);
     };
+    cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     drop(supergraph_listener);
@@ -395,6 +396,7 @@ telemetry:
         "accept",
     ]);
     cmd.current_dir(temp_path);
+    cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     cmd.env("SERVICE_NAME", "my$service"); // $ in value triggers the bug

@@ -270,8 +270,7 @@ fn test_mcp_file_categorization_logic() {
     print_mcp_file_categories(test_files);
 }
 
-#[tokio::test]
-async fn test_mcp_preview_creation_flow() {
+fn mcp_graph_id_confirmed_fixture() -> MCPGraphIdConfirmed {
     use std::collections::HashMap;
 
     use crate::command::init::{
@@ -305,7 +304,7 @@ async fn test_mcp_preview_creation_flow() {
 
     let composed_template = MCPComposedTemplate::new(template, merged_files);
 
-    let mcp_graph_confirmed = MCPGraphIdConfirmed {
+    MCPGraphIdConfirmed {
         output_path: Utf8PathBuf::from("."),
         project_type: ProjectType::CreateNew,
         organization: "test-org".parse().unwrap(),
@@ -315,16 +314,59 @@ async fn test_mcp_preview_creation_flow() {
         composed_template,
         setup_type: MCPSetupType::NewProject,
         data_source_type: MCPDataSourceType::ExternalAPIs,
-    };
+    }
+}
 
-    // Test preview creation - this should not panic and should work without user input
-    // Since we can't mock user input easily in tests, we expect this to return None
-    // in a test environment where no terminal is available
-    let result = mcp_graph_confirmed.preview_mcp_creation().await;
+#[test]
+fn test_mcp_preview_creation_flow_accepted() {
+    let mcp_graph_confirmed = mcp_graph_id_confirmed_fixture();
 
-    // The method should handle the case where no terminal is available gracefully
-    // Either by returning an error or returning None for "no confirmation"
-    assert!(result.is_ok() || result.is_err());
+    let previewed = mcp_graph_confirmed
+        .preview_mcp_creation_with(|| Ok(true))
+        .expect("preview should succeed")
+        .expect("accepting the prompt should produce a preview");
+
+    assert_eq!(previewed.output_path, Utf8PathBuf::from("."));
+    assert_eq!(previewed.config.project_name.to_string(), "test-project");
+    assert_eq!(previewed.config.graph_id.to_string(), "test-graph-id");
+    assert!(matches!(
+        previewed.config.project_type,
+        ProjectType::CreateNew
+    ));
+    assert!(matches!(previewed.setup_type, MCPSetupType::NewProject));
+    assert!(matches!(
+        previewed.data_source_type,
+        MCPDataSourceType::ExternalAPIs
+    ));
+}
+
+#[test]
+fn test_mcp_preview_creation_flow_declined() {
+    let mcp_graph_confirmed = mcp_graph_id_confirmed_fixture();
+
+    let previewed = mcp_graph_confirmed
+        .preview_mcp_creation_with(|| Ok(false))
+        .expect("preview should succeed");
+
+    assert!(
+        previewed.is_none(),
+        "declining the prompt should cancel creation"
+    );
+}
+
+#[test]
+fn test_mcp_preview_creation_flow_propagates_confirm_error() {
+    use crate::RoverError;
+
+    let mcp_graph_confirmed = mcp_graph_id_confirmed_fixture();
+
+    let result = mcp_graph_confirmed
+        .preview_mcp_creation_with(|| Err(RoverError::new(anyhow::anyhow!("no terminal"))));
+
+    assert!(
+        result.is_err(),
+        "a failed confirmation should surface as an error, not a silent cancel"
+    );
 }
 
 #[test]
