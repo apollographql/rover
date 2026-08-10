@@ -1,7 +1,9 @@
-use std::{process::Command, str::from_utf8, thread, time::Duration};
+use std::{process::Command, str::FromStr, str::from_utf8, thread, time::Duration};
 
+use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use assert_cmd::cargo;
 use assert_fs::TempDir;
+use binstall::Installer;
 use camino::Utf8PathBuf;
 use regex::Regex;
 use rstest::{fixture, rstest};
@@ -177,4 +179,89 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     let re = Regex::new(&format!("the '{binary}' plugin was successfully installed")).unwrap();
     assert_that!(re.is_match(stderr)).is_true();
+}
+
+#[rstest]
+// "1" is the CLI-facing spec for router's Federation-1-era latest track (`router@1`); orbiter's
+// wire-protocol alias for it is "latest-plugin", not "latest-1" — RouterVersion::get_tarball_version
+// is what actually produces that, so this test derives it the same way Plugin::get_tarball_url does
+// rather than hardcoding it.
+#[case::router_latest_1("router", "1")]
+// supergraph_latest_0 (Federation 1) is intentionally absent: `rover install --plugin`
+// now rejects Federation 1 versions outright.
+#[case::supergraph_latest_2("supergraph", "latest-2")]
+#[tokio::test(flavor = "multi_thread")]
+#[traced_test]
+#[serial]
+async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
+    #[case] binary_name: &str,
+    #[case] cli_version_spec: &str,
+) {
+    let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
+    let bin_path = temp_dir.join(".rover/bin");
+
+    // orbiter owns the `latest-*` alias -> concrete version mapping (rover no longer keeps a
+    // local copy). Ask orbiter directly via the same redirect-disabled-HEAD/X-Version contract
+    // Installer::get_plugin_version already relies on in production, rather than reading a file
+    // it owns. The target triple doesn't affect which version is resolved, so any triple that's
+    // reliably released works here.
+    let tarball_version_segment = match binary_name {
+        "router" => RouterVersion::from_str(cli_version_spec)
+            .expect("failed to parse router version spec")
+            .get_tarball_version(),
+        "supergraph" => FederationVersion::from_str(cli_version_spec)
+            .expect("failed to parse supergraph version spec")
+            .get_tarball_version(),
+        other => panic!("unexpected binary name in test case: {other}"),
+    };
+    let tarball_url = format!(
+        "https://rover.apollo.dev/tar/{binary_name}/x86_64-unknown-linux-gnu/{tarball_version_segment}"
+    );
+    let installer = Installer {
+        binary_name: binary_name.to_string(),
+        force_install: false,
+        executable_location: temp_dir.clone(),
+        override_install_path: None,
+    };
+    let latest_version_from_orbiter = installer
+        .get_plugin_version(&tarball_url, true)
+        .await
+        .expect("failed to resolve latest version from orbiter");
+
+    let plugin_arg = format!("{binary_name}@{latest_version_from_orbiter}");
+    let output = run_with_retries(
+        || {
+            let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+            cmd.env("APOLLO_HOME", &temp_dir);
+            cmd.env("APOLLO_ELV2_LICENSE", "accept");
+            cmd.args(["install", "--plugin", &plugin_arg]);
+            cmd
+        },
+        3,
+    );
+
+    asserting(&format!(
+        "Was expecting success but instead got: {}",
+        from_utf8(output.stderr.as_slice()).unwrap()
+    ))
+    .that(&output.status.success())
+    .is_true();
+
+    // THEN
+    //   - it successfully installs
+    let formatted_latest_version = latest_version_from_orbiter.replace("v", "-v");
+    let downloaded_binary_name = format!("{binary_name}{formatted_latest_version}");
+
+    let installed = bin_path
+        .read_dir()
+        .expect("unable to read contents of directory")
+        .map(|f| f.expect("failed to get file {file:?} in ${temp_dir:?}"))
+        .any(|f| {
+            f.file_name()
+                .to_str()
+                .expect("failed to convert directory filename to str")
+                .contains(&downloaded_binary_name)
+        });
+
+    assert_that!(installed).is_true();
 }
