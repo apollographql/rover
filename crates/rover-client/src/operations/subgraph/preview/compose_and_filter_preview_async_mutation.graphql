@@ -1,5 +1,5 @@
 # Starts an async compose-and-filter preview build.
-query ComposeAndFilterPreviewAsyncMutation(
+mutation ComposeAndFilterPreviewAsyncMutation(
   $graph_id: ID!
   $variant: String!
   $filter_config: FilterConfigInput

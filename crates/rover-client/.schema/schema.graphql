@@ -2921,21 +2921,6 @@ type GraphVariant {
   ): ComposeAndFilterPreviewResult
 
   """
-  Start an asynchronous compose and filter preview build from this source variant. Returns a build ID; poll composeAndFilterPreviewStatus with it to retrieve the result.
-  """
-  composeAndFilterPreviewAsync(
-    """
-    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run.
-    """
-    filterConfig: FilterConfigInput
-
-    """
-    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
-    """
-    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!]
-  ): ComposeAndFilterPreviewAsyncBuild!
-
-  """
   Poll the status and result of an async composeAndFilterPreview build started on this variant. Null if no such build exists.
   """
   composeAndFilterPreviewStatus(
@@ -3067,6 +3052,21 @@ type GraphVariantMutation {
   """
   customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
   setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
+
+  """
+  Start an asynchronous compose and filter preview build from this source variant. Returns a build ID; poll composeAndFilterPreviewStatus with it to retrieve the result.
+  """
+  composeAndFilterPreviewAsync(
+    """
+    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run.
+    """
+    filterConfig: FilterConfigInput
+
+    """
+    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
+    """
+    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!]
+  ): ComposeAndFilterPreviewAsyncBuild!
 
   """
   _Asynchronously_ previews a Contract schema built from this source variant.
