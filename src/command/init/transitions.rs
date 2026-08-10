@@ -941,6 +941,21 @@ impl MCPGraphIdConfirmed {
     /// Show MCP-specific preview and get user confirmation
     pub async fn preview_mcp_creation(self) -> RoverResult<Option<MCPCreationPreviewed>> {
         use dialoguer::Confirm;
+
+        self.preview_mcp_creation_with(|| {
+            Confirm::new()
+                .with_prompt("Create this template?")
+                .default(true)
+                .interact()
+                .map_err(|e| RoverError::new(anyhow!("Failed to get user confirmation: {}", e)))
+        })
+    }
+
+    /// Prints the MCP preview, then transitions based on the answer `confirm` gives.
+    pub(crate) fn preview_mcp_creation_with(
+        self,
+        confirm: impl FnOnce() -> RoverResult<bool>,
+    ) -> RoverResult<Option<MCPCreationPreviewed>> {
         use rover_std::Style;
 
         println!();
@@ -969,13 +984,7 @@ impl MCPGraphIdConfirmed {
         }
         println!();
 
-        let confirmed = Confirm::new()
-            .with_prompt("Create this template?")
-            .default(true)
-            .interact()
-            .map_err(|e| RoverError::new(anyhow!("Failed to get user confirmation: {}", e)))?;
-
-        if confirmed {
+        if confirm()? {
             let config = ProjectConfig {
                 organization: self.organization,
                 use_case: self.use_case,

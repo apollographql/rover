@@ -127,6 +127,7 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
             "--oauth-client-id",
             "e2e-test-client",
         ])
+        .stdin(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
         .expect("failed to spawn rover auth login");
