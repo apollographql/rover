@@ -251,9 +251,8 @@ mod tests {
 
     #[test]
     fn reject_federation_one_rejects_exact_fed_one() {
-        let result = reject_federation_one(&FederationVersion::ExactFedOne(
-            "0.36.0".parse().unwrap(),
-        ));
+        let result =
+            reject_federation_one(&FederationVersion::ExactFedOne("0.36.0".parse().unwrap()));
         assert_that!(result).is_err();
     }
 

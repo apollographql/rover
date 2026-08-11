@@ -50,4 +50,3 @@ fn get_binstall_scripts_root() -> Utf8PathBuf {
         .join("binstall")
         .join("scripts")
 }
-
