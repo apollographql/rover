@@ -32,8 +32,7 @@ pub struct FederationVersionMismatch {
 }
 
 /// Documentation link describing how to opt a subgraph in to Federation 2 via `@link`.
-pub const FEDERATION_2_MIGRATION_URL: &str =
-    "https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2";
+pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2";
 
 /// Error returned whenever a resolved [`FederationVersion`] is Federation 1. Rover no longer
 /// supports composing, installing, or building against Federation 1 in any form.

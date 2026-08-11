@@ -1,4 +1,9 @@
-use std::{process::Command, str::FromStr, str::from_utf8, thread, time::Duration};
+use std::{
+    process::Command,
+    str::{FromStr, from_utf8},
+    thread,
+    time::Duration,
+};
 
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use assert_cmd::cargo;
