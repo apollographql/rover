@@ -36,7 +36,7 @@ jobs:
             exit 0
           fi
 
-          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
+          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-?\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
             echo "PR description confirms a changelog entry is not needed."
             exit 0
           fi
