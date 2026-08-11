@@ -26,6 +26,17 @@ When those sources conflict with assumptions, follow the repo sources of truth.
 
 Treat this repository as a Cargo workspace rooted at the `rover` binary crate. Shared logic often belongs in `crates/*` rather than directly in the top-level CLI crate.
 
+## Planning Prerequisites
+
+Before writing code for a non-trivial change, confirm there's an approved planning artifact backing it:
+
+- **Internal contributors** (Apollo teammates, or when you have access to Apollo's internal Confluence/Jira): a linked Confluence PRD or One-Pager describing the problem and proposed approach.
+- **External contributors**: a GitHub issue that's been triaged per `CONTRIBUTING.md`'s "Using issues" section — opened, and discussed/acknowledged by the Rover team, not just filed.
+
+If neither is linked in the task or request, stop before implementing. Ask for the link, or offer to open a GitHub issue first if no internal doc exists. Exempt: typos, trivial bug fixes, doc corrections, and other obviously-scoped changes with no design space to discuss.
+
+When reviewing a PR, check the description for a linked Confluence PRD/One-Pager or a referenced GitHub issue (e.g. `Fixes #123`). Flag the PR if neither is present, unless the change is clearly trivial.
+
 ## How to Work in the Codebase
 
 - Prefer targeted edits over broad refactors unless the task explicitly requires wider cleanup.
@@ -36,6 +47,17 @@ Treat this repository as a Cargo workspace rooted at the `rover` binary crate. S
 - Keep new CLI surface aligned with the existing `rover [noun] [verb]` model. Before adding or restructuring commands, read `ARCHITECTURE.md`.
 - Command implementations usually live under `src/command/<noun>/...`; shared behavior should be placed in the narrowest reusable module.
 - If a change affects packaging, installation, or release behavior, inspect the relevant files under `installers/*`, docs, and CI workflows before editing.
+
+## Structuring Pull Requests
+
+Large or multi-concern changes should ship as a stack of small, independently reviewable PRs rather than one large PR. Split along two axes:
+
+- **Vertical (dependency order):** within a single feature, land the lowest layer first — shared/foundational code, then the crate-level implementation (`crates/*`) that exposes the new capability, then the consumer that wires it up (typically `src/command/*`, but any downstream crate or binary counts). Each layer should be buildable and reviewable on its own: a foundation PR adds `pub` items that stay unused until a later PR consumes them (no dead-code warnings expected), an implementation PR is reviewable purely on the correctness of the new logic, and a consumer PR is reviewable purely on wiring and UX.
+- **Horizontal (independent concerns):** when a task bundles multiple unrelated features or entities that only share the foundation layer, give each its own vertical slice instead of interleaving them into one PR, even if that's more convenient to write.
+
+Stacked-PR tooling (e.g. the `gh-stack` skill / `gh stack` CLI) only supports **linear** stacks — one parent and one child per branch. Two horizontal slices that share a foundation must be modeled as **separate stacks**, both rooted at the foundation branch (`gh stack init --base <foundation-branch>` for the second slice), not as one branching stack.
+
+When reviewing a PR, flag it if it bundles multiple unrelated vertical slices, mixes layers with no dependency reason to be mixed, or could otherwise be cleanly split along the axes above — and suggest the split in the review.
 
 ## Verification Expectations
 
