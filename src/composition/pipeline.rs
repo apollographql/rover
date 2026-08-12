@@ -226,7 +226,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
 /// Rover no longer supports Federation 1 at any composition-facing entry point. This is checked
 /// as a standalone function so the rejection itself can be unit tested without standing up the
 /// rest of `resolve_federation_version`'s subgraph-resolution machinery.
-fn reject_federation_one(
+pub(crate) fn reject_federation_one(
     federation_version: &FederationVersion,
 ) -> Result<(), FederationOneUnsupported> {
     if federation_version.is_fed_one() {

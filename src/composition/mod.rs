@@ -17,6 +17,7 @@ use crate::{
         supergraph::{
             config::{
                 error::ResolveSubgraphError,
+                federation::FederationOneUnsupported,
                 full::introspect::MakeResolveIntrospectSubgraph,
                 resolver::{
                     LoadRemoteSubgraphsError, LoadSupergraphConfigError,
@@ -159,6 +160,8 @@ pub enum CompositionError {
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
     #[error("Could not install supergraph binary:\n{}", .source)]
     InstallSupergraphBinaryError { source: InstallSupergraphError },
+    #[error(transparent)]
+    FederationOneUnsupported(#[from] FederationOneUnsupported),
 }
 
 #[derive(Debug, Eq, PartialEq)]
