@@ -122,8 +122,10 @@ impl Plugin {
                             // if an old version doesn't have aarch64 binaries,
                             // you're out of luck
                             //
-                            // `Plugin::from_str` rejects Federation 1 up front, so this arm is
-                            // unreachable via the CLI; kept because `FederationVersion` (from the
+                            // Every entry point that can produce a `Plugin::Supergraph` (CLI
+                            // parsing via `Plugin::from_str`, composition, and `rover dev`'s
+                            // live federation-version-change handling) rejects Federation 1
+                            // before it gets here; kept because `FederationVersion` (from the
                             // external apollo-federation-types crate) still has Fed1 variants.
                             if v.is_fed_one() {
                                 no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 1` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
