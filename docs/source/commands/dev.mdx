@@ -174,7 +174,7 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, you can use `2` (without an equals sign) for the latest release of Federation 2. **Federation 1 is no longer supported**—`rover dev` rejects a Federation 1 version wherever one is specified.
+You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, you can use `1` or `2` (without an equals sign) for the latest release of Federation 1 or 2 respectively.
 
 ```bash showLineNumbers=false
 rover dev \
@@ -227,7 +227,7 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 
 ## Versioning
 
-By default, `rover dev` uses the latest available version of the router, composition, and MCP server plugins, resolved automatically at download time. You can override any of these versions:
+By default, `rover dev` uses the version of the router, composition, and MCP server plugins [defined in the Rover GitHub repo](https://raw.githubusercontent.com/apollographql/rover/main/latest_plugin_versions.json). You can override any of these versions:
 
 - Router: Set the `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variable (e.g., `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`)
 - Composition: Use the `--federation-version` flag or set the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment variable (e.g., `--federation-version 2.0.0` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0`)
