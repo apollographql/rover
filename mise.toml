@@ -8,6 +8,7 @@ node = "24.19.0"
 "cargo:cargo-deny" = "0.20"
 "cargo:graphql_client_cli" = "0.16.0"
 "cargo:cargo-npm" = "0.1.4"
+"cargo:cargo-tarpaulin" = "0.31"
 
 [tasks.check]
 description = "Run the same checks as CI"
@@ -44,3 +45,7 @@ run = "bash .mise/scripts/install_pnpm.sh"
 
 [tasks.cargo-deny]
 run = "cargo deny check"
+
+[tasks.coverage]
+description = "Check test coverage for the crate/module you're working on (pass extra args after --)"
+run = "cargo tarpaulin"
