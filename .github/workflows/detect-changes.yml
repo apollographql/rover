@@ -80,7 +80,7 @@ jobs:
           # breaks the build. `merge_group` forces the full suite regardless, so
           # such a change still cannot reach main unchecked.
           INERT_PATTERNS=(
-            '^(actions|docs|examples)/'
+            '^(actions|docs|examples|specs)/'
             '^\.(claude|vscode)/'
             '^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/'
             '^\.github/(CODEOWNERS|PULL_REQUEST_TEMPLATE\.md)$'
