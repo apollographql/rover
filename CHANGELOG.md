@@ -48,6 +48,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
+
+  Rover's bundled copy of `latest_plugin_versions.json` (used only by CI smoke tests and one internal `FederationVersion` -> `SupergraphVersion` conversion) has been deleted. Resolving a `latest-*` plugin version already happens entirely over HTTP via orbiter's `X-Version` header at runtime — this file was dead weight rover no longer needs to keep in sync with orbiter itself. CI's version-resolution script and e2e tests now ask orbiter directly for the same information instead of reading a file it owns. No user-facing behavior change.
+
 - **Retry the Check Markdown Links CI job on transient network failures - @dotdat**
 
   The `Check Markdown Links` job now retries up to 3 times if it fails, since transient connection resets to external hosts were occasionally failing the job on a link that was never actually broken. `lychee` (the link checker) doesn't retry connection-establishment errors regardless of its own retry config, so this is handled at the CI level instead, matching how other flaky steps are already retried in this repo. No user-facing change.
