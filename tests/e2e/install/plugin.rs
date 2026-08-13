@@ -1,11 +1,17 @@
-use std::{process::Command, str::from_utf8, thread, time::Duration};
+use std::{
+    process::Command,
+    str::{FromStr, from_utf8},
+    thread,
+    time::Duration,
+};
 
+use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use assert_cmd::cargo;
 use assert_fs::TempDir;
+use binstall::Installer;
 use camino::Utf8PathBuf;
 use regex::Regex;
 use rstest::{fixture, rstest};
-use serde_json::Value;
 use serial_test::serial;
 use speculoos::prelude::*;
 use tracing_test::traced_test;
@@ -180,29 +186,67 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 }
 
 #[rstest]
-#[case::router_latest_1("router", "latest-1")]
+// "1" is the CLI-facing spec for router's Federation-1-era latest track (`router@1`); orbiter's
+// wire-protocol alias for it is "latest-plugin", not "latest-1" — RouterVersion::get_tarball_version
+// is what actually produces that, so this test derives it the same way Plugin::get_tarball_url does
+// rather than hardcoding it.
+#[case::router_latest_1("router", "1")]
 #[case::supergraph_latest_0("supergraph", "latest-0")]
 #[case::supergraph_latest_2("supergraph", "latest-2")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 #[serial]
-async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
+async fn e2e_test_rover_install_plugins_from_latest_version(
     #[case] binary_name: &str,
-    #[case] config_version_name: &str,
+    #[case] cli_version_spec: &str,
 ) {
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
 
-    let config_file_contents = include_str!("../../../latest_plugin_versions.json");
+    // orbiter owns the `latest-*` alias -> concrete version mapping (rover no longer keeps a
+    // local copy). Ask orbiter directly via the same redirect-disabled-HEAD/X-Version contract
+    // Installer::get_plugin_version already relies on in production, rather than reading a file
+    // it owns. The target triple doesn't affect which version is resolved, so any triple that's
+    // reliably released works here.
+    let tarball_version_segment = match binary_name {
+        "router" => RouterVersion::from_str(cli_version_spec)
+            .expect("failed to parse router version spec")
+            .get_tarball_version(),
+        "supergraph" => FederationVersion::from_str(cli_version_spec)
+            .expect("failed to parse supergraph version spec")
+            .get_tarball_version(),
+        other => panic!("unexpected binary name in test case: {other}"),
+    };
+    // Honor the same download-host override the `rover install` invocation below (and the
+    // Installer it shares this logic with) respects, so this resolves against the overridden
+    // host too instead of always hitting prod.
+    let download_host = std::env::var("APOLLO_ROVER_DOWNLOAD_HOST")
+        .unwrap_or_else(|_| "https://rover.apollo.dev".to_string());
+    let tarball_url = format!(
+        "{download_host}/tar/{binary_name}/x86_64-unknown-linux-gnu/{tarball_version_segment}"
+    );
+    let installer = Installer {
+        binary_name: binary_name.to_string(),
+        force_install: false,
+        executable_location: temp_dir.clone(),
+        override_install_path: None,
+    };
+    let mut latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
+    for attempt in 2..=3 {
+        if latest_version_result.is_ok() {
+            break;
+        }
+        eprintln!(
+            "attempt {}/3 to resolve latest version failed, retrying in 5s...",
+            attempt - 1
+        );
+        thread::sleep(Duration::from_secs(5));
+        latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
+    }
+    let latest_version_from_orbiter =
+        latest_version_result.expect("failed to resolve latest version from orbiter");
 
-    let versions: Value = serde_json::from_str(config_file_contents)
-        .expect("failed to get json out of latest_plugin_versions.json");
-
-    let latest_version_from_config_file = &versions[binary_name]["versions"][config_version_name]
-        .to_string()
-        .replace("\"", "");
-
-    let plugin_arg = format!("{binary_name}@{latest_version_from_config_file}");
+    let plugin_arg = format!("{binary_name}@{latest_version_from_orbiter}");
     let output = run_with_retries(
         || {
             let mut cmd = Command::new(cargo::cargo_bin!("rover"));
@@ -223,7 +267,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
 
     // THEN
     //   - it successfully installs
-    let formatted_latest_version = latest_version_from_config_file.replace("v", "-v");
+    let formatted_latest_version = latest_version_from_orbiter.replace("v", "-v");
     let downloaded_binary_name = format!("{binary_name}{formatted_latest_version}");
 
     let installed = bin_path

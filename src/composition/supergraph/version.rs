@@ -8,8 +8,6 @@ use semver::Version;
 pub enum SupergraphVersionError {
     #[error("Unsupported Federation version: {}", .version.to_string())]
     UnsupportedFederationVersion { version: SupergraphVersion },
-    #[error("Unable to get version: {}", .error)]
-    Conversion { error: String },
     #[error("Filename does not exist at the given path")]
     MissingFilename,
     #[error("Semver could not be extracted from the installed path")]
