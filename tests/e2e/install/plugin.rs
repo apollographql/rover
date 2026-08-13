@@ -264,7 +264,9 @@ async fn e2e_test_rover_install_plugins_from_latest_version(
         // 2 retries on top of the initial attempt, matching `run_with_retries`'s budget below.
         .retry(RetryUpTo(2))
         .service(service_fn(move |_: ()| async move {
-            installer_ref.get_plugin_version(tarball_url_ref, true).await
+            installer_ref
+                .get_plugin_version(tarball_url_ref, true)
+                .await
         }));
     let latest_version_from_orbiter = resolve_latest_version
         .call(())
