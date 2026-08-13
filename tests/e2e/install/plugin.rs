@@ -14,6 +14,7 @@ use regex::Regex;
 use rstest::{fixture, rstest};
 use serial_test::serial;
 use speculoos::prelude::*;
+use tower::{Service, ServiceBuilder, service_fn};
 use tracing_test::traced_test;
 
 /// Runs a rover install command with retries to handle transient network failures in CI.
@@ -34,6 +35,30 @@ fn run_with_retries(cmd_fn: impl Fn() -> Command, max_attempts: u32) -> std::pro
         thread::sleep(Duration::from_secs(5));
     }
     last_output.unwrap()
+}
+
+/// A `tower::retry::Policy` that retries any `Err` up to a fixed number of additional times,
+/// sleeping 5s between attempts. Async sibling of `run_with_retries` above, for wrapping a single
+/// fallible async call (e.g. `Installer::get_plugin_version`) as a `tower::service_fn` rather than
+/// hand-rolling another loop.
+#[derive(Clone)]
+struct RetryUpTo(u32);
+
+impl<Req: Clone, Res, E> tower::retry::Policy<Req, Res, E> for RetryUpTo {
+    type Future = tokio::time::Sleep;
+
+    fn retry(&mut self, _req: &mut Req, result: &mut Result<Res, E>) -> Option<Self::Future> {
+        if result.is_err() && self.0 > 0 {
+            self.0 -= 1;
+            Some(tokio::time::sleep(Duration::from_secs(5)))
+        } else {
+            None
+        }
+    }
+
+    fn clone_request(&mut self, req: &Req) -> Option<Req> {
+        Some(req.clone())
+    }
 }
 
 #[rstest]
@@ -192,6 +217,8 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 // rather than hardcoding it.
 #[case::router_latest_1("router", "1")]
 #[case::supergraph_latest_0("supergraph", "latest-0")]
+// router's `latest-2` isn't covered here; `installs_router_2x` in `e2e_test_rover_install_plugin`
+// (same file) already exercises `router@2` end-to-end, so it's not dropped coverage.
 #[case::supergraph_latest_2("supergraph", "latest-2")]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
@@ -231,20 +258,18 @@ async fn e2e_test_rover_install_plugins_from_latest_version(
         executable_location: temp_dir.clone(),
         override_install_path: None,
     };
-    let mut latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
-    for attempt in 2..=3 {
-        if latest_version_result.is_ok() {
-            break;
-        }
-        eprintln!(
-            "attempt {}/3 to resolve latest version failed, retrying in 5s...",
-            attempt - 1
-        );
-        thread::sleep(Duration::from_secs(5));
-        latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
-    }
-    let latest_version_from_orbiter =
-        latest_version_result.expect("failed to resolve latest version from orbiter");
+    let installer_ref = &installer;
+    let tarball_url_ref = tarball_url.as_str();
+    let mut resolve_latest_version = ServiceBuilder::new()
+        // 2 retries on top of the initial attempt, matching `run_with_retries`'s budget below.
+        .retry(RetryUpTo(2))
+        .service(service_fn(move |_: ()| async move {
+            installer_ref.get_plugin_version(tarball_url_ref, true).await
+        }));
+    let latest_version_from_orbiter = resolve_latest_version
+        .call(())
+        .await
+        .expect("failed to resolve latest version from orbiter");
 
     let plugin_arg = format!("{binary_name}@{latest_version_from_orbiter}");
     let output = run_with_retries(

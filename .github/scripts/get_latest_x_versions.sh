@@ -22,16 +22,25 @@ ORBITER_HOST="${APOLLO_ROVER_DOWNLOAD_HOST:-https://rover.apollo.dev}"
 # X-Version depends only on COMPONENT + VERSION_TAG, not the target triple, so any triple that's
 # reliably released for every version works here.
 FALLBACK_TRIPLE="x86_64-unknown-linux-gnu"
+# The "latest-2" tag callers pass for both `router` and `supergraph` is the same wire alias for
+# both components -- confirmed against apollo-federation-types' RouterVersion::get_tarball_version
+# and FederationVersion::get_tarball_version, which both map their "latest 2.x" variant to the
+# literal string "latest-2". (Federation 1's tracks differ per component -- e.g. router's is
+# "latest-plugin", not "latest-1" -- but no caller here passes those.)
 
 declare -a CLEAN_VERSIONS=()
 
 for VERSION_TAG in "${VERSION_TAGS[@]}"; do
-  RESOLVED_HEADERS=$(curl -sS --fail -I "$ORBITER_HOST/tar/$COMPONENT/$FALLBACK_TRIPLE/$VERSION_TAG") || {
+  # `--retry-all-errors` needs curl >= 7.71; ubuntu-24.04 (where this runs) ships a newer curl.
+  RESOLVED_HEADERS=$(curl -sS --fail --retry 3 --retry-all-errors --retry-delay 2 --max-time 30 -I "$ORBITER_HOST/tar/$COMPONENT/$FALLBACK_TRIPLE/$VERSION_TAG") || {
     >&2 echo "Unable to resolve version for component '$COMPONENT' with tag '$VERSION_TAG' from $ORBITER_HOST"
     exit 1
   }
 
-  LATEST_VERSION=$(printf '%s' "$RESOLVED_HEADERS" | grep -i '^x-version:' | tr -d '\r' | awk '{print $2}')
+  # `|| true` keeps a no-match grep from tripping `set -e` under `pipefail` before the
+  # empty-string check below can print its own diagnostic. `head -n1` guards against `curl -I`
+  # emitting more than one header block (e.g. an informational/intermediate response).
+  LATEST_VERSION=$(printf '%s' "$RESOLVED_HEADERS" | grep -i '^x-version:' | head -n1 | tr -d '\r' | awk '{print $2}' || true)
 
   if [ -z "$LATEST_VERSION" ]; then
     >&2 echo "No X-Version header in response for component '$COMPONENT' with tag '$VERSION_TAG' from $ORBITER_HOST"
