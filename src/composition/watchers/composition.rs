@@ -18,7 +18,6 @@ use crate::{
         CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
         FederationUpdaterConfig,
         events::CompositionEvent,
-        pipeline::reject_federation_one,
         supergraph::{
             binary::SupergraphBinary,
             config::{
@@ -35,6 +34,7 @@ use crate::{
         },
     },
     config::SupergraphConfigYaml,
+    federation::reject_federation_one,
     subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, install::InstallBinary, write_file::WriteFile},
 };
@@ -206,7 +206,7 @@ where
                                     continue;
                                 }
                                 info!("Attempting to change supergraph version to {:?}", fed_version);
-                                infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
+                                infoln!("Attempting to change supergraph version to {}", fed_version);
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
                                         .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)

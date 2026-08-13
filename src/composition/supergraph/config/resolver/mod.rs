@@ -15,7 +15,9 @@
 use std::{collections::BTreeMap, io::IsTerminal};
 
 use anyhow::Context;
-use apollo_federation_types::config::{ConfigError, SchemaSource, SubgraphConfig};
+use apollo_federation_types::config::{
+    ConfigError, FederationVersion, SchemaSource, SubgraphConfig,
+};
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
@@ -307,6 +309,14 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
         &self.state.remote_subgraphs
     }
 
+    /// Returns the target [`FederationVersion`] selected by the user (via the CLI flag or a
+    /// `supergraph.yaml`'s `federation_version` key), independent of subgraph resolution.
+    pub fn target_federation_version(&self) -> Option<FederationVersion> {
+        self.state
+            .federation_version_resolver
+            .target_federation_version()
+    }
+
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
     pub async fn fully_resolve_subgraphs(
         &self,
@@ -496,7 +506,8 @@ mod tests {
     use tower_test::mock::Handle;
 
     use super::{
-        DefaultSubgraphDefinition, MockPrompt, SupergraphConfigResolver,
+        DefaultSubgraphDefinition, MockPrompt, ResolveSupergraphConfigError,
+        SupergraphConfigResolver,
         fetch_remote_subgraph::{
             FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
             MakeFetchRemoteSubgraphError, RemoteSubgraph,
@@ -992,6 +1003,128 @@ mod tests {
             .is_equal_to(&FederationVersion::LatestFedTwo);
 
         Ok(())
+    }
+
+    /// A `federation_version: 1` pin in `supergraph.yaml` alongside a Federation-2 (`@link`-using)
+    /// subgraph makes `fully_resolve_subgraphs` return `FederationVersionMismatch`. Callers (e.g.
+    /// `CompositionPipeline::resolve_federation_version`) must read the user's pin via
+    /// `target_federation_version()` independently, since that pin is otherwise unrecoverable once
+    /// this error is caught and defaulted away.
+    #[tokio::test]
+    async fn test_fully_resolve_subgraphs_errors_on_fed_one_pin_with_fed_two_subgraph() {
+        let subgraph_name = subgraph_name();
+        let subgraph_scenario = sdl_subgraph_scenario(
+            sdl_fed2(sdl()),
+            subgraph_name.to_string(),
+            SubgraphFederationVersion::Two,
+            routing_url(),
+        );
+
+        let mut local_subgraphs = BTreeMap::new();
+        setup_sdl_subgraph_scenario(Some(&subgraph_scenario), &mut local_subgraphs);
+
+        let supergraph_config = SupergraphConfigYaml {
+            subgraphs: local_subgraphs,
+            federation_version: Some(FederationVersion::LatestFedOne),
+        };
+        let supergraph_config_str = serde_yaml::to_string(&supergraph_config).unwrap();
+
+        let local_supergraph_config_dir = TempDir::new().expect("Couldn't create temp dir.");
+        let mut mock_read_stdin = MockReadStdin::new();
+        let file_descriptor_type = setup_file_descriptor(
+            true,
+            &local_supergraph_config_dir,
+            &supergraph_config_str,
+            &mut mock_read_stdin,
+        )
+        .expect("Couldn't setup file descriptor.");
+
+        let (fetch_remote_subgraphs_service, _) = tower_test::mock::spawn::<
+            FetchRemoteSubgraphsRequest,
+            BTreeMap<String, SubgraphConfig>,
+        >();
+        let fetch_remote_subgraphs_factory =
+            ServiceBuilder::new()
+                .boxed_clone()
+                .service_fn(move |_: ()| {
+                    let fetch_remote_subgraphs_service = fetch_remote_subgraphs_service.clone();
+                    async move {
+                        Ok::<_, MakeFetchRemoteSubgraphsError>(
+                            ServiceBuilder::new()
+                                .map_err(RoverClientError::ServiceReady)
+                                .service(fetch_remote_subgraphs_service.into_inner())
+                                .boxed_clone(),
+                        )
+                    }
+                });
+
+        let resolver =
+            SupergraphConfigResolver::load_remote_subgraphs(fetch_remote_subgraphs_factory, None)
+                .await
+                .expect("Couldn't load remote subgraphs.")
+                .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))
+                .expect("Couldn't load local subgraphs.")
+                .skip_default_subgraph();
+
+        // The pin survives independently of subgraph resolution.
+        assert_that!(resolver.target_federation_version())
+            .is_equal_to(Some(FederationVersion::LatestFedOne));
+
+        let (fetch_remote_subgraph_service, _) =
+            tower_test::mock::spawn::<FetchRemoteSubgraphRequest, RemoteSubgraph>();
+        let fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory = ServiceBuilder::new()
+            .boxed_clone()
+            .service_fn(move |_: ()| {
+                let fetch_remote_subgraph_service = fetch_remote_subgraph_service.clone();
+                async move {
+                    Ok::<_, MakeFetchRemoteSubgraphError>(
+                        ServiceBuilder::new()
+                            .map_err(FetchRemoteSubgraphError::Service)
+                            .service(fetch_remote_subgraph_service.into_inner())
+                            .boxed_clone(),
+                    )
+                }
+            });
+
+        let (resolve_introspect_subgraph_service, mut resolve_introspect_subgraph_handle) =
+            tower_test::mock::spawn::<(), FullyResolvedSubgraph>();
+        // we never introspect subgraphs in this test, but we still have to account for the effect
+        resolve_introspect_subgraph_handle.allow(0);
+        let resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory =
+            ServiceBuilder::new().boxed_clone().service_fn(
+                move |_: MakeResolveIntrospectSubgraphRequest| {
+                    let resolve_introspect_subgraph_service =
+                        resolve_introspect_subgraph_service.clone();
+                    async move {
+                        Ok(ServiceBuilder::new()
+                            .boxed_clone()
+                            .map_err(|err| ResolveSubgraphError::IntrospectionError {
+                                subgraph_name: "dont-call-me".to_string(),
+                                source: Arc::new(err),
+                            })
+                            .service(resolve_introspect_subgraph_service.into_inner()))
+                    }
+                },
+            );
+
+        let local_supergraph_config_path =
+            Utf8PathBuf::from_path_buf(local_supergraph_config_dir.path().to_path_buf()).unwrap();
+
+        // Subgraph resolution itself detects the mismatch and errors -- this is the failure that
+        // `resolve_federation_version` must not let get swallowed into a Fed 2 default.
+        let result = resolver
+            .fully_resolve_subgraphs(
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
+                &local_supergraph_config_path,
+            )
+            .await;
+        assert_that!(result).is_err().matches(|err| {
+            matches!(
+                err,
+                ResolveSupergraphConfigError::FederationVersionMismatch(_)
+            )
+        });
     }
 
     fn setup_sdl_subgraph_scenario(

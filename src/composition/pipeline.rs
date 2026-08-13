@@ -22,7 +22,6 @@ use super::{
     supergraph::{
         config::{
             error::ResolveSubgraphError,
-            federation::FederationOneUnsupported,
             full::introspect::ResolveIntrospectSubgraphFactory,
             resolver::{
                 DefaultSubgraphDefinition, LoadRemoteSubgraphsError, LoadSupergraphConfigError,
@@ -39,6 +38,7 @@ use crate::{
         full::FullyResolvedSupergraphConfig, lazy::LazilyResolvedSupergraphConfig,
     },
     config::SupergraphConfigYaml,
+    federation::{FederationOneUnsupported, reject_federation_one},
     options::LicenseAccepter,
     utils::{
         client::StudioClientConfig,
@@ -161,6 +161,18 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         passed_in_fed_version: Option<FederationVersion>,
         warn_on_floating_version: bool,
     ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
+        // Reject an explicit Federation 1 pin (from the CLI flag, or from `supergraph.yaml`)
+        // up front, before subgraph resolution runs. A Fed-1-pin-vs-Fed-2-subgraph mismatch
+        // coming out of `fully_resolve_subgraphs` below is caught and defaulted to Fed 2 (see
+        // the `Err` arm), which would otherwise let a `supergraph.yaml` pin slip past the
+        // `reject_federation_one` check further down uncontested.
+        let user_specified_fed_version = passed_in_fed_version
+            .clone()
+            .or_else(|| self.state.resolver.target_federation_version());
+        if let Some(user_specified_fed_version) = &user_specified_fed_version {
+            reject_federation_one(user_specified_fed_version)?;
+        }
+
         let resolved_federation_version = match self
             .state
             .resolver
@@ -223,45 +235,6 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
     }
 }
 
-/// Rover no longer supports Federation 1 at any composition-facing entry point. This is checked
-/// as a standalone function so the rejection itself can be unit tested without standing up the
-/// rest of `resolve_federation_version`'s subgraph-resolution machinery.
-pub(crate) fn reject_federation_one(
-    federation_version: &FederationVersion,
-) -> Result<(), FederationOneUnsupported> {
-    if federation_version.is_fed_one() {
-        Err(FederationOneUnsupported)
-    } else {
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use apollo_federation_types::config::FederationVersion;
-    use speculoos::prelude::*;
-
-    use super::reject_federation_one;
-
-    #[test]
-    fn reject_federation_one_rejects_latest_fed_one() {
-        let result = reject_federation_one(&FederationVersion::LatestFedOne);
-        assert_that!(result).is_err();
-    }
-
-    #[test]
-    fn reject_federation_one_rejects_exact_fed_one() {
-        let result =
-            reject_federation_one(&FederationVersion::ExactFedOne("0.36.0".parse().unwrap()));
-        assert_that!(result).is_err();
-    }
-
-    #[test]
-    fn reject_federation_one_allows_fed_two() {
-        let result = reject_federation_one(&FederationVersion::LatestFedTwo);
-        assert_that!(result).is_ok();
-    }
-}
 impl CompositionPipeline<state::InstallSupergraph> {
     pub async fn install_supergraph_binary(
         self,

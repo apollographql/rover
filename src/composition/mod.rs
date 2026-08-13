@@ -17,7 +17,6 @@ use crate::{
         supergraph::{
             config::{
                 error::ResolveSubgraphError,
-                federation::FederationOneUnsupported,
                 full::introspect::MakeResolveIntrospectSubgraph,
                 resolver::{
                     LoadRemoteSubgraphsError, LoadSupergraphConfigError,
@@ -28,6 +27,7 @@ use crate::{
             install::InstallSupergraphError,
         },
     },
+    federation::FederationOneUnsupported,
     options::{LicenseAccepter, PluginOpts},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };

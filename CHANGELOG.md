@@ -28,7 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Remove Federation 1 support - @dotdat**
 
-  Rover no longer supports Federation 1. `rover supergraph compose`, `rover dev`, `rover lsp`, `rover connector`, and `rover install --plugin supergraph@<version>` now reject any Federation 1 version (for example `federation_version: 1` in `supergraph.yaml`, or `latest-0`/an exact `0.x` version for the plugin installer) with an error pointing at the [Federation 2 migration guide](https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2). `rover init` no longer maps a template's federation version to a Federation 1 build pipeline track. If any of your subgraphs haven't yet opted in to Federation 2 via `@link`, composition will now fail until you do.
+  Rover no longer supports Federation 1. `rover supergraph compose`, `rover dev`, `rover lsp`, `rover connector`, and `rover install --plugin supergraph@<version>` now reject any Federation 1 version (for example `federation_version: 1` in `supergraph.yaml`, or `latest-0`/an exact `0.x` version for the plugin installer) with an error pointing at the [Federation 2 migration guide](https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2). `rover init` no longer maps a template's federation version to a Federation 1 build pipeline track.
 
 ## 🚀 Features
 

@@ -198,7 +198,7 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 #[serial]
-async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
+async fn e2e_test_rover_install_plugins_from_latest_version(
     #[case] binary_name: &str,
     #[case] cli_version_spec: &str,
 ) {
@@ -219,8 +219,13 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
             .get_tarball_version(),
         other => panic!("unexpected binary name in test case: {other}"),
     };
+    // Honor the same download-host override the `rover install` invocation below (and the
+    // Installer it shares this logic with) respects, so this resolves against the overridden
+    // host too instead of always hitting prod.
+    let download_host = std::env::var("APOLLO_ROVER_DOWNLOAD_HOST")
+        .unwrap_or_else(|_| "https://rover.apollo.dev".to_string());
     let tarball_url = format!(
-        "https://rover.apollo.dev/tar/{binary_name}/x86_64-unknown-linux-gnu/{tarball_version_segment}"
+        "{download_host}/tar/{binary_name}/x86_64-unknown-linux-gnu/{tarball_version_segment}"
     );
     let installer = Installer {
         binary_name: binary_name.to_string(),
@@ -228,10 +233,20 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
         executable_location: temp_dir.clone(),
         override_install_path: None,
     };
-    let latest_version_from_orbiter = installer
-        .get_plugin_version(&tarball_url, true)
-        .await
-        .expect("failed to resolve latest version from orbiter");
+    let mut latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
+    for attempt in 2..=3 {
+        if latest_version_result.is_ok() {
+            break;
+        }
+        eprintln!(
+            "attempt {}/3 to resolve latest version failed, retrying in 5s...",
+            attempt - 1
+        );
+        thread::sleep(Duration::from_secs(5));
+        latest_version_result = installer.get_plugin_version(&tarball_url, true).await;
+    }
+    let latest_version_from_orbiter =
+        latest_version_result.expect("failed to resolve latest version from orbiter");
 
     let plugin_arg = format!("{binary_name}@{latest_version_from_orbiter}");
     let output = run_with_retries(

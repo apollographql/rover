@@ -4,6 +4,7 @@ pub mod command;
 pub mod composition;
 mod config;
 mod error;
+mod federation;
 mod options;
 mod plugin;
 mod subtask;

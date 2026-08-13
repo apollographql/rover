@@ -9,8 +9,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    RoverError, RoverErrorSuggestion, RoverResult,
-    composition::supergraph::config::federation::FederationOneUnsupported,
+    RoverError, RoverErrorSuggestion, RoverResult, federation::reject_federation_one,
     utils::client::StudioClientConfig,
 };
 
@@ -189,9 +188,7 @@ impl FromStr for Plugin {
                             plugin_version
                         )
                     })?;
-                if federation_version.is_fed_one() {
-                    return Err(FederationOneUnsupported.into());
-                }
+                reject_federation_one(&federation_version)?;
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
