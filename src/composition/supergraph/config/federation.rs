@@ -31,6 +31,20 @@ pub struct FederationVersionMismatch {
     subgraph_names: Vec<String>,
 }
 
+/// Documentation link describing how to opt a subgraph in to Federation 2 via `@link`.
+pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2";
+
+/// Error returned whenever a resolved [`FederationVersion`] is Federation 1. Rover no longer
+/// supports composing, installing, or building against Federation 1 in any form.
+///
+/// This is shared verbatim between every entry point that can produce a `FederationVersion`
+/// (composition, `rover install --plugin`), so the rejection message stays consistent.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+#[error(
+    "Federation 1 is no longer supported by Rover. Migrate your subgraphs to Federation 2 by adding `@link` directives ({FEDERATION_2_MIGRATION_URL}), then remove any Federation 1 pin from your configuration."
+)]
+pub struct FederationOneUnsupported;
+
 /// This is the harness for resolving a FederationVersion
 #[derive(Clone, Debug)]
 pub struct FederationVersionResolver<State: Clone> {

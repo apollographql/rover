@@ -18,6 +18,7 @@ use crate::{
         CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
         FederationUpdaterConfig,
         events::CompositionEvent,
+        pipeline::reject_federation_one,
         supergraph::{
             binary::SupergraphBinary,
             config::{
@@ -200,6 +201,10 @@ where
                         },
                         Federation(fed_version) => {
                             if let Some(federation_updater_config) = self.federation_updater_config.clone() {
+                                if let Err(err) = reject_federation_one(&fed_version) {
+                                    let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
+                                    continue;
+                                }
                                 info!("Attempting to change supergraph version to {:?}", fed_version);
                                 infoln!("Attempting to change supergraph version to {}", fed_version.get_exact().unwrap());
                                 let install_res =

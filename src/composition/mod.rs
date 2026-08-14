@@ -17,6 +17,7 @@ use crate::{
         supergraph::{
             config::{
                 error::ResolveSubgraphError,
+                federation::FederationOneUnsupported,
                 full::introspect::MakeResolveIntrospectSubgraph,
                 resolver::{
                     LoadRemoteSubgraphsError, LoadSupergraphConfigError,
@@ -85,7 +86,7 @@ pub(crate) async fn get_supergraph_binary(
             federation_version,
             warn_on_floating_version,
         )
-        .await
+        .await?
         .install_supergraph_binary(
             client_config,
             override_install_path,
@@ -159,6 +160,8 @@ pub enum CompositionError {
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
     #[error("Could not install supergraph binary:\n{}", .source)]
     InstallSupergraphBinaryError { source: InstallSupergraphError },
+    #[error(transparent)]
+    FederationOneUnsupported(#[from] FederationOneUnsupported),
 }
 
 #[derive(Debug, Eq, PartialEq)]
