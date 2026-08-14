@@ -48,6 +48,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Simplify the `rover-print` API to stop propagating write errors - @dotdat**
+
+  `Print`/`PrintExt` methods (`print`, `print_line`, `infoln`, `warnln`, `errln`, `successln`) no longer return `std::io::Result<()>`. A failed terminal write is now logged via `tracing::error!` instead of being silently dropped by callers (most of which previously did `let _ = ...`). No user-facing change.
+
 - **Retry the Check Markdown Links CI job on transient network failures - @dotdat**
 
   The `Check Markdown Links` job now retries up to 3 times if it fails, since transient connection resets to external hosts were occasionally failing the job on a link that was never actually broken. `lychee` (the link checker) doesn't retry connection-establishment errors regardless of its own retry config, so this is handled at the CI level instead, matching how other flaky steps are already retried in this repo. No user-facing change.
