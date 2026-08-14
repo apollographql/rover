@@ -3,7 +3,7 @@ use std::{fmt, future::Future, pin::Pin, time::Duration};
 use apollo_http_client::{HttpClient, HttpClientConfig};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Empty};
-use tower::{Service, ServiceBuilder, ServiceExt};
+use tower::{util::BoxCloneService, BoxError, Service, ServiceBuilder, ServiceExt};
 
 use crate::error::RoverClientError;
 
@@ -26,22 +26,26 @@ impl From<GitHubServiceError> for RoverClientError {
     }
 }
 
+type HttpRequest = http::Request<Empty<Bytes>>;
+type HttpResponse = <HttpClient as Service<HttpRequest>>::Response;
+
+/// The inner, request-dispatching service backing a [`GitHubService`]
+type GitHubHttpService = BoxCloneService<HttpRequest, HttpResponse, GitHubServiceError>;
+
 /// Tower [`Service`] that sends requests to the GitHub REST API.
 ///
 /// Constructed via [`GitHubService::builder`]. All clones share the same
 /// underlying connection pool.
 #[derive(Clone)]
 pub struct GitHubService {
-    client: HttpClient,
+    client: GitHubHttpService,
     base_url: String,
-    timeout: Duration,
 }
 
 impl fmt::Debug for GitHubService {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("GitHubService")
             .field("base_url", &self.base_url)
-            .field("timeout", &self.timeout)
             .finish_non_exhaustive()
     }
 }
@@ -57,11 +61,12 @@ impl GitHubService {
         let mut config = HttpClientConfig::default();
         config.tls.danger_accept_invalid_certs = accept_invalid_certs;
         let client = HttpClient::new(&config).expect("Failed to build HTTP client");
-        Self {
-            client,
-            base_url,
-            timeout,
-        }
+        let client = ServiceBuilder::new().timeout(timeout).service(client);
+        let client = ServiceExt::<HttpRequest>::map_err(client, |err: BoxError| {
+            GitHubServiceError::ClientError(err.to_string())
+        });
+        let client: GitHubHttpService = ServiceExt::<HttpRequest>::boxed_clone(client);
+        Self { client, base_url }
     }
 }
 
@@ -82,20 +87,12 @@ impl GetTarRequest {
     }
 }
 
-type HttpResponse = <HttpClient as Service<http::Request<Empty<Bytes>>>>::Response;
-
-/// Sends a single GET request through `client` with the given `timeout` and returns the response.
+/// Sends a single GET request through `client` and returns the response.
 async fn dispatch(
-    client: HttpClient,
-    timeout: Duration,
+    client: GitHubHttpService,
     request: http::Request<Empty<Bytes>>,
 ) -> Result<HttpResponse, GitHubServiceError> {
-    ServiceBuilder::new()
-        .timeout(timeout)
-        .service(client)
-        .oneshot(request)
-        .await
-        .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
+    client.oneshot(request).await
 }
 
 /// Builds a `GET` request to `uri` with the rover `User-Agent` header.
@@ -120,9 +117,9 @@ impl Service<GetTarRequest> for GitHubService {
 
     fn poll_ready(
         &mut self,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
+        self.client.poll_ready(cx)
     }
 
     fn call(&mut self, req: GetTarRequest) -> Self::Future {
@@ -131,11 +128,10 @@ impl Service<GetTarRequest> for GitHubService {
             self.base_url, req.owner, req.repo, req.reference
         );
         let client = self.client.clone();
-        let timeout = self.timeout;
 
         Box::pin(async move {
             let request = build_get_request(&url)?;
-            let response = dispatch(client.clone(), timeout, request).await?;
+            let response = dispatch(client.clone(), request).await?;
 
             // GitHub's tarball endpoint issues a 302 redirect to S3/CDN.
             // Follow at most one hop.
@@ -151,7 +147,7 @@ impl Service<GetTarRequest> for GitHubService {
                     })?
                     .to_owned();
 
-                dispatch(client, timeout, build_get_request(location)?).await?
+                dispatch(client, build_get_request(location)?).await?
             } else {
                 response
             };
