@@ -142,14 +142,12 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
         // is always available to copy - over SSH, if the wrong browser
         // opens, or if opening is skipped/fails for any other reason - and
         // so nothing about this depends on browser-launch behavior at all.
-        if let Err(print_err) = stderr.print(&StyledText::new(
+        stderr.print(&StyledText::new(
             Style::Info,
             format!(
                 "Opening your browser to authenticate. If it doesn't open automatically, visit this URL: {auth_url}"
             ),
-        )) {
-            tracing::error!("Failed to print message: {}", print_err);
-        }
+        ));
         if let Err(err) = open_auth_url.open_url(&auth_url) {
             tracing::error!("Failed to open URL automatically: {}", err);
         }
@@ -288,7 +286,7 @@ mod tests {
             .times(1)
             .withf(move |url| url.to_string().starts_with(expected_auth_url.as_str()))
             .returning(|_| Ok(()));
-        mock_print.expect_print().times(1).returning(|_| Ok(()));
+        mock_print.expect_print().times(1).returning(|_| ());
         let result = pkce_flow
             .authorize(
                 scopes,
@@ -391,7 +389,7 @@ mod tests {
                         .text()
                         .contains("If it doesn't open automatically, visit this URL")
             })
-            .returning(|_| Ok(()));
+            .returning(|_| ());
         let result = pkce_flow
             .authorize(
                 scopes,

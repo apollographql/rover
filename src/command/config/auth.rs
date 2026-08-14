@@ -32,7 +32,7 @@ impl Auth {
         #[cfg(feature = "oauth")]
         stderr.warnln(
             "OAuth authentication is now available - consider running `rover auth login` instead of storing a Personal API Key.",
-        )?;
+        );
 
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;

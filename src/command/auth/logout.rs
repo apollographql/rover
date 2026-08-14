@@ -101,7 +101,7 @@ impl Logout {
                 Err(e) => Err(e),
             };
             if let Err(e) = result {
-                let _ = stderr.warnln(format!(
+                stderr.warnln(format!(
                     "failed to revoke a token with the OAuth server: {e}. Continuing to remove it locally."
                 ));
             }

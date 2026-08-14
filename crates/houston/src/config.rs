@@ -87,7 +87,7 @@ impl Config {
         tracing::debug!(home_dir = ?self.home);
         for profile_name in Profile::list(self)? {
             if let Err(error) = profile::delete_credential(&profile_name, self) {
-                let _ = stderr.warnln(format!(
+                stderr.warnln(format!(
                     "failed to remove credential for profile '{profile_name}' from the secret \
                     store while clearing config: {error}"
                 ));

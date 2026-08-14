@@ -19,14 +19,10 @@ const ANSI: &str = "\u{1b}[";
 fn prefix_helpers_compose_prefix_and_message() {
     let printer = TerminalCapture::new(false);
 
-    printer
-        .infoln("watching supergraph.yaml for changes")
-        .unwrap();
-    printer
-        .warnln("using an unpinned federation version")
-        .unwrap();
-    printer.errln("could not parse supergraph config").unwrap();
-    printer.successln("composition succeeded").unwrap();
+    printer.infoln("watching supergraph.yaml for changes");
+    printer.warnln("using an unpinned federation version");
+    printer.errln("could not parse supergraph config");
+    printer.successln("composition succeeded");
 
     assert_that!(&printer.lines()).is_equal_to(vec![
         "==> watching supergraph.yaml for changes".to_string(),
@@ -36,16 +32,16 @@ fn prefix_helpers_compose_prefix_and_message() {
     ]);
 }
 
-fn info(printer: &TerminalCapture, message: &str) -> std::io::Result<()> {
+fn info(printer: &TerminalCapture, message: &str) {
     printer.infoln(message)
 }
-fn warn(printer: &TerminalCapture, message: &str) -> std::io::Result<()> {
+fn warn(printer: &TerminalCapture, message: &str) {
     printer.warnln(message)
 }
-fn error(printer: &TerminalCapture, message: &str) -> std::io::Result<()> {
+fn error(printer: &TerminalCapture, message: &str) {
     printer.errln(message)
 }
-fn success(printer: &TerminalCapture, message: &str) -> std::io::Result<()> {
+fn success(printer: &TerminalCapture, message: &str) {
     printer.successln(message)
 }
 
@@ -57,12 +53,12 @@ fn success(printer: &TerminalCapture, message: &str) -> std::io::Result<()> {
 #[case::errln(error, "error:")]
 #[case::successln(success, "✓")]
 fn prefix_helpers_color_the_prefix_when_enabled(
-    #[case] call: fn(&TerminalCapture, &str) -> std::io::Result<()>,
+    #[case] call: fn(&TerminalCapture, &str),
     #[case] prefix: &str,
 ) {
     let printer = TerminalCapture::new(true);
 
-    call(&printer, "the message").unwrap();
+    call(&printer, "the message");
 
     let line = printer.lines().pop().expect("a line was printed");
     assert_that!(&line).contains(ANSI);
