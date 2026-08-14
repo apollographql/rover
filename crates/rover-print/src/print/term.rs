@@ -18,12 +18,14 @@ impl Print for Term {
             .iter()
             .map(|segment| self.render(segment))
             .collect();
-        // A failed terminal write (e.g. a closed handle) must not lose the
-        // message entirely, so fall back to logging it instead of
-        // propagating the error to callers, none of which can do anything
-        // about a broken stream anyway.
+        // A failed terminal write (e.g. a closed handle) is unrecoverable and
+        // not worth propagating to callers, none of which can do anything
+        // about a broken stream. Record a diagnostic for `--log`-enabled
+        // runs; log the unstyled text rather than `line`, which may carry
+        // ANSI escapes.
         if let Err(error) = self.term.write_line(&line) {
-            tracing::error!(%error, %line, "failed to write to terminal");
+            let message: String = segments.iter().map(|segment| segment.text()).collect();
+            tracing::error!(%error, %message, "failed to write to terminal");
         }
     }
 
