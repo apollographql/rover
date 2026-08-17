@@ -2,52 +2,20 @@ on:
   push:
     branches:
       - main
+  # Deliberately the default types (opened, synchronize, reopened) — no `edited`.
+  # Editing a description cannot change what any job here would conclude, and a
+  # run triggered by an edit would have to either repeat the whole suite or skip
+  # it and report a verdict derived from nothing, overwriting the real run's
+  # result for the same commit. The changelog check is the one thing that does
+  # care about the description, and it lives in changelog.yml for that reason.
   pull_request:
-    types: [opened, synchronize, reopened, edited]
   merge_group:
 
 name: Commit Checks
 jobs:
   changes:
     name: Detect Changes
-    if: github.event.action != 'edited'
     uses: ./.github/workflows/detect-changes.yml
-
-  changelog:
-    name: Changelog Entry
-    if: >-
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-       !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login))
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check for a CHANGELOG.md entry or opt-out checkbox
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          CHANGED_FILES="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)"
-
-          if printf '%s\n' "$CHANGED_FILES" | grep -qx "CHANGELOG.md"; then
-            echo "CHANGELOG.md was updated in this PR."
-            exit 0
-          fi
-
-          if ! printf '%s\n' "$CHANGED_FILES" | grep -qvE '^docs/'; then
-            echo "This PR only touches docs/, no changelog entry required."
-            exit 0
-          fi
-
-          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-?\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
-            echo "PR description confirms a changelog entry is not needed."
-            exit 0
-          fi
-
-          echo "::error::This PR doesn't modify CHANGELOG.md. Add an entry under 'Unreleased' (see CONTRIBUTING.md), or check the 'A CHANGELOG.md entry is not needed for this PR' box in the PR description."
-          exit 1
 
   cargo-deny:
     name: Cargo Deny
@@ -228,7 +196,6 @@ jobs:
     if: always()
     needs:
       - changes
-      - changelog
       - cargo-deny
       - fmt
       - clippy
@@ -268,7 +235,6 @@ jobs:
       # a docs-only pull request merge. The flip side is that a mistake in a
       # job's `if:` would skip the Rust suite and still go green, so assert that
       # nothing was skipped once Detect Changes says the change touches code.
-      # `changelog` is exempt: it skips on purpose for Renovate and Dependabot.
       - name: Fail if a check was skipped despite code changes
         if: >-
           ${{
