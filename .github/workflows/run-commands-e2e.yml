@@ -7,8 +7,14 @@ on:
 
 name: Run Command E2E Tests
 jobs:
+  changes:
+    name: Detect Changes
+    uses: ./.github/workflows/detect-changes.yml
+
   introspection_e2e:
     name: introspection E2E
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +38,8 @@ jobs:
 
   connectors_e2e:
     name: connectors E2E
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,5 +55,48 @@ jobs:
         run: |
             cargo build
             cargo test --locked --package regressions --test cli_tests -- connectors_cli_tests
-            
 
+  # The single context branch protection requires from this workflow. See the
+  # equivalent job in checks.yml for why this shape is necessary.
+  command_e2e_complete:
+    name: Command E2E Complete
+    if: always()
+    needs: [changes, introspection_e2e, connectors_e2e]
+    runs-on: ubuntu-latest
+    steps:
+      # See the equivalent step in checks.yml: without this, a broken `code`
+      # output skips every job and still reports a green aggregate.
+      - name: Fail if Detect Changes produced no classification
+        if: >-
+          ${{
+               needs.changes.result != 'success'
+            || (needs.changes.outputs.code != 'true' && needs.changes.outputs.code != 'false')
+          }}
+        env:
+          RESULT: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+        run: |
+          echo "::error::Detect Changes did not classify this change (result='$RESULT', code='$CODE')."
+          exit 1
+
+      - name: Fail if a check failed or was cancelled
+        if: >-
+          ${{
+               contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+          }}
+        run: |
+          echo '::error::A command E2E test failed or was cancelled.'
+          exit 1
+
+      - name: Fail if a check was skipped despite code changes
+        if: >-
+          ${{
+            needs.changes.outputs.code == 'true' && (
+                 needs.introspection_e2e.result == 'skipped'
+              || needs.connectors_e2e.result == 'skipped'
+            )
+          }}
+        run: |
+          echo '::error::A command E2E test was skipped even though this change touches code. Check the job if: conditions in run-commands-e2e.yml.'
+          exit 1
