@@ -9,16 +9,24 @@ pub struct Term {
 }
 
 impl Print for Term {
-    fn print(&self, message: &StyledText) -> std::io::Result<()> {
+    fn print(&self, message: &StyledText) {
         self.print_line(std::slice::from_ref(message))
     }
 
-    fn print_line(&self, segments: &[StyledText]) -> std::io::Result<()> {
+    fn print_line(&self, segments: &[StyledText]) {
         let line: String = segments
             .iter()
             .map(|segment| self.render(segment))
             .collect();
-        self.term.write_line(&line)
+        // A failed terminal write (e.g. a closed handle) is unrecoverable and
+        // not worth propagating to callers, none of which can do anything
+        // about a broken stream. Record a diagnostic for `--log`-enabled
+        // runs; log the unstyled text rather than `line`, which may carry
+        // ANSI escapes.
+        if let Err(error) = self.term.write_line(&line) {
+            let message: String = segments.iter().map(|segment| segment.text()).collect();
+            tracing::error!(%error, %message, "failed to write to terminal");
+        }
     }
 
     fn render(&self, text: &StyledText) -> String {

@@ -59,7 +59,7 @@ async fn test_full_pkce_flow_authorize_and_exchange() {
     });
 
     let mut mock_print = MockPrint::new();
-    mock_print.expect_print().times(1).returning(|_| Ok(()));
+    mock_print.expect_print().times(1).returning(|_| ());
 
     let authorize_result = flow
         .authorize(
@@ -134,7 +134,7 @@ async fn test_authorize_still_completes_when_opening_the_browser_fails() {
     });
 
     let mut mock_print = MockPrint::new();
-    mock_print.expect_print().times(1).returning(|_| Ok(()));
+    mock_print.expect_print().times(1).returning(|_| ());
 
     let authorize_result = flow
         .authorize(

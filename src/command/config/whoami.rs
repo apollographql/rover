@@ -39,7 +39,7 @@ impl WhoAmI {
         #[cfg(feature = "oauth")]
         stderr.print(&StyledText::plain(
             "note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.",
-        ))?;
+        ));
 
         LegacyWhoami {
             profile: self.profile.clone(),
@@ -69,7 +69,7 @@ impl LegacyWhoami {
         let client = client_config.get_authenticated_client(&self.profile)?;
         stderr.print(&StyledText::plain(
             "Checking identity of your API key against the registry.",
-        ))?;
+        ));
 
         let identity = who_am_i::run(&client).await.map_err(|e| match e {
             RoverClientError::GraphQl { msg } if msg.contains("Unauthorized") => {
@@ -97,7 +97,7 @@ impl LegacyWhoami {
         ) {
             stderr.print(&StyledText::plain(
                 "note: OAuth authentication is now available - consider running `rover auth login` instead of a Personal API Key.",
-            ))?;
+            ));
         }
 
         Ok(RoverOutput::ConfigWhoAmIOutput {

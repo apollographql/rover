@@ -13,13 +13,17 @@ pub use term::Term;
 
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 pub trait Print {
-    /// Print a single styled message, followed by a newline.
-    fn print(&self, message: &StyledText) -> std::io::Result<()>;
+    /// Print a single styled message, followed by a newline. Failures to
+    /// write to the underlying stream are not surfaced here — implementors
+    /// fall back to logging instead, so a caller never needs to handle a
+    /// print error.
+    fn print(&self, message: &StyledText);
 
     /// Print a line composed of multiple styled segments, followed by a
     /// single newline. Each segment is rendered independently, so a line can
-    /// mix styles (e.g. a colored prefix followed by plain text).
-    fn print_line(&self, segments: &[StyledText]) -> std::io::Result<()>;
+    /// mix styles (e.g. a colored prefix followed by plain text). As with
+    /// [`Print::print`], write failures are not surfaced to the caller.
+    fn print_line(&self, segments: &[StyledText]);
 
     /// Render styled text to a string the way this printer would emit it.
     /// Use this to build a line with inline styled tokens before printing
@@ -38,7 +42,7 @@ pub trait PrintExt: Print {
     }
 
     /// Print an informational line, prefixed with a styled `==>`.
-    fn infoln(&self, message: impl fmt::Display) -> std::io::Result<()> {
+    fn infoln(&self, message: impl fmt::Display) {
         self.print(&StyledText::plain(format!(
             "{} {message}",
             self.paint(Style::Info, "==>")
@@ -46,7 +50,7 @@ pub trait PrintExt: Print {
     }
 
     /// Print a warning line, prefixed with a styled `warning:`.
-    fn warnln(&self, message: impl fmt::Display) -> std::io::Result<()> {
+    fn warnln(&self, message: impl fmt::Display) {
         self.print(&StyledText::plain(format!(
             "{} {message}",
             self.paint(Style::Warning, "warning:")
@@ -54,7 +58,7 @@ pub trait PrintExt: Print {
     }
 
     /// Print an error line, prefixed with a styled `error:`.
-    fn errln(&self, message: impl fmt::Display) -> std::io::Result<()> {
+    fn errln(&self, message: impl fmt::Display) {
         self.print(&StyledText::plain(format!(
             "{} {message}",
             self.paint(Style::Error, "error:")
@@ -62,7 +66,7 @@ pub trait PrintExt: Print {
     }
 
     /// Print a success line, prefixed with a styled `✓`.
-    fn successln(&self, message: impl fmt::Display) -> std::io::Result<()> {
+    fn successln(&self, message: impl fmt::Display) {
         self.print(&StyledText::plain(format!(
             "{} {message}",
             self.paint(Style::Success, "✓")
@@ -154,16 +158,16 @@ mod tests {
     // hand the assembled line to `print`. We can't capture a real terminal, so
     // we render the prefix verbatim and capture the line passed to `print` to
     // assert on its exact contents.
-    fn info(p: &MockPrint) -> std::io::Result<()> {
+    fn info(p: &MockPrint) {
         p.infoln("a thing happened")
     }
-    fn warn(p: &MockPrint) -> std::io::Result<()> {
+    fn warn(p: &MockPrint) {
         p.warnln("a thing happened")
     }
-    fn error(p: &MockPrint) -> std::io::Result<()> {
+    fn error(p: &MockPrint) {
         p.errln("a thing happened")
     }
-    fn success(p: &MockPrint) -> std::io::Result<()> {
+    fn success(p: &MockPrint) {
         p.successln("a thing happened")
     }
 
@@ -173,7 +177,7 @@ mod tests {
     #[case::error(error, "error: a thing happened")]
     #[case::success(success, "✓ a thing happened")]
     fn prefix_helpers_compose_prefix_and_message(
-        #[case] call: fn(&MockPrint) -> std::io::Result<()>,
+        #[case] call: fn(&MockPrint),
         #[case] expected_line: &'static str,
     ) {
         let printed = Arc::new(Mutex::new(None::<String>));
@@ -184,12 +188,10 @@ mod tests {
         let sink = Arc::clone(&printed);
         mock.expect_print().times(1).returning(move |message| {
             *sink.lock().unwrap() = Some(message.text().to_string());
-            Ok(())
         });
 
-        let result = call(&mock);
+        call(&mock);
 
-        assert_that!(&result).is_ok();
         let printed = printed.lock().unwrap();
         assert_that!(&printed.as_deref()).is_equal_to(Some(expected_line));
     }
@@ -201,12 +203,10 @@ mod tests {
         let sink = Arc::clone(&printed);
         mock.expect_print().times(1).returning(move |message| {
             *sink.lock().unwrap() = Some(message.text().to_string());
-            Ok(())
         });
 
-        let result = mock.print(&StyledText::plain("hello"));
+        mock.print(&StyledText::plain("hello"));
 
-        assert_that!(&result).is_ok();
         let printed = printed.lock().unwrap();
         assert_that!(&printed.as_deref()).is_equal_to(Some("hello"));
     }
@@ -220,7 +220,6 @@ mod tests {
             .times(1)
             .returning(move |segments| {
                 *sink.lock().unwrap() = segments.iter().map(|s| s.text().to_string()).collect();
-                Ok(())
             });
 
         let segments = [
@@ -228,9 +227,8 @@ mod tests {
             StyledText::new(Style::Command, "rover dev"),
             StyledText::plain(" now"),
         ];
-        let result = mock.print_line(&segments);
+        mock.print_line(&segments);
 
-        assert_that!(&result).is_ok();
         let captured = captured.lock().unwrap();
         assert_that!(&*captured).is_equal_to(vec![
             "run ".to_string(),

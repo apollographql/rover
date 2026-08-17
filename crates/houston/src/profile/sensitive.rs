@@ -110,14 +110,14 @@ impl Sensitive {
                     )
                 }
                 Err(error) => {
-                    let _ = stderr.warnln(format!(
+                    stderr.warnln(format!(
                         "failed to remove unused legacy credential file '{legacy_path}': {error}. \
                         You can delete it by hand, or check write permissions on its parent directory."
                     ));
                 }
             },
             Err(error) => {
-                let _ = stderr.warnln(format!(
+                stderr.warnln(format!(
                     "failed to migrate credential for profile '{profile_name}' into the secret store: {error}. \
                     Using the legacy credential for now; will retry automatically. If this persists, run \
                     `rover config auth --profile {profile_name}` to re-save it."

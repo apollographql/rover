@@ -48,11 +48,11 @@ impl<P> Print for Stderr<P>
 where
     P: Print,
 {
-    fn print(&self, message: &StyledText) -> std::io::Result<()> {
+    fn print(&self, message: &StyledText) {
         self.0.print(message)
     }
 
-    fn print_line(&self, segments: &[StyledText]) -> std::io::Result<()> {
+    fn print_line(&self, segments: &[StyledText]) {
         self.0.print_line(segments)
     }
 

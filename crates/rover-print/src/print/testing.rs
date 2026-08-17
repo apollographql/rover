@@ -31,18 +31,16 @@ impl TerminalCapture {
 }
 
 impl Print for TerminalCapture {
-    fn print(&self, message: &StyledText) -> std::io::Result<()> {
+    fn print(&self, message: &StyledText) {
         self.lines.borrow_mut().push(self.render(message));
-        Ok(())
     }
 
-    fn print_line(&self, segments: &[StyledText]) -> std::io::Result<()> {
+    fn print_line(&self, segments: &[StyledText]) {
         let line: String = segments
             .iter()
             .map(|segment| self.render(segment))
             .collect();
         self.lines.borrow_mut().push(line);
-        Ok(())
     }
 
     fn render(&self, text: &StyledText) -> String {

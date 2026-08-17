@@ -29,7 +29,7 @@ impl Generate {
         let operation_count = manifest.operation_count();
 
         if operation_count == 0 {
-            stderr.warnln("no operations found during manifest generation. You may need to adjust the glob pattern used to search files in this project.")?;
+            stderr.warnln("no operations found during manifest generation. You may need to adjust the glob pattern used to search files in this project.");
         }
 
         let manifest_value = serde_json::to_value(&manifest)?;
