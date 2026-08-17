@@ -1,16 +1,32 @@
 on:
+  # No `paths:` filter. This check is required, and a workflow-level path filter
+  # never creates a check run at all, so a required context would wait forever.
+  # The gating lives on the job instead, via Detect Changes.
   pull_request:
-    paths:
-      - "**/*.md"
+  merge_group:
   schedule:
     - cron: '0 0 * * *'
 
-permissions: {}
+# Raised from `permissions: {}` because Detect Changes needs `pull-requests: read`
+# to read the diff, and a called workflow can never hold more than its caller.
+permissions:
+  contents: read
+  pull-requests: read
 
 name: Check Markdown Links
 jobs:
+  changes:
+    name: Detect Changes
+    uses: ./.github/workflows/detect-changes.yml
+
   check-links:
+    needs: changes
+    if: needs.changes.outputs.markdown == 'true'
     runs-on: ubuntu-latest
+    # This file deliberately ran on `permissions: {}` before. Only `changes`
+    # needs to read the diff, so keep that grant off this job.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -22,3 +38,47 @@ jobs:
           max_attempts: 3
           timeout_minutes: 5
           command: mise run check-links
+
+  # The single context branch protection requires from this workflow. See the
+  # equivalent job in checks.yml for why this shape is necessary.
+  link_check_complete:
+    name: Link Check Complete
+    if: always()
+    needs: [changes, check-links]
+    runs-on: ubuntu-latest
+    steps:
+      # See the equivalent step in checks.yml: without this, a broken
+      # classification output skips the check and still reports a green
+      # aggregate.
+      - name: Fail if Detect Changes produced no classification
+        if: >-
+          ${{
+               needs.changes.result != 'success'
+            || (needs.changes.outputs.markdown != 'true' && needs.changes.outputs.markdown != 'false')
+          }}
+        env:
+          RESULT: ${{ needs.changes.result }}
+          MARKDOWN: ${{ needs.changes.outputs.markdown }}
+        run: |
+          echo "::error::Detect Changes did not classify this change (result='$RESULT', markdown='$MARKDOWN')."
+          exit 1
+
+      - name: Fail if a check failed or was cancelled
+        if: >-
+          ${{
+               contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+          }}
+        run: |
+          echo '::error::The markdown link check failed or was cancelled.'
+          exit 1
+
+      - name: Fail if the link check was skipped despite markdown changes
+        if: >-
+          ${{
+            needs.changes.outputs.markdown == 'true'
+              && needs['check-links'].result == 'skipped'
+          }}
+        run: |
+          echo '::error::The link check was skipped even though this change touches markdown it reads. Check the job if: conditions in check-links.yml.'
+          exit 1

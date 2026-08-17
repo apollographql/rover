@@ -158,18 +158,23 @@ jobs:
     container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.10
 
     steps:
+    # No `ref:` override. It used to be `github.head_ref || github.ref_name`,
+    # which is a bare branch name resolved against the base repository, so it
+    # matched nothing on a pull request from a fork and checkout failed there —
+    # see run 30554828564 on #3558. That was survivable only while this job sat
+    # outside the required set; it is inside the aggregator now, so with
+    # `enforce_admins: true` it would have made every fork pull request
+    # unmergeable by anyone. Defaulting also means this job tests the same
+    # `refs/pull/N/merge` commit as every other job in this workflow, rather
+    # than the branch tip. Nothing downstream needs a named branch:
+    # check-glibc.sh only objdumps target/debug/rover.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-        ref: ${{ github.head_ref || github.ref_name }}
+    # Still required: the container runs as a different user than the one that
+    # owns the checkout.
     - name: Fix git ownership
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    - name: Debug git state
-      run: |
-        git status
-        git branch -a
-        git log --oneline -1
-        git symbolic-ref HEAD || echo "Detached HEAD detected"
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
     - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
       with:
@@ -189,8 +194,9 @@ jobs:
   # adding, renaming or gating a job above no longer means hand-editing the list
   # of required status checks in the repository settings.
   #
-  # `test_minimal_glibc` is deliberately absent from `needs`: it is advisory
-  # today and stays advisory.
+  # Every job in this workflow is listed in `needs`, deliberately. There is no
+  # advisory tier: a check worth running on every pull request is worth blocking
+  # on, and a job that is only sometimes trusted is a job nobody reads.
   commit_checks_complete:
     name: Commit Checks Complete
     if: always()
@@ -201,6 +207,7 @@ jobs:
       - clippy
       - test
       - test_installers
+      - test_minimal_glibc
     runs-on: ubuntu-latest
     steps:
       # Every gate in this workflow keys on `code`, so if that output breaks —
@@ -244,6 +251,7 @@ jobs:
               || needs.clippy.result == 'skipped'
               || needs.test.result == 'skipped'
               || needs.test_installers.result == 'skipped'
+              || needs.test_minimal_glibc.result == 'skipped'
             )
           }}
         run: |
