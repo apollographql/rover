@@ -1450,9 +1450,9 @@ dependencies = [
 
 [[package]]
 name = "cynic-parser"
-version = "0.4.5"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "718f6cd8c54ae5249fd42b0c86639df0100b8a86eea2e5f1b915cde2e1481453"
+checksum = "7793e157a59a0bd2142a5723860aeaef3aa459feae1467b597351e5f58251904"
 dependencies = [
  "indexmap 2.14.0",
  "lalrpop-util",
@@ -2428,9 +2428,9 @@ dependencies = [
 
 [[package]]
 name = "graphql-schema-diff"
-version = "0.2.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "356d10eecab6ab3a2f28cdcc4a334a91d1ab675297950e76a4ef039ade2b9b9d"
+checksum = "3a071b134556cf3adbee2eb0b8fb972910d56762895aea518a7cdf079aa9fe7a"
 dependencies = [
  "cynic-parser",
  "serde",
@@ -3272,11 +3272,11 @@ dependencies = [
 
 [[package]]
 name = "lalrpop-util"
-version = "0.20.2"
+version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "507460a910eb7b32ee961886ff48539633b788a36b65692b95f225b844c82553"
+checksum = "b5baa5e9ff84f1aefd264e6869907646538a52147a755d494517a8007fb48733"
 dependencies = [
- "regex-automata",
+ "rustversion",
 ]
 
 [[package]]
