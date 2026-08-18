@@ -44,3 +44,7 @@ run = "bash .mise/scripts/install_pnpm.sh"
 
 [tasks.cargo-deny]
 run = "cargo deny check"
+
+[tasks.coverage]
+description = "Check test coverage for the crate/module you're working on (pass extra args after --)"
+run = "mise x cargo:cargo-tarpaulin@0.31 -- cargo tarpaulin"
