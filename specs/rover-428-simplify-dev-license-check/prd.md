@@ -32,7 +32,7 @@ So today's real behavior is: *credentials are optional inputs that unlock GraphO
 
 ### 2.2 The docs overstate the requirement
 
-[`docs/source/commands/dev.mdx`](../docs/source/commands/dev.mdx) mixes signals:
+[`docs/source/commands/dev.mdx`](../../docs/source/commands/dev.mdx) mixes signals:
 
 - Line 54 has the correct framing: *"To use GraphOS Router features or the `@connect` directive in your schema, provide the `APOLLO_KEY` and `APOLLO_GRAPH_REF` environment variables."*
 - But the "GraphOS Router features" section (lines 200-218) and the MCP section describe key + graph ref in a way that reads as a prerequisite for `rover dev` broadly, with no equally prominent "you don't need any of this to run subgraphs locally" statement up front.

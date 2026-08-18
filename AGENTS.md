@@ -23,6 +23,7 @@ When those sources conflict with assumptions, follow the repo sources of truth.
 - `tests/e2e`: slower end-to-end coverage and fixture-driven command tests.
 - `installers/*`: npm and binstall packaging/install behavior.
 - `docs/source/*`: published documentation sources.
+- `specs/<ticket>/`: planning artifacts for an initiative — see "Specs Directory Conventions" below.
 
 Treat this repository as a Cargo workspace rooted at the `rover` binary crate. Shared logic often belongs in `crates/*` rather than directly in the top-level CLI crate.
 
@@ -36,6 +37,17 @@ Before writing code for a non-trivial change, confirm there's an approved planni
 If neither is linked in the task or request, stop before implementing. Ask for the link, or offer to open a GitHub issue first if no internal doc exists. Exempt: typos, trivial bug fixes, doc corrections, and other obviously-scoped changes with no design space to discuss.
 
 When reviewing a PR, check the description for a linked Confluence PRD/One-Pager or a referenced GitHub issue (e.g. `Fixes #123`). Flag the PR if neither is present, unless the change is clearly trivial.
+
+## Specs Directory Conventions
+
+An initiative tracked under `specs/<ticket>/` splits into two documents with different jobs:
+
+- **`prd.md`**: product requirements — problem statement, goals, non-goals, success metrics. The why and what, aimed at product/stakeholder alignment.
+- **`spec.md`**: a behavior specification, following spec-driven-development practice. It defines the observable contract the implementation must satisfy: numbered functional requirements (must/must not language) and Given/When/Then acceptance criteria. It must **not** contain file paths, function or struct names, line numbers, code snippets, or "which file to change" content — that belongs in a separate implementation plan, not the spec. CLI flag names, environment variable names, and exact user-facing message text are fair game since they're part of the observable contract; internal architecture is not.
+
+Write `spec.md` behavior-first even when an implementation is already in mind. Describing required behavior and its edge cases independently of how it will be built tends to surface interaction and edge cases (two features that should suppress the same message, undefined precedence when two options are both supplied, etc.) that a code-first implementation plan skims past.
+
+When reviewing a `spec.md`, flag it if it reads like an implementation plan instead of a contract.
 
 ## How to Work in the Codebase
 
