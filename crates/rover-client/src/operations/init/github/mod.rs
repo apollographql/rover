@@ -3,6 +3,7 @@ use std::{fmt, future::Future, pin::Pin, time::Duration};
 use apollo_http_client::{HttpClient, HttpClientConfig};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Empty};
+use rover_tower::service::replace_ready_service;
 use tower::{util::BoxCloneService, BoxError, Service, ServiceBuilder, ServiceExt};
 
 use crate::error::RoverClientError;
@@ -87,14 +88,6 @@ impl GetTarRequest {
     }
 }
 
-/// Sends a single GET request through `client` and returns the response.
-async fn dispatch(
-    client: GitHubHttpService,
-    request: http::Request<Empty<Bytes>>,
-) -> Result<HttpResponse, GitHubServiceError> {
-    client.oneshot(request).await
-}
-
 /// Builds a `GET` request to `uri` with the rover `User-Agent` header.
 fn build_get_request(
     uri: impl AsRef<str>,
@@ -127,11 +120,11 @@ impl Service<GetTarRequest> for GitHubService {
             "{}/repos/{}/{}/tarball/{}",
             self.base_url, req.owner, req.repo, req.reference
         );
-        let client = self.client.clone();
+        let client = replace_ready_service(&mut self.client);
 
         Box::pin(async move {
             let request = build_get_request(&url)?;
-            let response = dispatch(client.clone(), request).await?;
+            let response = client.clone().oneshot(request).await?;
 
             // GitHub's tarball endpoint issues a 302 redirect to S3/CDN.
             // Follow at most one hop.
@@ -147,7 +140,7 @@ impl Service<GetTarRequest> for GitHubService {
                     })?
                     .to_owned();
 
-                dispatch(client, build_get_request(location)?).await?
+                client.oneshot(build_get_request(location)?).await?
             } else {
                 response
             };
