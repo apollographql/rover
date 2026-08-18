@@ -1,0 +1,136 @@
+on:
+  workflow_call:
+    outputs:
+      code:
+        description: >-
+          'true' when this change can affect the outcome of a cargo build, test,
+          clippy, fmt or deny run.
+        value: ${{ jobs.detect.outputs.code }}
+      markdown:
+        description: >-
+          'true' when this change touches a markdown file that the link checker
+          actually reads.
+        value: ${{ jobs.detect.outputs.markdown }}
+
+# `gh pr diff` reads GET /pulls/{n}/files, so `pull-requests: read` is the actual
+# dependency and is worth stating rather than inheriting. The repository default
+# is currently `write` on everything, so this is a reduction; a called workflow
+# can never hold more than its caller, so every caller must grant at least this.
+permissions:
+  contents: read
+  pull-requests: read
+
+name: Detect Changes
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      markdown: ${{ steps.filter.outputs.markdown }}
+    steps:
+      - name: Classify the changed files
+        id: filter
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Every fallback runs the full suite: a classifier that cannot see the
+          # diff must not be the reason something goes unchecked.
+          run_everything() {
+            echo "$1"
+            echo 'code=true' >> "$GITHUB_OUTPUT"
+            echo 'markdown=true' >> "$GITHUB_OUTPUT"
+          }
+
+          # Only pull requests get filtered. Pushes to main, merge queue runs and
+          # the nightly schedule always exercise everything, so the last gate
+          # before main never depends on the classification below being right.
+          if [ "$EVENT_NAME" != 'pull_request' ]; then
+            run_everything "Event is '$EVENT_NAME' rather than a pull request; running everything."
+            exit 0
+          fi
+
+          # Guarded rather than a bare assignment: under `set -e` a failing `gh`
+          # would abort the step, so the fallback would be dead code and a
+          # transient API error would wedge the pull request instead of just
+          # costing a full run.
+          if ! CHANGED_FILES="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)"; then
+            run_everything '::warning::Could not read the pull request diff; running everything.'
+            exit 0
+          fi
+
+          if [ -z "$CHANGED_FILES" ]; then
+            run_everything '::warning::The pull request reports no changed files; running everything.'
+            exit 0
+          fi
+
+          # Paths that cannot change the outcome of a cargo run. This is an
+          # allowlist on purpose: anything not named here counts as code, so a
+          # new directory runs the full suite until somebody deliberately adds
+          # it below. Getting this list wrong should cost CI minutes, never
+          # coverage.
+          #
+          # One case escapes that guarantee: `gh pr diff --name-only` reports
+          # only the new path of a rename, so moving a Rust file into an inert
+          # directory reads as an inert-only change even though the deletion
+          # breaks the build. `merge_group` forces the full suite regardless, so
+          # such a change still cannot reach main unchecked.
+          INERT_PATTERNS=(
+            '^(actions|docs|examples)/'
+            '^\.(claude|vscode)/'
+            '^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/'
+            '^\.github/(CODEOWNERS|PULL_REQUEST_TEMPLATE\.md)$'
+            '^(AGENTS|ARCHITECTURE|CHANGELOG|CLAUDE|CONTRIBUTING|README|RELEASE_CHECKLIST)\.md$'
+            '^(\.gitleaks\.toml|\.lychee\.yaml|lychee\.toml)$'
+          )
+          INERT="$(IFS='|'; echo "${INERT_PATTERNS[*]}")"
+
+          # The link checker walks the tree itself and skips docs/ (which has its
+          # own checker), CHANGELOG.md, hidden directories, node_modules and
+          # target. Gating on the same set keeps a docs-only or changelog-only
+          # change from paying for a network check that reads none of its files.
+          # Mirrors .mise/tasks/check-links.sh — the two must stay in sync.
+          LINK_SKIP_PATTERNS=(
+            '^docs/'
+            '(^|/)CHANGELOG\.md$'
+            '(^|/)\.'
+            '(^|/)node_modules/'
+            '(^|/)target/'
+          )
+          LINK_SKIP="$(IFS='|'; echo "${LINK_SKIP_PATTERNS[*]}")"
+
+          # The checker's own inputs count as markdown it reads: without these,
+          # a pull request that only edits lychee's config would run nothing at
+          # all — the config is inert for cargo, and is not a .md file — so a
+          # broken `accept` value or a desynced skip list would first surface on
+          # some later unrelated pull request that happened to touch a README.
+          # Matched separately because LINK_SKIP's `(^|/)\.` would otherwise
+          # exclude the .mise and .github paths below.
+          LINK_CONFIG='^(lychee\.toml|\.lychee\.yaml|\.mise/tasks/check-links\.sh|\.github/workflows/check-links\.yml)$'
+
+          CODE_FILES="$(printf '%s\n' "$CHANGED_FILES" | grep -vE "$INERT" || true)"
+          LINK_MD="$(printf '%s\n' "$CHANGED_FILES" | grep -E '\.md$' | grep -vE "$LINK_SKIP" || true)"
+          LINK_CFG="$(printf '%s\n' "$CHANGED_FILES" | grep -E "$LINK_CONFIG" || true)"
+          LINK_FILES="$(printf '%s\n%s\n' "$LINK_MD" "$LINK_CFG" | grep -v '^$' || true)"
+
+          if [ -n "$CODE_FILES" ]; then
+            echo 'These changed files can affect a cargo run:'
+            printf '%s\n' "$CODE_FILES" | sed 's/^/  /'
+            echo 'code=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Only docs, companion actions and editor config changed; skipping the Rust suite.'
+            echo 'code=false' >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$LINK_FILES" ]; then
+            echo 'These changed files are inputs to the link checker:'
+            printf '%s\n' "$LINK_FILES" | sed 's/^/  /'
+            echo 'markdown=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'No link checker inputs changed; skipping the link check.'
+            echo 'markdown=false' >> "$GITHUB_OUTPUT"
+          fi

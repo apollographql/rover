@@ -1,0 +1,82 @@
+on:
+  pull_request:
+    # `edited` is here so that ticking the opt-out checkbox in the description
+    # re-evaluates the check. It lives in this workflow alone: any workflow that
+    # fires on `edited` reports a fresh verdict for every description tweak, and
+    # a workflow that also runs real jobs cannot do that without either
+    # re-running them or reporting a verdict derived from nothing.
+    types: [opened, synchronize, reopened, edited]
+  merge_group:
+
+# A burst of description edits produces a run per edit, each reading a different
+# snapshot of the body, and the last one to finish wins the check regardless of
+# which snapshot it saw. Superseding the in-flight run keeps the newest body
+# authoritative. Safe to cancel here because this job is cheap and side-effect
+# free, which is not true of the suites in checks.yml.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# `gh pr diff` reads GET /pulls/{n}/files, so `pull-requests: read` is the actual
+# dependency. The repository default is currently `write` on everything, so
+# stating it here both documents the need and drops the rest.
+permissions:
+  contents: read
+  pull-requests: read
+
+name: Changelog
+jobs:
+  changelog:
+    name: Changelog Entry
+    # Admits `merge_group` while the only step below excludes it, so a merge
+    # group deliberately runs this as a no-op: a required context has to report
+    # on the merge-group ref, and there is nothing left to check by then because
+    # the pull request already passed.
+    if: >-
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+       !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for a CHANGELOG.md entry or opt-out checkbox
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # `set -eu` deliberately without `pipefail`: every pipeline below is a
+          # `printf | grep -q` guard, and `grep -q` exits on its first match,
+          # which can SIGPIPE the `printf`. Under `pipefail` that non-zero status
+          # would mask a successful match and invert the check on a diff large
+          # enough to fill the pipe buffer.
+          set -eu
+
+          # Guarded so an API failure reports itself as one. The default `run:`
+          # shell is `bash -e`, so a bare assignment would already abort here,
+          # but it would surface as a raw git/gh error rather than something an
+          # author can act on. Failing closed is right for this check: unlike the
+          # change classifier there is no conservative fallback to take.
+          if ! CHANGED_FILES="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)"; then
+            echo '::error::Could not read the pull request diff to check for a changelog entry. This is an API failure, not a missing entry; re-run the job.'
+            exit 1
+          fi
+
+          if printf '%s\n' "$CHANGED_FILES" | grep -qx "CHANGELOG.md"; then
+            echo "CHANGELOG.md was updated in this PR."
+            exit 0
+          fi
+
+          if ! printf '%s\n' "$CHANGED_FILES" | grep -qvE '^docs/'; then
+            echo "This PR only touches docs/, no changelog entry required."
+            exit 0
+          fi
+
+          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*-?\s*\[[xX]\]\s*a changelog\.md entry is not needed'; then
+            echo "PR description confirms a changelog entry is not needed."
+            exit 0
+          fi
+
+          echo "::error::This PR doesn't modify CHANGELOG.md. Add an entry under 'Unreleased' (see CONTRIBUTING.md), or check the 'A CHANGELOG.md entry is not needed for this PR' box in the PR description."
+          exit 1
