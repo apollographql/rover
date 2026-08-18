@@ -3,11 +3,14 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use rover_studio::types::GraphRef;
 
-use crate::command::init::{
-    config::ProjectConfig,
-    graph_id::validation::GraphId,
-    options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase},
-    template_fetcher::Template,
+use crate::{
+    command::init::{
+        config::ProjectConfig,
+        graph_id::validation::GraphId,
+        options::{OrganizationId, ProjectName, ProjectType, ProjectUseCase},
+        template_fetcher::Template,
+    },
+    utils::client::StudioClientConfig,
 };
 
 #[derive(Debug)]
@@ -159,13 +162,13 @@ pub struct MCPDataSourceSelected {
 }
 
 #[derive(Debug)]
-pub struct MCPOrganizationSelected {
+pub struct MCPOrganizationSelected<'c> {
     pub output_path: Utf8PathBuf,
     pub project_type: ProjectType,
     pub organization: OrganizationId,
     pub setup_type: MCPSetupType,
     pub data_source_type: MCPDataSourceType,
-    pub accept_invalid_certs: bool,
+    pub client_config: &'c StudioClientConfig,
 }
 
 #[derive(Debug)]

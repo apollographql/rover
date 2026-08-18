@@ -1,8 +1,10 @@
-use std::{future::Future, pin::Pin};
+use std::{fmt, future::Future, pin::Pin, time::Duration};
 
-use reqwest::Client;
-use serde::Deserialize;
-use tower::{util::BoxCloneService, Service};
+use apollo_http_client::{HttpClient, HttpClientConfig};
+use bytes::Bytes;
+use http_body_util::{BodyExt, Empty};
+use rover_tower::service::replace_ready_service;
+use tower::{util::BoxCloneService, BoxError, Service, ServiceBuilder, ServiceExt};
 
 use crate::error::RoverClientError;
 
@@ -25,10 +27,28 @@ impl From<GitHubServiceError> for RoverClientError {
     }
 }
 
-#[derive(Debug, Clone)]
+type HttpRequest = http::Request<Empty<Bytes>>;
+type HttpResponse = <HttpClient as Service<HttpRequest>>::Response;
+
+/// The inner, request-dispatching service backing a [`GitHubService`]
+type GitHubHttpService = BoxCloneService<HttpRequest, HttpResponse, GitHubServiceError>;
+
+/// Tower [`Service`] that sends requests to the GitHub REST API.
+///
+/// Constructed via [`GitHubService::builder`]. All clones share the same
+/// underlying connection pool.
+#[derive(Clone)]
 pub struct GitHubService {
-    client: Client,
+    client: GitHubHttpService,
     base_url: String,
+}
+
+impl fmt::Debug for GitHubService {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GitHubService")
+            .field("base_url", &self.base_url)
+            .finish_non_exhaustive()
+    }
 }
 
 #[bon::bon]
@@ -37,11 +57,16 @@ impl GitHubService {
     pub fn new(
         #[builder(default = "https://api.github.com".to_string())] base_url: String,
         #[builder(default)] accept_invalid_certs: bool,
+        #[builder(default = Duration::from_secs(30))] timeout: Duration,
     ) -> Self {
-        let client = Client::builder()
-            .danger_accept_invalid_certs(accept_invalid_certs)
-            .build()
-            .expect("Failed to build HTTP client");
+        let mut config = HttpClientConfig::default();
+        config.tls.danger_accept_invalid_certs = accept_invalid_certs;
+        let client = HttpClient::new(&config).expect("Failed to build HTTP client");
+        let client = ServiceBuilder::new().timeout(timeout).service(client);
+        let client = ServiceExt::<HttpRequest>::map_err(client, |err: BoxError| {
+            GitHubServiceError::ClientError(err.to_string())
+        });
+        let client: GitHubHttpService = ServiceExt::<HttpRequest>::boxed_clone(client);
         Self { client, base_url }
     }
 }
@@ -63,13 +88,19 @@ impl GetTarRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Release {
-    pub name: String,
-    pub tag_name: String,
-    pub html_url: String,
-    pub tarball_url: String,
-    pub zipball_url: String,
+/// Builds a `GET` request to `uri` with the rover `User-Agent` header.
+fn build_get_request(
+    uri: impl AsRef<str>,
+) -> Result<http::Request<Empty<Bytes>>, GitHubServiceError> {
+    http::Request::builder()
+        .method(http::Method::GET)
+        .uri(uri.as_ref())
+        .header(
+            http::header::USER_AGENT,
+            format!("rover-client/{PKG_VERSION}"),
+        )
+        .body(Empty::<Bytes>::new())
+        .map_err(|e| GitHubServiceError::ClientError(e.to_string()))
 }
 
 impl Service<GetTarRequest> for GitHubService {
@@ -79,9 +110,9 @@ impl Service<GetTarRequest> for GitHubService {
 
     fn poll_ready(
         &mut self,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
+        self.client.poll_ready(cx)
     }
 
     fn call(&mut self, req: GetTarRequest) -> Self::Future {
@@ -89,15 +120,30 @@ impl Service<GetTarRequest> for GitHubService {
             "{}/repos/{}/{}/tarball/{}",
             self.base_url, req.owner, req.repo, req.reference
         );
-        let client = self.client.clone();
+        let client = replace_ready_service(&mut self.client);
 
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
-                .send()
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+            let request = build_get_request(&url)?;
+            let response = client.clone().oneshot(request).await?;
+
+            // GitHub's tarball endpoint issues a 302 redirect to S3/CDN.
+            // Follow at most one hop.
+            let response = if response.status().is_redirection() {
+                let location = response
+                    .headers()
+                    .get(http::header::LOCATION)
+                    .and_then(|v| v.to_str().ok())
+                    .ok_or_else(|| {
+                        GitHubServiceError::ClientError(
+                            "redirect with missing or non-UTF-8 Location header".to_string(),
+                        )
+                    })?
+                    .to_owned();
+
+                client.oneshot(build_get_request(location)?).await?
+            } else {
+                response
+            };
 
             if !response.status().is_success() {
                 return Err(GitHubServiceError::ClientError(format!(
@@ -107,73 +153,16 @@ impl Service<GetTarRequest> for GitHubService {
             }
 
             let bytes = response
-                .bytes()
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
+                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?
+                .to_bytes();
 
             Ok(bytes.to_vec())
         })
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct GetAllReleasesRequest {
-    pub owner: String,
-    pub repo: String,
-}
-
-impl GetAllReleasesRequest {
-    pub const fn new(owner: String, repo: String) -> Self {
-        Self { owner, repo }
-    }
-}
-
-impl Service<GetAllReleasesRequest> for GitHubService {
-    type Response = Vec<Release>;
-    type Error = GitHubServiceError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(
-        &mut self,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: GetAllReleasesRequest) -> Self::Future {
-        let url = format!(
-            "{}/repos/{}/{}/releases",
-            self.base_url, req.owner, req.repo
-        );
-        let client = self.client.clone();
-
-        Box::pin(async move {
-            let response = client
-                .get(&url)
-                .header("User-Agent", format!("rover-client/{PKG_VERSION}"))
-                .send()
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-            if !response.status().is_success() {
-                return Err(GitHubServiceError::ClientError(format!(
-                    "GitHub API request failed with status: {}",
-                    response.status()
-                )));
-            }
-
-            let releases: Vec<Release> = response
-                .json()
-                .await
-                .map_err(|e| GitHubServiceError::ClientError(e.to_string()))?;
-
-            Ok(releases)
-        })
-    }
-}
-
-pub type BoxedGitHubService =
-    BoxCloneService<GetAllReleasesRequest, Vec<Release>, GitHubServiceError>;
 
 #[cfg(test)]
 mod tests {

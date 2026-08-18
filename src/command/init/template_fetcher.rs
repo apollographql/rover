@@ -12,7 +12,10 @@ use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use tower::Service;
 
-use crate::{RoverError, RoverResult, command::init::states::SelectedTemplateState};
+use crate::{
+    RoverError, RoverResult, command::init::states::SelectedTemplateState,
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
@@ -188,10 +191,11 @@ pub struct InitTemplateFetcher {
 }
 
 impl InitTemplateFetcher {
-    pub fn new(accept_invalid_certs: bool) -> Self {
+    pub fn new(client_config: &StudioClientConfig) -> Self {
         Self {
             service: GitHubService::builder()
-                .accept_invalid_certs(accept_invalid_certs)
+                .accept_invalid_certs(client_config.accept_invalid_certs())
+                .timeout(client_config.client_timeout().get_duration())
                 .build(),
         }
     }

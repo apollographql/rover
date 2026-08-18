@@ -27,13 +27,6 @@ ignore = [
     # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
     # library else where we can remove this.
     "RUSTSEC-2024-0320",
-    # Reachable panic in `rustls-webpki` CRL parsing (RUSTSEC-2026-0104). We do not parse certificate
-    # revocation lists in rover, so this code path is not reachable for us. Remove once a patched
-    # `rustls-webpki` propagates through our dependency tree.
-    "RUSTSEC-2026-0104",
-    # `proc-macro-error2`, a dependency of `getset` via `git-url-parse`, is unmaintained.
-    # No safe upgrade is available.
-    "RUSTSEC-2026-0173",
     # `paste` is unmaintained (RUSTSEC-2024-0436), pulled in transitively via
     # `fs-mistrust` -> `pwd-grp` -> `paste`. Its maintained fork, `pastey`, is a
     # drop-in replacement, but every published version of `pwd-grp` still depends
@@ -64,6 +57,7 @@ allow = [
     "CDLA-Permissive-2.0",
     "ISC",
     "MIT",
+    "MIT-0",
     "MPL-2.0",
     "OpenSSL",
     "Unicode-3.0",
@@ -96,10 +90,10 @@ allow = ["Elastic-2.0"]
 # More documentation about the 'bans' section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
 [bans]
-# Lint level for when multiple versions of the same crate are detected
-multiple-versions = "warn"
+# Don't spam warnings for duplicate crate versions in the closure
+multiple-versions = "allow"
 # Lint level for when a crate version requirement is `*`
-wildcards = "warn"
+wildcards = "allow"
 # The graph highlighting used when creating dotgraphs for crates
 # with multiple versions
 # * lowest-version - The path to the lowest versioned duplicate is highlighted
