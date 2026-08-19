@@ -7,7 +7,7 @@
 
 ## 1. Purpose and scope
 
-This spec defines the required behavior of `rover dev` with respect to GraphOS credentials and the offline enterprise license, per PRD goals 2 through 4. It describes what the system must do and the exact conditions and output involved, not how it's implemented. Implementation approach belongs in a separate design/implementation plan.
+This spec defines the required behavior of `rover dev` with respect to GraphOS credentials and the offline enterprise license, per PRD goals 1 through 5. It describes what the system must do and the exact conditions and output involved, not how it's implemented. Implementation approach belongs in a separate design/implementation plan.
 
 ## 2. Terminology
 
@@ -33,7 +33,7 @@ This spec defines the required behavior of `rover dev` with respect to GraphOS c
 
 ### 3.3 Startup notice for the fully unconfigured path
 
-- **FR8**: When `rover dev` starts with none of the following present: `--graph-ref`, a resolvable `APOLLO_KEY`, or `--license`, it must print a single, non-error, informational message at startup. The message must state that it's running without GraphOS credentials, that Enterprise features are disabled, and how to enable them via each of the three independent paths.
+- **FR8**: When `rover dev` starts with no usable credentials (§2, an API key and a graph ref, from any source, that the router can actually use) and no `--license`, it must print a single, non-error, informational message at startup. The message must state that it's running without GraphOS credentials, that Enterprise features are disabled, and how to enable them via each of the three independent paths.
 
   Required text:
   > Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.
