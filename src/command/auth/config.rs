@@ -132,7 +132,9 @@ mod tests {
     #[test]
     fn oauth_config_honors_a_device_authorization_url_override() {
         let config = OauthConfig::builder()
-            .device_authorization_url(Url::parse("https://custom.example.com/device/authorize").unwrap())
+            .device_authorization_url(
+                Url::parse("https://custom.example.com/device/authorize").unwrap(),
+            )
             .build();
 
         assert_that!(config.device_authorization_url.as_str())

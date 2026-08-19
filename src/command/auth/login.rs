@@ -3,7 +3,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use clap::Parser;
 use houston::{Config, Profile};
 use rover_auth::oauth2::{
-    authorization_flow::{AuthorizationFlow, AuthorizationFlowResponse, redirect::server::AxumRedirectServer},
+    authorization_flow::{
+        AuthorizationFlow, AuthorizationFlowResponse, redirect::server::AxumRedirectServer,
+    },
     device_authorization_flow::DeviceAuthorizationFlow,
 };
 use rover_http::ReqwestService;
