@@ -17,24 +17,7 @@ use crate::{OauthHttpClient, oauth2::authorization_flow::AuthorizationFlowRespon
 type DeviceAuthorizationFlowClient =
     BasicClient<EndpointNotSet, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
-mod state {
-    use url::Url;
-
-    use super::{DeviceAuthorizationFlowClient, StandardDeviceAuthorizationResponse};
-
-    #[derive(Debug)]
-    pub struct DeviceAuthorizationFlowInit {
-        pub client_id: String,
-        pub device_authorization_url: Url,
-        pub token_url: Url,
-    }
-
-    #[derive(Debug)]
-    pub struct DeviceAuthorizationFlowWithDeviceCode {
-        pub client: DeviceAuthorizationFlowClient,
-        pub device_auth_response: StandardDeviceAuthorizationResponse,
-    }
-}
+mod state;
 
 /// Errors from the RFC 8628 device authorization grant.
 #[derive(thiserror::Error, Debug)]
