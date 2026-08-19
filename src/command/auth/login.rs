@@ -2,8 +2,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use clap::Parser;
 use houston::{Config, Profile};
-use rover_auth::oauth2::authorization_flow::{
-    AuthorizationFlow, redirect::server::AxumRedirectServer,
+use rover_auth::oauth2::{
+    authorization_flow::{AuthorizationFlow, AuthorizationFlowResponse, redirect::server::AxumRedirectServer},
+    device_authorization_flow::DeviceAuthorizationFlow,
 };
 use rover_http::ReqwestService;
 use rover_open::{NoopOpenUrl, OpenUrl, SystemOpenUrl};
@@ -19,6 +20,8 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt};
 /// Opens your default browser to complete an OAuth login. Once you
 /// authorize the request, the resulting credential is saved for the
 /// given `--profile` (or "default"), the same way `rover config auth` does.
+/// Pass `--no-browser` to use the device authorization grant instead, for
+/// headless/browser-less environments.
 pub struct Login {
     #[clap(flatten)]
     profile: ProfileOpt,
@@ -27,6 +30,13 @@ pub struct Login {
     /// is always printed, so pass this if you'd rather open it yourself.
     #[arg(long)]
     no_open: bool,
+
+    /// Use the OAuth 2.0 Device Authorization Grant instead of a local
+    /// browser flow: prints a verification URL and code to enter from any
+    /// device, then polls until you approve it. Ignores `--no-open`, since
+    /// there's no local browser step to skip.
+    #[arg(long)]
+    no_browser: bool,
 }
 
 /// Picks which [`OpenUrl`] implementation `authorize()` uses, since it's
@@ -53,31 +63,47 @@ impl Login {
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
 
-        let browser_opener = if self.no_open {
-            BrowserOpener::Noop(NoopOpenUrl::default())
-        } else {
-            BrowserOpener::System(SystemOpenUrl::default())
-        };
-
         let stderr = rover_print::print::stderr::default();
-        let authorization_flow = AuthorizationFlow::builder()
-            .client_id(oauth_config.client_id)
-            .authorization_url(oauth_config.authorization_url)
-            .token_url(oauth_config.token_url)
-            .build();
-        let authorization_flow = authorization_flow
-            .authorize(
-                Vec::new(),
-                &browser_opener,
-                &stderr,
-                AxumRedirectServer::default(),
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("failed to authorize with the OAuth server: {e}"))?;
-        let tokens = authorization_flow
-            .exchange_code(http_service)
-            .await
-            .map_err(|e| anyhow::anyhow!("failed to exchange the authorization code: {e}"))?;
+
+        let tokens: AuthorizationFlowResponse = if self.no_browser {
+            let device_flow = DeviceAuthorizationFlow::builder()
+                .client_id(oauth_config.client_id)
+                .device_authorization_url(oauth_config.device_authorization_url)
+                .token_url(oauth_config.token_url)
+                .build();
+            let device_flow = device_flow
+                .request_device_code(Vec::new(), http_service.clone(), &stderr)
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to request a device code: {e}"))?;
+            device_flow
+                .poll_for_token(http_service)
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to obtain an access token: {e}"))?
+        } else {
+            let browser_opener = if self.no_open {
+                BrowserOpener::Noop(NoopOpenUrl::default())
+            } else {
+                BrowserOpener::System(SystemOpenUrl::default())
+            };
+            let authorization_flow = AuthorizationFlow::builder()
+                .client_id(oauth_config.client_id)
+                .authorization_url(oauth_config.authorization_url)
+                .token_url(oauth_config.token_url)
+                .build();
+            let authorization_flow = authorization_flow
+                .authorize(
+                    Vec::new(),
+                    &browser_opener,
+                    &stderr,
+                    AxumRedirectServer::default(),
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to authorize with the OAuth server: {e}"))?;
+            authorization_flow
+                .exchange_code(http_service)
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to exchange the authorization code: {e}"))?
+        };
 
         Profile::set_oauth_tokens(
             &self.profile.profile_name,
