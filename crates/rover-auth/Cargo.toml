@@ -25,7 +25,7 @@ rover-tower = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "macros", "time"] }
 tower = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

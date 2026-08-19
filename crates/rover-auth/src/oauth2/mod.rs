@@ -2,6 +2,8 @@ use serde::Serialize;
 
 /// PKCE authorization code flow.
 pub mod authorization_flow;
+/// RFC 8628 device authorization grant.
+pub mod device_authorization_flow;
 /// Client credentials grant service.
 pub mod client_credentials;
 /// Token refresh service.
