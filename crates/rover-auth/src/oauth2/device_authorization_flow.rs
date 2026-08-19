@@ -12,8 +12,7 @@ use rover_print::{
 use tower::Service;
 use url::Url;
 
-use crate::OauthHttpClient;
-use crate::oauth2::authorization_flow::AuthorizationFlowResponse;
+use crate::{OauthHttpClient, oauth2::authorization_flow::AuthorizationFlowResponse};
 
 type DeviceAuthorizationFlowClient =
     BasicClient<EndpointNotSet, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
@@ -110,7 +109,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
             .await
             .map_err(|err| DeviceAuthorizationFlowError::DeviceCodeRequest(Box::new(err)))?;
 
-        if let Err(print_err) = stderr.print_line(&[
+        stderr.print_line(&[
             StyledText::plain("To finish logging in, visit "),
             StyledText::new(
                 Style::Link,
@@ -121,16 +120,12 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
                 Style::Command,
                 device_auth_response.user_code().secret().clone(),
             ),
-        ]) {
-            tracing::error!("Failed to print message: {}", print_err);
-        }
-        if let Some(complete_uri) = device_auth_response.verification_uri_complete()
-            && let Err(print_err) = stderr.print(&StyledText::new(
+        ]);
+        if let Some(complete_uri) = device_auth_response.verification_uri_complete() {
+            stderr.print(&StyledText::new(
                 Style::Info,
                 format!("Or open this URL directly: {}", complete_uri.secret()),
-            ))
-        {
-            tracing::error!("Failed to print message: {}", print_err);
+            ));
         }
 
         Ok(DeviceAuthorizationFlow {
@@ -243,7 +238,8 @@ mod tests {
             .times(1)
             .withf(move |req| {
                 req.method() == Method::POST
-                    && req.uri() == &Uri::try_from(expected_device_authorization_url.as_str()).unwrap()
+                    && req.uri()
+                        == &Uri::try_from(expected_device_authorization_url.as_str()).unwrap()
             })
             .returning(|_| {
                 let body_bytes = serde_json::to_vec(&device_auth_response_body()).unwrap();
@@ -261,7 +257,7 @@ mod tests {
                 let text: String = segments.iter().map(|s| s.text()).collect();
                 text.contains("https://example.com/device") && text.contains("ABCD-EFGH")
             })
-            .returning(|_| Ok(()));
+            .returning(|_| ());
         mock_print
             .expect_print()
             .times(1)
@@ -270,7 +266,7 @@ mod tests {
                     .text()
                     .contains("https://example.com/device?user_code=ABCD-EFGH")
             })
-            .returning(|_| Ok(()));
+            .returning(|_| ());
 
         let result = flow
             .request_device_code(Vec::new(), http_service, &mock_print)
@@ -299,7 +295,9 @@ mod tests {
         http_service.expect_call().times(1).returning(|_| {
             let response = http::Response::builder()
                 .status(http::StatusCode::BAD_REQUEST)
-                .body(Full::new(Bytes::from_static(b"{\"error\":\"invalid_client\"}")))
+                .body(Full::new(Bytes::from_static(
+                    b"{\"error\":\"invalid_client\"}",
+                )))
                 .unwrap();
             futures::future::ready(Ok(response))
         });
@@ -337,8 +335,8 @@ mod tests {
             futures::future::ready(Ok(response))
         });
         let mut mock_print = MockPrint::new();
-        mock_print.expect_print_line().returning(|_| Ok(()));
-        mock_print.expect_print().returning(|_| Ok(()));
+        mock_print.expect_print_line().returning(|_| ());
+        mock_print.expect_print().returning(|_| ());
         let with_device_code = flow
             .request_device_code(Vec::new(), device_code_service, &mock_print)
             .await
@@ -402,8 +400,8 @@ mod tests {
             futures::future::ready(Ok(response))
         });
         let mut mock_print = MockPrint::new();
-        mock_print.expect_print_line().returning(|_| Ok(()));
-        mock_print.expect_print().returning(|_| Ok(()));
+        mock_print.expect_print_line().returning(|_| ());
+        mock_print.expect_print().returning(|_| ());
         let with_device_code = flow
             .request_device_code(Vec::new(), device_code_service, &mock_print)
             .await
