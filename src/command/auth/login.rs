@@ -3,9 +3,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use clap::Parser;
 use houston::{Config, Profile};
 use rover_auth::oauth2::{
-    authorization_flow::{
-        AuthorizationFlow, AuthorizationFlowResponse, redirect::server::AxumRedirectServer,
-    },
+    OauthTokens,
+    authorization_flow::{AuthorizationFlow, redirect::server::AxumRedirectServer},
     device_authorization_flow::DeviceAuthorizationFlow,
 };
 use rover_http::ReqwestService;
@@ -67,7 +66,7 @@ impl Login {
 
         let stderr = rover_print::print::stderr::default();
 
-        let tokens: AuthorizationFlowResponse = if self.no_browser {
+        let tokens: OauthTokens = if self.no_browser {
             let device_flow = DeviceAuthorizationFlow::builder()
                 .client_id(oauth_config.client_id)
                 .device_authorization_url(oauth_config.device_authorization_url)
@@ -78,7 +77,7 @@ impl Login {
                 .await
                 .map_err(|e| anyhow::anyhow!("failed to request a device code: {e}"))?;
             device_flow
-                .poll_for_token(http_service)
+                .poll_for_token(http_service, None)
                 .await
                 .map_err(|e| anyhow::anyhow!("failed to obtain an access token: {e}"))?
         } else {
