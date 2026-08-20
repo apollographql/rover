@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use oauth2::{
-    AccessToken, AuthUrl, ClientId, CsrfToken, EndpointNotSet, EndpointSet, PkceCodeChallenge,
-    RedirectUrl, RefreshToken, Scope, TokenResponse, TokenUrl, basic::BasicClient,
+    AuthUrl, ClientId, CsrfToken, EndpointNotSet, EndpointSet, PkceCodeChallenge, RedirectUrl,
+    Scope, TokenResponse, TokenUrl, basic::BasicClient,
 };
 use redirect::server::{RedirectServerAwait, RedirectServerBind, RedirectServerError};
 use rover_http::Body;
@@ -14,7 +14,7 @@ use rover_print::{
 use tower::Service;
 use url::Url;
 
-use crate::OauthHttpClient;
+use crate::{OauthHttpClient, oauth2::OauthTokens};
 
 /// OAuth redirect server for handling the PKCE callback.
 pub mod redirect;
@@ -22,52 +22,7 @@ pub mod redirect;
 type AuthorizationFlowClient =
     BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
-/// Tokens returned after a successful PKCE authorization code exchange.
-#[derive(Debug)]
-pub struct AuthorizationFlowResponse {
-    /// The issued access token.
-    pub access_token: AccessToken,
-    /// A refresh token, if the server issued one.
-    pub refresh_token: Option<RefreshToken>,
-    /// Lifetime of the access token.
-    pub expires_in: Option<std::time::Duration>,
-}
-
-impl PartialEq for AuthorizationFlowResponse {
-    fn eq(&self, other: &Self) -> bool {
-        self.access_token.secret() == other.access_token.secret()
-            && self.expires_in == other.expires_in
-            && self
-                .refresh_token
-                .as_ref()
-                .map(|refresh_token| refresh_token.secret())
-                == other
-                    .refresh_token
-                    .as_ref()
-                    .map(|refresh_token| refresh_token.secret())
-    }
-}
-
-mod state {
-    use oauth2::{AuthorizationCode, PkceCodeVerifier};
-    use url::Url;
-
-    use super::AuthorizationFlowClient;
-
-    #[derive(Debug)]
-    pub struct AuthorizationFlowInit {
-        pub client_id: String,
-        pub auth_url: Url,
-        pub token_url: Url,
-    }
-
-    #[derive(Debug)]
-    pub struct AuthorizationFlowWithCode {
-        pub code: AuthorizationCode,
-        pub pkce_verifier: PkceCodeVerifier,
-        pub client: AuthorizationFlowClient,
-    }
-}
+mod state;
 
 /// Errors from the PKCE authorization flow.
 #[derive(thiserror::Error, Debug)]
@@ -167,7 +122,7 @@ impl AuthorizationFlow<state::AuthorizationFlowWithCode> {
     pub async fn exchange_code<S, B>(
         self,
         http_service: S,
-    ) -> Result<AuthorizationFlowResponse, AuthorizationFlowError>
+    ) -> Result<OauthTokens, AuthorizationFlowError>
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
         S::Error: std::error::Error + From<B::Error> + 'static,
@@ -188,7 +143,7 @@ impl AuthorizationFlow<state::AuthorizationFlowWithCode> {
         let access_token = resp.access_token().clone();
         let refresh_token = resp.refresh_token().cloned();
         let expires_in = resp.expires_in();
-        Ok(AuthorizationFlowResponse {
+        Ok(OauthTokens {
             access_token,
             refresh_token,
             expires_in,
@@ -213,9 +168,12 @@ mod tests {
     use speculoos::prelude::*;
     use url::Url;
 
-    use crate::oauth2::authorization_flow::{
-        AuthorizationFlow, AuthorizationFlowResponse,
-        redirect::server::{MockRedirectServerAwait, MockRedirectServerBind},
+    use crate::oauth2::{
+        OauthTokens,
+        authorization_flow::{
+            AuthorizationFlow,
+            redirect::server::{MockRedirectServerAwait, MockRedirectServerBind},
+        },
     };
 
     #[fixture]
@@ -322,13 +280,11 @@ mod tests {
         let result = next.exchange_code(http_service).await;
         let access_token: AccessToken = serde_json::from_str("\"access_token\"").unwrap();
         let refresh_token: RefreshToken = serde_json::from_str("\"refresh_token\"").unwrap();
-        assert_that!(result)
-            .is_ok()
-            .is_equal_to(AuthorizationFlowResponse {
-                access_token,
-                refresh_token: Some(refresh_token),
-                expires_in: None,
-            })
+        assert_that!(result).is_ok().is_equal_to(OauthTokens {
+            access_token,
+            refresh_token: Some(refresh_token),
+            expires_in: None,
+        })
     }
 
     #[rstest]

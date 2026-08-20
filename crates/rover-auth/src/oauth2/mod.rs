@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::Serialize;
 
 /// PKCE authorization code flow.
@@ -16,6 +18,32 @@ pub mod revoke_token;
 pub mod status;
 
 pub use oauth2::{AccessToken, RefreshToken, RevocableToken, Scope, StandardRevocableToken};
+
+/// Tokens issued by any OAuth2 grant this crate implements.
+#[derive(Debug)]
+pub struct OauthTokens {
+    /// The issued access token.
+    pub access_token: AccessToken,
+    /// A refresh token, if the server issued one.
+    pub refresh_token: Option<RefreshToken>,
+    /// Lifetime of the access token.
+    pub expires_in: Option<Duration>,
+}
+
+impl PartialEq for OauthTokens {
+    fn eq(&self, other: &Self) -> bool {
+        self.access_token.secret() == other.access_token.secret()
+            && self.expires_in == other.expires_in
+            && self
+                .refresh_token
+                .as_ref()
+                .map(|refresh_token| refresh_token.secret())
+                == other
+                    .refresh_token
+                    .as_ref()
+                    .map(|refresh_token| refresh_token.secret())
+    }
+}
 
 /// OAuth2 grant type.
 #[derive(Clone, Copy, Debug, Serialize)]
