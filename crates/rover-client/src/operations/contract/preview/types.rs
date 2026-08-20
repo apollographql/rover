@@ -1,6 +1,6 @@
 use rover_studio::types::GraphRef;
 
-use crate::operations::contract::preview::runner::{
+use crate::operations::contract::preview::service::{
     contract_preview_async_mutation, contract_preview_result_query, contract_preview_status_query,
 };
 pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse, PreviewKind};

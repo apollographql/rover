@@ -36,7 +36,7 @@ pub struct ComposeAndFilterPreviewStatusInput {
     pub build_id: String,
 }
 
-use crate::operations::subgraph::preview::runner::{
+use crate::operations::subgraph::preview::service::{
     compose_and_filter_preview_async_mutation, compose_and_filter_preview_result_query,
     compose_and_filter_preview_status_query,
 };
