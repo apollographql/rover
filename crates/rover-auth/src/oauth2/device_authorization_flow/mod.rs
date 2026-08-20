@@ -81,7 +81,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
     >
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
+        S::Error: std::error::Error + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
@@ -142,7 +142,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
     ) -> Result<OauthTokens, DeviceAuthorizationFlowError>
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
+        S::Error: std::error::Error + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
