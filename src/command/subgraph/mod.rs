@@ -66,7 +66,7 @@ impl Subgraph {
                     .run(client_config, git_context, checks_timeout_seconds)
                     .await
             }
-            Command::Delete(command) => command.run(client_config).await,
+            Command::Delete(command) => command.run(client_config, checks_timeout_seconds).await,
             Command::Introspect(command) => {
                 command
                     .run(

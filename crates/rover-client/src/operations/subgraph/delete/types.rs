@@ -14,7 +14,6 @@ pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDe
 pub struct SubgraphDeleteInput {
     pub graph_ref: GraphRef,
     pub subgraph: String,
-    pub dry_run: bool,
 }
 
 /// this struct contains all the info needed to print the result of the delete.
@@ -36,7 +35,6 @@ impl From<SubgraphDeleteInput> for MutationVariables {
             graph_id,
             variant,
             subgraph: input.subgraph,
-            dry_run: input.dry_run,
         }
     }
 }

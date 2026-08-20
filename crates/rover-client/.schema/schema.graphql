@@ -1442,6 +1442,9 @@ union ContractPreviewAsyncStatus = ContractPreviewAsyncPending | ContractPreview
 type ContractPreviewErrors {
   errors: [String!]!
   failedAt: ContractVariantFailedStep!
+
+  """The launch against which this preview was created."""
+  upstreamLaunch: Launch!
 }
 
 type ContractPreviewSuccess {
@@ -1449,6 +1452,9 @@ type ContractPreviewSuccess {
   coreDocument: String!
   fieldCount: Int!
   typeCount: Int!
+
+  """The launch against which this preview was created."""
+  upstreamLaunch: Launch!
 }
 
 enum ContractVariantFailedStep {

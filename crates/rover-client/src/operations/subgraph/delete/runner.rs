@@ -2,7 +2,15 @@ use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
 use rover_studio::types::GraphRef;
 
-use crate::{blocking::StudioClient, operations::subgraph::delete::types::*, RoverClientError};
+use crate::{
+    blocking::StudioClient,
+    operations::subgraph::{
+        delete::types::*,
+        preview::{self, ComposeAndFilterPreviewInput, SubgraphChange},
+    },
+    shared::AsyncBuildStatus,
+    RoverClientError,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -28,6 +36,37 @@ pub async fn run(
     let response_data = client.post::<SubgraphDeleteMutation>(input.into()).await?;
     let data = get_delete_data_from_response(response_data, graph_ref)?;
     Ok(build_response(data))
+}
+
+/// Preview the composition impact of deleting a subgraph, via the same async
+/// `composeAndFilterPreviewAsync` build `rover subgraph preview` uses.
+pub async fn check(
+    input: SubgraphDeleteInput,
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> Result<SubgraphDeleteResponse, RoverClientError> {
+    let preview_response = preview::run(
+        ComposeAndFilterPreviewInput {
+            graph_ref: input.graph_ref,
+            filter_config: None,
+            subgraph_changes: vec![SubgraphChange {
+                name: input.subgraph,
+                info: None,
+            }],
+        },
+        client,
+        checks_timeout_seconds,
+    )
+    .await?;
+
+    Ok(SubgraphDeleteResponse {
+        supergraph_was_updated: preview_response.status == AsyncBuildStatus::Success,
+        build_errors: preview_response
+            .errors
+            .into_iter()
+            .map(|message| BuildError::composition_error(None, Some(message), None, None))
+            .collect(),
+    })
 }
 
 fn get_delete_data_from_response(
@@ -60,9 +99,142 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use houston::{Credential, CredentialOrigin};
+    use httpmock::prelude::*;
+    use reqwest::Client as ReqwestClient;
     use serde_json::json;
 
     use super::*;
+
+    fn test_client(server_url: &str) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: "test".to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            server_url,
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+    }
+
+    fn test_input() -> SubgraphDeleteInput {
+        SubgraphDeleteInput {
+            graph_ref: "test-graph@test-variant".parse().unwrap(),
+            subgraph: "accounts".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn check_reports_success_when_composition_succeeds() {
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewAsyncMutation");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewAsync": { "buildID": "build-123" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewStatus": { "__typename": "ComposeAndFilterPreviewSuccess" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewResultQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewStatus": {
+                        "__typename": "ComposeAndFilterPreviewSuccess",
+                        "composeResults": {
+                            "apiSchemaDocument": "type Query { hi: String }",
+                            "supergraphSchemaDocument": "supergraph"
+                        },
+                        "filterResults": null
+                    }
+                } } }
+            }));
+        });
+
+        let response = check(test_input(), &test_client(&server.url("/")), 30)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            SubgraphDeleteResponse {
+                supergraph_was_updated: true,
+                build_errors: BuildErrors::new(),
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn check_reports_build_errors_when_composition_fails() {
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewAsyncMutation");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewAsync": { "buildID": "build-123" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewStatusQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewStatus": { "__typename": "ComposeAndFilterPreviewComposeFailure" }
+                } } }
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("ComposeAndFilterPreviewResultQuery");
+            then.status(200).json_body(json!({
+                "data": { "graph": { "variant": {
+                    "composeAndFilterPreviewStatus": {
+                        "__typename": "ComposeAndFilterPreviewComposeFailure",
+                        "composeErrors": [
+                            { "message": "accounts is required by products", "code": "REQUIRED_SUBGRAPH", "failedStep": "VALIDATE" }
+                        ]
+                    }
+                } } }
+            }));
+        });
+
+        let response = check(test_input(), &test_client(&server.url("/")), 30)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            SubgraphDeleteResponse {
+                supergraph_was_updated: false,
+                build_errors: vec![BuildError::composition_error(
+                    None,
+                    Some("accounts is required by products".to_string()),
+                    None,
+                    None
+                )]
+                .into(),
+            }
+        );
+    }
 
     #[test]
     fn get_delete_data_from_response_works() {
