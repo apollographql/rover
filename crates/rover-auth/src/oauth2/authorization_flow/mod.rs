@@ -35,7 +35,7 @@ pub enum AuthorizationFlowError {
     RedirectUrl(url::ParseError),
     /// The token endpoint rejected the authorization code.
     #[error("Failed to exchange access code")]
-    AccessCodeExchange(#[source] Box<dyn std::error::Error + Send + Sync>),
+    AccessCodeExchange(#[source] Box<dyn std::error::Error>),
 }
 
 /// State machine for the OAuth2 PKCE authorization code flow.
@@ -125,7 +125,7 @@ impl AuthorizationFlow<state::AuthorizationFlowWithCode> {
     ) -> Result<OauthTokens, AuthorizationFlowError>
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
+        S::Error: std::error::Error + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,

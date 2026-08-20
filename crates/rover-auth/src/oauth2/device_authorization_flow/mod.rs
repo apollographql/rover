@@ -25,7 +25,7 @@ mod state;
 pub enum DeviceAuthorizationFlowError {
     /// The device authorization endpoint rejected the device code request.
     #[error("Failed to request a device code")]
-    DeviceCodeRequest(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DeviceCodeRequest(#[source] Box<dyn std::error::Error>),
     /// The user denied the authorization request.
     #[error("The authorization request was denied")]
     AccessDenied,
@@ -35,7 +35,7 @@ pub enum DeviceAuthorizationFlowError {
     /// Polling the token endpoint failed for any other reason (a transport
     /// failure, or another server error).
     #[error("Failed to obtain an access token")]
-    AccessTokenPoll(#[source] Box<dyn std::error::Error + Send + Sync>),
+    AccessTokenPoll(#[source] Box<dyn std::error::Error>),
 }
 
 /// State machine for the OAuth2 RFC 8628 device authorization grant.
@@ -81,7 +81,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
     >
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
+        S::Error: std::error::Error + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
@@ -142,7 +142,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
     ) -> Result<OauthTokens, DeviceAuthorizationFlowError>
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
+        S::Error: std::error::Error + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
