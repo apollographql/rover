@@ -540,8 +540,6 @@ fn find_installed_plugin(
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr as _;
-
     use speculoos::prelude::*;
 
     use super::*;
