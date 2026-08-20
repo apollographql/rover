@@ -42,7 +42,7 @@ rover-print = { workspace = true, features = ["testing"] }
 rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 speculoos = { workspace = true }
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time", "test-util"] }
 
 [lints]
 workspace = true

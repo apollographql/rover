@@ -1,8 +1,10 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use oauth2::{
-    AccessToken, ClientId, DeviceAuthorizationUrl, EndpointNotSet, EndpointSet, RefreshToken,
-    Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl, basic::BasicClient,
+    AccessToken, ClientId, DeviceAuthorizationUrl, DeviceCodeErrorResponseType,
+    EndUserVerificationUrl, EndpointNotSet, EndpointSet, RefreshToken, RequestTokenError, Scope,
+    StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl, VerificationUriComplete,
+    basic::BasicClient,
 };
 use rover_http::Body;
 use rover_print::{
@@ -12,7 +14,7 @@ use rover_print::{
 use tower::Service;
 use url::Url;
 
-use crate::{OauthHttpClient, oauth2::authorization_flow::AuthorizationFlowResponse};
+use crate::{OauthHttpClient, oauth2::OauthTokens};
 
 type DeviceAuthorizationFlowClient =
     BasicClient<EndpointNotSet, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
@@ -24,10 +26,17 @@ mod state;
 pub enum DeviceAuthorizationFlowError {
     /// The device authorization endpoint rejected the device code request.
     #[error("Failed to request a device code: {}", .0)]
-    DeviceCodeRequest(Box<dyn std::error::Error>),
-    /// Polling the token endpoint did not end in a token (denied, expired, or another server error).
+    DeviceCodeRequest(#[source] Box<dyn std::error::Error + Send + Sync>),
+    /// The user denied the authorization request.
+    #[error("The authorization request was denied")]
+    AccessDenied,
+    /// The device code expired before the user completed authorization.
+    #[error("The device code expired before authorization completed")]
+    ExpiredToken,
+    /// Polling the token endpoint failed for any other reason (a transport
+    /// failure, or another server error).
     #[error("Failed to obtain an access token: {}", .0)]
-    AccessTokenPoll(Box<dyn std::error::Error>),
+    AccessTokenPoll(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// State machine for the OAuth2 RFC 8628 device authorization grant.
@@ -73,7 +82,7 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
     >
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + From<B::Error> + 'static,
+        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
@@ -105,10 +114,10 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
             ),
         ]);
         if let Some(complete_uri) = device_auth_response.verification_uri_complete() {
-            stderr.print(&StyledText::new(
-                Style::Info,
-                format!("Or open this URL directly: {}", complete_uri.secret()),
-            ));
+            stderr.print_line(&[
+                StyledText::plain("Or open this URL directly: "),
+                StyledText::new(Style::Link, complete_uri.secret().clone()),
+            ]);
         }
 
         Ok(DeviceAuthorizationFlow {
@@ -121,17 +130,41 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
 }
 
 impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
+    /// The URL the user should visit to enter their user code.
+    pub fn verification_uri(&self) -> &EndUserVerificationUrl {
+        self.state.device_auth_response.verification_uri()
+    }
+
+    /// The URL the user should visit, with the user code already embedded
+    /// (if the server provided one), so no separate code entry is required.
+    pub fn verification_uri_complete(&self) -> Option<&VerificationUriComplete> {
+        self.state.device_auth_response.verification_uri_complete()
+    }
+
+    /// The code the user must enter at [`Self::verification_uri`].
+    pub fn user_code(&self) -> &str {
+        self.state.device_auth_response.user_code().secret()
+    }
+
+    /// How long the device code remains valid for.
+    pub fn expires_in(&self) -> Duration {
+        self.state.device_auth_response.expires_in()
+    }
+
     /// Polls the token endpoint per RFC 8628 §3.5 until the user authorizes,
-    /// denies, or the device code expires. All poll-interval/backoff timing
-    /// is handled internally by the `oauth2` crate's own request loop, so
-    /// this doesn't reimplement any of it.
+    /// denies, the device code expires, or `poll_timeout` elapses (if given).
+    /// All poll-interval/backoff timing is handled internally by the
+    /// `oauth2` crate's own request loop, so this doesn't reimplement any of
+    /// it. `poll_timeout: None` polls until the server's own declared
+    /// `expires_in`, matching the RFC's default behavior.
     pub async fn poll_for_token<S, B>(
         self,
         http_service: S,
-    ) -> Result<AuthorizationFlowResponse, DeviceAuthorizationFlowError>
+        poll_timeout: Option<Duration>,
+    ) -> Result<OauthTokens, DeviceAuthorizationFlowError>
     where
         S: Service<http::Request<B>, Response = http::Response<B>> + Send + 'static,
-        S::Error: std::error::Error + From<B::Error> + 'static,
+        S::Error: std::error::Error + Send + Sync + From<B::Error> + 'static,
         S::Future: Send,
         B: From<Vec<u8>> + Body + Unpin + Send,
         B::Data: Send,
@@ -141,14 +174,28 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
             .state
             .client
             .exchange_device_access_token(&self.state.device_auth_response)
-            .request_async(&http_client, tokio::time::sleep, None)
+            .request_async(&http_client, tokio::time::sleep, poll_timeout)
             .await
-            .map_err(|err| DeviceAuthorizationFlowError::AccessTokenPoll(Box::new(err)))?;
+            .map_err(|err| {
+                let error_type = match &err {
+                    RequestTokenError::ServerResponse(resp) => Some(resp.error().clone()),
+                    _ => None,
+                };
+                match error_type {
+                    Some(DeviceCodeErrorResponseType::AccessDenied) => {
+                        DeviceAuthorizationFlowError::AccessDenied
+                    }
+                    Some(DeviceCodeErrorResponseType::ExpiredToken) => {
+                        DeviceAuthorizationFlowError::ExpiredToken
+                    }
+                    _ => DeviceAuthorizationFlowError::AccessTokenPoll(Box::new(err)),
+                }
+            })?;
 
         let access_token: AccessToken = resp.access_token().clone();
         let refresh_token: Option<RefreshToken> = resp.refresh_token().cloned();
         let expires_in = resp.expires_in();
-        Ok(AuthorizationFlowResponse {
+        Ok(OauthTokens {
             access_token,
             refresh_token,
             expires_in,
@@ -158,19 +205,19 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{collections::HashMap, time::Duration};
 
     use bytes::Bytes;
     use http::{Method, Uri};
-    use oauth2::{AccessToken, RefreshToken};
-    use rover_http::{Full, test::MockHttpService};
-    use rover_print::print::MockPrint;
+    use oauth2::{AccessToken, RefreshToken, Scope};
+    use rover_http::{BodyExt, Full, test::MockHttpService};
+    use rover_print::{print::MockPrint, style::Style};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use url::Url;
+    use url::{Url, form_urlencoded};
 
     use crate::oauth2::{
-        authorization_flow::AuthorizationFlowResponse,
+        OauthTokens,
         device_authorization_flow::{DeviceAuthorizationFlow, DeviceAuthorizationFlowError},
     };
 
@@ -200,6 +247,17 @@ mod tests {
         })
     }
 
+    /// Decodes a mocked request's form-encoded body into its key/value
+    /// pairs, so tests can assert on the actual wire contract instead of
+    /// only the method/URI. `Full<Bytes>` is already fully buffered, so
+    /// collecting it never actually awaits I/O.
+    fn form_body(req: &http::Request<Full<Bytes>>) -> HashMap<String, String> {
+        let bytes = futures::executor::block_on(req.body().clone().collect())
+            .unwrap()
+            .to_bytes();
+        form_urlencoded::parse(&bytes).into_owned().collect()
+    }
+
     #[rstest]
     #[tokio::test]
     #[timeout(Duration::from_secs(5))]
@@ -209,7 +267,7 @@ mod tests {
         token_url: Url,
     ) {
         let flow = DeviceAuthorizationFlow::builder()
-            .client_id(client_id)
+            .client_id(client_id.clone())
             .device_authorization_url(device_authorization_url.clone())
             .token_url(token_url)
             .build();
@@ -223,6 +281,11 @@ mod tests {
                 req.method() == Method::POST
                     && req.uri()
                         == &Uri::try_from(expected_device_authorization_url.as_str()).unwrap()
+                    && form_body(req)
+                        == HashMap::from([
+                            ("client_id".to_string(), client_id.clone()),
+                            ("scope".to_string(), "openid".to_string()),
+                        ])
             })
             .returning(|_| {
                 let body_bytes = serde_json::to_vec(&device_auth_response_body()).unwrap();
@@ -237,22 +300,29 @@ mod tests {
             .expect_print_line()
             .times(1)
             .withf(|segments| {
-                let text: String = segments.iter().map(|s| s.text()).collect();
-                text.contains("https://example.com/device") && text.contains("ABCD-EFGH")
+                let link = segments.iter().find(|s| s.style() == &Style::Link);
+                let command = segments.iter().find(|s| s.style() == &Style::Command);
+                link.is_some_and(|s| s.text() == "https://example.com/device")
+                    && command.is_some_and(|s| s.text() == "ABCD-EFGH")
             })
             .returning(|_| ());
         mock_print
-            .expect_print()
+            .expect_print_line()
             .times(1)
-            .withf(|message| {
-                message
-                    .text()
-                    .contains("https://example.com/device?user_code=ABCD-EFGH")
+            .withf(|segments| {
+                segments.iter().any(|s| {
+                    s.style() == &Style::Link
+                        && s.text() == "https://example.com/device?user_code=ABCD-EFGH"
+                })
             })
             .returning(|_| ());
 
         let result = flow
-            .request_device_code(Vec::new(), http_service, &mock_print)
+            .request_device_code(
+                vec![Scope::new("openid".to_string())],
+                http_service,
+                &mock_print,
+            )
             .await;
 
         let next = assert_that!(result).is_ok().subject;
@@ -303,6 +373,7 @@ mod tests {
         device_authorization_url: Url,
         token_url: Url,
     ) {
+        let expected_client_id = client_id.clone();
         let flow = DeviceAuthorizationFlow::builder()
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
@@ -319,7 +390,6 @@ mod tests {
         });
         let mut mock_print = MockPrint::new();
         mock_print.expect_print_line().returning(|_| ());
-        mock_print.expect_print().returning(|_| ());
         let with_device_code = flow
             .request_device_code(Vec::new(), device_code_service, &mock_print)
             .await
@@ -333,6 +403,15 @@ mod tests {
             .withf(move |req| {
                 req.method() == Method::POST
                     && req.uri() == &Uri::try_from(expected_token_url.as_str()).unwrap()
+                    && form_body(req)
+                        == HashMap::from([
+                            (
+                                "grant_type".to_string(),
+                                "urn:ietf:params:oauth:grant-type:device_code".to_string(),
+                            ),
+                            ("device_code".to_string(), "the-device-code".to_string()),
+                            ("client_id".to_string(), expected_client_id.clone()),
+                        ])
             })
             .returning(|_| {
                 let body = serde_json::json!({
@@ -347,17 +426,15 @@ mod tests {
                 futures::future::ready(Ok(response))
             });
 
-        let result = with_device_code.poll_for_token(token_service).await;
+        let result = with_device_code.poll_for_token(token_service, None).await;
 
         let access_token: AccessToken = serde_json::from_str("\"access_token\"").unwrap();
         let refresh_token: RefreshToken = serde_json::from_str("\"refresh_token\"").unwrap();
-        assert_that!(result)
-            .is_ok()
-            .is_equal_to(AuthorizationFlowResponse {
-                access_token,
-                refresh_token: Some(refresh_token),
-                expires_in: None,
-            });
+        assert_that!(result).is_ok().is_equal_to(OauthTokens {
+            access_token,
+            refresh_token: Some(refresh_token),
+            expires_in: None,
+        });
     }
 
     #[rstest]
@@ -384,7 +461,6 @@ mod tests {
         });
         let mut mock_print = MockPrint::new();
         mock_print.expect_print_line().returning(|_| ());
-        mock_print.expect_print().returning(|_| ());
         let with_device_code = flow
             .request_device_code(Vec::new(), device_code_service, &mock_print)
             .await
@@ -401,10 +477,62 @@ mod tests {
             futures::future::ready(Ok(response))
         });
 
-        let result = with_device_code.poll_for_token(token_service).await;
+        let result = with_device_code.poll_for_token(token_service, None).await;
 
         assert_that!(result)
             .is_err()
-            .matches(|err| matches!(err, DeviceAuthorizationFlowError::AccessTokenPoll(_)));
+            .matches(|err| matches!(err, DeviceAuthorizationFlowError::AccessDenied));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn poll_for_token_retries_while_authorization_is_pending() {
+        let flow = DeviceAuthorizationFlow::builder()
+            .client_id("client_id".to_string())
+            .device_authorization_url(Url::parse("https://example.com/device/authorize").unwrap())
+            .token_url(Url::parse("https://example.com/token").unwrap())
+            .build();
+
+        let mut device_code_service = MockHttpService::new();
+        device_code_service.expect_call().times(1).returning(|_| {
+            let body_bytes = serde_json::to_vec(&device_auth_response_body()).unwrap();
+            let response = http::Response::builder()
+                .body(Full::new(Bytes::from(body_bytes)))
+                .unwrap();
+            futures::future::ready(Ok(response))
+        });
+        let mut mock_print = MockPrint::new();
+        mock_print.expect_print_line().returning(|_| ());
+        let with_device_code = flow
+            .request_device_code(Vec::new(), device_code_service, &mock_print)
+            .await
+            .unwrap();
+
+        let mut token_service = MockHttpService::new();
+        let mut calls = 0;
+        token_service.expect_call().times(2).returning(move |_| {
+            calls += 1;
+            let response = if calls == 1 {
+                http::Response::builder()
+                    .status(http::StatusCode::BAD_REQUEST)
+                    .body(Full::new(Bytes::from_static(
+                        b"{\"error\":\"authorization_pending\"}",
+                    )))
+                    .unwrap()
+            } else {
+                let body = serde_json::json!({
+                    "access_token": "access_token",
+                    "refresh_token": "refresh_token",
+                    "token_type": "Bearer"
+                });
+                http::Response::builder()
+                    .body(Full::new(Bytes::from(serde_json::to_vec(&body).unwrap())))
+                    .unwrap()
+            };
+            futures::future::ready(Ok(response))
+        });
+
+        let result = with_device_code.poll_for_token(token_service, None).await;
+
+        assert_that!(result).is_ok();
     }
 }
