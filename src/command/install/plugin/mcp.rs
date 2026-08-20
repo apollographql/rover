@@ -61,8 +61,6 @@ impl FromStr for Version {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr as _;
-
     use super::*;
 
     #[test]
