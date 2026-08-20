@@ -366,11 +366,7 @@ rover contract preview my-graph@my-source-variant \
 Check the status of the build later with `--build-id`:
 
 ```bash
-```bash
-```bash
 rover contract preview my-graph@my-source-variant --build-id <BUILD_ID>
-```
-```
 ```
 
 By default (without `--async`), Rover CLI polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) elapses, whichever comes first. If Rover CLI times out while polling, the build itself may still complete in the background—check back with `--build-id`.
