@@ -25,8 +25,7 @@ use rover_client::{
         },
     },
     shared::{
-        AsyncBuildStatus, CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse,
-        LintResponse, PreviewJobResponse, PreviewKind, SdlType,
+        CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
     },
 };
 use rover_std::Style;
@@ -88,7 +87,6 @@ pub enum RoverOutput {
     InitMembershipsOutput(InitMembershipsResponse),
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
-    PreviewJob(PreviewJobResponse),
     DocsList(BTreeMap<&'static str, ShortlinkInfo>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
@@ -227,41 +225,6 @@ impl RoverOutput {
                     describe_response.graph_ref.variant(),
                 ))
             )),
-            RoverOutput::PreviewJob(preview_response) => {
-                let mut lines = vec![
-                    format!("Build id: {}", &preview_response.build_id),
-                    format!("Status: {}", &preview_response.status),
-                ];
-                match preview_response.status {
-                    AsyncBuildStatus::Pending | AsyncBuildStatus::Running => {
-                        // Both `rover subgraph preview` and `rover contract preview`
-                        // poll for completion; `kind` says which command to print.
-                        let command = match preview_response.kind {
-                            PreviewKind::Subgraph => "rover subgraph preview",
-                            PreviewKind::Contract => "rover contract preview",
-                        };
-                        let hint = format!(
-                            "`{} {} --build-id {}`",
-                            command, preview_response.graph_ref, preview_response.build_id
-                        );
-                        lines.push(format!(
-                            "Check the result with {}",
-                            Style::Command.paint(hint)
-                        ));
-                    }
-                    AsyncBuildStatus::Success => {
-                        if let Some(api_schema) = &preview_response.api_schema {
-                            lines.push("Schema:".to_string());
-                            lines.push(String::new());
-                            lines.push(api_schema.clone());
-                        }
-                    }
-                    AsyncBuildStatus::ComposeFailed | AsyncBuildStatus::FilterFailed => {
-                        lines.extend(preview_response.errors.iter().cloned());
-                    }
-                }
-                Some(lines.join("\n"))
-            }
             RoverOutput::ContractPublish(publish_response) => {
                 let launch_cli_copy = publish_response
                     .launch_cli_copy
@@ -741,7 +704,6 @@ impl RoverOutput {
             }
             RoverOutput::InitMembershipsOutput(memberships_response) => json!(memberships_response),
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
-            RoverOutput::PreviewJob(preview_response) => json!(preview_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
@@ -949,7 +911,6 @@ impl RoverOutput {
     pub(crate) const fn descriptor(&self) -> Option<&str> {
         match &self {
             RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
-            RoverOutput::PreviewJob(_) => Some("Preview Job"),
             RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
             RoverOutput::FetchResponse(fetch_response) => match fetch_response.sdl.r#type {
                 SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),

@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
+    command::preview_output::PreviewOutput,
     options::{GraphRefOpt, ProfileOpt},
     utils::client::StudioClientConfig,
 };
@@ -117,7 +118,9 @@ impl Preview {
                 &client,
             )
             .await?;
-            return Ok(RoverOutput::PreviewJob(preview_response));
+            return Ok(RoverOutput::CliOutput(Box::new(PreviewOutput(
+                preview_response,
+            ))));
         }
 
         stderr.print(&StyledText::plain(format!(
@@ -135,7 +138,7 @@ impl Preview {
         let started = preview::start(input, &client).await?;
 
         if self.asynchronous {
-            return Ok(RoverOutput::PreviewJob(started));
+            return Ok(RoverOutput::CliOutput(Box::new(PreviewOutput(started))));
         }
 
         stderr.print(&StyledText::plain(format!(
@@ -159,7 +162,9 @@ impl Preview {
         )
         .await?;
 
-        Ok(RoverOutput::PreviewJob(preview_response))
+        Ok(RoverOutput::CliOutput(Box::new(PreviewOutput(
+            preview_response,
+        ))))
     }
 
     /// Builds the filter config from the paired include/exclude/hide flags,
