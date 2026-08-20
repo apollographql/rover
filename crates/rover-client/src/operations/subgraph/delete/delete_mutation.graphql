@@ -7,7 +7,6 @@ mutation SubgraphDeleteMutation(
     removeImplementingServiceAndTriggerComposition(
       graphVariant: $variant
       name: $subgraph
-      dryRun: false
     ) {
       errors {
         message
