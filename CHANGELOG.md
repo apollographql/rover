@@ -20,6 +20,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
+- **Add `rover contract preview` and `rover subgraph preview` - @sirdodger PR #3522**
+
+  `rover contract preview` previews a contract by applying filters to the current schema and `rover subgraph preview` composes a preview supergraph from `--subgraph-changes` and optional contract filters. Both run asynchronously with `--async` and can poll for results with `--build-id`. Otherwise, Rover will poll until completion or timeout.
+
 ## ❗ BREAKING ❗
 
 - **Remove `rover cloud` commands - @dotdat**
@@ -83,10 +87,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `rover graph introspect` with `--format json` now puts the schema as a GraphQL introspection object (`{ "__schema": ... }`) under `data.introspection_response` instead of an SDL string. Default plain output remains SDL. This is a behavior change for existing `--format json` consumers: traverse `data.introspection_response` to get the introspection object (for example, `jq '.data.introspection_response'`). No field or value transformation is needed beyond envelope traversal.
 
 ## 🚀 Features
-
-- **Add `rover contract preview` and `rover subgraph preview` - @sirdodger PR #3522**
-
-  `rover contract preview` previews a contract by applying filters to the current schema and `rover subgraph preview` composes a preview supergraph from `--subgraph-changes` and optional contract filters. Both run asynchronously with `--async` and can poll for results with `--build-id`. Otherwise, Rover will poll until completion or timeout.
 
 - **Add `rover supergraph config expand` to preview an expanded supergraph config - @SharkBaitDLS PR #3447 fixes #1579**
 
