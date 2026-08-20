@@ -33,7 +33,15 @@ impl Contract {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Describe(command) => command.run(client_config).await,
-            Command::Preview(command) => command.run(client_config, checks_timeout_seconds).await,
+            Command::Preview(command) => {
+                command
+                    .run(
+                        client_config,
+                        checks_timeout_seconds,
+                        &rover_print::print::stderr::default(),
+                    )
+                    .await
+            }
             Command::Publish(command) => command.run(client_config).await,
         }
     }

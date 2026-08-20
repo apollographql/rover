@@ -263,8 +263,8 @@ fn map_status_response(
                 PendingStatus::RUNNING => AsyncBuildStatus::Running,
                 PendingStatus::Other(other) => {
                     // Report unknown status directly to the user
-                    eprintln!(
-                        "warning: received unrecognized subgraph preview status '{other}'; treating it as still in progress"
+                    rover_std::warnln!(
+                        "received unrecognized subgraph preview status '{other}'; treating it as still in progress"
                     );
                     AsyncBuildStatus::Running
                 }

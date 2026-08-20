@@ -7,7 +7,11 @@ use rover_client::operations::subgraph::preview::{
     self, ComposeAndFilterPreviewInput, ComposeAndFilterPreviewStatusInput, ContractFilterConfig,
     SubgraphChange, SubgraphChangeInfo,
 };
-use rover_std::{Fs, Style};
+use rover_print::{
+    print::{Print, PrintExt},
+    style::{Style, StyledText},
+};
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -187,17 +191,18 @@ impl Preview {
         &self,
         client_config: StudioClientConfig,
         checks_timeout_seconds: u64,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.clone();
 
         if let Some(build_id) = &self.build_id {
-            eprintln!(
+            stderr.print(&StyledText::plain(format!(
                 "Checking status of subgraph preview job {} on {} using credentials from the {} profile.",
-                Style::Link.paint(build_id),
-                Style::Link.paint(graph_ref.to_string()),
-                Style::Command.paint(&self.profile.profile_name)
-            );
+                stderr.paint(Style::Link, build_id),
+                stderr.paint(Style::Link, graph_ref.to_string()),
+                stderr.paint(Style::Command, &self.profile.profile_name)
+            )))?;
             let preview_response = preview::result(
                 ComposeAndFilterPreviewStatusInput {
                     graph_ref,
@@ -209,11 +214,11 @@ impl Preview {
             return Ok(RoverOutput::PreviewJob(preview_response));
         }
 
-        eprintln!(
+        stderr.print(&StyledText::plain(format!(
             "Previewing composed schema for {} using credentials from the {} profile.",
-            Style::Link.paint(graph_ref.to_string()),
-            Style::Command.paint(&self.profile.profile_name)
-        );
+            stderr.paint(Style::Link, graph_ref.to_string()),
+            stderr.paint(Style::Command, &self.profile.profile_name)
+        )))?;
 
         let input = ComposeAndFilterPreviewInput {
             graph_ref: graph_ref.clone(),
@@ -226,13 +231,16 @@ impl Preview {
             return Ok(RoverOutput::PreviewJob(started));
         }
 
-        eprintln!(
+        stderr.print(&StyledText::plain(format!(
             "Waiting for the preview to complete... or press Ctrl+C and check later with {}.",
-            Style::Command.paint(format!(
-                "`rover subgraph preview {} --build-id {}`",
-                graph_ref, started.build_id
-            ))
-        );
+            stderr.paint(
+                Style::Command,
+                format!(
+                    "`rover subgraph preview {} --build-id {}`",
+                    graph_ref, started.build_id
+                )
+            )
+        )))?;
 
         let preview_response = preview::poll(
             ComposeAndFilterPreviewStatusInput {
