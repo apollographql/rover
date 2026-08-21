@@ -3,7 +3,11 @@ use std::fmt::Debug;
 use apollo_federation_types::rover::BuildErrors;
 use itertools::Itertools;
 use rover_graphql::GraphQLServiceError;
-use rover_studio::types::{GraphRef, InvalidGraphRef};
+use rover_http::HttpServiceError;
+use rover_studio::{
+    service::rejected_credential::{rejected_credential, RejectedCredential},
+    types::{GraphRef, InvalidGraphRef},
+};
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse};
@@ -436,8 +440,53 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
     }
 }
 
+impl RoverClientError {
+    /// A failure from a Studio GraphQL service, reported as a credential problem when that is
+    /// what it turned out to be and otherwise carrying the original error and its endpoint.
+    ///
+    /// Operations that need their own arms for some variants should reach for this in place of
+    /// building [`RoverClientError::Service`] directly, so a rejected credential doesn't get
+    /// flattened into an error that carries no code.
+    pub fn studio_service<T: Debug + Send + Sync + 'static>(
+        err: GraphQLServiceError<T>,
+    ) -> RoverClientError {
+        rejected_credential_in(&err).unwrap_or(RoverClientError::Service {
+            source: Box::new(err),
+            endpoint_kind: EndpointKind::ApolloStudio,
+        })
+    }
+}
+
+/// How this failure should be reported if the registry refused the credential, covering both
+/// ways it can say so: a rejection by status, spotted by `RejectedCredentialLayer`, and one in
+/// the response body.
+///
+/// Only the layer can tell a malformed key from a merely unrecognized one, because only the
+/// layer holds the credential. A body-level rejection can only ever be the weaker answer.
+fn rejected_credential_in<T>(err: &GraphQLServiceError<T>) -> Option<RoverClientError>
+where
+    T: Debug + Send + Sync,
+{
+    match err {
+        GraphQLServiceError::UpstreamService(source) => {
+            match source
+                .downcast_ref::<HttpServiceError>()
+                .and_then(rejected_credential)?
+            {
+                RejectedCredential::MalformedKey => Some(RoverClientError::MalformedKey),
+                RejectedCredential::InvalidKey => Some(RoverClientError::InvalidKey),
+            }
+        }
+        GraphQLServiceError::InvalidCredentials() => Some(RoverClientError::InvalidKey),
+        _ => None,
+    }
+}
+
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
     fn from(value: GraphQLServiceError<T>) -> Self {
+        if let Some(rejection) = rejected_credential_in(&value) {
+            return rejection;
+        }
         match value {
             GraphQLServiceError::NoData(_) => RoverClientError::GraphQl {
                 msg: value.to_string(),
@@ -452,5 +501,83 @@ impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
                 msg: value.to_string(),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rover_studio::service::rejected_credential::RejectedCredential;
+
+    use super::*;
+
+    /// How a rejection reaches this conversion: wrapped in `HttpServiceError` to cross the boxed
+    /// `HttpService`, then in `UpstreamService` by the GraphQL middleware above it.
+    fn as_upstream_error(rejection: RejectedCredential) -> GraphQLServiceError<()> {
+        GraphQLServiceError::UpstreamService(Box::new(HttpServiceError::Unexpected(Box::new(
+            rejection,
+        ))))
+    }
+
+    #[test]
+    fn a_rejected_malformed_key_surfaces_as_malformed_key() {
+        let err = RoverClientError::from(as_upstream_error(RejectedCredential::MalformedKey));
+
+        assert!(matches!(err, RoverClientError::MalformedKey));
+    }
+
+    #[test]
+    fn a_rejected_well_formed_key_surfaces_as_invalid_key() {
+        let err = RoverClientError::from(as_upstream_error(RejectedCredential::InvalidKey));
+
+        assert!(matches!(err, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn body_level_invalid_credentials_surface_as_invalid_key() {
+        let err = RoverClientError::from(GraphQLServiceError::<()>::InvalidCredentials());
+
+        assert!(matches!(err, RoverClientError::InvalidKey));
+    }
+
+    // Operations with their own error arms use this instead of building `Service` directly, so a
+    // rejected credential has to survive that path too.
+    #[test]
+    fn studio_service_reports_a_rejected_credential_as_a_key_error() {
+        let malformed =
+            RoverClientError::studio_service(as_upstream_error(RejectedCredential::MalformedKey));
+        let invalid =
+            RoverClientError::studio_service(as_upstream_error(RejectedCredential::InvalidKey));
+        let body_level =
+            RoverClientError::studio_service(GraphQLServiceError::<()>::InvalidCredentials());
+
+        assert!(matches!(malformed, RoverClientError::MalformedKey));
+        assert!(matches!(invalid, RoverClientError::InvalidKey));
+        assert!(matches!(body_level, RoverClientError::InvalidKey));
+    }
+
+    // Everything else keeps the wrapper the operations already relied on, so this doesn't
+    // reclassify unrelated failures.
+    #[test]
+    fn studio_service_keeps_other_failures_as_service_errors() {
+        let err = RoverClientError::studio_service(GraphQLServiceError::<()>::UpstreamService(
+            Box::new(HttpServiceError::TimedOut),
+        ));
+
+        assert!(matches!(
+            err,
+            RoverClientError::Service {
+                endpoint_kind: EndpointKind::ApolloStudio,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn other_upstream_errors_still_surface_as_client_errors() {
+        let err = RoverClientError::from(GraphQLServiceError::<()>::UpstreamService(Box::new(
+            HttpServiceError::TimedOut,
+        )));
+
+        assert!(matches!(err, RoverClientError::ClientError { .. }));
     }
 }

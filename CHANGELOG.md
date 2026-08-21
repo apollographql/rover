@@ -46,6 +46,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `y/N` confirmation prompts (the ELv2 license acceptance prompt, `rover graph delete`/`rover subgraph delete` confirmations) checked whether *stdout* was attached to a terminal before reading an answer. Redirecting stdout while leaving stdin interactive made the prompt print, then immediately read an empty answer instead of waiting for input, defaulting to "no" and erroring out. Prompts now read from stdin directly, gated on stdin's own terminal status.
 
+- **Report a rejected API key as `E013` instead of an internal error - @SharkBaitDLS part of #1171**
+
+  When the registry turned down an API key, several commands reported it as an internal error carrying no error code at all, while others reported `E013` — so the same key gave different diagnostics depending on which command you ran. `rover graph fetch`, `rover client check`, `rover graph-artifact list-tags`, and remote subgraph fetching during composition now report it the same way as the rest. `rover graph validate-operations` and `rover subgraph fetch-all` continue to report `E033` where a rejection could equally mean your key is valid but lacks permission for that operation. Failures that aren't about your credentials are unaffected.
+
 - **Show successful build and operation check sections in plain-text check output - fixes #1816**
 
   `rover subgraph check` and `rover graph check` now show explicit `Build Check [PASSED]` and `Operation Check [PASSED]` sections even when no schema changes or operation warnings were found. This makes successful check results visible alongside linter and other check sections.

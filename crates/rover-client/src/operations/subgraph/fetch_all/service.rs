@@ -7,7 +7,7 @@ use rover_studio::types::{GraphRef, InvalidGraphRef};
 use tower::Service;
 
 use super::{types::Subgraph, SubgraphFetchAllResponse};
-use crate::{EndpointKind, RoverClientError};
+use crate::RoverClientError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -93,15 +93,15 @@ where
                 .call(GraphQLRequest::<SubgraphFetchAllQuery>::new(variables))
                 .await
                 .map_err(|err| match err {
+                    // Deliberately ahead of the catch-all: Studio names the credential in the
+                    // response body for a key that lacks permission for this operation too, and
+                    // nothing in the response separates the two. `E033` covers both.
                     GraphQLServiceError::InvalidCredentials() => {
                         RoverClientError::PermissionError {
                             msg: format!("attempting to fetch subgraphs for {}", req.graph_ref),
                         }
                     }
-                    _ => RoverClientError::Service {
-                        source: Box::new(err),
-                        endpoint_kind: EndpointKind::ApolloStudio,
-                    },
+                    err => RoverClientError::studio_service(err),
                 })
                 .and_then(|response_data| {
                     get_subgraphs_from_response_data(req.graph_ref, response_data)
