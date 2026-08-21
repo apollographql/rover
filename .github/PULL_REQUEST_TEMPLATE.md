@@ -40,4 +40,4 @@ avoid disappointment.
 
 -->
 
-[ ] A CHANGELOG.md entry is not needed for this PR
+- [ ] A CHANGELOG.md entry is not needed for this PR
