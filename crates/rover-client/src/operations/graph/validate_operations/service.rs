@@ -7,7 +7,7 @@ use tower::Service;
 use super::types::{
     ValidateOperationsInput, ValidationErrorCode, ValidationResult, ValidationResultType,
 };
-use crate::{EndpointKind, RoverClientError};
+use crate::RoverClientError;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -99,15 +99,15 @@ where
                 .call(GraphQLRequest::<ValidateOperationsMutation>::new(variables))
                 .await
                 .map_err(|err| match err {
+                    // Deliberately ahead of the catch-all: Studio names the credential in the
+                    // response body for a key that lacks permission for this operation too, and
+                    // nothing in the response separates the two. `E033` covers both.
                     GraphQLServiceError::InvalidCredentials() => {
                         RoverClientError::PermissionError {
                             msg: "attempting to validate operations".to_string(),
                         }
                     }
-                    _ => RoverClientError::Service {
-                        source: Box::new(err),
-                        endpoint_kind: EndpointKind::ApolloStudio,
-                    },
+                    err => RoverClientError::studio_service(err),
                 })
                 .map(|data| {
                     data.graph

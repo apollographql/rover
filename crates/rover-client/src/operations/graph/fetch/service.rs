@@ -7,7 +7,7 @@ use tower::Service;
 use crate::{
     operations::graph::fetch::types::GraphFetchInput,
     shared::{FetchResponse, Sdl, SdlType},
-    EndpointKind, RoverClientError,
+    RoverClientError,
 };
 
 // Required by the GraphQLQuery derive for the custom GraphQLDocument scalar
@@ -81,10 +81,7 @@ where
             let response_data = inner
                 .call(GraphQLRequest::<GraphFetchQuery>::new(variables))
                 .await
-                .map_err(|err| RoverClientError::Service {
-                    source: Box::new(err),
-                    endpoint_kind: EndpointKind::ApolloStudio,
-                })?;
+                .map_err(RoverClientError::studio_service)?;
             let sdl_contents = get_schema_from_response_data(response_data, graph_ref)?;
             Ok(FetchResponse {
                 sdl: Sdl {
@@ -140,10 +137,12 @@ pub mod mock {
 mod tests {
     use futures::future;
     use rover_graphql::GraphQLServiceError;
-    use rover_studio::types::GraphRef;
+    use rover_http::HttpServiceError;
+    use rover_studio::{service::rejected_credential::RejectedCredential, types::GraphRef};
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
+    use speculoos::prelude::*;
     use tower::ServiceExt;
 
     use super::{mock::MockGraphFetchInnerService, *};
@@ -188,14 +187,14 @@ mod tests {
         assert_eq!(response.sdl.r#type, crate::shared::SdlType::Graph);
     }
 
-    /// Verifies that an inner service error is propagated as a RoverClientError::Service.
+    /// Verifies that non-credential inner errors are wrapped as a generic RoverClientError::Service.
     #[rstest]
     #[tokio::test]
     async fn call_maps_inner_service_error(graph_ref: GraphRef) {
         let mut mock = MockGraphFetchInnerService::new();
         expect_poll_ready!(mock);
         mock.expect_call()
-            .returning(|_| future::ready(Err(GraphQLServiceError::InvalidCredentials())));
+            .returning(|_| future::ready(Err(GraphQLServiceError::NoData(vec![]))));
 
         let err = GraphFetch::new(MockCloneService::new(mock))
             .oneshot(GraphFetchRequest::new(GraphFetchInput { graph_ref }))
@@ -203,6 +202,41 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(err, RoverClientError::Service { .. }));
+    }
+
+    /// A credential the registry refused must reach the user as an API-key error, not as an
+    /// internal service error carrying no error code.
+    #[rstest]
+    #[case::rejected_by_status(
+        GraphQLServiceError::UpstreamService(Box::new(HttpServiceError::Unexpected(Box::new(
+            RejectedCredential::MalformedKey
+        )))),
+        "MalformedKey"
+    )]
+    #[case::rejected_in_the_body(GraphQLServiceError::InvalidCredentials(), "InvalidKey")]
+    #[tokio::test]
+    async fn call_reports_a_rejected_credential_as_a_key_error(
+        graph_ref: GraphRef,
+        #[case] inner_error: GraphQLServiceError<graph_fetch_query::ResponseData>,
+        #[case] expected: &str,
+    ) {
+        let inner_error = std::sync::Arc::new(std::sync::Mutex::new(Some(inner_error)));
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(move |_| future::ready(Err(inner_error.lock().unwrap().take().unwrap())));
+
+        let err = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(GraphFetchInput { graph_ref }))
+            .await
+            .unwrap_err();
+
+        let actual = match err {
+            RoverClientError::MalformedKey => "MalformedKey",
+            RoverClientError::InvalidKey => "InvalidKey",
+            other => panic!("expected a key error, got {other:?}"),
+        };
+        assert_that!(actual).is_equal_to(expected);
     }
 
     /// Verifies that a null graph in the response produces a GraphNotFound error.
