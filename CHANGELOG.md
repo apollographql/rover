@@ -46,6 +46,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `y/N` confirmation prompts (the ELv2 license acceptance prompt, `rover graph delete`/`rover subgraph delete` confirmations) checked whether *stdout* was attached to a terminal before reading an answer. Redirecting stdout while leaving stdin interactive made the prompt print, then immediately read an empty answer instead of waiting for input, defaulting to "no" and erroring out. Prompts now read from stdin directly, gated on stdin's own terminal status.
 
+- **Report an API key the registry refuses outright, not just one it names in a response - @SharkBaitDLS**
+
+  Commands on Rover's newer request stack could only recognize a rejected API key when the registry said so in the body of its response. When it refused the request outright instead, the failure surfaced as an internal error rather than `E013`/`E014`. Those commands now report a refused request as `E013`/`E014` too, matching the rest of Rover.
+
 - **Report a rejected API key as `E013` instead of an internal error - @SharkBaitDLS part of #1171**
 
   When the registry turned down an API key, several commands reported it as an internal error carrying no error code at all, while others reported `E013` — so the same key gave different diagnostics depending on which command you ran. `rover graph fetch`, `rover client check`, `rover graph-artifact list-tags`, and remote subgraph fetching during composition now report it the same way as the rest. `rover graph validate-operations` and `rover subgraph fetch-all` continue to report `E033` where a rejection could equally mean your key is valid but lacks permission for that operation. Failures that aren't about your credentials are unaffected.
