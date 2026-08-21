@@ -34,6 +34,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Surface the underlying GraphQL errors when a response has no `data` field - @sirdodger**
+
+  Requests that returned GraphQL errors alongside a null/missing `data` field previously showed a generic message instead of the actual error text. `GraphQLServiceError::NoData` now maps to the underlying errors (joined by newline) when there are any, falling back to the generic "No data field provided" message only when the response truly carried no errors either.
+
 - **Fix interactive confirmation prompts not waiting for input when stdout (but not stdin) is redirected - fixes #1455**
 
   `y/N` confirmation prompts (the ELv2 license acceptance prompt, `rover graph delete`/`rover subgraph delete` confirmations) checked whether *stdout* was attached to a terminal before reading an answer. Redirecting stdout while leaving stdin interactive made the prompt print, then immediately read an empty answer instead of waiting for input, defaulting to "no" and erroring out. Prompts now read from stdin directly, gated on stdin's own terminal status.
