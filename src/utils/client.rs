@@ -7,7 +7,7 @@ use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
 use rover_http::{HttpService, ReqwestService};
-use rover_studio::service::HttpStudioServiceLayer;
+use rover_studio::service::{HttpStudioServiceLayer, rejected_credential::RejectedCredentialLayer};
 use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
 use url::Url;
@@ -244,10 +244,11 @@ impl StudioClientConfig {
         let service = ServiceBuilder::new()
             .layer(HttpStudioServiceLayer::new(
                 Url::from_str(&self.uri)?,
-                credential,
+                credential.clone(),
                 self.version.clone(),
                 self.is_sudo,
             )?)
+            .layer(RejectedCredentialLayer::new(credential))
             .service(ReqwestService::builder().client(client).build()?)
             .boxed_clone();
         Ok(service)

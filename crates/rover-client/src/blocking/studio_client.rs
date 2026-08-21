@@ -8,7 +8,9 @@ use reqwest::{
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
-use rover_studio::service::{HttpStudioServiceError, HttpStudioServiceLayer};
+use rover_studio::service::{
+    rejected_credential::RejectedCredentialLayer, HttpStudioServiceError, HttpStudioServiceLayer,
+};
 use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
 use url::Url;
 
@@ -164,12 +166,20 @@ impl StudioClient {
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
-            .layer(BoxCloneServiceLayer::new(HttpStudioServiceLayer::new(
-                Url::from_str(&self.graphql_endpoint)?,
-                self.credential.clone(),
-                self.version.to_string(),
-                self.is_sudo,
-            )?))
+            .layer(BoxCloneServiceLayer::new(
+                // Inside the box so `HttpService`'s error type - and this function's return
+                // type - stay as they are, and above the retry layer so a rejection is never
+                // handed to the retry policy.
+                ServiceBuilder::new()
+                    .layer(HttpStudioServiceLayer::new(
+                        Url::from_str(&self.graphql_endpoint)?,
+                        self.credential.clone(),
+                        self.version.to_string(),
+                        self.is_sudo,
+                    )?)
+                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .into_inner(),
+            ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
             .service(
                 ReqwestService::builder()
