@@ -89,10 +89,12 @@ where
         let fut = async move {
             let graph_ref = input.graph_ref.clone();
             let response_data = inner.call(GraphQLRequest::new(input.into())).await?;
-            let build_id =
-                require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-                    .compose_and_filter_preview_async
-                    .build_id;
+            let build_id = require_variant(
+                response_data.graph.and_then(|graph| graph.variant),
+                &graph_ref,
+            )?
+            .compose_and_filter_preview_async
+            .build_id;
             Ok(PreviewJobResponse {
                 graph_ref,
                 build_id,
@@ -156,14 +158,14 @@ where
             let build_id = input.build_id.clone();
             let graph_ref = input.graph_ref.clone();
             let response_data = inner.call(GraphQLRequest::new(input.into())).await?;
-            let status =
-                require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-                    .compose_and_filter_preview_status
-                    .ok_or_else(|| RoverClientError::AdhocError {
-                        msg: format!(
-                            "No compose-and-filter preview build found with ID {build_id}."
-                        ),
-                    })?;
+            let status = require_variant(
+                response_data.graph.and_then(|graph| graph.variant),
+                &graph_ref,
+            )?
+            .compose_and_filter_preview_status
+            .ok_or_else(|| RoverClientError::AdhocError {
+                msg: format!("No compose-and-filter preview build found with ID {build_id}."),
+            })?;
 
             use compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus as Status;
 
@@ -224,14 +226,14 @@ where
             let build_id = input.build_id.clone();
             let graph_ref = input.graph_ref.clone();
             let response_data = inner.call(GraphQLRequest::new(input.into())).await?;
-            let status =
-                require_variant(response_data.graph.map(|graph| graph.variant), &graph_ref)?
-                    .compose_and_filter_preview_status
-                    .ok_or_else(|| RoverClientError::AdhocError {
-                        msg: format!(
-                            "No compose-and-filter preview build found with ID {build_id}."
-                        ),
-                    })?;
+            let status = require_variant(
+                response_data.graph.and_then(|graph| graph.variant),
+                &graph_ref,
+            )?
+            .compose_and_filter_preview_status
+            .ok_or_else(|| RoverClientError::AdhocError {
+                msg: format!("No compose-and-filter preview build found with ID {build_id}."),
+            })?;
 
             Ok(map_status_response(graph_ref, build_id, status))
         };
