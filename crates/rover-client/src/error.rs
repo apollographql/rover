@@ -282,6 +282,18 @@ pub enum RoverClientError {
     },
 
     #[error(
+        "Timed out waiting for preview {build_id} to complete. Check back with `--build-id {build_id}`, or raise APOLLO_CHECKS_TIMEOUT_SECONDS."
+    )]
+    PreviewTimeoutError { build_id: String },
+
+    #[error("Preview {build_id} finished, but Rover could not retrieve its result.")]
+    PreviewResultUnavailable {
+        build_id: String,
+        #[source]
+        source: Box<RoverClientError>,
+    },
+
+    #[error(
         "A check workflow status was reported but it was not specified as a pass or a failure."
     )]
     UnknownCheckWorkflowStatus,

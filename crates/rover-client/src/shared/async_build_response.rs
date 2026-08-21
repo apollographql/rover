@@ -55,19 +55,19 @@ pub struct PreviewJobResponse {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
     use super::*;
 
-    #[test]
-    fn json_serialization_matches_display_casing() {
-        for status in [
-            AsyncBuildStatus::Pending,
-            AsyncBuildStatus::Running,
-            AsyncBuildStatus::Success,
-            AsyncBuildStatus::ComposeFailed,
-            AsyncBuildStatus::FilterFailed,
-        ] {
-            let json = serde_json::to_string(&status).unwrap();
-            assert_eq!(json, format!("\"{status}\""));
-        }
+    #[rstest]
+    #[case(AsyncBuildStatus::Pending)]
+    #[case(AsyncBuildStatus::Running)]
+    #[case(AsyncBuildStatus::Success)]
+    #[case(AsyncBuildStatus::ComposeFailed)]
+    #[case(AsyncBuildStatus::FilterFailed)]
+    fn json_serialization_matches_display_casing(#[case] status: AsyncBuildStatus) {
+        let json = serde_json::to_string(&status).unwrap();
+        assert_that!(json).is_equal_to(format!("\"{status}\""));
     }
 }
