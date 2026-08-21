@@ -1,0 +1,73 @@
+use rover_studio::types::GraphRef;
+use serde::Serialize;
+
+/// The state of an async preview job
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AsyncBuildStatus {
+    /// The build is queued and has not yet started executing.
+    Pending,
+    /// The build is actively executing.
+    Running,
+    /// The build completed successfully.
+    Success,
+    /// Composition failed.
+    ComposeFailed,
+    /// Composition succeeded but filtering failed.
+    FilterFailed,
+}
+
+impl AsyncBuildStatus {
+    /// Whether this status is terminal or in flight
+    pub const fn is_terminal(&self) -> bool {
+        !matches!(self, AsyncBuildStatus::Pending | AsyncBuildStatus::Running)
+    }
+}
+
+impl std::fmt::Display for AsyncBuildStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            AsyncBuildStatus::Pending => "PENDING",
+            AsyncBuildStatus::Running => "RUNNING",
+            AsyncBuildStatus::Success => "SUCCESS",
+            AsyncBuildStatus::ComposeFailed => "COMPOSE_FAILED",
+            AsyncBuildStatus::FilterFailed => "FILTER_FAILED",
+        };
+        write!(f, "{s}")
+    }
+}
+
+/// The result of an async preview job (possibly in-flight), and if finished,
+/// the composed/filtered schema.
+#[derive(Clone, Eq, PartialEq, Debug, Serialize)]
+pub struct PreviewJobResponse {
+    #[serde(skip_serializing)]
+    pub graph_ref: GraphRef,
+    pub build_id: String,
+    pub status: AsyncBuildStatus,
+    /// The filtered API schema document, present on success.
+    pub api_schema: Option<String>,
+    /// The supergraph core schema document, present on success.
+    pub supergraph_schema: Option<String>,
+    /// Compose or filter errors, present on failure.
+    pub errors: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[rstest]
+    #[case(AsyncBuildStatus::Pending)]
+    #[case(AsyncBuildStatus::Running)]
+    #[case(AsyncBuildStatus::Success)]
+    #[case(AsyncBuildStatus::ComposeFailed)]
+    #[case(AsyncBuildStatus::FilterFailed)]
+    fn json_serialization_matches_display_casing(#[case] status: AsyncBuildStatus) {
+        let json = serde_json::to_string(&status).unwrap();
+        assert_that!(json).is_equal_to(format!("\"{status}\""));
+    }
+}
