@@ -4,9 +4,7 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::{
-    operations::graph_artifact::list_tags::types::ListTagEntry, EndpointKind, RoverClientError,
-};
+use crate::{operations::graph_artifact::list_tags::types::ListTagEntry, RoverClientError};
 
 // Required by GraphQLQuery for the custom DateTime scalar.
 type DateTime = String;
@@ -84,10 +82,7 @@ where
             let data = inner
                 .call(GraphQLRequest::<ListTagsByDigestQuery>::new(vars))
                 .await
-                .map_err(|err| RoverClientError::Service {
-                    source: Box::new(err),
-                    endpoint_kind: EndpointKind::ApolloStudio,
-                })?;
+                .map_err(RoverClientError::studio_service)?;
 
             let artifact = data.graph_artifact_by_digest.ok_or_else(|| {
                 RoverClientError::GraphArtifactNotFound {
