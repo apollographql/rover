@@ -5,23 +5,21 @@ use crate::{
     RoverClientError,
 };
 
-/// Resolves the `graph { variant { ... } }` two-level lookup shared by every
+/// Reports the `graph { variant { ... } }` two-level lookup shared by every
 /// preview mutation/query (`composeAndFilterPreviewAsync`,
-/// `contractPreviewAsync`, and their status queries): both levels are
-/// optional in the generated response type, and either being absent means
-/// the graph/variant wasn't found.
+/// `contractPreviewAsync`, and their status queries) as not found. Callers
+/// flatten the generated response type's `Option<Option<V>>` themselves
+/// (e.g. `graph.and_then(|g| g.variant)`) before calling this.
 // TODO(preview): drop this `allow` once the contract/subgraph preview
 // operations (stacked on top of this PR) call it.
 #[allow(dead_code)]
 pub(crate) fn require_variant<V>(
-    variant: Option<Option<V>>,
+    variant: Option<V>,
     graph_ref: &GraphRef,
 ) -> Result<V, RoverClientError> {
-    variant
-        .flatten()
-        .ok_or_else(|| RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })
+    variant.ok_or_else(|| RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })
 }
 
 /// Polls a preview build to completion then remaps its error messages to
@@ -44,16 +42,13 @@ pub(crate) async fn poll_preview_build<T>(
 
 fn map_preview_errors(build_id: &str, err: RoverClientError) -> RoverClientError {
     match err {
-        RoverClientError::ChecksTimeoutError { .. } => RoverClientError::AdhocError {
-            msg: format!(
-                "Timed out waiting for preview {build_id}, check back with `--build-id {build_id}`, or raise APOLLO_CHECKS_TIMEOUT_SECONDS"
-            ),
+        RoverClientError::ChecksTimeoutError { .. } => RoverClientError::PreviewTimeoutError {
+            build_id: build_id.to_string(),
         },
         RoverClientError::CheckWorkflowResultUnavailable { source, .. } => {
-            RoverClientError::AdhocError {
-                msg: format!(
-                    "Job {build_id} finished, but could not fetch the result: {source}"
-                ),
+            RoverClientError::PreviewResultUnavailable {
+                build_id: build_id.to_string(),
+                source,
             }
         }
         other => other,
@@ -62,6 +57,10 @@ fn map_preview_errors(build_id: &str, err: RoverClientError) -> RoverClientError
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use speculoos::prelude::*;
+
     use super::*;
 
     #[tokio::test]
@@ -78,7 +77,7 @@ mod tests {
             async || Ok::<_, RoverClientError>("schema".to_string()),
         )
         .await;
-        assert_eq!(out.unwrap(), "schema");
+        assert_that!(out).is_ok().is_equal_to("schema".to_string());
     }
 
     #[tokio::test]
@@ -90,33 +89,25 @@ mod tests {
             async || panic!("fetch must not run when the build never finishes"),
         )
         .await;
-        match out {
-            Err(RoverClientError::AdhocError { msg }) => {
-                assert!(msg.contains("build-1"));
-                assert!(msg.contains("--build-id build-1"));
-            }
-            other => panic!("expected AdhocError, got {other:?}"),
-        }
+        let err = out.unwrap_err();
+        assert_that!(matches!(err, RoverClientError::PreviewTimeoutError { .. })).is_true();
+        assert_that!(&err.to_string()).contains("build-1");
+        assert_that!(&err.to_string()).contains("--build-id build-1");
     }
 
     #[test]
     fn require_variant_resolves_present_variant() {
         let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
-        assert_eq!(require_variant(Some(Some(42)), &graph_ref).unwrap(), 42);
-    }
-
-    #[test]
-    fn require_variant_errors_on_missing_graph() {
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
-        let err = require_variant::<i32>(None, &graph_ref).unwrap_err();
-        assert!(matches!(err, RoverClientError::GraphNotFound { .. }));
+        assert_that!(require_variant(Some(42), &graph_ref))
+            .is_ok()
+            .is_equal_to(42);
     }
 
     #[test]
     fn require_variant_errors_on_missing_variant() {
         let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
-        let err = require_variant::<i32>(Some(None), &graph_ref).unwrap_err();
-        assert!(matches!(err, RoverClientError::GraphNotFound { .. }));
+        let err = require_variant::<i32>(None, &graph_ref).unwrap_err();
+        assert_that!(matches!(err, RoverClientError::GraphNotFound { .. })).is_true();
     }
 
     #[test]
@@ -127,24 +118,11 @@ mod tests {
                 url: Some("https://studio.example/checks/abc".to_string()),
             },
         );
-        match out {
-            RoverClientError::AdhocError { msg } => {
-                assert!(msg.contains("job-1"), "expected build id in: {msg}");
-                assert!(
-                    msg.contains("--build-id"),
-                    "expected a pointer to re-checking the build in: {msg}"
-                );
-                assert!(
-                    msg.contains("APOLLO_CHECKS_TIMEOUT_SECONDS"),
-                    "expected a pointer to the timeout env var in: {msg}"
-                );
-                assert!(
-                    !msg.contains("check workflow"),
-                    "expected check-workflow-specific wording to be stripped, got: {msg}"
-                );
-            }
-            other => panic!("expected AdhocError, got {other:?}"),
-        }
+        assert_that!(matches!(out, RoverClientError::PreviewTimeoutError { .. })).is_true();
+        let message = out.to_string();
+        assert_that!(&message).contains("job-1");
+        assert_that!(&message).contains("--build-id job-1");
+        assert_that!(&message).contains("APOLLO_CHECKS_TIMEOUT_SECONDS");
     }
 
     #[test]
@@ -158,22 +136,21 @@ mod tests {
                 }),
             },
         );
-        match out {
-            RoverClientError::AdhocError { msg } => {
-                assert!(msg.contains("job-1"));
-                assert!(msg.contains("boom"));
-                assert!(
-                    !msg.contains("Studio"),
-                    "expected check-specific wording to be stripped, got: {msg}"
-                );
-            }
-            other => panic!("expected AdhocError, got {other:?}"),
-        }
+        assert_that!(matches!(
+            out,
+            RoverClientError::PreviewResultUnavailable { .. }
+        ))
+        .is_true();
+        assert_that!(&out.to_string()).contains("job-1");
+        let source = out
+            .source()
+            .expect("PreviewResultUnavailable should carry the original error as its source");
+        assert_that!(&source.to_string()).contains("boom");
     }
 
     #[test]
     fn passes_through_other_errors_unchanged() {
         let out = map_preview_errors("job-1", RoverClientError::RateLimitExceeded);
-        assert!(matches!(out, RoverClientError::RateLimitExceeded));
+        assert_that!(matches!(out, RoverClientError::RateLimitExceeded)).is_true();
     }
 }
