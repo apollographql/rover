@@ -42,7 +42,7 @@ pub enum DeviceAuthorizationFlowError {
 #[derive(Debug)]
 pub struct DeviceAuthorizationFlow<T>
 where
-    T: Debug,
+    T: Debug + state::DeviceAuthorizationFlowState,
 {
     state: T,
 }
