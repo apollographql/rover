@@ -1,0 +1,18 @@
+# Starts an async compose-and-filter preview build.
+mutation ComposeAndFilterPreviewAsyncMutation(
+  $graph_id: ID!
+  $variant: String!
+  $filter_config: FilterConfigInput
+  $subgraph_changes: [ComposeAndFilterPreviewSubgraphChange!]
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      composeAndFilterPreviewAsync(
+        filterConfig: $filter_config
+        subgraphChanges: $subgraph_changes
+      ) {
+        buildID
+      }
+    }
+  }
+}
