@@ -238,7 +238,7 @@ pub enum RoverClientError {
 
     /// This error occurs when a user has a malformed API key
     #[error(
-        "The API key you provided is malformed. An API key must have three parts separated by a colon."
+        "The API key you provided is malformed. An API key must have three non-empty parts separated by colons."
     )]
     MalformedKey,
 
