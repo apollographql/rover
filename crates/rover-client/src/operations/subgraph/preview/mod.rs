@@ -1,11 +1,14 @@
 mod service;
 mod types;
 
+use std::time::Duration;
+
+use rover_tower::poll_retry::PollRetryPolicy;
 pub use service::{ComposeAndFilterPreviewResult, ComposeAndFilterPreviewStart};
-use tower::{Service, ServiceExt};
+use tower::{Service, ServiceBuilder, ServiceExt};
 pub use types::*;
 
-use crate::{blocking::StudioClient, shared::preview_poll::poll_preview_build, RoverClientError};
+use crate::{blocking::StudioClient, RoverClientError};
 
 /// Start an async compose-and-filter preview job, returning its (pending)
 /// status immediately.
@@ -14,21 +17,6 @@ pub async fn start(
     client: &StudioClient,
 ) -> Result<PreviewJobResponse, RoverClientError> {
     let mut service = ComposeAndFilterPreviewStart::new(
-        client
-            .studio_graphql_service()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-    );
-    let service = service.ready().await?;
-    service.call(input).await
-}
-
-/// Check the status (without fetching the result) of a compose-and-filter
-/// preview build.
-async fn status(
-    input: ComposeAndFilterPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<Option<crate::shared::check_workflow_poll::PollState>, RoverClientError> {
-    let mut service = service::ComposeAndFilterPreviewStatus::new(
         client
             .studio_graphql_service()
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
@@ -68,19 +56,41 @@ pub async fn run(
 }
 
 /// Continuously poll the status of an already-started compose-and-filter
-/// preview build.
+/// preview build, then fetch its full result once it's finished.
 pub async fn poll(
     status_input: ComposeAndFilterPreviewStatusInput,
     client: &StudioClient,
     checks_timeout_seconds: u64,
 ) -> Result<PreviewJobResponse, RoverClientError> {
-    poll_preview_build(
-        checks_timeout_seconds,
-        &status_input.build_id,
-        async || status(status_input.clone(), client).await,
-        async || result(status_input.clone(), client).await,
-    )
-    .await
+    let build_id = status_input.build_id.clone();
+    let mut status_service = ServiceBuilder::new()
+        .retry(PollRetryPolicy::new(
+            Duration::from_secs(5),
+            Duration::from_secs(checks_timeout_seconds),
+            {
+                let build_id = build_id.clone();
+                move || RoverClientError::PreviewTimeoutError {
+                    build_id: build_id.clone(),
+                }
+            },
+        ))
+        .service(service::ComposeAndFilterPreviewStatus::new(
+            client
+                .studio_graphql_service()
+                .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+        ));
+    status_service
+        .ready()
+        .await?
+        .call(status_input.clone())
+        .await?;
+
+    result(status_input, client).await.map_err(|source| {
+        RoverClientError::PreviewResultUnavailable {
+            build_id,
+            source: Box::new(source),
+        }
+    })
 }
 
 #[cfg(test)]

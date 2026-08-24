@@ -9,7 +9,7 @@ use crate::{
         AsyncBuildStatus, ComposeAndFilterPreviewInput, ComposeAndFilterPreviewStatusInput,
         PreviewJobResponse,
     },
-    shared::{check_workflow_poll::PollState, preview_poll::require_variant},
+    shared::preview_poll::require_variant,
     RoverClientError,
 };
 
@@ -110,9 +110,8 @@ where
 
 /// A [`Service`] that checks the status (without fetching the result) of a
 /// compose-and-filter preview build, using the lightweight, `__typename`-only
-/// selection. Used as `poll_check_workflow`'s repeated `poll_status`, so that
-/// polling a long-running build doesn't re-fetch its full (potentially
-/// large) schema documents every few seconds.
+/// selection, so that polling a long-running build doesn't re-fetch its full
+/// (potentially large) schema documents every few seconds.
 #[derive(Clone)]
 pub(crate) struct ComposeAndFilterPreviewStatus<S: Clone> {
     inner: S,
@@ -136,7 +135,7 @@ where
         + 'static,
     Fut: Future<Output = Result<S::Response, S::Error>> + Send,
 {
-    type Response = Option<PollState>;
+    type Response = bool;
     type Error = RoverClientError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -169,11 +168,7 @@ where
 
             use compose_and_filter_preview_status_query::ComposeAndFilterPreviewStatusQueryGraphVariantComposeAndFilterPreviewStatus as Status;
 
-            let finished = !matches!(status, Status::ComposeAndFilterPreviewPending);
-            Ok(Some(PollState {
-                finished,
-                target_url: None,
-            }))
+            Ok(!matches!(status, Status::ComposeAndFilterPreviewPending))
         };
         Box::pin(fut)
     }
