@@ -7,13 +7,35 @@ use rover_auth::oauth2::{
     authorization_flow::{AuthorizationFlow, redirect::server::AxumRedirectServer},
     device_authorization_flow::DeviceAuthorizationFlow,
 };
-use rover_http::ReqwestService;
+use rover_http::{ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
 use rover_open::{NoopOpenUrl, OpenUrl, SystemOpenUrl};
 use serde::Serialize;
+use tower::{ServiceBuilder, retry::RetryLayer};
 use url::Url;
 
 use super::OauthConfig;
 use crate::{RoverOutput, RoverResult, options::ProfileOpt};
+
+/// Bounds a single device-code-request attempt. Kept short and independent of
+/// `DEVICE_CODE_RETRY_PERIOD` (the overall retry budget), the same reasoning
+/// `whoami`'s `WHOAMI_ATTEMPT_TIMEOUT` documents - reusing the retry budget
+/// here would let one hung attempt consume it entirely, leaving no room for
+/// an actual retry.
+const DEVICE_CODE_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Overall retry budget for the device-code request, matching
+/// `ClientTimeout`'s default (`src/utils/client.rs`) since `Login::run` has
+/// no `StudioClientConfig` to read a configured value from here.
+const DEVICE_CODE_RETRY_PERIOD: Duration = Duration::from_secs(30);
+
+/// Bounds a single poll-for-token HTTP attempt. Deliberately *not* paired
+/// with a `RetryLayer`: the `oauth2` crate's own request loop inside
+/// `poll_for_token` already re-polls on `authorization_pending`/`slow_down`
+/// for as long as the device code stays valid (several minutes), which is
+/// the flow's real retry mechanism. Layering an elapsed-time-budgeted
+/// `RetryPolicy` on top of that would fight it - the first transient failure
+/// would start a short clock that then cuts off an otherwise-legitimate poll.
+const TOKEN_POLL_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Serialize, Parser)]
 /// Log in via your browser to authenticate `rover` with Apollo
@@ -72,12 +94,20 @@ impl Login {
                 .device_authorization_url(oauth_config.device_authorization_url)
                 .token_url(oauth_config.token_url)
                 .build();
+            let device_code_service = ServiceBuilder::new()
+                .layer(RetryLayer::new(RetryPolicy::new(DEVICE_CODE_RETRY_PERIOD)))
+                .layer(TimeoutLayer::new(DEVICE_CODE_REQUEST_TIMEOUT))
+                .service(http_service.clone());
             let device_flow = device_flow
-                .request_device_code(Vec::new(), http_service.clone(), &stderr)
+                .request_device_code(Vec::new(), device_code_service, &stderr)
                 .await
                 .map_err(|e| anyhow::anyhow!("failed to request a device code: {e}"))?;
+
+            let token_poll_service = ServiceBuilder::new()
+                .layer(TimeoutLayer::new(TOKEN_POLL_ATTEMPT_TIMEOUT))
+                .service(http_service);
             device_flow
-                .poll_for_token(http_service, None)
+                .poll_for_token(token_poll_service, None)
                 .await
                 .map_err(|e| anyhow::anyhow!("failed to obtain an access token: {e}"))?
         } else {
