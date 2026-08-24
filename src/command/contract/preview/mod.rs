@@ -92,6 +92,7 @@ pub struct Preview {
             "no_hide_unreachable_types",
         ]
     )]
+    #[serde(skip_serializing)]
     build_id: Option<String>,
 }
 
@@ -203,6 +204,8 @@ impl Preview {
 
 #[cfg(test)]
 mod tests {
+    use speculoos::prelude::*;
+
     use super::*;
 
     /// A `Preview` with every include/exclude/hide flag explicitly decided,
@@ -252,7 +255,9 @@ mod tests {
             ..valid_preview()
         };
         let err = preview.required_filter_config().unwrap_err();
-        assert!(err.to_string().contains("--include-tag"));
+        assert_that!(err.message()).is_equal_to(
+            "You must specify either --include-tag <TAG> or --no-include-tags.".to_string(),
+        );
     }
 
     #[test]
@@ -263,7 +268,9 @@ mod tests {
             ..valid_preview()
         };
         let err = preview.required_filter_config().unwrap_err();
-        assert!(err.to_string().contains("--exclude-tag"));
+        assert_that!(err.message()).is_equal_to(
+            "You must specify either --exclude-tag <TAG> or --no-exclude-tags.".to_string(),
+        );
     }
 
     #[test]
@@ -274,6 +281,9 @@ mod tests {
             ..valid_preview()
         };
         let err = preview.required_filter_config().unwrap_err();
-        assert!(err.to_string().contains("--hide-unreachable-types"));
+        assert_that!(err.message()).is_equal_to(
+            "You must specify either --hide-unreachable-types or --no-hide-unreachable-types."
+                .to_string(),
+        );
     }
 }

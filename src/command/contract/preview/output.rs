@@ -54,6 +54,8 @@ impl CliOutput for ContractPreviewOutput {
 #[cfg(test)]
 mod tests {
     use rover_studio::types::GraphRef;
+    use rstest::rstest;
+    use speculoos::prelude::*;
 
     use super::*;
 
@@ -68,25 +70,14 @@ mod tests {
         }
     }
 
-    #[test]
-    fn exit_code_is_zero_for_in_progress_and_success_statuses() {
-        for status in [
-            AsyncBuildStatus::Pending,
-            AsyncBuildStatus::Running,
-            AsyncBuildStatus::Success,
-        ] {
-            assert_eq!(ContractPreviewOutput(response(status)).exit_code(), 0);
-        }
-    }
-
-    #[test]
-    fn exit_code_is_nonzero_for_terminal_failure_statuses() {
-        for status in [
-            AsyncBuildStatus::ComposeFailed,
-            AsyncBuildStatus::FilterFailed,
-        ] {
-            assert_eq!(ContractPreviewOutput(response(status)).exit_code(), 1);
-        }
+    #[rstest]
+    #[case::pending(AsyncBuildStatus::Pending, 0)]
+    #[case::running(AsyncBuildStatus::Running, 0)]
+    #[case::success(AsyncBuildStatus::Success, 0)]
+    #[case::compose_failed(AsyncBuildStatus::ComposeFailed, 1)]
+    #[case::filter_failed(AsyncBuildStatus::FilterFailed, 1)]
+    fn exit_code_matches_status(#[case] status: AsyncBuildStatus, #[case] expected: i32) {
+        assert_that!(ContractPreviewOutput(response(status)).exit_code()).is_equal_to(expected);
     }
 
     #[test]
@@ -94,7 +85,10 @@ mod tests {
         let text = temp_env::with_var("NO_COLOR", Some("1"), || {
             ContractPreviewOutput(response(AsyncBuildStatus::Pending)).text()
         });
-        assert!(text.contains("rover contract preview my-graph@current --build-id build-123"));
+        assert_that!(text).is_equal_to(
+            "Build id: build-123\nStatus: PENDING\nCheck the result with `rover contract preview my-graph@current --build-id build-123`"
+                .to_string(),
+        );
     }
 
     #[test]
@@ -102,7 +96,10 @@ mod tests {
         let mut mock_response = response(AsyncBuildStatus::Success);
         mock_response.api_schema = Some("type Query { hello: String }".to_string());
         let text = ContractPreviewOutput(mock_response).text();
-        assert!(text.contains("type Query { hello: String }"));
+        assert_that!(text).is_equal_to(
+            "Build id: build-123\nStatus: SUCCESS\nSchema:\n\ntype Query { hello: String }"
+                .to_string(),
+        );
     }
 
     #[test]
@@ -110,7 +107,10 @@ mod tests {
         let mut mock_response = response(AsyncBuildStatus::ComposeFailed);
         mock_response.errors = vec!["[Accounts] -> Things went really wrong".to_string()];
         let text = ContractPreviewOutput(mock_response).text();
-        assert!(text.contains("[Accounts] -> Things went really wrong"));
+        assert_that!(text).is_equal_to(
+            "Build id: build-123\nStatus: COMPOSE_FAILED\n[Accounts] -> Things went really wrong"
+                .to_string(),
+        );
     }
 
     #[test]
@@ -118,7 +118,7 @@ mod tests {
         let json = ContractPreviewOutput(response(AsyncBuildStatus::Success))
             .json()
             .unwrap();
-        assert_eq!(json["build_id"], "build-123");
-        assert_eq!(json["status"], "SUCCESS");
+        assert_that!(json["build_id"]).is_equal_to(serde_json::json!("build-123"));
+        assert_that!(json["status"]).is_equal_to(serde_json::json!("SUCCESS"));
     }
 }
