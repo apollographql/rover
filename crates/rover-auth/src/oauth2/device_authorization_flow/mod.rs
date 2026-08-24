@@ -1,9 +1,17 @@
+<<<<<<< HEAD
 use std::{fmt::Debug, time::Duration};
 
 use oauth2::{
     AccessToken, ClientId, DeviceAuthorizationUrl, DeviceCodeErrorResponseType, EndpointNotSet,
     EndpointSet, RefreshToken, RequestTokenError, Scope, StandardDeviceAuthorizationResponse,
     TokenResponse, TokenUrl, basic::BasicClient,
+=======
+use std::fmt::Debug;
+
+use oauth2::{
+    AccessToken, ClientId, DeviceAuthorizationUrl, EndpointNotSet, EndpointSet, RefreshToken,
+    Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl, basic::BasicClient,
+>>>>>>> 3270b9022 (Split device_authorization_flow's state module into its own file)
 };
 use rover_http::Body;
 use rover_print::{
