@@ -1,3 +1,7 @@
+use houston::{ApiKey, ApiKeyActor, MalformedApiKey};
+use rstest::rstest;
+use speculoos::prelude::*;
+
 use crate::command::init::authentication::{AuthenticationError, auth_error_to_rover_error};
 
 // ARCHITECTURE TESTS: Error Conversion System
@@ -77,72 +81,24 @@ fn test_system_errors_guide_to_support() {
 
 // TYPE-BASED AUTHENTICATION TESTS
 
-struct ApiKey {
-    key_type: KeyType,
-}
-
-enum KeyType {
-    User,
-    Graph,
-    Invalid,
-}
-
-impl ApiKey {
-    // Parse the key string into a strongly-typed representation
-    fn parse(key: &str) -> Self {
-        if key.is_empty() {
-            return ApiKey {
-                key_type: KeyType::Invalid,
-            };
-        }
-
-        if key.starts_with("user:") {
-            ApiKey {
-                key_type: KeyType::User,
-            }
-        } else if key.starts_with("graph:") {
-            ApiKey {
-                key_type: KeyType::Graph,
-            }
-        } else {
-            ApiKey {
-                key_type: KeyType::Invalid,
-            }
-        }
-    }
-
-    // Type-safe validation that only user keys are acceptable
-    const fn validate_is_user_key(&self) -> Result<(), AuthenticationError> {
-        match self.key_type {
-            KeyType::User => Ok(()),
-            KeyType::Graph => Err(AuthenticationError::NotUserKey),
-            KeyType::Invalid => Err(AuthenticationError::InvalidKeyFormat),
-        }
+/// How `rover init` grades a pasted key, mirroring `ProjectAuthenticationOpt::prompt_for_api_key`.
+fn validate_is_user_key(key: &str) -> Result<(), AuthenticationError> {
+    match ApiKey::try_from(key) {
+        Err(MalformedApiKey) => Err(AuthenticationError::InvalidKeyFormat),
+        Ok(parsed) if parsed.actor() != ApiKeyActor::User => Err(AuthenticationError::NotUserKey),
+        Ok(_) => Ok(()),
     }
 }
 
-#[test]
-fn test_type_safe_key_validation() {
-    // Valid user key
-    let user_key = ApiKey::parse("user:test1234");
-    assert!(matches!(user_key.key_type, KeyType::User));
-    assert!(user_key.validate_is_user_key().is_ok());
-
-    // Graph key (wrong type for user authentication)
-    let graph_key = ApiKey::parse("graph:test1234");
-    assert!(matches!(graph_key.key_type, KeyType::Graph));
-    let err = graph_key.validate_is_user_key().unwrap_err();
-    assert!(matches!(err, AuthenticationError::NotUserKey));
-
-    // Invalid key format
-    let invalid_key = ApiKey::parse("invalid_key");
-    assert!(matches!(invalid_key.key_type, KeyType::Invalid));
-    let err = invalid_key.validate_is_user_key().unwrap_err();
-    assert!(matches!(err, AuthenticationError::InvalidKeyFormat));
-
-    // Empty key
-    let empty_key = ApiKey::parse("");
-    assert!(matches!(empty_key.key_type, KeyType::Invalid));
-    let err = empty_key.validate_is_user_key().unwrap_err();
-    assert!(matches!(err, AuthenticationError::InvalidKeyFormat));
+#[rstest]
+#[case::user_key("user:my-username:secretkey", None)]
+// `service:`, not `graph:` - the prefix this test used to check for never existed.
+#[case::graph_key("service:graph-id:secretkey", Some(AuthenticationError::NotUserKey))]
+#[case::unknown_actor("robot:some-id:secretkey", Some(AuthenticationError::NotUserKey))]
+// Shaped like a user key but unusable, which `starts_with("user:")` used to wave through.
+#[case::truncated_user_key("user:test1234", Some(AuthenticationError::InvalidKeyFormat))]
+#[case::not_a_key("invalid_key", Some(AuthenticationError::InvalidKeyFormat))]
+#[case::empty("", Some(AuthenticationError::InvalidKeyFormat))]
+fn test_type_safe_key_validation(#[case] key: &str, #[case] expected: Option<AuthenticationError>) {
+    assert_that!(validate_is_user_key(key).err()).is_equal_to(expected);
 }

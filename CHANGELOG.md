@@ -42,6 +42,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `y/N` confirmation prompts (the ELv2 license acceptance prompt, `rover graph delete`/`rover subgraph delete` confirmations) checked whether *stdout* was attached to a terminal before reading an answer. Redirecting stdout while leaving stdin interactive made the prompt print, then immediately read an empty answer instead of waiting for input, defaulting to "no" and erroring out. Prompts now read from stdin directly, gated on stdin's own terminal status.
 
+- **Catch a bad API key while `rover init` is still asking for one - @SharkBaitDLS**
+
+  `rover init` only checked that a pasted key began with `user:`, so a truncated key was accepted and saved, then failed on the next request. It now checks the whole key, and says which thing is wrong: a key that isn't shaped like a key at all asks you for a valid one, while a graph key gets the guidance for clearing `APOLLO_KEY` and stored profiles. A key pasted with a trailing newline is no longer saved with it. `rover init` also stops reusing an `APOLLO_KEY` that looks like a graph key but is truncated.
+
 - **Show successful build and operation check sections in plain-text check output - fixes #1816**
 
   `rover subgraph check` and `rover graph check` now show explicit `Build Check [PASSED]` and `Operation Check [PASSED]` sections even when no schema changes or operation warnings were found. This makes successful check results visible alongside linter and other check sections.

@@ -5,7 +5,7 @@ use std::{error::Error, fmt};
 pub enum AuthenticationError {
     /// When the key is empty
     EmptyKey,
-    /// When the API key format is invalid (doesn't start with "user:")
+    /// When the key doesn't parse as `actor:id:secret` at all
     InvalidKeyFormat,
     /// When the key is valid format but doesn't authenticate
     AuthenticationFailed(String),
