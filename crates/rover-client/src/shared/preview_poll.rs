@@ -37,6 +37,12 @@ mod tests {
     fn require_variant_errors_on_missing_variant() {
         let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
         let err = require_variant::<i32>(None, &graph_ref).unwrap_err();
-        assert_that!(matches!(err, RoverClientError::GraphNotFound { .. })).is_true();
+        let RoverClientError::GraphNotFound {
+            graph_ref: actual_graph_ref,
+        } = err
+        else {
+            panic!("expected RoverClientError::GraphNotFound, got {err:?}");
+        };
+        assert_that!(&actual_graph_ref).is_equal_to(&graph_ref);
     }
 }
