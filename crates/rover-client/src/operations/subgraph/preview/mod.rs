@@ -3,12 +3,18 @@ mod types;
 
 use std::time::Duration;
 
-use rover_tower::poll_retry::PollRetryPolicy;
+use rover_tower::{attempt_timeout::AttemptTimeoutLayer, poll_retry::PollRetryPolicy};
 pub use service::{ComposeAndFilterPreviewResult, ComposeAndFilterPreviewStart};
 use tower::{Service, ServiceBuilder, ServiceExt};
 pub use types::*;
 
 use crate::{blocking::StudioClient, RoverClientError};
+
+/// Bounds a single status-check attempt, independent of the overall poll
+/// budget (`checks_timeout_seconds`) -- mirrors `WHOAMI_ATTEMPT_TIMEOUT` in
+/// `command::auth::whoami`: reusing the overall budget here would let one
+/// hung attempt consume the whole thing, leaving no room to poll again.
+const COMPOSE_AND_FILTER_PREVIEW_STATUS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Start an async compose-and-filter preview job, returning its (pending)
 /// status immediately.
@@ -73,6 +79,10 @@ pub async fn poll(
                     build_id: build_id.clone(),
                 }
             },
+        ))
+        .layer(AttemptTimeoutLayer::new(
+            COMPOSE_AND_FILTER_PREVIEW_STATUS_ATTEMPT_TIMEOUT,
+            || false,
         ))
         .service(service::ComposeAndFilterPreviewStatus::new(
             client
