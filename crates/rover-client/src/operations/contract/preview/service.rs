@@ -6,10 +6,7 @@ use tower::Service;
 
 use crate::{
     operations::contract::preview::types::{ContractPreviewInput, ContractPreviewStatusInput},
-    shared::{
-        check_workflow_poll::PollState, preview_poll::require_variant, AsyncBuildStatus,
-        PreviewJobResponse,
-    },
+    shared::{preview_poll::require_variant, AsyncBuildStatus, PreviewJobResponse},
     RoverClientError,
 };
 
@@ -131,7 +128,7 @@ where
         + 'static,
     Fut: Future<Output = Result<S::Response, S::Error>> + Send,
 {
-    type Response = Option<PollState>;
+    type Response = bool;
     type Error = RoverClientError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -164,11 +161,7 @@ where
 
             use contract_preview_status_query::ContractPreviewStatusQueryGraphVariantContractPreviewStatus as Status;
 
-            let finished = !matches!(status, Status::ContractPreviewAsyncPending);
-            Ok(Some(PollState {
-                finished,
-                target_url: None,
-            }))
+            Ok(!matches!(status, Status::ContractPreviewAsyncPending))
         };
         Box::pin(fut)
     }
