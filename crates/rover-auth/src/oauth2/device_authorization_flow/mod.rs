@@ -129,27 +129,6 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
 }
 
 impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowWithDeviceCode> {
-    /// The URL the user should visit to enter their user code.
-    pub fn verification_uri(&self) -> &EndUserVerificationUrl {
-        self.state.device_auth_response.verification_uri()
-    }
-
-    /// The URL the user should visit, with the user code already embedded
-    /// (if the server provided one), so no separate code entry is required.
-    pub fn verification_uri_complete(&self) -> Option<&VerificationUriComplete> {
-        self.state.device_auth_response.verification_uri_complete()
-    }
-
-    /// The code the user must enter at [`Self::verification_uri`].
-    pub fn user_code(&self) -> &str {
-        self.state.device_auth_response.user_code().secret()
-    }
-
-    /// How long the device code remains valid for.
-    pub fn expires_in(&self) -> Duration {
-        self.state.device_auth_response.expires_in()
-    }
-
     /// Polls the token endpoint per RFC 8628 §3.5 until the user authorizes,
     /// denies, the device code expires, or `poll_timeout` elapses (if given).
     /// All poll-interval/backoff timing is handled internally by the
