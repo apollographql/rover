@@ -155,7 +155,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.10
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.12
 
     steps:
     # No `ref:` override. It used to be `github.head_ref || github.ref_name`,
