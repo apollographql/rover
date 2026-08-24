@@ -1,3 +1,5 @@
+use houston::{ApiKey, ApiKeyActor, MalformedApiKey};
+
 use crate::command::init::{
     authentication::AuthenticationError, options::ProjectAuthenticationOpt,
 };
@@ -34,20 +36,24 @@ impl AuthWorkflowSimulation {
             return;
         }
 
-        if !key.starts_with("user:") {
-            self.error = Some(AuthenticationError::InvalidKeyFormat);
-            return;
+        match ApiKey::try_from(key) {
+            Err(MalformedApiKey) => {
+                self.error = Some(AuthenticationError::InvalidKeyFormat);
+                return;
+            }
+            Ok(parsed) if parsed.actor() != ApiKeyActor::User => {
+                self.error = Some(AuthenticationError::NotUserKey);
+                return;
+            }
+            Ok(_) => {}
         }
 
         // Simulate authentication with service
         match key {
-            "user:valid_key" => {
+            "user:someone:valid_key" => {
                 self.authenticated = true;
             }
-            "user:graph_mistake" => {
-                self.error = Some(AuthenticationError::NotUserKey);
-            }
-            "user:invalid_credentials" => {
+            "user:someone:invalid_credentials" => {
                 self.error = Some(AuthenticationError::AuthenticationFailed(
                     "Invalid credentials".to_string(),
                 ));
@@ -88,7 +94,7 @@ impl AuthWorkflowSimulation {
 fn test_successful_authentication_flow() {
     let mut workflow = AuthWorkflowSimulation::new();
 
-    workflow.enter_key("user:valid_key");
+    workflow.enter_key("user:someone:valid_key");
 
     assert!(workflow.authenticated);
     assert_eq!(
@@ -131,7 +137,7 @@ fn test_invalid_format_authentication_flow() {
 fn test_graph_key_authentication_flow() {
     let mut workflow = AuthWorkflowSimulation::new();
 
-    workflow.enter_key("user:graph_mistake");
+    workflow.enter_key("service:graph-id:secretkey");
 
     assert!(!workflow.authenticated);
     assert_eq!(workflow.error, Some(AuthenticationError::NotUserKey));
@@ -146,7 +152,7 @@ fn test_graph_key_authentication_flow() {
 fn test_invalid_credentials_authentication_flow() {
     let mut workflow = AuthWorkflowSimulation::new();
 
-    workflow.enter_key("user:invalid_credentials");
+    workflow.enter_key("user:someone:invalid_credentials");
 
     assert!(!workflow.authenticated);
     assert!(matches!(
@@ -164,7 +170,7 @@ fn test_invalid_credentials_authentication_flow() {
 fn test_system_error_authentication_flow() {
     let mut workflow = AuthWorkflowSimulation::new();
 
-    workflow.enter_key("user:system_error_key");
+    workflow.enter_key("user:someone:system_error_key");
 
     assert!(!workflow.authenticated);
     assert!(matches!(

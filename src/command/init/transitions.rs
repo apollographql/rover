@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, fs::read_dir, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use houston::Profile;
+use houston::{ApiKeyActor, Profile};
 use rover_client::{
     RoverClientError,
     operations::init::{create_graph::*, memberships},
@@ -94,11 +94,11 @@ impl UserAuthenticated {
         profile: &ProfileOpt,
     ) -> RoverResult<bool> {
         let credential = Profile::get_credential(&profile.profile_name, &client_config.config)?;
-        if credential.api_key.starts_with("user:") {
-            return Ok(true);
-        }
 
-        Ok(false)
+        Ok(matches!(
+            credential.api_key(),
+            Some(Ok(key)) if key.actor() == ApiKeyActor::User
+        ))
     }
 }
 
