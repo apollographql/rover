@@ -13,6 +13,11 @@ test = ["mockall", "pastey"]
 futures = { workspace = true }
 mockall = { workspace = true, optional = true }
 pastey = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["macros", "time"] }
 tower = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+speculoos = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "test-util", "time"] }
 

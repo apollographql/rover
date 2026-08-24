@@ -2,6 +2,7 @@ use std::pin::Pin;
 
 use futures::Future;
 
+pub mod poll_retry;
 pub mod retry;
 pub mod service;
 #[cfg(any(test, feature = "test"))]
