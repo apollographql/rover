@@ -13,24 +13,33 @@ VERSION_TAGS=("$@")
 >&2 echo "COMPONENT is $COMPONENT"
 >&2 echo "VERSION_TAGS are ${VERSION_TAGS[*]}"
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-LATEST_PLUGIN_VERSIONS_PATH="$SCRIPT_DIR/../../latest_plugin_versions.json"
+# orbiter owns the `latest-*` alias -> concrete version mapping (rover no longer keeps a local
+# copy) and reports its resolution via the `X-Version` header on a redirect-disabled HEAD
+# response. This is the same public HTTP contract Rover itself uses at runtime to resolve
+# `rover.apollo.dev/tar/<component>/<triple>/<alias>`, so we ask orbiter through it rather than
+# reading a source file orbiter owns.
+ORBITER_HOST="${APOLLO_ROVER_DOWNLOAD_HOST:-https://rover.apollo.dev}"
+# X-Version depends only on COMPONENT + VERSION_TAG, not the target triple, so any triple that's
+# reliably released for every version works here.
+FALLBACK_TRIPLE="x86_64-unknown-linux-gnu"
 
 declare -a CLEAN_VERSIONS=()
 
 for VERSION_TAG in "${VERSION_TAGS[@]}"; do
-  LATEST_VERSION=$(jq -er --arg component "$COMPONENT" --arg version_tag "$VERSION_TAG" '.[$component].versions[$version_tag]' "$LATEST_PLUGIN_VERSIONS_PATH") || {
-    >&2 echo "Unable to read latest version for component '$COMPONENT' with tag '$VERSION_TAG'"
+  RESOLVED_HEADERS=$(curl -sS --fail -I "$ORBITER_HOST/tar/$COMPONENT/$FALLBACK_TRIPLE/$VERSION_TAG") || {
+    >&2 echo "Unable to resolve version for component '$COMPONENT' with tag '$VERSION_TAG' from $ORBITER_HOST"
     exit 1
   }
 
-  if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
-    >&2 echo "No entry found for component '$COMPONENT' with tag '$VERSION_TAG' in $LATEST_PLUGIN_VERSIONS_PATH"
+  LATEST_VERSION=$(printf '%s' "$RESOLVED_HEADERS" | grep -i '^x-version:' | tr -d '\r' | awk '{print $2}')
+
+  if [ -z "$LATEST_VERSION" ]; then
+    >&2 echo "No X-Version header in response for component '$COMPONENT' with tag '$VERSION_TAG' from $ORBITER_HOST"
     exit 1
   fi
 
   CLEAN_VERSION="${LATEST_VERSION#v}"
-  >&2 echo "Latest version pulled from manifest for tag '$VERSION_TAG': $CLEAN_VERSION"
+  >&2 echo "Latest version resolved by orbiter for tag '$VERSION_TAG': $CLEAN_VERSION"
   CLEAN_VERSIONS+=("$CLEAN_VERSION")
 done
 
