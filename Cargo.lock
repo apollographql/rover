@@ -6063,6 +6063,8 @@ dependencies = [
  "futures",
  "mockall",
  "pastey",
+ "rstest",
+ "speculoos",
  "tokio",
  "tower 0.5.3",
 ]
