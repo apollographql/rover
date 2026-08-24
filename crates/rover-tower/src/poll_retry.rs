@@ -1,20 +1,17 @@
-//! A [`tower::retry::Policy`] for polling: keep calling until the response
-//! reports it's finished, sleeping `interval` between attempts, and give up
-//! with a caller-supplied error once `timeout` has elapsed since the policy
-//! was constructed.
+//! A [`tower::retry::Policy`] for polling until the response indicates it
+//! completed, sleeping `interval` between attempts, and give up with an
+//! error if `timeout` elapses first.
 //!
-//! Plug this into [`tower::retry::Retry`] (e.g. via `ServiceBuilder::retry`)
-//! the same way any other [`tower::retry::Policy`] is used for per-request
-//! retries -- "polling" here is just a retry policy whose retry condition is
-//! "the response isn't finished yet" instead of "the call failed".
+//! Use with a Retry [`tower::retry::Policy`] for per-request retries. Polling
+//! is just a retry policy whose retry condition is "not finished yet" instead
+//! of "the call failed".
 
 use std::time::Duration;
 
 use tokio::time::{Instant, Sleep};
 use tower::retry::Policy;
 
-/// Implemented by a poll status response to report whether polling should
-/// stop.
+/// Implemented by a poll status response to stop polling.
 pub trait PollOutcome {
     fn is_finished(&self) -> bool;
 }
@@ -25,7 +22,7 @@ impl PollOutcome for bool {
     }
 }
 
-/// See the module docs.
+/// Controls the behavior of polling.
 #[derive(Clone)]
 pub struct PollRetryPolicy<F> {
     interval: Duration,
@@ -34,9 +31,8 @@ pub struct PollRetryPolicy<F> {
 }
 
 impl<F> PollRetryPolicy<F> {
-    /// `timeout` is measured from the moment this policy is constructed, so
-    /// build it immediately before starting to poll (not once and reused
-    /// across multiple polls).
+    /// `timeout` is measured from policy creation, so build it immediately
+    /// before polling (do not reuse across multiple polls).
     pub fn new(interval: Duration, timeout: Duration, on_timeout: F) -> Self {
         Self {
             interval,

@@ -2,13 +2,9 @@ use rover_studio::types::GraphRef;
 
 use crate::RoverClientError;
 
-/// Reports the `graph { variant { ... } }` two-level lookup shared by every
-/// preview mutation/query (`composeAndFilterPreviewAsync`,
-/// `contractPreviewAsync`, and their status queries) as not found. Callers
-/// flatten the generated response type's `Option<Option<V>>` themselves
+/// Reports the `graph { variant { ... } }` two-level lookup.
+///Callers flatten the generated response type's `Option<Option<V>>`
 /// (e.g. `graph.and_then(|g| g.variant)`) before calling this.
-// TODO(preview): drop this `allow` once the contract/subgraph preview
-// operations (stacked on top of this PR) call it.
 #[allow(dead_code)]
 pub(crate) fn require_variant<V>(
     variant: Option<V>,

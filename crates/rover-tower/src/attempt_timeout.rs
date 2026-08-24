@@ -1,21 +1,16 @@
 //! Bounds a single attempt at calling a wrapped [`Service`], independent of
 //! any outer retry/poll budget. Unlike a typical timeout middleware, a timed
-//! out attempt doesn't produce an error -- it produces a caller-supplied
-//! fallback *response*, so it composes underneath something like
-//! [`crate::poll_retry::PollRetryPolicy`] as just another "not finished yet"
+//! out attempt doesn't produce an error; it produces a caller-supplied
+//! fallback response, so it composes underneath a 
+//! [`crate::poll_retry::PollRetryPolicy`] as a "not finished yet"
 //! result instead of aborting the operation early.
-//!
-//! This mirrors the existing `WHOAMI_ATTEMPT_TIMEOUT`/
-//! `CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT` layering (an inner per-attempt
-//! `TimeoutLayer` under an outer `RetryLayer`, so one hung attempt can't
-//! consume the whole retry budget), generalized to a case where the "give up
-//! on this attempt" outcome needs to be a value rather than an error.
-
 use std::time::Duration;
 
 use tower::{Layer, Service};
 
-/// See the module docs.
+/// A [`Layer`] that wraps a [`Service`] in an [`AttemptTimeout`]: each call is
+/// bounded to `duration`, and a call that doesn't finish in time yields
+/// `on_timeout()`'s value instead of an error.
 pub struct AttemptTimeoutLayer<F> {
     duration: Duration,
     on_timeout: F,
@@ -45,7 +40,10 @@ where
     }
 }
 
-/// See the module docs.
+/// [`Service`] produced by [`AttemptTimeoutLayer`]. Races each call to
+/// `inner` against a `duration` sleep; if `inner` wins, its result is
+/// returned as-is, otherwise `on_timeout()` is called and its value is
+/// returned in place of `inner`'s (still-pending, never-awaited) response.
 #[derive(Clone)]
 pub struct AttemptTimeout<S, F> {
     inner: S,
