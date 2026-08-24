@@ -216,7 +216,7 @@ iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
 #### Docker images
 
 Starting with version 0.39.1, Rover vends immutable Linux Docker images that pre-build Rover as an entry point for consumption in CI environments
-or to run Rover on platforms that Rover does not build natively for. Each release verison tag is enforced as immutable at the platform level for
+or to run Rover on platforms that Rover does not build natively for. Each release version tag is enforced as immutable at the platform level for
 your convenience so that you can pin to the Rover version you want without needing to deal with the indirection of SHA pinning.
 
 Install directly from Dockerhub:
