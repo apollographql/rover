@@ -493,6 +493,41 @@ type BuildSuccess {
   coreSchema: CoreSchema!
 }
 
+"""A bulk deletion job that failed."""
+type BulkDeletionFailure {
+  """A human-readable description of why the job failed."""
+  error: String!
+}
+
+"""Whether an in-flight bulk deletion job is queued or actively running."""
+enum BulkDeletionJobStatus {
+  """The job is queued and has not yet started running."""
+  PENDING
+
+  """The job is actively running."""
+  RUNNING
+}
+
+"""A bulk deletion job that has not yet finished."""
+type BulkDeletionPending {
+  """The number of operations deleted so far by this job."""
+  operationsDeletedSoFar: Int!
+
+  """Whether the job is queued (PENDING) or running (RUNNING)."""
+  status: BulkDeletionJobStatus!
+}
+
+"""
+The status of an asynchronous bulk deletion job, as returned by PersistedQueryList.bulkDeletionStatus.
+"""
+union BulkDeletionStatus = BulkDeletionFailure | BulkDeletionPending | BulkDeletionSuccess
+
+"""A bulk deletion job that finished successfully."""
+type BulkDeletionSuccess {
+  """The build produced by this deletion job's final chunk."""
+  build: PersistedQueryListBuild
+}
+
 """
 The result of a failed call to PersistedQueryListMutation.delete due to linked variant(s).
 """
@@ -4836,6 +4871,20 @@ type PersistedQueriesPublishOperationCounts {
   updated: Int!
 }
 
+"""Filter options for persisted query operations"""
+input PersistedQueryFilterInput {
+  """Only include operations whose client name is included in this list"""
+  clients: [String]
+
+  """
+  Only include operations whose last published date is before or after the given date
+  """
+  lastPublishedAt: TimestampFilterInput
+
+  """Only include operations whose names contain this case-insensitive substring"""
+  name: String
+}
+
 """Full identifier for an operation in a Persisted Query List."""
 input PersistedQueryIdInput {
   """
@@ -4877,6 +4926,11 @@ input PersistedQueryInput {
 
 """A Persisted Query List for a graph."""
 type PersistedQueryList {
+  """
+  Polls the status of an asynchronous bulk deletion job started by PersistedQueryListMutation.startBulkDeletion. Returns null if no job with this ID exists, for example because the ID is unrecognized or the job's record has since expired.
+  """
+  bulkDeletionStatus(id: ID!): BulkDeletionStatus
+
   """The current build of this PQL."""
   currentBuild: PersistedQueryListBuild!
 
@@ -4945,10 +4999,32 @@ type PersistedQueryListMutation {
   ): PublishOperationsResultOrError!
 
   """
+  Starts an asynchronous job to delete all operations matching the given filter (minus any excluded operations) from this Persisted Query List. Returns a job ID to poll via PersistedQueryList.bulkDeletionStatus. Disabled behind a feature flag; once enabled for a graph, a bulk deletion already running for a list will return that job's existing ID instead of starting a second one.
+  """
+  startBulkDeletion(
+    """Operations to exclude from deletion, even if they match the filter"""
+    exclude: [PersistedQueryIdInput!]
+
+    """Filter criteria to select operations for deletion"""
+    filter: PersistedQueryFilterInput!
+  ): StartBulkDeletionResultOrError!
+
+  """
   Updates the name and/or description of the specified Persisted Query List.
   """
   updateMetadata(description: String, name: String): UpdatePersistedQueryListMetadataResultOrError!
 }
+
+"""The result of a successful call to PersistedQueryListMutation.startBulkDeletion."""
+type StartBulkDeletionResult {
+  """
+  The ID of the started (or already-active) bulk deletion job. Poll PersistedQueryList.bulkDeletionStatus with this ID.
+  """
+  jobId: ID!
+}
+
+"""The result/error union returned by PersistedQueryListMutation.startBulkDeletion."""
+union StartBulkDeletionResultOrError = PermissionError | StartBulkDeletionResult
 
 """An error related to an organization's Apollo Studio plan."""
 type PlanError {
@@ -7430,6 +7506,14 @@ enum TimeseriesReportResolution {
 ISO 8601, extended format with nanoseconds, Zulu (or "[+-]seconds" as a string or number relative to now)
 """
 scalar Timestamp
+
+input TimestampFilterInput {
+  """The start of the range"""
+  from: Timestamp
+
+  """The end of the range"""
+  to: Timestamp
+}
 
 type TopOperationRecord {
   """The graph this operation was reported from."""
