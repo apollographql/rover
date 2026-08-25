@@ -159,6 +159,7 @@ impl RunRouter<state::Run> {
         log_level: Option<Level>,
         supergraph_output: Option<Utf8PathBuf>,
         license: Option<Utf8PathBuf>,
+        graph_ref_in_env: bool,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -212,7 +213,16 @@ impl RunRouter<state::Run> {
                 err: Box::new(err),
             })?;
 
-        let env = self.auth_env(profile, home_override, api_key_override);
+        let (env, credential_warning_emitted) =
+            self.auth_env(profile, home_override, api_key_override);
+        let has_graph_ref =
+            has_usable_graph_ref(self.state.remote_config.is_some(), graph_ref_in_env);
+        if should_print_credential_free_notice(has_graph_ref, &license, credential_warning_emitted)
+        {
+            infoln!(
+                "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them."
+            );
+        }
         let listen_address = *self.state.config.address();
         let run_router_binary = RunRouterBinary::builder()
             .router_binary(self.state.binary.clone())
@@ -252,8 +262,9 @@ impl RunRouter<state::Run> {
         profile: ProfileOpt,
         home_override: Option<String>,
         api_key_override: Option<String>,
-    ) -> HashMap<String, String> {
+    ) -> (HashMap<String, String>, bool) {
         let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+        let mut credential_warning_emitted = false;
 
         // We set the APOLLO_KEY here, but it might be overridden by RemoteRouterConfig. That
         // struct takes the who_am_i service, gets an identity, and checks whether the
@@ -282,13 +293,14 @@ impl RunRouter<state::Run> {
                                 "Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY",
                                 profile.profile_name,
                                 err
-                            )
+                            );
+                            credential_warning_emitted = true;
                         }
                     }
                 };
             }
         }
-        env
+        (env, credential_warning_emitted)
     }
 
     async fn wait_for_healthy_router(
@@ -364,6 +376,25 @@ impl RunRouter<state::Run> {
             RunRouterBinaryError::HealthCheckFailed
         })?
     }
+}
+
+/// A graph ref reaches the spawned router either because `--graph-ref` resolved a
+/// `RemoteRouterConfig`, or because a bare `APOLLO_GRAPH_REF` env var is set: the router process
+/// inherits Rover's environment (see `router::binary`'s use of `Command::envs`, which never
+/// calls `env_clear`), so that env var reaches the router even with no `--graph-ref` flag.
+const fn has_usable_graph_ref(remote_config_present: bool, graph_ref_in_env: bool) -> bool {
+    remote_config_present || graph_ref_in_env
+}
+
+/// Per spec FR8/FR9: fires only when there are truly no usable credentials (an API key and a
+/// graph ref) from any source, no offline license, and no other credential-related warning has
+/// already covered the same gap.
+const fn should_print_credential_free_notice(
+    has_graph_ref: bool,
+    license: &Option<Utf8PathBuf>,
+    credential_warning_emitted: bool,
+) -> bool {
+    license.is_none() && !has_graph_ref && !credential_warning_emitted
 }
 
 impl RunRouter<state::Watch> {
@@ -538,5 +569,65 @@ mod state {
         #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
         pub env: HashMap<String, String>,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+
+    use super::{has_usable_graph_ref, should_print_credential_free_notice};
+
+    #[test]
+    fn graph_ref_reaches_router_via_ambient_env_without_the_flag() {
+        // A bare APOLLO_GRAPH_REF env var (no --graph-ref flag, so no RemoteRouterConfig) still
+        // reaches the router via inherited environment -- it must count as a usable graph ref.
+        assert!(has_usable_graph_ref(false, true));
+    }
+
+    #[test]
+    fn no_usable_graph_ref_when_neither_source_is_present() {
+        assert!(!has_usable_graph_ref(false, false));
+    }
+
+    #[test]
+    fn prints_when_fully_unconfigured() {
+        // Fully offline development: no --graph-ref, no --license, no resolvable credential.
+        assert!(should_print_credential_free_notice(false, &None, false));
+    }
+
+    #[test]
+    fn does_not_print_when_license_supplied() {
+        // Offline enterprise license: no credentials, but --license is present.
+        assert!(!should_print_credential_free_notice(
+            false,
+            &Some(Utf8PathBuf::from("/tmp/license.jwt")),
+            false
+        ));
+    }
+
+    #[test]
+    fn does_not_print_when_graph_ref_supplied() {
+        // Valid credentials (--graph-ref + a working key), and broken/partial credentials
+        // (--graph-ref set but the resolvable key isn't a graph key) both go through
+        // RemoteRouterConfig, which has already either succeeded or warned.
+        assert!(!should_print_credential_free_notice(true, &None, false));
+        assert!(!should_print_credential_free_notice(true, &None, true));
+    }
+
+    #[test]
+    fn does_not_print_when_another_credential_warning_already_fired() {
+        // A non-default --profile whose credential couldn't be retrieved already warns in
+        // auth_env; the notice must not also fire for the same gap.
+        assert!(!should_print_credential_free_notice(false, &None, true));
+    }
+
+    #[test]
+    fn does_not_print_when_license_and_graph_ref_both_supplied() {
+        assert!(!should_print_credential_free_notice(
+            true,
+            &Some(Utf8PathBuf::from("/tmp/license.jwt")),
+            false
+        ));
     }
 }
