@@ -3,7 +3,7 @@ use rover_studio::types::GraphRef;
 use crate::RoverClientError;
 
 /// Reports the `graph { variant { ... } }` two-level lookup.
-///Callers flatten the generated response type's `Option<Option<V>>`
+/// Callers flatten the generated response type's `Option<Option<V>>`
 /// (e.g. `graph.and_then(|g| g.variant)`) before calling this.
 #[allow(dead_code)]
 pub(crate) fn require_variant<V>(

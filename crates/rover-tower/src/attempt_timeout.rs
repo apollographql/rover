@@ -1,7 +1,7 @@
 //! Bounds a single attempt at calling a wrapped [`Service`], independent of
 //! any outer retry/poll budget. Unlike a typical timeout middleware, a timed
 //! out attempt doesn't produce an error; it produces a caller-supplied
-//! fallback response, so it composes underneath a 
+//! fallback response, so it composes underneath a
 //! [`crate::poll_retry::PollRetryPolicy`] as a "not finished yet"
 //! result instead of aborting the operation early.
 use std::time::Duration;
