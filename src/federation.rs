@@ -36,24 +36,24 @@ mod tests {
     use apollo_federation_types::config::FederationVersion;
     use speculoos::prelude::*;
 
-    use super::reject_federation_one;
+    use super::{FederationOneUnsupported, reject_federation_one};
 
     #[test]
     fn reject_federation_one_rejects_latest_fed_one() {
         let result = reject_federation_one(&FederationVersion::LatestFedOne);
-        assert_that!(result).is_err();
+        assert_that!(result).is_equal_to(Err(FederationOneUnsupported));
     }
 
     #[test]
     fn reject_federation_one_rejects_exact_fed_one() {
         let result =
             reject_federation_one(&FederationVersion::ExactFedOne("0.36.0".parse().unwrap()));
-        assert_that!(result).is_err();
+        assert_that!(result).is_equal_to(Err(FederationOneUnsupported));
     }
 
     #[test]
     fn reject_federation_one_allows_fed_two() {
         let result = reject_federation_one(&FederationVersion::LatestFedTwo);
-        assert_that!(result).is_ok();
+        assert_that!(result).is_equal_to(Ok(()));
     }
 }

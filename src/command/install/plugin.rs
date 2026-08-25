@@ -644,8 +644,10 @@ mod tests {
         #[case::latest_0("supergraph@latest-0")]
         #[case::exact("supergraph@=0.36.0")]
         fn federation_one_is_rejected(#[case] input: &str) {
+            use crate::federation::FederationOneUnsupported;
+
             let err = Plugin::from_str(input).unwrap_err();
-            assert_that!(err.to_string()).contains("Federation 1 is no longer supported");
+            assert_that!(err.to_string()).is_equal_to(FederationOneUnsupported.to_string());
         }
     }
 
