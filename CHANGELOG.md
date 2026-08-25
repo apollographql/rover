@@ -50,6 +50,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover init` only checked that a pasted key began with `user:`, so a truncated key was accepted and saved, then failed on the next request. It now checks the whole key, and says which thing is wrong: a key that isn't shaped like a key at all asks you for a valid one, while a graph key gets the guidance for clearing `APOLLO_KEY` and stored profiles. A key pasted with a trailing newline is no longer saved with it. `rover init` also stops reusing an `APOLLO_KEY` that looks like a graph key but is truncated.
 
+- **Report a rejected API key as `E013` instead of an internal error - @SharkBaitDLS part of #1171**
+
+  When the registry turned down an API key, several commands reported it as an internal error carrying no error code at all, while others reported `E013` — so the same key gave different diagnostics depending on which command you ran. `rover graph fetch`, `rover client check`, `rover graph-artifact list-tags`, and remote subgraph fetching during composition now report it the same way as the rest. `rover graph validate-operations` and `rover subgraph fetch-all` continue to report `E033` where a rejection could equally mean your key is valid but lacks permission for that operation. Failures that aren't about your credentials are unaffected.
+
 - **Show successful build and operation check sections in plain-text check output - fixes #1816**
 
   `rover subgraph check` and `rover graph check` now show explicit `Build Check [PASSED]` and `Operation Check [PASSED]` sections even when no schema changes or operation warnings were found. This makes successful check results visible alongside linter and other check sections.
