@@ -158,6 +158,7 @@ impl RunRouter<state::Run> {
         api_key_override: Option<String>,
         log_level: Option<Level>,
         supergraph_output: Option<Utf8PathBuf>,
+        license: Option<Utf8PathBuf>,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -220,6 +221,7 @@ impl RunRouter<state::Run> {
             .env(env.clone())
             .and_log_level(log_level)
             .listen_address(listen_address)
+            .and_license(license)
             .spawn(spawn)
             .build();
 

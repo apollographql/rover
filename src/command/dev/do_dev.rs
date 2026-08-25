@@ -291,6 +291,7 @@ impl Dev {
                 api_key_override,
                 log_level,
                 supergraph_output,
+                self.opts.supergraph_opts.license.clone(),
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages)
