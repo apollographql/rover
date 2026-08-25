@@ -321,6 +321,9 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     None,
                 ),
+                RoverClientError::BulkDeletionJobNotFound { .. } => (None, None),
+                RoverClientError::BulkDeletionJobFailed { .. } => (None, None),
+                RoverClientError::UnknownBulkDeletionJobStatus { .. } => (None, None),
                 RoverClientError::RelayOperationParseFailures { .. } => (None, None),
                 RoverClientError::OfflineLicenseNotEnabled => (
                     Some(RoverErrorSuggestion::ContactApolloAccountManager),
