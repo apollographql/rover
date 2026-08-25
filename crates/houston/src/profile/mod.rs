@@ -7,7 +7,7 @@ use rover_std::Fs;
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, HoustonProblem};
+use crate::{ApiKey, Config, HoustonProblem, MalformedApiKey};
 
 /// Collects configuration related to a profile.
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,6 +40,27 @@ pub struct Credential {
     /// Unix timestamp at which an OAuth access token expires. Always `None`
     /// unless `origin` is [`CredentialOrigin::OauthAuthorizationPkce`].
     pub expires_at: Option<i64>,
+}
+
+impl Credential {
+    /// This credential's API key, parsed, or `None` when it authenticates with an OAuth access
+    /// token instead. An OAuth token has no key shape to speak of, and its format isn't
+    /// something the user can act on.
+    pub fn api_key(&self) -> Option<Result<ApiKey<'_>, MalformedApiKey>> {
+        match self.origin {
+            CredentialOrigin::OauthAuthorizationPkce(_)
+            | CredentialOrigin::OauthClientCredentials => None,
+            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                Some(ApiKey::try_from(self.api_key.as_str()))
+            }
+        }
+    }
+
+    /// Whether this credential is an API key that doesn't match the shape the registry
+    /// documents, and so could not have been accepted whatever else is wrong.
+    pub fn has_malformed_api_key(&self) -> bool {
+        matches!(self.api_key(), Some(Err(MalformedApiKey)))
+    }
 }
 
 /// A profile's stored OAuth session (both tokens), as opposed to
@@ -297,6 +318,39 @@ mod tests {
 
     use super::*;
     use crate::Config;
+
+    fn credential(api_key: &str, origin: CredentialOrigin) -> Credential {
+        Credential {
+            api_key: api_key.to_string(),
+            origin,
+            expires_at: None,
+        }
+    }
+
+    // The shape table lives with the parser in `api_key`; what matters here is which origins
+    // have a key to parse at all, and that the verdict is passed through.
+    #[rstest]
+    #[case::env_var(CredentialOrigin::EnvVar)]
+    #[case::config_file(CredentialOrigin::ConfigFile("default".to_string()))]
+    fn api_key_is_parsed_for_the_origins_that_carry_one(#[case] origin: CredentialOrigin) {
+        let well_formed = credential("user:my-username:secretkey", origin.clone());
+        assert_that!(well_formed.api_key().unwrap().unwrap().id()).is_equal_to("my-username");
+        assert_that!(well_formed.has_malformed_api_key()).is_false();
+
+        let malformed = credential("not-a-real-key", origin);
+        assert_that!(malformed.api_key().unwrap()).is_equal_to(Err(MalformedApiKey));
+        assert_that!(malformed.has_malformed_api_key()).is_true();
+    }
+
+    #[rstest]
+    #[case::authorization_pkce(CredentialOrigin::OauthAuthorizationPkce("default".to_string()))]
+    #[case::client_credentials(CredentialOrigin::OauthClientCredentials)]
+    fn an_oauth_access_token_has_no_api_key_to_parse(#[case] origin: CredentialOrigin) {
+        let credential = credential("an-access-token", origin);
+
+        assert_that!(credential.api_key()).is_none();
+        assert_that!(credential.has_malformed_api_key()).is_false();
+    }
 
     #[fixture]
     fn test_config(#[default(None)] override_api_key: Option<String>) -> (Config, TempDir) {

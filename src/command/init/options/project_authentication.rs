@@ -1,7 +1,7 @@
 use clap::Parser;
 use config::Profile;
 use dialoguer::{Password, theme::ColorfulTheme};
-use houston as config;
+use houston::{self as config, ApiKey, ApiKeyActor, MalformedApiKey};
 use rover_std::{hyperlink, successln};
 use serde::{Deserialize, Serialize};
 
@@ -37,14 +37,26 @@ impl ProjectAuthenticationOpt {
 
         let api_key = match password_result {
             Ok(input) => {
+                // Store what we validated: the key was previously checked trimmed and saved
+                // untrimmed, so a pasted trailing newline reached the request headers.
+                let input = input.trim().to_string();
                 if input.is_empty() {
                     return Err(auth_error_to_rover_error(AuthenticationError::EmptyKey));
                 }
 
-                if !input.trim().starts_with("user:") {
-                    return Err(auth_error_to_rover_error(
-                        AuthenticationError::InvalidKeyFormat,
-                    ));
+                // Parsing tells the two failures apart, which `starts_with` couldn't: a garbled
+                // key needs replacing, while a graph key needs the `APOLLO_KEY` guidance that
+                // `NotUserKey` carries.
+                match ApiKey::try_from(input.as_str()) {
+                    Err(MalformedApiKey) => {
+                        return Err(auth_error_to_rover_error(
+                            AuthenticationError::InvalidKeyFormat,
+                        ));
+                    }
+                    Ok(key) if key.actor() != ApiKeyActor::User => {
+                        return Err(auth_error_to_rover_error(AuthenticationError::NotUserKey));
+                    }
+                    Ok(_) => {}
                 }
 
                 input

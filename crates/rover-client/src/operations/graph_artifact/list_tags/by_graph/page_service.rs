@@ -4,9 +4,7 @@ use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use crate::{
-    operations::graph_artifact::list_tags::types::ListTagEntry, EndpointKind, RoverClientError,
-};
+use crate::{operations::graph_artifact::list_tags::types::ListTagEntry, RoverClientError};
 
 // Required by GraphQLQuery for the custom DateTime scalar.
 type DateTime = String;
@@ -91,10 +89,7 @@ where
                             "no tags found for graph '{graph_id}'; the graph may not exist or has no artifact tags"
                         ),
                     },
-                    other => RoverClientError::Service {
-                        source: Box::new(other),
-                        endpoint_kind: EndpointKind::ApolloStudio,
-                    },
+                    other => RoverClientError::studio_service(other),
                 })?;
 
             let connection = data.graph_artifact_tags;

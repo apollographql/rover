@@ -6,10 +6,18 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
+use rover_http::retry::is_retryable_status;
 
 use crate::error::{EndpointKind, RoverClientError};
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
+
+/// Statuses where Studio is rejecting the credential itself.
+///
+/// `403 Forbidden` is deliberately absent: it means the credential authenticated fine but isn't
+/// permitted to do this, which fixing the key won't solve.
+const CREDENTIAL_REJECTED_STATUSES: [StatusCode; 2] =
+    [StatusCode::UNAUTHORIZED, StatusCode::NOT_ACCEPTABLE];
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
@@ -139,13 +147,17 @@ impl GraphQLClient {
                                 || response_status.is_client_error()
                                 || response_status.is_redirection()
                             {
-                                if matches!(response_status, StatusCode::BAD_REQUEST) {
-                                    if let Ok(text) = success.text().await {
-                                        tracing::debug!("{}", text);
+                                if is_retryable_status(response_status) {
+                                    Err(BackoffError::Transient(status_error))
+                                } else {
+                                    // Deliberately only `400`: a response that rejected our
+                                    // credential is the last place to widen debug logging.
+                                    if matches!(response_status, StatusCode::BAD_REQUEST) {
+                                        if let Ok(text) = success.text().await {
+                                            tracing::debug!("{}", text);
+                                        }
                                     }
                                     Err(BackoffError::Permanent(status_error))
-                                } else {
-                                    Err(BackoffError::Transient(status_error))
                                 }
                             } else {
                                 Err(BackoffError::Permanent(status_error))
@@ -180,9 +192,19 @@ impl GraphQLClient {
         }
         .map_err(|e| match e {
             BackoffError::Permanent(reqwest_error) | BackoffError::Transient(reqwest_error) => {
-                RoverClientError::SendRequest {
-                    source: reqwest_error,
-                    endpoint_kind,
+                // A credential rejected by status never reaches the GraphQL body handler, so
+                // it has to be recognized here too.
+                let credential_rejected = endpoint_kind == EndpointKind::ApolloStudio
+                    && reqwest_error
+                        .status()
+                        .is_some_and(|status| CREDENTIAL_REJECTED_STATUSES.contains(&status));
+                if credential_rejected {
+                    RoverClientError::InvalidKey
+                } else {
+                    RoverClientError::SendRequest {
+                        source: reqwest_error,
+                        endpoint_kind,
+                    }
                 }
             }
         })
@@ -205,7 +227,7 @@ impl GraphQLClient {
         match response.json::<GraphQLResponse<Q::ResponseData>>().await {
             Ok(response_body) => {
                 if let Some(response_body_errors) = response_body.errors {
-                    handle_graphql_body_errors(response_body_errors)?;
+                    handle_graphql_body_errors(response_body_errors, endpoint_kind)?;
                 }
                 match response_status {
                     StatusCode::OK => {
@@ -236,13 +258,28 @@ impl GraphQLClient {
     }
 }
 
-fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClientError> {
+/// Studio's response to any rejected credential. The status is in the message because it never
+/// was a status on the response: Studio answers `200` and puts the status line in the body.
+const REJECTED_CREDENTIAL_MESSAGE: &str = "406: Not Acceptable";
+
+fn handle_graphql_body_errors(
+    errors: Vec<GraphQLError>,
+    endpoint_kind: EndpointKind,
+) -> Result<(), RoverClientError> {
     if errors.is_empty() {
         Ok(())
     } else {
         tracing::debug!("GraphQL response errors: {:?}", errors);
-        if errors[0].message == "406: Not Acceptable" {
-            Err(RoverClientError::MalformedKey)
+        // The message says nothing about _why_ the credential was refused, so `StudioClient`
+        // refines this where it can. Only Studio speaks this protocol: a customer's own
+        // subgraph could return the same message for unrelated reasons.
+        // See https://github.com/apollographql/rover/issues/1171.
+        let credential_rejected = endpoint_kind == EndpointKind::ApolloStudio
+            && errors
+                .iter()
+                .any(|error| error.message == REJECTED_CREDENTIAL_MESSAGE);
+        if credential_rejected {
+            Err(RoverClientError::InvalidKey)
         } else {
             Err(RoverClientError::GraphQl {
                 msg: errors
@@ -279,23 +316,52 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn it_is_ok_on_empty_errors() {
-        let errors = vec![];
-        assert!(handle_graphql_body_errors(errors).is_ok());
-    }
-
-    #[test]
-    fn it_returns_malformed_key() {
-        let errors = vec![GraphQLError {
-            message: "406: Not Acceptable".to_string(),
+    fn rejected_credential_error() -> GraphQLError {
+        GraphQLError {
+            message: REJECTED_CREDENTIAL_MESSAGE.to_string(),
             locations: None,
             extensions: None,
             path: None,
-        }];
-        let expected_error = RoverClientError::MalformedKey.to_string();
-        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
-        assert_eq!(actual_error, expected_error);
+        }
+    }
+
+    #[test]
+    fn it_is_ok_on_empty_errors() {
+        let errors = vec![];
+        assert!(handle_graphql_body_errors(errors, EndpointKind::ApolloStudio).is_ok());
+    }
+
+    #[test]
+    fn it_returns_invalid_key_when_studio_rejects_the_credential() {
+        let error = handle_graphql_body_errors(
+            vec![rejected_credential_error()],
+            EndpointKind::ApolloStudio,
+        )
+        .unwrap_err();
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn it_returns_invalid_key_when_the_rejection_is_not_the_first_error() {
+        let errors = vec![
+            GraphQLError {
+                message: "Something went wrong".to_string(),
+                locations: None,
+                extensions: None,
+                path: None,
+            },
+            rejected_credential_error(),
+        ];
+        let error = handle_graphql_body_errors(errors, EndpointKind::ApolloStudio).unwrap_err();
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn it_does_not_blame_the_api_key_for_non_studio_endpoints() {
+        let error =
+            handle_graphql_body_errors(vec![rejected_credential_error()], EndpointKind::Customer)
+                .unwrap_err();
+        assert!(matches!(error, RoverClientError::GraphQl { .. }));
     }
 
     #[test]
@@ -318,7 +384,9 @@ mod tests {
             msg: format!("{}\n{}", errors[0].message, errors[1].message),
         }
         .to_string();
-        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
+        let actual_error = handle_graphql_body_errors(errors, EndpointKind::ApolloStudio)
+            .unwrap_err()
+            .to_string();
         assert_eq!(actual_error, expected_error);
     }
 
@@ -405,10 +473,73 @@ mod tests {
 
         let mock_hits = not_found_mock.calls();
 
-        assert!(mock_hits > 1);
+        // A missing endpoint won't appear on a second attempt either.
+        assert_eq!(mock_hits, 1);
 
         let error = response.expect_err("Response didn't error");
         assert!(error.to_string().contains("Not Found"));
+    }
+
+    async fn execute_against_status(
+        status: u16,
+        endpoint_kind: EndpointKind,
+    ) -> (usize, RoverClientError) {
+        let server = MockServer::start();
+        let path = "/who-does-number-two-work-for";
+        let mock = server.mock(|when, then| {
+            when.method(POST).path(path);
+            then.status(status).body("no");
+        });
+
+        let graphql_client = GraphQLClient::new(
+            &server.url(path),
+            ReqwestClient::new(),
+            Duration::from_secs(3),
+        );
+        let response = graphql_client
+            .execute("{}".to_string(), &HeaderMap::new(), true, endpoint_kind)
+            .await;
+
+        (mock.calls(), response.expect_err("Response didn't error"))
+    }
+
+    #[tokio::test]
+    async fn an_unauthorized_response_is_not_retried_and_blames_the_key() {
+        let (calls, error) = execute_against_status(401, EndpointKind::ApolloStudio).await;
+
+        assert_eq!(calls, 1);
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    // The status Studio uses today, per #1171.
+    #[tokio::test]
+    async fn a_not_acceptable_response_is_not_retried_and_blames_the_key() {
+        let (calls, error) = execute_against_status(406, EndpointKind::ApolloStudio).await;
+
+        assert_eq!(calls, 1);
+        assert!(matches!(error, RoverClientError::InvalidKey));
+    }
+
+    #[tokio::test]
+    async fn a_forbidden_response_is_not_retried_and_does_not_blame_the_key() {
+        let (calls, error) = execute_against_status(403, EndpointKind::ApolloStudio).await;
+
+        assert_eq!(calls, 1);
+        assert!(matches!(error, RoverClientError::SendRequest { .. }));
+    }
+
+    #[tokio::test]
+    async fn a_non_studio_endpoint_never_blames_the_api_key() {
+        let (_, error) = execute_against_status(401, EndpointKind::Customer).await;
+
+        assert!(matches!(error, RoverClientError::SendRequest { .. }));
+    }
+
+    #[tokio::test]
+    async fn a_rate_limited_request_is_still_retried() {
+        let (calls, _) = execute_against_status(429, EndpointKind::ApolloStudio).await;
+
+        assert!(calls > 1);
     }
 
     #[tokio::test]

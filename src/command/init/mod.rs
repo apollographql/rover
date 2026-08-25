@@ -25,6 +25,7 @@ pub mod transitions;
 use std::path::PathBuf;
 
 use clap::Parser;
+use houston::{ApiKey, ApiKeyActor};
 #[cfg(feature = "composition-js")]
 use rover_client::RoverClientError;
 #[cfg(feature = "composition-js")]
@@ -854,7 +855,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         // Get or create Apollo service key
         // First check if APOLLO_KEY is already set in environment
         let apollo_key = if let Ok(key) = std::env::var("APOLLO_KEY") {
-            if key.starts_with("service:") {
+            let is_graph_key = matches!(
+                ApiKey::try_from(key.as_str()),
+                Ok(parsed) if parsed.actor() == ApiKeyActor::Graph
+            );
+            if is_graph_key {
                 println!(
                     "{}",
                     Style::Success.paint("✓ Using existing APOLLO_KEY from environment")

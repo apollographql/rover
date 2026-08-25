@@ -52,7 +52,10 @@ impl RetryPolicy {
 }
 
 /// Whether a response with the given status code is worth retrying.
-fn is_retryable_status(status: StatusCode) -> bool {
+///
+/// The legacy blocking client in `rover-client` defers to this too, so the two request paths
+/// can't drift apart on which failures are worth a second attempt.
+pub fn is_retryable_status(status: StatusCode) -> bool {
     status.is_server_error()
         || matches!(
             status,
