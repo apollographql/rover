@@ -15,6 +15,8 @@ pub(crate) static DEFAULT_REVOCATION_URL: LazyLock<Url> =
     LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/revoke"));
 pub(crate) static DEFAULT_WHOAMI_URL: LazyLock<Url> =
     LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/userinfo"));
+pub(crate) static DEFAULT_DEVICE_AUTHORIZATION_URL: LazyLock<Url> =
+    LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/device/authorize"));
 
 // Static client ID registered for `rover auth login` against the production
 // Identity server, via `cargo xtask register-oauth-client --env prod`
@@ -67,4 +69,13 @@ pub struct OauthOpts {
         default_value = DEFAULT_REVOCATION_URL.as_str()
     )]
     pub(crate) revocation_url: Url,
+
+    /// Override the OAuth device authorization endpoint `rover auth login
+    /// --no-browser` uses.
+    #[arg(
+        long = "oauth-device-authorization-url",
+        global = true,
+        default_value = DEFAULT_DEVICE_AUTHORIZATION_URL.as_str()
+    )]
+    pub(crate) device_authorization_url: Url,
 }

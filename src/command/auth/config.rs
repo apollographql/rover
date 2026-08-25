@@ -1,8 +1,8 @@
 use url::Url;
 
 use crate::options::{
-    DEFAULT_AUTHORIZATION_URL, DEFAULT_CLIENT_ID, DEFAULT_REVOCATION_URL, DEFAULT_TOKEN_URL,
-    DEFAULT_WHOAMI_URL,
+    DEFAULT_AUTHORIZATION_URL, DEFAULT_CLIENT_ID, DEFAULT_DEVICE_AUTHORIZATION_URL,
+    DEFAULT_REVOCATION_URL, DEFAULT_TOKEN_URL, DEFAULT_WHOAMI_URL,
 };
 
 /// The OAuth server endpoints (and client ID) `rover auth login`/`rover auth
@@ -17,6 +17,7 @@ pub struct OauthConfig {
     pub(crate) token_url: Url,
     pub(crate) revocation_url: Url,
     pub(crate) whoami_url: Url,
+    pub(crate) device_authorization_url: Url,
     pub(crate) client_id: String,
 }
 
@@ -30,6 +31,7 @@ impl OauthConfig {
         token_url: Option<Url>,
         revocation_url: Option<Url>,
         whoami_url: Option<Url>,
+        device_authorization_url: Option<Url>,
         client_id: Option<String>,
     ) -> OauthConfig {
         OauthConfig {
@@ -38,6 +40,8 @@ impl OauthConfig {
             token_url: token_url.unwrap_or_else(|| DEFAULT_TOKEN_URL.clone()),
             revocation_url: revocation_url.unwrap_or_else(|| DEFAULT_REVOCATION_URL.clone()),
             whoami_url: whoami_url.unwrap_or_else(|| DEFAULT_WHOAMI_URL.clone()),
+            device_authorization_url: device_authorization_url
+                .unwrap_or_else(|| DEFAULT_DEVICE_AUTHORIZATION_URL.clone()),
             client_id: client_id.unwrap_or_else(|| DEFAULT_CLIENT_ID.to_string()),
         }
     }
@@ -90,6 +94,14 @@ mod tests {
     }
 
     #[test]
+    fn oauth_config_defaults_to_the_apollo_production_device_authorization_url() {
+        let config = OauthConfig::default();
+
+        assert_that!(config.device_authorization_url.as_str())
+            .is_equal_to("https://auth.apollographql.com/oauth2/device/authorize");
+    }
+
+    #[test]
     fn oauth_config_defaults_to_the_registered_static_client_id() {
         let config = OauthConfig::default();
 
@@ -115,6 +127,18 @@ mod tests {
 
         assert_that!(config.revocation_url.as_str())
             .is_equal_to("https://custom.example.com/revoke");
+    }
+
+    #[test]
+    fn oauth_config_honors_a_device_authorization_url_override() {
+        let config = OauthConfig::builder()
+            .device_authorization_url(
+                Url::parse("https://custom.example.com/device/authorize").unwrap(),
+            )
+            .build();
+
+        assert_that!(config.device_authorization_url.as_str())
+            .is_equal_to("https://custom.example.com/device/authorize");
     }
 
     #[test]

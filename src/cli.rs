@@ -313,6 +313,7 @@ impl Rover {
             .token_url(self.oauth_opts.token_url.clone())
             .revocation_url(self.oauth_opts.revocation_url.clone())
             .whoami_url(self.oauth_opts.whoami_url.clone())
+            .device_authorization_url(self.oauth_opts.device_authorization_url.clone())
             .client_id(self.oauth_opts.client_id.clone())
             .build()
     }

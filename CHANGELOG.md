@@ -28,6 +28,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Add `--no-browser` to `rover auth login`, gated behind the experimental `oauth` feature flag - @dotdat**
+
+  `rover auth login --no-browser` uses the OAuth 2.0 Device Authorization Grant (RFC 8628) instead of the local browser/redirect-server flow: it prints a verification URL and code to enter from any device, then polls until you approve the request, for headless or browser-less environments. Ignores `--no-open`, since there's no local browser step to skip. The device authorization endpoint can be overridden with `--oauth-device-authorization-url`, matching the other OAuth endpoint overrides.
+
 - **Add `rover auth logout`, gated behind the experimental `oauth` feature flag - @dotdat**
 
   `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.
@@ -37,6 +41,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Surface the underlying GraphQL errors when a response has no `data` field - @sirdodger**
 
   Requests that returned GraphQL errors alongside a null/missing `data` field previously showed a generic message instead of the actual error text. `GraphQLServiceError::NoData` now maps to the underlying errors (joined by newline) when there are any, falling back to the generic "No data field provided" message only when the response truly carried no errors either.
+
+- **Restore the `--license` flag on `rover dev` - @SharkBaitDLS**
+
+  `rover dev --license <path>` let you start a local router session with an [offline enterprise license](https://www.apollographql.com/docs/router/enterprise-features/#offline-enterprise-license), no GraphOS credentials or network calls required. The flag survived a `rover dev` internals rewrite, and kept appearing in `--help` and linking to real router docs, but the code that actually read it was deleted along the way — passing `--license` silently did nothing. It's wired back up now, forwarded to the router the same way it always was, independent of whatever `--graph-ref`/`APOLLO_KEY` credentials are also resolved.
 
 - **Fail immediately on errors that a retry can't fix - @SharkBaitDLS**
 

@@ -161,6 +161,29 @@ pub struct RunRouterBinary<Spawn: Send> {
     log_level: Option<Level>,
     env: HashMap<String, String>,
     listen_address: RouterAddress,
+    license: Option<Utf8PathBuf>,
+}
+
+impl<Spawn: Send> RunRouterBinary<Spawn> {
+    fn args(&self) -> Vec<String> {
+        let mut args = vec![
+            "--supergraph".to_string(),
+            self.supergraph_schema_path.to_string(),
+            "--hot-reload".to_string(),
+            "--config".to_string(),
+            self.config_path.to_string(),
+            "--log".to_string(),
+            self.log_level.unwrap_or(Level::INFO).to_string(),
+            "--dev".to_string(),
+            "--listen".to_string(),
+            self.listen_address.to_string(),
+        ];
+        if let Some(license) = &self.license {
+            args.push("--license".to_string());
+            args.push(license.to_string());
+        }
+        args
+    }
 }
 
 impl<Spawn> SubtaskHandleUnit for RunRouterBinary<Spawn>
@@ -178,18 +201,7 @@ where
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
         tokio::task::spawn(async move {
-            let args = vec![
-                "--supergraph".to_string(),
-                self.supergraph_schema_path.to_string(),
-                "--hot-reload".to_string(),
-                "--config".to_string(),
-                self.config_path.to_string(),
-                "--log".to_string(),
-                self.log_level.unwrap_or(Level::INFO).to_string(),
-                "--dev".to_string(),
-                "--listen".to_string(),
-                self.listen_address.to_string(),
-            ];
+            let args = self.args();
 
             let child = spawn
                 .ready()
@@ -298,5 +310,58 @@ where
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, net::IpAddr};
+
+    use camino::Utf8PathBuf;
+    use semver::Version;
+
+    use super::*;
+    use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
+
+    struct MockSpawn;
+
+    fn test_binary() -> RunRouterBinary<MockSpawn> {
+        let router_address = RouterAddress::new(
+            Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
+                127, 0, 0, 1,
+            )))),
+            Some(RouterPort::Default(4000)),
+        );
+        RunRouterBinary::<MockSpawn>::builder()
+            .router_binary(RouterBinary::new(
+                Utf8PathBuf::from("/fake/path"),
+                Version::parse("1.0.0").unwrap(),
+            ))
+            .config_path(Utf8PathBuf::from("/fake/config.yaml"))
+            .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
+            .spawn(MockSpawn)
+            .listen_address(router_address)
+            .env(HashMap::new())
+            .build()
+    }
+
+    #[test]
+    fn args_omit_license_when_not_set() {
+        let binary = test_binary();
+        assert!(!binary.args().contains(&"--license".to_string()));
+    }
+
+    #[test]
+    fn args_include_license_when_set() {
+        let binary = RunRouterBinary {
+            license: Some(Utf8PathBuf::from("/fake/license.jwt")),
+            ..test_binary()
+        };
+        let args = binary.args();
+        let license_flag_index = args
+            .iter()
+            .position(|arg| arg == "--license")
+            .expect("--license flag should be present");
+        assert_eq!(args[license_flag_index + 1], "/fake/license.jwt");
     }
 }
