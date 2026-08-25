@@ -11,7 +11,8 @@ pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs
 /// supports composing, installing, or building against Federation 1 in any form.
 ///
 /// This is shared verbatim between every entry point that can produce a `FederationVersion`
-/// (composition, `rover install --plugin`), so the rejection message stays consistent.
+/// (composition, `rover install --plugin`, `rover init`), so the rejection message stays
+/// consistent.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 #[error(
     "Federation 1 is no longer supported by Rover. Migrate your subgraphs to Federation 2 by adding `@link` directives ({FEDERATION_2_MIGRATION_URL}), then remove any Federation 1 pin from your configuration."

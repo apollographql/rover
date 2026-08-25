@@ -178,7 +178,7 @@ mod tests {
     #[case("=2.0", BuildPipelineTrack::FED_2_0)]
     #[case("v2.11", BuildPipelineTrack::FED_2_11)]
     #[case("=2.11", BuildPipelineTrack::FED_2_11)]
-    fn test_map_federation_version_to_build_pipeline_track_with_prefixes(
+    fn test_map_federation_version_to_build_pipeline_track_valid_versions(
         #[case] input: &str,
         #[case] expectation: BuildPipelineTrack,
     ) {
@@ -205,10 +205,6 @@ mod tests {
         #[case] version: &str,
     ) {
         let err = map_federation_version_to_build_pipeline_track(version).unwrap_err();
-        assert_that!(matches!(
-            err,
-            GraphOperationError::FederationOneUnsupported(_)
-        ))
-        .is_true();
+        assert_that!(err.to_string()).is_equal_to(FederationOneUnsupported.to_string());
     }
 }
