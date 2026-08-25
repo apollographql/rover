@@ -2,7 +2,6 @@ use std::pin::Pin;
 
 use futures::Future;
 
-pub mod attempt_timeout;
 pub mod poll_retry;
 pub mod retry;
 pub mod service;
