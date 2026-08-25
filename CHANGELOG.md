@@ -38,6 +38,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Restore the `--license` flag on `rover dev` - @SharkBaitDLS**
+
+  `rover dev --license <path>` let you start a local router session with an [offline enterprise license](https://www.apollographql.com/docs/router/enterprise-features/#offline-enterprise-license), no GraphOS credentials or network calls required. The flag survived a `rover dev` internals rewrite, and kept appearing in `--help` and linking to real router docs, but the code that actually read it was deleted along the way — passing `--license` silently did nothing. It's wired back up now, forwarded to the router the same way it always was, independent of whatever `--graph-ref`/`APOLLO_KEY` credentials are also resolved.
+
 - **Fail immediately on errors that a retry can't fix - @SharkBaitDLS**
 
   A rejected API key, a permissions failure, or a bad endpoint URL used to be retried repeatedly for the full `--client-timeout` (30 seconds by default) before Rover said anything, so a mistyped key or URL took the better part of a minute to report. These now fail as soon as the answer comes back. Rate limits and server errors are still retried, since those do clear up on their own.
