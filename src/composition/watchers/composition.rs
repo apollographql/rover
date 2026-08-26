@@ -342,6 +342,7 @@ mod tests {
         StreamExt,
         stream::{BoxStream, once},
     };
+    use houston::Config;
     use mockall::predicate;
     use rstest::rstest;
     use semver::Version;
@@ -352,7 +353,7 @@ mod tests {
     use super::{CompositionInputEvent, CompositionWatcher};
     use crate::{
         composition::{
-            CompositionSubgraphAdded,
+            CompositionError, CompositionSubgraphAdded, FederationUpdaterConfig,
             events::CompositionEvent,
             supergraph::{
                 binary::SupergraphBinary, config::full::FullyResolvedSupergraphConfig,
@@ -364,9 +365,11 @@ mod tests {
                 subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
             },
         },
+        options::LicenseAccepter,
         subtask::{Subtask, SubtaskRunStream},
-        utils::effect::{
-            exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
+        utils::{
+            client::{ClientBuilder, ClientTimeout, StudioClientConfig},
+            effect::{exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile},
         },
     };
 
@@ -585,6 +588,82 @@ mod tests {
         assert_that!(started).is_equal_to(1);
         assert_that!(success).is_equal_to(1);
         assert_that!(error).is_equal_to(0);
+
+        cancellation_token.cancel();
+        Ok(())
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn test_runcomposition_rejects_federation_one_change() -> Result<()> {
+        use crate::composition::watchers::composition::CompositionInputEvent::Federation;
+
+        let temp_dir = assert_fs::TempDir::new()?;
+        let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
+
+        let federation_version = Version::from_str("2.8.0").unwrap();
+        let subgraphs = FullyResolvedSupergraphConfig::builder()
+            .subgraphs(BTreeMap::new())
+            .federation_version(FederationVersion::ExactFedTwo(federation_version.clone()))
+            .build();
+        let supergraph_version = SupergraphVersion::new(federation_version.clone());
+        let supergraph_binary = SupergraphBinary::builder()
+            .version(supergraph_version)
+            .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .build();
+
+        // `reject_federation_one` must short-circuit before any of this is reached.
+        let mut mock_exec = MockExecCommand::new();
+        mock_exec.expect_exec_command().times(0);
+
+        let mut mock_write_file = MockWriteFile::new();
+        mock_write_file.expect_write_file().times(0);
+
+        let studio_client_config = StudioClientConfig::new(
+            None,
+            Config {
+                home: Utf8PathBuf::from_path_buf(assert_fs::TempDir::new()?.to_path_buf()).unwrap(),
+                override_api_key: None,
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::default(),
+        );
+        let federation_updater_config = FederationUpdaterConfig {
+            studio_client_config,
+            elv2_licence_accepter: LicenseAccepter {
+                elv2_license_accepted: Some(true),
+            },
+            skip_update: false,
+        };
+
+        let composition_handler = CompositionWatcher::builder()
+            .initial_supergraph_config(subgraphs)
+            .supergraph_binary(Ok(supergraph_binary))
+            .exec_command(mock_exec)
+            .write_file(mock_write_file)
+            .temp_dir(temp_dir_path)
+            .compose_on_initialisation(false)
+            .federation_updater_config(federation_updater_config)
+            .build();
+
+        let federation_version_change_event: BoxStream<CompositionInputEvent> =
+            once(async { Federation(FederationVersion::LatestFedOne) }).boxed();
+        let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
+        let cancellation_token = CancellationToken::new();
+        composition_subtask.run(
+            federation_version_change_event,
+            Some(cancellation_token.clone()),
+        );
+
+        let next_message = composition_messages.next().await;
+        assert_that!(next_message).is_some().matches(|event| {
+            matches!(
+                event,
+                CompositionEvent::Error(CompositionError::FederationOneUnsupported(_))
+            )
+        });
 
         cancellation_token.cancel();
         Ok(())
