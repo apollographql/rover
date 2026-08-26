@@ -268,6 +268,22 @@ pub async fn poll(
         })
 }
 
+/// Builds the default `Service` for running a full compose-and-filter
+/// preview (start, then poll until finished), layered over `client`'s
+/// Studio GraphQL service.
+pub fn compose_and_filter_preview_run_service(
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> impl Service<
+    ComposeAndFilterPreviewInput,
+    Response = PreviewJobResponse,
+    Error = RoverClientError,
+> + '_ {
+    tower::service_fn(move |input: ComposeAndFilterPreviewInput| {
+        run(input, client, checks_timeout_seconds)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
