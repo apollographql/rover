@@ -16,9 +16,17 @@ pub trait PollOutcome {
     fn is_finished(&self) -> bool;
 }
 
-impl PollOutcome for bool {
+/// A [`PollOutcome`] for status checks that don't distinguish between more
+/// than "done" and "not done yet".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimplePollOutcome {
+    Complete,
+    Incomplete,
+}
+
+impl PollOutcome for SimplePollOutcome {
     fn is_finished(&self) -> bool {
-        *self
+        matches!(self, Self::Complete)
     }
 }
 
@@ -90,18 +98,20 @@ mod tests {
     #[tokio::test]
     async fn retry_returns_none_when_finished() {
         let mut policy = policy();
-        let mut result: Result<bool, TestError> = Ok(true);
+        let mut result: Result<SimplePollOutcome, TestError> = Ok(SimplePollOutcome::Complete);
 
         let decision = policy.retry(&mut (), &mut result);
 
         assert_that!(decision).is_none();
-        assert_that!(result).is_ok().is_equal_to(true);
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(SimplePollOutcome::Complete);
     }
 
     #[tokio::test]
     async fn retry_returns_none_on_error_without_retrying() {
         let mut policy = policy();
-        let mut result: Result<bool, TestError> = Err(TestError("boom"));
+        let mut result: Result<SimplePollOutcome, TestError> = Err(TestError("boom"));
 
         let decision = policy.retry(&mut (), &mut result);
 
@@ -112,20 +122,22 @@ mod tests {
     #[tokio::test]
     async fn retry_schedules_another_attempt_when_not_finished_and_time_remains() {
         let mut policy = policy();
-        let mut result: Result<bool, TestError> = Ok(false);
+        let mut result: Result<SimplePollOutcome, TestError> = Ok(SimplePollOutcome::Incomplete);
 
         let decision = policy.retry(&mut (), &mut result);
 
         assert_that!(decision).is_some();
         // Untouched while there's still time on the clock.
-        assert_that!(result).is_ok().is_equal_to(false);
+        assert_that!(result)
+            .is_ok()
+            .is_equal_to(SimplePollOutcome::Incomplete);
     }
 
     #[tokio::test(start_paused = true)]
     async fn retry_rewrites_the_result_to_a_timeout_error_once_the_deadline_passes() {
         let mut policy = policy();
         tokio::time::advance(Duration::from_secs(31)).await;
-        let mut result: Result<bool, TestError> = Ok(false);
+        let mut result: Result<SimplePollOutcome, TestError> = Ok(SimplePollOutcome::Incomplete);
 
         let decision = policy.retry(&mut (), &mut result);
 
@@ -140,7 +152,8 @@ mod tests {
         let mut policy = policy();
         let req = "build-123".to_string();
 
-        let cloned = Policy::<String, bool, TestError>::clone_request(&mut policy, &req);
+        let cloned =
+            Policy::<String, SimplePollOutcome, TestError>::clone_request(&mut policy, &req);
 
         assert_that!(cloned).is_some().is_equal_to(req);
     }
