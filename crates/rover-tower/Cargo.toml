@@ -13,5 +13,6 @@ test = ["mockall", "pastey"]
 futures = { workspace = true }
 mockall = { workspace = true, optional = true }
 pastey = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["time"] }
 tower = { workspace = true }
 
