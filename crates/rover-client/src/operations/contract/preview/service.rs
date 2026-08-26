@@ -2,6 +2,7 @@ use std::{future::Future, pin::Pin};
 
 use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use rover_tower::poll_retry::SimplePollOutcome;
 use tower::Service;
 
 use crate::{
@@ -128,7 +129,7 @@ where
         + 'static,
     Fut: Future<Output = Result<S::Response, S::Error>> + Send,
 {
-    type Response = bool;
+    type Response = SimplePollOutcome;
     type Error = RoverClientError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -161,7 +162,11 @@ where
 
             use contract_preview_status_query::ContractPreviewStatusQueryGraphVariantContractPreviewStatus as Status;
 
-            Ok(!matches!(status, Status::ContractPreviewAsyncPending))
+            Ok(if matches!(status, Status::ContractPreviewAsyncPending) {
+                SimplePollOutcome::Incomplete
+            } else {
+                SimplePollOutcome::Complete
+            })
         };
         Box::pin(fut)
     }
