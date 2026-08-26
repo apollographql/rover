@@ -11,22 +11,22 @@ use std::time::Duration;
 use tokio::time::{Instant, Sleep};
 use tower::retry::Policy;
 
-/// Implemented by a poll status response to stop polling.
-pub trait PollOutcome {
-    fn is_finished(&self) -> bool;
-}
-
-/// A [`PollOutcome`] for status checks that don't distinguish between more
-/// than "done" and "not done yet".
+/// Whether a poll status response indicates the operation is done, or should
+/// be polled again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimplePollOutcome {
     Complete,
     Incomplete,
 }
 
+/// Implemented by a poll status response to stop polling.
+pub trait PollOutcome {
+    fn poll_outcome(&self) -> SimplePollOutcome;
+}
+
 impl PollOutcome for SimplePollOutcome {
-    fn is_finished(&self) -> bool {
-        matches!(self, Self::Complete)
+    fn poll_outcome(&self) -> SimplePollOutcome {
+        *self
     }
 }
 
@@ -60,7 +60,7 @@ where
 
     fn retry(&mut self, _req: &mut Req, result: &mut Result<Res, E>) -> Option<Self::Future> {
         match result {
-            Ok(response) if response.is_finished() => None,
+            Ok(response) if response.poll_outcome() == SimplePollOutcome::Complete => None,
             Err(_) => None,
             Ok(_not_finished) => {
                 if Instant::now() >= self.deadline {
