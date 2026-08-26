@@ -72,7 +72,9 @@ mod tests {
     }
 
     #[rstest]
-    // All subgraphs are fed one, no version has been specified, so we default to LatestFedOne
+    // All subgraphs are fed one, but no version has been specified by the user, so we still
+    // default to LatestFedTwo -- Rover never infers Federation 1 from subgraph SDL; only an
+    // explicit user-specified version selects it.
     #[case(
         sdl_subgraph_scenario(
             sdl(),
