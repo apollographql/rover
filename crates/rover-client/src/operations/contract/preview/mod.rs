@@ -1,14 +1,95 @@
 mod service;
-mod types;
 
 use std::time::Duration;
 
+use graphql_client::GraphQLQuery;
+use rover_studio::types::GraphRef;
 use rover_tower::poll_retry::PollRetryPolicy;
 pub use service::{ContractPreviewResult, ContractPreviewStart};
 use tower::{Service, ServiceBuilder, ServiceExt};
-pub use types::*;
 
+pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse};
 use crate::{blocking::StudioClient, RoverClientError};
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/contract/preview/preview_async_mutation.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ContractPreviewAsyncMutation;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/contract/preview/contract_preview_result_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ContractPreviewResultQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/contract/preview/contract_preview_status_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ContractPreviewStatusQuery;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct ContractPreviewInput {
+    pub graph_ref: GraphRef,
+    pub filter_config: ContractFilterConfig,
+}
+
+impl From<ContractPreviewInput> for contract_preview_async_mutation::Variables {
+    fn from(input: ContractPreviewInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            filters: contract_preview_async_mutation::FilterConfigInput {
+                include: input.filter_config.include,
+                exclude: input.filter_config.exclude,
+                hide_unreachable_types: input.filter_config.hide_unreachable_types,
+            },
+        }
+    }
+}
+
+/// Input to poll (or fetch the full result of) a build started by
+/// `contractPreviewAsync`. `contractPreviewStatus` is a field on
+/// `GraphVariant`, so checking status needs the same `graph_ref` used to
+/// start the build.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct ContractPreviewStatusInput {
+    pub graph_ref: GraphRef,
+    pub build_id: String,
+}
+
+impl From<ContractPreviewStatusInput> for contract_preview_result_query::Variables {
+    fn from(input: ContractPreviewStatusInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            build_id: input.build_id,
+        }
+    }
+}
+
+impl From<ContractPreviewStatusInput> for contract_preview_status_query::Variables {
+    fn from(input: ContractPreviewStatusInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            build_id: input.build_id,
+        }
+    }
+}
 
 /// Start an async contract preview job, returning its (pending) status
 /// immediately.
@@ -131,13 +212,6 @@ mod tests {
         }
     }
 
-    fn test_status_input(build_id: &str) -> ContractPreviewStatusInput {
-        ContractPreviewStatusInput {
-            graph_ref: "test-graph@test-variant".parse().unwrap(),
-            build_id: build_id.to_string(),
-        }
-    }
-
     #[tokio::test]
     async fn start_returns_a_pending_response_carrying_the_build_id() {
         let server = MockServer::start_async().await;
@@ -158,126 +232,6 @@ mod tests {
         assert_eq!(response.build_id, "build-123");
         assert_eq!(response.status, AsyncBuildStatus::Pending);
         assert_eq!(response.graph_ref.to_string(), "test-graph@test-variant");
-    }
-
-    #[tokio::test]
-    async fn result_maps_pending_running() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ContractPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "contractPreviewStatus": {
-                        "__typename": "ContractPreviewAsyncPending",
-                        "buildID": "build-123",
-                        "status": "RUNNING"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
-    }
-
-    #[tokio::test]
-    async fn result_maps_unrecognized_pending_substatus_to_running() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ContractPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "contractPreviewStatus": {
-                        "__typename": "ContractPreviewAsyncPending",
-                        "buildID": "build-123",
-                        "status": "SOME_FUTURE_SUBSTATUS"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
-    }
-
-    #[tokio::test]
-    async fn result_maps_success() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ContractPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "contractPreviewStatus": {
-                        "__typename": "ContractPreviewSuccess",
-                        "apiDocument": "type Query { filtered: String }",
-                        "coreDocument": "filtered supergraph"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Success);
-        assert_eq!(
-            response.api_schema,
-            Some("type Query { filtered: String }".to_string())
-        );
-        assert_eq!(
-            response.supergraph_schema,
-            Some("filtered supergraph".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn result_maps_failure() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ContractPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "contractPreviewStatus": {
-                        "__typename": "ContractPreviewErrors",
-                        "errors": ["unknown tag 'internal'"],
-                        "failedAt": "TO_FILTER_SCHEMA"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::FilterFailed);
-        assert_eq!(response.api_schema, None);
-        assert_eq!(response.errors, vec!["unknown tag 'internal'".to_string()]);
     }
 
     #[tokio::test]

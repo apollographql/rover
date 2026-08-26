@@ -1,42 +1,19 @@
 use std::{future::Future, pin::Pin};
 
-use graphql_client::GraphQLQuery;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::poll_retry::SimplePollOutcome;
 use tower::Service;
 
 use crate::{
-    operations::contract::preview::types::{ContractPreviewInput, ContractPreviewStatusInput},
-    shared::{preview_poll::require_variant, AsyncBuildStatus, PreviewJobResponse},
+    operations::contract::preview::{
+        contract_preview_async_mutation, contract_preview_result_query,
+        contract_preview_status_query, AsyncBuildStatus, ContractPreviewAsyncMutation,
+        ContractPreviewInput, ContractPreviewResultQuery, ContractPreviewStatusInput,
+        ContractPreviewStatusQuery, PreviewJobResponse,
+    },
+    shared::preview_poll::require_variant,
     RoverClientError,
 };
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/contract/preview/preview_async_mutation.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-pub(crate) struct ContractPreviewAsyncMutation;
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/contract/preview/contract_preview_result_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-pub(crate) struct ContractPreviewResultQuery;
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/contract/preview/contract_preview_status_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-pub(crate) struct ContractPreviewStatusQuery;
 
 /// A [`Service`] that starts an async contract preview build, layered over
 /// the studio GraphQL service.
@@ -281,5 +258,148 @@ fn map_status_response(
             supergraph_schema: None,
             errors: failure.errors,
         },
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+
+    use super::{contract_preview_result_query, ContractPreviewResultQuery};
+
+    pub type ContractPreviewResultReq = GraphQLRequest<ContractPreviewResultQuery>;
+    pub type ContractPreviewResultResp = contract_preview_result_query::ResponseData;
+    pub type ContractPreviewResultErr =
+        GraphQLServiceError<contract_preview_result_query::ResponseData>;
+
+    rover_tower::mock_service!(
+        ContractPreviewResult,
+        ContractPreviewResultReq,
+        ContractPreviewResultResp,
+        ContractPreviewResultErr
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use futures::future;
+    use rover_studio::types::GraphRef;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    use super::{mock::MockContractPreviewResultService, *};
+
+    fn test_status_input(build_id: &str) -> ContractPreviewStatusInput {
+        ContractPreviewStatusInput {
+            graph_ref: GraphRef::new("test-graph", Some("test-variant")).unwrap(),
+            build_id: build_id.to_string(),
+        }
+    }
+
+    fn mock_returning(
+        data: contract_preview_result_query::ResponseData,
+    ) -> ContractPreviewResult<MockCloneService<MockContractPreviewResultService>> {
+        let mut mock = MockContractPreviewResultService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .return_once(move |_| future::ready(Ok(data)));
+        ContractPreviewResult::new(MockCloneService::new(mock))
+    }
+
+    #[tokio::test]
+    async fn result_maps_pending_running() {
+        let data = serde_json::from_value(json!({
+            "graph": { "variant": {
+                "contractPreviewStatus": {
+                    "__typename": "ContractPreviewAsyncPending",
+                    "buildID": "build-123",
+                    "status": "RUNNING"
+                }
+            } }
+        }))
+        .unwrap();
+
+        let response = mock_returning(data)
+            .oneshot(test_status_input("build-123"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status, AsyncBuildStatus::Running);
+        assert_eq!(response.build_id, "build-123");
+    }
+
+    #[tokio::test]
+    async fn result_maps_unrecognized_pending_substatus_to_running() {
+        let data = serde_json::from_value(json!({
+            "graph": { "variant": {
+                "contractPreviewStatus": {
+                    "__typename": "ContractPreviewAsyncPending",
+                    "buildID": "build-123",
+                    "status": "SOME_FUTURE_SUBSTATUS"
+                }
+            } }
+        }))
+        .unwrap();
+
+        let response = mock_returning(data)
+            .oneshot(test_status_input("build-123"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status, AsyncBuildStatus::Running);
+        assert_eq!(response.build_id, "build-123");
+    }
+
+    #[tokio::test]
+    async fn result_maps_success() {
+        let data = serde_json::from_value(json!({
+            "graph": { "variant": {
+                "contractPreviewStatus": {
+                    "__typename": "ContractPreviewSuccess",
+                    "apiDocument": "type Query { filtered: String }",
+                    "coreDocument": "filtered supergraph"
+                }
+            } }
+        }))
+        .unwrap();
+
+        let response = mock_returning(data)
+            .oneshot(test_status_input("build-123"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status, AsyncBuildStatus::Success);
+        assert_eq!(
+            response.api_schema,
+            Some("type Query { filtered: String }".to_string())
+        );
+        assert_eq!(
+            response.supergraph_schema,
+            Some("filtered supergraph".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn result_maps_failure() {
+        let data = serde_json::from_value(json!({
+            "graph": { "variant": {
+                "contractPreviewStatus": {
+                    "__typename": "ContractPreviewErrors",
+                    "errors": ["unknown tag 'internal'"],
+                    "failedAt": "TO_FILTER_SCHEMA"
+                }
+            } }
+        }))
+        .unwrap();
+
+        let response = mock_returning(data)
+            .oneshot(test_status_input("build-123"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status, AsyncBuildStatus::FilterFailed);
+        assert_eq!(response.api_schema, None);
+        assert_eq!(response.errors, vec!["unknown tag 'internal'".to_string()]);
     }
 }
