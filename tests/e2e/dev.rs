@@ -672,4 +672,114 @@ subgraphs:
 
     assert_that(&graphql_result).is_err();
     assert_that(&combined).does_not_contain("Your supergraph is running!");
+    // A valid --license present, even a rejected one, means the credential-free notice's
+    // condition never held in the first place -- it must not print alongside the router's own
+    // license-rejection error.
+    assert_that(&combined).does_not_contain(CREDENTIAL_FREE_NOTICE);
+}
+
+/// Spec FR9: the credential-free notice must not fire when a different credential-related
+/// warning already covers the same gap -- here, a non-default `--profile` whose credential
+/// can't be resolved. Exactly one of the two messages should ever appear for a given session.
+#[ignore]
+#[tokio::test]
+#[traced_test]
+#[serial]
+async fn e2e_test_unresolvable_profile_warning_suppresses_credential_free_notice() {
+    let temp_dir = TempDir::new().expect("Could not create temp directory");
+    let temp_path = temp_dir.path();
+    // Left empty so the named profile below has nothing to resolve.
+    let isolated_apollo_home = TempDir::new().expect("Could not create isolated APOLLO_HOME");
+
+    let schema = r#"
+type Query {
+    hello: String
+}
+"#;
+    std::fs::write(temp_path.join("schema.graphql"), schema)
+        .expect("Could not write schema.graphql");
+
+    let (supergraph_listener, port) = reserve_local_port().expect("No ports free");
+    let (health_listener, health_port) =
+        reserve_local_port().expect("No ports free for health check");
+
+    std::fs::write(
+        temp_path.join("supergraph.yaml"),
+        r#"
+federation_version: =2.4.7
+subgraphs:
+  api:
+    routing_url: http://localhost:4001
+    schema:
+      file: schema.graphql
+"#,
+    )
+    .expect("Could not write supergraph.yaml");
+
+    std::fs::write(
+        temp_path.join("router.yaml"),
+        format!("health_check:\n  listen: 127.0.0.1:{health_port}\n"),
+    )
+    .expect("Could not write router.yaml");
+
+    let mut cmd = Command::new(cargo::cargo_bin!("rover"));
+    cmd.args([
+        "dev",
+        "--supergraph-config",
+        "supergraph.yaml",
+        "--router-config",
+        "router.yaml",
+        "--supergraph-port",
+        &port.to_string(),
+        "--elv2-license",
+        "accept",
+        "--profile",
+        "e2e-test-nonexistent-profile",
+    ]);
+    cmd.current_dir(temp_path);
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    cmd.env_remove("APOLLO_KEY");
+    cmd.env_remove("APOLLO_GRAPH_REF");
+    cmd.env("APOLLO_HOME", isolated_apollo_home.path());
+    if let Ok(v) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", v);
+    }
+    if let Ok(v) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
+        cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", v);
+    }
+
+    drop(supergraph_listener);
+    drop(health_listener);
+    let mut child = cmd.spawn().expect("Failed to spawn rover dev");
+
+    let client = Client::new();
+    let router_url = format!("http://localhost:{port}");
+    let graphql_result =
+        test_graphql_connection(&client, &router_url, ROVER_DEV_TIMEOUT, Some(&mut child)).await;
+
+    #[cfg(unix)]
+    {
+        let _ = Command::new("kill")
+            .args(["-INT", &child.id().to_string()])
+            .output();
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &child.id().to_string()])
+            .output();
+    }
+
+    let output = child.wait_with_output().expect("Failed to get output");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert_that(&graphql_result).is_ok();
+    assert_that(&combined).contains("Could not retrieve APOLLO_KEY for profile");
+    assert_that(&combined).does_not_contain(CREDENTIAL_FREE_NOTICE);
 }
