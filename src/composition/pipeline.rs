@@ -38,6 +38,7 @@ use crate::{
         full::FullyResolvedSupergraphConfig, lazy::LazilyResolvedSupergraphConfig,
     },
     config::SupergraphConfigYaml,
+    federation::{FederationOneUnsupported, reject_federation_one},
     options::LicenseAccepter,
     utils::{
         client::StudioClientConfig,
@@ -71,6 +72,8 @@ pub enum CompositionPipelineError {
     ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),
     #[error("Failed to resolve subgraph from prompt:\n{}", .0)]
     ResolveSubgraphFromPrompt(ResolveSubgraphError),
+    #[error(transparent)]
+    FederationOneUnsupported(#[from] FederationOneUnsupported),
 }
 
 pub struct CompositionPipeline<State> {
@@ -157,7 +160,19 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         passed_in_fed_version: Option<FederationVersion>,
         warn_on_floating_version: bool,
-    ) -> CompositionPipeline<state::InstallSupergraph> {
+    ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
+        // Reject an explicit Federation 1 pin (from the CLI flag, or from `supergraph.yaml`)
+        // up front, before subgraph resolution runs. A Fed-1-pin-vs-Fed-2-subgraph mismatch
+        // coming out of `fully_resolve_subgraphs` below is caught and defaulted to Fed 2 (see
+        // the `Err` arm), which would otherwise let a `supergraph.yaml` pin slip past the
+        // `reject_federation_one` check further down uncontested.
+        if let Some(user_specified_fed_version) = passed_in_fed_version
+            .clone()
+            .or_else(|| self.state.resolver.target_federation_version())
+        {
+            reject_federation_one(&user_specified_fed_version)?;
+        }
+
         let resolved_federation_version = match self
             .state
             .resolver
@@ -187,6 +202,13 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             resolved_federation_version
         };
 
+        // Backstop, not currently reachable: `federation_version` here is always Fed 2 already --
+        // either it's `passed_in_fed_version` (already rejected above) or
+        // `resolved_federation_version`, which `FederationVersionResolver::resolve` can only
+        // produce as the user's pin (also already rejected above) or `LatestFedTwo`. Kept as a
+        // guard against a future change to the resolution path silently reopening this gap.
+        reject_federation_one(&federation_version)?;
+
         // Nudge users to pin an exact federation version. Composing against a
         // floating version can pull in breaking changes when a new federation release ships.
         if warn_on_floating_version && federation_version.get_exact().is_none() {
@@ -206,7 +228,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
 
         debug!("Using Federation Version '{federation_version}'");
 
-        CompositionPipeline {
+        Ok(CompositionPipeline {
             state: state::InstallSupergraph {
                 resolver: self.state.resolver,
                 supergraph_root: self.state.supergraph_root,
@@ -214,9 +236,10 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 federation_version,
                 resolve_introspect_subgraph_factory,
             },
-        }
+        })
     }
 }
+
 impl CompositionPipeline<state::InstallSupergraph> {
     pub async fn install_supergraph_binary(
         self,
@@ -438,5 +461,55 @@ pub(crate) mod state {
         pub supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::composition::supergraph::config::scenario::fed_one_pin_with_fed_two_subgraph_resolver;
+
+    /// This pins the regression the up-front `target_federation_version()` check in
+    /// `resolve_federation_version` guards against: without it, a `federation_version: 1` pin
+    /// in `supergraph.yaml` alongside a Federation-2 (`@link`-using) subgraph gets caught by the
+    /// `Err` arm below (`fully_resolve_subgraphs` returns `FederationVersionMismatch`) and
+    /// silently defaulted to `LatestFedTwo`, instead of being rejected.
+    #[tokio::test]
+    async fn resolve_federation_version_rejects_fed_one_pin_with_fed_two_subgraph() {
+        let (
+            resolver,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            supergraph_root,
+            _tmp,
+        ) = fed_one_pin_with_fed_two_subgraph_resolver().await;
+
+        let pipeline = CompositionPipeline {
+            state: state::ResolveFederationVersion {
+                resolver,
+                supergraph_root,
+                supergraph_yaml: None,
+            },
+        };
+
+        // No CLI flag override -- forces `resolve_federation_version` to read the
+        // `supergraph.yaml` pin via `target_federation_version()`.
+        let result = pipeline
+            .resolve_federation_version(
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
+                None,
+                false,
+            )
+            .await;
+
+        // `CompositionPipeline<state::InstallSupergraph>` (the `Ok` type here) isn't `Debug` --
+        // it holds non-`Debug` Tower service factories -- so `speculoos`'s `ResultAssertions`
+        // (which requires both sides of the `Result` to be `Debug`) can't be used here; a plain
+        // `matches!` needs no such bound.
+        assert!(matches!(
+            result,
+            Err(CompositionPipelineError::FederationOneUnsupported(_))
+        ));
     }
 }

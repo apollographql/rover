@@ -17,7 +17,7 @@ use thiserror::Error;
 
 use crate::{
     RoverResult, composition::supergraph::config::unresolved::UnresolvedSubgraph,
-    options::ProfileOpt, utils::client::StudioClientConfig,
+    federation::FederationOneUnsupported, options::ProfileOpt, utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Error, Clone)]
@@ -28,6 +28,8 @@ pub enum GraphOperationError {
     KeyCreationFailed(String),
     #[error("Failed to parse federation version: {0}")]
     FederationVersionParseError(String),
+    #[error(transparent)]
+    FederationOneUnsupported(#[from] FederationOneUnsupported),
 }
 
 //This maps the federation version we pull from templates in GitHub to the build pipeline track.
@@ -49,8 +51,7 @@ fn map_federation_version_to_build_pipeline_track(
     })?;
 
     match (version.major, version.minor) {
-        (1, 0) => Ok(BuildPipelineTrack::FED_1_0),
-        (1, 1) => Ok(BuildPipelineTrack::FED_1_1),
+        (1, _) => Err(FederationOneUnsupported.into()),
         (2, 0) => Ok(BuildPipelineTrack::FED_2_0),
         (2, 1) => Ok(BuildPipelineTrack::FED_2_1),
         (2, 3) => Ok(BuildPipelineTrack::FED_2_3),
@@ -156,90 +157,54 @@ pub(crate) async fn update_variant_federation_version(
 #[cfg(test)]
 mod tests {
     use rover_client::operations::init::build_pipeline_track::BuildPipelineTrack;
+    use rstest::rstest;
+    use speculoos::prelude::*;
 
     use super::*;
 
-    #[test]
-    fn test_map_federation_version_to_build_pipeline_track_valid_versions() {
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("1.0").unwrap(),
-            BuildPipelineTrack::FED_1_0
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("1.1").unwrap(),
-            BuildPipelineTrack::FED_1_1
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.0").unwrap(),
-            BuildPipelineTrack::FED_2_0
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.1").unwrap(),
-            BuildPipelineTrack::FED_2_1
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.3").unwrap(),
-            BuildPipelineTrack::FED_2_3
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.4").unwrap(),
-            BuildPipelineTrack::FED_2_4
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.5").unwrap(),
-            BuildPipelineTrack::FED_2_5
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.6").unwrap(),
-            BuildPipelineTrack::FED_2_6
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.7").unwrap(),
-            BuildPipelineTrack::FED_2_7
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.8").unwrap(),
-            BuildPipelineTrack::FED_2_8
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.9").unwrap(),
-            BuildPipelineTrack::FED_2_9
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.10").unwrap(),
-            BuildPipelineTrack::FED_2_10
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("2.11").unwrap(),
-            BuildPipelineTrack::FED_2_11
-        );
+    #[rstest]
+    #[case("2.0", BuildPipelineTrack::FED_2_0)]
+    #[case("2.1", BuildPipelineTrack::FED_2_1)]
+    #[case("2.3", BuildPipelineTrack::FED_2_3)]
+    #[case("2.4", BuildPipelineTrack::FED_2_4)]
+    #[case("2.5", BuildPipelineTrack::FED_2_5)]
+    #[case("2.6", BuildPipelineTrack::FED_2_6)]
+    #[case("2.7", BuildPipelineTrack::FED_2_7)]
+    #[case("2.8", BuildPipelineTrack::FED_2_8)]
+    #[case("2.9", BuildPipelineTrack::FED_2_9)]
+    #[case("2.10", BuildPipelineTrack::FED_2_10)]
+    #[case("2.11", BuildPipelineTrack::FED_2_11)]
+    #[case("v2.0", BuildPipelineTrack::FED_2_0)]
+    #[case("=2.0", BuildPipelineTrack::FED_2_0)]
+    #[case("v2.11", BuildPipelineTrack::FED_2_11)]
+    #[case("=2.11", BuildPipelineTrack::FED_2_11)]
+    fn test_map_federation_version_to_build_pipeline_track_valid_versions(
+        #[case] input: &str,
+        #[case] expectation: BuildPipelineTrack,
+    ) {
+        assert_that!(map_federation_version_to_build_pipeline_track(input))
+            .is_ok()
+            .is_equal_to(expectation);
     }
 
-    #[test]
-    fn test_map_federation_version_to_build_pipeline_track_with_prefixes() {
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("v2.0").unwrap(),
-            BuildPipelineTrack::FED_2_0
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("=2.0").unwrap(),
-            BuildPipelineTrack::FED_2_0
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("v2.11").unwrap(),
-            BuildPipelineTrack::FED_2_11
-        );
-        assert_eq!(
-            map_federation_version_to_build_pipeline_track("=2.11").unwrap(),
-            BuildPipelineTrack::FED_2_11
-        );
+    #[rstest]
+    #[case("invalid")]
+    #[case("2.11.2.preview")]
+    #[case("2.")]
+    #[case(".0")]
+    fn test_map_federation_version_to_build_pipeline_track_invalid_versions(#[case] input: &str) {
+        assert_that(&map_federation_version_to_build_pipeline_track(input))
+            .is_err()
+            .matches(|err| matches!(err, GraphOperationError::FederationVersionParseError(_)));
     }
 
-    #[test]
-    fn test_map_federation_version_to_build_pipeline_track_invalid_versions() {
-        assert!(map_federation_version_to_build_pipeline_track("invalid").is_err());
-        assert!(map_federation_version_to_build_pipeline_track("2.11.2.preview").is_err());
-        assert!(map_federation_version_to_build_pipeline_track("2.").is_err());
-        assert!(map_federation_version_to_build_pipeline_track(".0").is_err());
+    #[rstest]
+    #[case::one_zero("1.0")]
+    #[case::one_one("1.1")]
+    fn test_map_federation_version_to_build_pipeline_track_rejects_federation_one(
+        #[case] version: &str,
+    ) {
+        let err = map_federation_version_to_build_pipeline_track(version).unwrap_err();
+        assert_that!(err.to_string()).is_equal_to(FederationOneUnsupported.to_string());
     }
 }

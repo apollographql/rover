@@ -15,7 +15,9 @@
 use std::{collections::BTreeMap, io::IsTerminal};
 
 use anyhow::Context;
-use apollo_federation_types::config::{ConfigError, SchemaSource, SubgraphConfig};
+use apollo_federation_types::config::{
+    ConfigError, FederationVersion, SchemaSource, SubgraphConfig,
+};
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
@@ -307,6 +309,14 @@ impl SupergraphConfigResolver<state::ResolveSubgraphs> {
         &self.state.remote_subgraphs
     }
 
+    /// Returns the target [`FederationVersion`] selected by the user (via the CLI flag or a
+    /// `supergraph.yaml`'s `federation_version` key), independent of subgraph resolution.
+    pub fn target_federation_version(&self) -> Option<FederationVersion> {
+        self.state
+            .federation_version_resolver
+            .target_federation_version()
+    }
+
     /// Fully resolves the subgraph configurations in the supergraph config file to their SDLs
     pub async fn fully_resolve_subgraphs(
         &self,
@@ -482,12 +492,8 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
-    use assert_fs::{
-        TempDir,
-        prelude::{FileTouch, FileWriteStr, PathChild},
-    };
+    use assert_fs::TempDir;
     use camino::Utf8PathBuf;
-    use mockall::predicate;
     use rover_client::RoverClientError;
     use rstest::rstest;
     use semver::Version;
@@ -496,7 +502,8 @@ mod tests {
     use tower_test::mock::Handle;
 
     use super::{
-        DefaultSubgraphDefinition, MockPrompt, SupergraphConfigResolver,
+        DefaultSubgraphDefinition, MockPrompt, ResolveSupergraphConfigError,
+        SupergraphConfigResolver,
         fetch_remote_subgraph::{
             FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
             MakeFetchRemoteSubgraphError, RemoteSubgraph,
@@ -515,10 +522,7 @@ mod tests {
             scenario::*,
         },
         config::SupergraphConfigYaml,
-        utils::{
-            effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
-            parsers::FileDescriptorType,
-        },
+        utils::effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
     };
 
     /// Test showing that federation version is selected from the local supergraph config fed version
@@ -994,21 +998,40 @@ mod tests {
         Ok(())
     }
 
-    fn setup_sdl_subgraph_scenario(
-        sdl_subgraph_scenario: Option<&SdlSubgraphScenario>,
-        local_subgraphs: &mut BTreeMap<String, SubgraphConfig>,
-    ) {
-        // If the sdl subgraph scenario exists, add a SubgraphConfig for it to the supergraph config
-        if let Some(sdl_subgraph_scenario) = sdl_subgraph_scenario {
-            let schema_source = SchemaSource::Sdl {
-                sdl: sdl_subgraph_scenario.sdl.to_string(),
-            };
-            let subgraph_config = SubgraphConfig {
-                routing_url: Some(routing_url()),
-                schema: schema_source,
-            };
-            local_subgraphs.insert("sdl-subgraph".to_string(), subgraph_config);
-        }
+    /// A `federation_version: 1` pin in `supergraph.yaml` alongside a Federation-2 (`@link`-using)
+    /// subgraph makes `fully_resolve_subgraphs` return `FederationVersionMismatch`. Callers (e.g.
+    /// `CompositionPipeline::resolve_federation_version`) must read the user's pin via
+    /// `target_federation_version()` independently, since that pin is otherwise unrecoverable once
+    /// this error is caught and defaulted away.
+    #[tokio::test]
+    async fn test_fully_resolve_subgraphs_errors_on_fed_one_pin_with_fed_two_subgraph() {
+        let (
+            resolver,
+            resolve_introspect_subgraph_factory,
+            fetch_remote_subgraph_factory,
+            local_supergraph_config_path,
+            _tmp,
+        ) = fed_one_pin_with_fed_two_subgraph_resolver().await;
+
+        // The pin survives independently of subgraph resolution.
+        assert_that!(resolver.target_federation_version())
+            .is_equal_to(Some(FederationVersion::LatestFedOne));
+
+        // Subgraph resolution itself detects the mismatch and errors -- this is the failure that
+        // `resolve_federation_version` must not let get swallowed into a Fed 2 default.
+        let result = resolver
+            .fully_resolve_subgraphs(
+                resolve_introspect_subgraph_factory,
+                fetch_remote_subgraph_factory,
+                &local_supergraph_config_path,
+            )
+            .await;
+        assert_that!(result).is_err().matches(|err| {
+            matches!(
+                err,
+                ResolveSupergraphConfigError::FederationVersionMismatch(_)
+            )
+        });
     }
 
     fn setup_remote_subgraph_scenario(
@@ -1085,37 +1108,6 @@ mod tests {
             fetch_remote_subgraphs_handle.allow(0);
             fetch_remote_subgraph_handle.allow(0);
         }
-    }
-
-    fn setup_file_descriptor(
-        load_supergraph_config_from_file: bool,
-        local_supergraph_config_dir: &TempDir,
-        local_supergraph_config_str: &str,
-        mock_read_stdin: &mut MockReadStdin,
-    ) -> Result<FileDescriptorType> {
-        let file_descriptor_type = if load_supergraph_config_from_file {
-            // if we should be loading the supergraph config from a file, set up the temp files to do so
-            let local_supergraph_config_file = local_supergraph_config_dir.child("supergraph.yaml");
-            local_supergraph_config_file.touch()?;
-            local_supergraph_config_file.write_str(local_supergraph_config_str)?;
-            let path =
-                Utf8PathBuf::from_path_buf(local_supergraph_config_file.path().to_path_buf())
-                    .unwrap();
-            mock_read_stdin.expect_read_stdin().times(0);
-            FileDescriptorType::File(path)
-        } else {
-            // otherwise, mock read_stdin to provide the string back
-            mock_read_stdin
-                .expect_read_stdin()
-                .times(1)
-                .with(predicate::eq("supergraph config"))
-                .returning({
-                    let local_supergraph_config_str = local_supergraph_config_str.to_string();
-                    move |_| Ok(local_supergraph_config_str.to_string())
-                });
-            FileDescriptorType::Stdin
-        };
-        Ok(file_descriptor_type)
     }
 
     #[rstest]
