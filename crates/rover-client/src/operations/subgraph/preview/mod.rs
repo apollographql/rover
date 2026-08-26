@@ -1,14 +1,143 @@
 mod service;
-mod types;
 
 use std::time::Duration;
 
+use graphql_client::GraphQLQuery;
+use rover_studio::types::GraphRef;
 use rover_tower::poll_retry::PollRetryPolicy;
 pub use service::{ComposeAndFilterPreviewResult, ComposeAndFilterPreviewStart};
 use tower::{Service, ServiceBuilder, ServiceExt};
-pub use types::*;
 
+pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse};
 use crate::{blocking::StudioClient, RoverClientError};
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/subgraph/preview/compose_and_filter_preview_async_mutation.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+/// This struct is used to generate the module containing `Variables` and
+/// `ResponseData` structs. Snake case of this name is the mod name, i.e.
+/// compose_and_filter_preview_async_mutation.
+pub(crate) struct ComposeAndFilterPreviewAsyncMutation;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/subgraph/preview/compose_and_filter_preview_result_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ComposeAndFilterPreviewResultQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    query_path = "src/operations/subgraph/preview/compose_and_filter_preview_status_query.graphql",
+    schema_path = ".schema/schema.graphql",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    deprecated = "warn"
+)]
+pub(crate) struct ComposeAndFilterPreviewStatusQuery;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct SubgraphChange {
+    pub name: String,
+    /// `None` indicates that this subgraph should be removed prior to
+    /// composition.
+    pub info: Option<SubgraphChangeInfo>,
+}
+
+/// The subgraph changes to compose.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct SubgraphChangeInfo {
+    pub routing_url: Option<String>,
+    pub schema_document: Option<String>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct ComposeAndFilterPreviewInput {
+    pub graph_ref: GraphRef,
+    /// `None` skips filtering (compose-only preview).
+    pub filter_config: Option<ContractFilterConfig>,
+    /// Hypothetical per-subgraph schema/routing-url changes or removals to
+    /// apply before composing. Empty means "compose the variant's subgraphs
+    /// as they currently are".
+    pub subgraph_changes: Vec<SubgraphChange>,
+}
+
+/// Input to query status or results of a previous
+/// `composeAndFilterPreviewAsync`.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct ComposeAndFilterPreviewStatusInput {
+    pub graph_ref: GraphRef,
+    pub build_id: String,
+}
+
+impl From<ComposeAndFilterPreviewInput> for compose_and_filter_preview_async_mutation::Variables {
+    fn from(input: ComposeAndFilterPreviewInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            filter_config: input.filter_config.map(|filter_config| {
+                compose_and_filter_preview_async_mutation::FilterConfigInput {
+                    include: filter_config.include,
+                    exclude: filter_config.exclude,
+                    hide_unreachable_types: filter_config.hide_unreachable_types,
+                }
+            }),
+            subgraph_changes: if input.subgraph_changes.is_empty() {
+                None
+            } else {
+                Some(
+                    input
+                        .subgraph_changes
+                        .into_iter()
+                        .map(|change| {
+                            compose_and_filter_preview_async_mutation::ComposeAndFilterPreviewSubgraphChange {
+                                name: change.name,
+                                info: change.info.map(|info| {
+                                    compose_and_filter_preview_async_mutation::ComposeAndFilterPreviewSubgraphChangeInfo {
+                                        routing_url: info.routing_url,
+                                        schema_document: info.schema_document,
+                                    }
+                                }),
+                            }
+                        })
+                        .collect(),
+                )
+            },
+        }
+    }
+}
+
+impl From<ComposeAndFilterPreviewStatusInput>
+    for compose_and_filter_preview_result_query::Variables
+{
+    fn from(input: ComposeAndFilterPreviewStatusInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            build_id: input.build_id,
+        }
+    }
+}
+
+impl From<ComposeAndFilterPreviewStatusInput>
+    for compose_and_filter_preview_status_query::Variables
+{
+    fn from(input: ComposeAndFilterPreviewStatusInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            build_id: input.build_id,
+        }
+    }
+}
 
 /// Start an async compose-and-filter preview job, returning its (pending)
 /// status immediately.
@@ -128,13 +257,6 @@ mod tests {
         }
     }
 
-    fn test_status_input(build_id: &str) -> ComposeAndFilterPreviewStatusInput {
-        ComposeAndFilterPreviewStatusInput {
-            graph_ref: "test-graph@test-variant".parse().unwrap(),
-            build_id: build_id.to_string(),
-        }
-    }
-
     #[tokio::test]
     async fn start_returns_a_pending_response_carrying_the_build_id() {
         let server = MockServer::start_async().await;
@@ -157,208 +279,6 @@ mod tests {
         assert_eq!(response.graph_ref.to_string(), "test-graph@test-variant");
         assert_eq!(response.api_schema, None);
         assert_eq!(response.supergraph_schema, None);
-    }
-
-    #[tokio::test]
-    async fn result_maps_pending_running() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewPending",
-                        "buildID": "build-123",
-                        "status": "RUNNING"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
-    }
-
-    #[tokio::test]
-    async fn result_maps_unrecognized_pending_substatus_to_running() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewPending",
-                        "buildID": "build-123",
-                        "status": "SOME_FUTURE_SUBSTATUS"
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
-    }
-
-    #[tokio::test]
-    async fn result_prefers_filter_results_over_compose_results_on_success() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewSuccess",
-                        "composeResults": {
-                            "apiSchemaDocument": "type Query { unfiltered: String }",
-                            "supergraphSchemaDocument": "unfiltered supergraph"
-                        },
-                        "filterResults": {
-                            "apiSchemaDocument": "type Query { filtered: String }",
-                            "supergraphSchemaDocument": "filtered supergraph"
-                        }
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Success);
-        assert_eq!(
-            response.api_schema,
-            Some("type Query { filtered: String }".to_string())
-        );
-        assert_eq!(
-            response.supergraph_schema,
-            Some("filtered supergraph".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn result_falls_back_to_compose_results_when_filtering_was_skipped() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewSuccess",
-                        "composeResults": {
-                            "apiSchemaDocument": "type Query { composed: String }",
-                            "supergraphSchemaDocument": "composed supergraph"
-                        },
-                        "filterResults": null
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::Success);
-        assert_eq!(
-            response.api_schema,
-            Some("type Query { composed: String }".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn result_maps_compose_failure() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewComposeFailure",
-                        "composeErrors": [
-                            { "message": "subgraph schema is invalid", "code": "INVALID_GRAPHQL", "failedStep": "PARSE" }
-                        ]
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::ComposeFailed);
-        assert_eq!(response.api_schema, None);
-        assert_eq!(
-            response.errors,
-            vec!["subgraph schema is invalid".to_string()]
-        );
-    }
-
-    #[tokio::test]
-    async fn result_maps_filter_failure_and_still_returns_the_composed_schema() {
-        let server = MockServer::start_async().await;
-        server.mock(|when, then| {
-            when.method(POST)
-                .body_includes("ComposeAndFilterPreviewResultQuery");
-            then.status(200).json_body(json!({
-                "data": { "graph": { "variant": {
-                    "composeAndFilterPreviewStatus": {
-                        "__typename": "ComposeAndFilterPreviewFilterFailure",
-                        "composeResults": {
-                            "apiSchemaDocument": "type Query { composed: String }",
-                            "supergraphSchemaDocument": "composed supergraph"
-                        },
-                        "filterErrors": [
-                            { "message": "unknown tag 'internal'", "failedStep": "VALIDATE" }
-                        ]
-                    }
-                } } }
-            }));
-        });
-
-        let response = result(
-            test_status_input("build-123"),
-            &test_client(&server.url("/")),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(response.status, AsyncBuildStatus::FilterFailed);
-        // The compose result is still surfaced even though filtering failed.
-        assert_eq!(
-            response.api_schema,
-            Some("type Query { composed: String }".to_string())
-        );
-        assert_eq!(response.errors, vec!["unknown tag 'internal'".to_string()]);
     }
 
     #[tokio::test]
