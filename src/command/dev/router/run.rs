@@ -43,6 +43,11 @@ use crate::{
     },
 };
 
+struct AuthEnv {
+    env: HashMap<String, String>,
+    credential_warning_emitted: bool,
+}
+
 pub struct RunRouter<S> {
     pub(crate) state: S,
 }
@@ -159,6 +164,7 @@ impl RunRouter<state::Run> {
         log_level: Option<Level>,
         supergraph_output: Option<Utf8PathBuf>,
         license: Option<Utf8PathBuf>,
+        graph_ref_in_env: bool,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -212,7 +218,12 @@ impl RunRouter<state::Run> {
                 err: Box::new(err),
             })?;
 
-        let env = self.auth_env(profile, home_override, api_key_override);
+        let AuthEnv {
+            env,
+            credential_warning_emitted,
+        } = self.auth_env(profile, home_override, api_key_override);
+        self.notify_if_credential_free(graph_ref_in_env, &license, credential_warning_emitted);
+
         let listen_address = *self.state.config.address();
         let run_router_binary = RunRouterBinary::builder()
             .router_binary(self.state.binary.clone())
@@ -247,13 +258,38 @@ impl RunRouter<state::Run> {
         })
     }
 
+    /// Per Rover-428 spec FR8/FR9: prints only when there are truly no usable credentials (an API key and a
+    /// graph ref) from any source, no offline license, and no other credential-related warning has
+    /// already covered the same gap.
+    fn notify_if_credential_free(
+        &self,
+        graph_ref_in_env: bool,
+        license: &Option<Utf8PathBuf>,
+        already_warned: bool,
+    ) {
+        if license.is_none() && !self.has_usable_graph_ref(graph_ref_in_env) && !already_warned {
+            infoln!(
+                "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them."
+            );
+        }
+    }
+
+    /// A graph ref reaches the spawned router either because `--graph-ref` resolved a
+    /// `RemoteRouterConfig`, or because a bare `APOLLO_GRAPH_REF` env var is set: the router process
+    /// inherits Rover's environment (see `router::binary`'s use of `Command::envs`, which never
+    /// calls `env_clear`), so that env var reaches the router even with no `--graph-ref` flag.
+    const fn has_usable_graph_ref(&self, graph_ref_in_env: bool) -> bool {
+        self.state.remote_config.is_some() || graph_ref_in_env
+    }
+
     fn auth_env(
         &self,
         profile: ProfileOpt,
         home_override: Option<String>,
         api_key_override: Option<String>,
-    ) -> HashMap<String, String> {
+    ) -> AuthEnv {
         let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+        let mut credential_warning_emitted = false;
 
         // We set the APOLLO_KEY here, but it might be overridden by RemoteRouterConfig. That
         // struct takes the who_am_i service, gets an identity, and checks whether the
@@ -282,13 +318,17 @@ impl RunRouter<state::Run> {
                                 "Could not retrieve APOLLO_KEY for profile {}.\n{}\nContinuing to load router without an APOLLO_KEY",
                                 profile.profile_name,
                                 err
-                            )
+                            );
+                            credential_warning_emitted = true;
                         }
                     }
                 };
             }
         }
-        env
+        AuthEnv {
+            env,
+            credential_warning_emitted,
+        }
     }
 
     async fn wait_for_healthy_router(
@@ -538,5 +578,47 @@ mod state {
         #[allow(unused)]
         pub hot_reload_schema_path: Utf8PathBuf,
         pub env: HashMap<String, String>,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use semver::Version;
+
+    use super::{RouterAddress, RunRouter, RunRouterConfig, state};
+    use crate::{command::dev::router::binary::RouterBinary, utils::effect::read_file::FsReadFile};
+
+    async fn test_run_router() -> RunRouter<state::Run> {
+        let config = RunRouterConfig::default()
+            .with_address(RouterAddress::default())
+            .with_config(&FsReadFile::default(), None)
+            .await
+            .expect("building a default router config with no file to read should not fail");
+        RunRouter {
+            state: state::Run {
+                binary: RouterBinary::new(
+                    Utf8PathBuf::from("/fake/path"),
+                    Version::parse("1.0.0").unwrap(),
+                ),
+                config,
+                config_path: None,
+                remote_config: None,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn graph_ref_reaches_router_via_ambient_env_without_the_flag() {
+        // A bare APOLLO_GRAPH_REF env var (no --graph-ref flag, so no RemoteRouterConfig) still
+        // reaches the router via inherited environment -- it must count as a usable graph ref.
+        let run_router = test_run_router().await;
+        assert!(run_router.has_usable_graph_ref(true));
+    }
+
+    #[tokio::test]
+    async fn no_usable_graph_ref_when_neither_source_is_present() {
+        let run_router = test_run_router().await;
+        assert!(!run_router.has_usable_graph_ref(false));
     }
 }

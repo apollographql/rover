@@ -40,6 +40,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.
 
+- **Print a one-time startup notice when `rover dev` runs with no GraphOS credentials - @SharkBaitDLS**
+
+  `rover dev` has always been able to compose and run a local router session with no API key, graph ref, or offline license — but running it that way gave no confirmation that this was expected, intentional behavior rather than a misconfiguration. It now prints `Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.` once at startup, but only when nothing else already explained the gap (e.g. a `--graph-ref` or non-default `--profile` that couldn't resolve credentials still gets its existing, more specific warning instead).
+
 ## 🐛 Fixes
 
 - **Surface the underlying GraphQL errors when a response has no `data` field - @sirdodger**
