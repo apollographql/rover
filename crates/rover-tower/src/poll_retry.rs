@@ -119,14 +119,15 @@ mod tests {
         assert_that!(result).is_err().is_equal_to(TestError("boom"));
     }
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn retry_schedules_another_attempt_when_not_finished_and_time_remains() {
         let mut policy = policy();
         let mut result: Result<SimplePollOutcome, TestError> = Ok(SimplePollOutcome::Incomplete);
 
         let decision = policy.retry(&mut (), &mut result);
 
-        assert_that!(decision).is_some();
+        let sleep = decision.expect("a retry should be scheduled while time remains");
+        assert_that!(sleep.deadline()).is_equal_to(Instant::now() + Duration::from_secs(5));
         // Untouched while there's still time on the clock.
         assert_that!(result)
             .is_ok()
