@@ -20,6 +20,8 @@ url = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
+rover-http = { workspace = true, features = ["test"] }
+rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 speculoos = { workspace = true }
 tower-test = { workspace = true }

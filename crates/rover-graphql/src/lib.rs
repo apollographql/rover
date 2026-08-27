@@ -269,10 +269,10 @@ where
                 // `data` field - a credential rejection is a credential rejection
                 // whether or not the server happened to include `"data": null` or
                 // omit the field entirely.
-                if friendly_errors_detail
-                    .join("")
-                    .contains("Invalid credentials")
-                {
+                if friendly_errors_detail.iter().any(|message| {
+                    let message = message.to_lowercase();
+                    message.contains("unauthorized") || message.contains("invalid credentials")
+                }) {
                     return Err(GraphQLServiceError::InvalidCredentials {});
                 }
 
@@ -301,9 +301,14 @@ mod tests {
 
     use anyhow::Result;
     use bytes::Bytes;
+    use futures::future;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::{body::body_to_bytes, Full, HttpRequest, HttpResponse, HttpServiceError};
+    use rover_http::{
+        body::body_to_bytes, test::MockHttpService, Full, HttpRequest, HttpResponse,
+        HttpServiceError,
+    };
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
@@ -312,7 +317,9 @@ mod tests {
     use tower_test::mock;
     use url::Url;
 
-    use super::{GraphQLLayer, GraphQLRequest, GraphQLServiceError, JSON_CONTENT_TYPE};
+    use super::{
+        GraphQLLayer, GraphQLRequest, GraphQLService, GraphQLServiceError, JSON_CONTENT_TYPE,
+    };
 
     struct TestQuery {}
 
@@ -462,27 +469,23 @@ mod tests {
     }
 
     // Studio's own credential-rejection response has `"data": null` and puts
-    // the "Invalid credentials" message directly on the error, not nested
-    // under `extensions.response`.
+    // the credential-rejection message directly on the error, not nested
+    // under `extensions.response`. The check must catch it whether the
+    // message mentions "unauthorized", "invalid credentials", both, or
+    // either in a different case.
+    #[rstest]
+    #[case::unauthorized_only("Unauthorized")]
+    #[case::invalid_credentials_only("Invalid credentials provided")]
+    #[case::both("Unauthorized: Invalid credentials provided")]
+    #[case::mixed_case("UNAUTHORIZED: INVALID CREDENTIALS PROVIDED")]
     #[tokio::test]
-    pub async fn test_invalid_credentials_with_null_data() -> Result<()> {
-        let endpoint = Url::parse("http://example.com/graphql")?;
-        let (mock_service, mut handle) = mock::spawn::<HttpRequest, HttpResponse>();
-        let mut service = ServiceBuilder::new()
-            .layer(GraphQLLayer::new(endpoint.clone()))
-            .map_err(HttpServiceError::Unexpected)
-            .service(mock_service.into_inner());
-        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service).await?;
-
-        let variables = TestQueryVariables { variable: 7 };
-        let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);
-        let service_call_fut = service.call(request);
-
-        task::spawn(async move {
-            let (_, send_response) = handle.next_request().await.unwrap();
-
+    pub async fn test_invalid_credentials_with_null_data(#[case] message: &str) -> Result<()> {
+        let message = message.to_string();
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
             let error = graphql_client::Error {
-                message: "Unauthorized: Invalid credentials provided".to_string(),
+                message: message.clone(),
                 locations: None,
                 path: None,
                 extensions: None,
@@ -498,10 +501,13 @@ mod tests {
                     serde_json::to_vec(&graphql_response).unwrap(),
                 )))
                 .unwrap();
-            send_response.send_response(mock_http_response);
+            future::ready(Ok(mock_http_response))
         });
 
-        let result = service_call_fut.await;
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
 
         assert_that!(result)
             .is_err()
@@ -509,28 +515,22 @@ mod tests {
         Ok(())
     }
 
-    // Same credential-rejection message, but the response also carries a
+    // Same credential-rejection messages, but the response also carries a
     // (partial) `data` field - confirms the check isn't skipped just because
     // `data` happened to be present.
+    #[rstest]
+    #[case::unauthorized_only("Unauthorized")]
+    #[case::invalid_credentials_only("Invalid credentials provided")]
+    #[case::both("Unauthorized: Invalid credentials provided")]
+    #[case::mixed_case("UNAUTHORIZED: INVALID CREDENTIALS PROVIDED")]
     #[tokio::test]
-    pub async fn test_invalid_credentials_with_partial_data() -> Result<()> {
-        let endpoint = Url::parse("http://example.com/graphql")?;
-        let (mock_service, mut handle) = mock::spawn::<HttpRequest, HttpResponse>();
-        let mut service = ServiceBuilder::new()
-            .layer(GraphQLLayer::new(endpoint.clone()))
-            .map_err(HttpServiceError::Unexpected)
-            .service(mock_service.into_inner());
-        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service).await?;
-
-        let variables = TestQueryVariables { variable: 7 };
-        let request: GraphQLRequest<TestQuery> = GraphQLRequest::new(variables);
-        let service_call_fut = service.call(request);
-
-        task::spawn(async move {
-            let (_, send_response) = handle.next_request().await.unwrap();
-
+    pub async fn test_invalid_credentials_with_partial_data(#[case] message: &str) -> Result<()> {
+        let message = message.to_string();
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
             let error = graphql_client::Error {
-                message: "Unauthorized: Invalid credentials provided".to_string(),
+                message: message.clone(),
                 locations: None,
                 path: None,
                 extensions: None,
@@ -546,14 +546,56 @@ mod tests {
                     serde_json::to_vec(&graphql_response).unwrap(),
                 )))
                 .unwrap();
-            send_response.send_response(mock_http_response);
+            future::ready(Ok(mock_http_response))
         });
 
-        let result = service_call_fut.await;
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
 
         assert_that!(result)
             .is_err()
             .matches(|err| matches!(err, GraphQLServiceError::InvalidCredentials()));
+        Ok(())
+    }
+
+    // A non-credential error with `data` present must still fall through to
+    // `PartialError`, not `InvalidCredentials` - the broadened substring
+    // check must not swallow unrelated errors.
+    #[tokio::test]
+    pub async fn test_partial_error_when_not_a_credential_rejection() -> Result<()> {
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(|_| {
+            let error = graphql_client::Error {
+                message: "something went wrong".to_string(),
+                locations: None,
+                path: None,
+                extensions: None,
+            };
+            let graphql_response: graphql_client::Response<TestQueryResponse> =
+                graphql_client::Response {
+                    data: Some(TestQueryResponse { inner_data: 0 }),
+                    errors: Some(vec![error]),
+                    extensions: None,
+                };
+            let mock_http_response = http::Response::builder()
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
+                .unwrap();
+            future::ready(Ok(mock_http_response))
+        });
+
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|err| matches!(err, GraphQLServiceError::PartialError { .. }));
         Ok(())
     }
 
