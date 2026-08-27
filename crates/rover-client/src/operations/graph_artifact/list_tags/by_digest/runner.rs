@@ -28,4 +28,5 @@ pub async fn run(
         limit,
     })
     .await
+    .map_err(|err| client.refine_rejected_credential_error(err))
 }

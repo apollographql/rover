@@ -21,5 +21,7 @@ pub async fn run(
     );
     let mut svc = ListTagsByGraph::new(page_svc);
     let svc = svc.ready().await?;
-    svc.call(ListTagsByGraphRequest { graph_id, limit }).await
+    svc.call(ListTagsByGraphRequest { graph_id, limit })
+        .await
+        .map_err(|err| client.refine_rejected_credential_error(err))
 }

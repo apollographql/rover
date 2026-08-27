@@ -22,16 +22,25 @@ pub async fn run(
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
     );
     let service = service.ready().await?;
-    service.call(GraphFetchRequest::new(input)).await
+    service
+        .call(GraphFetchRequest::new(input))
+        .await
+        .map_err(|err| client.refine_rejected_credential_error(err))
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use houston::{Credential, CredentialOrigin};
+    use httpmock::prelude::*;
+    use reqwest::Client as ReqwestClient;
     use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
     use serde_json::json;
     use speculoos::prelude::*;
 
+    use super::*;
     use crate::operations::graph::fetch::service::{
         get_schema_from_response_data, graph_fetch_query,
     };
@@ -39,6 +48,78 @@ mod tests {
     #[fixture]
     fn graph_ref() -> GraphRef {
         GraphRef::new("mygraph", Some("current")).unwrap()
+    }
+
+    fn client_with(server: &MockServer, api_key: &str) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: api_key.to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            &server.url("/"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+    }
+
+    /// A credential the registry rejects at the gateway (HTTP 200, `"data": null`, a
+    /// body-level "Invalid credentials" error) is classified as
+    /// `GraphQLServiceError::InvalidCredentials`, which on its own can only ever
+    /// produce the weaker `RoverClientError::InvalidKey`. `run` refines that against
+    /// the credential's own shape once it's back, upgrading to `MalformedKey` when
+    /// the key sent could never have been valid in the first place.
+    #[tokio::test]
+    async fn run_upgrades_a_body_level_rejection_to_malformed_when_the_key_shape_is_wrong() {
+        let server = MockServer::start_async().await;
+        let mock = server.mock(|when, then| {
+            when.method(POST).body_includes("GraphFetchQuery");
+            then.status(200).json_body(json!({
+                "data": null,
+                "errors": [{ "message": "Unauthorized: Invalid credentials provided" }]
+            }));
+        });
+
+        let client = client_with(&server, "not-a-real-key");
+        let input = GraphFetchInput {
+            graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
+        };
+
+        let result = run(input, &client).await;
+        mock.assert();
+        assert!(
+            matches!(result, Err(RoverClientError::MalformedKey)),
+            "expected MalformedKey, got {result:?}"
+        );
+    }
+
+    /// Same body-level rejection, but the credential sent is shaped like a real key
+    /// (just revoked/expired/unknown) - the refine step should leave it as
+    /// `InvalidKey` rather than upgrading it.
+    #[tokio::test]
+    async fn run_keeps_a_body_level_rejection_as_invalid_when_the_key_shape_is_fine() {
+        let server = MockServer::start_async().await;
+        let mock = server.mock(|when, then| {
+            when.method(POST).body_includes("GraphFetchQuery");
+            then.status(200).json_body(json!({
+                "data": null,
+                "errors": [{ "message": "Unauthorized: Invalid credentials provided" }]
+            }));
+        });
+
+        let client = client_with(&server, "user:my-username:secretkey");
+        let input = GraphFetchInput {
+            graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
+        };
+
+        let result = run(input, &client).await;
+        mock.assert();
+        assert!(
+            matches!(result, Err(RoverClientError::InvalidKey)),
+            "expected InvalidKey, got {result:?}"
+        );
     }
 
     /// Verifies that a response containing a schema document returns the SDL string successfully.

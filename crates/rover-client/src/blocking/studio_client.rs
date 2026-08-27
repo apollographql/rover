@@ -104,7 +104,20 @@ impl StudioClient {
     ///
     /// Runs only _after_ a rejection rather than pre-flight, so Rover never refuses to send a
     /// key that Studio would have accepted.
-    fn refine_rejected_credential_error(&self, err: RoverClientError) -> RoverClientError {
+    ///
+    /// Used by [`StudioClient::post`]/[`StudioClient::post_no_retry`] above, and also called
+    /// directly by the `runner.rs` of every operation built on the Tower `studio_graphql_service`
+    /// stack (e.g. `graph::fetch`, `graph::validate_operations`, `graph_artifact::list_tags`,
+    /// `subgraph::fetch_all`) — those operations' `service.rs` files have no `Credential` to
+    /// refine with, since `RejectedCredentialLayer` classifies a *status-code* rejection using
+    /// the credential it already holds, but a *body-level* rejection (`GraphQLServiceError::
+    /// InvalidCredentials`, parsed by `rover-graphql`, which knows nothing about credentials) can
+    /// only ever produce the weaker [`RoverClientError::InvalidKey`] — refining it against the
+    /// credential's actual shape has to happen back here, once the caller has both in hand.
+    pub(crate) fn refine_rejected_credential_error(
+        &self,
+        err: RoverClientError,
+    ) -> RoverClientError {
         match err {
             RoverClientError::InvalidKey if self.credential.has_malformed_api_key() => {
                 RoverClientError::MalformedKey
