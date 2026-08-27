@@ -6052,6 +6052,7 @@ dependencies = [
  "futures",
  "mockall",
  "pastey",
+ "tokio",
  "tower 0.5.3",
 ]
 

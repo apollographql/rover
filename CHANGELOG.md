@@ -84,6 +84,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
+
+  Rover's bundled copy of `latest_plugin_versions.json` has been deleted and its behavior has been moved into the Orbiter service, its only real consumer.
+
 - **Add an RFC 8628 OAuth device authorization grant implementation to `rover-auth` - @dotdat**
 
   Adds `DeviceAuthorizationFlow` to `rover-auth`'s oauth2 module: requesting a device code, and polling the token endpoint until the user approves the request from another device. Not yet wired up to any command; a follow-up PR adds `rover auth login --no-browser`.
