@@ -86,7 +86,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
 
-  Rover's bundled copy of `latest_plugin_versions.json` (used only by CI smoke tests and one internal `FederationVersion` -> `SupergraphVersion` conversion) has been deleted. Resolving a `latest-*` plugin version already happens entirely over HTTP via orbiter's `X-Version` header at runtime — this file was dead weight rover no longer needs to keep in sync with orbiter itself. CI's version-resolution script and e2e tests now ask orbiter directly for the same information instead of reading a file it owns. Rover's own behavior is unchanged; note that the `latest_plugin_versions.json` file previously published at `raw.githubusercontent.com/apollographql/rover/main/...` no longer exists — consumers should resolve versions via the `X-Version` header on `https://rover.apollo.dev/tar/<plugin>/<triple>/<alias>` instead.
+  Rover's bundled copy of `latest_plugin_versions.json` has been deleted and its behavior has been moved into the Orbiter service, its only real consumer.
 
 - **Add an RFC 8628 OAuth device authorization grant implementation to `rover-auth` - @dotdat**
 
