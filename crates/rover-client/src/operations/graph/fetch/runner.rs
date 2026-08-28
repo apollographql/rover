@@ -32,17 +32,19 @@ pub async fn run(
 mod tests {
     use std::time::Duration;
 
+    use futures::future;
     use houston::{Credential, CredentialOrigin};
-    use httpmock::prelude::*;
     use reqwest::Client as ReqwestClient;
+    use rover_graphql::GraphQLServiceError;
     use rover_studio::types::GraphRef;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
     use speculoos::prelude::*;
 
     use super::*;
     use crate::operations::graph::fetch::service::{
-        get_schema_from_response_data, graph_fetch_query,
+        get_schema_from_response_data, graph_fetch_query, mock::MockGraphFetchInnerService,
     };
 
     #[fixture]
@@ -50,14 +52,14 @@ mod tests {
         GraphRef::new("mygraph", Some("current")).unwrap()
     }
 
-    fn client_with(server: &MockServer, api_key: &str) -> StudioClient {
+    fn client_with(api_key: &str) -> StudioClient {
         StudioClient::new(
             Credential {
                 api_key: api_key.to_string(),
                 origin: CredentialOrigin::EnvVar,
                 expires_at: None,
             },
-            &server.url("/"),
+            "http://example.com/graphql",
             "test-version",
             false,
             ReqwestClient::new(),
@@ -73,22 +75,21 @@ mod tests {
     /// the key sent could never have been valid in the first place.
     #[tokio::test]
     async fn run_upgrades_a_body_level_rejection_to_malformed_when_the_key_shape_is_wrong() {
-        let server = MockServer::start_async().await;
-        let mock = server.mock(|when, then| {
-            when.method(POST).body_includes("GraphFetchQuery");
-            then.status(200).json_body(json!({
-                "data": null,
-                "errors": [{ "message": "Unauthorized: Invalid credentials provided" }]
-            }));
-        });
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(|_| future::ready(Err(GraphQLServiceError::InvalidCredentials())));
 
-        let client = client_with(&server, "not-a-real-key");
+        let client = client_with("not-a-real-key");
         let input = GraphFetchInput {
             graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
         };
 
-        let result = run(input, &client).await;
-        mock.assert();
+        let result = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(input))
+            .await
+            .map_err(|err| client.refine_rejected_credential_error(err));
+
         assert!(
             matches!(result, Err(RoverClientError::MalformedKey)),
             "expected MalformedKey, got {result:?}"
@@ -100,22 +101,21 @@ mod tests {
     /// `InvalidKey` rather than upgrading it.
     #[tokio::test]
     async fn run_keeps_a_body_level_rejection_as_invalid_when_the_key_shape_is_fine() {
-        let server = MockServer::start_async().await;
-        let mock = server.mock(|when, then| {
-            when.method(POST).body_includes("GraphFetchQuery");
-            then.status(200).json_body(json!({
-                "data": null,
-                "errors": [{ "message": "Unauthorized: Invalid credentials provided" }]
-            }));
-        });
+        let mut mock = MockGraphFetchInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .returning(|_| future::ready(Err(GraphQLServiceError::InvalidCredentials())));
 
-        let client = client_with(&server, "user:my-username:secretkey");
+        let client = client_with("user:my-username:secretkey");
         let input = GraphFetchInput {
             graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
         };
 
-        let result = run(input, &client).await;
-        mock.assert();
+        let result = GraphFetch::new(MockCloneService::new(mock))
+            .oneshot(GraphFetchRequest::new(input))
+            .await
+            .map_err(|err| client.refine_rejected_credential_error(err));
+
         assert!(
             matches!(result, Err(RoverClientError::InvalidKey)),
             "expected InvalidKey, got {result:?}"
