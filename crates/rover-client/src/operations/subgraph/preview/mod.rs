@@ -139,31 +139,75 @@ impl From<ComposeAndFilterPreviewStatusInput>
     }
 }
 
-/// Start an async compose-and-filter preview job, returning its (pending)
-/// status immediately.
-pub async fn start(
-    input: ComposeAndFilterPreviewInput,
+/// Builds the default `Service` for starting an async compose-and-filter
+/// preview job, layered over `client`'s Studio GraphQL service.
+pub fn compose_and_filter_preview_start_service(
     client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let mut service = ComposeAndFilterPreviewStart::new(
+) -> Result<
+    impl Service<
+            ComposeAndFilterPreviewInput,
+            Response = PreviewJobResponse,
+            Error = RoverClientError,
+        > + Clone,
+    RoverClientError,
+> {
+    Ok(ComposeAndFilterPreviewStart::new(
         client
             .studio_graphql_service()
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-    );
+    ))
+}
+
+/// Builds the default `Service` for fetching the full result of a
+/// compose-and-filter preview build, layered over `client`'s Studio GraphQL
+/// service.
+pub fn compose_and_filter_preview_result_service(
+    client: &StudioClient,
+) -> Result<
+    impl Service<
+            ComposeAndFilterPreviewStatusInput,
+            Response = PreviewJobResponse,
+            Error = RoverClientError,
+        > + Clone,
+    RoverClientError,
+> {
+    Ok(ComposeAndFilterPreviewResult::new(
+        client
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+    ))
+}
+
+/// Start an async compose-and-filter preview job using an already-composed
+/// `Service`, returning its (pending) status immediately.
+pub async fn start<S>(
+    input: ComposeAndFilterPreviewInput,
+    mut service: S,
+) -> Result<PreviewJobResponse, RoverClientError>
+where
+    S: Service<
+        ComposeAndFilterPreviewInput,
+        Response = PreviewJobResponse,
+        Error = RoverClientError,
+    >,
+{
     let service = service.ready().await?;
     service.call(input).await
 }
 
-/// Fetch the full result of a previously started compose-and-filter preview build.
-pub async fn result(
+/// Fetch the full result of a previously started compose-and-filter preview
+/// build using an already-composed `Service`.
+pub async fn result<S>(
     input: ComposeAndFilterPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let mut service = ComposeAndFilterPreviewResult::new(
-        client
-            .studio_graphql_service()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-    );
+    mut service: S,
+) -> Result<PreviewJobResponse, RoverClientError>
+where
+    S: Service<
+        ComposeAndFilterPreviewStatusInput,
+        Response = PreviewJobResponse,
+        Error = RoverClientError,
+    >,
+{
     let service = service.ready().await?;
     service.call(input).await
 }
@@ -176,7 +220,8 @@ pub async fn run(
     checks_timeout_seconds: u64,
 ) -> Result<PreviewJobResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let started = start(input, client).await?;
+    let start_service = compose_and_filter_preview_start_service(client)?;
+    let started = start(input, start_service).await?;
     let status_input = ComposeAndFilterPreviewStatusInput {
         graph_ref,
         build_id: started.build_id,
@@ -214,12 +259,13 @@ pub async fn poll(
         .call(status_input.clone())
         .await?;
 
-    result(status_input, client).await.map_err(|source| {
-        RoverClientError::PreviewResultUnavailable {
+    let result_service = compose_and_filter_preview_result_service(client)?;
+    result(status_input, result_service)
+        .await
+        .map_err(|source| RoverClientError::PreviewResultUnavailable {
             build_id,
             source: Box::new(source),
-        }
-    })
+        })
 }
 
 #[cfg(test)]
@@ -270,9 +316,13 @@ mod tests {
             }));
         });
 
-        let response = start(test_input(), &test_client(&server.url("/")))
-            .await
-            .unwrap();
+        let client = test_client(&server.url("/"));
+        let response = start(
+            test_input(),
+            compose_and_filter_preview_start_service(&client).unwrap(),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(response.build_id, "build-123");
         assert_eq!(response.status, AsyncBuildStatus::Pending);
