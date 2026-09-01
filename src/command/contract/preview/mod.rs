@@ -118,7 +118,7 @@ impl Preview {
                     graph_ref,
                     build_id: build_id.clone(),
                 },
-                &client,
+                preview::contract_preview_result_service(&client)?,
             )
             .await?;
             return Ok(RoverOutput::CliOutput(Box::new(ContractPreviewOutput(
@@ -138,7 +138,8 @@ impl Preview {
             graph_ref: graph_ref.clone(),
             filter_config: self.required_filter_config()?,
         };
-        let started = preview::start(input, &client).await?;
+        let started =
+            preview::start(input, preview::contract_preview_start_service(&client)?).await?;
 
         if self.asynchronous {
             return Ok(RoverOutput::CliOutput(Box::new(ContractPreviewOutput(

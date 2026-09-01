@@ -118,7 +118,12 @@ mod tests {
         let json = ContractPreviewOutput(response(AsyncBuildStatus::Success))
             .json()
             .unwrap();
-        assert_that!(json["build_id"]).is_equal_to(serde_json::json!("build-123"));
-        assert_that!(json["status"]).is_equal_to(serde_json::json!("SUCCESS"));
+        assert_that!(json).is_equal_to(serde_json::json!({
+            "build_id": "build-123",
+            "status": "SUCCESS",
+            "api_schema": null,
+            "supergraph_schema": null,
+            "errors": []
+        }));
     }
 }
