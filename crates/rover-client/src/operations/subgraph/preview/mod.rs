@@ -324,11 +324,17 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(response.build_id, "build-123");
-        assert_eq!(response.status, AsyncBuildStatus::Pending);
-        assert_eq!(response.graph_ref.to_string(), "test-graph@test-variant");
-        assert_eq!(response.api_schema, None);
-        assert_eq!(response.supergraph_schema, None);
+        assert_eq!(
+            response,
+            PreviewJobResponse {
+                graph_ref: "test-graph@test-variant".parse().unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::Pending,
+                api_schema: None,
+                supergraph_schema: None,
+                errors: Vec::new(),
+            }
+        );
     }
 
     #[tokio::test]
@@ -373,11 +379,16 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status, AsyncBuildStatus::Success);
-        assert_eq!(response.build_id, "build-123");
         assert_eq!(
-            response.api_schema,
-            Some("type Query { hi: String }".to_string())
+            response,
+            PreviewJobResponse {
+                graph_ref: "test-graph@test-variant".parse().unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::Success,
+                api_schema: Some("type Query { hi: String }".to_string()),
+                supergraph_schema: Some("supergraph".to_string()),
+                errors: Vec::new(),
+            }
         );
     }
 
@@ -412,9 +423,12 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert!(
-            matches!(err, RoverClientError::AdhocError { .. }),
-            "expected an immediate AdhocError, got {err:?}"
+        let RoverClientError::AdhocError { msg } = err else {
+            panic!("expected RoverClientError::AdhocError, got {err:?}");
+        };
+        assert_eq!(
+            msg,
+            "No compose-and-filter preview build found with ID build-123."
         );
     }
 }
