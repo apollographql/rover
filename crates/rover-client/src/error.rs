@@ -311,6 +311,17 @@ pub enum RoverClientError {
         frontend_url_root: String,
     },
 
+    #[error("Could not find a bulk deletion job with ID '{job_id}'. It may have already expired.")]
+    BulkDeletionJobNotFound { job_id: String },
+
+    #[error("Bulk deletion job '{job_id}' failed: {error}")]
+    BulkDeletionJobFailed { job_id: String, error: String },
+
+    #[error(
+        "Bulk deletion job '{job_id}' reported a status this version of Rover doesn't recognize. Try updating Rover."
+    )]
+    UnknownBulkDeletionJobStatus { job_id: String },
+
     #[error("Offline licences are not enabled for your organization.")]
     OfflineLicenseNotEnabled,
 

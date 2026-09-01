@@ -1,0 +1,20 @@
+mutation StartBulkDeletionMutation(
+  $graphId: ID!
+  $listId: ID!
+  $filter: PersistedQueryFilterInput!
+  $exclude: [PersistedQueryIdInput!]
+) {
+  graph(id: $graphId) {
+    persistedQueryList(id: $listId) {
+      startBulkDeletion(filter: $filter, exclude: $exclude) {
+        __typename
+        ... on PermissionError {
+          message
+        }
+        ... on StartBulkDeletionResult {
+          jobId
+        }
+      }
+    }
+  }
+}
