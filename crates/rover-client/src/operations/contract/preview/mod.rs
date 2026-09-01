@@ -91,33 +91,78 @@ impl From<ContractPreviewStatusInput> for contract_preview_status_query::Variabl
     }
 }
 
-/// Start an async contract preview job, returning its (pending) status
-/// immediately.
-pub async fn start(
-    input: ContractPreviewInput,
+/// Builds the default `Service` for starting an async contract preview job,
+/// layered over `client`'s Studio GraphQL service.
+pub fn contract_preview_start_service(
     client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let mut service = ContractPreviewStart::new(
+) -> Result<
+    impl Service<ContractPreviewInput, Response = PreviewJobResponse, Error = RoverClientError> + Clone,
+    RoverClientError,
+> {
+    Ok(ContractPreviewStart::new(
         client
             .studio_graphql_service()
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-    );
+    ))
+}
+
+/// Builds the default `Service` for fetching the full result of a contract
+/// preview build, layered over `client`'s Studio GraphQL service.
+pub fn contract_preview_result_service(
+    client: &StudioClient,
+) -> Result<
+    impl Service<ContractPreviewStatusInput, Response = PreviewJobResponse, Error = RoverClientError>
+        + Clone,
+    RoverClientError,
+> {
+    Ok(ContractPreviewResult::new(
+        client
+            .studio_graphql_service()
+            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+    ))
+}
+
+/// Start an async contract preview job using an already-composed `Service`,
+/// returning its (pending) status immediately.
+pub async fn start<S>(
+    input: ContractPreviewInput,
+    mut service: S,
+) -> Result<PreviewJobResponse, RoverClientError>
+where
+    S: Service<ContractPreviewInput, Response = PreviewJobResponse, Error = RoverClientError>,
+{
     let service = service.ready().await?;
     service.call(input).await
 }
 
-/// Fetch the full result of a previously started contract preview build.
-pub async fn result(
+/// Fetch the full result of a previously started contract preview build
+/// using an already-composed `Service`.
+pub async fn result<S>(
     input: ContractPreviewStatusInput,
-    client: &StudioClient,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let mut service = ContractPreviewResult::new(
-        client
-            .studio_graphql_service()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-    );
+    mut service: S,
+) -> Result<PreviewJobResponse, RoverClientError>
+where
+    S: Service<ContractPreviewStatusInput, Response = PreviewJobResponse, Error = RoverClientError>,
+{
     let service = service.ready().await?;
     service.call(input).await
+}
+
+/// Start an async contract preview build then poll until it reaches a
+/// terminal state.
+pub async fn run(
+    input: ContractPreviewInput,
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> Result<PreviewJobResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let start_service = contract_preview_start_service(client)?;
+    let started = start(input, start_service).await?;
+    let status_input = ContractPreviewStatusInput {
+        graph_ref,
+        build_id: started.build_id,
+    };
+    poll(status_input, client, checks_timeout_seconds).await
 }
 
 /// Continuously poll the status of an already-started contract preview build,
@@ -150,28 +195,13 @@ pub async fn poll(
         .call(status_input.clone())
         .await?;
 
-    result(status_input, client).await.map_err(|source| {
-        RoverClientError::PreviewResultUnavailable {
+    let result_service = contract_preview_result_service(client)?;
+    result(status_input, result_service)
+        .await
+        .map_err(|source| RoverClientError::PreviewResultUnavailable {
             build_id,
             source: Box::new(source),
-        }
-    })
-}
-
-/// Start an async contract preview build then poll until it reaches a
-/// terminal state.
-pub async fn run(
-    input: ContractPreviewInput,
-    client: &StudioClient,
-    checks_timeout_seconds: u64,
-) -> Result<PreviewJobResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let started = start(input, client).await?;
-    let status_input = ContractPreviewStatusInput {
-        graph_ref,
-        build_id: started.build_id,
-    };
-    poll(status_input, client, checks_timeout_seconds).await
+        })
 }
 
 #[cfg(test)]
@@ -225,9 +255,13 @@ mod tests {
             }));
         });
 
-        let response = start(test_input(), &test_client(&server.url("/")))
-            .await
-            .unwrap();
+        let client = test_client(&server.url("/"));
+        let response = start(
+            test_input(),
+            contract_preview_start_service(&client).unwrap(),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(response.build_id, "build-123");
         assert_eq!(response.status, AsyncBuildStatus::Pending);
