@@ -7,11 +7,15 @@ use reqwest::{
     Client as ReqwestClient,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
+use rover_http::{retry::RetryPolicy, timeout::TimeoutLayer, HttpService, ReqwestService};
 use rover_studio::service::{
     rejected_credential::RejectedCredentialLayer, HttpStudioServiceError, HttpStudioServiceLayer,
 };
-use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
+use tower::{
+    retry::RetryLayer,
+    util::{option_layer, BoxCloneServiceLayer},
+    ServiceBuilder, ServiceExt,
+};
 use url::Url;
 
 use crate::{
@@ -179,6 +183,30 @@ impl StudioClient {
     pub fn studio_graphql_service(
         &self,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        self.build_studio_graphql_service(None)
+    }
+
+    /// Same as [`StudioClient::studio_graphql_service`], but bounds each individual
+    /// HTTP attempt with `attempt_timeout`, nested inside the retry so a single hung
+    /// attempt can't consume the entire retry budget. Use this for operations that
+    /// poll or otherwise need an explicit per-attempt timeout rather than relying on
+    /// the ambient `--client-timeout` floor alone.
+    pub fn studio_graphql_service_with_timeout(
+        &self,
+        attempt_timeout: Duration,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        self.build_studio_graphql_service(Some(attempt_timeout))
+    }
+
+    /// Shared builder behind [`StudioClient::studio_graphql_service`] and
+    /// [`StudioClient::studio_graphql_service_with_timeout`]. `attempt_timeout` of
+    /// `None` layers in a no-op [`tower::layer::util::Identity`] instead of a
+    /// [`TimeoutLayer`], so the two callers stay behaviorally identical to having
+    /// their own independent builder chains.
+    fn build_studio_graphql_service(
+        &self,
+        attempt_timeout: Option<Duration>,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .layer(BoxCloneServiceLayer::new(
@@ -196,6 +224,7 @@ impl StudioClient {
                     .into_inner(),
             ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            .layer(option_layer(attempt_timeout.map(TimeoutLayer::new)))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
