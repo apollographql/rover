@@ -325,8 +325,17 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
+        assert_eq!(
+            response,
+            PreviewJobResponse {
+                graph_ref: GraphRef::new("test-graph", Some("test-variant")).unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::Running,
+                api_schema: None,
+                supergraph_schema: None,
+                errors: Vec::new(),
+            }
+        );
     }
 
     #[tokio::test]
@@ -347,8 +356,17 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status, AsyncBuildStatus::Running);
-        assert_eq!(response.build_id, "build-123");
+        assert_eq!(
+            response,
+            PreviewJobResponse {
+                graph_ref: GraphRef::new("test-graph", Some("test-variant")).unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::Running,
+                api_schema: None,
+                supergraph_schema: None,
+                errors: Vec::new(),
+            }
+        );
     }
 
     #[tokio::test]
@@ -369,14 +387,16 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status, AsyncBuildStatus::Success);
         assert_eq!(
-            response.api_schema,
-            Some("type Query { filtered: String }".to_string())
-        );
-        assert_eq!(
-            response.supergraph_schema,
-            Some("filtered supergraph".to_string())
+            response,
+            PreviewJobResponse {
+                graph_ref: GraphRef::new("test-graph", Some("test-variant")).unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::Success,
+                api_schema: Some("type Query { filtered: String }".to_string()),
+                supergraph_schema: Some("filtered supergraph".to_string()),
+                errors: Vec::new(),
+            }
         );
     }
 
@@ -398,8 +418,16 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status, AsyncBuildStatus::FilterFailed);
-        assert_eq!(response.api_schema, None);
-        assert_eq!(response.errors, vec!["unknown tag 'internal'".to_string()]);
+        assert_eq!(
+            response,
+            PreviewJobResponse {
+                graph_ref: GraphRef::new("test-graph", Some("test-variant")).unwrap(),
+                build_id: "build-123".to_string(),
+                status: AsyncBuildStatus::FilterFailed,
+                api_schema: None,
+                supergraph_schema: None,
+                errors: vec!["unknown tag 'internal'".to_string()],
+            }
+        );
     }
 }
