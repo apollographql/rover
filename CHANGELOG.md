@@ -86,6 +86,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover-client`'s `utf8_points_to_correct_place` test could fail depending on whether the `NO_COLOR`/`APOLLO_NO_COLOR` environment variables happened to be set in the environment running the test suite, since that changes not just color but the literal report-kind text ("Warning" vs the raw "WARNING" level string). The test now pins both env vars unset for its duration, so it's deterministic regardless of the ambient environment. No user-facing behavior change.
 
+- **Report a rejected API key as `E013`/`E014` even when the registry responds `200 OK` - @dotdat**
+
+  When the registry rejects a key by returning `HTTP 200` with `"data": null` and a body-level "Invalid credentials" error (rather than an `HTTP 401`/`406`), Rover used to report a generic, undifferentiated `error: No data field provided` instead of the usual `E013`/`E014`. The credential-rejection check only ever looked at a nested `extensions.response` field on each GraphQL error, never the error's own top-level `message`, which is where this particular response places the context. The check now looks at each error's top-level message, and runs regardless of whether `data` is present, `null`, or omitted. A related gap is fixed alongside it: `rover graph fetch` and `rover graph-artifact list-tags` now also check whether the rejected key was malformed (e.g. missing colons) before settling on `E013`, matching the check every other command already applied - so a key that was never validly shaped reports `E014` there too, not just `E013`.
+
 ## 🛠 Maintenance
 
 - **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**

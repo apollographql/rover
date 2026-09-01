@@ -51,7 +51,14 @@ impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
             errors: errors
                 .iter()
                 .flat_map(|error| {
-                    error
+                    // Some upstream services wrap a nested error body in
+                    // `extensions.response` (e.g. a federated subgraph's own
+                    // error response); surface those messages too. But
+                    // always include the error's own top-level `message`
+                    // first - that's where Studio's own credential-rejection
+                    // errors ("Unauthorized: Invalid credentials provided")
+                    // actually live, with no nested `response` extension at all.
+                    let nested = error
                         .extensions
                         .as_ref()
                         .and_then(|extensions| extensions.get("response"))
@@ -62,7 +69,8 @@ impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
                         .map(|partial_error_inner_body| partial_error_inner_body.body.errors)
                         .into_iter()
                         .flatten()
-                        .map(|partial_error_inner_error| partial_error_inner_error.message)
+                        .map(|partial_error_inner_error| partial_error_inner_error.message);
+                    std::iter::once(error.message.clone()).chain(nested)
                 })
                 .collect(),
         }
@@ -255,23 +263,25 @@ where
                 })?;
 
             if let Some(errors) = graphql_response.errors {
-                match graphql_response.data {
-                    Some(data) => {
-                        let friendly_errors_detail = SimplifiedErrorList::from(&errors).errors;
+                let friendly_errors_detail = SimplifiedErrorList::from(&errors).errors;
 
-                        if friendly_errors_detail
-                            .join("")
-                            .contains("Invalid credentials")
-                        {
-                            Err(GraphQLServiceError::InvalidCredentials {})
-                        } else {
-                            Err(GraphQLServiceError::PartialError {
-                                data,
-                                errors,
-                                friendly_errors_detail,
-                            })
-                        }
-                    }
+                // Checked once, regardless of whether the response also carried a
+                // `data` field - a credential rejection is a credential rejection
+                // whether or not the server happened to include `"data": null` or
+                // omit the field entirely.
+                if friendly_errors_detail.iter().any(|message| {
+                    let message = message.to_lowercase();
+                    message.contains("unauthorized") || message.contains("invalid credentials")
+                }) {
+                    return Err(GraphQLServiceError::InvalidCredentials {});
+                }
+
+                match graphql_response.data {
+                    Some(data) => Err(GraphQLServiceError::PartialError {
+                        data,
+                        errors,
+                        friendly_errors_detail,
+                    }),
                     None => Err(GraphQLServiceError::NoData(errors)),
                 }
             } else {
@@ -291,9 +301,14 @@ mod tests {
 
     use anyhow::Result;
     use bytes::Bytes;
+    use futures::future;
     use graphql_client::{GraphQLQuery, QueryBody};
     use http::{HeaderValue, Method, StatusCode, Uri};
-    use rover_http::{body::body_to_bytes, Full, HttpRequest, HttpResponse, HttpServiceError};
+    use rover_http::{
+        body::body_to_bytes, test::MockHttpService, Full, HttpRequest, HttpResponse,
+        HttpServiceError,
+    };
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
@@ -302,7 +317,9 @@ mod tests {
     use tower_test::mock;
     use url::Url;
 
-    use super::{GraphQLLayer, GraphQLRequest, GraphQLServiceError, JSON_CONTENT_TYPE};
+    use super::{
+        GraphQLLayer, GraphQLRequest, GraphQLService, GraphQLServiceError, JSON_CONTENT_TYPE,
+    };
 
     struct TestQuery {}
 
@@ -448,6 +465,137 @@ mod tests {
             }
             _ => false,
         });
+        Ok(())
+    }
+
+    // Studio's own credential-rejection response has `"data": null` and puts
+    // the credential-rejection message directly on the error, not nested
+    // under `extensions.response`. The check must catch it whether the
+    // message mentions "unauthorized", "invalid credentials", both, or
+    // either in a different case.
+    #[rstest]
+    #[case::unauthorized_only("Unauthorized")]
+    #[case::invalid_credentials_only("Invalid credentials provided")]
+    #[case::both("Unauthorized: Invalid credentials provided")]
+    #[case::mixed_case("UNAUTHORIZED: INVALID CREDENTIALS PROVIDED")]
+    #[tokio::test]
+    pub async fn test_invalid_credentials_with_null_data(#[case] message: &str) -> Result<()> {
+        let message = message.to_string();
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
+            let error = graphql_client::Error {
+                message: message.clone(),
+                locations: None,
+                path: None,
+                extensions: None,
+            };
+            let graphql_response: graphql_client::Response<TestQueryResponse> =
+                graphql_client::Response {
+                    data: None,
+                    errors: Some(vec![error]),
+                    extensions: None,
+                };
+            let mock_http_response = http::Response::builder()
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
+                .unwrap();
+            future::ready(Ok(mock_http_response))
+        });
+
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|err| matches!(err, GraphQLServiceError::InvalidCredentials()));
+        Ok(())
+    }
+
+    // Same credential-rejection messages, but the response also carries a
+    // (partial) `data` field - confirms the check isn't skipped just because
+    // `data` happened to be present.
+    #[rstest]
+    #[case::unauthorized_only("Unauthorized")]
+    #[case::invalid_credentials_only("Invalid credentials provided")]
+    #[case::both("Unauthorized: Invalid credentials provided")]
+    #[case::mixed_case("UNAUTHORIZED: INVALID CREDENTIALS PROVIDED")]
+    #[tokio::test]
+    pub async fn test_invalid_credentials_with_partial_data(#[case] message: &str) -> Result<()> {
+        let message = message.to_string();
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
+            let error = graphql_client::Error {
+                message: message.clone(),
+                locations: None,
+                path: None,
+                extensions: None,
+            };
+            let graphql_response: graphql_client::Response<TestQueryResponse> =
+                graphql_client::Response {
+                    data: Some(TestQueryResponse { inner_data: 0 }),
+                    errors: Some(vec![error]),
+                    extensions: None,
+                };
+            let mock_http_response = http::Response::builder()
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
+                .unwrap();
+            future::ready(Ok(mock_http_response))
+        });
+
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|err| matches!(err, GraphQLServiceError::InvalidCredentials()));
+        Ok(())
+    }
+
+    // A non-credential error with `data` present must still fall through to
+    // `PartialError`, not `InvalidCredentials` - the broadened substring
+    // check must not swallow unrelated errors.
+    #[tokio::test]
+    pub async fn test_partial_error_when_not_a_credential_rejection() -> Result<()> {
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(|_| {
+            let error = graphql_client::Error {
+                message: "something went wrong".to_string(),
+                locations: None,
+                path: None,
+                extensions: None,
+            };
+            let graphql_response: graphql_client::Response<TestQueryResponse> =
+                graphql_client::Response {
+                    data: Some(TestQueryResponse { inner_data: 0 }),
+                    errors: Some(vec![error]),
+                    extensions: None,
+                };
+            let mock_http_response = http::Response::builder()
+                .body(Full::new(Bytes::from(
+                    serde_json::to_vec(&graphql_response).unwrap(),
+                )))
+                .unwrap();
+            future::ready(Ok(mock_http_response))
+        });
+
+        let service = GraphQLService::new(None, MockCloneService::new(mock));
+        let request: GraphQLRequest<TestQuery> =
+            GraphQLRequest::new(TestQueryVariables { variable: 7 });
+        let result = service.oneshot(request).await;
+
+        assert_that!(result)
+            .is_err()
+            .matches(|err| matches!(err, GraphQLServiceError::PartialError { .. }));
         Ok(())
     }
 

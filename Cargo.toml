@@ -128,7 +128,7 @@ apollo-federation-types = { version = "=0.17.8", features = ["json_schema"] }
 apollo-language-server = { version = "=0.9.0", default-features = false, features = ["tokio"] }
 
 # tree-sitter grammars for client extraction
-tree-sitter = "0.26"
+tree-sitter = "0.27"
 tree-sitter-typescript = "0.23"
 tree-sitter-swift = "0.7"
 tree-sitter-kotlin-ng = "1"
