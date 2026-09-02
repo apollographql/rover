@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.26
+# syntax=docker/dockerfile:1.27
 FROM rust:1.98-trixie AS builder
 
 WORKDIR /usr/src/rover
