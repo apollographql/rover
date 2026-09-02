@@ -1,0 +1,45 @@
+# Query for the schema results of an async compose-and-filter preview build.
+query ComposeAndFilterPreviewResultQuery(
+  $graph_id: ID!
+  $variant: String!
+  $build_id: ID!
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      composeAndFilterPreviewStatus(buildID: $build_id) {
+        __typename
+        ... on ComposeAndFilterPreviewPending {
+          buildID
+          status
+        }
+        ... on ComposeAndFilterPreviewSuccess {
+          composeResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+          filterResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+        }
+        ... on ComposeAndFilterPreviewComposeFailure {
+          composeErrors {
+            message
+            code
+            failedStep
+          }
+        }
+        ... on ComposeAndFilterPreviewFilterFailure {
+          composeResults {
+            apiSchemaDocument
+            supergraphSchemaDocument
+          }
+          filterErrors {
+            message
+            failedStep
+          }
+        }
+      }
+    }
+  }
+}
