@@ -199,13 +199,13 @@ Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 </tbody>
 </table>
 
-## Preview a contract
+## Previewing a contract
 
 ### `contract preview`
 
 <AuthNotice />
 
-Before publishing a contract to GraphOS, preview the contract schema that a given filter produces, without publishing a contract variant.
+Before publishing a contract to GraphOS, preview the contract schema that your filter produces, without publishing a contract variant.
 
 Use the `contract preview` command to view the resulting schema:
 
@@ -221,7 +221,7 @@ The argument `my-graph@my-source-variant` in the example above is a [graph ref](
 
 Preview builds run asynchronously on GraphOS. By default, Rover starts the build and polls its status until it completes, then prints the resulting schema. See [Running previews asynchronously](#running-previews-asynchronously) below to instead return immediately with a build ID and check the result later.
 
-Options include:
+The command supports the following options:
 
 <table class="field-table">
 <thead>
@@ -245,7 +245,7 @@ A tag name to include in [contract filters](/graphos/delivery/contracts/#contrac
 --include-tag foo --include-tag bar
 ```
 
-To specify an empty include list, enable `--no-include-tags`.
+To specify an empty include list, use `--no-include-tags`.
 
 One of `--include-tag` or `--no-include-tags` is required when starting a new preview build (not used with `--build-id`).
 
@@ -259,9 +259,9 @@ One of `--include-tag` or `--no-include-tags` is required when starting a new pr
 </td>
 <td>
 
-Specifies an empty [include list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
+Specify an empty [include list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
-One of `--include-tag` or `--no-include-tags` is **required** when starting a new preview build (not used with `--build-id`).
+One of `--include-tag` or `--no-include-tags` is required when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -279,7 +279,7 @@ A tag name to exclude when filtering. For details, see the [contract filters](/g
 --exclude-tag foo --exclude-tag bar
 ```
 
-To specify an empty exclude list, enable `--no-exclude-tags`.
+To specify an empty exclude list, use `--no-exclude-tags`.
 
 One of `--exclude-tag` or `--no-exclude-tags` is required when starting a new preview build (not used with `--build-id`).
 
@@ -295,7 +295,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is required when starting a new pr
 
 Use this to specify an empty [contract filter list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
-One of `--exclude-tag` or `--no-exclude-tags` is **required** when starting a new preview build (not used with `--build-id`).
+One of `--exclude-tag` or `--no-exclude-tags` is required when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -307,9 +307,9 @@ One of `--exclude-tag` or `--no-exclude-tags` is **required** when starting a ne
 </td>
 <td>
 
-If provided, the preview automatically hides types that are unreachable from contract schema's root fields. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
+If provided, the preview automatically hides types that are unreachable from contract schema's root fields. For details, see the [contract filters documentation](/graphos/delivery/contracts/#contract-filters).
 
-Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when starting a new preview build (not used with `--build-id`).
+Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when you start a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -321,9 +321,9 @@ Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when 
 </td>
 <td>
 
-If provided, the preview doesn't automatically hide types that are unreachable from the contract schema's root fields.
+If provided, the preview doesn't automatically hide types that are unreachable from contract schema's root fields.
 
-Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when starting a new preview build (not used with `--build-id`).
+Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when you start a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -335,7 +335,7 @@ Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when 
 </td>
 <td>
 
-Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Check the build's status later with `--build-id`.
+Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Use `--build-id` to check the build's status later.
 
 </td>
 </tr>
@@ -347,14 +347,14 @@ Optional. If provided, Rover starts the preview build and immediately returns wi
 </td>
 <td>
 
-Optional. Check the status of a previously started preview build once, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options preceding.
+Optional. Use this to check the status of a previously started preview build once, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options preceding.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-#### Running previews asynchronously
+#### Run previews asynchronously
 
 For long-running preview builds, use the `--async` flag to start the build and return a build ID immediately.
 
@@ -363,13 +363,13 @@ rover contract preview my-graph@my-source-variant \
   --include-tag foo --no-exclude-tags --hide-unreachable-types --async
 ```
 
-Check the status of the build later with `--build-id`:
+Use `--build-id` to check the status of the build later:
 
 ```bash
 rover contract preview my-graph@my-source-variant --build-id <BUILD_ID>
 ```
 
-By default (without `--async`), Rover CLI polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) elapses, whichever comes first. If Rover CLI times out while polling, the build itself may still complete in the background—check back with `--build-id`.
+By default (without `--async`), Rover CLI polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) elapses, whichever comes first. If Rover CLI times out while polling, the build itself may still complete in the background—use `--build-id` to check back.
 
 ## Fetching contract details
 

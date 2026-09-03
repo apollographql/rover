@@ -396,7 +396,7 @@ If present, an environment variable's value takes precedence over all other meth
 |-----------------------------|----------------|
 | `APOLLO_HOME` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
-| `APOLLO_CHECKS_TIMEOUT_SECONDS` | How long, in seconds, the Rover CLI polls an asynchronous check or preview build before timing out. Applies to `graph check`, `subgraph check`, the checks run by `graph publish` and `subgraph publish`, and to `subgraph preview` and `contract preview`. Defaults to 300 (5 minutes). |
+| `APOLLO_CHECKS_TIMEOUT_SECONDS` | How long, in seconds, Rover CLI polls an asynchronous check or preview build before timing out. Applies to `graph check`, `subgraph check`, the checks run by `graph publish` and `subgraph publish`, and to `subgraph preview` and `contract preview`. Defaults to 300 (5 minutes). |
 | `APOLLO_GRAPH_REF` | A graph ref passed to `rover dev` command. [Learn more](./commands/dev#understanding---graph-ref-vs-apollo_graph_ref) |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with GraphOS Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `true` if you don't want Rover to collect anonymous usage data. |
