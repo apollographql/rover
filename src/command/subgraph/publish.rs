@@ -19,6 +19,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    command::CliOutput,
     options::{CheckConfigOpts, GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
@@ -152,11 +153,17 @@ impl Publish {
             .await
             {
                 Ok(check_res) => {
-                    eprintln!("{}", check_res.get_output());
+                    eprintln!(
+                        "{}",
+                        crate::command::check_output::CheckWorkflowOutput(&check_res).text()
+                    );
                     eprintln!("{}", Style::Success.paint("Check passed. Publishing SDL"));
                 }
                 Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
-                    eprintln!("{}", check_response.get_output());
+                    eprintln!(
+                        "{}",
+                        crate::command::check_output::CheckWorkflowOutput(&check_response).text()
+                    );
                     eprintln!(
                         "{}",
                         Style::Failure.paint(

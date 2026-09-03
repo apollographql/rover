@@ -3,8 +3,6 @@ use std::{
     str::FromStr,
 };
 
-use comfy_table::{presets::UTF8_FULL, Attribute::Bold, Cell, CellAlignment::Center, Table};
-use rover_std::{hyperlink, Style};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -30,67 +28,6 @@ pub struct CheckWorkflowResponse {
 }
 
 impl CheckWorkflowResponse {
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        if let (Some(core_schema_modified), Some(core_schema_status)) = (
-            self.maybe_core_schema_modified,
-            self.maybe_core_schema_status.clone(),
-        ) {
-            Self::append_task_title(&mut msg, "Build Check", core_schema_status);
-            if core_schema_modified {
-                msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
-            } else {
-                msg.push_str("There were no changes detected in the composed schema.")
-            }
-        }
-
-        if let Some(operations_response) = &self.maybe_operations_response {
-            Self::append_task_title(
-                &mut msg,
-                "Operation Check",
-                operations_response.task_status.clone(),
-            );
-            msg.push_str(operations_response.get_output().as_str());
-        }
-
-        if let Some(lint_response) = &self.maybe_lint_response {
-            Self::append_task_title(&mut msg, "Linter Check", lint_response.task_status.clone());
-            msg.push_str(lint_response.get_output().as_str());
-        }
-
-        if let Some(proposals_response) = &self.maybe_proposals_response {
-            Self::append_task_title(
-                &mut msg,
-                "Proposals Check",
-                proposals_response.task_status.clone(),
-            );
-            msg.push_str(proposals_response.get_output().as_str());
-        }
-
-        if let Some(custom_response) = &self.maybe_custom_response {
-            Self::append_task_title(
-                &mut msg,
-                "Custom Check",
-                custom_response.task_status.clone(),
-            );
-            msg.push_str(custom_response.get_output().as_str());
-        }
-
-        if let Some(downstream_response) = &self.maybe_downstream_response {
-            if !downstream_response.blocking_variants.is_empty() {
-                Self::append_task_title(
-                    &mut msg,
-                    "Downstream Check",
-                    downstream_response.task_status.clone(),
-                );
-                msg.push_str(downstream_response.get_output().as_str());
-            }
-        }
-
-        msg.trim_end().to_string()
-    }
-
     pub fn get_json(&self) -> Value {
         let mut json_result: Value = json!({});
         let mut tasks: Value = json!({});
@@ -123,29 +60,6 @@ impl CheckWorkflowResponse {
 
         json_result
     }
-
-    fn append_task_title(msg: &mut String, title: &str, status: CheckTaskStatus) {
-        if !msg.is_empty() {
-            if !msg.ends_with('\n') {
-                msg.push('\n');
-            }
-            msg.push('\n');
-        }
-        msg.push_str(&Self::task_title(title, status));
-    }
-
-    fn task_title(title: &str, status: CheckTaskStatus) -> String {
-        format!(
-            "{} [{}]:\n",
-            Style::Heading.paint(title),
-            match status {
-                CheckTaskStatus::BLOCKED => status.as_ref().to_string(),
-                CheckTaskStatus::FAILED => Style::Failure.paint(status),
-                CheckTaskStatus::PASSED => Style::Success.paint(status),
-                CheckTaskStatus::PENDING => Style::Pending.paint(status),
-            }
-        )
-    }
 }
 
 /// CheckResponse is the return type of the
@@ -153,9 +67,9 @@ impl CheckWorkflowResponse {
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct OperationCheckResponse {
     pub task_status: CheckTaskStatus,
-    target_url: Option<String>,
-    operation_check_count: u64,
-    changes: Vec<SchemaChange>,
+    pub target_url: Option<String>,
+    pub operation_check_count: u64,
+    pub changes: Vec<SchemaChange>,
     failure_count: u64,
 }
 
@@ -180,55 +94,6 @@ impl OperationCheckResponse {
             failure_count,
         }
     }
-
-    pub fn get_table(&self) -> String {
-        let mut table = Table::new();
-        table.load_style(UTF8_FULL);
-
-        table.set_header(
-            vec!["Change", "Code", "Description"]
-                .into_iter()
-                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
-        );
-        for check in &self.changes {
-            table.add_row(vec![
-                &check.severity.to_string(),
-                &check.code,
-                &check.description,
-            ]);
-        }
-
-        table.to_string()
-    }
-
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        msg.push_str(&format!(
-            "Compared {} schema changes against {} operations.",
-            self.changes.len(),
-            self.operation_check_count
-        ));
-
-        msg.push('\n');
-
-        if self.changes.is_empty() {
-            msg.push_str("No schema changes detected.\n");
-        } else {
-            msg.push_str(&self.get_table());
-        }
-
-        if let Some(url) = &self.target_url {
-            msg.push_str("View operation check details at: ");
-            msg.push_str(&Style::Link.paint(url));
-        }
-
-        msg
-    }
-
-    pub fn get_json(&self) -> Value {
-        json!(self)
-    }
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
@@ -238,75 +103,6 @@ pub struct LintCheckResponse {
     pub diagnostics: Vec<Diagnostic>,
     pub errors_count: u64,
     pub warnings_count: u64,
-}
-
-impl LintCheckResponse {
-    pub fn get_table(&self) -> String {
-        let mut table = Table::new();
-        table.load_style(UTF8_FULL);
-
-        table.set_header(
-            vec!["Level", "Coordinate", "Line", "Description"]
-                .into_iter()
-                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
-        );
-
-        for diagnostic in &self.diagnostics {
-            table.add_row(vec![
-                &diagnostic.level,
-                &diagnostic.coordinate,
-                &diagnostic.start_line.to_string(),
-                &diagnostic.message,
-            ]);
-        }
-
-        table.to_string()
-    }
-
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        let error_msg = match self.errors_count {
-            0 => String::new(),
-            1 => "1 error".to_string(),
-            _ => format!("{} errors", self.errors_count),
-        };
-
-        let warning_msg = match self.warnings_count {
-            0 => String::new(),
-            1 => "1 warning".to_string(),
-            _ => format!("{} warnings", self.warnings_count),
-        };
-
-        let plural_errors = match (&error_msg[..], &warning_msg[..]) {
-            ("", "") => match self.diagnostics.len() {
-                1 => format!("{} rule ignored", self.diagnostics.len()),
-                _ => format!("{} rules ignored", self.diagnostics.len()),
-            },
-            ("", _) => warning_msg,
-            (_, "") => error_msg,
-            _ => format!("{error_msg} and {warning_msg}"),
-        };
-
-        if !self.diagnostics.is_empty() {
-            msg.push_str(&format!("Resulted in {plural_errors}."));
-            msg.push('\n');
-            msg.push_str(&self.get_table());
-        } else {
-            msg.push_str("No linting errors or warnings found.");
-            msg.push('\n');
-        }
-        if let Some(url) = &self.target_url {
-            msg.push_str("View linter check details at: ");
-            msg.push_str(&hyperlink(url.as_str()));
-        }
-
-        msg
-    }
-
-    pub fn get_json(&self) -> Value {
-        json!(self)
-    }
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
@@ -340,62 +136,6 @@ pub struct ProposalsCheckResponse {
     pub related_proposals: Vec<RelatedProposal>,
 }
 
-impl ProposalsCheckResponse {
-    pub fn get_table(&self) -> String {
-        let mut table = Table::new();
-        table.load_style(UTF8_FULL);
-
-        table.set_header(
-            vec!["Status", "Proposal Name"]
-                .into_iter()
-                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
-        );
-
-        for proposal in &self.related_proposals {
-            table.add_row(vec![&proposal.status, &proposal.display_name]);
-        }
-
-        table.to_string()
-    }
-
-    pub fn get_msg(&self) -> String {
-        match self.proposal_coverage {
-            ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
-            ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => match self.severity_level {
-                ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.".to_string(),
-                ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
-                ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
-            },
-            ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overridden in Studio".to_string(),
-            ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
-        }
-    }
-
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        if !self.related_proposals.is_empty() {
-            msg.push_str(&self.get_msg());
-            msg.push('\n');
-            msg.push_str(&self.get_table());
-        } else {
-            msg.push_str("Your proposals task did not return any approved proposals associated with these changes.");
-            msg.push('\n');
-        }
-
-        if let Some(url) = &self.target_url {
-            msg.push_str("View proposal check details at: ");
-            msg.push_str(&Style::Link.paint(url));
-        }
-
-        msg
-    }
-
-    pub fn get_json(&self) -> Value {
-        json!(self)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct Violation {
     pub level: String,
@@ -411,109 +151,11 @@ pub struct CustomCheckResponse {
     pub violations: Vec<Violation>,
 }
 
-impl CustomCheckResponse {
-    pub fn get_table(&self) -> String {
-        let mut table = Table::new();
-        table.load_style(UTF8_FULL);
-
-        table.set_header(
-            vec!["Level", "Rule", "Line", "Message"]
-                .into_iter()
-                .map(|s| Cell::new(s).set_alignment(Center).add_attribute(Bold)),
-        );
-
-        for violation in &self.violations {
-            let coordinate = match &violation.start_line {
-                Some(message) => message.to_string(),
-                None => "".to_string(),
-            };
-            table.add_row(vec![
-                &violation.level,
-                &violation.rule,
-                &coordinate,
-                &violation.message,
-            ]);
-        }
-
-        table.to_string()
-    }
-
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        let violation_msg = match self.violations.len() {
-            0 => "no violations".to_string(),
-            1 => "1 violation".to_string(),
-            _ => format!("{} violations", self.violations.len()),
-        };
-
-        if !self.violations.is_empty() {
-            msg.push_str(&format!("Resulted in {violation_msg}."));
-            msg.push('\n');
-            msg.push_str(&self.get_table());
-        } else {
-            msg.push_str("No custom check violations found.");
-            msg.push('\n');
-        }
-
-        if let Some(url) = &self.target_url {
-            msg.push_str("View custom check details at: ");
-            msg.push_str(&hyperlink(url.as_str()));
-        }
-
-        msg
-    }
-
-    pub fn get_json(&self) -> Value {
-        json!(self)
-    }
-}
-
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct DownstreamCheckResponse {
     pub task_status: CheckTaskStatus,
     pub target_url: Option<String>,
     pub blocking_variants: Vec<String>,
-}
-
-impl DownstreamCheckResponse {
-    pub fn get_msg(&self) -> String {
-        let variants = self.blocking_variants.join(",");
-        let plural_this = match self.blocking_variants.len() {
-            1 => "this",
-            _ => "these",
-        };
-        let plural = match self.blocking_variants.len() {
-            1 => "",
-            _ => "s",
-        };
-        format!(
-            "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
-            plural_this,
-            plural,
-            Style::Variant.paint(variants),
-        )
-    }
-
-    pub fn get_output(&self) -> String {
-        let mut msg = String::new();
-
-        if !self.blocking_variants.is_empty() {
-            msg.push_str(&self.get_msg());
-            msg.push('\n');
-        }
-
-        if let Some(url) = &self.target_url {
-            msg.push_str("View downstream check details at: ");
-            msg.push_str(&hyperlink(url.as_str()));
-        }
-
-        msg
-    }
-
-    pub fn get_json(&self) -> Value {
-        json!(self)
-    }
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]

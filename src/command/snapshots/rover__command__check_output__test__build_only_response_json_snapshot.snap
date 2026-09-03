@@ -1,0 +1,8 @@
+---
+source: src/command/check_output.rs
+expression: json
+---
+{
+  "core_schema_modified": false,
+  "tasks": {}
+}
