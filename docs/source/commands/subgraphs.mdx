@@ -579,7 +579,7 @@ By default, this command flags all violations in your local schema.
 
 <AuthNotice />
 
-Always preview supergraph schema before publishing subgraph changes to ensure successful composition without affecting your production graph.
+Always preview your supergraph schema before publishing subgraph changes to ensure successful composition without affecting your production graph.
 
 Run the `subgraph preview` command:
 
@@ -587,7 +587,7 @@ Run the `subgraph preview` command:
 rover subgraph preview my-graph@my-variant
 ```
 
-The argument `my-graph@my-variant` in the preceding example is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and [variant](/graphos/graphs/#variants) whose subgraphs you want to build a preview from.
+The argument `my-graph@my-variant` in the preceding example is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and [variant](/graphos/graphs/#variants) whose subgraphs you want to use for the preview.
 
 By default, `subgraph preview` composes the variant's subgraphs exactly as they're currently published. Use `--subgraph-changes` to preview the effect of hypothetical subgraph changes first (see [Previewing subgraph changes](#previewing-subgraph-changes) below). You can also provide the `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` options to preview a contract filter on top of composition.
 
@@ -611,7 +611,7 @@ Preview builds run asynchronously on GraphOS. By default, Rover starts the build
 </td>
 <td>
 
-Optional. The path to a YAML file describing hypothetical changes to one or more subgraphs to apply before composing. You can also provide `-`, in which case the command reads the file from `stdin`. For details, see the section on [previewing subgraph changes](#previewing-subgraph-changes).
+Optional. The path to a YAML file describing hypothetical changes to one or more subgraphs to apply before composing. You can also provide `-`, in which case the command reads the file from `stdin`. For details, see [previewing subgraph changes](#previewing-subgraph-changes).
 
 </td>
 </tr>
@@ -623,13 +623,13 @@ Optional. The path to a YAML file describing hypothetical changes to one or more
 </td>
 <td>
 
-Optional. A tag name to include when filtering. To include multiple tag names, specify `--include-tag` multiple times. For details, see the documentation for [contract filters](/graphos/delivery/contracts/#contract-filters).
+Optional. A tag name to include when filtering. To include multiple tag names, specify `--include-tag` multiple times. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
 
 ```bash
 --include-tag foo --include-tag bar
 ```
 
-Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, configure all three—use `--no-include-tags` to set an empty include list.
+Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, configure all three.
 
 </td>
 </tr>
@@ -641,7 +641,7 @@ Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and thei
 </td>
 <td>
 
-Sets an empty include list for the previewed contract schema. To adopt a non-empty list, use `--include-tag` instead. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
+Sets an empty include list for the previewed contract schema. To use a non-empty list, use `--include-tag` instead. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
 
 </td>
 </tr>
@@ -683,7 +683,7 @@ Specify an empty [exclude list](/graphos/delivery/contracts/#contract-filters) f
 </td>
 <td>
 
-Automatically [hide](/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on your previewed contract schema.
+Automatically [hides](/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on your previewed contract schema.
 
 </td>
 </tr>
@@ -707,8 +707,7 @@ Disable the automatic hiding of types that can never be reached in operations on
 </td>
 <td>
 
-Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Check on the build's status later with `--build-id`.
-
+Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Use `--build-id` to check on the build's status later.
 </td>
 </tr>
 <tr>
@@ -726,7 +725,7 @@ Optional. Check the status of a previously started preview build a single time, 
 </tbody>
 </table>
 
-#### Preview subgraph changes
+#### Previewing subgraph changes
 
 Use `--subgraph-changes` to preview what composition produces if you change or remove one or more subgraphs first, without publishing those changes. Provide a YAML file with a `subgraphs` map keyed by subgraph name:
 
@@ -748,13 +747,13 @@ Each subgraph entry can set:
 
 - `routing_url`: a hypothetical new routing URL for the subgraph. Omit to keep the subgraph's currently published URL.
 - `schema`: a hypothetical new schema for the subgraph, either `file: <path>` (a local `.graphql`/`.gql` file) or `sdl: "<inline SDL>"`. Omit to keep the subgraph's currently published schema.
-- `remove: true`: Preview composition as if the subgraph had been removed. Do not combine with `routing_url` or `schema`.
+- `remove: true`: Preview composition as if the subgraph had been removed. Don't combine with `routing_url` or `schema`.
 
 Every subgraph entry must set at least one of `routing_url`, `schema`, or `remove: true`. Subgraphs you don't mention in the file compose exactly as they're currently published.
 
-#### Run previews asynchronously
+#### Running previews asynchronously
 
-For long-running preview builds, use `--async` to start the build and return a build ID immediately. This is the recommended approach for large schemas to avoid local timeouts.
+For long-running preview builds, use `--async` to start the build and return a build ID immediately. This approach helps large schemas avoid local timeouts.
 
 ```bash
 rover subgraph preview my-graph@my-variant --subgraph-changes ./changes.yaml --async
@@ -766,7 +765,7 @@ Check the build status later with `--build-id`:
 rover subgraph preview my-graph@my-variant --build-id <BUILD_ID>
 ```
 
-By default (without `--async`), Rover polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) passes, whichever comes first. If Rover times out while polling, the build itself might still complete in the background—check the build's status later with `--build-id`.
+By default (without `--async`), Rover polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) passes. If Rover times out, your build may still complete in the background. Check your build's status later with `--build-id`.
 
 ## Deleting a subgraph
 
