@@ -96,6 +96,7 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
         ... on DownstreamCheckTask {
           results {
             __typename
+            downstreamGraphID
             downstreamVariantName
             failsUpstreamWorkflow
           }
