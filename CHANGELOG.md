@@ -104,7 +104,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Move check-workflow text rendering out of `rover-client` - @dotdat**
 
-  `CheckWorkflowResponse` and its per-task response types' `get_output()`/`get_table()`/`get_msg()` methods — ANSI styling and hyperlink markup via `rover_std::Style`/`hyperlink`, not client/data logic — move from `rover-client`'s `shared::check_response` module to a new `CheckWorkflowOutput` (`impl CliOutput`) in the `rover` binary crate's `src/command/check_output.rs`. Also removes five `get_json()` methods on the per-task response types that were dead code (`CheckWorkflowResponse::get_json()` builds its own JSON directly and never called them). No user-facing behavior change.
+  `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary
 
 - **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
 
