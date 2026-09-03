@@ -65,6 +65,18 @@ query GraphCheckWorkflowQuery($graph_id: ID!, $workflow_id: ID!) {
             }
           }
         }
+        ... on DownstreamCheckTask {
+          results {
+            __typename
+            blocking
+            downstreamGraphID
+            downstreamVariantName
+            downstreamWorkflow {
+              status
+            }
+            failsUpstreamWorkflow
+          }
+        }
       }
     }
   }
