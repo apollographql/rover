@@ -48,6 +48,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover contract preview` previews a contract by applying include/exclude/hide-unreachable-types filters to a graph variant's current composed schema, without publishing a contract variant. It runs asynchronously on the server; by default Rover polls until the build completes (or `APOLLO_CHECKS_TIMEOUT_SECONDS` elapses), or pass `--async` to just start the build and check on it later with `--build-id`. Exits non-zero if composition or filtering fails.
 
+- **Add `rover subgraph preview` - @sirdodger**
+
+  `rover subgraph preview` composes a preview supergraph from hypothetical subgraph changes described by a `--subgraph-changes` YAML file (add/update a subgraph's schema or routing URL, or mark one `remove: true`), with optional include/exclude/hide-unreachable-types contract filters, without publishing anything. It runs asynchronously on the server; by default Rover polls until the build completes (or `APOLLO_CHECKS_TIMEOUT_SECONDS` elapses), or pass `--async` to just start the build and check on it later with `--build-id`. Exits non-zero if composition or filtering fails.
+
+  `rover subgraph delete`'s pre-confirmation build-error check now runs through this same async preview path instead of a synchronous dry-run mutation, avoiding a long-held server connection (and its timeout risk) while previewing the deletion of a subgraph from a large supergraph.
+
 ## 🐛 Fixes
 
 - **Surface the underlying GraphQL errors when a response has no `data` field - @sirdodger**

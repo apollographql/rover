@@ -1,5 +1,8 @@
 use clap::Parser;
-use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
+use rover_client::operations::subgraph::{
+    delete::{self, SubgraphDeleteInput},
+    preview,
+};
 use rover_std::{Style, prompt};
 use serde::Serialize;
 
@@ -28,7 +31,11 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        checks_timeout_seconds: u64,
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
@@ -40,23 +47,20 @@ impl Delete {
         // this is probably the normal path -- preview a subgraph delete
         // and make the user confirm it manually.
         if !self.confirm {
-            let dry_run = true;
-            // run delete with dryRun, so we can preview build errors
-            let delete_dry_run_response = delete::run(
+            let delete_check_response = delete::check(
                 SubgraphDeleteInput {
                     graph_ref: self.graph.graph_ref.clone(),
                     subgraph: self.subgraph.subgraph_name.clone(),
-                    dry_run,
                 },
-                &client,
+                preview::compose_and_filter_preview_run_service(&client, checks_timeout_seconds),
             )
             .await?;
 
             RoverOutput::SubgraphDeleteResponse {
                 graph_ref: self.graph.graph_ref.clone(),
                 subgraph: self.subgraph.subgraph_name.clone(),
-                dry_run,
-                delete_response: delete_dry_run_response,
+                dry_run: true,
+                delete_response: delete_check_response,
             }
             .get_stdout()?;
 
@@ -67,13 +71,10 @@ impl Delete {
             }
         }
 
-        let dry_run = false;
-
         let delete_response = delete::run(
             SubgraphDeleteInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 subgraph: self.subgraph.subgraph_name.clone(),
-                dry_run,
             },
             &client,
         )
@@ -82,7 +83,7 @@ impl Delete {
         Ok(RoverOutput::SubgraphDeleteResponse {
             graph_ref: self.graph.graph_ref.clone(),
             subgraph: self.subgraph.subgraph_name.clone(),
-            dry_run,
+            dry_run: false,
             delete_response,
         })
     }
