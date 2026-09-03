@@ -20,8 +20,11 @@ pub(super) struct PersistedQueryManifest {
 }
 
 impl PersistedQueryManifest {
-    pub(super) fn from_files(files: Vec<Utf8PathBuf>) -> RoverResult<Self> {
-        let parsed_inputs = ParsedInputs::from_files(files)?;
+    pub(super) fn from_files(
+        files: Vec<Utf8PathBuf>,
+        preserve_comments: bool,
+    ) -> RoverResult<Self> {
+        let parsed_inputs = ParsedInputs::from_files(files, preserve_comments)?;
         let operations = parsed_inputs.generate_operations()?;
         Ok(Self {
             format: MANIFEST_FORMAT,
