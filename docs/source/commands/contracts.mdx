@@ -247,7 +247,7 @@ A tag name to include in [contract filters](/graphos/delivery/contracts/#contrac
 
 To specify an empty include list, enable `--no-include-tags`.
 
-One of `--include-tag` or `--no-include-tags` is required.
+One of `--include-tag` or `--no-include-tags` is required when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -261,7 +261,7 @@ One of `--include-tag` or `--no-include-tags` is required.
 
 Specifies an empty [include list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
-One of `--include-tag` or `--no-include-tags` is **required**.
+One of `--include-tag` or `--no-include-tags` is **required** when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -281,7 +281,7 @@ A tag name to exclude when filtering. For details, see the [contract filters](/g
 
 To specify an empty exclude list, enable `--no-exclude-tags`.
 
-One of `--exclude-tag` or `--no-exclude-tags` is required.
+One of `--exclude-tag` or `--no-exclude-tags` is required when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -295,7 +295,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is required.
 
 Use this to specify an empty [contract filter list](/graphos/delivery/contracts/#contract-filters) for the previewed contract.
 
-One of `--exclude-tag` or `--no-exclude-tags` is **required**.
+One of `--exclude-tag` or `--no-exclude-tags` is **required** when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -309,7 +309,7 @@ One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 
 If provided, the preview automatically hides types that are unreachable from contract schema's root fields. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
 
-Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
+Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -323,7 +323,7 @@ Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
 
 If provided, the preview doesn't automatically hide types that are unreachable from the contract schema's root fields.
 
-Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types`.
+Provide either `--hide-unreachable-types` or `--no-hide-unreachable-types` when starting a new preview build (not used with `--build-id`).
 
 </td>
 </tr>
@@ -347,7 +347,7 @@ Optional. If provided, Rover starts the preview build and immediately returns wi
 </td>
 <td>
 
-Optional. Check the status of a previously started preview build once, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options following.
+Optional. Check the status of a previously started preview build once, instead of starting a new one. You can't combine this with `--async` or the include/exclude/hide-unreachable-types options preceding.
 
 </td>
 </tr>
