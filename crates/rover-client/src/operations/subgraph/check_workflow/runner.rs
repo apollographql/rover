@@ -20,8 +20,9 @@ use crate::{
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
         CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        DownstreamCheckResponse, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
+        DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+        OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+        ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -458,15 +459,24 @@ fn get_downstream_response_from_result(
 ) -> Option<DownstreamCheckResponse> {
     match results {
         Some(results) => {
-            let blocking_variants = results
+            // `blocking`/per-variant `status` require fields not yet selected by this
+            // query (see ROVER-460, which rebases on PR #3377's widened fragment); until
+            // then, `fails_upstream_workflow` alone determines blocking, matching prior
+            // behavior via `DownstreamCheckResponse::blocking_variants`'s first predicate.
+            let variants = results
                 .iter()
-                .filter(|result| result.fails_upstream_workflow.unwrap_or(false))
-                .map(|result| result.downstream_variant_name.clone())
+                .map(|result| DownstreamVariantCheckResult {
+                    graph_id: result.downstream_graph_id.clone(),
+                    variant_name: result.downstream_variant_name.clone(),
+                    blocking: false,
+                    fails_upstream_workflow: result.fails_upstream_workflow,
+                    status: CheckTaskStatus::PENDING,
+                })
                 .collect();
             Some(DownstreamCheckResponse {
                 task_status: task_status.into(),
                 target_url,
-                blocking_variants,
+                variants,
             })
         }
         None => None,
@@ -477,6 +487,7 @@ fn get_downstream_response_from_result(
 #[expect(clippy::panic)]
 mod tests {
     use serde_json::json;
+    use speculoos::prelude::*;
 
     use super::*;
 
@@ -724,5 +735,44 @@ mod tests {
 
         // Lint response should be None since result was null
         assert!(response.maybe_lint_response.is_none());
+    }
+
+    #[test]
+    fn downstream_result_maps_into_shared_variant_shape() {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetUrl": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "failsUpstreamWorkflow": false
+                        }
+                    ]
+                }
+            ]),
+        );
+        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
+        let subgraph = "test-subgraph".to_string();
+
+        let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
+
+        let downstream = response
+            .maybe_downstream_response
+            .expect("expected downstream response");
+        assert_that!(&downstream.variants).has_length(1);
+        let variant = &downstream.variants[0];
+        assert_that!(&variant.graph_id).is_equal_to("test-graph".to_string());
+        assert_that!(&variant.variant_name).is_equal_to("mobile".to_string());
+        // `blocking`/per-variant `status` aren't queried yet (see ROVER-460).
+        assert_that!(&variant.blocking).is_false();
+        assert_that!(&variant.status).is_equal_to(CheckTaskStatus::PENDING);
+        assert_that!(&variant.fails_upstream_workflow).is_equal_to(Some(false));
     }
 }

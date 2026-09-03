@@ -205,6 +205,6 @@ pub enum JsonVersion {
     #[serde(rename = "1")]
     #[default]
     One,
-    #[serde(rename = "2")]
-    Two,
+    #[serde(rename = "3")]
+    Three,
 }
