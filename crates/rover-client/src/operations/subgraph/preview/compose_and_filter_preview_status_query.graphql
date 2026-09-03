@@ -1,0 +1,15 @@
+# Lightweight query to fetch the status of an asynchronous compose-and-filter preview
+# build.
+query ComposeAndFilterPreviewStatusQuery(
+  $graph_id: ID!
+  $variant: String!
+  $build_id: ID!
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      composeAndFilterPreviewStatus(buildID: $build_id) {
+        __typename
+      }
+    }
+  }
+}
