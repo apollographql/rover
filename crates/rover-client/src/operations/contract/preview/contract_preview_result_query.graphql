@@ -1,0 +1,21 @@
+query ContractPreviewResultQuery($graph_id: ID!, $variant: String!, $build_id: ID!) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      contractPreviewStatus(buildID: $build_id) {
+        __typename
+        ... on ContractPreviewAsyncPending {
+          buildID
+          status
+        }
+        ... on ContractPreviewSuccess {
+          apiDocument
+          coreDocument
+        }
+        ... on ContractPreviewErrors {
+          errors
+          failedAt
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+mutation ContractPreviewAsyncMutation(
+  $graph_id: ID!
+  $variant: String!
+  $filters: FilterConfigInput!
+) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      contractPreviewAsync(filters: $filters) {
+        buildID
+      }
+    }
+  }
+}
