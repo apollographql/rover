@@ -31,6 +31,7 @@ use tracing::{info, warn};
 #[cfg(feature = "oauth")]
 mod auth;
 mod config;
+mod contract;
 mod dev;
 mod graph;
 mod graph_artifact;
