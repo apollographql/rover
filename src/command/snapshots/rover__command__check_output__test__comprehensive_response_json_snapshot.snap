@@ -67,8 +67,14 @@ expression: json
     "downstream": {
       "task_status": "FAILED",
       "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
-      "blocking_variants": [
-        "mobile"
+      "variants": [
+        {
+          "graph_id": "my-graph",
+          "variant_name": "mobile",
+          "blocking": true,
+          "fails_upstream_workflow": null,
+          "status": "FAILED"
+        }
       ]
     }
   }

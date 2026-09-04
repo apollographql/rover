@@ -1,8 +1,8 @@
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center, Table, presets::UTF8_FULL};
 use rover_client::shared::{
     CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, DownstreamCheckResponse,
-    LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-    ProposalsCoverage,
+    DownstreamVariantCheckResult, LintCheckResponse, OperationCheckResponse,
+    ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
 };
 use rover_std::{Style, hyperlink};
 use serde_json::Value;
@@ -68,9 +68,7 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             msg.push_str(custom_text(custom_response).as_str());
         }
 
-        if let Some(downstream_response) = &response.maybe_downstream_response
-            && !downstream_response.blocking_variants.is_empty()
-        {
+        if let Some(downstream_response) = &response.maybe_downstream_response {
             append_task_title(
                 &mut msg,
                 "Downstream Check",
@@ -322,31 +320,55 @@ fn custom_text(response: &CustomCheckResponse) -> String {
     msg
 }
 
+fn downstream_blocking_variants(
+    response: &DownstreamCheckResponse,
+) -> Vec<&DownstreamVariantCheckResult> {
+    response
+        .variants
+        .iter()
+        .filter(|variant| {
+            variant.fails_upstream_workflow.unwrap_or(false)
+                || (variant.blocking && variant.status == CheckTaskStatus::FAILED)
+        })
+        .collect()
+}
+
 fn downstream_msg(response: &DownstreamCheckResponse) -> String {
-    let variants = response.blocking_variants.join(",");
-    let plural_this = match response.blocking_variants.len() {
-        1 => "this",
-        _ => "these",
-    };
-    let plural = match response.blocking_variants.len() {
-        1 => "",
-        _ => "s",
-    };
-    format!(
-        "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
-        plural_this,
-        plural,
-        Style::Variant.paint(variants),
-    )
+    let blocking_variants = downstream_blocking_variants(response);
+    if !blocking_variants.is_empty() {
+        let variants = blocking_variants
+            .iter()
+            .map(|variant| variant.variant_name.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        let plural_this = match blocking_variants.len() {
+            1 => "this",
+            _ => "these",
+        };
+        let plural = match blocking_variants.len() {
+            1 => "",
+            _ => "s",
+        };
+        return format!(
+            "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+            plural_this,
+            plural,
+            Style::Variant.paint(variants),
+        );
+    }
+
+    match response.variants.len() {
+        0 => "No contract variants configured for this graph.".to_string(),
+        1 => "Checked 1 contract variant, all passed.".to_string(),
+        count => format!("Checked {count} contract variants, all passed."),
+    }
 }
 
 fn downstream_text(response: &DownstreamCheckResponse) -> String {
     let mut msg = String::new();
 
-    if !response.blocking_variants.is_empty() {
-        msg.push_str(&downstream_msg(response));
-        msg.push('\n');
-    }
+    msg.push_str(&downstream_msg(response));
+    msg.push('\n');
 
     if let Some(url) = &response.target_url {
         msg.push_str("View downstream check details at: ");
@@ -362,8 +384,24 @@ mod test {
     use rover_client::shared::{
         ChangeSeverity, Diagnostic, RelatedProposal, SchemaChange, Violation,
     };
+    use rstest::rstest;
+    use speculoos::prelude::*;
 
     use super::*;
+
+    fn variant(
+        name: &str,
+        blocking: bool,
+        status: CheckTaskStatus,
+    ) -> DownstreamVariantCheckResult {
+        DownstreamVariantCheckResult {
+            graph_id: "my-graph".to_string(),
+            variant_name: name.to_string(),
+            blocking,
+            fails_upstream_workflow: None,
+            status,
+        }
+    }
 
     /// A response exercising every task type at once, each with at least one
     /// finding, so both the text and JSON renderers cover every branch.
@@ -438,7 +476,7 @@ mod test {
                 target_url: Some(
                     "https://studio.apollographql.com/graph/my-graph/checks/downstream".to_string(),
                 ),
-                blocking_variants: vec!["mobile".to_string()],
+                variants: vec![variant("mobile", true, CheckTaskStatus::FAILED)],
             }),
         }
     }
@@ -488,5 +526,36 @@ mod test {
             .json()
             .expect("check workflow JSON rendering cannot fail");
         insta::assert_json_snapshot!(json);
+    }
+
+    #[rstest]
+    #[case::no_contract_variants_configured(
+        vec![],
+        "No contract variants configured for this graph."
+    )]
+    #[case::all_contract_variants_passed(
+        vec![
+            variant("mobile", true, CheckTaskStatus::PASSED),
+            variant("partner-api", true, CheckTaskStatus::PASSED),
+        ],
+        "Checked 2 contract variants, all passed."
+    )]
+    #[case::one_blocking_contract_variant_failed(
+        vec![
+            variant("mobile", true, CheckTaskStatus::FAILED),
+            variant("partner-api", true, CheckTaskStatus::PASSED),
+        ],
+        "The downstream check task has encountered check failures for at least this blocking downstream variant: mobile."
+    )]
+    fn downstream_msg_summarizes_variants(
+        #[case] variants: Vec<DownstreamVariantCheckResult>,
+        #[case] expected: &str,
+    ) {
+        let response = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: None,
+            variants,
+        };
+        assert_that!(&downstream_msg(&response)).is_equal_to(expected.to_string());
     }
 }

@@ -893,7 +893,7 @@ impl RoverOutput {
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         match &self {
-            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
+            Self::CheckWorkflowResponse(_) => JsonVersion::Three,
             _ => JsonVersion::default(),
         }
     }
@@ -1304,7 +1304,7 @@ mod tests {
             JsonOutput::from(&RoverOutput::CheckWorkflowResponse(mock_check_response));
         let expected_json = json!(
         {
-            "json_version": "2",
+            "json_version": "3",
             "data": {
                 "success": true,
                 "core_schema_modified": true,
@@ -1618,7 +1618,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             }));
         let expected_json = json!(
         {
-            "json_version": "2",
+            "json_version": "3",
             "data": {
                 "success": false,
                 "core_schema_modified": false,

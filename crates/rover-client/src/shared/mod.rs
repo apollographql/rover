@@ -13,9 +13,9 @@ pub(crate) use async_check_response::map_check_submission_error;
 pub use async_check_response::CheckRequestSuccessResult;
 pub use check_response::{
     ChangeSeverity, CheckConfig, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
-    DownstreamCheckResponse, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-    ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange,
-    ValidationPeriod, Violation,
+    DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
+    RelatedProposal, SchemaChange, ValidationPeriod, Violation,
 };
 pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use filter_config::ContractFilterConfig;

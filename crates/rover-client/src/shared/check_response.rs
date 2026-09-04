@@ -151,11 +151,22 @@ pub struct CustomCheckResponse {
     pub violations: Vec<Violation>,
 }
 
+/// The result of a single contract variant's downstream check, as part of a
+/// `graph check`/`subgraph check`'s downstream check task.
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct DownstreamVariantCheckResult {
+    pub graph_id: String,
+    pub variant_name: String,
+    pub blocking: bool,
+    pub fails_upstream_workflow: Option<bool>,
+    pub status: CheckTaskStatus,
+}
+
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct DownstreamCheckResponse {
     pub task_status: CheckTaskStatus,
     pub target_url: Option<String>,
-    pub blocking_variants: Vec<String>,
+    pub variants: Vec<DownstreamVariantCheckResult>,
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
