@@ -102,7 +102,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
-- **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
+- **Stop baking "N operation(s)" text into a `rover-client` type - @dotdat**
+
+  `PersistedQueriesOperationCounts::added_str()`/`updated_str()`/`removed_str()` (and the `ops_str()` helper behind them) pre-rendered "N operation(s)" text inside `rover-client` for one caller — `persisted-queries publish`'s text output — the same pattern this repo already moved off of for `graph check`/`subgraph check`. They're removed; `rover-client`'s `PersistedQueriesOperationCounts` now only carries the raw counts, and `src/command/output.rs` renders the text itself via the `pluralizer` crate. Same rendered output, no user-facing change.
 
   Rover's bundled copy of `latest_plugin_versions.json` has been deleted and its behavior has been moved into the Orbiter service, its only real consumer.
 

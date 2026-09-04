@@ -276,28 +276,8 @@ pub struct PersistedQueriesOperationCounts {
 }
 
 impl PersistedQueriesOperationCounts {
-    pub fn added_str(&self) -> Option<String> {
-        Self::ops_str(self.added)
-    }
-
-    pub fn updated_str(&self) -> Option<String> {
-        Self::ops_str(self.updated)
-    }
-
-    pub fn removed_str(&self) -> Option<String> {
-        Self::ops_str(self.removed)
-    }
-
     pub const fn total(&self) -> i64 {
         self.added + self.identical + self.unaffected + self.updated - self.removed
-    }
-
-    fn ops_str(n: i64) -> Option<String> {
-        match n {
-            0 => None,
-            1 => Some("1 operation".to_string()),
-            n => Some(format!("{n} operations")),
-        }
     }
 }
 
