@@ -3,16 +3,22 @@ use std::{process::Command, str::from_utf8};
 use assert_cmd::cargo;
 use rstest::rstest;
 use serde_json::Value;
+use serial_test::serial;
 use speculoos::{assert_that, boolean::BooleanAssertions};
 use tracing::error;
 use tracing_test::traced_test;
 
 use crate::e2e::remote_supergraph_graphref;
 
+// Serialized with the other preview-build e2e tests: GraphOS appears to allow
+// only one in-flight async compose/contract preview build per variant at a
+// time, and rejects a second with a scheduling error if one is scheduled
+// concurrently against the same graph ref.
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
+#[serial(preview_build)]
 async fn e2e_test_rover_contract_preview_happy_path(remote_supergraph_graphref: String) {
     // GIVEN
     //   - a contract preview with no filtering (all three include/exclude/hide
