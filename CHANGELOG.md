@@ -18,9 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 2 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
+
+- **`rover graph check`/`rover subgraph check`'s JSON `downstream` task changes shape, bumping `json_version` to `"3"` - @dotdat**
+
+  The `downstream` task's `blocking_variants: [String]` field is replaced by `variants`, a list of per-contract-variant results (`graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, `status`) instead of just the names of variants blocking the check. `json_version` in the response envelope moves from `"2"` to `"3"` to reflect the shape change.
 
 - **Remove `rover cloud` commands - @dotdat**
 
@@ -53,6 +57,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `rover subgraph preview` composes a preview supergraph from hypothetical subgraph changes described by a `--subgraph-changes` YAML file (add/update a subgraph's schema or routing URL, or mark one `remove: true`), with optional include/exclude/hide-unreachable-types contract filters, without publishing anything. It runs asynchronously on the server; by default Rover polls until the build completes (or `APOLLO_CHECKS_TIMEOUT_SECONDS` elapses), or pass `--async` to just start the build and check on it later with `--build-id`. Exits non-zero if composition or filtering fails.
 
   `rover subgraph delete`'s pre-confirmation build-error check now runs through this same async preview path instead of a synchronous dry-run mutation, avoiding a long-held server connection (and its timeout risk) while previewing the deletion of a subgraph from a large supergraph.
+
+- **Report contract variant visibility on `rover graph check` - @dotdat**
+
+  `rover graph check` now reports a downstream check summary for a graph's contract variants, in both text and JSON: how many were checked and their pass/fail breakdown, not just the names of variants that are blocking (previously, `graph check` reported nothing about contract variants at all). A blocking downstream contract failure now also makes `graph check` exit non-zero, matching `subgraph check`'s existing behavior.
 
 ## 🐛 Fixes
 
