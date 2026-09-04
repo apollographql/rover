@@ -1,0 +1,6 @@
+---
+source: src/command/check_output.rs
+expression: text
+---
+Build Check [PASSED]:
+There were no changes detected in the composed schema.

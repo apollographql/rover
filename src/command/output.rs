@@ -471,7 +471,9 @@ impl RoverOutput {
                     "Successfully created a new project from the '{template_id}' template in {path}\n Read the generated '{readme}' file for next steps.\n{forum_call_to_action}"
                 ))
             }
-            RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
+            RoverOutput::CheckWorkflowResponse(check_response) => {
+                Some(crate::command::check_output::CheckWorkflowOutput(check_response).text())
+            }
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
@@ -754,7 +756,11 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 json!({ "template_id": template_id, "path": path })
             }
-            RoverOutput::CheckWorkflowResponse(check_response) => check_response.get_json(),
+            RoverOutput::CheckWorkflowResponse(check_response) => {
+                crate::command::check_output::CheckWorkflowOutput(check_response)
+                    .json()
+                    .unwrap_or(Value::Null)
+            }
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
             RoverOutput::LintResponse(lint_response) => lint_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),

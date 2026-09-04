@@ -1,0 +1,44 @@
+---
+source: src/command/check_output.rs
+expression: text
+---
+Build Check [PASSED]:
+There were no changes detected in the composed API schema, but the core schema was modified.
+
+Operation Check [FAILED]:
+Compared 2 schema changes against 12 operations.
+┌────────┬───────────────┬────────────────────────────────┐
+│ Change ┆      Code     ┆           Description          │
+╞════════╪═══════════════╪════════════════════════════════╡
+│ FAIL   ┆ FIELD_REMOVED ┆ Field `User.email` was removed │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ PASS   ┆ FIELD_ADDED   ┆ Field `User.phone` was added   │
+└────────┴───────────────┴────────────────────────────────┘View operation check details at: https://studio.apollographql.com/graph/my-graph/checks/operations
+
+Linter Check [PASSED]:
+Resulted in 1 warning.
+┌─────────┬─────────────────┬──────┬──────────────────────────┐
+│  Level  ┆    Coordinate   ┆ Line ┆        Description       │
+╞═════════╪═════════════════╪══════╪══════════════════════════╡
+│ WARNING ┆ Query.all_users ┆ 4    ┆ Field must be camelCase. │
+└─────────┴─────────────────┴──────┴──────────────────────────┘View linter check details at: https://studio.apollographql.com/graph/my-graph/checks/lint
+
+Proposals Check [FAILED]:
+Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.
+┌────────┬──────────────────┐
+│ Status ┆   Proposal Name  │
+╞════════╪══════════════════╡
+│ OPEN   ┆ Add phone number │
+└────────┴──────────────────┘View proposal check details at: https://studio.apollographql.com/graph/my-graph/checks/proposals
+
+Custom Check [FAILED]:
+Resulted in 1 violation.
+┌───────┬───────────────────┬──────┬────────────────────────────┐
+│ Level ┆        Rule       ┆ Line ┆           Message          │
+╞═══════╪═══════════════════╪══════╪════════════════════════════╡
+│ ERROR ┆ NAMING_CONVENTION ┆ 7    ┆ Fields must use camelCase. │
+└───────┴───────────────────┴──────┴────────────────────────────┘View custom check details at: https://studio.apollographql.com/graph/my-graph/checks/custom
+
+Downstream Check [FAILED]:
+The downstream check task has encountered check failures for at least this blocking downstream variant: mobile.
+View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream

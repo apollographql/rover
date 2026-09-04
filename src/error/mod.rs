@@ -17,7 +17,7 @@ use rover_std::Style;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::{Value, json};
 
-use crate::options::JsonVersion;
+use crate::{command::CliOutput, options::JsonVersion};
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -103,7 +103,10 @@ impl RoverError {
             Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
-            }) => stdoutln!("{}", check_response.get_output())?,
+            }) => stdoutln!(
+                "{}",
+                crate::command::check_output::CheckWorkflowOutput(check_response).text()
+            )?,
             Some(RoverClientError::LintFailures { lint_response }) => {
                 stdoutln!("{}", lint_response.get_ariadne()?)?
             }

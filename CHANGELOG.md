@@ -102,6 +102,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Move check-workflow text rendering out of `rover-client` - @dotdat**
+
+  `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary
+
 - **Relocate `latest_plugin_versions.json` ownership to orbiter - @dotdat**
 
   Rover's bundled copy of `latest_plugin_versions.json` has been deleted and its behavior has been moved into the Orbiter service, its only real consumer.
