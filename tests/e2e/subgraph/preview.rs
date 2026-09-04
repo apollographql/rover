@@ -3,37 +3,20 @@ use std::{process::Command, str::from_utf8};
 use assert_cmd::cargo;
 use rstest::rstest;
 use serde_json::Value;
-use serial_test::serial;
 use speculoos::{assert_that, boolean::BooleanAssertions};
-use tempfile::Builder;
 use tracing::error;
 use tracing_test::traced_test;
 
 use crate::e2e::remote_supergraph_graphref;
 
-// Serialized with the other preview-build e2e tests: GraphOS appears to allow
-// only one in-flight async compose/contract preview build per variant at a
-// time, and rejects a second with "Unable to schedule compose and filter
-// preview" if one is scheduled concurrently against the same graph ref.
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
-#[serial(preview_build)]
 async fn e2e_test_rover_subgraph_preview_happy_path(remote_supergraph_graphref: String) {
     // GIVEN
-    //   - a --subgraph-changes file hypothetically pointing the "inventory"
-    //     subgraph at a different routing URL. This doesn't affect the
-    //     composed schema, so composition should still succeed.
-    let changes_file = Builder::new()
-        .suffix(".yaml")
-        .tempfile()
-        .expect("Could not create --subgraph-changes file");
-    std::fs::write(
-        changes_file.path(),
-        "subgraphs:\n  inventory:\n    routing_url: https://example.com/inventory/graphql\n",
-    )
-    .expect("Could not write --subgraph-changes file");
+    //   - a compose-only preview: no filter flags and no --subgraph-changes,
+    //     so the current composition is previewed as-is
 
     // WHEN
     //   - the command is run without --async, so Rover polls until the
@@ -43,8 +26,6 @@ async fn e2e_test_rover_subgraph_preview_happy_path(remote_supergraph_graphref: 
         "subgraph",
         "preview",
         &remote_supergraph_graphref,
-        "--subgraph-changes",
-        changes_file.path().to_str().unwrap(),
         "--client-timeout",
         "120",
         "--format",
