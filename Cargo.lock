@@ -1943,7 +1943,7 @@ dependencies = [
  "quote",
  "sha3",
  "strum 0.28.0",
- "syn 2.0.119",
+ "syn 3.0.4",
  "unicode-ident",
  "void",
 ]
@@ -3675,9 +3675,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.53.0"
+version = "0.55.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca2ea2207f8ccb34b6d4d041fe9deb08fff3cbc43750012caa2c3d1e860188e4"
+checksum = "49e89c7d35509ab5248f4160addc47098d0f2b09221851bf6234a948f28a70c4"
 dependencies = [
  "ahash 0.8.12",
  "bytecount",
@@ -3693,7 +3693,7 @@ dependencies = [
  "num-cmp",
  "num-traits",
  "percent-encoding",
- "referencing 0.53.0",
+ "referencing 0.55.0",
  "regex",
  "reqwest",
  "rustls",
@@ -3706,18 +3706,18 @@ dependencies = [
 
 [[package]]
 name = "jsonschema-regex"
-version = "0.53.0"
+version = "0.55.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5426a01d944d044c9c5e459f603419d1b539358f5496b1041df45a7a86d2d38f"
+checksum = "a1fb77178bdde7326e2e414526342ad4e26b602ba5372e53440129dc061bc50b"
 dependencies = [
  "regex-syntax",
 ]
 
 [[package]]
 name = "jsonschema-value"
-version = "0.53.0"
+version = "0.55.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65b6ec7deaeaab6320efc3084d8a9e91d5b4985ee36ffffef45dbff9516ff7a8"
+checksum = "7dadb285b774085f3f3e67cb48ecce59e5d92028f19a01fe014083a4fbaf7fea"
 dependencies = [
  "ahash 0.8.12",
  "bytecount",
@@ -5260,7 +5260,7 @@ dependencies = [
  "derive-deftly",
  "libc",
  "paste",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -5565,9 +5565,9 @@ dependencies = [
 
 [[package]]
 name = "referencing"
-version = "0.53.0"
+version = "0.55.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb406ba984c08d1b91781d7507d103296cf6dec3256c33c388b468957f4b43bb"
+checksum = "1cc7249156d90d60480d54850c861c37c92f20c6dbb9ae85d98ecca19d81c0b2"
 dependencies = [
  "ahash 0.8.12",
  "fluent-uri",
@@ -5756,7 +5756,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "json-matcher",
- "jsonschema 0.53.0",
+ "jsonschema 0.55.0",
  "lazy_static",
  "lazycell",
  "mime",
