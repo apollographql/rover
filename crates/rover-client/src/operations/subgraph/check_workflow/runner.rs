@@ -760,8 +760,8 @@ mod tests {
                             "blocking": true,
                             "downstreamGraphID": "test-graph",
                             "downstreamVariantName": "mobile",
-                            "downstreamWorkflow": { "status": "PASSED" },
-                            "failsUpstreamWorkflow": false
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": true
                         }
                     ]
                 }
@@ -780,8 +780,8 @@ mod tests {
                 graph_id: "test-graph".to_string(),
                 variant_name: "mobile".to_string(),
                 blocking: true,
-                fails_upstream_workflow: Some(false),
-                status: CheckTaskStatus::PASSED,
+                fails_upstream_workflow: Some(true),
+                status: CheckTaskStatus::FAILED,
             }],
         };
         assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
