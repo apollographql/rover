@@ -358,9 +358,14 @@ fn downstream_msg(response: &DownstreamCheckResponse) -> String {
 
     if response.variants.is_empty() {
         "No contract variants configured for this graph.".to_string()
-    } else {
+    } else if response.task_status == CheckTaskStatus::PASSED {
         format!(
             "Checked {}, all passed.",
+            pluralize("contract variant", response.variants.len() as isize, true)
+        )
+    } else {
+        format!(
+            "Checked {}.",
             pluralize("contract variant", response.variants.len() as isize, true)
         )
     }
@@ -532,10 +537,12 @@ mod test {
 
     #[rstest]
     #[case::no_contract_variants_configured(
+        CheckTaskStatus::PASSED,
         vec![],
         "No contract variants configured for this graph."
     )]
     #[case::all_contract_variants_passed(
+        CheckTaskStatus::PASSED,
         vec![
             variant("mobile", true, CheckTaskStatus::PASSED),
             variant("partner-api", true, CheckTaskStatus::PASSED),
@@ -543,6 +550,7 @@ mod test {
         "Checked 2 contract variants, all passed."
     )]
     #[case::one_blocking_contract_variant_failed(
+        CheckTaskStatus::FAILED,
         vec![
             variant("mobile", true, CheckTaskStatus::FAILED),
             variant("partner-api", true, CheckTaskStatus::PASSED),
@@ -550,18 +558,28 @@ mod test {
         "The downstream check task has encountered check failures for at least this blocking downstream variant: mobile."
     )]
     #[case::multiple_blocking_contract_variants_failed(
+        CheckTaskStatus::FAILED,
         vec![
             variant("mobile", true, CheckTaskStatus::FAILED),
             variant("partner-api", true, CheckTaskStatus::FAILED),
         ],
         "The downstream check task has encountered check failures for at least these blocking downstream variants: mobile,partner-api."
     )]
+    #[case::pending_task_does_not_claim_all_passed(
+        CheckTaskStatus::PENDING,
+        vec![
+            variant("mobile", false, CheckTaskStatus::PENDING),
+            variant("partner-api", false, CheckTaskStatus::PENDING),
+        ],
+        "Checked 2 contract variants."
+    )]
     fn downstream_msg_summarizes_variants(
+        #[case] task_status: CheckTaskStatus,
         #[case] variants: Vec<DownstreamVariantCheckResult>,
         #[case] expected: &str,
     ) {
         let response = DownstreamCheckResponse {
-            task_status: CheckTaskStatus::PASSED,
+            task_status,
             target_url: None,
             variants,
         };
