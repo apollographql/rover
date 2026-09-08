@@ -384,12 +384,17 @@ fn get_downstream_response_from_result(
 #[cfg(test)]
 mod tests {
     use rover_studio::types::GraphRef;
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
     use serde_json::{json, Value};
     use speculoos::prelude::*;
 
     use super::*;
     use crate::operations::graph::check_workflow::types::QueryResponseData;
+
+    #[fixture]
+    fn graph_ref() -> GraphRef {
+        GraphRef::new("test-graph", Some("test-variant")).unwrap()
+    }
 
     fn create_check_workflow_data(
         status: CheckWorkflowStatus,
@@ -407,8 +412,8 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
-    fn no_contract_variants_configured_still_passes() {
+    #[rstest]
+    fn no_contract_variants_configured_still_passes(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -416,24 +421,26 @@ mod tests {
                     "__typename": "DownstreamCheckTask",
                     "id": "downstream-task",
                     "status": "PASSED",
-                    "targetUrl": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
                     "results": []
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let response = get_check_response_from_data(data, graph_ref).unwrap();
 
-        let downstream = response
-            .maybe_downstream_response
-            .expect("expected downstream response");
-        assert_that!(&downstream.task_status).is_equal_to(CheckTaskStatus::PASSED);
-        assert_that!(&downstream.variants).is_empty();
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
+            ),
+            variants: vec![],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
     }
 
-    #[test]
-    fn all_contract_variants_passed() {
+    #[rstest]
+    fn all_contract_variants_passed(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -441,7 +448,7 @@ mod tests {
                     "__typename": "DownstreamCheckTask",
                     "id": "downstream-task",
                     "status": "PASSED",
-                    "targetUrl": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
                     "results": [
                         {
                             "__typename": "DownstreamCheckResult",
@@ -463,21 +470,37 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let result = get_check_response_from_data(data, graph_ref);
 
         assert_that!(&result).is_ok();
-        let downstream = result
-            .unwrap()
-            .maybe_downstream_response
-            .expect("expected downstream response");
-        assert_that!(&downstream.task_status).is_equal_to(CheckTaskStatus::PASSED);
-        assert_that!(&downstream.variants).has_length(2);
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
+            ),
+            variants: vec![
+                DownstreamVariantCheckResult {
+                    graph_id: "test-graph".to_string(),
+                    variant_name: "mobile".to_string(),
+                    blocking: true,
+                    fails_upstream_workflow: Some(false),
+                    status: CheckTaskStatus::PASSED,
+                },
+                DownstreamVariantCheckResult {
+                    graph_id: "test-graph".to_string(),
+                    variant_name: "partner-api".to_string(),
+                    blocking: true,
+                    fails_upstream_workflow: Some(false),
+                    status: CheckTaskStatus::PASSED,
+                },
+            ],
+        };
+        assert_that!(&result.unwrap().maybe_downstream_response).is_equal_to(Some(expected));
     }
 
-    #[test]
-    fn blocking_downstream_workflow_failure_fails_the_check() {
+    #[rstest]
+    fn blocking_downstream_workflow_failure_fails_the_check(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -485,7 +508,7 @@ mod tests {
                     "__typename": "DownstreamCheckTask",
                     "id": "downstream-task",
                     "status": "PASSED",
-                    "targetUrl": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
                     "results": [
                         {
                             "__typename": "DownstreamCheckResult",
@@ -499,7 +522,6 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let result = get_check_response_from_data(data, graph_ref.clone());
 
@@ -510,17 +532,28 @@ mod tests {
                 check_response,
             } => {
                 assert_that!(&returned_graph_ref).is_equal_to(&graph_ref);
-                let downstream = check_response
-                    .maybe_downstream_response
-                    .expect("expected downstream response");
-                assert_that!(&downstream.task_status).is_equal_to(CheckTaskStatus::FAILED);
+                let expected = DownstreamCheckResponse {
+                    task_status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/test-graph/checks/downstream"
+                            .to_string(),
+                    ),
+                    variants: vec![DownstreamVariantCheckResult {
+                        graph_id: "test-graph".to_string(),
+                        variant_name: "mobile".to_string(),
+                        blocking: true,
+                        fails_upstream_workflow: None,
+                        status: CheckTaskStatus::FAILED,
+                    }],
+                };
+                assert_that!(&check_response.maybe_downstream_response).is_equal_to(Some(expected));
             }
             other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
         }
     }
 
-    #[test]
-    fn downstream_task_not_yet_initialized_has_no_response() {
+    #[rstest]
+    fn downstream_task_not_yet_initialized_has_no_response(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -528,12 +561,11 @@ mod tests {
                     "__typename": "DownstreamCheckTask",
                     "id": "downstream-task",
                     "status": "PENDING",
-                    "targetUrl": null,
+                    "targetURL": null,
                     "results": null
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let response = get_check_response_from_data(data, graph_ref).unwrap();
 
@@ -546,6 +578,7 @@ mod tests {
     #[case::pending(Some("PENDING"), CheckTaskStatus::PENDING)]
     #[case::not_yet_initialized(None, CheckTaskStatus::PENDING)]
     fn downstream_variant_status_mapping(
+        graph_ref: GraphRef,
         #[case] downstream_workflow_status: Option<&str>,
         #[case] expected_status: CheckTaskStatus,
     ) {
@@ -560,7 +593,7 @@ mod tests {
                     "__typename": "DownstreamCheckTask",
                     "id": "downstream-task",
                     "status": "PASSED",
-                    "targetUrl": null,
+                    "targetURL": null,
                     "results": [
                         {
                             "__typename": "DownstreamCheckResult",
@@ -576,13 +609,20 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let response = get_check_response_from_data(data, graph_ref).unwrap();
 
-        let downstream = response
-            .maybe_downstream_response
-            .expect("expected downstream response");
-        assert_that!(&downstream.variants[0].status).is_equal_to(expected_status);
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: None,
+            variants: vec![DownstreamVariantCheckResult {
+                graph_id: "test-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                blocking: false,
+                fails_upstream_workflow: None,
+                status: expected_status,
+            }],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
     }
 }
