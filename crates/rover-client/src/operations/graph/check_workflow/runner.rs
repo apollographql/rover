@@ -556,6 +556,63 @@ mod tests {
         }
     }
 
+    /// Mirrors `blocking_downstream_workflow_failure_fails_the_check`, but isolates
+    /// the *other* half of `has_blocking_failure`'s OR: `blocking: false` and
+    /// `status: PASSED` mean the `blocking && FAILED` predicate can't be what
+    /// fails the check here -- only `fails_upstream_workflow` can.
+    #[rstest]
+    fn fails_upstream_workflow_alone_fails_the_check(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": false,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "PASSED" },
+                            "failsUpstreamWorkflow": true
+                        }
+                    ]
+                }
+            ]),
+        );
+
+        let result = get_check_response_from_data(data, graph_ref.clone());
+
+        assert_that!(&result).is_err();
+        match result.unwrap_err() {
+            RoverClientError::CheckWorkflowFailure {
+                graph_ref: returned_graph_ref,
+                check_response,
+            } => {
+                assert_that!(&returned_graph_ref).is_equal_to(&graph_ref);
+                let expected = DownstreamCheckResponse {
+                    task_status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/test-graph/checks/downstream"
+                            .to_string(),
+                    ),
+                    variants: vec![DownstreamVariantCheckResult {
+                        graph_id: "test-graph".to_string(),
+                        variant_name: "mobile".to_string(),
+                        blocking: false,
+                        fails_upstream_workflow: Some(true),
+                        status: CheckTaskStatus::PASSED,
+                    }],
+                };
+                assert_that!(&check_response.maybe_downstream_response).is_equal_to(Some(expected));
+            }
+            other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
+        }
+    }
+
     #[rstest]
     fn downstream_task_not_yet_initialized_has_no_response(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
