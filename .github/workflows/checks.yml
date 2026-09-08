@@ -48,7 +48,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install nightly@nightly toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
         toolchain: nightly
         components: rustfmt
@@ -64,7 +64,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
         components: clippy
     - name: Run Clippy
@@ -136,7 +136,7 @@ jobs:
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         env:
           CARGO_NET_RETRY: "5"
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
           target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
@@ -175,7 +175,7 @@ jobs:
     # owns the checkout.
     - name: Fix git ownership
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
     - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       with:
         install: false
