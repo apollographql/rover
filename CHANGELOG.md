@@ -18,9 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 2 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
+
+- **`rover subgraph check`'s JSON `downstream` task changes shape, bumping `json_version` to `"3"` - @dotdat**
+
+  The `downstream` task's `blocking_variants: [String]` field is replaced by `variants`, a list of per-contract-variant results (`graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, `status`) instead of just the names of variants blocking the check. `json_version` in the response envelope moves from `"2"` to `"3"` to reflect the shape change.
 
 - **Remove `rover cloud` commands - @dotdat**
 
@@ -109,10 +113,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Move check-workflow text rendering out of `rover-client` - @dotdat**
 
   `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary. Its hand-rolled "N item(s)" pluralization now uses the `pluralizer` crate.
-
-- **Widen `subgraph check`'s downstream check response to a full per-variant list, bump `graph`/`subgraph check --format json` to version 3 - @dotdat**
-
-  `DownstreamCheckResponse` now carries every contract variant's blocking state and status instead of collapsing to a bare list of blocking variant names, so a passing or empty downstream check can render a summary instead of nothing. `subgraph check`'s existing call site is adapted to the new shape with no behavior change; `graph check` does not yet populate this field.
 
 - **Switch `graph publish`/`subgraph publish` from raw `eprintln!` to `rover-print` - @dotdat**
 
