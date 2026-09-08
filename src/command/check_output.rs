@@ -350,14 +350,11 @@ fn downstream_msg(response: &DownstreamCheckResponse) -> String {
             1 => "this",
             _ => "these",
         };
-        let plural = match blocking_variants.len() {
-            1 => "",
-            _ => "s",
-        };
+        let variant_word = pluralize("variant", blocking_variants.len() as isize, false);
         return format!(
-            "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+            "The downstream check task has encountered check failures for at least {} blocking downstream {}: {}.",
             plural_this,
-            plural,
+            variant_word,
             Style::Variant.paint(variants),
         );
     }
@@ -554,6 +551,13 @@ mod test {
             variant("partner-api", true, CheckTaskStatus::PASSED),
         ],
         "The downstream check task has encountered check failures for at least this blocking downstream variant: mobile."
+    )]
+    #[case::multiple_blocking_contract_variants_failed(
+        vec![
+            variant("mobile", true, CheckTaskStatus::FAILED),
+            variant("partner-api", true, CheckTaskStatus::FAILED),
+        ],
+        "The downstream check task has encountered check failures for at least these blocking downstream variants: mobile,partner-api."
     )]
     fn downstream_msg_summarizes_variants(
         #[case] variants: Vec<DownstreamVariantCheckResult>,
