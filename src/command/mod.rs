@@ -1,6 +1,7 @@
 mod api_key;
 #[cfg(feature = "oauth")]
 pub mod auth;
+pub(crate) mod check_output;
 mod client;
 mod completion;
 mod config;

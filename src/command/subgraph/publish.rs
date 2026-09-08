@@ -14,11 +14,16 @@ use rover_client::{
     },
     shared::{CheckConfig, GitContext},
 };
-use rover_std::Style;
+use rover_print::{
+    print::{Print, PrintExt},
+    style::{Style, StyledText},
+};
+use rover_std::Style as StdStyle;
 use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    command::CliOutput,
     options::{CheckConfigOpts, GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
@@ -79,6 +84,7 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
@@ -116,11 +122,11 @@ impl Publish {
         };
 
         if self.check {
-            eprintln!(
+            stderr.print(&StyledText::plain(format!(
                 "Checking the proposed schema for subgraph {} against {}",
-                Style::Link.paint(&self.subgraph.subgraph_name),
-                Style::Link.paint(self.graph.graph_ref.to_string())
-            );
+                stderr.paint(Style::Link, &self.subgraph.subgraph_name),
+                stderr.paint(Style::Link, self.graph.graph_ref.to_string())
+            )));
 
             let workflow_res = check::run(
                 SubgraphCheckAsyncInput {
@@ -152,39 +158,42 @@ impl Publish {
             .await
             {
                 Ok(check_res) => {
-                    eprintln!("{}", check_res.get_output());
-                    eprintln!("{}", Style::Success.paint("Check passed. Publishing SDL"));
+                    stderr.print(&StyledText::plain(
+                        crate::command::check_output::CheckWorkflowOutput(&check_res).text(),
+                    ));
+                    stderr.print(&StyledText::new(
+                        Style::Success,
+                        "Check passed. Publishing SDL",
+                    ));
                 }
                 Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
-                    eprintln!("{}", check_response.get_output());
-                    eprintln!(
-                        "{}",
-                        Style::Failure.paint(
-                            "Schema check failed — no changes were published to the graph registry."
-                        )
-                    );
+                    stderr.print(&StyledText::plain(
+                        crate::command::check_output::CheckWorkflowOutput(&check_response).text(),
+                    ));
+                    stderr.print(&StyledText::new(
+                        Style::Failure,
+                        "Schema check failed — no changes were published to the graph registry.",
+                    ));
                     return Err(RoverError::new(anyhow!(
                         "Schema checks must pass before publishing. Fix the check failures above and try again."
                     )));
                 }
                 Err(e) => {
-                    eprintln!(
-                        "{}",
-                        Style::Failure.paint(
-                            "Schema check failed — no changes were published to the graph registry."
-                        )
-                    );
+                    stderr.print(&StyledText::new(
+                        Style::Failure,
+                        "Schema check failed — no changes were published to the graph registry.",
+                    ));
                     return Err(RoverError::new(e));
                 }
             }
         }
 
-        eprintln!(
+        stderr.print(&StyledText::plain(format!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-            Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Link.paint(&self.subgraph.subgraph_name),
-            Style::Command.paint(&self.profile.profile_name)
-        );
+            stderr.paint(Style::Link, self.graph.graph_ref.to_string()),
+            stderr.paint(Style::Link, &self.subgraph.subgraph_name),
+            stderr.paint(Style::Command, &self.profile.profile_name)
+        )));
 
         tracing::debug!("Publishing \n{}", &schema);
 
@@ -282,7 +291,7 @@ impl Publish {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     let reason = format!(
                         "`{}` is not a valid routing URL. The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`.",
-                        Style::Link.paint(routing_url),
+                        StdStyle::Link.paint(routing_url),
                         parsed_url.scheme()
                     );
                     if !["http", "https", "unix"].contains(&parsed_url.scheme()) {
@@ -316,7 +325,7 @@ impl Publish {
                     tracing::debug!("Parse error: {}", parse_error.to_string());
                     let reason = format!(
                         "`{}` is not a valid routing URL.",
-                        Style::Link.paint(routing_url)
+                        StdStyle::Link.paint(routing_url)
                     );
                     if is_atty {
                         Self::prompt_for_publish(
@@ -357,7 +366,11 @@ impl Publish {
         reason: &str,
         writer: &mut dyn io::Write,
     ) -> RoverResult<()> {
-        writeln!(writer, "{} {reason}", Style::WarningPrefix.paint("WARN:"),)?;
+        writeln!(
+            writer,
+            "{} {reason}",
+            StdStyle::WarningPrefix.paint("WARN:"),
+        )?;
         Ok(())
     }
 }

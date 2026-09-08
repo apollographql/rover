@@ -1,0 +1,75 @@
+---
+source: src/command/check_output.rs
+expression: json
+---
+{
+  "core_schema_modified": true,
+  "tasks": {
+    "operations": {
+      "task_status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/operations",
+      "operation_check_count": 12,
+      "changes": [
+        {
+          "code": "FIELD_REMOVED",
+          "description": "Field `User.email` was removed",
+          "severity": "FAIL"
+        },
+        {
+          "code": "FIELD_ADDED",
+          "description": "Field `User.phone` was added",
+          "severity": "PASS"
+        }
+      ],
+      "failure_count": 1
+    },
+    "lint": {
+      "task_status": "PASSED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/lint",
+      "diagnostics": [
+        {
+          "level": "WARNING",
+          "message": "Field must be camelCase.",
+          "coordinate": "Query.all_users",
+          "start_line": 4,
+          "start_byte_offset": 10,
+          "end_byte_offset": 20,
+          "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
+        }
+      ],
+      "errors_count": 0,
+      "warnings_count": 1
+    },
+    "proposals": {
+      "task_status": "FAILED",
+      "severity_level": "ERROR",
+      "proposal_coverage": "PARTIAL",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/proposals",
+      "related_proposals": [
+        {
+          "status": "OPEN",
+          "display_name": "Add phone number"
+        }
+      ]
+    },
+    "custom": {
+      "task_status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/custom",
+      "violations": [
+        {
+          "level": "ERROR",
+          "message": "Fields must use camelCase.",
+          "start_line": 7,
+          "rule": "NAMING_CONVENTION"
+        }
+      ]
+    },
+    "downstream": {
+      "task_status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+      "blocking_variants": [
+        "mobile"
+      ]
+    }
+  }
+}
