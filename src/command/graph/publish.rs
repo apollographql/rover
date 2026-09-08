@@ -9,7 +9,10 @@ use rover_client::{
     },
     shared::{CheckConfig, GitContext},
 };
-use rover_std::Style;
+use rover_print::{
+    print::{Print, PrintExt},
+    style::{Style, StyledText},
+};
 use serde::Serialize;
 
 use crate::{
@@ -49,6 +52,7 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let proposed_schema = self
@@ -56,10 +60,10 @@ impl Publish {
             .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         if self.check {
-            eprintln!(
+            stderr.print(&StyledText::plain(format!(
                 "Checking the proposed schema against {}",
-                Style::Link.paint(self.graph.graph_ref.to_string())
-            );
+                stderr.paint(Style::Link, self.graph.graph_ref.to_string())
+            )));
 
             let workflow_res = check::run(
                 CheckSchemaAsyncInput {
@@ -89,44 +93,41 @@ impl Publish {
             .await
             {
                 Ok(check_res) => {
-                    eprintln!(
-                        "{}",
-                        crate::command::check_output::CheckWorkflowOutput(&check_res).text()
-                    );
-                    eprintln!("{}", Style::Success.paint("Check passed. Publishing SDL"));
+                    stderr.print(&StyledText::plain(
+                        crate::command::check_output::CheckWorkflowOutput(&check_res).text(),
+                    ));
+                    stderr.print(&StyledText::new(
+                        Style::Success,
+                        "Check passed. Publishing SDL",
+                    ));
                 }
                 Err(RoverClientError::CheckWorkflowFailure { check_response, .. }) => {
-                    eprintln!(
-                        "{}",
-                        crate::command::check_output::CheckWorkflowOutput(&check_response).text()
-                    );
-                    eprintln!(
-                        "{}",
-                        Style::Failure.paint(
-                            "Schema check failed — no changes were published to the graph registry."
-                        )
-                    );
+                    stderr.print(&StyledText::plain(
+                        crate::command::check_output::CheckWorkflowOutput(&check_response).text(),
+                    ));
+                    stderr.print(&StyledText::new(
+                        Style::Failure,
+                        "Schema check failed — no changes were published to the graph registry.",
+                    ));
                     return Err(RoverError::new(anyhow!(
                         "Schema checks must pass before publishing. Fix the check failures above and try again."
                     )));
                 }
                 Err(e) => {
-                    eprintln!(
-                        "{}",
-                        Style::Failure.paint(
-                            "Schema check failed — no changes were published to the graph registry."
-                        )
-                    );
+                    stderr.print(&StyledText::new(
+                        Style::Failure,
+                        "Schema check failed — no changes were published to the graph registry.",
+                    ));
                     return Err(RoverError::new(e));
                 }
             }
         }
 
-        eprintln!(
+        stderr.print(&StyledText::plain(format!(
             "Publishing SDL to {} using credentials from the {} profile.",
-            Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Command.paint(&self.profile.profile_name)
-        );
+            stderr.paint(Style::Link, self.graph.graph_ref.to_string()),
+            stderr.paint(Style::Command, &self.profile.profile_name)
+        )));
 
         tracing::debug!("Publishing \n{}", &proposed_schema);
 

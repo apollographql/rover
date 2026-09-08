@@ -90,7 +90,12 @@ impl Subgraph {
             }
             Command::Publish(command) => {
                 command
-                    .run(client_config, git_context, checks_timeout_seconds)
+                    .run(
+                        client_config,
+                        git_context,
+                        checks_timeout_seconds,
+                        &rover_print::print::stderr::default(),
+                    )
                     .await
             }
         }

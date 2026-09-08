@@ -110,6 +110,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary. Its hand-rolled "N item(s)" pluralization now uses the `pluralizer` crate.
 
+- **Switch `graph publish`/`subgraph publish` from raw `eprintln!` to `rover-print` - @dotdat**
+
+  Both commands now print their stderr status lines through `rover-print`'s `Print`/`PrintExt` trait via an injected printer, matching the pattern already used by `contract preview`/`subgraph preview`. No user-facing output change.
+
 - **latest_plugin_versions.json migration - @dotdat**
 
   Rover's bundled copy of `latest_plugin_versions.json` has been deleted and its behavior has been moved into the Orbiter service, its only real consumer.
