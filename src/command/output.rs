@@ -7,6 +7,7 @@ use std::{
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center};
+use pluralizer::pluralize;
 use rover_client::{
     RoverClientError,
     operations::{
@@ -169,6 +170,13 @@ pub enum RoverOutput {
         new_name: String,
     },
     CliOutput(Box<dyn CliOutput>),
+}
+
+/// Renders one of `PersistedQueriesOperationCounts`' fields as "N operation(s)"
+/// text, or `None` if the count is zero. Lives here rather than on the
+/// rover-client type itself since it's presentation logic, not client data.
+fn operation_count_str(n: i64) -> Option<String> {
+    (n != 0).then(|| pluralize("operation", n as isize, true))
 }
 
 impl RoverOutput {
@@ -523,9 +531,9 @@ impl RoverOutput {
                     let mut result = "Successfully ".to_string();
 
                     result.push_str(&match (
-                            response.operation_counts.added_str().map(|s| Style::Command.paint(s)),
-                            response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
-                            response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
+                            operation_count_str(response.operation_counts.added).map(|s| Style::Command.paint(s)),
+                            operation_count_str(response.operation_counts.updated).map(|s| Style::Command.paint(s)),
+                            operation_count_str(response.operation_counts.removed).map(|s| Style::Command.paint(s)),
                         ) {
                             (Some(added), Some(updated), Some(removed)) => format!(
                                 "added {added}, updated {updated}, and removed {removed}, creating"
@@ -2242,6 +2250,37 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "error": null
         });
         assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn pq_publish_new_revision_response_text() {
+        let operation_counts = PersistedQueriesOperationCounts {
+            added: 5,
+            identical: 3,
+            removed: 0,
+            unaffected: 2,
+            updated: 2,
+        };
+        let mock_publish_response = PersistedQueriesPublishResponse {
+            revision: 2,
+            graph_id: "graph_id".to_string(),
+            list_id: "list_id".to_string(),
+            list_name: "my list".to_string(),
+            total_published_operations: 10,
+            unchanged: false,
+            operation_counts,
+        };
+
+        let actual_text = RoverOutput::PersistedQueriesPublishResponse(mock_publish_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
+
+        assert_eq!(
+            actual_text,
+            "Successfully added 5 operations and updated 2 operations, creating revision 2 of my list, which contains 12 operations."
+        );
     }
 
     #[test]

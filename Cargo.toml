@@ -192,6 +192,7 @@ os_type = "2"
 pathfinding = "4"
 pastey = "0.2.1"
 pin-project = "1.1.10"
+pluralizer = "0.5.0"
 predicates = "3"
 pretty_assertions = "1"
 rand = "0.10"
@@ -284,6 +285,7 @@ lazycell = { workspace = true }
 lazy_static = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
+pluralizer = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
