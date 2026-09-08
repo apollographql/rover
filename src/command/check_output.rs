@@ -362,10 +362,13 @@ fn downstream_msg(response: &DownstreamCheckResponse) -> String {
         );
     }
 
-    match response.variants.len() {
-        0 => "No contract variants configured for this graph.".to_string(),
-        1 => "Checked 1 contract variant, all passed.".to_string(),
-        count => format!("Checked {count} contract variants, all passed."),
+    if response.variants.is_empty() {
+        "No contract variants configured for this graph.".to_string()
+    } else {
+        format!(
+            "Checked {}, all passed.",
+            pluralize("contract variant", response.variants.len() as isize, true)
+        )
     }
 }
 
