@@ -415,6 +415,20 @@ mod test {
         }
     }
 
+    /// A variant the server has explicitly flagged as failing upstream,
+    /// independent of its own `blocking`/`status` fields -- `blocking: false`
+    /// and `status: PENDING` are deliberate so this only counts as blocking
+    /// via `fails_upstream_workflow`, not the `blocking && FAILED` predicate.
+    fn variant_failing_upstream(name: &str) -> DownstreamVariantCheckResult {
+        DownstreamVariantCheckResult {
+            graph_id: "my-graph".to_string(),
+            variant_name: name.to_string(),
+            blocking: false,
+            fails_upstream_workflow: Some(true),
+            status: CheckTaskStatus::PENDING,
+        }
+    }
+
     /// A response exercising every task type at once, each with at least one
     /// finding, so both the text and JSON renderers cover every branch.
     fn comprehensive_response() -> CheckWorkflowResponse {
@@ -585,6 +599,11 @@ mod test {
             variant("partner-api", false, CheckTaskStatus::FAILED),
         ],
         "Checked 2 contract variants."
+    )]
+    #[case::fails_upstream_workflow_flags_blocking_even_when_not_individually_blocking(
+        CheckTaskStatus::FAILED,
+        vec![variant_failing_upstream("mobile")],
+        "The downstream check task has encountered check failures for at least this blocking downstream variant: mobile."
     )]
     fn downstream_msg_summarizes_variants(
         #[case] task_status: CheckTaskStatus,
