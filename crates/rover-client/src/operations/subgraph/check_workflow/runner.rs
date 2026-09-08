@@ -472,7 +472,11 @@ fn get_downstream_response_from_result(
                         Some(CheckWorkflowStatus::PENDING) => CheckTaskStatus::PENDING,
                         // Not yet initialized, or the downstream variant was deleted.
                         None => CheckTaskStatus::PENDING,
-                        _ => CheckTaskStatus::FAILED,
+                        // A status this client's schema snapshot doesn't recognize
+                        // (graphql_client's `Other(String)` fallback) -- degrade to the
+                        // neutral/pending summary rather than fabricating a
+                        // blocking-failure claim for something we don't understand.
+                        _ => CheckTaskStatus::PENDING,
                     },
                 })
                 .collect();
@@ -788,6 +792,7 @@ mod tests {
     #[case::passed(Some("PASSED"), CheckTaskStatus::PASSED)]
     #[case::pending(Some("PENDING"), CheckTaskStatus::PENDING)]
     #[case::not_yet_initialized(None, CheckTaskStatus::PENDING)]
+    #[case::unrecognized_status(Some("SOME_FUTURE_STATUS"), CheckTaskStatus::PENDING)]
     fn downstream_variant_status_mapping(
         graph_ref: GraphRef,
         #[case] downstream_workflow_status: Option<&str>,
