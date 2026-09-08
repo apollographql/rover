@@ -1,4 +1,5 @@
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center, Table, presets::UTF8_FULL};
+use pluralizer::pluralize;
 use rover_client::shared::{
     CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, DownstreamCheckResponse,
     LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
@@ -180,23 +181,27 @@ fn lint_table(response: &LintCheckResponse) -> String {
 fn lint_text(response: &LintCheckResponse) -> String {
     let mut msg = String::new();
 
-    let error_msg = match response.errors_count {
-        0 => String::new(),
-        1 => "1 error".to_string(),
-        _ => format!("{} errors", response.errors_count),
+    let error_msg = if response.errors_count > 0 {
+        pluralize("error", response.errors_count as isize, true)
+    } else {
+        String::new()
     };
 
-    let warning_msg = match response.warnings_count {
-        0 => String::new(),
-        1 => "1 warning".to_string(),
-        _ => format!("{} warnings", response.warnings_count),
+    let warning_msg = if response.warnings_count > 0 {
+        pluralize("warning", response.warnings_count as isize, true)
+    } else {
+        String::new()
     };
 
     let plural_errors = match (&error_msg[..], &warning_msg[..]) {
-        ("", "") => match response.diagnostics.len() {
-            1 => format!("{} rule ignored", response.diagnostics.len()),
-            _ => format!("{} rules ignored", response.diagnostics.len()),
-        },
+        // `pluralize` pluralizes whichever word it's given, so "rule" is
+        // pluralized on its own and "ignored" appended as an invariant
+        // suffix -- pluralizing the phrase "rule ignored" directly would
+        // instead (wrongly) pluralize its last word, giving "rule ignoreds".
+        ("", "") => format!(
+            "{} ignored",
+            pluralize("rule", response.diagnostics.len() as isize, true)
+        ),
         ("", _) => warning_msg,
         (_, "") => error_msg,
         _ => format!("{error_msg} and {warning_msg}"),
@@ -299,10 +304,10 @@ fn custom_table(response: &CustomCheckResponse) -> String {
 fn custom_text(response: &CustomCheckResponse) -> String {
     let mut msg = String::new();
 
-    let violation_msg = match response.violations.len() {
-        0 => "no violations".to_string(),
-        1 => "1 violation".to_string(),
-        _ => format!("{} violations", response.violations.len()),
+    let violation_msg = if response.violations.is_empty() {
+        "no violations".to_string()
+    } else {
+        pluralize("violation", response.violations.len() as isize, true)
     };
 
     if !response.violations.is_empty() {

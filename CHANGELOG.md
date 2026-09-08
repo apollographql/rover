@@ -108,7 +108,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Move check-workflow text rendering out of `rover-client` - @dotdat**
 
-  `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary
+  `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary. Its hand-rolled "N item(s)" pluralization now uses the `pluralizer` crate.
 
 - **latest_plugin_versions.json migration - @dotdat**
 
