@@ -110,6 +110,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `CheckWorkflowResponse` UI concerns are moved higher up to the CLI binary. Its hand-rolled "N item(s)" pluralization now uses the `pluralizer` crate.
 
+- **Widen `subgraph check`'s downstream check response to a full per-variant list, bump `graph`/`subgraph check --format json` to version 3 - @dotdat**
+
+  `DownstreamCheckResponse` now carries every contract variant's blocking state and status instead of collapsing to a bare list of blocking variant names, so a passing or empty downstream check can render a summary instead of nothing. `subgraph check`'s existing call site is adapted to the new shape with no behavior change; `graph check` does not yet populate this field.
+
 - **Switch `graph publish`/`subgraph publish` from raw `eprintln!` to `rover-print` - @dotdat**
 
   Both commands now print their stderr status lines through `rover-print`'s `Print`/`PrintExt` trait via an injected printer, matching the pattern already used by `contract preview`/`subgraph preview`. No user-facing output change.
