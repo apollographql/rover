@@ -358,7 +358,12 @@ fn downstream_msg(response: &DownstreamCheckResponse) -> String {
 
     if response.variants.is_empty() {
         "No contract variants configured for this graph.".to_string()
-    } else if response.task_status == CheckTaskStatus::PASSED {
+    } else if response.task_status == CheckTaskStatus::PASSED
+        && response
+            .variants
+            .iter()
+            .all(|variant| variant.status == CheckTaskStatus::PASSED)
+    {
         format!(
             "Checked {}, all passed.",
             pluralize("contract variant", response.variants.len() as isize, true)
@@ -570,6 +575,14 @@ mod test {
         vec![
             variant("mobile", false, CheckTaskStatus::PENDING),
             variant("partner-api", false, CheckTaskStatus::PENDING),
+        ],
+        "Checked 2 contract variants."
+    )]
+    #[case::non_blocking_failed_variant_does_not_claim_all_passed(
+        CheckTaskStatus::PASSED,
+        vec![
+            variant("mobile", true, CheckTaskStatus::PASSED),
+            variant("partner-api", false, CheckTaskStatus::FAILED),
         ],
         "Checked 2 contract variants."
     )]
