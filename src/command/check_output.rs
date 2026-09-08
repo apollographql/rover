@@ -346,10 +346,7 @@ fn downstream_msg(response: &DownstreamCheckResponse) -> String {
             .map(|variant| variant.variant_name.as_str())
             .collect::<Vec<_>>()
             .join(",");
-        let plural_this = match blocking_variants.len() {
-            1 => "this",
-            _ => "these",
-        };
+        let plural_this = pluralize("this", blocking_variants.len() as isize, false);
         let variant_word = pluralize("variant", blocking_variants.len() as isize, false);
         return format!(
             "The downstream check task has encountered check failures for at least {} blocking downstream {}: {}.",
