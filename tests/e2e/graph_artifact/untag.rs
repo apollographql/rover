@@ -7,7 +7,7 @@ use speculoos::{assert_that, boolean::BooleanAssertions, string::StrAssertions};
 use tracing::{error, info};
 use tracing_test::traced_test;
 
-use super::{E2E_TEST_ARTIFACT_DIGEST, TagCleanup, random_tag};
+use super::{E2E_TEST_ARTIFACT_DIGEST, TagCleanup, random_tag, wait_for_tag_reuse_window};
 use crate::e2e::remote_supergraph_graph_id;
 
 const E2E_TEST_TAG: &str = "e2e-test-artifact-untag";
@@ -59,10 +59,7 @@ async fn e2e_test_rover_graph_artifact_untag_nonexistent_graph_id() {
 #[traced_test]
 async fn e2e_test_rover_graph_artifact_untag_happy_path(remote_supergraph_graph_id: String) {
     let tag = random_tag(E2E_TEST_TAG);
-    let _cleanup = TagCleanup {
-        graph_id: remote_supergraph_graph_id.clone(),
-        tag: tag.clone(),
-    };
+    let mut cleanup = TagCleanup::new(remote_supergraph_graph_id.clone(), tag.clone());
 
     // First assign the tag so there's something to remove.
     info!("Tagging artifact {E2E_TEST_ARTIFACT_DIGEST} with tag {tag}");
@@ -86,6 +83,7 @@ async fn e2e_test_rover_graph_artifact_untag_happy_path(remote_supergraph_graph_
     }
 
     // Now remove it.
+    wait_for_tag_reuse_window();
     info!("Removing tag {tag} from graph {remote_supergraph_graph_id}");
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
@@ -106,6 +104,7 @@ async fn e2e_test_rover_graph_artifact_untag_happy_path(remote_supergraph_graph_
         error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
         panic!("Command did not complete successfully");
     }
+    cleanup.disarm();
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
         panic!(
