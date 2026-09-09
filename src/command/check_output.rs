@@ -415,15 +415,16 @@ mod test {
         }
     }
 
-    /// A variant the server has explicitly flagged as failing upstream,
-    /// independent of its own `blocking`/`status` fields -- `blocking: false`
-    /// and `status: PENDING` are deliberate so this only counts as blocking
-    /// via `fails_upstream_workflow`, not the `blocking && FAILED` predicate.
+    /// A variant the server has flagged as failing upstream while its
+    /// downstream workflow is still pending -- a state the server can
+    /// actually send (`failsUpstreamWorkflow` requires `blocking: true`, but
+    /// `status: PENDING` means `blocking && FAILED` still can't be what
+    /// counts this as blocking; only `fails_upstream_workflow` can be).
     fn variant_failing_upstream(name: &str) -> DownstreamVariantCheckResult {
         DownstreamVariantCheckResult {
             graph_id: "my-graph".to_string(),
             variant_name: name.to_string(),
-            blocking: false,
+            blocking: true,
             fails_upstream_workflow: Some(true),
             status: CheckTaskStatus::PENDING,
         }
