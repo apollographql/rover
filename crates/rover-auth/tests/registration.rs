@@ -73,6 +73,42 @@ async fn test_client_registration_sends_expected_scopes() {
     mock.assert();
 }
 
+// Without this, the device-authorization endpoint rejects `rover auth login
+// --no-browser` with `unsupported_grant_type`, since the registered client
+// never claimed the device-code grant in the first place.
+#[rstest]
+#[tokio::test]
+#[timeout(Duration::from_secs(5))]
+async fn test_client_registration_sends_the_device_code_grant_type() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/register")
+            .body_includes("authorization_code")
+            .body_includes("urn:ietf:params:oauth:grant-type:device_code");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"client_id":"device-code-client"}"#);
+    });
+
+    let register_url = Url::parse(&format!("http://{}/register", server.address())).unwrap();
+    let redirect_url = Url::parse("http://127.0.0.1:8080/callback").unwrap();
+
+    let req = RegisterRequest::builder()
+        .register_url(register_url)
+        .redirect_url(redirect_url)
+        .build();
+
+    let http_service = ReqwestService::builder()
+        .client(reqwest::Client::default())
+        .build()
+        .unwrap();
+
+    let result = Register::new(http_service).oneshot(req).await;
+    assert_that!(result).is_ok();
+    mock.assert();
+}
+
 #[rstest]
 #[tokio::test]
 #[timeout(Duration::from_secs(5))]
