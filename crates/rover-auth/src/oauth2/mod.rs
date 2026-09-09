@@ -53,6 +53,10 @@ pub enum GrantType {
     AuthorizationCode,
     /// Client credentials grant.
     ClientCredentials,
+    /// Device authorization grant (RFC 8628). Not a `snake_case` word, so it
+    /// isn't covered by this enum's `rename_all` and needs its own `rename`.
+    #[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
+    DeviceCode,
 }
 
 /// Client authentication method for the token endpoint.

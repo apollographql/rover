@@ -35,7 +35,11 @@ impl RegisterRequest {
                 Scope::new("email".to_string()),
             ],
             redirect_uris: vec![redirect_url],
-            grant_types: vec![GrantType::AuthorizationCode],
+            // `rover auth login` uses this client for both the PKCE browser flow
+            // (authorization_code) and `--no-browser` (device_code) - both grant
+            // types need to be registered, or the device-code flow is rejected
+            // with `unsupported_grant_type` at the device-authorization endpoint.
+            grant_types: vec![GrantType::AuthorizationCode, GrantType::DeviceCode],
             token_endpoint_auth_method: TokenEndpointAuthMethod::None,
         }
     }

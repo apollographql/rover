@@ -56,6 +56,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Register the device-code grant type for `rover auth login --no-browser`'s OAuth client - @dotdat**
+
+  Every OAuth client provisioned via `cargo xtask register-oauth-client` (for both staging and prod) was registered with only the `authorization_code` grant type, never `urn:ietf:params:oauth:grant-type:device_code` - so `rover auth login --no-browser` always failed at the very first step, with the server rejecting the device-authorization request as `unsupported_grant_type`
+
 - **Surface the underlying GraphQL errors when a response has no `data` field - @sirdodger**
 
   Requests that returned GraphQL errors alongside a null/missing `data` field previously showed a generic message instead of the actual error text. `GraphQLServiceError::NoData` now maps to the underlying errors (joined by newline) when there are any, falling back to the generic "No data field provided" message only when the response truly carried no errors either.
