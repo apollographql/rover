@@ -20,8 +20,9 @@ use crate::{
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
         CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        DownstreamCheckResponse, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
+        DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+        OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+        ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -458,15 +459,31 @@ fn get_downstream_response_from_result(
 ) -> Option<DownstreamCheckResponse> {
     match results {
         Some(results) => {
-            let blocking_variants = results
-                .iter()
-                .filter(|result| result.fails_upstream_workflow.unwrap_or(false))
-                .map(|result| result.downstream_variant_name.clone())
+            let variants = results
+                .into_iter()
+                .map(|result| DownstreamVariantCheckResult {
+                    graph_id: result.downstream_graph_id,
+                    variant_name: result.downstream_variant_name,
+                    blocking: result.blocking,
+                    fails_upstream_workflow: result.fails_upstream_workflow,
+                    status: match result.downstream_workflow.map(|workflow| workflow.status) {
+                        Some(CheckWorkflowStatus::FAILED) => CheckTaskStatus::FAILED,
+                        Some(CheckWorkflowStatus::PASSED) => CheckTaskStatus::PASSED,
+                        Some(CheckWorkflowStatus::PENDING) => CheckTaskStatus::PENDING,
+                        // Not yet initialized, or the downstream variant was deleted.
+                        None => CheckTaskStatus::PENDING,
+                        // A status this client's schema snapshot doesn't recognize.
+                        // Spelled out explicitly (rather than `_`) so a future schema
+                        // regen adding a real new variant is a compile error here,
+                        // not a silent fall-through to this same PENDING degrade.
+                        Some(CheckWorkflowStatus::Other(_)) => CheckTaskStatus::PENDING,
+                    },
+                })
                 .collect();
             Some(DownstreamCheckResponse {
                 task_status: task_status.into(),
                 target_url,
-                blocking_variants,
+                variants,
             })
         }
         None => None,
@@ -476,9 +493,16 @@ fn get_downstream_response_from_result(
 #[cfg(test)]
 #[expect(clippy::panic)]
 mod tests {
-    use serde_json::json;
+    use rstest::{fixture, rstest};
+    use serde_json::{json, Value};
+    use speculoos::prelude::*;
 
     use super::*;
+
+    #[fixture]
+    fn graph_ref() -> GraphRef {
+        GraphRef::new("test-graph", Some("test-variant")).unwrap()
+    }
 
     #[tokio::test]
     async fn run_points_to_studio_when_result_fetch_fails() {
@@ -555,10 +579,9 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
-    fn test_get_check_response_from_data_with_passed_status() {
+    #[rstest]
+    fn test_get_check_response_from_data_with_passed_status(graph_ref: GraphRef) {
         let data = create_check_workflow_data(CheckWorkflowStatus::PASSED, json!([]));
-        let graph_ref = "test-graph@test-variant".parse().unwrap();
         let subgraph = "test-subgraph".to_string();
 
         let result = get_check_response_from_data(data, graph_ref, subgraph);
@@ -577,10 +600,9 @@ mod tests {
         assert!(response.maybe_downstream_response.is_none());
     }
 
-    #[test]
-    fn test_get_check_response_from_data_with_failed_status() {
+    #[rstest]
+    fn test_get_check_response_from_data_with_failed_status(graph_ref: GraphRef) {
         let data = create_check_workflow_data(CheckWorkflowStatus::FAILED, json!([]));
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
         let subgraph = "test-subgraph".to_string();
 
         let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
@@ -601,8 +623,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_get_check_response_preserves_composition_task_status() {
+    #[rstest]
+    fn test_get_check_response_preserves_composition_task_status(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -616,7 +638,6 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
 
         let response =
             get_check_response_from_data(data, graph_ref, "test-subgraph".to_string()).unwrap();
@@ -627,8 +648,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_get_check_response_from_data_with_composition_errors() {
+    #[rstest]
+    fn test_get_check_response_from_data_with_composition_errors(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::FAILED,
             json!([
@@ -651,7 +672,6 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
         let subgraph = "test-subgraph".to_string();
 
         let result = get_check_response_from_data(data, graph_ref.clone(), subgraph.clone());
@@ -671,8 +691,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_get_check_response_from_data_with_null_operations_result() {
+    #[rstest]
+    fn test_get_check_response_from_data_with_null_operations_result(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -685,7 +705,6 @@ mod tests {
                 }
             ]),
         );
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
         let subgraph = "test-subgraph".to_string();
 
         let result = get_check_response_from_data(data, graph_ref, subgraph);
@@ -698,8 +717,8 @@ mod tests {
         assert!(response.maybe_operations_response.is_none());
     }
 
-    #[test]
-    fn test_get_check_response_from_data_with_null_lint_result() {
+    #[rstest]
+    fn test_get_check_response_from_data_with_null_lint_result(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
             CheckWorkflowStatus::PASSED,
             json!([
@@ -713,7 +732,6 @@ mod tests {
             ]),
         );
 
-        let graph_ref: GraphRef = "test-graph@test-variant".parse().unwrap();
         let subgraph = "test-subgraph".to_string();
 
         let result = get_check_response_from_data(data, graph_ref, subgraph);
@@ -724,5 +742,104 @@ mod tests {
 
         // Lint response should be None since result was null
         assert!(response.maybe_lint_response.is_none());
+    }
+
+    #[rstest]
+    fn downstream_result_maps_into_shared_variant_shape(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": true,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": true
+                        }
+                    ]
+                }
+            ]),
+        );
+        let subgraph = "test-subgraph".to_string();
+
+        let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
+
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
+            ),
+            variants: vec![DownstreamVariantCheckResult {
+                graph_id: "test-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                blocking: true,
+                fails_upstream_workflow: Some(true),
+                status: CheckTaskStatus::FAILED,
+            }],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
+    }
+
+    #[rstest]
+    #[case::failed(Some("FAILED"), CheckTaskStatus::FAILED)]
+    #[case::passed(Some("PASSED"), CheckTaskStatus::PASSED)]
+    #[case::pending(Some("PENDING"), CheckTaskStatus::PENDING)]
+    #[case::not_yet_initialized(None, CheckTaskStatus::PENDING)]
+    #[case::unrecognized_status(Some("SOME_FUTURE_STATUS"), CheckTaskStatus::PENDING)]
+    fn downstream_variant_status_mapping(
+        graph_ref: GraphRef,
+        #[case] downstream_workflow_status: Option<&str>,
+        #[case] expected_status: CheckTaskStatus,
+    ) {
+        let downstream_workflow = match downstream_workflow_status {
+            Some(status) => json!({ "status": status }),
+            None => Value::Null,
+        };
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetURL": null,
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            // Non-blocking, so a FAILED case here doesn't also trip
+                            // the check-failure behavior covered by other tests.
+                            "blocking": false,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": downstream_workflow,
+                            "failsUpstreamWorkflow": null
+                        }
+                    ]
+                }
+            ]),
+        );
+        let subgraph = "test-subgraph".to_string();
+
+        let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
+
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: None,
+            variants: vec![DownstreamVariantCheckResult {
+                graph_id: "test-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                blocking: false,
+                fails_upstream_workflow: None,
+                status: expected_status,
+            }],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
     }
 }
