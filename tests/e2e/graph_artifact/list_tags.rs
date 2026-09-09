@@ -129,10 +129,7 @@ async fn e2e_test_rover_graph_artifact_list_tags_by_digest_happy_path(
     remote_supergraph_graph_id: String,
 ) {
     let tag = random_tag(E2E_TEST_TAG);
-    let _cleanup = TagCleanup {
-        graph_id: remote_supergraph_graph_id.clone(),
-        tag: tag.clone(),
-    };
+    let _cleanup = TagCleanup::new(remote_supergraph_graph_id.clone(), tag.clone());
     info!("Creating tag '{tag}' then listing tags for artifact {E2E_TEST_ARTIFACT_DIGEST}");
     create_tag(&remote_supergraph_graph_id, &tag);
 
