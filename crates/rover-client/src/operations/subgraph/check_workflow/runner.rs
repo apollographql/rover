@@ -472,11 +472,11 @@ fn get_downstream_response_from_result(
                         Some(CheckWorkflowStatus::PENDING) => CheckTaskStatus::PENDING,
                         // Not yet initialized, or the downstream variant was deleted.
                         None => CheckTaskStatus::PENDING,
-                        // A status this client's schema snapshot doesn't recognize
-                        // (graphql_client's `Other(String)` fallback) -- degrade to the
-                        // neutral/pending summary rather than fabricating a
-                        // blocking-failure claim for something we don't understand.
-                        _ => CheckTaskStatus::PENDING,
+                        // A status this client's schema snapshot doesn't recognize.
+                        // Spelled out explicitly (rather than `_`) so a future schema
+                        // regen adding a real new variant is a compile error here,
+                        // not a silent fall-through to this same PENDING degrade.
+                        Some(CheckWorkflowStatus::Other(_)) => CheckTaskStatus::PENDING,
                     },
                 })
                 .collect();
