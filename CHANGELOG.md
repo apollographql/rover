@@ -58,6 +58,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover subgraph delete`'s pre-confirmation build-error check now runs through this same async preview path instead of a synchronous dry-run mutation, avoiding a long-held server connection (and its timeout risk) while previewing the deletion of a subgraph from a large supergraph.
 
+- **Report contract variant visibility on `rover graph check` - @dotdat**
+
+  `rover graph check` now reports a downstream check summary for a graph's contract variants, in both text and JSON: how many were checked and their pass/fail breakdown, not just the names of variants that are blocking (previously, `graph check` reported nothing about contract variants at all). A blocking downstream contract failure now also makes `graph check` exit non-zero, matching `subgraph check`'s existing behavior.
+
 ## 🐛 Fixes
 
 - **Register the device-code grant type for `rover auth login --no-browser`'s OAuth client - @dotdat**

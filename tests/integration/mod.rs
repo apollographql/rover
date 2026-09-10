@@ -3,6 +3,7 @@ mod auth;
 mod client;
 mod completion;
 mod dev;
+mod graph;
 mod info;
 mod installers;
 mod output;

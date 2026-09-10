@@ -162,11 +162,60 @@ pub struct DownstreamVariantCheckResult {
     pub status: CheckTaskStatus,
 }
 
+impl DownstreamVariantCheckResult {
+    /// Whether this variant's downstream check failure should block the
+    /// upstream check, either because Studio says it does directly, or
+    /// because it's a blocking variant whose own workflow failed.
+    pub fn is_blocking_failure(&self) -> bool {
+        self.fails_upstream_workflow.unwrap_or(false)
+            || (self.blocking && self.status == CheckTaskStatus::FAILED)
+    }
+}
+
+/// Production code should construct this via [`DownstreamCheckResponse::new`], not a
+/// struct literal, so `task_status` picks up the blocking-failure escalation -- a
+/// bare literal silently skips it, since all three fields are `pub` for test call
+/// sites that need to build specific (including deliberately non-escalated) expected
+/// values. `graph check` goes through `new`; `subgraph check` does not yet (its own
+/// escalation is intentionally a separate, not-yet-started follow-up).
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct DownstreamCheckResponse {
     pub task_status: CheckTaskStatus,
     pub target_url: Option<String>,
     pub variants: Vec<DownstreamVariantCheckResult>,
+}
+
+impl DownstreamCheckResponse {
+    /// Builds a downstream check response, escalating `task_status` to
+    /// `FAILED` when a blocking downstream contract workflow has actually
+    /// failed even if the task's own aggregate status hasn't caught up yet.
+    pub fn new(
+        variants: Vec<DownstreamVariantCheckResult>,
+        task_status: CheckTaskStatus,
+        target_url: Option<String>,
+    ) -> Self {
+        let task_status = if variants
+            .iter()
+            .any(DownstreamVariantCheckResult::is_blocking_failure)
+        {
+            CheckTaskStatus::FAILED
+        } else {
+            task_status
+        };
+        DownstreamCheckResponse {
+            task_status,
+            target_url,
+            variants,
+        }
+    }
+
+    /// Whether any contract variant's downstream check failure should block
+    /// the upstream check.
+    pub fn has_blocking_failure(&self) -> bool {
+        self.variants
+            .iter()
+            .any(DownstreamVariantCheckResult::is_blocking_failure)
+    }
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]

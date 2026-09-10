@@ -459,27 +459,8 @@ fn get_downstream_response_from_result(
 ) -> Option<DownstreamCheckResponse> {
     match results {
         Some(results) => {
-            let variants = results
-                .into_iter()
-                .map(|result| DownstreamVariantCheckResult {
-                    graph_id: result.downstream_graph_id,
-                    variant_name: result.downstream_variant_name,
-                    blocking: result.blocking,
-                    fails_upstream_workflow: result.fails_upstream_workflow,
-                    status: match result.downstream_workflow.map(|workflow| workflow.status) {
-                        Some(CheckWorkflowStatus::FAILED) => CheckTaskStatus::FAILED,
-                        Some(CheckWorkflowStatus::PASSED) => CheckTaskStatus::PASSED,
-                        Some(CheckWorkflowStatus::PENDING) => CheckTaskStatus::PENDING,
-                        // Not yet initialized, or the downstream variant was deleted.
-                        None => CheckTaskStatus::PENDING,
-                        // A status this client's schema snapshot doesn't recognize.
-                        // Spelled out explicitly (rather than `_`) so a future schema
-                        // regen adding a real new variant is a compile error here,
-                        // not a silent fall-through to this same PENDING degrade.
-                        Some(CheckWorkflowStatus::Other(_)) => CheckTaskStatus::PENDING,
-                    },
-                })
-                .collect();
+            let variants: Vec<DownstreamVariantCheckResult> =
+                results.into_iter().map(Into::into).collect();
             Some(DownstreamCheckResponse {
                 task_status: task_status.into(),
                 target_url,
