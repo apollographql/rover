@@ -225,6 +225,16 @@ fn get_check_response_from_data(
         graph_ref.variant()
     );
 
+    let maybe_downstream_response = get_downstream_response_from_result(
+        downstream_status,
+        downstream_target_url,
+        downstream_result,
+    );
+    let downstream_failed = maybe_downstream_response
+        .as_ref()
+        .map(DownstreamCheckResponse::has_blocking_failure)
+        .unwrap_or(false);
+
     let check_response = CheckWorkflowResponse {
         default_target_url,
         maybe_core_schema_modified: Some(core_schema_modified),
@@ -250,19 +260,17 @@ fn get_check_response_from_data(
             custom_target_url,
             custom_result,
         ),
-        maybe_downstream_response: get_downstream_response_from_result(
-            downstream_status,
-            downstream_target_url,
-            downstream_result,
-        ),
+        maybe_downstream_response,
     };
 
     match check_workflow.status {
-        CheckWorkflowStatus::PASSED => Ok(check_response),
-        CheckWorkflowStatus::FAILED => Err(RoverClientError::CheckWorkflowFailure {
-            graph_ref,
-            check_response: Box::new(check_response),
-        }),
+        CheckWorkflowStatus::PASSED if !downstream_failed => Ok(check_response),
+        CheckWorkflowStatus::PASSED | CheckWorkflowStatus::FAILED => {
+            Err(RoverClientError::CheckWorkflowFailure {
+                graph_ref,
+                check_response: Box::new(check_response),
+            })
+        }
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
 }
@@ -461,11 +469,11 @@ fn get_downstream_response_from_result(
         Some(results) => {
             let variants: Vec<DownstreamVariantCheckResult> =
                 results.into_iter().map(Into::into).collect();
-            Some(DownstreamCheckResponse {
-                task_status: task_status.into(),
-                target_url,
+            Some(DownstreamCheckResponse::new(
                 variants,
-            })
+                task_status.into(),
+                target_url,
+            ))
         }
         None => None,
     }
@@ -725,6 +733,12 @@ mod tests {
         assert!(response.maybe_lint_response.is_none());
     }
 
+    /// A blocking downstream contract workflow that has actually failed makes the
+    /// check fail even though the overall workflow status (and the downstream
+    /// task's own aggregate status) both still report PASSED -- Studio's aggregate
+    /// status can lag behind the per-variant data in the same response. Mirrors
+    /// `blocking_downstream_workflow_failure_fails_the_check` in
+    /// `crates/rover-client/src/operations/graph/check_workflow/runner.rs`.
     #[rstest]
     fn downstream_result_maps_into_shared_variant_shape(graph_ref: GraphRef) {
         let data = create_check_workflow_data(
@@ -750,18 +764,134 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+
+        assert_that!(&result).is_err();
+        match result.unwrap_err() {
+            RoverClientError::CheckWorkflowFailure {
+                graph_ref: returned_graph_ref,
+                check_response,
+            } => {
+                assert_that!(&returned_graph_ref).is_equal_to(&graph_ref);
+                let expected = DownstreamCheckResponse {
+                    task_status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/test-graph/checks/downstream"
+                            .to_string(),
+                    ),
+                    variants: vec![DownstreamVariantCheckResult {
+                        graph_id: "test-graph".to_string(),
+                        variant_name: "mobile".to_string(),
+                        blocking: true,
+                        fails_upstream_workflow: Some(true),
+                        status: CheckTaskStatus::FAILED,
+                    }],
+                };
+                assert_that!(&check_response.maybe_downstream_response).is_equal_to(Some(expected));
+            }
+            other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
+        }
+    }
+
+    /// Mirrors `downstream_result_maps_into_shared_variant_shape`, but isolates the
+    /// *other* half of `has_blocking_failure`'s OR: `blocking: false` and
+    /// `status: PASSED` mean the `blocking && FAILED` predicate can't be what fails
+    /// the check here -- only `fails_upstream_workflow` can.
+    #[rstest]
+    fn fails_upstream_workflow_alone_fails_the_check(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": false,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "PASSED" },
+                            "failsUpstreamWorkflow": true
+                        }
+                    ]
+                }
+            ]),
+        );
+        let subgraph = "test-subgraph".to_string();
+
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+
+        assert_that!(&result).is_err();
+        match result.unwrap_err() {
+            RoverClientError::CheckWorkflowFailure {
+                graph_ref: returned_graph_ref,
+                check_response,
+            } => {
+                assert_that!(&returned_graph_ref).is_equal_to(&graph_ref);
+                let expected = DownstreamCheckResponse {
+                    task_status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/test-graph/checks/downstream"
+                            .to_string(),
+                    ),
+                    variants: vec![DownstreamVariantCheckResult {
+                        graph_id: "test-graph".to_string(),
+                        variant_name: "mobile".to_string(),
+                        blocking: false,
+                        fails_upstream_workflow: Some(true),
+                        status: CheckTaskStatus::PASSED,
+                    }],
+                };
+                assert_that!(&check_response.maybe_downstream_response).is_equal_to(Some(expected));
+            }
+            other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
+        }
+    }
+
+    /// The server can report the `DownstreamCheckTask` itself as `FAILED` for
+    /// reasons that don't make any individual variant a blocking failure (e.g. a
+    /// non-blocking contract variant failing). That alone shouldn't fail the check
+    /// -- only `has_blocking_failure` should.
+    #[rstest]
+    fn non_blocking_task_failure_does_not_fail_the_check(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "FAILED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": false,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": false
+                        }
+                    ]
+                }
+            ]),
+        );
+        let subgraph = "test-subgraph".to_string();
+
         let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
 
         let expected = DownstreamCheckResponse {
-            task_status: CheckTaskStatus::PASSED,
+            task_status: CheckTaskStatus::FAILED,
             target_url: Some(
                 "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
             ),
             variants: vec![DownstreamVariantCheckResult {
                 graph_id: "test-graph".to_string(),
                 variant_name: "mobile".to_string(),
-                blocking: true,
-                fails_upstream_workflow: Some(true),
+                blocking: false,
+                fails_upstream_workflow: Some(false),
                 status: CheckTaskStatus::FAILED,
             }],
         };
