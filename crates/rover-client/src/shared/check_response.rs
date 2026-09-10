@@ -162,11 +162,31 @@ pub struct DownstreamVariantCheckResult {
     pub status: CheckTaskStatus,
 }
 
+impl DownstreamVariantCheckResult {
+    /// Whether this variant's downstream check failure should block the
+    /// upstream check, either because Studio says it does directly, or
+    /// because it's a blocking variant whose own workflow failed.
+    pub fn is_blocking_failure(&self) -> bool {
+        self.fails_upstream_workflow.unwrap_or(false)
+            || (self.blocking && self.status == CheckTaskStatus::FAILED)
+    }
+}
+
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct DownstreamCheckResponse {
     pub task_status: CheckTaskStatus,
     pub target_url: Option<String>,
     pub variants: Vec<DownstreamVariantCheckResult>,
+}
+
+impl DownstreamCheckResponse {
+    /// Whether any contract variant's downstream check failure should block
+    /// the upstream check.
+    pub fn has_blocking_failure(&self) -> bool {
+        self.variants
+            .iter()
+            .any(DownstreamVariantCheckResult::is_blocking_failure)
+    }
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]

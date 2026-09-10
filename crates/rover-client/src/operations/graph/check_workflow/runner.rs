@@ -186,7 +186,7 @@ fn get_check_response_from_data(
     );
     let downstream_failed = maybe_downstream_response
         .as_ref()
-        .map(|response| response.task_status == CheckTaskStatus::FAILED)
+        .map(DownstreamCheckResponse::has_blocking_failure)
         .unwrap_or(false);
 
     let check_response = CheckWorkflowResponse {
@@ -215,14 +215,12 @@ fn get_check_response_from_data(
 
     match check_workflow.status {
         CheckWorkflowStatus::PASSED if !downstream_failed => Ok(check_response),
-        CheckWorkflowStatus::FAILED => Err(RoverClientError::CheckWorkflowFailure {
-            graph_ref,
-            check_response: Box::new(check_response),
-        }),
-        CheckWorkflowStatus::PASSED => Err(RoverClientError::CheckWorkflowFailure {
-            graph_ref,
-            check_response: Box::new(check_response),
-        }),
+        CheckWorkflowStatus::PASSED | CheckWorkflowStatus::FAILED => {
+            Err(RoverClientError::CheckWorkflowFailure {
+                graph_ref,
+                check_response: Box::new(check_response),
+            })
+        }
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
 }
@@ -366,10 +364,9 @@ fn get_downstream_response_from_result(
                 .collect();
             // A blocking downstream contract workflow that has actually failed makes this
             // task FAILED even if the task's own aggregate status hasn't caught up yet.
-            let has_blocking_failure = variants.iter().any(|variant| {
-                variant.fails_upstream_workflow.unwrap_or(false)
-                    || (variant.blocking && variant.status == CheckTaskStatus::FAILED)
-            });
+            let has_blocking_failure = variants
+                .iter()
+                .any(DownstreamVariantCheckResult::is_blocking_failure);
             let task_status = if has_blocking_failure {
                 CheckTaskStatus::FAILED
             } else {
@@ -386,6 +383,7 @@ fn get_downstream_response_from_result(
 }
 
 #[cfg(test)]
+#[expect(clippy::panic)]
 mod tests {
     use rover_studio::types::GraphRef;
     use rstest::{fixture, rstest};
@@ -611,6 +609,52 @@ mod tests {
             }
             other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
         }
+    }
+
+    /// The server can report the `DownstreamCheckTask` itself as `FAILED` for
+    /// reasons that don't make any individual variant a blocking failure (e.g.
+    /// a non-blocking contract variant failing). That alone shouldn't fail the
+    /// check -- only `has_blocking_failure` should.
+    #[rstest]
+    fn non_blocking_task_failure_does_not_fail_the_check(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "FAILED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": false,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": false
+                        }
+                    ]
+                }
+            ]),
+        );
+
+        let response = get_check_response_from_data(data, graph_ref).unwrap();
+
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::FAILED,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
+            ),
+            variants: vec![DownstreamVariantCheckResult {
+                graph_id: "test-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                blocking: false,
+                fails_upstream_workflow: Some(false),
+                status: CheckTaskStatus::FAILED,
+            }],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
     }
 
     #[rstest]

@@ -331,10 +331,7 @@ fn downstream_blocking_variants(
     response
         .variants
         .iter()
-        .filter(|variant| {
-            variant.fails_upstream_workflow.unwrap_or(false)
-                || (variant.blocking && variant.status == CheckTaskStatus::FAILED)
-        })
+        .filter(|variant| variant.is_blocking_failure())
         .collect()
 }
 
