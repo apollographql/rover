@@ -180,6 +180,29 @@ pub struct DownstreamCheckResponse {
 }
 
 impl DownstreamCheckResponse {
+    /// Builds a downstream check response, escalating `task_status` to
+    /// `FAILED` when a blocking downstream contract workflow has actually
+    /// failed even if the task's own aggregate status hasn't caught up yet.
+    pub fn new(
+        variants: Vec<DownstreamVariantCheckResult>,
+        task_status: CheckTaskStatus,
+        target_url: Option<String>,
+    ) -> Self {
+        let task_status = if variants
+            .iter()
+            .any(DownstreamVariantCheckResult::is_blocking_failure)
+        {
+            CheckTaskStatus::FAILED
+        } else {
+            task_status
+        };
+        DownstreamCheckResponse {
+            task_status,
+            target_url,
+            variants,
+        }
+    }
+
     /// Whether any contract variant's downstream check failure should block
     /// the upstream check.
     pub fn has_blocking_failure(&self) -> bool {

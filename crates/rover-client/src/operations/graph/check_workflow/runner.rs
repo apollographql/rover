@@ -16,9 +16,9 @@ use crate::{
     operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
-        CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
-        OperationCheckResponse, SchemaChange, Violation,
+        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse,
+        DownstreamVariantCheckResult, LintCheckResponse, OperationCheckResponse, SchemaChange,
+        Violation,
     },
     RoverClientError,
 };
@@ -343,21 +343,11 @@ fn get_downstream_response_from_result(
         Some(results) => {
             let variants: Vec<DownstreamVariantCheckResult> =
                 results.into_iter().map(Into::into).collect();
-            // A blocking downstream contract workflow that has actually failed makes this
-            // task FAILED even if the task's own aggregate status hasn't caught up yet.
-            let has_blocking_failure = variants
-                .iter()
-                .any(DownstreamVariantCheckResult::is_blocking_failure);
-            let task_status = if has_blocking_failure {
-                CheckTaskStatus::FAILED
-            } else {
-                task_status.into()
-            };
-            Some(DownstreamCheckResponse {
-                task_status,
-                target_url,
+            Some(DownstreamCheckResponse::new(
                 variants,
-            })
+                task_status.into(),
+                target_url,
+            ))
         }
         None => None,
     }
@@ -372,7 +362,9 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::operations::graph::check_workflow::types::QueryResponseData;
+    use crate::{
+        operations::graph::check_workflow::types::QueryResponseData, shared::CheckTaskStatus,
+    };
 
     #[fixture]
     fn graph_ref() -> GraphRef {
