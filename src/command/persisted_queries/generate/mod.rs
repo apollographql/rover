@@ -20,12 +20,23 @@ pub struct Generate {
     /// Path to write the generated manifest to. If omitted, the manifest is printed to stdout.
     #[arg(long = "manifest-path", short = 'm', value_name = "FILE")]
     manifest_path: Option<Utf8PathBuf>,
+
+    /// Keep the comment block that precedes each operation in the generated
+    /// operation body, instead of dropping it during normalization.
+    ///
+    /// Only the contiguous comments directly above an operation are kept;
+    /// comments elsewhere in a document are still dropped. Because operation
+    /// IDs are a hash of the body, enabling this changes the ID of every
+    /// operation that has a preceding comment, so clients must generate their
+    /// manifests the same way.
+    #[arg(long = "preserve-comments")]
+    preserve_comments: bool,
 }
 
 impl Generate {
     pub async fn run<P: rover_print::print::Print>(&self, stderr: &P) -> RoverResult<RoverOutput> {
         let files = self.file_discovery.find(&["graphql"])?;
-        let manifest = PersistedQueryManifest::from_files(files)?;
+        let manifest = PersistedQueryManifest::from_files(files, self.preserve_comments)?;
         let operation_count = manifest.operation_count();
 
         if operation_count == 0 {

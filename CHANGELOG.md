@@ -40,6 +40,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover auth login --no-browser` uses the OAuth 2.0 Device Authorization Grant (RFC 8628) instead of the local browser/redirect-server flow: it prints a verification URL and code to enter from any device, then polls until you approve the request, for headless or browser-less environments. Ignores `--no-open`, since there's no local browser step to skip. The device authorization endpoint can be overridden with `--oauth-device-authorization-url`, matching the other OAuth endpoint overrides.
 
+- **Add `--preserve-comments` to `rover persisted-queries generate` - @ebylund**
+
+  Keeps the contiguous comment block directly above each operation in the generated operation body, instead of dropping it during normalization. Comments elsewhere in a document are still dropped. Off by default; manifests generated without the flag are byte-for-byte unchanged. Because an operation's ID is a hash of its body, enabling this changes the ID of every operation that has a preceding comment, so every client generating a manifest for the same graph must enable it too.
+
 - **Add `rover auth logout`, gated behind the experimental `oauth` feature flag - @dotdat**
 
   `rover auth logout` revokes the OAuth session stored by `rover auth login` for the given `--profile` (or "default") — the access token and, if one was issued, the refresh token (RFC 7009) — then removes the local credential. Revocation is best-effort: if the OAuth server can't be reached, Rover still clears the local credential and warns instead of leaving you stuck "logged in" locally. Only meaningful for profiles logged in via `rover auth login`; running it against a profile holding a Personal API Key (from `rover config auth`) errors and points you at `rover config delete` instead. Only compiled in when built with `--features oauth`, matching `rover auth login`.
