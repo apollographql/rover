@@ -10,7 +10,7 @@ use crate::{
     operations::graph::check_workflow::runner::{
         graph_check_workflow_query, graph_check_workflow_status_query,
     },
-    shared::{ChangeSeverity, CheckTaskStatus},
+    shared::{ChangeSeverity, CheckTaskStatus, DownstreamVariantCheckResult},
 };
 
 type QueryVariables = graph_check_workflow_query::Variables;
@@ -76,6 +76,32 @@ impl From<Option<CheckWorkflowTaskStatus>> for CheckTaskStatus {
             Some(CheckWorkflowTaskStatus::PASSED) => CheckTaskStatus::PASSED,
             Some(CheckWorkflowTaskStatus::PENDING) => CheckTaskStatus::PENDING,
             _ => CheckTaskStatus::FAILED,
+        }
+    }
+}
+
+pub(crate) type QueryDownstreamCheckResult =
+    graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults;
+
+impl From<QueryDownstreamCheckResult> for DownstreamVariantCheckResult {
+    fn from(result: QueryDownstreamCheckResult) -> Self {
+        DownstreamVariantCheckResult {
+            graph_id: result.downstream_graph_id,
+            variant_name: result.downstream_variant_name,
+            blocking: result.blocking,
+            fails_upstream_workflow: result.fails_upstream_workflow,
+            status: match result.downstream_workflow.map(|workflow| workflow.status) {
+                Some(WorkflowStatus::FAILED) => CheckTaskStatus::FAILED,
+                Some(WorkflowStatus::PASSED) => CheckTaskStatus::PASSED,
+                Some(WorkflowStatus::PENDING) => CheckTaskStatus::PENDING,
+                // Not yet initialized, or the downstream variant was deleted.
+                None => CheckTaskStatus::PENDING,
+                // A status this client's schema snapshot doesn't recognize.
+                // Spelled out explicitly (rather than `_`) so a future schema
+                // regen adding a real new variant is a compile error here,
+                // not a silent fall-through to this same PENDING degrade.
+                Some(WorkflowStatus::Other(_)) => CheckTaskStatus::PENDING,
+            },
         }
     }
 }
