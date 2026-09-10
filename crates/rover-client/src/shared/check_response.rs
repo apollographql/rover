@@ -172,6 +172,12 @@ impl DownstreamVariantCheckResult {
     }
 }
 
+/// Production code should construct this via [`DownstreamCheckResponse::new`], not a
+/// struct literal, so `task_status` picks up the blocking-failure escalation -- a
+/// bare literal silently skips it, since all three fields are `pub` for test call
+/// sites that need to build specific (including deliberately non-escalated) expected
+/// values. `graph check` goes through `new`; `subgraph check` does not yet (its own
+/// escalation is intentionally a separate, not-yet-started follow-up).
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct DownstreamCheckResponse {
     pub task_status: CheckTaskStatus,
