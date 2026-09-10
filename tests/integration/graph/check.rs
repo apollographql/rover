@@ -2,69 +2,49 @@ use std::fs;
 
 use assert_cmd::Command;
 use httpmock::{Method::POST, MockServer};
+use insta::assert_json_snapshot;
 use serde_json::Value;
+use serial_test::serial;
 
-/// Verifies that `rover graph check` fails the command, and correctly attributes the
-/// failure to the downstream task, when a blocking downstream contract check has
-/// actually failed -- even though the overall workflow status and the downstream
-/// task's own aggregate status both still report PASSED (Studio's aggregate status
-/// can lag behind the per-variant data in the same response). Exercises the
-/// `has_blocking_failure` escalation in `DownstreamCheckResponse::new`.
-#[test]
-fn graph_check_fails_on_blocking_downstream_contract_failure() {
+const CHECK_SUBMISSION_RESPONSE: &str = r#"{"data":{"graph":{"variant":{"submitCheckSchemaAsync":{
+    "__typename":"CheckRequestSuccess",
+    "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/1",
+    "workflowID":"workflow-1"
+}}}}}"#;
+
+const STATUS_POLL_RESPONSE: &str = r#"{"data":{"graph":{"checkWorkflow":{
+    "status":"PASSED",
+    "tasks":[{
+        "__typename":"DownstreamCheckTask",
+        "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream"
+    }]
+}}}}"#;
+
+/// Starts a mock Studio server for `rover graph check`, wiring up the check-submission
+/// and status-poll responses common to every case, stubs the full workflow-fetch
+/// response with `workflow_fetch_response`, and runs the real `rover graph check`
+/// binary against it. Returns whether the command succeeded and its parsed JSON output.
+fn run_graph_check(workflow_fetch_response: &str) -> (bool, Value) {
     let server = MockServer::start();
 
-    server.mock(|when, then| {
+    let submission_mock = server.mock(|when, then| {
         when.method(POST).body_includes("GraphCheckMutation");
         then.status(200)
             .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"variant":{"submitCheckSchemaAsync":{
-                    "__typename":"CheckRequestSuccess",
-                    "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/1",
-                    "workflowID":"workflow-1"
-                }}}}}"#,
-            );
+            .body(CHECK_SUBMISSION_RESPONSE);
     });
-
-    server.mock(|when, then| {
+    let status_mock = server.mock(|when, then| {
         when.method(POST)
             .body_includes("GraphCheckWorkflowStatusQuery");
         then.status(200)
             .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"checkWorkflow":{
-                    "status":"PASSED",
-                    "tasks":[{
-                        "__typename":"DownstreamCheckTask",
-                        "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream"
-                    }]
-                }}}}"#,
-            );
+            .body(STATUS_POLL_RESPONSE);
     });
-
-    server.mock(|when, then| {
+    let fetch_mock = server.mock(|when, then| {
         when.method(POST).body_includes("GraphCheckWorkflowQuery");
         then.status(200)
             .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"checkWorkflow":{
-                    "status":"PASSED",
-                    "tasks":[{
-                        "__typename":"DownstreamCheckTask",
-                        "status":"PASSED",
-                        "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
-                        "results":[{
-                            "__typename":"DownstreamCheckResult",
-                            "blocking":true,
-                            "downstreamGraphID":"my-graph",
-                            "downstreamVariantName":"mobile",
-                            "downstreamWorkflow":{"status":"FAILED"},
-                            "failsUpstreamWorkflow":null
-                        }]
-                    }]
-                }}}}"#,
-            );
+            .body(workflow_fetch_response);
     });
 
     let temp = tempfile::tempdir().unwrap();
@@ -85,39 +65,46 @@ fn graph_check_fails_on_blocking_downstream_contract_failure() {
         .output()
         .unwrap();
 
-    assert!(
-        !output.status.success(),
-        "expected a nonzero exit code; stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
+    submission_mock.assert();
+    status_mock.assert();
+    fetch_mock.assert();
+
+    let json = serde_json::from_slice(&output.stdout).unwrap();
+    (output.status.success(), json)
+}
+
+/// Verifies that `rover graph check` fails the command, and correctly attributes the
+/// failure to the downstream task, when a blocking downstream contract check has
+/// actually failed -- even though the overall workflow status and the downstream
+/// task's own aggregate status both still report PASSED (Studio's aggregate status
+/// can lag behind the per-variant data in the same response). Exercises the
+/// `has_blocking_failure` escalation in `DownstreamCheckResponse::new`; the error
+/// message attribution only holds because that escalation updates `task_status`, not
+/// just the exit gate.
+#[test]
+#[serial]
+fn graph_check_fails_on_blocking_downstream_contract_failure() {
+    let (success, json) = run_graph_check(
+        r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"PASSED",
+            "tasks":[{
+                "__typename":"DownstreamCheckTask",
+                "status":"PASSED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
+                "results":[{
+                    "__typename":"DownstreamCheckResult",
+                    "blocking":true,
+                    "downstreamGraphID":"my-graph",
+                    "downstreamVariantName":"mobile",
+                    "downstreamWorkflow":{"status":"FAILED"},
+                    "failsUpstreamWorkflow":null
+                }]
+            }]
+        }}}}"#,
     );
 
-    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        json,
-        serde_json::json!({
-            "json_version": "3",
-            "data": {
-                "success": false,
-                "tasks": {
-                    "downstream": {
-                        "task_status": "FAILED",
-                        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
-                        "variants": [{
-                            "graph_id": "my-graph",
-                            "variant_name": "mobile",
-                            "blocking": true,
-                            "fails_upstream_workflow": null,
-                            "status": "FAILED"
-                        }]
-                    }
-                }
-            },
-            "error": {
-                "message": "The changes in the schema you proposed caused downstream checks to fail.",
-                "code": "E043"
-            }
-        })
-    );
+    assert!(!success, "expected a nonzero exit code; json: {json}");
+    assert_json_snapshot!(json);
 }
 
 /// Verifies that `rover graph check` succeeds when the downstream task's own aggregate
@@ -127,108 +114,27 @@ fn graph_check_fails_on_blocking_downstream_contract_failure() {
 /// `crates/rover-client/src/operations/graph/check_workflow/runner.rs`, but exercised
 /// through the real CLI end to end.
 #[test]
+#[serial]
 fn graph_check_succeeds_despite_non_blocking_task_status_failure() {
-    let server = MockServer::start();
-
-    server.mock(|when, then| {
-        when.method(POST).body_includes("GraphCheckMutation");
-        then.status(200)
-            .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"variant":{"submitCheckSchemaAsync":{
-                    "__typename":"CheckRequestSuccess",
-                    "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/1",
-                    "workflowID":"workflow-1"
-                }}}}}"#,
-            );
-    });
-
-    server.mock(|when, then| {
-        when.method(POST)
-            .body_includes("GraphCheckWorkflowStatusQuery");
-        then.status(200)
-            .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"checkWorkflow":{
-                    "status":"PASSED",
-                    "tasks":[{
-                        "__typename":"DownstreamCheckTask",
-                        "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream"
-                    }]
-                }}}}"#,
-            );
-    });
-
-    server.mock(|when, then| {
-        when.method(POST).body_includes("GraphCheckWorkflowQuery");
-        then.status(200)
-            .header("content-type", "application/json")
-            .body(
-                r#"{"data":{"graph":{"checkWorkflow":{
-                    "status":"PASSED",
-                    "tasks":[{
-                        "__typename":"DownstreamCheckTask",
-                        "status":"FAILED",
-                        "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
-                        "results":[{
-                            "__typename":"DownstreamCheckResult",
-                            "blocking":false,
-                            "downstreamGraphID":"my-graph",
-                            "downstreamVariantName":"mobile",
-                            "downstreamWorkflow":{"status":"FAILED"},
-                            "failsUpstreamWorkflow":false
-                        }]
-                    }]
-                }}}}"#,
-            );
-    });
-
-    let temp = tempfile::tempdir().unwrap();
-    let schema = temp.path().join("schema.graphql");
-    fs::write(&schema, "type Query { hello: String }").unwrap();
-
-    let output = Command::cargo_bin("rover")
-        .unwrap()
-        .env("APOLLO_KEY", "testkey")
-        .env("APOLLO_REGISTRY_URL", server.base_url())
-        .arg("graph")
-        .arg("check")
-        .arg("my-graph@current")
-        .arg("--schema")
-        .arg(&schema)
-        .arg("--format")
-        .arg("json")
-        .output()
-        .unwrap();
-
-    assert!(
-        output.status.success(),
-        "expected a zero exit code; stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
+    let (success, json) = run_graph_check(
+        r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"PASSED",
+            "tasks":[{
+                "__typename":"DownstreamCheckTask",
+                "status":"FAILED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
+                "results":[{
+                    "__typename":"DownstreamCheckResult",
+                    "blocking":false,
+                    "downstreamGraphID":"my-graph",
+                    "downstreamVariantName":"mobile",
+                    "downstreamWorkflow":{"status":"FAILED"},
+                    "failsUpstreamWorkflow":false
+                }]
+            }]
+        }}}}"#,
     );
 
-    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        json,
-        serde_json::json!({
-            "json_version": "3",
-            "data": {
-                "success": true,
-                "tasks": {
-                    "downstream": {
-                        "task_status": "FAILED",
-                        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
-                        "variants": [{
-                            "graph_id": "my-graph",
-                            "variant_name": "mobile",
-                            "blocking": false,
-                            "fails_upstream_workflow": false,
-                            "status": "FAILED"
-                        }]
-                    }
-                }
-            },
-            "error": null
-        })
-    );
+    assert!(success, "expected a zero exit code; json: {json}");
+    assert_json_snapshot!(json);
 }
