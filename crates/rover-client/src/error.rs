@@ -225,6 +225,15 @@ pub enum RoverClientError {
         check_response: Box<CheckWorkflowResponse>,
     },
 
+    /// A publish succeeded, but the launch it triggered (or one of the downstream
+    /// contract-variant launches it triggered) did not complete successfully.
+    #[error("{}", publish_launch_failure_msg(.graph_ref, .launch_id, .failed_downstream_launches))]
+    PublishLaunchFailure {
+        graph_ref: GraphRef,
+        launch_id: String,
+        failed_downstream_launches: Vec<FailedLaunch>,
+    },
+
     /// While linting the proposed schema, some rule violations were found
     #[error("While linting the proposed schema, some rule violations were found")]
     LintFailures { lint_response: LintResponse },
@@ -296,6 +305,11 @@ pub enum RoverClientError {
         #[source]
         source: Box<RoverClientError>,
     },
+
+    #[error(
+        "Timed out waiting for the launch to complete, or raise APOLLO_CHECKS_TIMEOUT_SECONDS."
+    )]
+    LaunchTimeoutError { url: Option<String> },
 
     #[error(
         "A check workflow status was reported but it was not specified as a pass or a failure."
@@ -452,6 +466,38 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
     }
 }
 
+/// A single contract-variant downstream launch that failed to complete, surfaced when a
+/// `graph publish`/`subgraph publish` triggers one.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FailedLaunch {
+    pub graph_id: String,
+    pub graph_variant: String,
+    pub launch_id: String,
+}
+
+fn publish_launch_failure_msg(
+    graph_ref: &GraphRef,
+    launch_id: &str,
+    failed_downstream_launches: &[FailedLaunch],
+) -> String {
+    if failed_downstream_launches.is_empty() {
+        format!("The publish for '{graph_ref}' succeeded, but launch '{launch_id}' failed.")
+    } else {
+        let downstream_launches = failed_downstream_launches
+            .iter()
+            .map(|launch| {
+                format!(
+                    "{}@{} (launch {})",
+                    launch.graph_id, launch.graph_variant, launch.launch_id
+                )
+            })
+            .join(", ");
+        format!(
+            "The publish for '{graph_ref}' succeeded, but downstream contract launch(es) failed: {downstream_launches}."
+        )
+    }
+}
+
 impl RoverClientError {
     /// A failure from a Studio GraphQL service, reported as a credential problem when that is
     /// what it turned out to be and otherwise carrying the original error and its endpoint.
@@ -595,5 +641,46 @@ mod tests {
         )));
 
         assert!(matches!(err, RoverClientError::ClientError { .. }));
+    }
+
+    #[test]
+    fn publish_launch_failure_with_no_failed_downstream_launches_names_the_launch() {
+        let graph_ref = GraphRef::new("my-graph", Some("current")).unwrap();
+        let err = RoverClientError::PublishLaunchFailure {
+            graph_ref,
+            launch_id: "launch-1".to_string(),
+            failed_downstream_launches: vec![],
+        };
+
+        assert_eq!(
+            err.to_string(),
+            "The publish for 'my-graph@current' succeeded, but launch 'launch-1' failed."
+        );
+    }
+
+    #[test]
+    fn publish_launch_failure_with_failed_downstream_launches_names_each_one() {
+        let graph_ref = GraphRef::new("my-graph", Some("current")).unwrap();
+        let err = RoverClientError::PublishLaunchFailure {
+            graph_ref,
+            launch_id: "launch-1".to_string(),
+            failed_downstream_launches: vec![
+                FailedLaunch {
+                    graph_id: "my-graph".to_string(),
+                    graph_variant: "mobile".to_string(),
+                    launch_id: "launch-2".to_string(),
+                },
+                FailedLaunch {
+                    graph_id: "my-graph".to_string(),
+                    graph_variant: "partner-api".to_string(),
+                    launch_id: "launch-3".to_string(),
+                },
+            ],
+        };
+
+        assert_eq!(
+            err.to_string(),
+            "The publish for 'my-graph@current' succeeded, but downstream contract launch(es) failed: my-graph@mobile (launch launch-2), my-graph@partner-api (launch launch-3)."
+        );
     }
 }
