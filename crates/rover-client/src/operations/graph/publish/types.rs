@@ -144,9 +144,14 @@ pub struct GraphPublishResponse {
     #[serde(flatten)]
     pub change_summary: ChangeSummary,
     pub total_type_count: u64,
-    /// The publish's own launch, if any triggered downstream contract-variant
-    /// launches. `None` when the publish triggered no downstream launches.
+    /// A link to the publish's own launch. `None` when the publish triggered
+    /// no launch at all.
     pub launch_url: Option<String>,
+    /// The publish's own launch's terminal status. `None` when the publish
+    /// triggered no launch at all. Carries the outcome as data rather than
+    /// as an error, matching contract/subgraph preview's
+    /// success-or-failure-is-still-data approach for an async follow-up.
+    pub launch_status: Option<LaunchStatus>,
     pub downstream_launches: Vec<crate::shared::DownstreamLaunch>,
 }
 
