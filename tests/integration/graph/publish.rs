@@ -30,11 +30,24 @@ const LAUNCH_STATUS_RESPONSE: &str = r#"{"data":{"graph":{"variant":{"launch":{
     }]
 }}}}}"#;
 
+const LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE: &str = r#"{"data":{"graph":{"variant":{"launch":{
+    "id":"launch-1",
+    "graphId":"my-graph",
+    "graphVariant":"current",
+    "status":"LAUNCH_COMPLETED",
+    "downstreamLaunches":[{
+        "id":"launch-2",
+        "graphId":"my-graph",
+        "graphVariant":"mobile",
+        "status":"LAUNCH_FAILED"
+    }]
+}}}}}"#;
+
 /// Runs `rover graph publish` against a mock Studio server stubbing the
 /// publish mutation (returning a `latestLaunch.id`) and the launch status
-/// poll query (returning a completed downstream launch), with the given
-/// extra CLI args, and returns the process output.
-fn run_graph_publish(extra_args: &[&str]) -> std::process::Output {
+/// poll query (returning `launch_status_response`), with the given extra CLI
+/// args, and returns the process output.
+fn run_graph_publish(launch_status_response: &str, extra_args: &[&str]) -> std::process::Output {
     let server = MockServer::start();
 
     let mutation_mock = server.mock(|when, then| {
@@ -48,7 +61,7 @@ fn run_graph_publish(extra_args: &[&str]) -> std::process::Output {
             .body_includes("GraphPublishLaunchStatusQuery");
         then.status(200)
             .header("content-type", "application/json")
-            .body(LAUNCH_STATUS_RESPONSE);
+            .body(launch_status_response);
     });
 
     let temp = tempfile::tempdir().unwrap();
@@ -81,7 +94,7 @@ fn run_graph_publish(extra_args: &[&str]) -> std::process::Output {
 #[test]
 #[serial]
 fn graph_publish_reports_triggered_downstream_launches_in_text() {
-    let output = run_graph_publish(&[]);
+    let output = run_graph_publish(LAUNCH_STATUS_RESPONSE, &[]);
 
     assert!(
         output.status.success(),
@@ -108,7 +121,7 @@ fn graph_publish_reports_triggered_downstream_launches_in_text() {
 #[test]
 #[serial]
 fn graph_publish_reports_triggered_downstream_launches_in_json() {
-    let output = run_graph_publish(&["--format", "json"]);
+    let output = run_graph_publish(LAUNCH_STATUS_RESPONSE, &["--format", "json"]);
 
     assert!(
         output.status.success(),
@@ -118,4 +131,28 @@ fn graph_publish_reports_triggered_downstream_launches_in_json() {
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_json_snapshot!(json);
+}
+
+/// Verifies that `rover graph publish` exits non-zero and reports which
+/// contract variant's downstream launch failed, even though the schema
+/// publish itself succeeded -- the outcome is carried as data on
+/// `GraphPublishResponse`, not as an `Err` from `publish::run`, and
+/// `GraphPublishLaunchesOutput` (used inline by `Publish::run`) is what
+/// turns a `FAILED` status into the command's actual non-zero exit.
+#[test]
+#[serial]
+fn graph_publish_fails_when_a_downstream_launch_fails() {
+    let output = run_graph_publish(LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE, &[]);
+
+    assert!(
+        !output.status.success(),
+        "expected a nonzero exit code; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("downstream contract launch(es) failed: mobile"),
+        "stderr did not contain the expected failure detail: {stderr}"
+    );
 }
