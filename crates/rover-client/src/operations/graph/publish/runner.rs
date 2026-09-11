@@ -31,17 +31,6 @@ use crate::{
 /// Snake case of this name is the mod name. i.e. graph_publish_mutation
 pub(crate) struct GraphPublishMutation;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    query_path = "src/operations/graph/publish/launch_status_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize, Clone",
-    deprecated = "warn"
-)]
-/// A lightweight poll query for a launch (and its downstream contract-variant
-/// launches) triggered by a `graph publish`.
-pub(crate) struct GraphPublishLaunchStatusQuery;
-
 /// Returns a message from apollo studio about the status of the update, and
 /// a sha256 hash of the schema to be used with `schema publish`. If the
 /// publish triggered a launch, polls until it (and every downstream
@@ -67,11 +56,18 @@ pub async fn run(
     let data = client.post::<GraphPublishMutation>(input.into()).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref.clone())?;
 
-    let maybe_launch_id = publish_response
-        .publication
-        .as_ref()
-        .and_then(|publication| publication.variant.latest_launch.as_ref())
-        .map(|launch| launch.id.clone());
+    // A NO_CHANGES republish creates no new launch -- `latestLaunch` on the variant
+    // would still point at whatever launch preceded this one (or nothing), so treat
+    // it as "no launch triggered" rather than polling/reporting an unrelated launch.
+    let maybe_launch_id = if publish_response.code == "NO_CHANGES" {
+        None
+    } else {
+        publish_response
+            .publication
+            .as_ref()
+            .and_then(|publication| publication.variant.latest_launch.as_ref())
+            .map(|launch| launch.id.clone())
+    };
 
     let (launch_url, launch_status, downstream_launches) = if let Some(launch_id) = maybe_launch_id
     {
@@ -282,6 +278,7 @@ impl From<QueryTypeChanges> for TypeChanges {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use speculoos::prelude::*;
 
     use super::*;
     use crate::operations::graph::publish::types::DownstreamLaunchSnapshot;
@@ -621,6 +618,40 @@ mod tests {
         assert_eq!(response.launch_url, None);
         assert_eq!(response.launch_status, None);
         assert_eq!(response.downstream_launches, Vec::new());
+    }
+
+    /// A NO_CHANGES republish creates no new launch, even though the variant's
+    /// `latestLaunch` still points at whatever launch preceded this one -- it
+    /// must not be polled or reported as this publish's launch. No mock is
+    /// registered for `GraphPublishLaunchStatusQuery`, so a regression that
+    /// polls anyway would fail this test via an unmatched request.
+    #[tokio::test]
+    async fn run_reports_no_launch_on_a_no_op_republish() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST).body_includes("GraphPublishMutation");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "uploadSchema": {
+                    "code": "NO_CHANGES",
+                    "message": "no changes",
+                    "success": true,
+                    "publication": {
+                        "variant": { "name": "current", "latestLaunch": { "id": "stale-launch" } },
+                        "schema": { "hash": "123456" }
+                    }
+                } } }
+            }));
+        });
+
+        let response = run(test_input(), &test_client(&server.url("/")), 30)
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_url).is_none();
+        assert_that!(response.launch_status).is_none();
+        assert_that!(response.downstream_launches).is_equal_to(Vec::new());
     }
 
     #[tokio::test]
