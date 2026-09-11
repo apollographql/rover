@@ -5,8 +5,9 @@ use tower::Service;
 
 use crate::{
     operations::graph::publish::{
-        runner::{graph_publish_launch_status_query, GraphPublishLaunchStatusQuery},
+        graph_publish_launch_status_query,
         types::{LaunchSnapshot, LaunchStatusInput},
+        GraphPublishLaunchStatusQuery,
     },
     shared::preview_poll::require_variant,
     RoverClientError,

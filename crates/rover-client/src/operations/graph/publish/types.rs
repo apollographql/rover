@@ -5,8 +5,8 @@ use rover_tower::poll_retry::{PollOutcome, SimplePollOutcome};
 use serde::Serialize;
 
 use crate::{
-    operations::graph::publish::runner::{
-        graph_publish_launch_status_query, graph_publish_mutation,
+    operations::graph::publish::{
+        graph_publish_launch_status_query, runner::graph_publish_mutation,
     },
     shared::{GitContext, LaunchStatus},
 };
