@@ -48,6 +48,12 @@ pub(crate) struct GraphPublishLaunchStatusQuery;
 /// publish triggered any downstream contract-variant launches, polls until
 /// every one of them (and the publish's own launch) reaches a terminal
 /// state, failing the whole publish if any did not complete successfully.
+///
+/// Known limitation, not solved here: `latestLaunch` is read from the same
+/// mutation response that creates the launch (rather than a separate
+/// follow-up query, which would widen the window), but a concurrent publish
+/// to the same variant landing in the brief gap before the server resolves
+/// `latestLaunch` could still race it.
 pub async fn run(
     input: GraphPublishInput,
     client: &StudioClient,
