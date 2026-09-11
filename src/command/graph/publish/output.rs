@@ -84,6 +84,7 @@ impl CliOutput for GraphPublishLaunchesOutput<'_> {
         serde_json::to_value(serde_json::json!({
             "launch_url": self.0.launch_url,
             "launch_status": self.0.launch_status,
+            "launch_superseded": self.0.launch_superseded,
             "downstream_launches": self.0.downstream_launches,
         }))
     }
@@ -100,6 +101,15 @@ mod tests {
     fn response(
         launch_url: Option<&str>,
         launch_status: Option<LaunchStatus>,
+        downstream_launches: Vec<DownstreamLaunch>,
+    ) -> GraphPublishResponse {
+        response_with_superseded(launch_url, launch_status, false, downstream_launches)
+    }
+
+    fn response_with_superseded(
+        launch_url: Option<&str>,
+        launch_status: Option<LaunchStatus>,
+        launch_superseded: bool,
         downstream_launches: Vec<DownstreamLaunch>,
     ) -> GraphPublishResponse {
         GraphPublishResponse {
@@ -119,15 +129,25 @@ mod tests {
             total_type_count: 5,
             launch_url: launch_url.map(str::to_string),
             launch_status,
+            launch_superseded,
             downstream_launches,
         }
     }
 
     fn downstream(variant_name: &str, status: LaunchStatus) -> DownstreamLaunch {
+        downstream_with_superseded(variant_name, status, false)
+    }
+
+    fn downstream_with_superseded(
+        variant_name: &str,
+        status: LaunchStatus,
+        superseded: bool,
+    ) -> DownstreamLaunch {
         DownstreamLaunch {
             graph_id: "my-graph".to_string(),
             variant_name: variant_name.to_string(),
             status,
+            superseded,
             url: format!("https://studio.apollographql.com/graph/my-graph/launches/{variant_name}"),
         }
     }
@@ -233,14 +253,58 @@ mod tests {
         assert_that!(json).is_equal_to(serde_json::json!({
             "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
             "launch_status": "COMPLETED",
+            "launch_superseded": false,
             "downstream_launches": [
                 {
                     "graph_id": "my-graph",
                     "variant_name": "mobile",
                     "status": "COMPLETED",
+                    "superseded": false,
                     "url": "https://studio.apollographql.com/graph/my-graph/launches/mobile"
                 }
             ]
         }));
+    }
+
+    /// A superseded source launch keeps `status == INITIATED` (per the API),
+    /// but must not be treated as a blocking failure, and `superseded` shows
+    /// up in the JSON data alongside it.
+    #[test]
+    fn a_superseded_source_launch_is_not_a_blocking_failure_and_appears_in_json() {
+        let response = response_with_superseded(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::INITIATED),
+            true,
+            Vec::new(),
+        );
+        let output = GraphPublishLaunchesOutput(&response);
+
+        assert_that!(output.exit_code()).is_equal_to(0);
+        assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
+            "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+            "launch_status": "INITIATED",
+            "launch_superseded": true,
+            "downstream_launches": []
+        }));
+    }
+
+    /// Same as above, but for a downstream contract-variant launch.
+    #[test]
+    fn a_superseded_downstream_launch_is_not_a_blocking_failure_and_appears_in_json() {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::COMPLETED),
+            vec![downstream_with_superseded(
+                "mobile",
+                LaunchStatus::INITIATED,
+                true,
+            )],
+        );
+        let output = GraphPublishLaunchesOutput(&response);
+
+        assert_that!(output.exit_code()).is_equal_to(0);
+        let json = output.json().unwrap();
+        assert_that!(json["downstream_launches"][0]["superseded"])
+            .is_equal_to(serde_json::json!(true));
     }
 }
