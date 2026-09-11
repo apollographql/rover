@@ -9,7 +9,10 @@
 use std::time::Duration;
 
 use tokio::time::{Instant, Sleep};
-use tower::retry::Policy;
+use tower::{
+    retry::{Policy, Retry},
+    Service, ServiceBuilder,
+};
 
 /// Whether a poll status response indicates the operation is done, or should
 /// be polled again.
@@ -76,6 +79,29 @@ where
     fn clone_request(&mut self, req: &Req) -> Option<Req> {
         Some(req.clone())
     }
+}
+
+/// Wraps `inner` with a [`PollRetryPolicy`], producing a [`Service`] that retries
+/// every `interval` while the response isn't done yet, until `timeout` elapses
+/// (invoking `on_timeout` to build the error the call resolves to in that case).
+///
+/// Build a fresh instance per poll -- like [`PollRetryPolicy::new`], `timeout` is
+/// measured from the moment this is called, so it must not be reused across polls.
+pub fn poll_until_complete<S, Req, Res, E, F>(
+    inner: S,
+    interval: Duration,
+    timeout: Duration,
+    on_timeout: F,
+) -> Retry<PollRetryPolicy<F>, S>
+where
+    S: Service<Req, Response = Res, Error = E> + Clone,
+    Req: Clone,
+    Res: PollOutcome,
+    F: Fn() -> E + Clone,
+{
+    ServiceBuilder::new()
+        .retry(PollRetryPolicy::new(interval, timeout, on_timeout))
+        .service(inner)
 }
 
 #[cfg(test)]
@@ -157,5 +183,64 @@ mod tests {
             Policy::<String, SimplePollOutcome, TestError>::clone_request(&mut policy, &req);
 
         assert_that!(cloned).is_some().is_equal_to(req);
+    }
+
+    #[tokio::test]
+    async fn poll_until_complete_retries_until_the_inner_service_reports_done() {
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+
+        use tower::{service_fn, ServiceExt};
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let inner = service_fn({
+            let calls = calls.clone();
+            move |_req: ()| {
+                let calls = calls.clone();
+                async move {
+                    let call = calls.fetch_add(1, Ordering::SeqCst);
+                    Ok::<_, TestError>(if call < 2 {
+                        SimplePollOutcome::Incomplete
+                    } else {
+                        SimplePollOutcome::Complete
+                    })
+                }
+            }
+        });
+
+        let mut service = poll_until_complete(
+            inner,
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+            || TestError("timed out"),
+        );
+
+        let outcome = service.ready().await.unwrap().call(()).await.unwrap();
+
+        assert_that!(outcome).is_equal_to(SimplePollOutcome::Complete);
+        assert_that!(calls.load(Ordering::SeqCst)).is_equal_to(3);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn poll_until_complete_times_out_via_on_timeout_when_never_done() {
+        use tower::{service_fn, ServiceExt};
+
+        let inner =
+            service_fn(|_req: ()| async { Ok::<_, TestError>(SimplePollOutcome::Incomplete) });
+
+        let mut service = poll_until_complete(
+            inner,
+            Duration::from_secs(5),
+            Duration::from_secs(30),
+            || TestError("timed out"),
+        );
+
+        let call = service.ready().await.unwrap().call(());
+        tokio::time::advance(Duration::from_secs(31)).await;
+        let err = call.await.unwrap_err();
+
+        assert_that!(err).is_equal_to(TestError("timed out"));
     }
 }
