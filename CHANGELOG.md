@@ -64,6 +64,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**
+
+  `subgraph check`'s exit code only ever looked at the overall check-workflow status, never at the downstream task's per-variant data, so a blocking downstream contract check that had genuinely failed could be missed entirely if Studio's aggregate status hadn't caught up yet — the command would report success and exit zero. It now escalates to a failure whenever any downstream variant is an actual blocking failure, the same `DownstreamCheckResponse::has_blocking_failure` gate `graph check` already uses, bringing `subgraph check`'s exit code and JSON `downstream.task_status` in line with `graph check`'s existing behavior. Supersedes the stale, unmerged #3377.
+
 - **Register the device-code grant type for `rover auth login --no-browser`'s OAuth client - @dotdat**
 
   Every OAuth client provisioned via `cargo xtask register-oauth-client` (for both staging and prod) was registered with only the `authorization_code` grant type, never `urn:ietf:params:oauth:grant-type:device_code` - so `rover auth login --no-browser` always failed at the very first step, with the server rejecting the device-authorization request as `unsupported_grant_type`
