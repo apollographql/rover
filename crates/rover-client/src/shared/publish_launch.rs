@@ -18,11 +18,3 @@ pub struct DownstreamLaunch {
     pub status: LaunchStatus,
     pub url: String,
 }
-
-/// Reports the contract-variant downstream launches triggered by a publish, alongside a link
-/// to the publish's own (source) launch.
-#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub struct PublishLaunchesResponse {
-    pub url: String,
-    pub variants: Vec<DownstreamLaunch>,
-}

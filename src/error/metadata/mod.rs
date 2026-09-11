@@ -169,17 +169,6 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::FixCheckFailures),
                     Some(RoverErrorCode::E043),
                 ),
-                RoverClientError::PublishLaunchFailure {
-                    graph_ref,
-                    launch_id,
-                    failed_downstream_launches: _,
-                } => (
-                    Some(RoverErrorSuggestion::RetryLaunch {
-                        graph_id: graph_ref.graph_id().to_string(),
-                        launch_id: launch_id.clone(),
-                    }),
-                    Some(RoverErrorCode::E047),
-                ),
                 RoverClientError::LintFailures { lint_response: _ } => (
                     Some(RoverErrorSuggestion::FixLintFailure),
                     Some(RoverErrorCode::E042),
