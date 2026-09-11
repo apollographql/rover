@@ -66,6 +66,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `graph publish` now waits for the launch it triggers (and any downstream contract-variant launches) to finish before returning, and `--format json` gains `launch_url`, `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome. Text/stderr output doesn't report on them yet — that's a following change in this stack.
 
+- **Report triggered downstream contract-variant launches on `rover graph publish` - @dotdat**
+
+  `rover graph publish` now reports which contract variants had a downstream launch triggered by the publish, with links to each — in text ("Triggered downstream launches for N contract variant(s): ...") and as a `downstream_launches` JSON array alongside a `launch_url` field. Rover polls the publish's launch (and its downstream launches) to completion before reporting success, and fails the publish if the launch itself or any downstream launch didn't complete successfully. Nothing new prints when the publish triggered no downstream launches. Note: like other Studio launch data fetched after the fact, this can race a concurrent publish to the same variant — a known limitation, not solved here.
+
 ## 🐛 Fixes
 
 - **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**

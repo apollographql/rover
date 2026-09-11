@@ -29,7 +29,7 @@ use rover_client::{
         CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, LintResponse, SdlType,
     },
 };
-use rover_std::Style;
+use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
 use serde_json::{Value, json};
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
@@ -274,6 +274,26 @@ impl RoverOutput {
                     publish_response.change_summary,
                     publish_response.total_type_count
                 )?;
+                if !publish_response.downstream_launches.is_empty() {
+                    let variants = publish_response
+                        .downstream_launches
+                        .iter()
+                        .map(|launch| launch.variant_name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    stderrln!(
+                        "Triggered downstream launches for {}: {}.",
+                        pluralize(
+                            "contract variant",
+                            publish_response.downstream_launches.len() as isize,
+                            true
+                        ),
+                        Style::Variant.paint(variants),
+                    )?;
+                    if let Some(url) = &publish_response.launch_url {
+                        stderrln!("View launch details at: {}", hyperlink(url))?;
+                    }
+                }
                 Some((publish_response.api_schema_hash).to_string())
             }
             RoverOutput::SubgraphPublishResponse {
