@@ -283,6 +283,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 ),
                 RoverClientError::PreviewTimeoutError { .. }
                 | RoverClientError::PreviewResultUnavailable { .. } => (None, None),
+                RoverClientError::LaunchTimeoutError { url } => (
+                    Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
+                    None,
+                ),
                 RoverClientError::RequestTooLarge { .. } => (
                     Some(RoverErrorSuggestion::Adhoc(
                         "For schema checks and publishes, this usually means the schema exceeds the maximum size GraphOS accepts. Try reducing the schema's size, and if you believe this is in error, contact Apollo support.".to_string(),
