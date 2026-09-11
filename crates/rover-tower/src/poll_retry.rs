@@ -8,9 +8,23 @@
 //!
 //! [`PollRetryPolicy`] doesn't know how to build a domain-specific timeout
 //! error itself -- that would make it a passed-in closure baked into the
-//! policy. Instead it produces a generic [`PollError::TimedOut`], and the
-//! caller composes an ordinary [`tower::util::MapErrLayer`] on top to turn
-//! that into whatever error their operation needs:
+//! policy. Instead it produces a generic [`PollError::TimedOut`], mapped to a
+//! domain error via an ordinary [`tower::util::MapErrLayer`] composed on top.
+//! [`poll_until_complete`] wraps that whole recipe for the common case of "one
+//! domain error type, only the timeout case needs a custom value":
+//!
+//! ```ignore
+//! let mut service = poll_until_complete(
+//!     inner,
+//!     interval,
+//!     timeout,
+//!     move || MyError::Timeout { .. },
+//! );
+//! ```
+//!
+//! Compose the pieces manually instead when the inner service's error and the
+//! timeout error aren't the same type, or `PollError::Inner` needs its own
+//! handling:
 //!
 //! ```ignore
 //! let mut service = ServiceBuilder::new()
@@ -26,7 +40,10 @@
 use std::time::Duration;
 
 use tokio::time::{Instant, Sleep};
-use tower::retry::Policy;
+use tower::{
+    retry::{Policy, RetryLayer},
+    Service, ServiceBuilder,
+};
 
 /// Whether a poll status response indicates the operation is done, or should
 /// be polled again.
@@ -50,9 +67,9 @@ impl PollOutcome for SimplePollOutcome {
 /// The error a [`PollRetryPolicy`]-driven retry produces: either the wrapped
 /// service failed for its own reasons, or the poll deadline elapsed first.
 /// See the module docs for how a caller turns `TimedOut` into a
-/// domain-specific error via a composed `MapErrLayer`, rather than passing a
-/// closure into the policy itself.
-#[derive(Debug, Clone)]
+/// domain-specific error, rather than passing a closure into the policy
+/// itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PollError<E> {
     /// The poll deadline elapsed before the response reported
     /// [`SimplePollOutcome::Complete`].
@@ -63,8 +80,8 @@ pub enum PollError<E> {
 
 /// Controls the behavior of polling. Compose with `tower::util::MapErrLayer::new(PollError::Inner)`
 /// (to wrap the inner service's error before this policy sees it) and
-/// `tower::retry::RetryLayer::new(policy)` -- see the module docs for the
-/// exact `ServiceBuilder` chain.
+/// [`tower::retry::RetryLayer::new`] -- see the module docs for the exact
+/// `ServiceBuilder` chain, or use [`poll_until_complete`] for the common case.
 #[derive(Clone)]
 pub struct PollRetryPolicy {
     interval: Duration,
@@ -113,11 +130,47 @@ where
     }
 }
 
+/// Wraps `inner` with the standard poll-until-complete composition: retries
+/// every `interval` while the response isn't done yet, until `timeout`
+/// elapses, at which point `on_timeout` builds the error the call resolves
+/// to. A genuine failure from `inner` passes through unchanged.
+///
+/// Internally this composes [`PollRetryPolicy`] with a [`RetryLayer`] and two
+/// `map_err` steps (see the module docs) rather than baking `on_timeout` into
+/// the policy itself -- `PollRetryPolicy` stays reusable on its own for
+/// callers that need to distinguish [`PollError::Inner`] from
+/// [`PollError::TimedOut`] instead of collapsing both to the same error type.
+///
+/// Build a fresh instance per poll -- like [`PollRetryPolicy::new`], `timeout`
+/// is measured from the moment this is called, so it must not be reused
+/// across polls.
+pub fn poll_until_complete<S, Req, Res, E, F>(
+    inner: S,
+    interval: Duration,
+    timeout: Duration,
+    on_timeout: F,
+) -> impl Service<Req, Response = Res, Error = E> + Clone
+where
+    S: Service<Req, Response = Res, Error = E> + Clone,
+    Req: Clone,
+    Res: PollOutcome,
+    F: Fn() -> E + Clone,
+{
+    ServiceBuilder::new()
+        .map_err(move |err: PollError<E>| match err {
+            PollError::TimedOut => on_timeout(),
+            PollError::Inner(e) => e,
+        })
+        .layer(RetryLayer::new(PollRetryPolicy::new(interval, timeout)))
+        .map_err(PollError::Inner)
+        .service(inner)
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::fixture;
     use speculoos::prelude::*;
-    use tower::{retry::RetryLayer, Service, ServiceBuilder, ServiceExt};
+    use tower::ServiceExt;
 
     use super::*;
 
@@ -152,7 +205,9 @@ mod tests {
         let decision = policy.retry(&mut (), &mut result);
 
         assert_that!(decision).is_none();
-        assert_that!(matches!(result, Err(PollError::Inner(TestError("boom"))))).is_true();
+        assert_that!(result)
+            .is_err()
+            .is_equal_to(PollError::Inner(TestError("boom")));
     }
 
     #[tokio::test(start_paused = true)]
@@ -181,7 +236,9 @@ mod tests {
         let decision = policy.retry(&mut (), &mut result);
 
         assert_that!(decision).is_none();
-        assert_that!(matches!(result, Err(PollError::TimedOut))).is_true();
+        assert_that!(result)
+            .is_err()
+            .is_equal_to(PollError::TimedOut);
     }
 
     #[tokio::test]
@@ -198,7 +255,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn composed_service_retries_until_the_inner_service_reports_done() {
+    async fn poll_until_complete_retries_until_the_inner_service_reports_done() {
         use std::sync::{
             atomic::{AtomicUsize, Ordering},
             Arc,
@@ -220,17 +277,12 @@ mod tests {
             }
         });
 
-        let mut service = ServiceBuilder::new()
-            .map_err(|err: PollError<TestError>| match err {
-                PollError::TimedOut => TestError("timed out"),
-                PollError::Inner(e) => e,
-            })
-            .layer(RetryLayer::new(PollRetryPolicy::new(
-                Duration::from_millis(1),
-                Duration::from_secs(30),
-            )))
-            .map_err(PollError::Inner)
-            .service(inner);
+        let mut service = poll_until_complete(
+            inner,
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+            || TestError("timed out"),
+        );
 
         let outcome = service.ready().await.unwrap().call(()).await.unwrap();
 
@@ -239,22 +291,17 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn composed_service_times_out_via_the_composed_map_err_when_never_done() {
+    async fn poll_until_complete_times_out_via_on_timeout_when_never_done() {
         let inner = tower::service_fn(|_req: ()| async {
             Ok::<_, TestError>(SimplePollOutcome::Incomplete)
         });
 
-        let mut service = ServiceBuilder::new()
-            .map_err(|err: PollError<TestError>| match err {
-                PollError::TimedOut => TestError("timed out"),
-                PollError::Inner(e) => e,
-            })
-            .layer(RetryLayer::new(PollRetryPolicy::new(
-                Duration::from_secs(5),
-                Duration::from_secs(30),
-            )))
-            .map_err(PollError::Inner)
-            .service(inner);
+        let mut service = poll_until_complete(
+            inner,
+            Duration::from_secs(5),
+            Duration::from_secs(30),
+            || TestError("timed out"),
+        );
 
         let call = service.ready().await.unwrap().call(());
         tokio::time::advance(Duration::from_secs(31)).await;
