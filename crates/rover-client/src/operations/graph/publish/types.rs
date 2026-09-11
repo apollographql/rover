@@ -1,9 +1,15 @@
 use std::fmt;
 
 use rover_studio::types::GraphRef;
+use rover_tower::poll_retry::{PollOutcome, SimplePollOutcome};
 use serde::Serialize;
 
-use crate::{operations::graph::publish::runner::graph_publish_mutation, shared::GitContext};
+use crate::{
+    operations::graph::publish::runner::{
+        graph_publish_launch_status_query, graph_publish_mutation,
+    },
+    shared::{GitContext, LaunchStatus},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphPublishInput {
@@ -32,12 +38,116 @@ impl From<GraphPublishInput> for MutationVariables {
     }
 }
 
+/// Input to fetch the status of a launch (and its downstream contract-variant
+/// launches) triggered by a `graph publish`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct LaunchStatusInput {
+    pub graph_ref: GraphRef,
+    pub launch_id: String,
+}
+
+impl From<LaunchStatusInput> for graph_publish_launch_status_query::Variables {
+    fn from(input: LaunchStatusInput) -> Self {
+        let (graph_id, variant) = input.graph_ref.into_parts();
+        Self {
+            graph_id,
+            variant,
+            launch_id: input.launch_id,
+        }
+    }
+}
+
+/// A snapshot of a downstream contract-variant launch's status, used to drive
+/// polling. Distinct from the shared `DownstreamLaunch` report type, which is
+/// only built once every launch reaches a terminal status and needs a URL.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DownstreamLaunchSnapshot {
+    pub launch_id: String,
+    pub graph_id: String,
+    pub variant_name: String,
+    pub status: LaunchStatus,
+}
+
+/// A snapshot of a launch's (and its downstream contract-variant launches')
+/// status, used to drive polling until every launch reaches a terminal state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct LaunchSnapshot {
+    pub launch_id: String,
+    pub graph_id: String,
+    pub status: LaunchStatus,
+    pub downstream_launches: Vec<DownstreamLaunchSnapshot>,
+}
+
+impl PollOutcome for LaunchSnapshot {
+    fn poll_outcome(&self) -> SimplePollOutcome {
+        let is_pending = |status: &LaunchStatus| matches!(status, LaunchStatus::INITIATED);
+        if is_pending(&self.status)
+            || self
+                .downstream_launches
+                .iter()
+                .any(|launch| is_pending(&launch.status))
+        {
+            SimplePollOutcome::Incomplete
+        } else {
+            SimplePollOutcome::Complete
+        }
+    }
+}
+
+type QueryLaunchStatus = graph_publish_launch_status_query::LaunchStatus;
+impl From<QueryLaunchStatus> for LaunchStatus {
+    fn from(status: QueryLaunchStatus) -> Self {
+        match status {
+            QueryLaunchStatus::LAUNCH_COMPLETED => LaunchStatus::COMPLETED,
+            QueryLaunchStatus::LAUNCH_FAILED => LaunchStatus::FAILED,
+            QueryLaunchStatus::LAUNCH_INITIATED => LaunchStatus::INITIATED,
+            // A status this client's schema snapshot doesn't recognize. Treated as
+            // terminal-and-failed rather than pending, so an unrecognized future
+            // status can't cause the poll loop to spin until it times out.
+            QueryLaunchStatus::Other(_) => LaunchStatus::FAILED,
+        }
+    }
+}
+
+type QueryLaunch =
+    graph_publish_launch_status_query::GraphPublishLaunchStatusQueryGraphVariantLaunch;
+impl From<QueryLaunch> for LaunchSnapshot {
+    fn from(launch: QueryLaunch) -> Self {
+        LaunchSnapshot {
+            launch_id: launch.id,
+            graph_id: launch.graph_id,
+            status: launch.status.into(),
+            downstream_launches: launch
+                .downstream_launches
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+type QueryDownstreamLaunch = graph_publish_launch_status_query::GraphPublishLaunchStatusQueryGraphVariantLaunchDownstreamLaunches;
+impl From<QueryDownstreamLaunch> for DownstreamLaunchSnapshot {
+    fn from(launch: QueryDownstreamLaunch) -> Self {
+        DownstreamLaunchSnapshot {
+            launch_id: launch.id,
+            graph_id: launch.graph_id,
+            variant_name: launch.graph_variant,
+            status: launch.status.into(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct GraphPublishResponse {
     pub api_schema_hash: String,
     #[serde(flatten)]
     pub change_summary: ChangeSummary,
     pub total_type_count: u64,
+    /// The publish's own launch, if any triggered downstream contract-variant
+    /// launches. `None` when the publish triggered no downstream launches.
+    pub launch_url: Option<String>,
+    pub downstream_launches: Vec<crate::shared::DownstreamLaunch>,
 }
 
 #[derive(Clone, Serialize, Debug, Eq, PartialEq)]
@@ -144,5 +254,72 @@ impl fmt::Display for TypeChanges {
             "Types: +{} -{} △ {}",
             self.additions, self.removals, self.edits
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    fn snapshot(status: LaunchStatus, downstream: Vec<LaunchStatus>) -> LaunchSnapshot {
+        LaunchSnapshot {
+            launch_id: "launch-1".to_string(),
+            graph_id: "my-graph".to_string(),
+            status,
+            downstream_launches: downstream
+                .into_iter()
+                .enumerate()
+                .map(|(i, status)| DownstreamLaunchSnapshot {
+                    launch_id: format!("launch-{i}"),
+                    graph_id: "my-graph".to_string(),
+                    variant_name: format!("variant-{i}"),
+                    status,
+                })
+                .collect(),
+        }
+    }
+
+    #[rstest]
+    #[case::source_pending(LaunchStatus::INITIATED, vec![], SimplePollOutcome::Incomplete)]
+    #[case::source_completed_no_downstream(LaunchStatus::COMPLETED, vec![], SimplePollOutcome::Complete)]
+    #[case::source_completed_downstream_pending(
+        LaunchStatus::COMPLETED,
+        vec![LaunchStatus::INITIATED],
+        SimplePollOutcome::Incomplete
+    )]
+    #[case::source_completed_downstream_completed(
+        LaunchStatus::COMPLETED,
+        vec![LaunchStatus::COMPLETED, LaunchStatus::COMPLETED],
+        SimplePollOutcome::Complete
+    )]
+    #[case::source_completed_one_downstream_failed(
+        LaunchStatus::COMPLETED,
+        vec![LaunchStatus::COMPLETED, LaunchStatus::FAILED],
+        SimplePollOutcome::Complete
+    )]
+    fn poll_outcome_is_incomplete_only_while_something_is_still_initiated(
+        #[case] status: LaunchStatus,
+        #[case] downstream: Vec<LaunchStatus>,
+        #[case] expected: SimplePollOutcome,
+    ) {
+        assert_that!(snapshot(status, downstream).poll_outcome()).is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::completed(QueryLaunchStatus::LAUNCH_COMPLETED, LaunchStatus::COMPLETED)]
+    #[case::failed(QueryLaunchStatus::LAUNCH_FAILED, LaunchStatus::FAILED)]
+    #[case::initiated(QueryLaunchStatus::LAUNCH_INITIATED, LaunchStatus::INITIATED)]
+    #[case::unrecognized_status_treated_as_failed(
+        QueryLaunchStatus::Other("SOME_FUTURE_STATUS".to_string()),
+        LaunchStatus::FAILED
+    )]
+    fn query_launch_status_maps_to_shared_launch_status(
+        #[case] status: QueryLaunchStatus,
+        #[case] expected: LaunchStatus,
+    ) {
+        assert_that!(LaunchStatus::from(status)).is_equal_to(expected);
     }
 }
