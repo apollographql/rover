@@ -8,7 +8,6 @@ use tower::{Service, ServiceBuilder, ServiceExt};
 
 use crate::{
     blocking::StudioClient,
-    error::FailedLaunch,
     operations::graph::publish::{
         service::GraphPublishLaunchStatus,
         types::{ChangeSummary, FieldChanges, LaunchSnapshot, LaunchStatusInput, TypeChanges},
@@ -45,9 +44,13 @@ pub(crate) struct GraphPublishLaunchStatusQuery;
 
 /// Returns a message from apollo studio about the status of the update, and
 /// a sha256 hash of the schema to be used with `schema publish`. If the
-/// publish triggered any downstream contract-variant launches, polls until
-/// every one of them (and the publish's own launch) reaches a terminal
-/// state, failing the whole publish if any did not complete successfully.
+/// publish triggered a launch, polls until it (and every downstream
+/// contract-variant launch it triggered) reaches a terminal state. The
+/// outcome -- including a launch or downstream launch that ended
+/// `LAUNCH_FAILED` -- is reported as data on the returned response, not as
+/// an `Err`: the schema publish itself already succeeded by this point, and
+/// this mirrors how `contract`/`subgraph preview` report a failed async
+/// build as data rather than raising an error for it.
 ///
 /// Known limitation, not solved here: `latestLaunch` is read from the same
 /// mutation response that creates the launch (rather than a separate
@@ -70,18 +73,19 @@ pub async fn run(
         .and_then(|publication| publication.variant.latest_launch.as_ref())
         .map(|launch| launch.id.clone());
 
-    let (launch_url, downstream_launches) = if let Some(launch_id) = maybe_launch_id {
+    let (launch_url, launch_status, downstream_launches) = if let Some(launch_id) = maybe_launch_id
+    {
         let snapshot = poll_launch(&graph_ref, &launch_id, client, checks_timeout_seconds).await?;
-        ensure_launch_succeeded(&graph_ref, &snapshot)?;
         build_launches_report(&graph_ref, snapshot)
     } else {
-        (None, Vec::new())
+        (None, None, Vec::new())
     };
 
     build_response(
         publish_response,
         total_type_count,
         launch_url,
+        launch_status,
         downstream_launches,
     )
 }
@@ -121,46 +125,14 @@ async fn poll_launch(
     status_service.ready().await?.call(input).await
 }
 
-/// Fails the publish if the launch itself, or any of its downstream
-/// contract-variant launches, didn't complete successfully.
-fn ensure_launch_succeeded(
-    graph_ref: &GraphRef,
-    snapshot: &LaunchSnapshot,
-) -> Result<(), RoverClientError> {
-    let is_failed = |status: &LaunchStatus| matches!(status, LaunchStatus::FAILED);
-    let failed_downstream_launches = snapshot
-        .downstream_launches
-        .iter()
-        .filter(|launch| is_failed(&launch.status))
-        .map(|launch| FailedLaunch {
-            graph_id: launch.graph_id.clone(),
-            graph_variant: launch.variant_name.clone(),
-            launch_id: launch.launch_id.clone(),
-        })
-        .collect::<Vec<_>>();
-
-    if is_failed(&snapshot.status) || !failed_downstream_launches.is_empty() {
-        Err(RoverClientError::PublishLaunchFailure {
-            graph_ref: graph_ref.clone(),
-            launch_id: snapshot.launch_id.clone(),
-            failed_downstream_launches,
-        })
-    } else {
-        Ok(())
-    }
-}
-
-/// Builds the (launch_url, downstream_launches) report from a finished launch
-/// snapshot. Reports nothing (`None`, empty) when the publish triggered no
-/// downstream contract-variant launches.
+/// Builds the (launch_url, launch_status, downstream_launches) report from a
+/// finished launch snapshot. Always populated once a launch was polled --
+/// including a `FAILED` status, which is reported as data here rather than
+/// as an error (see `run`'s doc comment).
 fn build_launches_report(
     graph_ref: &GraphRef,
     snapshot: LaunchSnapshot,
-) -> (Option<String>, Vec<DownstreamLaunch>) {
-    if snapshot.downstream_launches.is_empty() {
-        return (None, Vec::new());
-    }
-
+) -> (Option<String>, Option<LaunchStatus>, Vec<DownstreamLaunch>) {
     let url = launch_url(graph_ref.graph_id(), &snapshot.launch_id);
     let variants = snapshot
         .downstream_launches
@@ -172,7 +144,7 @@ fn build_launches_report(
             status: launch.status,
         })
         .collect();
-    (Some(url), variants)
+    (Some(url), Some(snapshot.status), variants)
 }
 
 fn count_schema_types(schema: &str) -> u64 {
@@ -214,6 +186,7 @@ fn build_response(
     publish_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema,
     total_type_count: u64,
     launch_url: Option<String>,
+    launch_status: Option<LaunchStatus>,
     downstream_launches: Vec<DownstreamLaunch>,
 ) -> Result<GraphPublishResponse, RoverClientError> {
     if !publish_response.success {
@@ -263,6 +236,7 @@ fn build_response(
         change_summary,
         total_type_count,
         launch_url,
+        launch_status,
         downstream_launches,
     })
 }
@@ -409,7 +383,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response, 5, None, Vec::new());
+        let output = build_response(update_response, 5, None, None, Vec::new());
 
         assert!(output.is_ok());
         assert_eq!(
@@ -419,6 +393,7 @@ mod tests {
                 change_summary: ChangeSummary::none(),
                 total_type_count: 5,
                 launch_url: None,
+                launch_status: None,
                 downstream_launches: Vec::new(),
             }
         );
@@ -434,7 +409,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response, 0, None, Vec::new());
+        let output = build_response(update_response, 0, None, None, Vec::new());
 
         assert!(output.is_err());
     }
@@ -449,7 +424,7 @@ mod tests {
         });
         let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response, 0, None, Vec::new());
+        let output = build_response(update_response, 0, None, None, Vec::new());
 
         assert!(output.is_err());
     }
@@ -513,53 +488,18 @@ mod tests {
     }
 
     #[test]
-    fn ensure_launch_succeeded_ok_when_everything_completed() {
-        let snapshot = snapshot_with(
-            LaunchStatus::COMPLETED,
-            vec![
-                ("mygraph", "mobile", LaunchStatus::COMPLETED),
-                ("mygraph", "partner-api", LaunchStatus::COMPLETED),
-            ],
-        );
-
-        assert!(ensure_launch_succeeded(&mock_graph_ref(), &snapshot).is_ok());
-    }
-
-    #[test]
-    fn ensure_launch_succeeded_errs_when_source_launch_failed() {
-        let snapshot = snapshot_with(LaunchStatus::FAILED, vec![]);
-
-        let err = ensure_launch_succeeded(&mock_graph_ref(), &snapshot).unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "The publish for 'mygraph@current' succeeded, but launch 'launch-1' failed."
-        );
-    }
-
-    #[test]
-    fn ensure_launch_succeeded_errs_when_a_downstream_launch_failed() {
-        let snapshot = snapshot_with(
-            LaunchStatus::COMPLETED,
-            vec![
-                ("mygraph", "mobile", LaunchStatus::COMPLETED),
-                ("mygraph", "partner-api", LaunchStatus::FAILED),
-            ],
-        );
-
-        let err = ensure_launch_succeeded(&mock_graph_ref(), &snapshot).unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "The publish for 'mygraph@current' succeeded, but downstream contract launch(es) failed: mygraph@partner-api (launch mygraph-launch)."
-        );
-    }
-
-    #[test]
-    fn build_launches_report_returns_nothing_when_no_downstream_launches() {
+    fn build_launches_report_reports_status_with_no_downstream_launches() {
         let snapshot = snapshot_with(LaunchStatus::COMPLETED, vec![]);
 
         assert_eq!(
             build_launches_report(&mock_graph_ref(), snapshot),
-            (None, Vec::new())
+            (
+                Some(
+                    "https://studio.apollographql.com/graph/mygraph/launches/launch-1".to_string()
+                ),
+                Some(LaunchStatus::COMPLETED),
+                Vec::new()
+            )
         );
     }
 
@@ -570,11 +510,12 @@ mod tests {
             vec![("mygraph", "mobile", LaunchStatus::COMPLETED)],
         );
 
-        let (url, variants) = build_launches_report(&mock_graph_ref(), snapshot);
+        let (url, launch_status, variants) = build_launches_report(&mock_graph_ref(), snapshot);
         assert_eq!(
             url,
             Some("https://studio.apollographql.com/graph/mygraph/launches/launch-1".to_string())
         );
+        assert_eq!(launch_status, Some(LaunchStatus::COMPLETED));
         assert_eq!(
             variants,
             vec![DownstreamLaunch {
@@ -585,6 +526,38 @@ mod tests {
                     .to_string(),
             }]
         );
+    }
+
+    #[test]
+    fn build_launches_report_reports_a_failed_downstream_launch_as_data() {
+        let snapshot = snapshot_with(
+            LaunchStatus::COMPLETED,
+            vec![
+                ("mygraph", "mobile", LaunchStatus::COMPLETED),
+                ("mygraph", "partner-api", LaunchStatus::FAILED),
+            ],
+        );
+
+        let (_, launch_status, variants) = build_launches_report(&mock_graph_ref(), snapshot);
+        assert_eq!(launch_status, Some(LaunchStatus::COMPLETED));
+        assert_eq!(
+            variants
+                .iter()
+                .map(|launch| (launch.variant_name.as_str(), &launch.status))
+                .collect::<Vec<_>>(),
+            vec![
+                ("mobile", &LaunchStatus::COMPLETED),
+                ("partner-api", &LaunchStatus::FAILED),
+            ]
+        );
+    }
+
+    #[test]
+    fn build_launches_report_reports_a_failed_source_launch_as_data() {
+        let snapshot = snapshot_with(LaunchStatus::FAILED, vec![]);
+
+        let (_, launch_status, _) = build_launches_report(&mock_graph_ref(), snapshot);
+        assert_eq!(launch_status, Some(LaunchStatus::FAILED));
     }
 
     fn test_client(server_url: &str) -> StudioClient {
@@ -646,6 +619,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.launch_url, None);
+        assert_eq!(response.launch_status, None);
         assert_eq!(response.downstream_launches, Vec::new());
     }
 
@@ -697,6 +671,7 @@ mod tests {
             response.launch_url,
             Some("https://studio.apollographql.com/graph/mygraph/launches/launch-1".to_string())
         );
+        assert_eq!(response.launch_status, Some(LaunchStatus::COMPLETED));
         assert_eq!(
             response.downstream_launches,
             vec![DownstreamLaunch {
@@ -708,8 +683,10 @@ mod tests {
         );
     }
 
+    /// A failed downstream launch is reported as data (not an `Err`) -- the
+    /// schema publish itself already succeeded by the time this is known.
     #[tokio::test]
-    async fn run_fails_when_a_downstream_launch_fails() {
+    async fn run_reports_a_failed_downstream_launch_as_data() {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -748,13 +725,19 @@ mod tests {
             }));
         });
 
-        let err = run(test_input(), &test_client(&server.url("/")), 30)
+        let response = run(test_input(), &test_client(&server.url("/")), 30)
             .await
-            .unwrap_err();
+            .unwrap();
 
+        assert_eq!(response.launch_status, Some(LaunchStatus::COMPLETED));
         assert_eq!(
-            err.to_string(),
-            "The publish for 'mygraph@current' succeeded, but downstream contract launch(es) failed: mygraph@mobile (launch launch-2)."
+            response.downstream_launches,
+            vec![DownstreamLaunch {
+                graph_id: "mygraph".to_string(),
+                variant_name: "mobile".to_string(),
+                status: LaunchStatus::FAILED,
+                url: "https://studio.apollographql.com/graph/mygraph/launches/launch-2".to_string(),
+            }]
         );
     }
 }
