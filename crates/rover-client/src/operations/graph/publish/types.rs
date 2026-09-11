@@ -66,6 +66,9 @@ pub(crate) struct DownstreamLaunchSnapshot {
     pub graph_id: String,
     pub variant_name: String,
     pub status: LaunchStatus,
+    /// A superseded launch's `status` stays `INITIATED` forever per the API;
+    /// this is the only way to tell it apart from one still in flight.
+    pub superseded: bool,
 }
 
 /// A snapshot of a launch's (and its downstream contract-variant launches')
@@ -75,17 +78,24 @@ pub(crate) struct LaunchSnapshot {
     pub launch_id: String,
     pub graph_id: String,
     pub status: LaunchStatus,
+    pub superseded: bool,
     pub downstream_launches: Vec<DownstreamLaunchSnapshot>,
 }
 
 impl PollOutcome for LaunchSnapshot {
     fn poll_outcome(&self) -> SimplePollOutcome {
-        let is_pending = |status: &LaunchStatus| matches!(status, LaunchStatus::INITIATED);
-        if is_pending(&self.status)
+        // A superseded launch's status remains INITIATED forever, so it must
+        // be treated as terminal even though `is_pending` would otherwise say
+        // it's still running -- see `Launch.status`'s doc comment in the
+        // schema.
+        let is_pending = |status: &LaunchStatus, superseded: bool| {
+            *status == LaunchStatus::INITIATED && !superseded
+        };
+        if is_pending(&self.status, self.superseded)
             || self
                 .downstream_launches
                 .iter()
-                .any(|launch| is_pending(&launch.status))
+                .any(|launch| is_pending(&launch.status, launch.superseded))
         {
             SimplePollOutcome::Incomplete
         } else {
@@ -117,6 +127,7 @@ impl From<QueryLaunch> for LaunchSnapshot {
             launch_id: launch.id,
             graph_id: launch.graph_id,
             status: launch.status.into(),
+            superseded: launch.superseded_at.is_some(),
             downstream_launches: launch
                 .downstream_launches
                 .into_iter()
@@ -134,6 +145,7 @@ impl From<QueryDownstreamLaunch> for DownstreamLaunchSnapshot {
             graph_id: launch.graph_id,
             variant_name: launch.graph_variant,
             status: launch.status.into(),
+            superseded: launch.superseded_at.is_some(),
         }
     }
 }
@@ -152,6 +164,10 @@ pub struct GraphPublishResponse {
     /// as an error, matching contract/subgraph preview's
     /// success-or-failure-is-still-data approach for an async follow-up.
     pub launch_status: Option<LaunchStatus>,
+    /// Whether the publish's own launch was superseded by a later one (e.g. a
+    /// concurrent publish to the same variant). Always `false` when
+    /// `launch_status` is `None`.
+    pub launch_superseded: bool,
     pub downstream_launches: Vec<crate::shared::DownstreamLaunch>,
 }
 
@@ -274,6 +290,7 @@ mod tests {
             launch_id: "launch-1".to_string(),
             graph_id: "my-graph".to_string(),
             status,
+            superseded: false,
             downstream_launches: downstream
                 .into_iter()
                 .enumerate()
@@ -282,6 +299,7 @@ mod tests {
                     graph_id: "my-graph".to_string(),
                     variant_name: format!("variant-{i}"),
                     status,
+                    superseded: false,
                 })
                 .collect(),
         }
@@ -311,6 +329,43 @@ mod tests {
         #[case] expected: SimplePollOutcome,
     ) {
         assert_that!(snapshot(status, downstream).poll_outcome()).is_equal_to(expected);
+    }
+
+    /// A superseded launch's `status` stays `INITIATED` forever per the API
+    /// (see `Launch.status`'s schema doc comment) -- `poll_outcome` must
+    /// treat it as terminal anyway, or the poll never ends.
+    #[test]
+    fn poll_outcome_is_complete_when_the_source_launch_is_superseded_while_initiated() {
+        let snapshot = LaunchSnapshot {
+            launch_id: "launch-1".to_string(),
+            graph_id: "my-graph".to_string(),
+            status: LaunchStatus::INITIATED,
+            superseded: true,
+            downstream_launches: Vec::new(),
+        };
+
+        assert_that!(snapshot.poll_outcome()).is_equal_to(SimplePollOutcome::Complete);
+    }
+
+    /// Same as above, but for a downstream contract-variant launch rather
+    /// than the source launch.
+    #[test]
+    fn poll_outcome_is_complete_when_a_downstream_launch_is_superseded_while_initiated() {
+        let snapshot = LaunchSnapshot {
+            launch_id: "launch-1".to_string(),
+            graph_id: "my-graph".to_string(),
+            status: LaunchStatus::COMPLETED,
+            superseded: false,
+            downstream_launches: vec![DownstreamLaunchSnapshot {
+                launch_id: "launch-2".to_string(),
+                graph_id: "my-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                status: LaunchStatus::INITIATED,
+                superseded: true,
+            }],
+        };
+
+        assert_that!(snapshot.poll_outcome()).is_equal_to(SimplePollOutcome::Complete);
     }
 
     #[rstest]

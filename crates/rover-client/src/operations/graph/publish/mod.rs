@@ -8,6 +8,8 @@ pub use types::{
     ChangeSummary, FieldChanges, GraphPublishInput, GraphPublishResponse, TypeChanges,
 };
 
+type Timestamp = String;
+
 #[derive(GraphQLQuery)]
 #[graphql(
     query_path = "src/operations/graph/publish/launch_status_query.graphql",

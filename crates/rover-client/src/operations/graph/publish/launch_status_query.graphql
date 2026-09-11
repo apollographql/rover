@@ -6,11 +6,13 @@ query GraphPublishLaunchStatusQuery($graph_id: ID!, $variant: String!, $launch_i
         graphId
         graphVariant
         status
+        supersededAt
         downstreamLaunches {
           id
           graphId
           graphVariant
           status
+          supersededAt
         }
       }
     }
