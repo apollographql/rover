@@ -3,8 +3,8 @@ use std::time::Duration;
 use apollo_parser::Parser;
 use graphql_client::*;
 use rover_studio::types::GraphRef;
-use rover_tower::poll_retry::poll_until_complete;
-use tower::{Service, ServiceExt};
+use rover_tower::poll_retry::{PollError, PollRetryPolicy};
+use tower::{retry::RetryLayer, Service, ServiceBuilder, ServiceExt};
 
 use crate::{
     blocking::StudioClient,
@@ -105,18 +105,23 @@ async fn poll_launch(
         graph_ref: graph_ref.clone(),
         launch_id: launch_id.to_string(),
     };
-    let mut status_service = poll_until_complete(
-        GraphPublishLaunchStatus::new(
+    let mut status_service = ServiceBuilder::new()
+        .map_err(move |err: PollError<RoverClientError>| match err {
+            PollError::TimedOut => RoverClientError::LaunchTimeoutError {
+                url: Some(url.clone()),
+            },
+            PollError::Inner(e) => e,
+        })
+        .layer(RetryLayer::new(PollRetryPolicy::new(
+            Duration::from_secs(5),
+            Duration::from_secs(checks_timeout_seconds),
+        )))
+        .map_err(PollError::Inner)
+        .service(GraphPublishLaunchStatus::new(
             client
                 .studio_graphql_service()
                 .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-        ),
-        Duration::from_secs(5),
-        Duration::from_secs(checks_timeout_seconds),
-        move || RoverClientError::LaunchTimeoutError {
-            url: Some(url.clone()),
-        },
-    );
+        ));
     status_service.ready().await?.call(input).await
 }
 
