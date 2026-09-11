@@ -22,4 +22,4 @@ pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use filter_config::ContractFilterConfig;
 pub use git_context::GitContext;
 pub use lint_response::{Diagnostic, LintResponse};
-pub use publish_launch::{DownstreamLaunch, LaunchStatus, PublishLaunchesResponse};
+pub use publish_launch::{DownstreamLaunch, LaunchStatus};
