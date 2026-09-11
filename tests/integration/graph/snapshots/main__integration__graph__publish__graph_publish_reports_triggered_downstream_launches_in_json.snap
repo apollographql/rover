@@ -18,6 +18,7 @@ expression: json
     },
     "total_type_count": 1,
     "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_status": "COMPLETED",
     "downstream_launches": [
       {
         "graph_id": "my-graph",
