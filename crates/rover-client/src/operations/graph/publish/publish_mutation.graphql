@@ -16,6 +16,9 @@ mutation GraphPublishMutation(
       publication {
         variant {
           name
+          latestLaunch {
+            id
+          }
         }
         schema {
           hash
