@@ -1726,6 +1726,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 },
             },
             total_type_count: 50,
+            launch_url: None,
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
         };
         let actual_json = JsonOutput::from(&RoverOutput::GraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
@@ -1747,6 +1751,10 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     "edits": 7
                 },
                 "total_type_count": 50,
+                "launch_url": null,
+                "launch_status": null,
+                "launch_superseded": false,
+                "downstream_launches": [],
                 "success": true
             },
             "error": null

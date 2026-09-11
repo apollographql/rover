@@ -62,6 +62,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover graph check` now reports a downstream check summary for a graph's contract variants, in both text and JSON: how many were checked and their pass/fail breakdown, not just the names of variants that are blocking (previously, `graph check` reported nothing about contract variants at all). A blocking downstream contract failure now also makes `graph check` exit non-zero, matching `subgraph check`'s existing behavior.
 
+- **`rover graph publish` polls a triggered launch (and its downstream contract-variant launches) to completion, and `--format json` gains `launch_url`/`launch_status`/`launch_superseded`/`downstream_launches` fields - @dotdat**
+
+  Previously, `graph publish` returned as soon as the schema upload succeeded, with no visibility into whatever launch that publish triggered. It now polls the launch (and any downstream contract-variant launches it triggered) until each reaches a final status, or `APOLLO_CHECKS_TIMEOUT_SECONDS` elapses, extending how long a publish that triggers a launch takes to return. A launch superseded by a later publish to the same variant keeps reporting `LAUNCH_INITIATED` indefinitely per the API, so it's treated as complete (not timed out) and flagged via the new `launch_superseded`/`superseded` fields instead. `--format json` output gains `launch_url`, `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome; text/stderr output doesn't report on them yet — that's a following change in this stack.
+
 ## 🐛 Fixes
 
 - **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**
