@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use graphql_client::GraphQLQuery;
 use rover_studio::types::GraphRef;
-use rover_tower::poll_retry::poll_until_complete;
+use rover_tower::poll_retry::{PollError, PollRetryPolicy};
 pub use service::{ComposeAndFilterPreviewResult, ComposeAndFilterPreviewStart};
-use tower::{Service, ServiceExt};
+use tower::{retry::RetryLayer, Service, ServiceBuilder, ServiceExt};
 
 pub use crate::shared::{AsyncBuildStatus, ContractFilterConfig, PreviewJobResponse};
 use crate::{blocking::StudioClient, RoverClientError};
@@ -237,21 +237,26 @@ pub async fn poll(
     checks_timeout_seconds: u64,
 ) -> Result<PreviewJobResponse, RoverClientError> {
     let build_id = status_input.build_id.clone();
-    let mut status_service = poll_until_complete(
-        service::ComposeAndFilterPreviewStatus::new(
+    let mut status_service = ServiceBuilder::new()
+        .map_err({
+            let build_id = build_id.clone();
+            move |err: PollError<RoverClientError>| match err {
+                PollError::TimedOut => RoverClientError::PreviewTimeoutError {
+                    build_id: build_id.clone(),
+                },
+                PollError::Inner(e) => e,
+            }
+        })
+        .layer(RetryLayer::new(PollRetryPolicy::new(
+            Duration::from_secs(5),
+            Duration::from_secs(checks_timeout_seconds),
+        )))
+        .map_err(PollError::Inner)
+        .service(service::ComposeAndFilterPreviewStatus::new(
             client
                 .studio_graphql_service()
                 .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
-        ),
-        Duration::from_secs(5),
-        Duration::from_secs(checks_timeout_seconds),
-        {
-            let build_id = build_id.clone();
-            move || RoverClientError::PreviewTimeoutError {
-                build_id: build_id.clone(),
-            }
-        },
-    );
+        ));
     status_service
         .ready()
         .await?
