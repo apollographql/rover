@@ -58,14 +58,16 @@ where
         let mut inner = replace_ready_service(&mut self.inner);
         let fut = async move {
             let graph_ref = input.graph_ref.clone();
+            let launch_id = input.launch_id.clone();
             let response_data = inner.call(GraphQLRequest::new(input.into())).await?;
             let launch = require_variant(
                 response_data.graph.and_then(|graph| graph.variant),
                 &graph_ref,
             )?
             .launch
-            .ok_or_else(|| RoverClientError::AdhocError {
-                msg: "No launch found for this publish.".to_string(),
+            .ok_or_else(|| RoverClientError::LaunchNotFound {
+                graph_ref: graph_ref.clone(),
+                launch_id,
             })?;
             Ok(launch.into())
         };
