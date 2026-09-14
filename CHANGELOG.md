@@ -72,7 +72,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`rover subgraph publish` polls a triggered launch to completion - @dotdat**
 
-  `subgraph publish` now initiates downstream contract launches synchronously (`downstreamLaunchInitiation: SYNC`, previously the default `ASYNC`) and waits for the launch it triggers (and any downstream contract-variant launches) to finish before returning. `--format json` gains `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome, alongside the existing `launch_url`/`launch_cli_copy` fields. Text/stderr output doesn't report on them yet — that's a following change in this stack. Supersedes the `subgraph publish` half of the stale, unmerged #3377 (its `subgraph check` half was already superseded separately).
+  `subgraph publish` now waits for the launch it triggers (and any downstream contract-variant launches) to finish before returning, and `--format json` gains `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome.
 
 ## 🐛 Fixes
 
