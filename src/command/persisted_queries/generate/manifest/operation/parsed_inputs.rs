@@ -6,8 +6,8 @@ use itertools::Itertools;
 use rover_std::{Fs, sha256_hex};
 
 use super::{
-    parsed_fragment::ParsedFragment, parsed_operation::ParsedOperation,
-    persisted_query_operation::PersistedQueryOperation,
+    comments::extract_leading_comments, parsed_fragment::ParsedFragment,
+    parsed_operation::ParsedOperation, persisted_query_operation::PersistedQueryOperation,
 };
 use crate::command::persisted_queries::generate::manifest::{
     ast_ext::SelectionSetExt,
@@ -21,13 +21,16 @@ pub(crate) struct ParsedInputs {
 }
 
 impl ParsedInputs {
-    pub(super) fn from_file(file: &Utf8Path) -> Result<Self, ParseFailure> {
+    pub(super) fn from_file(
+        file: &Utf8Path,
+        preserve_comments: bool,
+    ) -> Result<Self, ParseFailure> {
         let contents = Fs::read_file(file).map_err(|err| ParseFailure {
             file: file.to_path_buf(),
             message: err.to_string(),
         })?;
         let document = ApolloParser::new()
-            .parse_ast(contents, file.as_std_path())
+            .parse_ast(contents.as_str(), file.as_std_path())
             .map_err(|err| ParseFailure {
                 file: file.to_path_buf(),
                 message: err.to_string(),
@@ -59,12 +62,20 @@ impl ParsedInputs {
                             .to_string(),
                         });
                     }
+                    let leading_comments = if preserve_comments {
+                        operation.location().and_then(|location| {
+                            extract_leading_comments(&contents, location.offset())
+                        })
+                    } else {
+                        None
+                    };
                     parsed.operations.insert(
                         name,
                         ParsedOperation {
                             file: file.to_path_buf(),
                             direct_fragment_spreads: operation.selection_set.collect_spreads(),
                             operation,
+                            leading_comments,
                         },
                     );
                 }
@@ -95,10 +106,13 @@ impl ParsedInputs {
         Ok(parsed)
     }
 
-    pub(crate) fn from_files(files: Vec<Utf8PathBuf>) -> Result<Self, GenerateError> {
+    pub(crate) fn from_files(
+        files: Vec<Utf8PathBuf>,
+        preserve_comments: bool,
+    ) -> Result<Self, GenerateError> {
         let (parsed, failures): (Vec<_>, Vec<_>) = files
             .into_iter()
-            .map(|file| Self::from_file(&file))
+            .map(|file| Self::from_file(&file, preserve_comments))
             .partition_result();
 
         if !failures.is_empty() {
@@ -189,7 +203,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
         std::fs::write(&file, "query { field }").unwrap();
-        let result = ParsedInputs::from_file(&file).map_err(|e| e.to_string());
+        let result = ParsedInputs::from_file(&file, false).map_err(|e| e.to_string());
 
         assert_that!(result).is_err().is_equal_to(format!(
             "{file}: Anonymous GraphQL operations are not supported. Please name your query."
@@ -201,7 +215,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let file = Utf8PathBuf::from_path_buf(temp.path().join("ops.graphql")).unwrap();
         std::fs::write(&file, "query GetUser { id }\nquery GetUser { name }").unwrap();
-        let result = ParsedInputs::from_file(&file).map_err(|e| e.to_string());
+        let result = ParsedInputs::from_file(&file, false).map_err(|e| e.to_string());
 
         assert_that!(result).is_err().is_equal_to(format!(
             "{file}: Operation named \"GetUser\" is already defined in {file}. Duplicate found in {file}."
@@ -218,10 +232,10 @@ mod tests {
 
         let mut combined = ParsedInputs::default();
         combined
-            .merge(ParsedInputs::from_file(&a).unwrap())
+            .merge(ParsedInputs::from_file(&a, false).unwrap())
             .unwrap();
         let result = combined
-            .merge(ParsedInputs::from_file(&b).unwrap())
+            .merge(ParsedInputs::from_file(&b, false).unwrap())
             .map_err(|e| e.to_string());
 
         assert_that!(result).is_err().is_equal_to(format!(
@@ -237,7 +251,7 @@ mod tests {
         std::fs::write(&a, "query { field }").unwrap();
         std::fs::write(&b, "query { other }").unwrap();
 
-        let result = ParsedInputs::from_files(vec![a.clone(), b.clone()]);
+        let result = ParsedInputs::from_files(vec![a.clone(), b.clone()], false);
 
         assert_that!(result).is_err();
         let msg = result.unwrap_err().to_string();
@@ -255,10 +269,10 @@ mod tests {
 
         let mut combined = ParsedInputs::default();
         combined
-            .merge(ParsedInputs::from_file(&a).unwrap())
+            .merge(ParsedInputs::from_file(&a, false).unwrap())
             .unwrap();
         let result = combined
-            .merge(ParsedInputs::from_file(&b).unwrap())
+            .merge(ParsedInputs::from_file(&b, false).unwrap())
             .map_err(|e| e.to_string());
 
         assert_that!(result).is_err().is_equal_to(format!(
