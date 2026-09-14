@@ -298,6 +298,11 @@ pub enum RoverClientError {
     },
 
     #[error(
+        "Timed out waiting for the launch to complete, or raise APOLLO_CHECKS_TIMEOUT_SECONDS."
+    )]
+    LaunchTimeoutError { url: Option<String> },
+
+    #[error(
         "A check workflow status was reported but it was not specified as a pass or a failure."
     )]
     UnknownCheckWorkflowStatus,
