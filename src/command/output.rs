@@ -1774,6 +1774,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             launch_cli_copy: Some(
                 "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
             ),
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
         };
         let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
@@ -1791,6 +1794,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "success": true,
                 "launch_url": "test.com/launchurl",
                 "launch_cli_copy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
+                "launch_status": null,
+                "launch_superseded": false,
+                "downstream_launches": [],
             },
             "error": null
         });
@@ -1822,6 +1828,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             subgraph_was_updated: true,
             launch_url: None,
             launch_cli_copy: None,
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
         };
         let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("name", Some("current")).unwrap(),
@@ -1839,6 +1848,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "success": true,
                 "launch_url": null,
                 "launch_cli_copy": null,
+                "launch_status": null,
+                "launch_superseded": false,
+                "downstream_launches": [],
             },
             "error": {
                 "message": "Encountered 2 build errors while trying to build subgraph 'subgraph' into supergraph 'name@current'.",
@@ -1876,6 +1888,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             subgraph_was_updated: false,
             launch_url: None,
             launch_cli_copy: None,
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
         };
         let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
@@ -1893,6 +1908,9 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "success": true,
                 "launch_url": null,
                 "launch_cli_copy": null,
+                "launch_status": null,
+                "launch_superseded": false,
+                "downstream_launches": [],
             },
             "error": null
         });
