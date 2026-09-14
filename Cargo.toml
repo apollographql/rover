@@ -238,7 +238,7 @@ which = "8"
 wsl = "0.1"
 uuid = "1"
 url = "2"
-url-static = "0.2"
+url-static = "1.0"
 webbrowser = "1"
 zip = "8"
 
