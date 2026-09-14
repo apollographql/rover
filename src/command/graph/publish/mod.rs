@@ -1,5 +1,8 @@
+mod output;
+
 use anyhow::anyhow;
 use clap::Parser;
+use output::GraphPublishLaunchesOutput;
 use rover_client::{
     RoverClientError,
     operations::graph::{
@@ -142,6 +145,20 @@ impl Publish {
             checks_timeout_seconds,
         )
         .await?;
+
+        let launches_output = GraphPublishLaunchesOutput(&publish_response);
+        let launches_text = launches_output.text();
+        if !launches_text.is_empty() {
+            stderr.print(&StyledText::plain(
+                "Note: a future version of `rover graph publish` will include this report in its stdout output. If you need to reliably parse just the schema hash, use `--format json` and read `.data.api_schema_hash`.".to_string(),
+            ));
+            stderr.print(&StyledText::plain(launches_text));
+        }
+        if launches_output.exit_code() != 0 {
+            return Err(RoverError::new(anyhow!(
+                "The publish succeeded, but a triggered launch did not complete successfully. See the launch report above for details."
+            )));
+        }
 
         Ok(RoverOutput::GraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),
