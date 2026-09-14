@@ -85,17 +85,14 @@ pub(crate) struct LaunchSnapshot {
 impl PollOutcome for LaunchSnapshot {
     fn poll_outcome(&self) -> SimplePollOutcome {
         // A superseded launch's status remains INITIATED forever, so it must
-        // be treated as terminal even though `is_pending` would otherwise say
+        // be treated as terminal even though it would otherwise look like
         // it's still running -- see `Launch.status`'s doc comment in the
         // schema.
-        let is_pending = |status: &LaunchStatus, superseded: bool| {
-            *status == LaunchStatus::INITIATED && !superseded
-        };
-        if is_pending(&self.status, self.superseded)
+        if (self.status == LaunchStatus::INITIATED && !self.superseded)
             || self
                 .downstream_launches
                 .iter()
-                .any(|launch| is_pending(&launch.status, launch.superseded))
+                .any(|launch| launch.status == LaunchStatus::INITIATED && !launch.superseded)
         {
             SimplePollOutcome::Incomplete
         } else {
