@@ -119,6 +119,16 @@ pub enum RoverClientError {
     #[error("Could not find graph with ID '{graph_id}'")]
     GraphIdNotFound { graph_id: String },
 
+    /// A publish reported that it triggered a launch, but that launch could
+    /// not be found when polling for its status. This shouldn't be
+    /// possible -- it likely indicates a race with Studio's own eventual
+    /// consistency, or a bug in the publish/polling response handling.
+    #[error("Could not find launch '{launch_id}' for '{graph_ref}'.")]
+    LaunchNotFound {
+        graph_ref: GraphRef,
+        launch_id: String,
+    },
+
     /// The requested graph artifact could not be found.
     #[error("Could not find the graph artifact: {msg}")]
     GraphArtifactNotFound { msg: String },
