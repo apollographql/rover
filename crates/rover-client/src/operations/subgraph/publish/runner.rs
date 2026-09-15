@@ -1,14 +1,19 @@
+use std::time::Duration;
+
 use apollo_federation_types::rover::{BuildError, BuildErrors};
 use graphql_client::*;
 use rover_studio::types::GraphRef;
+use rover_tower::poll_retry::poll_until_complete;
+use tower::{Service, ServiceExt};
 
-use super::types::*;
+use super::{service::SubgraphPublishLaunchStatus, types::*};
 use crate::{
     blocking::StudioClient,
     operations::{
         config::is_federated::{self, IsFederatedInput},
         graph::{variant, variant::VariantListInput},
     },
+    shared::{DownstreamLaunch, LaunchStatus},
     RoverClientError,
 };
 
@@ -26,12 +31,40 @@ use crate::{
 /// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
 pub(crate) struct SubgraphPublishMutation;
 
+/// Publishes a subgraph schema. If the publish triggered a launch and
+/// `launch_poll_timeout_seconds` is `Some`, polls until it (and every
+/// downstream contract-variant launch it triggered) reaches a terminal
+/// state. The outcome -- including a launch or downstream launch that ended
+/// `LAUNCH_FAILED` -- is reported as data on the returned response, not as
+/// an `Err`: the subgraph publish itself already succeeded by this point,
+/// matching `graph publish`'s approach.
+///
+/// `launch_poll_timeout_seconds: None` skips polling entirely, and requests
+/// `ASYNC` downstream-launch initiation instead of `SYNC` -- avoiding the
+/// server-side wait too, not just the client-side one. Used by `rover init`,
+/// which publishes several subgraphs to the same variant in a row and
+/// doesn't need to wait on -- or even look at -- any of their launches, only
+/// the last of which wouldn't even be superseded.
 pub async fn run(
     input: SubgraphPublishInput,
     client: &StudioClient,
+    launch_poll_timeout_seconds: Option<u64>,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let variables: MutationVariables = input.clone().into();
+    let mut variables: MutationVariables = input.clone().into();
+    // `SYNC` only when we're actually going to poll the result -- otherwise
+    // this publish (e.g. from `rover init`) would still pay for synchronous
+    // downstream-launch initiation server-side even though nothing reads the
+    // result. Explicitly `Some(ASYNC)` rather than `None`: `graphql_client`
+    // serializes a `None` variable as JSON `null` (this operation doesn't opt
+    // into `skip_serializing_none`), and per the GraphQL spec a variable's
+    // schema default only applies when it's *omitted*, not when it's
+    // explicitly `null` -- so `None` here wouldn't reliably fall back to the
+    // schema's `ASYNC` default the way an absent variable would.
+    variables.downstream_launch_initiation = Some(match launch_poll_timeout_seconds {
+        Some(_) => subgraph_publish_mutation::DownstreamLaunchInitiation::SYNC,
+        None => subgraph_publish_mutation::DownstreamLaunchInitiation::ASYNC,
+    });
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
@@ -73,8 +106,130 @@ pub async fn run(
         }
     }
     let data = client.post::<SubgraphPublishMutation>(variables).await?;
-    let publish_response = get_publish_response_from_data(data, graph_ref)?;
-    Ok(build_response(publish_response))
+    let publish_response = get_publish_response_from_data(data, graph_ref.clone())?;
+
+    // A publish with composition errors shouldn't make the caller wait on a
+    // launch poll before seeing them -- skip straight to reporting the
+    // errors, the same way `graph publish` skips polling on `NO_CHANGES`.
+    let has_composition_errors = publish_response.errors.iter().any(Option::is_some);
+    let maybe_launch_id = if has_composition_errors {
+        None
+    } else {
+        publish_response
+            .launch
+            .as_ref()
+            .map(|launch| launch.id.clone())
+    };
+
+    let LaunchesReport {
+        launch_status,
+        launch_superseded,
+        downstream_launches,
+    } = match (maybe_launch_id, launch_poll_timeout_seconds) {
+        (Some(launch_id), Some(timeout_seconds)) => {
+            let snapshot = poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await?;
+            LaunchesReport::new(snapshot)
+        }
+        _ => LaunchesReport {
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
+        },
+    };
+
+    Ok(build_response(
+        publish_response,
+        launch_status,
+        launch_superseded,
+        downstream_launches,
+    ))
+}
+
+/// Hand-builds a Studio launch URL for a downstream contract-variant launch.
+/// The source launch's own URL comes directly from the mutation's
+/// `launchUrl` field instead -- unlike `graph publish`, `subgraph publish`'s
+/// mutation already returns it.
+fn launch_url(graph_id: &str, launch_id: &str) -> String {
+    format!("https://studio.apollographql.com/graph/{graph_id}/launches/{launch_id}")
+}
+
+/// Polls a launch (and its downstream contract-variant launches) until every
+/// one of them leaves `LAUNCH_INITIATED`. A launch that isn't visible yet
+/// (`LaunchPoll::NotFound` -- expected immediately after the mutation that
+/// created it, before Studio's read path catches up) keeps the loop going
+/// rather than failing; if it's still not visible once `checks_timeout_seconds`
+/// elapses, this surfaces as a `LaunchTimeoutError` like any other launch
+/// that never finished.
+async fn poll_launch(
+    graph_ref: &GraphRef,
+    launch_id: &str,
+    client: &StudioClient,
+    checks_timeout_seconds: u64,
+) -> Result<LaunchSnapshot, RoverClientError> {
+    let url = launch_url(graph_ref.graph_id(), launch_id);
+    let input = LaunchStatusInput {
+        graph_ref: graph_ref.clone(),
+        launch_id: launch_id.to_string(),
+    };
+    let mut status_service = poll_until_complete(
+        SubgraphPublishLaunchStatus::new(
+            client
+                .studio_graphql_service()
+                .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+        ),
+        Duration::from_secs(5),
+        Duration::from_secs(checks_timeout_seconds),
+        move || RoverClientError::LaunchTimeoutError {
+            url: Some(url.clone()),
+        },
+    );
+    match status_service.ready().await?.call(input).await? {
+        LaunchPoll::Found(snapshot) => Ok(snapshot),
+        // Unreachable in practice: `LaunchPoll::NotFound` always reports
+        // `SimplePollOutcome::Incomplete`, so `poll_until_complete` never
+        // returns it as a final `Ok` -- it either keeps polling or times out
+        // above. Kept as a non-panicking fallback in case that invariant
+        // ever changes.
+        LaunchPoll::NotFound => Err(RoverClientError::LaunchNotFound {
+            graph_ref: graph_ref.clone(),
+            launch_id: launch_id.to_string(),
+        }),
+    }
+}
+
+/// The (launch_status, launch_superseded, downstream_launches) report built
+/// from a finished launch snapshot -- see `LaunchesReport::new`.
+struct LaunchesReport {
+    launch_status: Option<LaunchStatus>,
+    launch_superseded: bool,
+    downstream_launches: Vec<DownstreamLaunch>,
+}
+
+impl LaunchesReport {
+    /// Builds the launches report from a finished launch snapshot. Always
+    /// fully populated once a launch was polled -- including a `FAILED`
+    /// status, which is reported as data here rather than as an error (see
+    /// `run`'s doc comment). A superseded launch keeps `status == INITIATED`
+    /// forever per the API; `superseded` is the only way to tell it apart
+    /// from one still genuinely in flight.
+    fn new(snapshot: LaunchSnapshot) -> Self {
+        let downstream_launches = snapshot
+            .downstream_launches
+            .into_iter()
+            .map(|launch| DownstreamLaunch {
+                url: launch_url(&launch.graph_id, &launch.launch_id),
+                graph_id: launch.graph_id,
+                variant_name: launch.variant_name,
+                status: launch.status,
+                superseded: launch.superseded,
+            })
+            .collect();
+        Self {
+            launch_status: Some(snapshot.status),
+            launch_superseded: snapshot.superseded,
+            downstream_launches,
+        }
+    }
 }
 
 fn get_publish_response_from_data(
@@ -92,7 +247,12 @@ fn get_publish_response_from_data(
         })
 }
 
-fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
+fn build_response(
+    publish_response: UpdateResponse,
+    launch_status: Option<LaunchStatus>,
+    launch_superseded: bool,
+    downstream_launches: Vec<DownstreamLaunch>,
+) -> SubgraphPublishResponse {
     let build_errors: BuildErrors = publish_response
         .errors
         .iter()
@@ -114,12 +274,17 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         build_errors,
         launch_cli_copy: publish_response.launch_cli_copy,
         launch_url: publish_response.launch_url,
+        launch_status,
+        launch_superseded,
+        downstream_launches,
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
     use serde_json::json;
+    use speculoos::prelude::*;
 
     use super::*;
     #[test]
@@ -142,7 +307,7 @@ mod tests {
             "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, None, false, Vec::new());
 
         assert_eq!(
             output,
@@ -168,6 +333,9 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                launch_status: None,
+                launch_superseded: false,
+                downstream_launches: Vec::new(),
             }
         );
     }
@@ -182,7 +350,7 @@ mod tests {
             "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, None, false, Vec::new());
 
         assert_eq!(
             output,
@@ -194,6 +362,9 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                launch_status: None,
+                launch_superseded: false,
+                downstream_launches: Vec::new(),
             }
         );
     }
@@ -213,7 +384,7 @@ mod tests {
             "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, None, false, Vec::new());
 
         assert_eq!(
             output,
@@ -231,6 +402,9 @@ mod tests {
                 subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
+                launch_status: None,
+                launch_superseded: false,
+                downstream_launches: Vec::new(),
             }
         );
     }
@@ -247,7 +421,7 @@ mod tests {
             "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, None, false, Vec::new());
 
         assert_eq!(
             output,
@@ -261,6 +435,9 @@ mod tests {
                 launch_cli_copy: Some(
                     "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
                 ),
+                launch_status: None,
+                launch_superseded: false,
+                downstream_launches: Vec::new(),
             }
         );
     }
@@ -275,7 +452,7 @@ mod tests {
             "serviceWasUpdated": false
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
-        let output = build_response(update_response);
+        let output = build_response(update_response, None, false, Vec::new());
 
         assert_eq!(
             output,
@@ -287,7 +464,316 @@ mod tests {
                 subgraph_was_updated: false,
                 launch_url: None,
                 launch_cli_copy: None,
+                launch_status: None,
+                launch_superseded: false,
+                downstream_launches: Vec::new(),
             }
         );
+    }
+
+    #[fixture]
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef::new("mygraph", Some("current")).unwrap()
+    }
+
+    fn test_client(server_url: &str) -> StudioClient {
+        use std::time::Duration as StdDuration;
+
+        use houston::{Credential, CredentialOrigin};
+        use reqwest::Client as ReqwestClient;
+
+        StudioClient::new(
+            Credential {
+                api_key: "test".to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            server_url,
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            StdDuration::from_secs(1),
+        )
+    }
+
+    #[fixture]
+    fn test_input(mock_graph_ref: GraphRef) -> SubgraphPublishInput {
+        SubgraphPublishInput {
+            graph_ref: mock_graph_ref,
+            subgraph: "subgraph".to_string(),
+            url: Some("http://example.com".to_string()),
+            schema: "type Query { hello: String }".to_string(),
+            git_context: crate::shared::GitContext {
+                branch: None,
+                commit: None,
+                author: None,
+                remote_url: None,
+            },
+            convert_to_federated_graph: false,
+            changelog_message: None,
+        }
+    }
+
+    /// Used only by polling tests (`launch_poll_timeout_seconds: Some(_)`),
+    /// so the mock also asserts the mutation actually requested `SYNC`
+    /// downstream-launch initiation -- a regression that stopped setting it
+    /// would fail via an unmatched request rather than silently passing.
+    fn mutation_mock_with_launch(server: &httpmock::MockServer) {
+        use httpmock::prelude::*;
+
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishMutation")
+                .body_includes(r#""downstream_launch_initiation":"SYNC""#);
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": { "schemaHash": "5gf564" },
+                    "errors": [],
+                    "didUpdateGateway": true,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": true,
+                    "launch": { "id": "launch-1" },
+                    "launchUrl": "https://studio.apollographql.com/graph/mygraph/launches/launch-1",
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn run_reports_no_launches_when_publish_has_no_launch(test_input: SubgraphPublishInput) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST).body_includes("SubgraphPublishMutation");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": { "schemaHash": "5gf564" },
+                    "errors": [],
+                    "didUpdateGateway": true,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": true,
+                    "launch": null,
+                    "launchUrl": null,
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_none();
+        assert_that!(response.downstream_launches).is_equal_to(Vec::new());
+    }
+
+    /// Composition errors skip polling even when the mutation also returned
+    /// a launch id -- a broken schema shouldn't make the caller wait on a
+    /// launch poll before seeing the errors. No `SubgraphPublishLaunchStatusQuery`
+    /// mock is registered, so a regression that polls anyway would fail this
+    /// test via an unmatched request.
+    #[rstest]
+    #[tokio::test]
+    async fn run_skips_polling_when_there_are_composition_errors(test_input: SubgraphPublishInput) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST).body_includes("SubgraphPublishMutation");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": null,
+                    "errors": [{
+                        "message": "[Accounts] -> Things went really wrong",
+                        "code": null
+                    }],
+                    "didUpdateGateway": false,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": false,
+                    "launch": { "id": "launch-1" },
+                    "launchUrl": "https://studio.apollographql.com/graph/mygraph/launches/launch-1",
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_none();
+        assert_that!(response.downstream_launches).is_equal_to(Vec::new());
+    }
+
+    /// `None` skips polling entirely regardless of whether the mutation
+    /// triggered a launch -- used by `rover init`, which doesn't need launch
+    /// data and shouldn't block on it. No `SubgraphPublishLaunchStatusQuery`
+    /// mock is registered, so a regression that polls anyway would fail this
+    /// test via an unmatched request; the mutation mock additionally asserts
+    /// `ASYNC` was requested, so a regression that kept sending `SYNC`
+    /// (reintroducing the server-side wait this exists to avoid) fails the
+    /// same way.
+    #[rstest]
+    #[tokio::test]
+    async fn run_skips_polling_when_launch_poll_timeout_seconds_is_none(
+        test_input: SubgraphPublishInput,
+    ) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishMutation")
+                .body_includes(r#""downstream_launch_initiation":"ASYNC""#);
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": { "schemaHash": "5gf564" },
+                    "errors": [],
+                    "didUpdateGateway": true,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": true,
+                    "launch": { "id": "launch-1" },
+                    "launchUrl": "https://studio.apollographql.com/graph/mygraph/launches/launch-1",
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), None)
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_none();
+        assert_that!(response.launch_superseded).is_false();
+        assert_that!(response.downstream_launches).is_equal_to(Vec::new());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn run_polls_and_reports_triggered_downstream_launches(test_input: SubgraphPublishInput) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        mutation_mock_with_launch(&server);
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishLaunchStatusQuery");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "variant": { "launch": {
+                    "id": "launch-1",
+                    "graphId": "mygraph",
+                    "graphVariant": "current",
+                    "status": "LAUNCH_COMPLETED",
+                    "supersededAt": null,
+                    "downstreamLaunches": [
+                        {
+                            "id": "launch-2",
+                            "graphId": "mygraph",
+                            "graphVariant": "mobile",
+                            "status": "LAUNCH_COMPLETED",
+                            "supersededAt": null
+                        }
+                    ]
+                } } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_equal_to(Some(LaunchStatus::COMPLETED));
+        assert_that!(response.downstream_launches).is_equal_to(vec![DownstreamLaunch {
+            graph_id: "mygraph".to_string(),
+            variant_name: "mobile".to_string(),
+            status: LaunchStatus::COMPLETED,
+            superseded: false,
+            url: "https://studio.apollographql.com/graph/mygraph/launches/launch-2".to_string(),
+        }]);
+    }
+
+    /// A failed downstream launch is reported as data (not an `Err`) -- the
+    /// subgraph publish itself already succeeded by the time this is known.
+    #[rstest]
+    #[tokio::test]
+    async fn run_reports_a_failed_downstream_launch_as_data(test_input: SubgraphPublishInput) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        mutation_mock_with_launch(&server);
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishLaunchStatusQuery");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "variant": { "launch": {
+                    "id": "launch-1",
+                    "graphId": "mygraph",
+                    "graphVariant": "current",
+                    "status": "LAUNCH_COMPLETED",
+                    "supersededAt": null,
+                    "downstreamLaunches": [
+                        {
+                            "id": "launch-2",
+                            "graphId": "mygraph",
+                            "graphVariant": "mobile",
+                            "status": "LAUNCH_FAILED",
+                            "supersededAt": null
+                        }
+                    ]
+                } } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_equal_to(Some(LaunchStatus::COMPLETED));
+        assert_that!(response.downstream_launches).is_equal_to(vec![DownstreamLaunch {
+            graph_id: "mygraph".to_string(),
+            variant_name: "mobile".to_string(),
+            status: LaunchStatus::FAILED,
+            superseded: false,
+            url: "https://studio.apollographql.com/graph/mygraph/launches/launch-2".to_string(),
+        }]);
+    }
+
+    /// A launch that gets superseded by a later concurrent publish keeps
+    /// `status == LAUNCH_INITIATED` forever per the schema -- `run` must
+    /// treat that as terminal (not spin until `LaunchTimeoutError`), and
+    /// report the supersession as data.
+    #[rstest]
+    #[tokio::test]
+    async fn run_reports_a_superseded_launch_as_data_instead_of_timing_out(
+        test_input: SubgraphPublishInput,
+    ) {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        mutation_mock_with_launch(&server);
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishLaunchStatusQuery");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "variant": { "launch": {
+                    "id": "launch-1",
+                    "graphId": "mygraph",
+                    "graphVariant": "current",
+                    "status": "LAUNCH_INITIATED",
+                    "supersededAt": "2024-01-01T00:00:00Z",
+                    "downstreamLaunches": []
+                } } } }
+            }));
+        });
+
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_equal_to(Some(LaunchStatus::INITIATED));
+        assert_that!(response.launch_superseded).is_true();
     }
 }

@@ -208,6 +208,7 @@ impl Publish {
                 changelog_message: self.changelog_message.clone(),
             },
             &client,
+            Some(checks_timeout_seconds),
         )
         .await?;
 

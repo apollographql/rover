@@ -6,6 +6,7 @@ mutation SubgraphPublishMutation(
   $revision: String!
   $schema: PartialSchemaInput!
   $git_context: GitContextInput!
+  $downstream_launch_initiation: DownstreamLaunchInitiation
 ) {
   graph(id: $graph_id) {
     publishSubgraph(
@@ -15,6 +16,7 @@ mutation SubgraphPublishMutation(
       activePartialSchema: $schema
       graphVariant: $variant
       gitContext: $git_context
+      downstreamLaunchInitiation: $downstream_launch_initiation
     ) {
       compositionConfig {
         schemaHash
@@ -26,6 +28,9 @@ mutation SubgraphPublishMutation(
       didUpdateGateway: updatedGateway
       serviceWasCreated: wasCreated
       serviceWasUpdated: wasUpdated
+      launch {
+        id
+      }
       launchCliCopy
       launchUrl
     }

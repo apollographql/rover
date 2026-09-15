@@ -118,7 +118,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         (None, Some(RoverErrorCode::E004))
                     }
                 }
-                RoverClientError::MalformedResponse { null_field: _ } => (
+                RoverClientError::MalformedResponse { null_field: _ }
+                | RoverClientError::LaunchNotFound { .. } => (
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E005),
                 ),
