@@ -137,8 +137,8 @@ fn graph_publish_reports_triggered_downstream_launches_in_json() {
 /// contract variant's downstream launch failed, even though the schema
 /// publish itself succeeded -- the outcome is carried as data on
 /// `GraphPublishResponse`, not as an `Err` from `publish::run`, and
-/// `GraphPublishLaunchesOutput` (used inline by `Publish::run`) is what
-/// turns a `FAILED` status into the command's actual non-zero exit.
+/// `PublishLaunchesOutput` (used inline by `Publish::run`) is what turns a
+/// `FAILED` status into the command's actual non-zero exit.
 #[test]
 #[serial]
 fn graph_publish_fails_when_a_downstream_launch_fails() {
@@ -152,7 +152,7 @@ fn graph_publish_fails_when_a_downstream_launch_fails() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("downstream contract launch(es) failed: mobile"),
+        stderr.contains("downstream contract launch failed: mobile"),
         "stderr did not contain the expected failure detail: {stderr}"
     );
 }

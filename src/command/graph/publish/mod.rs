@@ -1,8 +1,5 @@
-mod output;
-
 use anyhow::anyhow;
 use clap::Parser;
-use output::GraphPublishLaunchesOutput;
 use rover_client::{
     RoverClientError,
     operations::graph::{
@@ -20,7 +17,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
-    command::CliOutput,
+    command::{CliOutput, publish_launches_output::PublishLaunchesOutput},
     options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt},
     utils::client::StudioClientConfig,
 };
@@ -146,7 +143,7 @@ impl Publish {
         )
         .await?;
 
-        let launches_output = GraphPublishLaunchesOutput(&publish_response);
+        let launches_output = PublishLaunchesOutput(&publish_response);
         let launches_text = launches_output.text();
         if !launches_text.is_empty() {
             stderr.print(&StyledText::plain(

@@ -168,6 +168,24 @@ pub struct GraphPublishResponse {
     pub downstream_launches: Vec<crate::shared::DownstreamLaunch>,
 }
 
+impl crate::shared::PublishLaunches for GraphPublishResponse {
+    fn launch_url(&self) -> Option<&str> {
+        self.launch_url.as_deref()
+    }
+
+    fn launch_status(&self) -> Option<LaunchStatus> {
+        self.launch_status.clone()
+    }
+
+    fn launch_superseded(&self) -> bool {
+        self.launch_superseded
+    }
+
+    fn downstream_launches(&self) -> &[crate::shared::DownstreamLaunch] {
+        &self.downstream_launches
+    }
+}
+
 #[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct ChangeSummary {
     pub field_changes: FieldChanges,

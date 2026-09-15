@@ -23,3 +23,15 @@ pub struct DownstreamLaunch {
     pub superseded: bool,
     pub url: String,
 }
+
+/// Implemented by a `graph publish`/`subgraph publish` response that reports
+/// a triggered launch (and any downstream contract-variant launches it
+/// triggered). Lets CLI output rendering (`PublishLaunchesOutput`) be shared
+/// between the two commands instead of duplicated, without requiring their
+/// otherwise-different response types to share a field layout.
+pub trait PublishLaunches {
+    fn launch_url(&self) -> Option<&str>;
+    fn launch_status(&self) -> Option<LaunchStatus>;
+    fn launch_superseded(&self) -> bool;
+    fn downstream_launches(&self) -> &[DownstreamLaunch];
+}
