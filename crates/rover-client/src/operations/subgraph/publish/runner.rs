@@ -282,6 +282,7 @@ fn build_response(
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
     use serde_json::json;
     use speculoos::prelude::*;
 
@@ -470,6 +471,7 @@ mod tests {
         );
     }
 
+    #[fixture]
     fn mock_graph_ref() -> GraphRef {
         GraphRef::new("mygraph", Some("current")).unwrap()
     }
@@ -494,9 +496,10 @@ mod tests {
         )
     }
 
-    fn test_input() -> SubgraphPublishInput {
+    #[fixture]
+    fn test_input(mock_graph_ref: GraphRef) -> SubgraphPublishInput {
         SubgraphPublishInput {
-            graph_ref: mock_graph_ref(),
+            graph_ref: mock_graph_ref,
             subgraph: "subgraph".to_string(),
             url: Some("http://example.com".to_string()),
             schema: "type Query { hello: String }".to_string(),
@@ -537,8 +540,9 @@ mod tests {
         });
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn run_reports_no_launches_when_publish_has_no_launch() {
+    async fn run_reports_no_launches_when_publish_has_no_launch(test_input: SubgraphPublishInput) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -558,7 +562,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
             .await
             .unwrap();
 
@@ -571,8 +575,9 @@ mod tests {
     /// launch poll before seeing the errors. No `SubgraphPublishLaunchStatusQuery`
     /// mock is registered, so a regression that polls anyway would fail this
     /// test via an unmatched request.
+    #[rstest]
     #[tokio::test]
-    async fn run_skips_polling_when_there_are_composition_errors() {
+    async fn run_skips_polling_when_there_are_composition_errors(test_input: SubgraphPublishInput) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -595,7 +600,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
             .await
             .unwrap();
 
@@ -611,8 +616,11 @@ mod tests {
     /// `ASYNC` was requested, so a regression that kept sending `SYNC`
     /// (reintroducing the server-side wait this exists to avoid) fails the
     /// same way.
+    #[rstest]
     #[tokio::test]
-    async fn run_skips_polling_when_launch_poll_timeout_seconds_is_none() {
+    async fn run_skips_polling_when_launch_poll_timeout_seconds_is_none(
+        test_input: SubgraphPublishInput,
+    ) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -634,7 +642,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), None)
+        let response = run(test_input, &test_client(&server.url("/")), None)
             .await
             .unwrap();
 
@@ -643,8 +651,9 @@ mod tests {
         assert_that!(response.downstream_launches).is_equal_to(Vec::new());
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn run_polls_and_reports_triggered_downstream_launches() {
+    async fn run_polls_and_reports_triggered_downstream_launches(test_input: SubgraphPublishInput) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -672,7 +681,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
             .await
             .unwrap();
 
@@ -688,8 +697,9 @@ mod tests {
 
     /// A failed downstream launch is reported as data (not an `Err`) -- the
     /// subgraph publish itself already succeeded by the time this is known.
+    #[rstest]
     #[tokio::test]
-    async fn run_reports_a_failed_downstream_launch_as_data() {
+    async fn run_reports_a_failed_downstream_launch_as_data(test_input: SubgraphPublishInput) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -717,7 +727,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
             .await
             .unwrap();
 
@@ -735,8 +745,11 @@ mod tests {
     /// `status == LAUNCH_INITIATED` forever per the schema -- `run` must
     /// treat that as terminal (not spin until `LaunchTimeoutError`), and
     /// report the supersession as data.
+    #[rstest]
     #[tokio::test]
-    async fn run_reports_a_superseded_launch_as_data_instead_of_timing_out() {
+    async fn run_reports_a_superseded_launch_as_data_instead_of_timing_out(
+        test_input: SubgraphPublishInput,
+    ) {
         use httpmock::prelude::*;
 
         let server = MockServer::start_async().await;
@@ -756,7 +769,7 @@ mod tests {
             }));
         });
 
-        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+        let response = run(test_input, &test_client(&server.url("/")), Some(30))
             .await
             .unwrap();
 
