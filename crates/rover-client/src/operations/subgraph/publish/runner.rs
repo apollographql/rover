@@ -54,10 +54,17 @@ pub async fn run(
     let mut variables: MutationVariables = input.clone().into();
     // `SYNC` only when we're actually going to poll the result -- otherwise
     // this publish (e.g. from `rover init`) would still pay for synchronous
-    // downstream-launch initiation server-side even though nothing reads
-    // the result. `None` lets the server fall back to its own `ASYNC` default.
-    variables.downstream_launch_initiation = launch_poll_timeout_seconds
-        .map(|_| subgraph_publish_mutation::DownstreamLaunchInitiation::SYNC);
+    // downstream-launch initiation server-side even though nothing reads the
+    // result. Explicitly `Some(ASYNC)` rather than `None`: `graphql_client`
+    // serializes a `None` variable as JSON `null` (this operation doesn't opt
+    // into `skip_serializing_none`), and per the GraphQL spec a variable's
+    // schema default only applies when it's *omitted*, not when it's
+    // explicitly `null` -- so `None` here wouldn't reliably fall back to the
+    // schema's `ASYNC` default the way an absent variable would.
+    variables.downstream_launch_initiation = Some(match launch_poll_timeout_seconds {
+        Some(_) => subgraph_publish_mutation::DownstreamLaunchInitiation::SYNC,
+        None => subgraph_publish_mutation::DownstreamLaunchInitiation::ASYNC,
+    });
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
