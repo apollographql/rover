@@ -39,17 +39,25 @@ pub(crate) struct SubgraphPublishMutation;
 /// an `Err`: the subgraph publish itself already succeeded by this point,
 /// matching `graph publish`'s approach.
 ///
-/// `launch_poll_timeout_seconds: None` skips polling entirely (used by
-/// `rover init`, which publishes several subgraphs to the same variant in a
-/// row and doesn't need to wait on -- or even look at -- any of their
-/// launches, only the last of which wouldn't even be superseded).
+/// `launch_poll_timeout_seconds: None` skips polling entirely, and requests
+/// `ASYNC` downstream-launch initiation instead of `SYNC` -- avoiding the
+/// server-side wait too, not just the client-side one. Used by `rover init`,
+/// which publishes several subgraphs to the same variant in a row and
+/// doesn't need to wait on -- or even look at -- any of their launches, only
+/// the last of which wouldn't even be superseded.
 pub async fn run(
     input: SubgraphPublishInput,
     client: &StudioClient,
     launch_poll_timeout_seconds: Option<u64>,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let variables: MutationVariables = input.clone().into();
+    let mut variables: MutationVariables = input.clone().into();
+    // `SYNC` only when we're actually going to poll the result -- otherwise
+    // this publish (e.g. from `rover init`) would still pay for synchronous
+    // downstream-launch initiation server-side even though nothing reads
+    // the result. `None` lets the server fall back to its own `ASYNC` default.
+    variables.downstream_launch_initiation = launch_poll_timeout_seconds
+        .map(|_| subgraph_publish_mutation::DownstreamLaunchInitiation::SYNC);
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
@@ -93,10 +101,18 @@ pub async fn run(
     let data = client.post::<SubgraphPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref.clone())?;
 
-    let maybe_launch_id = publish_response
-        .launch
-        .as_ref()
-        .map(|launch| launch.id.clone());
+    // A publish with composition errors shouldn't make the caller wait on a
+    // launch poll before seeing them -- skip straight to reporting the
+    // errors, the same way `graph publish` skips polling on `NO_CHANGES`.
+    let has_composition_errors = publish_response.errors.iter().any(Option::is_some);
+    let maybe_launch_id = if has_composition_errors {
+        None
+    } else {
+        publish_response
+            .launch
+            .as_ref()
+            .map(|launch| launch.id.clone())
+    };
 
     let (launch_status, launch_superseded, downstream_launches) =
         match (maybe_launch_id, launch_poll_timeout_seconds) {
@@ -505,6 +521,43 @@ mod tests {
                     "serviceWasUpdated": true,
                     "launch": null,
                     "launchUrl": null,
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
+
+        let response = run(test_input(), &test_client(&server.url("/")), Some(30))
+            .await
+            .unwrap();
+
+        assert_that!(response.launch_status).is_none();
+        assert_that!(response.downstream_launches).is_equal_to(Vec::new());
+    }
+
+    /// Composition errors skip polling even when the mutation also returned
+    /// a launch id -- a broken schema shouldn't make the caller wait on a
+    /// launch poll before seeing the errors. No `SubgraphPublishLaunchStatusQuery`
+    /// mock is registered, so a regression that polls anyway would fail this
+    /// test via an unmatched request.
+    #[tokio::test]
+    async fn run_skips_polling_when_there_are_composition_errors() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST).body_includes("SubgraphPublishMutation");
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": null,
+                    "errors": [{
+                        "message": "[Accounts] -> Things went really wrong",
+                        "code": null
+                    }],
+                    "didUpdateGateway": false,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": false,
+                    "launch": { "id": "launch-1" },
+                    "launchUrl": "https://studio.apollographql.com/graph/mygraph/launches/launch-1",
                     "launchCliCopy": null
                 } } }
             }));
