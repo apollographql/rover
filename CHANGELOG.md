@@ -74,6 +74,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `subgraph publish` now waits (bounded by `--checks-timeout-seconds`/`APOLLO_CHECKS_TIMEOUT_SECONDS`) for the launch it triggers (and any downstream contract-variant launches) to finish before returning, and `--format json` gains `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome.
 
+- **Report triggered downstream contract-variant launches on `rover subgraph publish` - @dotdat**
+
+  `rover subgraph publish` now reports which contract variants had a downstream launch triggered by the publish, with a link, in text (printed to stderr) and JSON. Fails the publish if the launch itself or any downstream launch didn't complete successfully.
+
 ## 🐛 Fixes
 
 - **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**
