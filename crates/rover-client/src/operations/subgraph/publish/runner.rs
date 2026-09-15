@@ -121,14 +121,21 @@ pub async fn run(
             .map(|launch| launch.id.clone())
     };
 
-    let (launch_status, launch_superseded, downstream_launches) =
-        match (maybe_launch_id, launch_poll_timeout_seconds) {
-            (Some(launch_id), Some(timeout_seconds)) => {
-                let snapshot = poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await?;
-                build_launches_report(snapshot)
-            }
-            _ => (None, false, Vec::new()),
-        };
+    let LaunchesReport {
+        launch_status,
+        launch_superseded,
+        downstream_launches,
+    } = match (maybe_launch_id, launch_poll_timeout_seconds) {
+        (Some(launch_id), Some(timeout_seconds)) => {
+            let snapshot = poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await?;
+            build_launches_report(snapshot)
+        }
+        _ => LaunchesReport {
+            launch_status: None,
+            launch_superseded: false,
+            downstream_launches: Vec::new(),
+        },
+    };
 
     Ok(build_response(
         publish_response,
@@ -190,16 +197,22 @@ async fn poll_launch(
     }
 }
 
-/// Builds the (launch_status, launch_superseded, downstream_launches) report
-/// from a finished launch snapshot. Always populated once a launch was
-/// polled -- including a `FAILED` status, which is reported as data here
-/// rather than as an error (see `run`'s doc comment). A superseded launch
-/// keeps `status == INITIATED` forever per the API; `superseded` is the only
-/// way to tell it apart from one still genuinely in flight.
-fn build_launches_report(
-    snapshot: LaunchSnapshot,
-) -> (Option<LaunchStatus>, bool, Vec<DownstreamLaunch>) {
-    let variants = snapshot
+/// The (launch_status, launch_superseded, downstream_launches) report built
+/// from a finished launch snapshot -- see `build_launches_report`.
+struct LaunchesReport {
+    launch_status: Option<LaunchStatus>,
+    launch_superseded: bool,
+    downstream_launches: Vec<DownstreamLaunch>,
+}
+
+/// Builds the launches report from a finished launch snapshot. Always fully
+/// populated once a launch was polled -- including a `FAILED` status, which
+/// is reported as data here rather than as an error (see `run`'s doc
+/// comment). A superseded launch keeps `status == INITIATED` forever per the
+/// API; `superseded` is the only way to tell it apart from one still
+/// genuinely in flight.
+fn build_launches_report(snapshot: LaunchSnapshot) -> LaunchesReport {
+    let downstream_launches = snapshot
         .downstream_launches
         .into_iter()
         .map(|launch| DownstreamLaunch {
@@ -210,7 +223,11 @@ fn build_launches_report(
             superseded: launch.superseded,
         })
         .collect();
-    (Some(snapshot.status), snapshot.superseded, variants)
+    LaunchesReport {
+        launch_status: Some(snapshot.status),
+        launch_superseded: snapshot.superseded,
+        downstream_launches,
+    }
 }
 
 fn get_publish_response_from_data(
