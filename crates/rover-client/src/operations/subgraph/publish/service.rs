@@ -90,6 +90,7 @@ mod tests {
 
     use rover_studio::types::GraphRef;
     use rover_tower::poll_retry::poll_until_complete;
+    use rstest::{fixture, rstest};
     use serde_json::json;
     use speculoos::prelude::*;
     use tower::ServiceExt;
@@ -100,6 +101,7 @@ mod tests {
         shared::LaunchStatus,
     };
 
+    #[fixture]
     fn test_input() -> LaunchStatusInput {
         LaunchStatusInput {
             graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
@@ -116,8 +118,11 @@ mod tests {
     /// A null `launch` -- expected immediately after the mutation that
     /// created it, before Studio's read path catches up -- must be reported
     /// as `LaunchPoll::NotFound`, not as an error.
+    #[rstest]
     #[tokio::test]
-    async fn call_reports_not_found_instead_of_erroring_on_a_null_launch() {
+    async fn call_reports_not_found_instead_of_erroring_on_a_null_launch(
+        test_input: LaunchStatusInput,
+    ) {
         let inner = tower::service_fn(|_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| {
             let data = response_data(json!({ "graph": { "variant": { "launch": null } } }));
             async move {
@@ -128,7 +133,7 @@ mod tests {
         });
 
         let result = SubgraphPublishLaunchStatus::new(inner)
-            .oneshot(test_input())
+            .oneshot(test_input)
             .await
             .unwrap();
 
@@ -138,8 +143,11 @@ mod tests {
     /// The bug this guards against: a transient `LaunchPoll::NotFound` on the
     /// first poll attempt must not fail the whole publish -- `poll_until_complete`
     /// has to retry past it and resolve once the launch becomes visible.
+    #[rstest]
     #[tokio::test]
-    async fn poll_until_complete_retries_past_a_transient_not_found_launch() {
+    async fn poll_until_complete_retries_past_a_transient_not_found_launch(
+        test_input: LaunchStatusInput,
+    ) {
         let calls = Arc::new(AtomicUsize::new(0));
         let inner = tower::service_fn({
             let calls = calls.clone();
@@ -177,7 +185,7 @@ mod tests {
             .ready()
             .await
             .unwrap()
-            .call(test_input())
+            .call(test_input)
             .await
             .unwrap();
 
@@ -194,8 +202,11 @@ mod tests {
     /// A launch that's visible but still `LAUNCH_INITIATED` must keep the
     /// loop going (distinct from the not-yet-visible case above) until it
     /// reaches a terminal state.
+    #[rstest]
     #[tokio::test]
-    async fn poll_until_complete_retries_a_found_but_still_running_launch() {
+    async fn poll_until_complete_retries_a_found_but_still_running_launch(
+        test_input: LaunchStatusInput,
+    ) {
         let calls = Arc::new(AtomicUsize::new(0));
         let inner = tower::service_fn({
             let calls = calls.clone();
@@ -234,7 +245,7 @@ mod tests {
             .ready()
             .await
             .unwrap()
-            .call(test_input())
+            .call(test_input)
             .await
             .unwrap();
 
@@ -250,8 +261,11 @@ mod tests {
 
     /// A launch stuck `LAUNCH_INITIATED` past the deadline surfaces as a
     /// `LaunchTimeoutError`, not an infinite loop.
+    #[rstest]
     #[tokio::test(start_paused = true)]
-    async fn poll_until_complete_times_out_on_a_launch_stuck_initiated() {
+    async fn poll_until_complete_times_out_on_a_launch_stuck_initiated(
+        test_input: LaunchStatusInput,
+    ) {
         let inner = tower::service_fn(
             |_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| async {
                 let data = response_data(json!({ "graph": { "variant": { "launch": {
@@ -278,7 +292,7 @@ mod tests {
             },
         );
 
-        let call = service.ready().await.unwrap().call(test_input());
+        let call = service.ready().await.unwrap().call(test_input);
         tokio::time::advance(Duration::from_secs(31)).await;
         let err = call.await.unwrap_err();
 
