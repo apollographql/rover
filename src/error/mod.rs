@@ -124,6 +124,9 @@ impl RoverError {
                 check_response,
             }) => check_response.get_json(),
             Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
+            Some(RoverClientError::PublishLaunchFailure {
+                publish_response, ..
+            }) => publish_response.clone(),
             _ => Value::Null,
         }
     }
