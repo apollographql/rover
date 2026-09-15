@@ -6,8 +6,9 @@ use tower::Service;
 
 use crate::{
     operations::subgraph::publish::{
-        runner::{subgraph_publish_launch_status_query, SubgraphPublishLaunchStatusQuery},
-        types::{LaunchSnapshot, LaunchStatusInput},
+        subgraph_publish_launch_status_query,
+        types::{LaunchPoll, LaunchStatusInput},
+        SubgraphPublishLaunchStatusQuery,
     },
     shared::preview_poll::require_variant,
     RoverClientError,
@@ -39,7 +40,7 @@ where
         + 'static,
     Fut: Future<Output = Result<S::Response, S::Error>> + Send,
 {
-    type Response = LaunchSnapshot;
+    type Response = LaunchPoll;
     type Error = RoverClientError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -58,19 +59,135 @@ where
         let mut inner = replace_ready_service(&mut self.inner);
         let fut = async move {
             let graph_ref = input.graph_ref.clone();
-            let launch_id = input.launch_id.clone();
             let response_data = inner.call(GraphQLRequest::new(input.into())).await?;
-            let launch = require_variant(
+            let variant = require_variant(
                 response_data.graph.and_then(|graph| graph.variant),
                 &graph_ref,
-            )?
-            .launch
-            .ok_or_else(|| RoverClientError::LaunchNotFound {
-                graph_ref: graph_ref.clone(),
-                launch_id,
-            })?;
-            Ok(launch.into())
+            )?;
+            // A launch not (yet) being visible from this query is expected
+            // immediately after the mutation that created it -- Studio's
+            // read path can briefly lag -- so it's reported as an
+            // `Incomplete` poll outcome (via `LaunchPoll::NotFound`) to keep
+            // the poll loop going, not as an error.
+            Ok(match variant.launch {
+                Some(launch) => LaunchPoll::Found(launch.into()),
+                None => LaunchPoll::NotFound,
+            })
         };
         Box::pin(fut)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        time::Duration,
+    };
+
+    use rover_studio::types::GraphRef;
+    use rover_tower::poll_retry::poll_until_complete;
+    use serde_json::json;
+    use speculoos::prelude::*;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::{
+        operations::subgraph::publish::types::{DownstreamLaunchSnapshot, LaunchSnapshot},
+        shared::LaunchStatus,
+    };
+
+    fn test_input() -> LaunchStatusInput {
+        LaunchStatusInput {
+            graph_ref: GraphRef::new("mygraph", Some("current")).unwrap(),
+            launch_id: "launch-1".to_string(),
+        }
+    }
+
+    fn response_data(
+        json: serde_json::Value,
+    ) -> subgraph_publish_launch_status_query::ResponseData {
+        serde_json::from_value(json).unwrap()
+    }
+
+    /// A null `launch` -- expected immediately after the mutation that
+    /// created it, before Studio's read path catches up -- must be reported
+    /// as `LaunchPoll::NotFound`, not as an error.
+    #[tokio::test]
+    async fn call_reports_not_found_instead_of_erroring_on_a_null_launch() {
+        let inner = tower::service_fn(|_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| {
+            let data = response_data(json!({ "graph": { "variant": { "launch": null } } }));
+            async move {
+                Ok::<_, GraphQLServiceError<subgraph_publish_launch_status_query::ResponseData>>(
+                    data,
+                )
+            }
+        });
+
+        let result = SubgraphPublishLaunchStatus::new(inner)
+            .oneshot(test_input())
+            .await
+            .unwrap();
+
+        assert_that!(result).is_equal_to(LaunchPoll::NotFound);
+    }
+
+    /// The bug this guards against: a transient `LaunchPoll::NotFound` on the
+    /// first poll attempt must not fail the whole publish -- `poll_until_complete`
+    /// has to retry past it and resolve once the launch becomes visible.
+    #[tokio::test]
+    async fn poll_until_complete_retries_past_a_transient_not_found_launch() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let inner = tower::service_fn({
+            let calls = calls.clone();
+            move |_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| {
+                let calls = calls.clone();
+                async move {
+                    let call = calls.fetch_add(1, Ordering::SeqCst);
+                    let data = if call == 0 {
+                        response_data(json!({ "graph": { "variant": { "launch": null } } }))
+                    } else {
+                        response_data(json!({ "graph": { "variant": { "launch": {
+                            "id": "launch-1",
+                            "graphId": "mygraph",
+                            "graphVariant": "current",
+                            "status": "LAUNCH_COMPLETED",
+                            "supersededAt": null,
+                            "downstreamLaunches": []
+                        } } } }))
+                    };
+                    Ok::<_, GraphQLServiceError<subgraph_publish_launch_status_query::ResponseData>>(
+                        data,
+                    )
+                }
+            }
+        });
+
+        let mut service = poll_until_complete(
+            SubgraphPublishLaunchStatus::new(inner),
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+            || RoverClientError::LaunchTimeoutError { url: None },
+        );
+
+        let result = service
+            .ready()
+            .await
+            .unwrap()
+            .call(test_input())
+            .await
+            .unwrap();
+
+        assert_that!(calls.load(Ordering::SeqCst)).is_equal_to(2);
+        assert_that!(result).is_equal_to(LaunchPoll::Found(LaunchSnapshot {
+            launch_id: "launch-1".to_string(),
+            graph_id: "mygraph".to_string(),
+            status: LaunchStatus::COMPLETED,
+            superseded: false,
+            downstream_launches: Vec::<DownstreamLaunchSnapshot>::new(),
+        }));
     }
 }

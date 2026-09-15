@@ -1,4 +1,4 @@
-use super::runner::{subgraph_publish_launch_status_query, subgraph_publish_mutation};
+use super::{runner::subgraph_publish_mutation, subgraph_publish_launch_status_query};
 use crate::shared::{DownstreamLaunch, GitContext, LaunchStatus};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
@@ -116,6 +116,27 @@ impl PollOutcome for LaunchSnapshot {
             SimplePollOutcome::Incomplete
         } else {
             SimplePollOutcome::Complete
+        }
+    }
+}
+
+/// The outcome of one poll attempt for a `subgraph publish`'s launch status.
+/// Studio's read path can briefly lag behind the mutation that created the
+/// launch, so a launch not (yet) existing is a normal, expected response
+/// right after the mutation -- not a failure -- and must keep the poll loop
+/// going rather than erroring out on the first attempt.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum LaunchPoll {
+    /// The launch doesn't exist yet from this query's point of view.
+    NotFound,
+    Found(LaunchSnapshot),
+}
+
+impl PollOutcome for LaunchPoll {
+    fn poll_outcome(&self) -> SimplePollOutcome {
+        match self {
+            LaunchPoll::NotFound => SimplePollOutcome::Incomplete,
+            LaunchPoll::Found(snapshot) => snapshot.poll_outcome(),
         }
     }
 }

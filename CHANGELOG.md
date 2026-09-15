@@ -72,7 +72,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`rover subgraph publish` polls a triggered launch to completion - @dotdat**
 
-  `subgraph publish` now waits for the launch it triggers (and any downstream contract-variant launches) to finish before returning, and `--format json` gains `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome.
+  `subgraph publish` now waits (bounded by `--checks-timeout-seconds`/`APOLLO_CHECKS_TIMEOUT_SECONDS`) for the launch it triggers (and any downstream contract-variant launches) to finish before returning, and `--format json` gains `launch_status`, `launch_superseded`, and `downstream_launches` fields reflecting the outcome.
 
 ## 🐛 Fixes
 

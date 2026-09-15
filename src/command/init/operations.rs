@@ -129,9 +129,10 @@ pub(crate) async fn publish_subgraphs(
                 changelog_message: None,
             },
             client,
-            // `rover init` has no `--checks-timeout-seconds`-style knob of its own;
-            // this matches `Rover::get_checks_timeout_seconds`'s default.
-            300,
+            // `init` publishes several subgraphs to the same variant in a row and
+            // doesn't need to wait on any of their launches -- each subsequent
+            // publish would just supersede the previous one's anyway.
+            None,
         )
         .await?;
     }
