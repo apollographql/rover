@@ -225,6 +225,18 @@ pub enum RoverClientError {
         check_response: Box<CheckWorkflowResponse>,
     },
 
+    /// This error occurs when `graph publish`/`subgraph publish` succeeded,
+    /// but a launch it triggered (or one of the downstream contract-variant
+    /// launches it triggered) did not complete successfully. `publish_response`
+    /// is pre-serialized rather than the concrete `GraphPublishResponse`/
+    /// `SubgraphPublishResponse` type, since this crate's error type has no
+    /// other reason to depend on either operation's response type directly.
+    #[error("The publish succeeded, but a triggered launch did not complete successfully.")]
+    PublishLaunchFailure {
+        graph_ref: GraphRef,
+        publish_response: serde_json::Value,
+    },
+
     /// While linting the proposed schema, some rule violations were found
     #[error("While linting the proposed schema, some rule violations were found")]
     LintFailures { lint_response: LintResponse },

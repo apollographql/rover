@@ -152,9 +152,11 @@ impl Publish {
             stderr.print(&StyledText::plain(launches_text));
         }
         if launches_output.exit_code() != 0 {
-            return Err(RoverError::new(anyhow!(
-                "The publish succeeded, but a triggered launch did not complete successfully. See the launch report above for details."
-            )));
+            return Err(RoverClientError::PublishLaunchFailure {
+                graph_ref: self.graph.graph_ref.clone(),
+                publish_response: serde_json::json!(publish_response),
+            }
+            .into());
         }
 
         Ok(RoverOutput::GraphPublishResponse {

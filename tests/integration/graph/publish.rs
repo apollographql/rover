@@ -156,3 +156,31 @@ fn graph_publish_fails_when_a_downstream_launch_fails() {
         "stderr did not contain the expected failure detail: {stderr}"
     );
 }
+
+/// Same failure scenario as above, but verifying `--format json` still
+/// carries the full publish response as `data` (rather than `null`) and a
+/// matching `error.code`, via `RoverClientError::PublishLaunchFailure`.
+#[test]
+#[serial]
+fn graph_publish_json_includes_data_and_error_code_when_a_downstream_launch_fails() {
+    let output = run_graph_publish(
+        LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE,
+        &["--format", "json"],
+    );
+
+    assert!(
+        !output.status.success(),
+        "expected a nonzero exit code; stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["error"]["code"], "E047");
+    assert_eq!(json["data"]["api_schema_hash"], "123456");
+    assert_eq!(json["data"]["launch_status"], "COMPLETED");
+    assert_eq!(
+        json["data"]["downstream_launches"][0]["variant_name"],
+        "mobile"
+    );
+    assert_eq!(json["data"]["downstream_launches"][0]["status"], "FAILED");
+}
