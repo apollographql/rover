@@ -492,11 +492,17 @@ mod tests {
         }
     }
 
+    /// Used only by polling tests (`launch_poll_timeout_seconds: Some(_)`),
+    /// so the mock also asserts the mutation actually requested `SYNC`
+    /// downstream-launch initiation -- a regression that stopped setting it
+    /// would fail via an unmatched request rather than silently passing.
     fn mutation_mock_with_launch(server: &httpmock::MockServer) {
         use httpmock::prelude::*;
 
         server.mock(|when, then| {
-            when.method(POST).body_includes("SubgraphPublishMutation");
+            when.method(POST)
+                .body_includes("SubgraphPublishMutation")
+                .body_includes(r#""downstream_launch_initiation":"SYNC""#);
             then.status(200).json_body(serde_json::json!({
                 "data": { "graph": { "publishSubgraph": {
                     "compositionConfig": { "schemaHash": "5gf564" },
@@ -582,11 +588,32 @@ mod tests {
     /// triggered a launch -- used by `rover init`, which doesn't need launch
     /// data and shouldn't block on it. No `SubgraphPublishLaunchStatusQuery`
     /// mock is registered, so a regression that polls anyway would fail this
-    /// test via an unmatched request.
+    /// test via an unmatched request; the mutation mock additionally asserts
+    /// `ASYNC` was requested, so a regression that kept sending `SYNC`
+    /// (reintroducing the server-side wait this exists to avoid) fails the
+    /// same way.
     #[tokio::test]
     async fn run_skips_polling_when_launch_poll_timeout_seconds_is_none() {
-        let server = httpmock::MockServer::start_async().await;
-        mutation_mock_with_launch(&server);
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        server.mock(|when, then| {
+            when.method(POST)
+                .body_includes("SubgraphPublishMutation")
+                .body_includes(r#""downstream_launch_initiation":"ASYNC""#);
+            then.status(200).json_body(serde_json::json!({
+                "data": { "graph": { "publishSubgraph": {
+                    "compositionConfig": { "schemaHash": "5gf564" },
+                    "errors": [],
+                    "didUpdateGateway": true,
+                    "serviceWasCreated": false,
+                    "serviceWasUpdated": true,
+                    "launch": { "id": "launch-1" },
+                    "launchUrl": "https://studio.apollographql.com/graph/mygraph/launches/launch-1",
+                    "launchCliCopy": null
+                } } }
+            }));
+        });
 
         let response = run(test_input(), &test_client(&server.url("/")), None)
             .await
