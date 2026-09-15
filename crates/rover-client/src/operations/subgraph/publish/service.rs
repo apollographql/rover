@@ -190,4 +190,105 @@ mod tests {
             downstream_launches: Vec::<DownstreamLaunchSnapshot>::new(),
         }));
     }
+
+    /// A launch that's visible but still `LAUNCH_INITIATED` must keep the
+    /// loop going (distinct from the not-yet-visible case above) until it
+    /// reaches a terminal state.
+    #[tokio::test]
+    async fn poll_until_complete_retries_a_found_but_still_running_launch() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let inner = tower::service_fn({
+            let calls = calls.clone();
+            move |_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| {
+                let calls = calls.clone();
+                async move {
+                    let call = calls.fetch_add(1, Ordering::SeqCst);
+                    let status = if call == 0 {
+                        "LAUNCH_INITIATED"
+                    } else {
+                        "LAUNCH_COMPLETED"
+                    };
+                    let data = response_data(json!({ "graph": { "variant": { "launch": {
+                        "id": "launch-1",
+                        "graphId": "mygraph",
+                        "graphVariant": "current",
+                        "status": status,
+                        "supersededAt": null,
+                        "downstreamLaunches": []
+                    } } } }));
+                    Ok::<_, GraphQLServiceError<subgraph_publish_launch_status_query::ResponseData>>(
+                        data,
+                    )
+                }
+            }
+        });
+
+        let mut service = poll_until_complete(
+            SubgraphPublishLaunchStatus::new(inner),
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+            || RoverClientError::LaunchTimeoutError { url: None },
+        );
+
+        let result = service
+            .ready()
+            .await
+            .unwrap()
+            .call(test_input())
+            .await
+            .unwrap();
+
+        assert_that!(calls.load(Ordering::SeqCst)).is_equal_to(2);
+        assert_that!(result).is_equal_to(LaunchPoll::Found(LaunchSnapshot {
+            launch_id: "launch-1".to_string(),
+            graph_id: "mygraph".to_string(),
+            status: LaunchStatus::COMPLETED,
+            superseded: false,
+            downstream_launches: Vec::<DownstreamLaunchSnapshot>::new(),
+        }));
+    }
+
+    /// A launch stuck `LAUNCH_INITIATED` past the deadline surfaces as a
+    /// `LaunchTimeoutError`, not an infinite loop.
+    #[tokio::test(start_paused = true)]
+    async fn poll_until_complete_times_out_on_a_launch_stuck_initiated() {
+        let inner = tower::service_fn(
+            |_req: GraphQLRequest<SubgraphPublishLaunchStatusQuery>| async {
+                let data = response_data(json!({ "graph": { "variant": { "launch": {
+                    "id": "launch-1",
+                    "graphId": "mygraph",
+                    "graphVariant": "current",
+                    "status": "LAUNCH_INITIATED",
+                    "supersededAt": null,
+                    "downstreamLaunches": []
+                } } } }));
+                Ok::<_, GraphQLServiceError<subgraph_publish_launch_status_query::ResponseData>>(
+                    data,
+                )
+            },
+        );
+
+        let url = "https://studio.apollographql.com/graph/mygraph/launches/launch-1".to_string();
+        let mut service = poll_until_complete(
+            SubgraphPublishLaunchStatus::new(inner),
+            Duration::from_secs(5),
+            Duration::from_secs(30),
+            move || RoverClientError::LaunchTimeoutError {
+                url: Some(url.clone()),
+            },
+        );
+
+        let call = service.ready().await.unwrap().call(test_input());
+        tokio::time::advance(Duration::from_secs(31)).await;
+        let err = call.await.unwrap_err();
+
+        match err {
+            RoverClientError::LaunchTimeoutError { url } => {
+                assert_that!(url).is_equal_to(Some(
+                    "https://studio.apollographql.com/graph/mygraph/launches/launch-1".to_string(),
+                ));
+            }
+            other => panic!("expected LaunchTimeoutError, got {other:?}"),
+        }
+    }
 }

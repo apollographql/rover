@@ -207,6 +207,11 @@ impl From<SubgraphPublishInput> for MutationVariables {
                 message: publish_input.changelog_message,
             },
             revision: "".to_string(),
+            // Overridden by `run` based on whether launch polling was
+            // requested; `None` here lets the server fall back to its own
+            // default (`ASYNC`) for callers that construct `Variables`
+            // directly.
+            downstream_launch_initiation: None,
         }
     }
 }
