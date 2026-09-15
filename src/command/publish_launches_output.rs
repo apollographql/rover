@@ -1,45 +1,39 @@
 use pluralizer::pluralize;
-use rover_client::{
-    operations::graph::publish::GraphPublishResponse,
-    shared::{DownstreamLaunch, LaunchStatus},
-};
+use rover_client::shared::{DownstreamLaunch, LaunchStatus, PublishLaunches};
 use rover_std::{Style, hyperlink};
 
 use crate::command::CliOutput;
 
-/// [`CliOutput`] for the launch/downstream-launch portion of `rover graph
-/// publish`'s response. Used inline by `Publish::run` -- like
-/// `crate::command::check_output::CheckWorkflowOutput` -- rather than
-/// returned as the command's own `RoverOutput`, so the existing hash-only
-/// stdout contract for a successful publish is unaffected. `exit_code()`
-/// decides whether a triggered launch failure should fail the command.
+/// [`CliOutput`] for the launch/downstream-launch portion of a `graph
+/// publish`/`subgraph publish` response -- shared by both commands, like
+/// `crate::command::check_output::CheckWorkflowOutput` is for their `--check`
+/// flow. Used inline by each command's `Publish::run` rather than returned as
+/// the command's own `RoverOutput`, so each command's existing stdout
+/// contract is unaffected. `exit_code()` decides whether a triggered launch
+/// failure should fail the command.
 #[derive(Debug)]
-pub(super) struct GraphPublishLaunchesOutput<'a>(pub &'a GraphPublishResponse);
+pub(crate) struct PublishLaunchesOutput<'a, T>(pub &'a T);
 
-impl GraphPublishLaunchesOutput<'_> {
+impl<T: PublishLaunches> PublishLaunchesOutput<'_, T> {
     fn has_blocking_failure(&self) -> bool {
-        self.0.launch_status == Some(LaunchStatus::FAILED)
+        self.0.launch_status() == Some(LaunchStatus::FAILED)
             || self.failed_downstream_launches().next().is_some()
     }
 
     fn failed_downstream_launches(&self) -> impl Iterator<Item = &DownstreamLaunch> {
         self.0
-            .downstream_launches
+            .downstream_launches()
             .iter()
             .filter(|launch| launch.status == LaunchStatus::FAILED)
     }
 }
 
-impl CliOutput for GraphPublishLaunchesOutput<'_> {
+impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesOutput<'_, T> {
     fn exit_code(&self) -> i32 {
         if self.has_blocking_failure() { 1 } else { 0 }
     }
 
     fn text(&self) -> String {
-        let Some(launch_url) = &self.0.launch_url else {
-            return String::new();
-        };
-
         if self.has_blocking_failure() {
             let failed_variants = self
                 .failed_downstream_launches()
@@ -49,18 +43,38 @@ impl CliOutput for GraphPublishLaunchesOutput<'_> {
                 "the launch itself failed".to_string()
             } else {
                 format!(
-                    "downstream contract launch(es) failed: {}",
+                    "{} failed: {}",
+                    pluralize(
+                        "downstream contract launch",
+                        failed_variants.len() as isize,
+                        false
+                    ),
                     Style::Variant.paint(failed_variants.join(", "))
                 )
             };
-            format!(
-                "The publish succeeded, but {detail}.\nView launch details at: {}",
-                hyperlink(launch_url)
-            )
-        } else if !self.0.downstream_launches.is_empty() {
+            // Prefer the source launch's own URL; the mutation's `launchUrl`
+            // and the polled launch status are independently nullable, so a
+            // failed launch can exist with no source URL -- fall back to a
+            // failed downstream launch's URL, which is always hand-built and
+            // populated.
+            let url = self.0.launch_url().or_else(|| {
+                self.failed_downstream_launches()
+                    .next()
+                    .map(|launch| launch.url.as_str())
+            });
+            match url {
+                Some(url) => format!(
+                    "The publish succeeded, but {detail}.\nView launch details at: {}",
+                    hyperlink(url)
+                ),
+                None => format!("The publish succeeded, but {detail}."),
+            }
+        } else if let Some(launch_url) = self.0.launch_url()
+            && !self.0.downstream_launches().is_empty()
+        {
             let variants = self
                 .0
-                .downstream_launches
+                .downstream_launches()
                 .iter()
                 .map(|launch| launch.variant_name.as_str())
                 .collect::<Vec<_>>()
@@ -69,7 +83,7 @@ impl CliOutput for GraphPublishLaunchesOutput<'_> {
                 "Triggered downstream launches for {}: {}.\nView launch details at: {}",
                 pluralize(
                     "contract variant",
-                    self.0.downstream_launches.len() as isize,
+                    self.0.downstream_launches().len() as isize,
                     true
                 ),
                 Style::Variant.paint(variants),
@@ -82,27 +96,55 @@ impl CliOutput for GraphPublishLaunchesOutput<'_> {
 
     fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
         serde_json::to_value(serde_json::json!({
-            "launch_url": self.0.launch_url,
-            "launch_status": self.0.launch_status,
-            "launch_superseded": self.0.launch_superseded,
-            "downstream_launches": self.0.downstream_launches,
+            "launch_url": self.0.launch_url(),
+            "launch_status": self.0.launch_status(),
+            "launch_superseded": self.0.launch_superseded(),
+            "downstream_launches": self.0.downstream_launches(),
         }))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rover_client::operations::graph::publish::{ChangeSummary, FieldChanges, TypeChanges};
     use rstest::rstest;
     use speculoos::prelude::*;
 
     use super::*;
 
+    /// A minimal stand-in for `GraphPublishResponse`/`SubgraphPublishResponse`,
+    /// used so these tests exercise the shared rendering logic once, in
+    /// isolation, rather than being duplicated per response type.
+    #[derive(Debug)]
+    struct TestLaunches {
+        launch_url: Option<String>,
+        launch_status: Option<LaunchStatus>,
+        launch_superseded: bool,
+        downstream_launches: Vec<DownstreamLaunch>,
+    }
+
+    impl PublishLaunches for TestLaunches {
+        fn launch_url(&self) -> Option<&str> {
+            self.launch_url.as_deref()
+        }
+
+        fn launch_status(&self) -> Option<LaunchStatus> {
+            self.launch_status.clone()
+        }
+
+        fn launch_superseded(&self) -> bool {
+            self.launch_superseded
+        }
+
+        fn downstream_launches(&self) -> &[DownstreamLaunch] {
+            &self.downstream_launches
+        }
+    }
+
     fn response(
         launch_url: Option<&str>,
         launch_status: Option<LaunchStatus>,
         downstream_launches: Vec<DownstreamLaunch>,
-    ) -> GraphPublishResponse {
+    ) -> TestLaunches {
         response_with_superseded(launch_url, launch_status, false, downstream_launches)
     }
 
@@ -111,22 +153,8 @@ mod tests {
         launch_status: Option<LaunchStatus>,
         launch_superseded: bool,
         downstream_launches: Vec<DownstreamLaunch>,
-    ) -> GraphPublishResponse {
-        GraphPublishResponse {
-            api_schema_hash: "123456".to_string(),
-            change_summary: ChangeSummary {
-                field_changes: FieldChanges {
-                    additions: 0,
-                    removals: 0,
-                    edits: 0,
-                },
-                type_changes: TypeChanges {
-                    additions: 0,
-                    removals: 0,
-                    edits: 0,
-                },
-            },
-            total_type_count: 5,
+    ) -> TestLaunches {
+        TestLaunches {
             launch_url: launch_url.map(str::to_string),
             launch_status,
             launch_superseded,
@@ -155,7 +183,7 @@ mod tests {
     #[test]
     fn no_launch_reports_nothing() {
         let response = response(None, None, Vec::new());
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         assert_that!(output.text()).is_equal_to(String::new());
         assert_that!(output.exit_code()).is_equal_to(0);
@@ -168,7 +196,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             Vec::new(),
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         assert_that!(output.text()).is_equal_to(String::new());
         assert_that!(output.exit_code()).is_equal_to(0);
@@ -184,7 +212,7 @@ mod tests {
                 downstream("partner-api", LaunchStatus::COMPLETED),
             ],
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -200,7 +228,7 @@ mod tests {
             Some(LaunchStatus::FAILED),
             Vec::new(),
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -219,11 +247,64 @@ mod tests {
                 downstream("partner-api", LaunchStatus::FAILED),
             ],
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but downstream contract launch(es) failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+        assert_that!(output.exit_code()).is_equal_to(1);
+    }
+
+    #[test]
+    fn multiple_failed_downstream_launches_pluralize_correctly() {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::COMPLETED),
+            vec![
+                downstream("mobile", LaunchStatus::FAILED),
+                downstream("partner-api", LaunchStatus::FAILED),
+            ],
+        );
+        let output = PublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "The publish succeeded, but downstream contract launches failed: mobile, partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+    }
+
+    /// `launch_url` (from the mutation) and `launch_status` (from polling)
+    /// are independently nullable -- a failed launch with no source URL is
+    /// reachable, and must still render a failure message (and still exit
+    /// non-zero) rather than the empty string `exit_code() != 0` would then
+    /// have nothing to point at.
+    #[test]
+    fn a_failed_source_launch_with_no_launch_url_still_reports_and_fails() {
+        let response = response(None, Some(LaunchStatus::FAILED), Vec::new());
+        let output = PublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text)
+            .is_equal_to("The publish succeeded, but the launch itself failed.".to_string());
+        assert_that!(output.exit_code()).is_equal_to(1);
+    }
+
+    /// Same as above, but for a failed downstream launch -- falls back to
+    /// that launch's own (always-populated) URL instead of omitting the
+    /// link line entirely.
+    #[test]
+    fn a_failed_downstream_launch_with_no_source_launch_url_falls_back_to_its_own_url() {
+        let response = response(
+            None,
+            Some(LaunchStatus::COMPLETED),
+            vec![downstream("partner-api", LaunchStatus::FAILED)],
+        );
+        let output = PublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
@@ -238,7 +319,7 @@ mod tests {
             Some(status),
             Vec::new(),
         );
-        assert_that!(GraphPublishLaunchesOutput(&response).exit_code()).is_equal_to(expected);
+        assert_that!(PublishLaunchesOutput(&response).exit_code()).is_equal_to(expected);
     }
 
     #[test]
@@ -248,7 +329,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             vec![downstream("mobile", LaunchStatus::COMPLETED)],
         );
-        let json = GraphPublishLaunchesOutput(&response).json().unwrap();
+        let json = PublishLaunchesOutput(&response).json().unwrap();
 
         assert_that!(json).is_equal_to(serde_json::json!({
             "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
@@ -277,7 +358,7 @@ mod tests {
             true,
             Vec::new(),
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         assert_that!(output.exit_code()).is_equal_to(0);
         assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
@@ -300,7 +381,7 @@ mod tests {
                 true,
             )],
         );
-        let output = GraphPublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput(&response);
 
         assert_that!(output.exit_code()).is_equal_to(0);
         let json = output.json().unwrap();
