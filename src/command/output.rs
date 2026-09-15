@@ -967,9 +967,9 @@ mod tests {
         },
         shared::{
             ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
-            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
-            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
-            SdlType, Violation,
+            Diagnostic, DownstreamLaunch, LaunchStatus, LintCheckResponse, OperationCheckResponse,
+            ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
+            RelatedProposal, SchemaChange, Sdl, SdlType, Violation,
         },
     };
 
@@ -1797,6 +1797,61 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "launch_status": null,
                 "launch_superseded": false,
                 "downstream_launches": [],
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn subgraph_publish_success_with_downstream_launches_response_json() {
+        let mock_publish_response = SubgraphPublishResponse {
+            api_schema_hash: Some("123456".to_string()),
+            build_errors: BuildErrors::new(),
+            supergraph_was_updated: true,
+            subgraph_was_created: true,
+            subgraph_was_updated: true,
+            launch_url: Some("test.com/launchurl".to_string()),
+            launch_cli_copy: Some(
+                "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
+            ),
+            launch_status: Some(LaunchStatus::COMPLETED),
+            launch_superseded: false,
+            downstream_launches: vec![DownstreamLaunch {
+                graph_id: "graph".to_string(),
+                variant_name: "mobile".to_string(),
+                status: LaunchStatus::COMPLETED,
+                superseded: false,
+                url: "test.com/launches/mobile".to_string(),
+            }],
+        };
+        let actual_json = JsonOutput::from(&RoverOutput::SubgraphPublishResponse {
+            graph_ref: GraphRef::new("graph", Some("variant")).unwrap(),
+            subgraph: "subgraph".to_string(),
+            publish_response: mock_publish_response,
+        });
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "api_schema_hash": "123456",
+                "supergraph_was_updated": true,
+                "subgraph_was_created": true,
+                "subgraph_was_updated": true,
+                "success": true,
+                "launch_url": "test.com/launchurl",
+                "launch_cli_copy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
+                "launch_status": "COMPLETED",
+                "launch_superseded": false,
+                "downstream_launches": [
+                    {
+                        "graph_id": "graph",
+                        "variant_name": "mobile",
+                        "status": "COMPLETED",
+                        "superseded": false,
+                        "url": "test.com/launches/mobile"
+                    }
+                ],
             },
             "error": null
         });
