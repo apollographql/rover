@@ -321,7 +321,13 @@ impl RoverOutput {
                     )?;
                 }
 
-                if let Some(launch_cli_copy) = &publish_response.launch_cli_copy {
+                // Skip when downstream launches were triggered: `Publish::run`
+                // already printed a report (with its own link) for those,
+                // and `launch_cli_copy` is Studio-authored copy that also
+                // includes the launch URL -- printing both repeats it.
+                if publish_response.downstream_launches.is_empty()
+                    && let Some(launch_cli_copy) = &publish_response.launch_cli_copy
+                {
                     stderrln!("{}", launch_cli_copy)?;
                 }
 
