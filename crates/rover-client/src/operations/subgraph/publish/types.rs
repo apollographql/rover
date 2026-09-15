@@ -43,10 +43,14 @@ pub struct SubgraphPublishResponse {
 
     pub launch_cli_copy: Option<String>,
 
-    /// The publish's own launch's terminal status. `None` when the publish
-    /// triggered no launch at all. Carries the outcome as data rather than
-    /// as an error, matching `graph publish`'s success-or-failure-is-still-data
-    /// approach.
+    /// The publish's own launch's terminal status. `None` when no launch
+    /// was polled -- either because the publish triggered no launch at all,
+    /// the caller opted out of polling (`rover init`), or the publish
+    /// returned composition errors (in which case `launch_url`/
+    /// `launch_cli_copy` may still be populated from the mutation response
+    /// even though polling was skipped). Carries the outcome as data rather
+    /// than as an error, matching `graph publish`'s
+    /// success-or-failure-is-still-data approach.
     pub launch_status: Option<LaunchStatus>,
 
     /// Whether the publish's own launch was superseded by a later one (e.g. a
@@ -207,10 +211,10 @@ impl From<SubgraphPublishInput> for MutationVariables {
                 message: publish_input.changelog_message,
             },
             revision: "".to_string(),
-            // Overridden by `run` based on whether launch polling was
-            // requested; `None` here lets the server fall back to its own
-            // default (`ASYNC`) for callers that construct `Variables`
-            // directly.
+            // Always overridden by `run` (the only place `MutationVariables`
+            // is constructed) to an explicit `Some(SYNC | ASYNC)` based on
+            // whether launch polling was requested -- see its comment for
+            // why this can't just be left `None`.
             downstream_launch_initiation: None,
         }
     }
