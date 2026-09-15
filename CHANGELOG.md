@@ -76,7 +76,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Report triggered downstream contract-variant launches on `rover subgraph publish` - @dotdat**
 
-  `rover subgraph publish` now reports which contract variants had a downstream launch triggered by the publish, with links to each, in text (printed to stderr) and JSON. Fails the publish if the launch itself or any downstream launch didn't complete successfully.
+  `rover subgraph publish` now reports which contract variants had a downstream launch triggered by the publish, with a link, in text (printed to stderr) and JSON. Fails the publish if the launch itself or any downstream launch didn't complete successfully.
 
 ## 🐛 Fixes
 

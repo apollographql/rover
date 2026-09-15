@@ -36,10 +36,6 @@ impl CliOutput for SubgraphPublishLaunchesOutput<'_> {
     }
 
     fn text(&self) -> String {
-        let Some(launch_url) = &self.0.launch_url else {
-            return String::new();
-        };
-
         if self.has_blocking_failure() {
             let failed_variants = self
                 .failed_downstream_launches()
@@ -49,15 +45,35 @@ impl CliOutput for SubgraphPublishLaunchesOutput<'_> {
                 "the launch itself failed".to_string()
             } else {
                 format!(
-                    "downstream contract launch(es) failed: {}",
+                    "{} failed: {}",
+                    pluralize(
+                        "downstream contract launch",
+                        failed_variants.len() as isize,
+                        false
+                    ),
                     Style::Variant.paint(failed_variants.join(", "))
                 )
             };
-            format!(
-                "The publish succeeded, but {detail}.\nView launch details at: {}",
-                hyperlink(launch_url)
-            )
-        } else if !self.0.downstream_launches.is_empty() {
+            // Prefer the source launch's own URL; `launchUrl` (from the
+            // mutation) and the polled launch status are independently
+            // nullable, so a failed launch can exist with no source URL --
+            // fall back to a failed downstream launch's URL, which is
+            // always hand-built and populated.
+            let url = self.0.launch_url.as_deref().or_else(|| {
+                self.failed_downstream_launches()
+                    .next()
+                    .map(|launch| launch.url.as_str())
+            });
+            match url {
+                Some(url) => format!(
+                    "The publish succeeded, but {detail}.\nView launch details at: {}",
+                    hyperlink(url)
+                ),
+                None => format!("The publish succeeded, but {detail}."),
+            }
+        } else if let Some(launch_url) = &self.0.launch_url
+            && !self.0.downstream_launches.is_empty()
+        {
             let variants = self
                 .0
                 .downstream_launches
@@ -215,7 +231,60 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but downstream contract launch(es) failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+        assert_that!(output.exit_code()).is_equal_to(1);
+    }
+
+    #[test]
+    fn multiple_failed_downstream_launches_pluralize_correctly() {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::COMPLETED),
+            vec![
+                downstream("mobile", LaunchStatus::FAILED),
+                downstream("partner-api", LaunchStatus::FAILED),
+            ],
+        );
+        let output = SubgraphPublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "The publish succeeded, but downstream contract launches failed: mobile, partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+    }
+
+    /// `launch_url` (from the mutation) and `launch_status` (from polling)
+    /// are independently nullable -- a failed launch with no source URL is
+    /// reachable, and must still render a failure message (and still exit
+    /// non-zero) rather than the empty string `exit_code() != 0` would then
+    /// have nothing to point at.
+    #[test]
+    fn a_failed_source_launch_with_no_launch_url_still_reports_and_fails() {
+        let response = response(None, Some(LaunchStatus::FAILED), Vec::new());
+        let output = SubgraphPublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text)
+            .is_equal_to("The publish succeeded, but the launch itself failed.".to_string());
+        assert_that!(output.exit_code()).is_equal_to(1);
+    }
+
+    /// Same as above, but for a failed downstream launch -- falls back to
+    /// that launch's own (always-populated) URL instead of omitting the
+    /// link line entirely.
+    #[test]
+    fn a_failed_downstream_launch_with_no_source_launch_url_falls_back_to_its_own_url() {
+        let response = response(
+            None,
+            Some(LaunchStatus::COMPLETED),
+            vec![downstream("partner-api", LaunchStatus::FAILED)],
+        );
+        let output = SubgraphPublishLaunchesOutput(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
