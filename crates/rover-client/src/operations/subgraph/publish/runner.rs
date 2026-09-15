@@ -128,7 +128,7 @@ pub async fn run(
     } = match (maybe_launch_id, launch_poll_timeout_seconds) {
         (Some(launch_id), Some(timeout_seconds)) => {
             let snapshot = poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await?;
-            build_launches_report(snapshot)
+            LaunchesReport::new(snapshot)
         }
         _ => LaunchesReport {
             launch_status: None,
@@ -198,35 +198,37 @@ async fn poll_launch(
 }
 
 /// The (launch_status, launch_superseded, downstream_launches) report built
-/// from a finished launch snapshot -- see `build_launches_report`.
+/// from a finished launch snapshot -- see `LaunchesReport::new`.
 struct LaunchesReport {
     launch_status: Option<LaunchStatus>,
     launch_superseded: bool,
     downstream_launches: Vec<DownstreamLaunch>,
 }
 
-/// Builds the launches report from a finished launch snapshot. Always fully
-/// populated once a launch was polled -- including a `FAILED` status, which
-/// is reported as data here rather than as an error (see `run`'s doc
-/// comment). A superseded launch keeps `status == INITIATED` forever per the
-/// API; `superseded` is the only way to tell it apart from one still
-/// genuinely in flight.
-fn build_launches_report(snapshot: LaunchSnapshot) -> LaunchesReport {
-    let downstream_launches = snapshot
-        .downstream_launches
-        .into_iter()
-        .map(|launch| DownstreamLaunch {
-            url: launch_url(&launch.graph_id, &launch.launch_id),
-            graph_id: launch.graph_id,
-            variant_name: launch.variant_name,
-            status: launch.status,
-            superseded: launch.superseded,
-        })
-        .collect();
-    LaunchesReport {
-        launch_status: Some(snapshot.status),
-        launch_superseded: snapshot.superseded,
-        downstream_launches,
+impl LaunchesReport {
+    /// Builds the launches report from a finished launch snapshot. Always
+    /// fully populated once a launch was polled -- including a `FAILED`
+    /// status, which is reported as data here rather than as an error (see
+    /// `run`'s doc comment). A superseded launch keeps `status == INITIATED`
+    /// forever per the API; `superseded` is the only way to tell it apart
+    /// from one still genuinely in flight.
+    fn new(snapshot: LaunchSnapshot) -> Self {
+        let downstream_launches = snapshot
+            .downstream_launches
+            .into_iter()
+            .map(|launch| DownstreamLaunch {
+                url: launch_url(&launch.graph_id, &launch.launch_id),
+                graph_id: launch.graph_id,
+                variant_name: launch.variant_name,
+                status: launch.status,
+                superseded: launch.superseded,
+            })
+            .collect();
+        Self {
+            launch_status: Some(snapshot.status),
+            launch_superseded: snapshot.superseded,
+            downstream_launches,
+        }
     }
 }
 
