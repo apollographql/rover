@@ -63,6 +63,7 @@ pub enum RunMcpServerBinaryError {
 #[allow(unused)]
 pub struct McpServerBinary {
     exe: Utf8PathBuf,
+    #[cfg_attr(test, getter(skip))]
     provenance: PluginProvenance,
 }
 
@@ -75,6 +76,10 @@ impl McpServerBinary {
     #[allow(unused)]
     pub const fn version(&self) -> &Version {
         &self.provenance.version
+    }
+
+    pub const fn provenance(&self) -> &PluginProvenance {
+        &self.provenance
     }
 }
 

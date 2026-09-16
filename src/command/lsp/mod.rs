@@ -7,6 +7,7 @@ use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use futures::{StreamExt, channel::oneshot};
+use rover_print::{print::Print, style::StyledText};
 use serde::Serialize;
 use tower::ServiceExt;
 use tower_lsp::{
@@ -18,8 +19,11 @@ use url::Url;
 
 use crate::{
     RoverOutput, RoverResult,
-    command::lsp::errors::{
-        StartCompositionError, StartCompositionError::SupergraphYamlUrlConversionFailed,
+    command::{
+        install::PluginProvenanceTracker,
+        lsp::errors::{
+            StartCompositionError, StartCompositionError::SupergraphYamlUrlConversionFailed,
+        },
     },
     composition::{
         CompositionError, CompositionSubgraphAdded, CompositionSubgraphRemoved, CompositionSuccess,
@@ -126,12 +130,14 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             let lookup_supergraph_yaml_path = supergraph_yaml_path.clone();
             let lookup_plugin_opts = lsp_opts.plugin_opts.clone();
             tokio::spawn(async move {
+                let mut plugin_provenance = PluginProvenanceTracker::new();
                 while let Some((path, response)) = spec_lookup_receiver.next().await {
                     let spec = load_spec_for_path(
                         path,
                         lookup_client_config.clone(),
                         lookup_supergraph_yaml_path.clone(),
                         lookup_plugin_opts.clone(),
+                        &mut plugin_provenance,
                     )
                     .await;
                     response.send(spec).ok();
@@ -191,6 +197,7 @@ async fn load_spec_for_path(
     client_config: StudioClientConfig,
     supergraph_yaml_path: Utf8PathBuf,
     plugin_opts: PluginOpts,
+    plugin_provenance: &mut PluginProvenanceTracker,
 ) -> Option<String> {
     let supergraph_binary = get_supergraph_binary(
         None,
@@ -206,6 +213,12 @@ async fn load_spec_for_path(
     .state
     .supergraph_binary
     .ok()?;
+    // Every path lookup re-resolves the plugin; only print when it's new or changed (FR56).
+    if plugin_provenance.record(supergraph_binary.provenance().clone()) {
+        rover_print::print::stderr::default().print(&StyledText::plain(
+            supergraph_binary.provenance().to_string(),
+        ));
+    }
     let res = supergraph_binary
         .load_spec_for_file(path, &TokioCommand::default())
         .await;
@@ -408,6 +421,14 @@ async fn create_composition_runner(
             lsp_opts.plugin_opts.skip_update,
         )
         .await?;
+
+    // The chain above only succeeds once the supergraph binary is resolved, so this is
+    // always `Ok` here (FR54). Later mid-session version changes print their own line; see
+    // `composition::watchers::composition`.
+    if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
+        rover_print::print::stderr::default()
+            .print(&StyledText::plain(binary.provenance().to_string()));
+    }
 
     // Spin up Runner
     Ok(composition_pipeline

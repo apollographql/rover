@@ -6,6 +6,7 @@ use camino::Utf8PathBuf;
 use dotenvy::dotenv;
 use futures::StreamExt;
 use rover_client::RoverClientError;
+use rover_print::{print::Print, style::StyledText};
 use rover_std::{errln, infoln};
 use semver::Version;
 use timber::Level;
@@ -57,6 +58,7 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         log_level: Option<Level>,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         dotenv().ok();
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
@@ -159,6 +161,12 @@ impl Dev {
             )
             .await?;
 
+        // The chain above only succeeds once the supergraph binary is resolved, so this is
+        // always `Ok` here (FR54).
+        if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
+            stderr.print(&StyledText::plain(binary.provenance().to_string()));
+        }
+
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
             Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::LatestTwo,
@@ -255,7 +263,11 @@ impl Dev {
                 elv2_license_accepter,
                 skip_update,
             )
-            .await?
+            .await?;
+        stderr.print(&StyledText::plain(
+            run_router.state.binary.provenance().to_string(),
+        ));
+        let run_router = run_router
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
             .load_remote_config(
@@ -321,6 +333,9 @@ impl Dev {
                     skip_update,
                 )
                 .await?;
+            stderr.print(&StyledText::plain(
+                run_mcp_server.state.binary.provenance().to_string(),
+            ));
 
             let mut run_mcp_server = run_mcp_server
                 .run(

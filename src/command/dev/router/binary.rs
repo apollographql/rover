@@ -147,7 +147,7 @@ pub enum RunRouterBinaryError {
 #[cfg_attr(test, derive(derive_getters::Getters))]
 pub struct RouterBinary {
     exe: Utf8PathBuf,
-    #[allow(unused)]
+    #[cfg_attr(test, getter(skip))]
     provenance: PluginProvenance,
 }
 
@@ -160,6 +160,10 @@ impl RouterBinary {
     #[allow(unused)]
     pub const fn version(&self) -> &Version {
         &self.provenance.version
+    }
+
+    pub const fn provenance(&self) -> &PluginProvenance {
+        &self.provenance
     }
 }
 
