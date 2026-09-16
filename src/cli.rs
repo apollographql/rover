@@ -214,6 +214,7 @@ impl Rover {
                     .run(
                         self.get_install_override_path()?,
                         self.get_client_config().await?,
+                        &rover_print::print::stderr::default(),
                     )
                     .await
             }

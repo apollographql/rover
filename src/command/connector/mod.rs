@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, SchemaSource};
 use camino::Utf8PathBuf;
 use clap::Parser;
+use rover_print::{print::Print, style::StyledText};
 use rover_studio::types::GraphRef;
 use semver::Version;
 use serde::Serialize;
@@ -81,6 +82,7 @@ impl Connector {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use Command::*;
 
@@ -104,6 +106,9 @@ impl Connector {
         .await?;
         let default_subgraph = default_subgraph(&supergraph_yaml, &composition_pipeline).await;
         let supergraph_binary = composition_pipeline.state.supergraph_binary?;
+        stderr.print(&StyledText::plain(
+            supergraph_binary.provenance().to_string(),
+        ));
         let minimum_version = Version::parse("2.12.0-preview.7")?;
         let current_version = supergraph_binary.version();
         if current_version < &minimum_version {
