@@ -1,6 +1,8 @@
 use pluralizer::pluralize;
 use rover_client::{
-    operations::graph::publish::GraphPublishResponse,
+    operations::{
+        graph::publish::GraphPublishResponse, subgraph::publish::SubgraphPublishResponse,
+    },
     shared::{DownstreamLaunch, LaunchStatus},
 };
 use rover_std::{Style, hyperlink};
@@ -14,11 +16,12 @@ use crate::command::CliOutput;
 /// otherwise-different response types to share a field layout.
 ///
 /// Deliberately local to this (CLI/presentation) crate rather than living on
-/// `rover-client`'s shared types, even though it's implemented on a
-/// `rover-client` type (`GraphPublishResponse`) -- Rust's orphan rules allow
-/// a local trait on a foreign type, and this is presentation logic, not
-/// client/data logic (see `crate::command::check_output`'s doc comment for
-/// the same principle applied to `CheckWorkflowOutput`).
+/// `rover-client`'s shared types, even though it's implemented on
+/// `rover-client` types (`GraphPublishResponse`, `SubgraphPublishResponse`)
+/// -- Rust's orphan rules allow a local trait on a foreign type, and this is
+/// presentation logic, not client/data logic (see
+/// `crate::command::check_output`'s doc comment for the same principle
+/// applied to `CheckWorkflowOutput`).
 pub(crate) trait PublishLaunches {
     fn launch_url(&self) -> Option<&str>;
     fn launch_status(&self) -> Option<LaunchStatus>;
@@ -27,6 +30,24 @@ pub(crate) trait PublishLaunches {
 }
 
 impl PublishLaunches for GraphPublishResponse {
+    fn launch_url(&self) -> Option<&str> {
+        self.launch_url.as_deref()
+    }
+
+    fn launch_status(&self) -> Option<LaunchStatus> {
+        self.launch_status.clone()
+    }
+
+    fn launch_superseded(&self) -> bool {
+        self.launch_superseded
+    }
+
+    fn downstream_launches(&self) -> &[DownstreamLaunch] {
+        &self.downstream_launches
+    }
+}
+
+impl PublishLaunches for SubgraphPublishResponse {
     fn launch_url(&self) -> Option<&str> {
         self.launch_url.as_deref()
     }
@@ -526,6 +547,37 @@ mod tests {
             launch_url: Some(
                 "https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
             ),
+            launch_status: Some(LaunchStatus::FAILED),
+            launch_superseded: true,
+            downstream_launches: vec![downstream("mobile", LaunchStatus::COMPLETED)],
+        };
+
+        assert_that!(PublishLaunches::launch_url(&response)).is_equal_to(Some(
+            "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+        ));
+        assert_that!(PublishLaunches::launch_status(&response))
+            .is_equal_to(Some(LaunchStatus::FAILED));
+        assert_that!(PublishLaunches::launch_superseded(&response)).is_true();
+        assert_that!(PublishLaunches::downstream_launches(&response))
+            .is_equal_to(&[downstream("mobile", LaunchStatus::COMPLETED)][..]);
+    }
+
+    /// Same rationale as `graph_publish_response_implements_publish_launches_correctly`,
+    /// for `SubgraphPublishResponse`'s impl.
+    #[test]
+    fn subgraph_publish_response_implements_publish_launches_correctly() {
+        use apollo_federation_types::rover::BuildErrors;
+
+        let response = SubgraphPublishResponse {
+            api_schema_hash: Some("123456".to_string()),
+            supergraph_was_updated: true,
+            subgraph_was_created: false,
+            subgraph_was_updated: true,
+            build_errors: BuildErrors::new(),
+            launch_url: Some(
+                "https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            ),
+            launch_cli_copy: None,
             launch_status: Some(LaunchStatus::FAILED),
             launch_superseded: true,
             downstream_launches: vec![downstream("mobile", LaunchStatus::COMPLETED)],

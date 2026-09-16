@@ -1,11 +1,8 @@
-mod output;
-
 use std::io::{self, IsTerminal};
 
 use anyhow::anyhow;
 use clap::Parser;
 use futures::Future;
-use output::SubgraphPublishLaunchesOutput;
 use reqwest::Url;
 use rover_client::{
     RoverClientError,
@@ -26,7 +23,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    command::CliOutput,
+    command::{CliOutput, publish_launches_output::PublishLaunchesOutput},
     options::{CheckConfigOpts, GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
@@ -215,15 +212,17 @@ impl Publish {
         )
         .await?;
 
-        let launches_output = SubgraphPublishLaunchesOutput(&publish_response);
+        let launches_output = PublishLaunchesOutput(&publish_response);
         let launches_text = launches_output.text();
         if !launches_text.is_empty() {
             stderr.print(&StyledText::plain(launches_text));
         }
         if launches_output.exit_code() != 0 {
-            return Err(RoverError::new(anyhow!(
-                "The publish succeeded, but a triggered launch did not complete successfully. See the launch report above for details."
-            )));
+            return Err(RoverClientError::PublishLaunchFailure {
+                graph_ref: self.graph.graph_ref.clone(),
+                publish_response: serde_json::json!(publish_response),
+            }
+            .into());
         }
 
         Ok(RoverOutput::SubgraphPublishResponse {
