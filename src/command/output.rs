@@ -37,6 +37,7 @@ use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 #[cfg(feature = "composition-js")]
 use crate::command::{
     connector::run::{RunConnector, RunConnectorOutput},
+    install::PluginProvenance,
     supergraph::compose::CompositionOutput,
 };
 use crate::{
@@ -141,6 +142,11 @@ pub enum RoverOutput {
         jwt: String,
     },
     EmptySuccess,
+    /// The plugins a long-running command (`dev`, `lsp`) resolved before exiting (FR57).
+    /// Distinct from `EmptySuccess`, which many unrelated commands share and which never
+    /// carries plugin data.
+    #[cfg(feature = "composition-js")]
+    PluginsUsed(Vec<PluginProvenance>),
     MessageResponse {
         msg: String,
     },
@@ -584,6 +590,8 @@ impl RoverOutput {
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
+            #[cfg(feature = "composition-js")]
+            RoverOutput::PluginsUsed(_) => None,
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
             #[cfg(feature = "composition-js")]
             RoverOutput::ConnectorRunResponse { output } => {
@@ -739,12 +747,14 @@ impl RoverOutput {
                     json!({
                       "core_schema": composition_output.supergraph_sdl,
                       "hints": composition_output.hints,
-                      "federation_version": federation_version
+                      "federation_version": federation_version,
+                      "plugins": composition_output.plugins
                     })
                 } else {
                     json!({
                         "core_schema": composition_output.supergraph_sdl,
-                        "hints": composition_output.hints
+                        "hints": composition_output.hints,
+                        "plugins": composition_output.plugins
                     })
                 }
             }
@@ -802,6 +812,8 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
+            #[cfg(feature = "composition-js")]
+            RoverOutput::PluginsUsed(plugins) => json!({ "plugins": plugins }),
             RoverOutput::PersistedQueriesPublishResponse(response) => {
                 json!({
                   "revision": response.revision,
@@ -2389,6 +2401,76 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "json_version": "1",
             "data": {
                 "jwt": "jwt_token",
+                "success": true
+            },
+            "error": null
+        });
+
+        assert_json_eq!(actual_json, expected_json);
+    }
+
+    #[cfg(feature = "composition-js")]
+    fn test_provenance() -> PluginProvenance {
+        use camino::Utf8PathBuf;
+        use semver::Version;
+
+        use crate::command::install::{PluginLevel, PluginSource};
+
+        PluginProvenance::new(
+            "supergraph",
+            Version::new(2, 9, 3),
+            PluginSource::Downloaded,
+            PluginLevel::Global,
+            Utf8PathBuf::from("/home/me/.rover/bin/supergraph-v2.9.3"),
+        )
+    }
+
+    #[cfg(feature = "composition-js")]
+    #[test]
+    fn composition_result_json_includes_plugins() {
+        let composition_output = CompositionOutput {
+            supergraph_sdl: "type Query { hello: String }".to_string(),
+            hints: Vec::new(),
+            federation_version: Some("2.9.3".to_string()),
+            plugins: vec![test_provenance()],
+        };
+
+        let actual_json = JsonOutput::from(&RoverOutput::CompositionResult(composition_output));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "core_schema": "type Query { hello: String }",
+                "hints": [],
+                "federation_version": "2.9.3",
+                "plugins": [{
+                    "name": "supergraph",
+                    "version": "2.9.3",
+                    "source": "downloaded",
+                    "level": "global",
+                    "path": "/home/me/.rover/bin/supergraph-v2.9.3"
+                }],
+                "success": true
+            },
+            "error": null
+        });
+
+        assert_json_eq!(actual_json, expected_json);
+    }
+
+    #[cfg(feature = "composition-js")]
+    #[test]
+    fn plugins_used_json() {
+        let actual_json = JsonOutput::from(&RoverOutput::PluginsUsed(vec![test_provenance()]));
+        let expected_json = json!({
+            "json_version": "1",
+            "data": {
+                "plugins": [{
+                    "name": "supergraph",
+                    "version": "2.9.3",
+                    "source": "downloaded",
+                    "level": "global",
+                    "path": "/home/me/.rover/bin/supergraph-v2.9.3"
+                }],
                 "success": true
             },
             "error": null

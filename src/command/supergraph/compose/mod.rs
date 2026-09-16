@@ -11,6 +11,7 @@ use apollo_federation_types::rover::BuildHint;
 #[cfg(feature = "composition-js")]
 pub(crate) use do_compose::Compose;
 
+use crate::command::install::PluginProvenance;
 #[cfg(feature = "composition-js")]
 use crate::composition::CompositionSuccess;
 
@@ -19,6 +20,10 @@ pub struct CompositionOutput {
     pub supergraph_sdl: String,
     pub hints: Vec<BuildHint>,
     pub federation_version: Option<String>,
+    /// The plugins resolved to produce this composition (FR57). Empty until
+    /// `Compose::run` fills it in, since a `CompositionSuccess` alone doesn't
+    /// carry provenance.
+    pub plugins: Vec<PluginProvenance>,
 }
 
 // Temporary conversion from new CompositionSuccess type to old CompositionOutput. In the future,
@@ -31,6 +36,7 @@ impl From<CompositionSuccess> for CompositionOutput {
             supergraph_sdl: value.supergraph_sdl().clone(),
             hints: value.hints().to_vec(),
             federation_version: Some(value.federation_version().to_string()),
+            plugins: Vec::new(),
         }
     }
 }

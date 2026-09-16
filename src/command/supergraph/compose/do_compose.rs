@@ -8,6 +8,7 @@ use rover_print::{print::Print, style::StyledText};
 use rover_studio::types::GraphRef;
 use serde::Serialize;
 
+use super::CompositionOutput;
 use crate::{
     RoverOutput, RoverResult,
     composition::get_supergraph_binary,
@@ -88,9 +89,11 @@ impl Compose {
             .await?;
 
         // The compose above only succeeds once the supergraph binary is resolved, so this is
-        // always `Ok` here (FR54).
+        // always `Ok` here (FR54, FR57).
+        let mut composition_output: CompositionOutput = composition_success.into();
         if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
+            composition_output.plugins = vec![binary.provenance().clone()];
         }
 
         if let Some(output_file) = output_file {
@@ -101,10 +104,10 @@ impl Compose {
                 fs::create_dir_all(parent)?;
             }
             write_file_impl
-                .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())
+                .write_file(&output_file, composition_output.supergraph_sdl.as_bytes())
                 .await?;
         }
 
-        Ok(RoverOutput::CompositionResult(composition_success.into()))
+        Ok(RoverOutput::CompositionResult(composition_output))
     }
 }

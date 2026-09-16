@@ -162,9 +162,11 @@ impl Dev {
             .await?;
 
         // The chain above only succeeds once the supergraph binary is resolved, so this is
-        // always `Ok` here (FR54).
+        // always `Ok` here (FR54, FR57).
+        let mut plugins_used = Vec::new();
         if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
+            plugins_used.push(binary.provenance().clone());
         }
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
@@ -267,6 +269,7 @@ impl Dev {
         stderr.print(&StyledText::plain(
             run_router.state.binary.provenance().to_string(),
         ));
+        plugins_used.push(run_router.state.binary.provenance().clone());
         let run_router = run_router
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
@@ -336,6 +339,7 @@ impl Dev {
             stderr.print(&StyledText::plain(
                 run_mcp_server.state.binary.provenance().to_string(),
             ));
+            plugins_used.push(run_mcp_server.state.binary.provenance().clone());
 
             let mut run_mcp_server = run_mcp_server
                 .run(
@@ -475,6 +479,6 @@ impl Dev {
                 }
             }
         };
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::PluginsUsed(plugins_used))
     }
 }
