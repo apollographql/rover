@@ -7,6 +7,7 @@ $ rover connector --elv2-license accept list --schema fixtures/body.graphql
 merging supergraph schema files
 downloading the 'supergraph' plugin from [..]
 the 'supergraph' plugin was successfully installed to [..]
+Using the `supergraph` plugin v[..] (downloaded).
 {
   "connectors": [
     {
@@ -23,6 +24,7 @@ the 'supergraph' plugin was successfully installed to [..]
 ```console
 $ rover connector --elv2-license accept list --schema fixtures/single_entity.graphql
 merging supergraph schema files
+Using the `supergraph` plugin v[..] (already installed).
 {
   "connectors": [
     {
@@ -39,6 +41,7 @@ merging supergraph schema files
 ```console
 $ rover connector --elv2-license accept list --schema fixtures/multiple_connectors.graphql
 merging supergraph schema files
+Using the `supergraph` plugin v[..] (already installed).
 {
   "connectors": [
     {
@@ -58,6 +61,7 @@ merging supergraph schema files
 ```console
 $ rover connector --elv2-license accept list --schema fixtures/schema.graphql
 merging supergraph schema files
+Using the `supergraph` plugin v[..] (already installed).
 {
   "connectors": [
     {
@@ -75,6 +79,7 @@ merging supergraph schema files
 ```console
 $ rover connector --elv2-license accept list --schema fixtures/missing_type.graphql
 merging supergraph schema files
+Using the `supergraph` plugin v[..] (already installed).
 {
   "connectors": []
 }
