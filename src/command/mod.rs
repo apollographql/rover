@@ -21,6 +21,7 @@ mod license;
 mod lsp;
 pub(crate) mod output;
 mod persisted_queries;
+pub(crate) mod publish_launches_output;
 mod readme;
 mod schema;
 pub(crate) mod subgraph;
