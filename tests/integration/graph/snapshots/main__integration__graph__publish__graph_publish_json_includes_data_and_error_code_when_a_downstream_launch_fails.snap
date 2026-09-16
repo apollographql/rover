@@ -32,7 +32,7 @@ expression: json
     "success": false
   },
   "error": {
-    "message": "The publish succeeded, but a triggered launch did not complete successfully.",
+    "message": "The publish to 'my-graph@current' succeeded, but a triggered launch did not complete successfully. See the launch report above for details.",
     "code": "E047"
   }
 }

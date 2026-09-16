@@ -231,7 +231,9 @@ pub enum RoverClientError {
     /// is pre-serialized rather than the concrete `GraphPublishResponse`/
     /// `SubgraphPublishResponse` type, since this crate's error type has no
     /// other reason to depend on either operation's response type directly.
-    #[error("The publish succeeded, but a triggered launch did not complete successfully.")]
+    #[error(
+        "The publish to '{graph_ref}' succeeded, but a triggered launch did not complete successfully. See the launch report above for details."
+    )]
     PublishLaunchFailure {
         graph_ref: GraphRef,
         publish_response: serde_json::Value,
