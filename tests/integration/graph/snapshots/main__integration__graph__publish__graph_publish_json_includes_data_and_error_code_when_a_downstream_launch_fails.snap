@@ -1,0 +1,38 @@
+---
+source: tests/integration/graph/publish.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "123456",
+    "field_changes": {
+      "additions": 0,
+      "removals": 0,
+      "edits": 0
+    },
+    "type_changes": {
+      "additions": 0,
+      "removals": 0,
+      "edits": 0
+    },
+    "total_type_count": 1,
+    "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_status": "COMPLETED",
+    "launch_superseded": false,
+    "downstream_launches": [
+      {
+        "graph_id": "my-graph",
+        "variant_name": "mobile",
+        "status": "FAILED",
+        "superseded": false,
+        "url": "https://studio.apollographql.com/graph/my-graph/launches/launch-2"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "The publish to 'my-graph@current' succeeded, but a triggered launch did not complete successfully. See the launch report above for details.",
+    "code": "E047"
+  }
+}

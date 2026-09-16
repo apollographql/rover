@@ -72,6 +72,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover graph publish --format json` keeps the publish response when a triggered launch fails - @dotdat**
+
+  A failed launch or downstream contract-variant launch used to make `graph publish` return a bare error, discarding the whole response — `--format json` reported `"data": null` with no `error.code` to match on, even though the schema publish itself had succeeded. It now surfaces this as `RoverClientError::PublishLaunchFailure` (`E047`), so `data` still carries `api_schema_hash`, `launch_status`, `launch_superseded`, and `downstream_launches` alongside the coded error.
+
 - **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**
 
   `subgraph check`'s exit code only ever looked at the overall check-workflow status, never at the downstream task's per-variant data, so a blocking downstream contract check that had genuinely failed could be missed entirely if Studio's aggregate status hadn't caught up yet — the command would report success and exit zero. It now escalates to a failure whenever any downstream variant is an actual blocking failure, the same `DownstreamCheckResponse::has_blocking_failure` gate `graph check` already uses, bringing `subgraph check`'s exit code and JSON `downstream.task_status` in line with `graph check`'s existing behavior. Supersedes the stale, unmerged #3377.
