@@ -42,7 +42,7 @@ use crate::command::{
 use crate::{
     RoverError,
     command::{
-        docs::shortlinks::ShortlinkInfo,
+        docs::shortlinks::ShortlinkInfo, publish_launches_output::PublishLaunchesOutput,
         template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates,
     },
     options::{JsonVersion, ProjectLanguage},
@@ -321,11 +321,11 @@ impl RoverOutput {
                     )?;
                 }
 
-                // Skip when downstream launches were triggered: `Publish::run`
-                // already printed a report (with its own link) for those,
-                // and `launch_cli_copy` is Studio-authored copy that also
-                // includes the launch URL -- printing both repeats it.
-                if publish_response.downstream_launches.is_empty()
+                // Skip when `Publish::run` already printed a launch report:
+                // it has its own link, and `launch_cli_copy` is
+                // Studio-authored copy that also includes the launch URL --
+                // printing both repeats it.
+                if !PublishLaunchesOutput(publish_response).reports_launches()
                     && let Some(launch_cli_copy) = &publish_response.launch_cli_copy
                 {
                     stderrln!("{}", launch_cli_copy)?;

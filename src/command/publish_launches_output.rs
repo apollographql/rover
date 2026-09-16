@@ -87,6 +87,15 @@ impl<T: PublishLaunches> PublishLaunchesOutput<'_, T> {
             .iter()
             .filter(|launch| launch.status == LaunchStatus::FAILED)
     }
+
+    /// Whether `text()` renders anything, without callers outside this
+    /// module having to re-derive the rule. Used by
+    /// `RoverOutput::SubgraphPublishResponse`'s text rendering to decide
+    /// whether `launch_cli_copy` (Studio-authored copy that also mentions
+    /// the launch URL) would repeat a link this report already printed.
+    pub(crate) fn reports_launches(&self) -> bool {
+        self.has_blocking_failure() || !self.0.downstream_launches().is_empty()
+    }
 }
 
 impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesOutput<'_, T> {
@@ -402,6 +411,35 @@ mod tests {
             Vec::new(),
         );
         assert_that!(PublishLaunchesOutput(&response).exit_code()).is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::no_launch(None, Vec::new(), false)]
+    #[case::launch_with_no_downstream_launches(Some(LaunchStatus::COMPLETED), Vec::new(), false)]
+    #[case::successful_downstream_launches(
+        Some(LaunchStatus::COMPLETED),
+        vec![downstream("mobile", LaunchStatus::COMPLETED)],
+        true
+    )]
+    #[case::failed_source_launch_with_no_downstream_launches(
+        Some(LaunchStatus::FAILED),
+        Vec::new(),
+        true
+    )]
+    fn reports_launches_matches_whether_text_is_empty(
+        #[case] launch_status: Option<LaunchStatus>,
+        #[case] downstream_launches: Vec<DownstreamLaunch>,
+        #[case] expected: bool,
+    ) {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            launch_status,
+            downstream_launches,
+        );
+        let output = PublishLaunchesOutput(&response);
+
+        assert_that!(output.reports_launches()).is_equal_to(expected);
+        assert_that!(output.text().is_empty()).is_equal_to(!expected);
     }
 
     #[test]
