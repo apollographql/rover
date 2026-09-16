@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
 use crate::{
-    command::dev::router::config::RouterAddress,
+    command::{dev::router::config::RouterAddress, install::PluginProvenance},
     subtask::SubtaskHandleUnit,
     utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
 };
@@ -63,12 +63,18 @@ pub enum RunMcpServerBinaryError {
 #[allow(unused)]
 pub struct McpServerBinary {
     exe: Utf8PathBuf,
-    version: Version,
+    provenance: PluginProvenance,
 }
 
 impl McpServerBinary {
-    pub const fn new(exe: Utf8PathBuf, version: Version) -> McpServerBinary {
-        McpServerBinary { exe, version }
+    pub const fn new(exe: Utf8PathBuf, provenance: PluginProvenance) -> McpServerBinary {
+        McpServerBinary { exe, provenance }
+    }
+
+    /// The exact version that was resolved (FR55) — see [`PluginProvenance::version`].
+    #[allow(unused)]
+    pub const fn version(&self) -> &Version {
+        &self.provenance.version
     }
 }
 
@@ -262,7 +268,20 @@ mod tests {
     use semver::Version;
 
     use super::*;
-    use crate::command::dev::router::config::{RouterAddress, RouterHost, RouterPort};
+    use crate::command::{
+        dev::router::config::{RouterAddress, RouterHost, RouterPort},
+        install::{PluginLevel, PluginSource},
+    };
+
+    fn test_provenance() -> PluginProvenance {
+        PluginProvenance::new(
+            "apollo-mcp-server",
+            Version::parse("1.0.0").unwrap(),
+            PluginSource::Installed,
+            PluginLevel::Global,
+            Utf8PathBuf::from("/fake/path"),
+        )
+    }
 
     struct MockSpawn;
 
@@ -275,10 +294,7 @@ mod tests {
             Some(RouterPort::Default(4000)),
         );
 
-        let binary = McpServerBinary::new(
-            Utf8PathBuf::from("/fake/path"),
-            Version::parse("1.0.0").unwrap(),
-        );
+        let binary = McpServerBinary::new(Utf8PathBuf::from("/fake/path"), test_provenance());
 
         let router_url_path: Option<String> = None;
         let mcp_config_path: Option<Utf8PathBuf> = None;
@@ -308,10 +324,7 @@ mod tests {
             Some(RouterPort::Default(4000)),
         );
 
-        let binary = McpServerBinary::new(
-            Utf8PathBuf::from("/fake/path"),
-            Version::parse("1.0.0").unwrap(),
-        );
+        let binary = McpServerBinary::new(Utf8PathBuf::from("/fake/path"), test_provenance());
 
         let mcp_config_path: Option<Utf8PathBuf> = None;
 
@@ -340,10 +353,7 @@ mod tests {
             Some(RouterPort::Default(4000)),
         );
 
-        let binary = McpServerBinary::new(
-            Utf8PathBuf::from("/fake/path"),
-            Version::parse("1.0.0").unwrap(),
-        );
+        let binary = McpServerBinary::new(Utf8PathBuf::from("/fake/path"), test_provenance());
 
         let mcp_config_path: Option<Utf8PathBuf> = None;
 
@@ -372,10 +382,7 @@ mod tests {
             Some(RouterPort::Default(4000)),
         );
 
-        let binary = McpServerBinary::new(
-            Utf8PathBuf::from("/fake/path"),
-            Version::parse("1.0.0").unwrap(),
-        );
+        let binary = McpServerBinary::new(Utf8PathBuf::from("/fake/path"), test_provenance());
 
         // Setting the mcp endpoint via environment variable
         let env = HashMap::from([(

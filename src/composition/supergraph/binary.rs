@@ -16,7 +16,7 @@ use tap::TapFallible;
 use super::version::SupergraphVersion;
 use crate::{
     RoverOutput,
-    command::connector::run::RunConnectorOutput,
+    command::{connector::run::RunConnectorOutput, install::PluginProvenance},
     composition::{CompositionError, CompositionSuccess},
     utils::effect::exec::{ExecCommand, ExecCommandConfig, ExecCommandOutput},
 };
@@ -33,6 +33,7 @@ impl From<std::io::Error> for CompositionError {
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
+    provenance: PluginProvenance,
 }
 
 impl SupergraphBinary {
@@ -562,7 +563,10 @@ mod tests {
 
     use super::{BinaryError, CompositionError, CompositionSuccess, SupergraphBinary};
     use crate::{
-        command::supergraph::compose::do_compose::SupergraphComposeOpts,
+        command::{
+            install::{PluginLevel, PluginProvenance, PluginSource},
+            supergraph::compose::do_compose::SupergraphComposeOpts,
+        },
         composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
         utils::{
             client::{ClientBuilder, ClientTimeout, StudioClientConfig},
@@ -572,6 +576,16 @@ mod tests {
 
     fn fed_two_nine() -> Version {
         Version::from_str("2.9.0").unwrap()
+    }
+
+    fn test_provenance(exe: &Utf8PathBuf, version: Version) -> PluginProvenance {
+        PluginProvenance::new(
+            "supergraph",
+            version,
+            PluginSource::Installed,
+            PluginLevel::Global,
+            exe.clone(),
+        )
     }
 
     #[fixture]
@@ -617,11 +631,12 @@ mod tests {
     async fn test_compose_success() -> Result<()> {
         let version = fed_two_nine();
         let composition_output = composition_output(version.clone());
-        let supergraph_version = SupergraphVersion::new(version);
+        let supergraph_version = SupergraphVersion::new(version.clone());
         let binary_path = Utf8PathBuf::from_str("/supergraph")?;
         let supergraph_binary = SupergraphBinary::builder()
             .exe(binary_path.clone())
             .version(supergraph_version)
+            .provenance(test_provenance(&binary_path, version))
             .build();
 
         let mut opts = SupergraphComposeOpts::default();
@@ -665,6 +680,7 @@ mod tests {
         let supergraph_binary = SupergraphBinary::builder()
             .exe(binary_path.clone())
             .version(supergraph_version)
+            .provenance(test_provenance(&binary_path, fed_two_nine()))
             .build();
 
         let mut mock_exec = MockExecCommand::new();
@@ -710,9 +726,12 @@ mod tests {
     }
 
     fn supergraph_binary() -> SupergraphBinary {
+        let exe = Utf8PathBuf::from_str("/supergraph").unwrap();
+
         SupergraphBinary::builder()
-            .exe(Utf8PathBuf::from_str("/supergraph").unwrap())
+            .exe(exe.clone())
             .version(SupergraphVersion::new(fed_two_nine()))
+            .provenance(test_provenance(&exe, fed_two_nine()))
             .build()
     }
 

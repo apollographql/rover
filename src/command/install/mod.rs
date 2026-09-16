@@ -15,17 +15,15 @@ use crate::{
 };
 
 mod plugin;
-pub(crate) use plugin::{McpServerVersion, Plugin, PluginInstaller};
+// No consumers outside `plugin` itself yet; wired up once `dev`/`lsp` need the dedupe
+// (a later branch of this stack).
+#[expect(unused_imports)]
+pub(crate) use plugin::PluginProvenanceTracker;
+pub(crate) use plugin::{McpServerVersion, Plugin, PluginInstaller, PluginProvenance};
 // Other modules only ever construct these in their own #[cfg(test)] fixtures, never
 // from production code, so this re-export is test-only rather than merely unused.
-// (No such fixture exists yet in this branch; expect(unused_imports) covers that gap
-// until a later branch of this stack adds one.)
 #[cfg(test)]
-#[expect(unused_imports)]
 pub(crate) use plugin::{PluginLevel, PluginSource};
-// No consumers outside `plugin` itself yet; wired up in later branches of this stack.
-#[expect(unused_imports)]
-pub(crate) use plugin::{PluginProvenance, PluginProvenanceTracker};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Install {
@@ -121,7 +119,7 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         skip_update: bool,
-    ) -> RoverResult<Utf8PathBuf> {
+    ) -> RoverResult<PluginProvenance> {
         // `APOLLO_ROVER_SKIP_UPDATE` opts out of all auto-updating; honor it here so
         // every command that resolves a plugin on the fly (compose, dev, lsp) uses
         // an already-installed plugin instead of reaching for the registry. The

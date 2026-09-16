@@ -18,11 +18,7 @@ mod mcp;
 mod provenance;
 
 pub(crate) use mcp::Version as McpServerVersion;
-// mod.rs only re-exports these two under #[cfg(test)], so in a non-test build nothing
-// here references them yet; wired into `install()` in the next branch of this stack.
-#[cfg_attr(not(test), expect(unused_imports))]
-pub(crate) use provenance::{PluginLevel, PluginSource};
-pub(crate) use provenance::{PluginProvenance, PluginProvenanceTracker};
+pub(crate) use provenance::{PluginLevel, PluginProvenance, PluginProvenanceTracker, PluginSource};
 
 // These OSX versions of the router were compiled for aarch64 only
 const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
@@ -264,8 +260,12 @@ impl PluginInstaller {
         }
     }
 
-    pub async fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
-        let install_location = match plugin {
+    pub async fn install(
+        &self,
+        plugin: &Plugin,
+        skip_update: bool,
+    ) -> RoverResult<PluginProvenance> {
+        let (install_location, source) = match plugin {
             Plugin::Router(version) => match version {
                 RouterVersion::Exact(version) => {
                     let version = version.to_string();
@@ -317,7 +317,16 @@ impl PluginInstaller {
             },
         }?;
 
-        Ok(install_location)
+        let name = plugin.get_name();
+        let version = version_from_installed_path(&install_location, &name)?;
+        // Always Global; no project-level install root exists yet.
+        Ok(PluginProvenance::new(
+            name,
+            version,
+            source,
+            PluginLevel::Global,
+            install_location,
+        ))
     }
 
     async fn find_or_install_exact(
@@ -325,10 +334,12 @@ impl PluginInstaller {
         plugin: &Plugin,
         version: &str,
         skip_update: bool,
-    ) -> RoverResult<Utf8PathBuf> {
+    ) -> RoverResult<(Utf8PathBuf, PluginSource)> {
         if skip_update {
-            self.find_existing_exact(plugin, version)?
-                .ok_or_else(|| skip_update_error(&plugin.get_name(), version))
+            let exe = self
+                .find_existing_exact(plugin, version)?
+                .ok_or_else(|| skip_update_error(&plugin.get_name(), version))?;
+            Ok((exe, PluginSource::Installed))
         } else {
             self.install_exact(plugin, version)
                 .await?
@@ -341,14 +352,15 @@ impl PluginInstaller {
         plugin: &Plugin,
         major_version: u64,
         skip_update: bool,
-    ) -> RoverResult<Utf8PathBuf> {
+    ) -> RoverResult<(Utf8PathBuf, PluginSource)> {
         if skip_update {
-            return self
+            let exe = self
                 .find_existing_latest_major(plugin, major_version)?
-                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()));
+                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()))?;
+            return Ok((exe, PluginSource::Installed));
         }
         match self.install_latest_major(plugin).await {
-            Ok(Some(exe)) => Ok(exe),
+            Ok(Some((exe, source))) => Ok((exe, source)),
             Ok(None) => Err(could_not_install_plugin(
                 &plugin.get_name(),
                 &major_version.to_string(),
@@ -364,7 +376,7 @@ impl PluginInstaller {
                         plugin.get_name(),
                         exe.file_name().unwrap_or_else(|| exe.as_str()),
                     );
-                    Ok(exe)
+                    Ok((exe, PluginSource::Fallback))
                 }
                 // Nothing usable on disk — surface the original download failure.
                 _ => {
@@ -405,7 +417,10 @@ impl PluginInstaller {
         }
     }
 
-    async fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn install_latest_major(
+        &self,
+        plugin: &Plugin,
+    ) -> RoverResult<Option<(Utf8PathBuf, PluginSource)>> {
         let latest_version = self
             .installer
             .get_plugin_version(&plugin.get_tarball_url()?, true)
@@ -415,11 +430,13 @@ impl PluginInstaller {
             && !self.force
         {
             tracing::debug!("{} exists, skipping install", &exe);
-            return Ok(Some(exe));
+            return Ok(Some((exe, PluginSource::Installed)));
         }
         // do the install.
         self.do_install(plugin, true).await?;
-        self.find_existing_exact(plugin, &latest_version)
+        Ok(self
+            .find_existing_exact(plugin, &latest_version)?
+            .map(|exe| (exe, PluginSource::Downloaded)))
     }
 
     fn find_existing_exact(
@@ -436,14 +453,17 @@ impl PluginInstaller {
         &self,
         plugin: &Plugin,
         version: &str,
-    ) -> RoverResult<Option<Utf8PathBuf>> {
+    ) -> RoverResult<Option<(Utf8PathBuf, PluginSource)>> {
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, version)
             && !self.force
         {
             tracing::debug!("{} exists, skipping install", &exe);
-            return Ok(Some(exe));
+            return Ok(Some((exe, PluginSource::Installed)));
         }
-        self.do_install(plugin, false).await
+        Ok(self
+            .do_install(plugin, false)
+            .await?
+            .map(|exe| (exe, PluginSource::Downloaded)))
     }
 
     async fn do_install(
@@ -521,6 +541,25 @@ fn find_installed_plugins(
         })
         .collect();
     Ok(installed_plugins)
+}
+
+fn version_from_installed_path(path: &Utf8PathBuf, plugin_name: &str) -> RoverResult<Version> {
+    let file_name = path.file_name().ok_or_else(|| {
+        RoverError::new(anyhow!(
+            "Could not determine a plugin name from the path '{path}'."
+        ))
+    })?;
+    let without_exe = file_name
+        .strip_suffix(std::env::consts::EXE_SUFFIX)
+        .unwrap_or(file_name);
+    let without_prefix = without_exe
+        .strip_prefix(&format!("{plugin_name}-v"))
+        .unwrap_or(without_exe);
+    Version::parse(without_prefix).map_err(|_| {
+        RoverError::new(anyhow!(
+            "Could not parse a version from the installed plugin path '{path}'."
+        ))
+    })
 }
 
 fn find_installed_plugin(
