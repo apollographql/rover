@@ -175,12 +175,5 @@ fn graph_publish_json_includes_data_and_error_code_when_a_downstream_launch_fail
     );
 
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["error"]["code"], "E047");
-    assert_eq!(json["data"]["api_schema_hash"], "123456");
-    assert_eq!(json["data"]["launch_status"], "COMPLETED");
-    assert_eq!(
-        json["data"]["downstream_launches"][0]["variant_name"],
-        "mobile"
-    );
-    assert_eq!(json["data"]["downstream_launches"][0]["status"], "FAILED");
+    assert_json_snapshot!(json);
 }
