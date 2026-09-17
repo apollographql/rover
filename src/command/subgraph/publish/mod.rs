@@ -23,7 +23,7 @@ use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    command::CliOutput,
+    command::{CliOutput, publish_launches_output::PublishLaunchesOutput},
     options::{CheckConfigOpts, GraphRefOpt, OptionalSchemaOpt, ProfileOpt, SubgraphOpt},
     utils::client::StudioClientConfig,
 };
@@ -211,6 +211,19 @@ impl Publish {
             Some(checks_timeout_seconds),
         )
         .await?;
+
+        let launches_output = PublishLaunchesOutput(&publish_response);
+        let launches_text = launches_output.text();
+        if !launches_text.is_empty() {
+            stderr.print(&StyledText::plain(launches_text));
+        }
+        if launches_output.exit_code() != 0 {
+            return Err(RoverClientError::PublishLaunchFailure {
+                graph_ref: self.graph.graph_ref.clone(),
+                publish_response: serde_json::json!(publish_response),
+            }
+            .into());
+        }
 
         Ok(RoverOutput::SubgraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),
