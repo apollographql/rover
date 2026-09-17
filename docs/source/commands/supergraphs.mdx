@@ -181,34 +181,19 @@ The ELv2-licensed `supergraph` plugin (built from [this source](https://github.c
 
 Whenever you run `rover supergraph compose`, Rover automatically downloads the composition library for the given federation version you specified either in your [supergraph.yaml](#yaml-configuration-file) or via [stdin](#supergraph-compose).
 
-The command supports both Federation 1 and Federation 2 composition. Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
-
-- **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
-- **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
+The command composes with Federation 2, implemented by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library.
 
 <Note>
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-- If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
+- Federation 1 is no longer supported. Specifying a Federation 1 version—`1`, `latest-1`, or an exact `=0.x.y`/`=1.x.y`—fails with an error. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
 - Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
 
 </Note>
 
 #### Automatic updates
 
-If you don't specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover determines which version to use according to the following logic:
-
-```mermaid
-flowchart TB;
-  version("Is the <code>federation_version</code> key<br/>present in <code>supergraph.yaml</code>?");
-  version--No-->optin("Does <strong>at least one</strong> subgraph schema<br/>opt in to Federation 2?");
-  version--Yes-->usesetting("Use the version specified<br/>by <code>federation_version</code>");
-  optin--No-->fed1("Use latest Federation 1<br/>composition");
-  optin--Yes-->fed2("Use latest Federation 2<br/>composition");
-  class usesetting,fed1,fed2 tertiary;
-```
-
-A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
+If you don't specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover uses the latest Federation 2 composition.
 
 The latest federation library version is stored in [this file](https://github.com/apollographql/rover/blob/main/latest_plugin_versions.json) on the `main` branch of the Rover repository. If you don't specify an exact federation version, new plugin versions will be delivered and sourced from this file.
 
@@ -220,17 +205,6 @@ Apollo strongly recommends always specifying an exact `federation_version`.
 In some cases, you might want Rover to skip updating its composition library to the latest version. For example, you might have a slow or nonexistent network connection.
 
 In these cases, you can pass the `--skip-update` flag to `rover supergraph compose`. If you provide this flag, your `supergraph.yaml` file must specify a `federation_version` (which is recommended regardless).
-
-### Legacy Rover versions
-
-Versions of Rover prior to v0.5.0 support only Federation 1 composition, via the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) JavaScript package.
-
-We recommend updating to the latest version of Rover as soon as possible. If you're still using a legacy version, see the following compatibility table regarding support for different versions of the `@apollo/gateway` library:
-
-|Rover version|Gateway version|
-|---|---|
-|&lt;= v0.2.x|&lt;= v0.38.x|
-|&gt;= v0.3.x|&gt;= v0.39.x|
 
 ## Configuration awareness in your text editor
 
