@@ -129,6 +129,10 @@ pub(crate) async fn publish_subgraphs(
                 changelog_message: None,
             },
             client,
+            // `init` publishes several subgraphs to the same variant in a row and
+            // doesn't need to wait on any of their launches -- each subsequent
+            // publish would just supersede the previous one's anyway.
+            None,
         )
         .await?;
     }
