@@ -187,15 +187,13 @@ The command composes with Federation 2, implemented by the [`@apollo/composition
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
 - Federation 1 is no longer supported. Specifying a Federation 1 version—`1`, `latest-1`, or an exact `=0.x.y`/`=1.x.y`—fails with an error. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
-- Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
+- If you don't pin an exact `federation_version`, Rover composes with the latest release available at the time and warns you. A new federation release can change your supergraph schema without you choosing to, so pin an exact version for anything beyond local prototyping.
 
 </Note>
 
 #### Automatic updates
 
-If you don't specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover uses the latest Federation 2 composition.
-
-The latest federation library version is stored in [this file](https://github.com/apollographql/rover/blob/main/latest_plugin_versions.json) on the `main` branch of the Rover repository. If you don't specify an exact federation version, new plugin versions will be delivered and sourced from this file.
+If you don't specify an exact `federation_version` in `supergraph.yaml`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
 
 This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.
 Apollo strongly recommends always specifying an exact `federation_version`.
