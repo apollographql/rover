@@ -213,12 +213,11 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         // floating version can pull in breaking changes when a new federation release ships.
         if warn_on_floating_version && federation_version.get_exact().is_none() {
             warnln!(
-                "An exact {} was not specified in your supergraph configuration. Future versions of {} \
-                 will fail without an exact federation version. Pin one (e.g. {}) to prevent breaking \
-                 changes, and make sure to update your router before increasing your composition version. \
-                 See {} for more information.",
+                "{} isn't pinned to an exact version, so each run composes with the latest release \
+                 available at the time. A new federation release can change your supergraph schema, \
+                 or need a newer router than you're running. Pin an exact version (e.g. {}) and \
+                 update your router before raising it. See {} for more information.",
                 Style::Command.paint("federation_version"),
-                Style::Command.paint("rover supergraph compose"),
                 Style::Command.paint("federation_version: =2.x.y"),
                 Style::Link.paint(
                     "https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"
