@@ -1,6 +1,7 @@
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 mod integration;
+mod support;
 
 #[test]
 fn its_executable() {
