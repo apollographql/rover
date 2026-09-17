@@ -61,13 +61,13 @@ struct VariantUnderTest {
 }
 
 impl VariantUnderTest {
-    /// A variant of this run's own, on the graph named by `shared_graphref`.
-    /// Publishing to it is what creates it.
+    /// A variant of this run's own, named after the one the suite used to
+    /// share so it is obvious in Studio where it came from. Publishing to it is
+    /// what creates it.
     fn new(shared_graphref: &str) -> Self {
-        let graph = shared_graphref
-            .split('@')
-            .next()
-            .expect("graph ref should name a graph");
+        let (graph, shared_variant) = shared_graphref
+            .split_once('@')
+            .expect("graph ref should name a graph and a variant");
 
         let mut rng = rand::rng();
         let suffix_regex =
@@ -75,7 +75,7 @@ impl VariantUnderTest {
         let suffix: String = rng.sample::<String, &rand_regex::Regex>(&suffix_regex);
 
         Self {
-            graphref: format!("{graph}@publish-test-{suffix}"),
+            graphref: format!("{graph}@{shared_variant}-{suffix}"),
             armed: true,
         }
     }
@@ -377,12 +377,14 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
     test_artifacts_directory: PathBuf,
 ) {
     // GIVEN
-    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
-    //   - a fixed subgraph name "e2e-check-passes" that is always overwritten on each run,
-    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - a variant of this run's own, so what `--check` compares against is
+    //     only ever what this test published. Sharing a variant worked while
+    //     every run wrote byte-identical schemas, but that made correctness a
+    //     property of the fixtures rather than of the test.
     //   - we first publish the seed schema as the baseline (--convert handles the case
     //     where the variant is non-federated), then check+publish the same schema
     //     (identical schema → no breaking changes → check must pass)
+    let variant = VariantUnderTest::new(&remote_supergraph_check_publish_test_variant_graphref);
     let seed_schema_path = test_artifacts_directory.join("subgraph/check_seed.graphql");
     let seed_schema_str = seed_schema_path
         .canonicalize()
@@ -405,7 +407,7 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
         "--convert",
         "--client-timeout",
         "120",
-        &remote_supergraph_check_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
     let baseline_output = baseline_cmd
         .output()
@@ -430,7 +432,7 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
         "--check",
         "--client-timeout",
         "120",
-        &remote_supergraph_check_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
     let output = cmd.output().expect("Could not run command");
 
@@ -440,6 +442,8 @@ async fn e2e_test_rover_subgraph_publish_with_check_passes(
     let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
     assert_that!(output.status.success()).is_true();
     assert_that!(stderr).contains("Check passed. Publishing SDL");
+
+    variant.delete_now();
 }
 
 #[rstest]
@@ -451,13 +455,13 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
     test_artifacts_directory: PathBuf,
 ) {
     // GIVEN
-    //   - a dedicated variant (rover-e2e-tests@check-publish-test) used only by check tests
-    //   - a fixed subgraph name "e2e-check-fails" that is always overwritten on each run,
-    //     so there is no accumulated state and no interference with other concurrent tests
+    //   - a variant of this run's own, so the baseline `--check` compares
+    //     against is only ever the one this test published
     //   - the baseline schema (CheckFailsResult with id + status) is published first to
     //     establish what check compares against
     //   - the breaking schema (CheckFailsResult with id only — status removed) is then
     //     published with --check, which should detect FIELD_REMOVED and fail
+    let variant = VariantUnderTest::new(&remote_supergraph_check_publish_test_variant_graphref);
     let baseline_schema_path =
         test_artifacts_directory.join("subgraph/check_fails_baseline.graphql");
     let breaking_schema_path =
@@ -481,7 +485,7 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         "--convert",
         "--client-timeout",
         "120",
-        &remote_supergraph_check_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
     let baseline_output = baseline_cmd
         .output()
@@ -510,7 +514,7 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
         "--check",
         "--client-timeout",
         "120",
-        &remote_supergraph_check_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
     let output = cmd.output().expect("Could not run command");
 
@@ -521,4 +525,6 @@ async fn e2e_test_rover_subgraph_publish_with_check_fails(
     assert_that!(output.status.success()).is_false();
     assert_that!(stderr)
         .contains("Schema check failed — no changes were published to the graph registry.");
+
+    variant.delete_now();
 }
