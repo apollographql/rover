@@ -11,7 +11,7 @@
 
 Rover delegates composition, the local router, and the MCP server to separately released binaries that it downloads on demand. The architecture is sound. What users struggle with is how those binaries are versioned and managed:
 
-1. **Versions are not stable by default.** Unless a user pins an exact version, every run resolves a floating alias such as `latest-2` against Apollo's registry. A new upstream release silently changes what a CI job composes with, and nothing in the repo records or diffs the change. Rover already warns that composition "will fail without an exact federation version" in the future, but the only way to comply today is to hand-pin three plugins with three different version syntaxes.
+1. **Versions are not stable by default.** Unless a user pins an exact version, every run resolves a floating alias such as `latest-2` against Apollo's registry. A new upstream release silently changes what a CI job composes with, and nothing in the repo records or diffs the change. Pinning is the only defence today, and it means hand-pinning three plugins in three different version syntaxes.
 2. **Downloads are surprising and opaque.** The first `rover dev` or `rover supergraph compose` on a machine downloads a binary from a host many enterprise networks block. A cached run says nothing about which version it used. No command lists installed plugins, structured output never records which plugin ran, a failed download has no error code, and no single setting guarantees "do not touch the network for plugins" across every command that uses them.
 
 The evidence is consistent across support tickets, GitHub issues, and customer calls:
@@ -33,7 +33,7 @@ What we are **revising** is the management around the architecture. Customers ar
 
 1. **Plugins can be declared at the user level, the project level, or both.** A user-level `~/.rover/` (the existing install location) and a project-level `.rover/` directory can each hold a manifest, `rover.yaml`, naming the expected plugins and versions, plus a lockfile, `plugin-versions.lock`, recording the exact version each floating alias resolved to. The manifest is named for Rover rather than for plugins so it can carry other project-level Rover configuration later; this PRD defines only its plugin section. The user-level lockfile is the record of what is installed on the machine. The project-level manifest and lockfile are committed, so every machine that installs against them gets an identical set of exact versions. When both declare the same plugin, the project wins inside that project; the user level fills in the rest. Rover finds the project directory by searching the working directory and its parents, as Cargo and git do, so no path flag is needed in the common case. Binaries install to the user-level location by default; a project's `rover.yaml` may redirect them to a project-local install root, as `cargo install --root` does, for vendored containers, Lambda layers, and per-project isolation.
 2. **Every plugin-using command honors the declaration.** `supergraph compose`, `dev`, `connector`, and `lsp` use the locked exact versions without consulting the registry. Precedence, most specific first: explicit flags and environment variables, project declaration, user declaration, today's floating default.
-3. **One version syntax for all three plugins:** `latest`, a bare major such as `2`, or an exact `=X.Y.Z`, accepted identically in the manifest, `rover install --plugin`, `supergraph.yaml`, and every flag and environment variable. Today's per-plugin forms (`latest-2`, `vX.Y.Z`) keep working as deprecated aliases so existing files are not broken. `rover dev` gains a `--router-version` flag alongside its existing composition and MCP version flags.
+3. **One version syntax for all three plugins:** `latest`, a bare major such as `2`, a `major.minor` build track such as `2.9`, or an exact `=X.Y.Z`, accepted identically in the manifest, `rover install --plugin`, `supergraph.yaml`, and every flag and environment variable. Today's per-plugin forms (`latest-2`, `vX.Y.Z`) keep working as deprecated aliases so existing files are not broken. `rover dev` gains a `--router-version` flag alongside its existing composition and MCP version flags.
 
 ### Transparency
 
@@ -61,7 +61,7 @@ What we are **revising** is the management around the architecture. Customers ar
 - Compiling any plugin into the Rover binary (rejected in [§2](#2-decision-keep-the-plugin-architecture)).
 - Distributing plugins as npm packages or bundling fallback binaries into the Rover install.
 - musl composition support, which depends on the `supergraph` binary shipping musl builds.
-- Changing how the registry publishes aliases or how Federation is released.
+- Changing how Federation is released. The registry gains the build-track alias Requirement 3 needs, and nothing else about how it publishes aliases changes.
 - Changing ELv2 license acceptance.
 - Making plugin download opt-in before Rover 1.0. That change is committed for 1.0 (Requirement 11), not for any 0.x release.
 
@@ -80,13 +80,13 @@ The companion batch-install PRD is the approved design for the `rover install` s
 
 ## 7. Phasing
 
-Each phase ships independently.
+Each phase ships independently. Phases 2 and 3 were originally sequenced after Phase 1; 1.0 planning moved the reproducibility core of Phase 2 forward, because Requirement 11 is the only breaking change in this PRD and 1.0 is the only release that may carry it. Everything left after 1.0 is additive by construction.
 
 - **Phase 0, hygiene.** Remove stale Federation 1 docs and dead links; print the plugin-used line on cached and fallback runs; assign error codes to plugin failures; make version resolution honor the global HTTP settings. Requirements 4 (text), 6, 7 (cleanup), 13.
 - **Phase 1, `rover install`.** ROVER-445 through ROVER-449 as filed. Requirement 9, and the `rover install` half of 8. Requirement 12 (ROVER-450) ships in two steps, registry publication first and then Rover verification, both by this team.
-- **Phase 2, declared and reproducible plugins.** `rover.yaml` and `plugin-versions.lock` at both levels, honored by every command; fail-fast behavior for both offline switches; JSON provenance; plugin listing; unified version syntax and `--router-version`; the registry and mirror docs page. Requirements 1 through 5, 7, and 8.
-- **Phase 3, mirrors.** GitHub-release-layout mirrors for plugin downloads. Requirement 10.
-- **Rover 1.0.** Plugin download becomes opt-in (Requirement 11). Whether composition also requires an exact pin or lockfile, fulfilling the warning `rover supergraph compose` already prints, is decided in 1.0 planning.
+- **Phase 2, declared and reproducible plugins — lands at 1.0.** `rover.yaml` and `plugin-versions.lock` at both levels, honored by every command; a `rover plugin install` that creates a project root only where asked; project-local install roots; one version syntax; JSON provenance; fail-fast on both offline switches. Requirements 1 through 4, and 8.
+- **Rover 1.0.** Plugin download becomes opt-in (Requirement 11).
+- **After 1.0, all additive.** Plugin listing and uninstall (Requirement 5); wholesale lockfile re-resolution; writing `rover.yaml` on install; project install-root redirection; the build-track version form and the registry alias behind it; mirrors and their docs page (Requirement 10, formerly Phase 3, plus the rest of Requirement 7).
 
 All phases need end-to-end coverage that today does not exist for the `dev` and `compose` plugin paths, and the offline switches need a network-denied test environment.
 
@@ -99,6 +99,11 @@ Questions raised while drafting, and how they were settled. Alternatives are lis
 - **Install root.** A project may redirect it, as `cargo install --root` does, over always installing to the user-level location.
 - **Offline switches.** `--no-download` on `rover install` and `--skip-update` on the other commands stay separate, matching the batch-install PRD, over a single new environment variable or extending `APOLLO_ROVER_SKIP_UPDATE` to cover `rover install`.
 - **Version syntax.** `latest`, bare major, `=X.Y.Z` for all plugins with deprecated aliases, over adopting the `supergraph` plugin's `latest-N` form everywhere.
+- **Build track.** A `major.minor` form added alongside the bare major, after 1.0, over replacing the bare major or leaving the gap. Raised by the federation team: a bare major suits prototyping, an exact pin is the opposite extreme, and a build track is what GraphOS Studio already has users select. Replacing the bare major would break existing `supergraph.yaml` files.
+- **The exact-version deprecation warning is retired.** `rover supergraph compose` no longer claims a future version will fail without an exact `federation_version`, over keeping a deprecation nobody had scheduled. Confirmed with the federation team; the warning now states the actual risk of leaving the version floating.
 - **Lock refresh.** Only on explicit request, over refreshing every run or when the manifest changes.
 - **Opt-in download.** Committed for Rover 1.0, over leaving it undecided or keeping opt-out indefinitely.
 - **Checksums.** Kept as a requirement covering both registry publication and Rover verification, since this team owns both, over dropping it from this PRD.
+- **1.0 scope.** The reproducibility core — manifest, lockfile, `rover plugin install` — moves into 1.0, over shipping opt-in download by itself. Requirement 11 is the only breaking change here, so 1.0 is its only window short of 2.0, and it is unusable without a declaration to opt in with.
+- **Lockfile at 1.0, manifest writes after.** Rover writes `plugin-versions.lock` from the start while users declare plugins by hand, over deferring the lockfile with them. Writing `rover.yaml` waits until it can preserve the comments and formatting its author put there.
+- **Project roots only on request.** `rover plugin install --manifest-path` ships at 1.0 so a project root exists only where someone asked for one, over letting project declarations arrive before project install roots and relocating early adopters' binaries later.
