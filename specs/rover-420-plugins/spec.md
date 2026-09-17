@@ -19,7 +19,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
 - **Plugin-using command**: any command that needs a plugin to do its work — `rover supergraph compose`, `rover dev`, `rover connector`, `rover lsp` — plus the `rover plugin` verbs, which act on plugins deliberately rather than on the fly.
 - **On-the-fly resolution**: a plugin-using command other than a `rover plugin` verb obtaining a plugin during a run.
 - **Registry**: the Apollo-operated host Rover contacts to resolve floating version aliases and download plugin artifacts. Its default host is overridable via `APOLLO_ROVER_DOWNLOAD_HOST`.
-- **Floating alias**: a version request that does not name an exact version, and therefore must be resolved against the registry to become one — `latest` or a bare major.
+- **Floating alias**: a version request that does not name an exact version, and therefore must be resolved against the registry to become one — `latest`, a bare major, or a build track.
 - **Exact version**: a full semantic version, written `=X.Y.Z`.
 - **Manifest**: `rover.yaml`, a user-authored declaration of which plugins and version requests a machine or project expects.
 - **Lockfile**: `plugin-versions.lock`, a Rover-authored record of the exact version each request resolved to.
@@ -34,9 +34,10 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
 
 ### 3.1 Version grammar (R3)
 
-- **FR1**: Rover must accept exactly three version forms for every plugin, in every place a plugin version can be written:
+- **FR1**: Rover must accept exactly four version forms for every plugin, in every place a plugin version can be written:
   - `latest` — the newest release of that plugin, any major.
   - a bare major, e.g. `2` — the newest release within that major.
+  - a major and minor, e.g. `2.9` — the newest patch within that minor. This is the build-track form, and it is the one most deployments should use: a bare major is broad enough to be a prototyping tool, and an exact pin is the opposite extreme.
   - `=X.Y.Z` — that exact release.
 - **FR2**: The grammar must be accepted identically in all of: the manifest, `rover plugin install <name>@<version>`, `supergraph.yaml`'s `federation_version`, and every plugin version flag and environment variable. No plugin may accept a form another plugin rejects.
 - **FR3**: The following legacy forms must continue to parse, with identical resolution behavior to their modern equivalent: `latest-0`, `latest-1`, `latest-2` (→ `latest` within that major, i.e. the bare major), and `vX.Y.Z` (→ `=X.Y.Z`).
@@ -46,7 +47,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
   > Warning: `latest-2` is a deprecated version format. Use `2` instead.
 
   > Warning: `v1.2.3` is a deprecated version format. Use `=1.2.3` instead.
-- **FR5**: An unparseable version must be rejected before any network call, with an error naming the offending value, the plugin, and the three accepted forms.
+- **FR5**: An unparseable version must be rejected before any network call, with an error naming the offending value, the plugin, and the four accepted forms.
 - **FR6**: Federation 1 version requests must continue to be rejected as they are today. `latest-0`, `latest-1`, and any `=0.x.y`/`=1.x.y` request for the `supergraph` plugin parse (FR3) and then fail the existing Federation 1 rejection, not a grammar error.
 - **FR7**: Every plugin-using command must accept one version flag, taking the FR1 grammar, for each plugin in its chain, and must not accept a version flag for a plugin it never runs. The flag surface is therefore determined by the command's plugin chain, not chosen per command:
 
@@ -71,7 +72,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
     apollo-mcp-server: latest
   ```
 
-- **FR10**: The manifest is named for Rover, not for plugins, so that it can carry unrelated project configuration later. Rover must ignore top-level keys it does not recognize rather than erroring, so that a manifest written for a newer Rover does not break an older one. It must not ignore unrecognized keys *inside* `plugins:`; an unknown plugin name is an error naming the three valid names.
+- **FR10**: The manifest is named for Rover, not for plugins, so that it can carry unrelated project configuration later. Rover must ignore top-level keys it does not recognize rather than erroring, so that a manifest written for a newer Rover does not break an older one. It must not ignore unrecognized keys *inside* `plugins:`; an unknown plugin name is an error naming the three valid names. A key this spec defines but a given version has not implemented yet is not an unrecognized key, and this rule does not license ignoring it — see FR12, where doing so would silently place binaries somewhere the manifest did not ask for.
 - **FR11**: A manifest that is not valid YAML, or whose `plugins` section is not a mapping of plugin name to version string, must fail with an error naming the file's path and the parse problem. A malformed manifest must never be silently skipped and must never be treated as absent.
 - **FR12**: A manifest at either level may redirect that level's install root:
 
@@ -80,6 +81,8 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
   ```
 
   A relative path resolves against the directory containing the manifest, not the working directory. Binaries then live under `<install_root>/bin/`. A project manifest's `install_root` redirects only that project; a global manifest's redirects the global level for every project on the machine.
+
+  `install_root` ships after 1.0. Until it does, Rover must reject a manifest containing the key with an error naming it, rather than letting FR10's ignore-unrecognized-keys rule swallow it — a silently ignored redirect would put binaries somewhere the manifest did not ask for, and relocate them once the key starts working.
 
 ### 3.3 Lockfile (R1, R9)
 
@@ -101,8 +104,12 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
 - **FR17**: A lockfile whose `version` Rover does not recognize must fail with an error stating the file was written by a newer Rover, not be ignored or overwritten.
 - **FR18**: When a manifest and its sibling lockfile disagree — a plugin is declared but absent from the lock, or a declared exact version differs from the locked `resolved` version — a plugin-using command must fail rather than silently re-resolving.
 
+  An absent lockfile is not drift. A manifest with no sibling lockfile is a valid state: its declarations resolve normally, exactly as they would with no manifest at all (FR8). Drift is only possible once a lockfile exists, so a hand-authored `rover.yaml` works before anything has ever been installed from it.
+
   Required text:
-  > The plugin lockfile is out of date with `rover.yaml`: `router` is declared as `=2.2.0` but locked at `2.1.0`. Run `rover plugin resolve` to update it.
+  > The plugin lockfile is out of date with `rover.yaml`: `router` is declared as `=2.2.0` but locked at `2.1.0`. Run `rover plugin install router@=2.2.0` to update it.
+
+  The message must name a command the shipping version actually has. It names the single-plugin install because that is the minimal fix and is available from 1.0; `rover plugin resolve` (FR37) is the bulk equivalent and may be named instead once it ships.
 
 ### 3.4 Discovery and layering (R1)
 
@@ -123,6 +130,8 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   - For `rover plugin install`, a path whose file does not exist yet must be created, along with its parent directories and the rest of the project root. This is the only way a project root comes into existence, and the explicit counterpart to `--global`. `--manifest-path` and `--global` together are an error.
   - For every other plugin-using command, a path that does not exist must fail with the malformed-declaration error code (FR60.6) naming the path. These commands never create anything.
   - The spelling matches `rover persisted-queries generate --manifest-path <FILE>` and `cargo --manifest-path`. The two Rover flags name different kinds of manifest on unrelated commands; the shared spelling is intentional, since in both cases it means "use this declaration file instead of the one I would have found."
+
+  The `rover plugin install` half ships at 1.0, because it is what makes FR22 true: a project root exists only where someone asked for one, so no user acquires one by accident and has their binaries relocated when a later requirement lands. The other plugin-using commands gain the flag afterward and rely on discovery (FR19) until then, which is additive and costs nothing to defer.
 - **FR26**: Plugin-using commands must look up a needed plugin in the project install root first, then the global install root, and use the first match at the required version. A plugin installed globally therefore keeps working in a project that has not installed its own copy.
 - **FR27**: When Rover creates a project root (FR25), it must also write a `.gitignore` alongside the manifest, ignoring `bin/`, so that binaries are not committed while `rover.yaml` and `plugin-versions.lock` are. Rover must not overwrite a `.gitignore` that is already there.
 - **FR28**: A project install root must be self-contained: removing `<project>/.rover/bin/` and re-running `rover plugin install` must restore the project to a working state without touching the global level.
@@ -162,6 +171,8 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 - **FR36**: With a lockfile in scope, `rover plugin install` installs exactly the `resolved` versions it records and makes no resolution request to the registry, the way `npm ci` does. A locked version the registry no longer serves fails per FR61; Rover must not silently substitute a neighbouring version.
 - **FR37**: `rover plugin resolve` must re-resolve every floating alias in the in-scope manifest against the registry, install the results, and rewrite the lockfile at the target level. It is the only operation that rewrites a lockfile wholesale. Because it must reach the registry by definition, `rover plugin resolve --no-download` is a contradiction and must be rejected before any work begins.
 - **FR38**: A named `rover plugin install <name>@<version>` must record what it installed at the target level, as `npm install <pkg>` does: the plugin and its requested version are written to that level's `rover.yaml`, and the resolved exact version to its `plugin-versions.lock`. Both files are created if absent, along with the `.rover/` directory and its `.gitignore` (FR27). `--no-save` must suppress the manifest write while still updating the lockfile.
+
+  The lockfile write ships at 1.0; the manifest write, and `--no-save` with it, follow after. Rover authors the lockfile outright, so writing it preserves nothing, but `rover.yaml` is hand-authored and a write must not destroy the comments and formatting its author put there — which needs a round-tripping YAML reader Rover does not have today. Until then a user declares plugins by hand, and FR18's absent-lockfile allowance is what makes that a working state.
 - **FR39**: Installing an exact version already present at the target level must be a no-op that says so and exits 0.
 
   Required text:
@@ -200,7 +211,7 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   Required text:
   > Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `--no-download`.
 
-- **FR52**: Under `--skip-update`, a floating request that has no lockfile entry must be satisfied by the newest installed version within the requested major, searching the project root before the global root (FR26). If none is installed at either level, FR51 applies.
+- **FR52**: Under `--skip-update`, a floating request that has no lockfile entry must be satisfied by the newest installed version matching the request — within the requested major for a bare major, within the requested minor for a build track — searching the project root before the global root (FR26). If none is installed at either level, FR51 applies.
 - **FR53**: A run under either control must complete with zero outbound connections when every needed plugin is present. This is observable: with the registry unreachable, and with a network-denied environment, the run must still succeed.
 
 ### 3.9 Provenance reporting (R4)
@@ -257,7 +268,7 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 - **FR64**: Every plugin network step — version resolution and artifact download alike — must honor Rover's global HTTP settings: `--client-timeout`, certificate flags, and proxy environment. Resolution must not bypass them, as it can today.
 - **FR65**: Plugin requests must apply an explicit retry policy with a per-attempt timeout, so a single hung attempt cannot consume the whole budget. A resolution or download failure that is retried must not print a warning per attempt.
 - **FR66**: Rover must be able to fetch plugin **artifacts** from a mirror that serves the GitHub release layout, configured the same way the existing Rover-install mirror support is, without that mirror reproducing the registry's URL layout or response headers.
-- **FR67**: Version **resolution** always goes to the registry, mirror or no mirror. The registry can answer "the newest release within major X" for every plugin, and a mirror is not required to expose a release listing — only to serve an artifact at a known path. A configured mirror therefore changes where bytes come from, not how a version is chosen.
+- **FR67**: Version **resolution** always goes to the registry, mirror or no mirror. The registry must be able to answer both "the newest release within major X" and "the newest release within X.Y" for every plugin; publishing the latter is part of this work, as FR69's checksums are. A mirror is not required to expose a release listing — only to serve an artifact at a known path. A configured mirror therefore changes where bytes come from, not how a version is chosen.
 - **FR68**: The consequence must be stated rather than discovered: a mirror alone does not make a floating alias resolvable on a network that cannot reach the registry. On such a network, every request must already be exact — from a committed lockfile (FR31, FR36) or an explicit `=X.Y.Z` — and Rover must say so when a floating alias fails to resolve and a mirror is configured.
 
   Required text:
@@ -397,6 +408,9 @@ Given `rover dev` running with `supergraph` v2.9.3, when a subgraph schema chang
 **Unified grammar across plugins**
 Given `rover plugin install router@2 supergraph@2 apollo-mcp-server@2`, when it runs, then all three requests parse identically as a bare major, and none is rejected for using a form another plugin requires.
 
+**Build-track resolution**
+Given `federation_version: 2.9` and available releases `2.9.1`, `2.9.2`, and `2.10.0`, when `rover supergraph compose` runs, then `2.9.2` is used and `2.10.0` is not considered. Given `federation_version: 2` against the same releases, then `2.10.0` is used.
+
 **Deprecated forms still work**
 Given `supergraph.yaml` with `federation_version: latest-2`, when `rover supergraph compose` runs, then it resolves exactly as `2` would, and the FR4 deprecation warning is printed once.
 
@@ -405,6 +419,9 @@ Given `federation_version: latest-1`, when `rover supergraph compose` runs, then
 
 **Redirected install root**
 Given a project manifest with `install_root: ../vendor/rover`, when `rover plugin install` runs in that project, then binaries are written under `<project>/../vendor/rover/bin/`, and a subsequent `rover supergraph compose` in that project finds them there.
+
+**A manifest with no lockfile**
+Given a hand-authored `rover.yaml` declaring `supergraph: "2"` and no `plugin-versions.lock` beside it, when `rover supergraph compose` runs, then the declaration resolves normally and the run succeeds. The absent lockfile is not drift and must not fail the command.
 
 **Lockfile drift**
 Given a manifest declaring `router: "=2.2.0"` and a lockfile recording `2.1.0`, when a plugin-using command runs, then it fails with the FR18 text and does not silently re-resolve.
@@ -454,7 +471,7 @@ Given Rover 1.0 and `allow_automatic_download: true`, when `rover supergraph com
 - Distributing plugins as npm packages, or bundling fallback binaries into the Rover install.
 - A shared content-addressed store with links into project roots, pnpm-style. Each project root holds real binaries. Worth its own proposal if per-project duplication turns out to bite in practice; see §3.5.
 - musl composition support, which depends on the `supergraph` binary shipping musl builds.
-- Changing how the registry publishes aliases, or how Federation is released.
+- Changing how Federation is released. Registry-side work is in scope where a requirement names it — the build-track alias (FR1, FR67) and checksum publication (FR69) — but nothing else about how the registry publishes aliases changes.
 - Changing ELv2 license acceptance. A plugin that requires ELv2 acceptance today still requires it, including when installed from a manifest.
 - Making plugin download opt-in before Rover 1.0.
 
@@ -464,8 +481,9 @@ Given Rover 1.0 and `allow_automatic_download: true`, when `rover supergraph com
 
 Decisions taken while drafting and their reasoning are provided here.
 
+- **A `major.minor` build track alongside the bare major** (FR1), over a grammar of exact-or-major only. Raised by the federation team in review: a bare major is of marginal use outside prototyping, an exact pin is the opposite extreme, and a build track is what GraphOS Studio already has users select — so the same mental model carries across products. The bare major is kept rather than replaced, since dropping it would break existing `supergraph.yaml` files and FR76 reserves the only breaking change for FR77. The registry must learn to resolve "the newest release within X.Y" before the form can ship (FR67). That is our own work to sequence, not a dependency to wait on, and it lands the same way FR69's checksum publication does.
 - **`supergraph.yaml` is authoritative for the `supergraph` plugin** (FR30), over the project manifest winning. A repository may hold several `supergraph.yaml` files on different Federation versions, and adding a `rover.yaml` must not silently change existing composition output.
-- **The registry always resolves versions; a mirror only serves artifacts** (FR67), over requiring mirrors to expose a release listing. The registry can answer "newest release within major X" for every plugin, so nothing is gained by pushing that onto a mirror. The cost is stated in FR68: on a registry-less network, requests must already be exact.
+- **The registry always resolves versions; a mirror only serves artifacts** (FR67), over requiring mirrors to expose a release listing. The registry answers "newest release within major X" and "newest release within X.Y" for every plugin, so nothing is gained by pushing that onto a mirror. The cost is stated in FR68: on a registry-less network, requests must already be exact.
 - **`allow_automatic_download`, with `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`** (FR78), over a manifest key alone and over the shorter `allow_download`. "Automatic" is the load-bearing word: an explicit `rover plugin install` is never gated by it.
 - **Per-invocation controls outrank the standing opt-in** (FR79), over letting a manifest re-enable downloads a command was told not to make.
 - **A `plugin` noun with `install`, `list`, `uninstall`, `resolve`** (FR33), over flags on `rover install`. `rover install --plugin` survives as a deprecated alias (FR34).
