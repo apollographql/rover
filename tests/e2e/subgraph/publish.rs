@@ -1,4 +1,7 @@
-use std::{path::PathBuf, process::Command, str::from_utf8};
+use std::{
+    path::PathBuf,
+    process::{Command, Output},
+};
 
 use assert_cmd::cargo;
 use rand::RngExt;
@@ -38,6 +41,155 @@ impl SubgraphListResponse {
     }
 }
 
+/// A variant created for one run of one test, and deleted when that run ends,
+/// however it ends.
+///
+/// These tests used to share a single variant. They each publish the same
+/// schema under a fresh random name, so two of them in one variant means
+/// `INVALID_FIELD_SHARING` and a failed launch: every concurrent run broke the
+/// others. Worse, a run that failed never reached its delete step, so its
+/// subgraph stayed behind to break every run after it — by the time this was
+/// written the shared variant held 265 of them and could no longer compose at
+/// all.
+///
+/// A variant per run removes the sharing rather than tolerating what it did,
+/// which is why these tests can assert the launch completed instead of
+/// excusing it.
+struct VariantUnderTest {
+    graphref: String,
+    armed: bool,
+}
+
+impl VariantUnderTest {
+    /// A variant of this run's own, on the graph named by `shared_graphref`.
+    /// Publishing to it is what creates it.
+    fn new(shared_graphref: &str) -> Self {
+        let graph = shared_graphref
+            .split('@')
+            .next()
+            .expect("graph ref should name a graph");
+
+        let mut rng = rand::rng();
+        let suffix_regex =
+            rand_regex::Regex::compile("[a-z0-9]{16}", 0).expect("Could not compile regex");
+        let suffix: String = rng.sample::<String, &rand_regex::Regex>(&suffix_regex);
+
+        Self {
+            graphref: format!("{graph}@publish-test-{suffix}"),
+            armed: true,
+        }
+    }
+
+    fn graphref(&self) -> &str {
+        &self.graphref
+    }
+
+    /// Delete the variant and assert it worked.
+    fn delete_now(mut self) {
+        let output = self.delete().expect("Could not run command");
+        self.armed = false;
+
+        if !output.status.success() {
+            error!("{}", String::from_utf8_lossy(&output.stderr));
+            panic!("Command did not complete successfully");
+        }
+    }
+
+    fn delete(&self) -> std::io::Result<Output> {
+        let mut command = Command::new(cargo::cargo_bin!("rover"));
+        command.args(["graph", "delete", &self.graphref, "--confirm"]);
+        command.output()
+    }
+}
+
+impl Drop for VariantUnderTest {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+
+        // The test is already failing on its way here, so report and move on.
+        // Panicking while unwinding aborts the process and takes the real
+        // failure with it.
+        match self.delete() {
+            Ok(output) if output.status.success() => {
+                info!("Cleaned up {} after a failure", self.graphref)
+            }
+            Ok(output) => error!(
+                "Could not clean up {}, it is left behind: {}",
+                self.graphref,
+                String::from_utf8_lossy(&output.stderr)
+            ),
+            Err(err) => error!(
+                "Could not run the delete command for {}, it is left behind: {err}",
+                self.graphref
+            ),
+        }
+    }
+}
+
+/// The name of the subgraph each test publishes purely so its variant is never
+/// down to one.
+const BASE_SUBGRAPH: &str = "publish-test-base";
+
+/// Publish a second subgraph, so that deleting the one under test leaves
+/// something behind.
+///
+/// Deleting the only subgraph in a variant leaves nothing to compose and the
+/// registry refuses it, which is not a case these tests are about — they got
+/// this for free from the shared variant, which always had other subgraphs in
+/// it. A real variant has more than one subgraph, so each run gives itself one.
+fn publish_base_subgraph(graphref: &str, schema_args: &[&str]) {
+    let mut command = Command::new(cargo::cargo_bin!("rover"));
+    command.args(["subgraph", "publish", "--name", BASE_SUBGRAPH]);
+    command.args(schema_args);
+    command.args(["--client-timeout", "120", "--format", "json", graphref]);
+
+    let output = command.output().expect("Could not run command");
+    assert_publish_succeeded(&output);
+}
+
+/// Assert a publish succeeded outright: the subgraph landed and the variant
+/// composed. Returns the parsed response.
+fn assert_publish_succeeded(output: &Output) -> Value {
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "Could not parse publish response as JSON - stdout: {} stderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "publish failed - stdout: {} stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let data = response
+        .get("data")
+        .expect("Response should have 'data' field");
+
+    assert_eq!(
+        data.get("subgraph_was_created"),
+        Some(&Value::Bool(true)),
+        "Expected subgraph_was_created to be true"
+    );
+
+    // The variant holds only this run's subgraph, so composition is this run's
+    // to get right. Before a variant per run, whether the launch completed
+    // depended on what every other run happened to be publishing.
+    assert_eq!(
+        data.get("launch_status"),
+        Some(&Value::String("COMPLETED".to_string())),
+        "Expected the launch to complete - stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    response
+}
+
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
@@ -46,62 +198,41 @@ async fn e2e_test_rover_subgraph_publish(
     remote_supergraph_publish_test_variant_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
-    // Generate an identifier, so we won't have problems with re-using names etc.
-    // I appreciate that in theory it's possible there could be a clash here, however, there are
-    // 3.2 * 10^115 possibilities for identifiers, so I think for practical purposes we can
-    // consider these as unique.
-    let mut rng = rand::rng();
-    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
-        .expect("Could not compile regex");
-    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
-    let schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
-    info!("Using name {} for subgraph", &id);
+    // A variant of this run's own, so nothing else is publishing into it.
+    let variant = VariantUnderTest::new(&remote_supergraph_publish_test_variant_graphref);
+    let id = "publish-test-subgraph";
 
-    // Grab the initial list of subgraphs to check that what we want doesn't already exist
+    // `check_seed` is the one artifact that composes as the only subgraph in a
+    // variant. The perf subgraphs extend a base type that would have to be
+    // published alongside them, and composing is not what this test is about.
+    let schema_path = test_artifacts_directory.join("subgraph/check_seed.graphql");
+    info!("Publishing subgraph {} to {}", id, variant.graphref());
+
     let mut subgraph_list_cmd = Command::new(cargo::cargo_bin!("rover"));
-    subgraph_list_cmd.args([
-        "subgraph",
-        "list",
-        &remote_supergraph_publish_test_variant_graphref,
-        "--format",
-        "json",
-    ]);
-    let list_cmd_output = subgraph_list_cmd
-        .output()
-        .expect("Could not run initial list command");
-    let resp: SubgraphListResponse = serde_json::from_slice(list_cmd_output.stdout.as_slice())
-        .unwrap_or_else(|_| {
-            panic!(
-                "Could not parse response to struct - Raw: {}",
-                from_utf8(list_cmd_output.stdout.as_slice()).unwrap()
-            )
-        });
-    let initial_subgraphs = resp.get_subgraph_names();
-    assert_that(&initial_subgraphs).does_not_contain(&id);
+    subgraph_list_cmd.args(["subgraph", "list", variant.graphref(), "--format", "json"]);
 
-    // Construct a command to publish a new subgraph to a variant that's specifically for this
-    // purpose
-    info!("Creating subgraph with name {}", &id);
+    // Publishing is what creates the variant, so there is nothing to list
+    // before this point.
+    publish_base_subgraph(variant.graphref(), &["--use-example-schema"]);
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "publish",
         "--name",
-        &id,
+        id,
         "--schema",
         schema_path.canonicalize().unwrap().to_str().unwrap(),
         "--routing-url",
         "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        "--format",
+        "json",
+        variant.graphref(),
     ]);
     let output = cmd.output().expect("Could not run command");
 
-    if !output.status.success() {
-        error!("{}", String::from_utf8(output.stderr).unwrap());
-        panic!("Command did not complete successfully");
-    }
+    assert_publish_succeeded(&output);
 
     // Then ask for the list again and check the subgraph is there
     let post_creation_output = subgraph_list_cmd
@@ -111,25 +242,19 @@ async fn e2e_test_rover_subgraph_publish(
         serde_json::from_slice(post_creation_output.stdout.as_slice())
             .expect("Could not parse response to struct");
     let final_subgraphs = post_creation_resp.get_subgraph_names();
-    assert_that(&final_subgraphs).contains(&id);
+    assert_that(&final_subgraphs).contains(id.to_string());
 
-    info!("Deleting subgraph with name {}", &id);
-    // Then issue a command to delete the subgraph so the state is clean
-    //
-    // I also appreciate this is not fool-proof, as if the test fails this will mean we are
-    // left with subgraphs lying around. In the future we should move to something like
-    // test-context (https://docs.rs/test-context/latest/test_context/) so that we get cleanup
-    // for free. Until then we can manually clean up if it becomes necessary.
+    info!("Deleting subgraph with name {}", id);
     let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
     subgraph_delete_cmd.args([
         "subgraph",
         "delete",
         "--name",
-        &id,
+        id,
         "--confirm",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
 
     let delete_output = subgraph_delete_cmd.output().expect("Could not run command");
@@ -138,6 +263,8 @@ async fn e2e_test_rover_subgraph_publish(
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Command did not complete successfully");
     }
+
+    variant.delete_now();
 }
 
 #[rstest]
@@ -146,58 +273,44 @@ async fn e2e_test_rover_subgraph_publish(
 #[traced_test]
 async fn e2e_test_rover_subgraph_publish_with_example_schema(
     remote_supergraph_publish_test_variant_graphref: String,
+    test_artifacts_directory: PathBuf,
 ) {
-    // Generate a unique identifier for the subgraph name
-    let mut rng = rand::rng();
-    let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{63}", 0)
-        .expect("Could not compile regex");
-    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
-    info!("Using name {} for subgraph with example schema", &id);
+    // A variant of this run's own, so nothing else is publishing into it.
+    let variant = VariantUnderTest::new(&remote_supergraph_publish_test_variant_graphref);
+    let id = "publish-test-example-subgraph";
+    info!("Publishing subgraph {} to {}", id, variant.graphref());
 
-    // Grab the initial list of subgraphs to check that what we want doesn't already exist
     let mut subgraph_list_cmd = Command::new(cargo::cargo_bin!("rover"));
-    subgraph_list_cmd.args([
-        "subgraph",
-        "list",
-        &remote_supergraph_publish_test_variant_graphref,
-        "--format",
-        "json",
-    ]);
-    let list_cmd_output = subgraph_list_cmd
-        .output()
-        .expect("Could not run initial list command");
-    let resp: SubgraphListResponse = serde_json::from_slice(list_cmd_output.stdout.as_slice())
-        .unwrap_or_else(|_| {
-            panic!(
-                "Could not parse response to struct - Raw: {}",
-                from_utf8(list_cmd_output.stdout.as_slice()).unwrap()
-            )
-        });
-    let initial_subgraphs = resp.get_subgraph_names();
-    assert_that(&initial_subgraphs).does_not_contain(&id);
+    subgraph_list_cmd.args(["subgraph", "list", variant.graphref(), "--format", "json"]);
 
-    // Publish a subgraph using --use-example-schema instead of --schema and --routing-url
-    info!("Creating subgraph with name {} using example schema", &id);
+    // Publish a subgraph using --use-example-schema instead of --schema and --routing-url.
+    // Publishing is what creates the variant, so there is nothing to list first.
+    let base_schema = test_artifacts_directory.join("subgraph/check_seed.graphql");
+    publish_base_subgraph(
+        variant.graphref(),
+        &[
+            "--schema",
+            base_schema.canonicalize().unwrap().to_str().unwrap(),
+            "--routing-url",
+            "https://example.com/base",
+        ],
+    );
     let mut cmd = Command::new(cargo::cargo_bin!("rover"));
     cmd.args([
         "subgraph",
         "publish",
         "--name",
-        &id,
+        id,
         "--use-example-schema",
         "--client-timeout",
         "120",
         "--format",
         "json",
-        &remote_supergraph_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
     let output = cmd.output().expect("Could not run command");
 
-    if !output.status.success() {
-        error!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-        panic!("Command did not complete successfully");
-    }
+    let json_response = assert_publish_succeeded(&output);
 
     // Verify stderr contains expected message about publishing
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -207,23 +320,9 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
         stderr
     );
 
-    // Parse JSON response and verify subgraph_was_created and no build errors
-    let json_response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
-        panic!(
-            "Could not parse publish response as JSON - Raw: {}",
-            from_utf8(&output.stdout).unwrap()
-        )
-    });
-
     let data = json_response
         .get("data")
         .expect("Response should have 'data' field");
-
-    assert_eq!(
-        data.get("subgraph_was_created"),
-        Some(&Value::Bool(true)),
-        "Expected subgraph_was_created to be true"
-    );
 
     // Verify build_errors is empty (null or empty array)
     let build_errors = data.get("build_errors");
@@ -243,20 +342,20 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
         serde_json::from_slice(post_creation_output.stdout.as_slice())
             .expect("Could not parse response to struct");
     let final_subgraphs = post_creation_resp.get_subgraph_names();
-    assert_that(&final_subgraphs).contains(&id);
+    assert_that(&final_subgraphs).contains(id.to_string());
 
-    // Clean up by deleting the subgraph
-    info!("Deleting subgraph with name {}", &id);
+    // Clean up by deleting the subgraph, then the variant it lived in
+    info!("Deleting subgraph with name {}", id);
     let mut subgraph_delete_cmd = Command::new(cargo::cargo_bin!("rover"));
     subgraph_delete_cmd.args([
         "subgraph",
         "delete",
         "--name",
-        &id,
+        id,
         "--confirm",
         "--client-timeout",
         "120",
-        &remote_supergraph_publish_test_variant_graphref,
+        variant.graphref(),
     ]);
 
     let delete_output = subgraph_delete_cmd.output().expect("Could not run command");
@@ -265,6 +364,8 @@ async fn e2e_test_rover_subgraph_publish_with_example_schema(
         error!("{}", String::from_utf8(delete_output.stderr).unwrap());
         panic!("Command did not complete successfully");
     }
+
+    variant.delete_now();
 }
 
 #[rstest]
