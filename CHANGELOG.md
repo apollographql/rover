@@ -84,6 +84,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   A failed launch or downstream contract-variant launch used to make either command return a bare error, discarding the whole response — `--format json` reported `"data": null` with no `error.code` to match on, even though the schema publish itself had succeeded. Both now surface this as `RoverClientError::PublishLaunchFailure` (`E047`), so `data` still carries the full publish response (`api_schema_hash`, `launch_status`, `launch_superseded`, `downstream_launches`, and so on) alongside the coded error.
 
+- **`rover connector test` now exits non-zero and reports `success: false` when the suite fails - @benjamn**
+
+  A failing connector test suite makes the `supergraph test-connectors` binary exit 1, but Rover's shared execution helper whitelisted exit 1 as success (correct for `compose`, where it means "composed with build errors"), so Rover reported success and exited 0 on failing runs — and `--format json` told machines `{"data": {"output": "", "success": true}}`. The exit-code policy is now per-subcommand, and `test-connectors` treats only exit 0 as success, matching the exit-code contract documented in the Apollo-Connectors-CLI README.
+
 - **`rover subgraph check` now fails on an actually-failed blocking downstream contract check, even when the overall workflow status hasn't caught up - @dotdat**
 
   `subgraph check`'s exit code only ever looked at the overall check-workflow status, never at the downstream task's per-variant data, so a blocking downstream contract check that had genuinely failed could be missed entirely if Studio's aggregate status hadn't caught up yet — the command would report success and exit zero. It now escalates to a failure whenever any downstream variant is an actual blocking failure, the same `DownstreamCheckResponse::has_blocking_failure` gate `graph check` already uses, bringing `subgraph check`'s exit code and JSON `downstream.task_status` in line with `graph check`'s existing behavior. Supersedes the stale, unmerged #3377.
