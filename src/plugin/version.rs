@@ -70,6 +70,11 @@ impl FromStr for PluginName {
 /// range, and which release they mean depends on when they are resolved.
 /// [`Self::Exact`] names one release and needs no resolution.
 ///
+/// The legacy spellings (`latest-0`, `latest-1`, `latest-2`, `vX.Y.Z`) parse
+/// into the same variants as their modern equivalents, so nothing downstream
+/// of parsing can tell which spelling was used. Use [`DeprecatedSpelling::of`]
+/// where that matters, which is the FR4 warning and nowhere else.
+///
 /// A `major.minor` build track — the newest patch within one minor — is a
 /// fourth form this type will grow. Prefer the accessors below ([`major`],
 /// [`exact`], [`is_floating`]) over matching every variant, so that adding it
@@ -147,6 +152,10 @@ impl FromStr for VersionRequest {
             return Ok(Self::Latest);
         }
 
+        if let Some(modern) = legacy_equivalent(value) {
+            return Ok(modern);
+        }
+
         if let Some(exact) = value.strip_prefix('=') {
             return Version::parse(exact)
                 .map(Self::Exact)
@@ -180,6 +189,56 @@ pub struct InvalidVersionForm {
 pub struct InvalidPluginVersion {
     pub plugin: PluginName,
     pub value: String,
+}
+
+/// The modern form a legacy spelling means, or `None` if `value` is not a
+/// legacy spelling.
+fn legacy_equivalent(value: &str) -> Option<VersionRequest> {
+    match value {
+        "latest-0" => Some(VersionRequest::Major(0)),
+        "latest-1" => Some(VersionRequest::Major(1)),
+        "latest-2" => Some(VersionRequest::Major(2)),
+        _ => value
+            .strip_prefix('v')
+            .and_then(|exact| Version::parse(exact).ok())
+            .map(VersionRequest::Exact),
+    }
+}
+
+/// A version written in a spelling Rover still accepts but no longer
+/// documents, paired with the modern spelling that replaces it.
+///
+/// Rover keeps parsing these forever — they appear in committed
+/// `supergraph.yaml` files — so this exists to tell the user what to write
+/// instead, not to gate anything.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeprecatedSpelling {
+    /// The version exactly as the user wrote it.
+    pub legacy: String,
+    /// What they should write instead.
+    pub modern: VersionRequest,
+}
+
+impl DeprecatedSpelling {
+    /// `None` when `value` is spelled the modern way, and also when it does
+    /// not parse at all — an unparseable version is FR5's error, not a
+    /// deprecation.
+    pub fn of(value: &str) -> Option<Self> {
+        legacy_equivalent(value).map(|modern| Self {
+            legacy: value.to_string(),
+            modern,
+        })
+    }
+}
+
+impl fmt::Display for DeprecatedSpelling {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "`{}` is a deprecated version format. Use `{}` instead.",
+            self.legacy, self.modern
+        )
+    }
 }
 
 #[cfg(test)]
@@ -252,9 +311,6 @@ mod tests {
     #[case("2 ")]
     // An exact version has to say so with an `=`.
     #[case("2.9.0")]
-    // The legacy forms, which a later PR in this stack accepts.
-    #[case("latest-2")]
-    #[case("v2.9.0")]
     #[case("")]
     #[case("latest2")]
     #[case("=")]
@@ -304,6 +360,70 @@ mod tests {
         assert_that!(request.major()).is_equal_to(expected_major);
         assert_that!(request.is_floating()).is_equal_to(expected_floating);
         assert_that!(request.exact().is_none()).is_equal_to(expected_floating);
+    }
+
+    #[rstest]
+    #[case("latest-0", VersionRequest::Major(0))]
+    #[case("latest-1", VersionRequest::Major(1))]
+    #[case("latest-2", VersionRequest::Major(2))]
+    #[case("v2.9.0", VersionRequest::Exact(Version::new(2, 9, 0)))]
+    #[case("v0.36.0", VersionRequest::Exact(Version::new(0, 36, 0)))]
+    #[case(
+        "v2.0.0-preview.9",
+        VersionRequest::Exact(Version::parse("2.0.0-preview.9").unwrap())
+    )]
+    fn a_legacy_spelling_parses_as_its_modern_equivalent(
+        #[case] input: &str,
+        #[case] expected: VersionRequest,
+        #[values(
+            PluginName::Supergraph,
+            PluginName::Router,
+            PluginName::ApolloMcpServer
+        )]
+        plugin: PluginName,
+    ) {
+        assert_that!(VersionRequest::parse_for(plugin, input))
+            .is_ok()
+            .is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case(
+        "latest-0",
+        "`latest-0` is a deprecated version format. Use `0` instead."
+    )]
+    #[case(
+        "latest-1",
+        "`latest-1` is a deprecated version format. Use `1` instead."
+    )]
+    #[case(
+        "latest-2",
+        "`latest-2` is a deprecated version format. Use `2` instead."
+    )]
+    #[case(
+        "v1.2.3",
+        "`v1.2.3` is a deprecated version format. Use `=1.2.3` instead."
+    )]
+    fn a_legacy_spelling_says_what_to_write_instead(#[case] input: &str, #[case] expected: &str) {
+        let spelling = DeprecatedSpelling::of(input).expect("should be deprecated");
+
+        assert_that!(spelling.legacy.as_str()).is_equal_to(input);
+        assert_that!(spelling.to_string().as_str()).is_equal_to(expected);
+    }
+
+    #[rstest]
+    // Spelled the modern way.
+    #[case("latest")]
+    #[case("2")]
+    #[case("=2.9.0")]
+    // Not a version at all. FR5 rejects these; they are not a deprecation.
+    #[case("valid")]
+    #[case("v")]
+    #[case("latest-")]
+    #[case("latest-two")]
+    #[case("")]
+    fn nothing_else_is_reported_as_a_deprecated_spelling(#[case] input: &str) {
+        assert_that!(DeprecatedSpelling::of(input)).is_none();
     }
 
     #[rstest]
