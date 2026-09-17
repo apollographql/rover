@@ -155,7 +155,7 @@ impl SupergraphBinary {
             .output(ExecCommandOutput::builder().stdout(Stdio::piped()).build())
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         let output: RunConnectorOutput =
             serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
@@ -224,7 +224,11 @@ impl SupergraphBinary {
             .should_spawn(true)
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        // `test-connectors` documents exit 1 as "test failed" (see the
+        // Apollo-Connectors-CLI README), so unlike the other subcommands we
+        // must not whitelist it here: a failing suite has to surface as an
+        // error, or `--format json` would report success on a failed run.
+        let output = self.execute(exec_impl, config, &[0]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -275,7 +279,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -301,7 +305,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -326,7 +330,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -359,7 +363,7 @@ impl SupergraphBinary {
             .should_spawn(true)
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -428,7 +432,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
         Ok(RoverOutput::ConnectorTestResponse { output })
     }
@@ -464,7 +468,7 @@ impl SupergraphBinary {
             )
             .build();
 
-        let output = self.execute(exec_impl, config).await?;
+        let output = self.execute(exec_impl, config, &[0, 1]).await?;
         let parsed: serde_json::Value =
             serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
                 binary: self.exe.clone(),
@@ -483,6 +487,7 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         config: ExecCommandConfig,
+        allowed_exit_codes: &[i32],
     ) -> Result<String, BinaryError> {
         let output = exec_impl
             .exec_command(config)
@@ -494,7 +499,7 @@ impl SupergraphBinary {
             })?;
 
         let exit_code = output.status.code();
-        if exit_code != Some(0) && exit_code != Some(1) {
+        if !exit_code.is_some_and(|code| allowed_exit_codes.contains(&code)) {
             return Err(BinaryError::Exit {
                 binary: self.exe.clone(),
                 exit_code,
@@ -555,7 +560,7 @@ mod tests {
     use semver::Version;
     use speculoos::prelude::*;
 
-    use super::{CompositionError, CompositionSuccess, SupergraphBinary};
+    use super::{BinaryError, CompositionError, CompositionSuccess, SupergraphBinary};
     use crate::{
         command::supergraph::compose::do_compose::SupergraphComposeOpts,
         composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
@@ -687,6 +692,83 @@ mod tests {
                 assert_that!(binary).is_equal_to(binary_path);
             }
             other => panic!("expected CompositionError::EmptyOutput, got {other:?}"),
+        }
+
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn exit_status(code: i32) -> ExitStatus {
+        use std::os::unix::process::ExitStatusExt;
+        ExitStatus::from_raw(code << 8)
+    }
+
+    #[cfg(windows)]
+    fn exit_status(code: i32) -> ExitStatus {
+        use std::os::windows::process::ExitStatusExt;
+        ExitStatus::from_raw(code as u32)
+    }
+
+    fn supergraph_binary() -> SupergraphBinary {
+        SupergraphBinary::builder()
+            .exe(Utf8PathBuf::from_str("/supergraph").unwrap())
+            .version(SupergraphVersion::new(fed_two_nine()))
+            .build()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connector_exit_0_is_success() -> Result<()> {
+        let supergraph_binary = supergraph_binary();
+
+        let mut mock_exec = MockExecCommand::new();
+        mock_exec
+            .expect_exec_command()
+            .times(1)
+            .returning(move |_| {
+                Ok(Output {
+                    status: exit_status(0),
+                    stdout: Vec::default(),
+                    stderr: Vec::default(),
+                })
+            });
+
+        let result = supergraph_binary
+            .test_connector(&mock_exec, None, None, false, None, None, false, false)
+            .await;
+
+        assert_that!(result).is_ok();
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connector_exit_1_is_an_error() -> Result<()> {
+        let supergraph_binary = supergraph_binary();
+
+        let mut mock_exec = MockExecCommand::new();
+        mock_exec
+            .expect_exec_command()
+            .times(1)
+            .returning(move |_| {
+                Ok(Output {
+                    // the runner's documented "tests failed" status
+                    status: exit_status(1),
+                    stdout: Vec::default(),
+                    stderr: Vec::default(),
+                })
+            });
+
+        let result = supergraph_binary
+            .test_connector(&mock_exec, None, None, false, None, None, false, false)
+            .await;
+
+        match result {
+            Err(BinaryError::Exit { exit_code, .. }) => {
+                assert_that!(exit_code).is_equal_to(Some(1));
+            }
+            other => panic!("expected BinaryError::Exit with exit code 1, got {other:?}"),
         }
 
         Ok(())
