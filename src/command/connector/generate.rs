@@ -4,8 +4,8 @@ use clap::Parser;
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
-    utils::effect::exec::TokioCommand,
+    RoverOutput, RoverResult, command::connector::output::ConnectorGenerateOutput,
+    composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -56,6 +56,8 @@ impl GenerateConnector {
                 self.quiet,
             )
             .await?;
-        Ok(RoverOutput::ConnectorTestResponse { output: result })
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorGenerateOutput(
+            result,
+        ))))
     }
 }

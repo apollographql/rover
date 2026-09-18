@@ -8,6 +8,7 @@ use serde_json::Value;
 
 use crate::{
     RoverOutput, RoverResult,
+    command::connector::output::ConnectorRunOutput,
     composition::supergraph::binary::SupergraphBinary,
     utils::{effect::exec::TokioCommand, table},
 };
@@ -85,7 +86,7 @@ impl RunConnector {
                 self.variables.clone(),
             )
             .await?;
-        Ok(RoverOutput::ConnectorRunResponse { output: result })
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorRunOutput(result))))
     }
 
     pub fn format_output(output: &RunConnectorOutput) -> String {
