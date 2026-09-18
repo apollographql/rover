@@ -15,8 +15,14 @@ use crate::{
 
 mod error;
 mod mcp;
+mod provenance;
 
 pub(crate) use mcp::Version as McpServerVersion;
+// mod.rs only re-exports these two under #[cfg(test)], so in a non-test build nothing
+// here references them yet; wired into `install()` in the next branch of this stack.
+#[cfg_attr(not(test), expect(unused_imports))]
+pub(crate) use provenance::{PluginLevel, PluginSource};
+pub(crate) use provenance::{PluginProvenance, PluginProvenanceTracker};
 
 // These OSX versions of the router were compiled for aarch64 only
 const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
