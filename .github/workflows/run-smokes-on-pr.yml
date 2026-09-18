@@ -19,7 +19,7 @@ jobs:
     name: "Calculate Correct Version Ranges"
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       router_versions: ${{ steps.router-versions.outputs.router_versions }}
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
