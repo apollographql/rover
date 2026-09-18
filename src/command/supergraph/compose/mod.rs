@@ -6,6 +6,8 @@ pub(crate) use no_compose::Compose;
 
 #[cfg(feature = "composition-js")]
 pub(crate) mod do_compose;
+#[cfg(feature = "composition-js")]
+pub(crate) mod output;
 
 use apollo_federation_types::rover::BuildHint;
 #[cfg(feature = "composition-js")]
