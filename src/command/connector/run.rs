@@ -78,6 +78,9 @@ impl RunConnector {
         let schema_path = self.schema.clone().or(default_subgraph).ok_or_else(|| anyhow!(
             "A schema path must be provided either via --schema or a `supergraph.yaml` containing a single subgraph"
         ))?;
+        // Captured before the binary is consumed below (FR57).
+        let plugins = vec![supergraph_binary.provenance().clone()];
+
         let result = supergraph_binary
             .run_connector(
                 &exec_command_impl,
@@ -86,7 +89,10 @@ impl RunConnector {
                 self.variables.clone(),
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorRunOutput(result))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorRunOutput {
+            output: result,
+            plugins,
+        })))
     }
 
     pub fn format_output(output: &RunConnectorOutput) -> String {

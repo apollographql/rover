@@ -53,6 +53,9 @@ impl TestConnector {
         default_subgraph: Option<PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
+        // Captured before the binary is consumed below (FR57).
+        let plugins = vec![supergraph_binary.provenance().clone()];
+
         let result = supergraph_binary
             .test_connector(
                 &exec_command_impl,
@@ -67,8 +70,9 @@ impl TestConnector {
                 self.quiet,
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorTestOutput(
-            result,
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorTestOutput {
+            output: result,
+            plugins,
+        })))
     }
 }

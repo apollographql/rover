@@ -82,9 +82,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Every run now prints one stderr line per plugin it resolved — name, exact version, and whether it was downloaded, already installed, or a fallback — even on cached runs, which previously printed nothing, e.g. `` Using the `supergraph` plugin v2.9.3 (downloaded). ``. `rover dev` and `rover lsp` will report the same information in a following change in this stack.
 
-- **`--format json` reports the plugins a run used, for `rover supergraph compose`, `rover dev` and `rover lsp` - @SharkBaitDLS**
+- **`--format json` reports the plugins a run used - @SharkBaitDLS**
 
-  `data` gains a `plugins` array, one entry per plugin the run resolved, each with `name`, `version`, `source` (`downloaded`, `installed`, or `fallback`), `level` (always `global` until project-level install roots exist), and the `path` it ran from — the same information the stderr line carries, in a form a script can read. `rover dev` reports the supergraph binary, the router, and the MCP server when one was started; `rover lsp` reports what it ended the session on, since it re-resolves as files are opened. The array is always present, so nothing has to tell "no plugins" apart from an older Rover. `rover connector`'s subcommands don't report this yet.
+  `data` gains a `plugins` array, one entry per plugin the run resolved, each with `name`, `version`, `source` (`downloaded`, `installed`, or `fallback`), `level` (always `global` until project-level install roots exist), and the `path` it ran from — the same information the stderr line carries, in a form a script can read. `rover dev` reports the supergraph binary, the router, and the MCP server when one was started; `rover lsp` reports what it ended the session on, since it re-resolves as files are opened. `rover connector`'s five subcommands report the supergraph binary they ran on. The array is always present, so nothing has to tell "no plugins" apart from an older Rover.
 
 ## 🐛 Fixes
 

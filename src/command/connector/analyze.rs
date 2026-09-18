@@ -169,6 +169,9 @@ fn parse_json(arg: &str) -> Result<Value, serde_json::Error> {
 impl AnalyzeCurl {
     pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
+        // Captured before the binary is consumed below (FR57).
+        let plugins = vec![supergraph_binary.provenance().clone()];
+
         let result = match &self.command {
             Command::Curl(curl) => {
                 supergraph_binary
@@ -194,9 +197,10 @@ impl AnalyzeCurl {
                     .await?
             }
         };
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorAnalyzeOutput(
-            result,
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorAnalyzeOutput {
+            output: result,
+            plugins,
+        })))
     }
 }
 
