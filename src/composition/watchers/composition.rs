@@ -352,6 +352,7 @@ mod tests {
 
     use super::{CompositionInputEvent, CompositionWatcher};
     use crate::{
+        command::install::{PluginLevel, PluginProvenance, PluginSource},
         composition::{
             CompositionError, CompositionSubgraphAdded, FederationUpdaterConfig,
             events::CompositionEvent,
@@ -372,6 +373,16 @@ mod tests {
             effect::{exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile},
         },
     };
+
+    fn test_provenance() -> PluginProvenance {
+        PluginProvenance::new(
+            "supergraph",
+            Version::from_str("2.8.0").unwrap(),
+            PluginSource::Installed,
+            PluginLevel::Global,
+            Utf8PathBuf::from_str("some/binary").unwrap(),
+        )
+    }
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -396,6 +407,7 @@ mod tests {
         let supergraph_binary = SupergraphBinary::builder()
             .version(supergraph_version)
             .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .provenance(test_provenance())
             .build();
 
         let subgraph_name = "subgraph-name".to_string();
@@ -520,6 +532,7 @@ mod tests {
         let supergraph_binary = SupergraphBinary::builder()
             .version(supergraph_version)
             .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .provenance(test_provenance())
             .build();
 
         let composition_output = serde_json::to_string(&default_composition_json()).unwrap();
@@ -610,6 +623,7 @@ mod tests {
         let supergraph_binary = SupergraphBinary::builder()
             .version(supergraph_version)
             .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .provenance(test_provenance())
             .build();
 
         // `reject_federation_one` must short-circuit before any of this is reached.

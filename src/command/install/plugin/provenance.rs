@@ -5,9 +5,6 @@ use semver::Version;
 use serde::Serialize;
 
 /// How a plugin-using run obtained the plugin it used.
-// Only the tests below construct this so far; no non-test consumers until the
-// next branch of this stack.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginSource {
@@ -31,15 +28,11 @@ impl fmt::Display for PluginSource {
 ///
 /// Always [`PluginLevel::Global`] until project-level install roots exist; this
 /// becomes meaningful once a project can declare and install its own plugins.
-// Only the tests below construct this so far; no non-test consumers until the
-// next branch of this stack.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginLevel {
     /// Not constructed anywhere yet — reserved for project-level install roots
     /// (a separate, later piece of work), not this stack.
-    #[cfg_attr(test, expect(dead_code))]
     Project,
     Global,
 }
@@ -48,9 +41,6 @@ pub enum PluginLevel {
 ///
 /// See `specs/rover-420-plugins/spec.md` §3.9 (FR54-FR59) for the contract this
 /// type exists to satisfy.
-// Only the tests below construct this so far; no non-test consumers until the
-// next branch of this stack.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PluginProvenance {
     pub name: String,
@@ -61,7 +51,6 @@ pub struct PluginProvenance {
 }
 
 impl PluginProvenance {
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn new(
         name: impl Into<String>,
         version: Version,

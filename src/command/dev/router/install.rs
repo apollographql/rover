@@ -1,7 +1,6 @@
 use apollo_federation_types::config::RouterVersion;
 use async_trait::async_trait;
-use camino::{Utf8Path, Utf8PathBuf};
-use semver::Version;
+use camino::Utf8PathBuf;
 
 use super::binary::RouterBinary;
 use crate::{
@@ -17,13 +16,6 @@ pub enum InstallRouterError {
     MissingDependency {
         /// The error while attempting to find the dependency
         err: String,
-    },
-    #[error("Missing filename for path: {path}")]
-    MissingFilename { path: Utf8PathBuf },
-    #[error("Invalid semver version: \"{input}\"")]
-    Semver {
-        input: String,
-        source: semver::Error,
     },
 }
 
@@ -60,7 +52,7 @@ impl InstallBinary for InstallRouter {
             plugin: Some(plugin),
             elv2_license_accepter,
         };
-        let exe = install_command
+        let provenance = install_command
             .get_versioned_plugin(
                 override_install_path,
                 self.studio_client_config.clone(),
@@ -70,25 +62,9 @@ impl InstallBinary for InstallRouter {
             .map_err(|err| InstallRouterError::MissingDependency {
                 err: err.to_string(),
             })?;
-        let version = version_from_path(&exe)?;
-        let binary = RouterBinary::new(exe, version);
+        let binary = RouterBinary::new(provenance.path.clone(), provenance);
         Ok(binary)
     }
-}
-
-fn version_from_path(path: &Utf8Path) -> Result<Version, InstallRouterError> {
-    let file_name = path
-        .file_name()
-        .ok_or_else(|| InstallRouterError::MissingFilename {
-            path: path.to_path_buf(),
-        })?;
-    let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
-    let without_prefix = without_exe.strip_prefix("router-v").unwrap_or(without_exe);
-    let version = Version::parse(without_prefix).map_err(|err| InstallRouterError::Semver {
-        input: without_prefix.to_string(),
-        source: err,
-    })?;
-    Ok(version)
 }
 
 #[cfg(not(target_env = "musl"))]

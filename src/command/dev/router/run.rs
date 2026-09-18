@@ -587,7 +587,13 @@ mod tests {
     use semver::Version;
 
     use super::{RouterAddress, RunRouter, RunRouterConfig, state};
-    use crate::{command::dev::router::binary::RouterBinary, utils::effect::read_file::FsReadFile};
+    use crate::{
+        command::{
+            dev::router::binary::RouterBinary,
+            install::{PluginLevel, PluginProvenance, PluginSource},
+        },
+        utils::effect::read_file::FsReadFile,
+    };
 
     async fn test_run_router() -> RunRouter<state::Run> {
         let config = RunRouterConfig::default()
@@ -599,7 +605,13 @@ mod tests {
             state: state::Run {
                 binary: RouterBinary::new(
                     Utf8PathBuf::from("/fake/path"),
-                    Version::parse("1.0.0").unwrap(),
+                    PluginProvenance::new(
+                        "router",
+                        Version::parse("1.0.0").unwrap(),
+                        PluginSource::Installed,
+                        PluginLevel::Global,
+                        Utf8PathBuf::from("/fake/path"),
+                    ),
                 ),
                 config,
                 config_path: None,

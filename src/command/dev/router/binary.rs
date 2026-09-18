@@ -22,8 +22,13 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tower::{Service, ServiceExt};
 
+#[cfg(test)]
+use crate::command::install::{PluginLevel, PluginSource};
 use crate::{
-    command::dev::router::config::{RouterAddress, RouterHost, RouterPort},
+    command::{
+        dev::router::config::{RouterAddress, RouterHost, RouterPort},
+        install::PluginProvenance,
+    },
     subtask::SubtaskHandleUnit,
     utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
 };
@@ -143,12 +148,18 @@ pub enum RunRouterBinaryError {
 pub struct RouterBinary {
     exe: Utf8PathBuf,
     #[allow(unused)]
-    version: Version,
+    provenance: PluginProvenance,
 }
 
 impl RouterBinary {
-    pub const fn new(exe: Utf8PathBuf, version: Version) -> RouterBinary {
-        RouterBinary { exe, version }
+    pub const fn new(exe: Utf8PathBuf, provenance: PluginProvenance) -> RouterBinary {
+        RouterBinary { exe, provenance }
+    }
+
+    /// The exact version that was resolved (FR55) — see [`PluginProvenance::version`].
+    #[allow(unused)]
+    pub const fn version(&self) -> &Version {
+        &self.provenance.version
     }
 }
 
@@ -335,7 +346,13 @@ mod tests {
         RunRouterBinary::<MockSpawn>::builder()
             .router_binary(RouterBinary::new(
                 Utf8PathBuf::from("/fake/path"),
-                Version::parse("1.0.0").unwrap(),
+                PluginProvenance::new(
+                    "router",
+                    Version::parse("1.0.0").unwrap(),
+                    PluginSource::Installed,
+                    PluginLevel::Global,
+                    Utf8PathBuf::from("/fake/path"),
+                ),
             ))
             .config_path(Utf8PathBuf::from("/fake/config.yaml"))
             .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))

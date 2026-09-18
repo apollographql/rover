@@ -2,10 +2,7 @@ use apollo_federation_types::config::FederationVersion;
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
 
-use super::{
-    binary::SupergraphBinary,
-    version::{SupergraphVersion, SupergraphVersionError},
-};
+use super::{binary::SupergraphBinary, version::SupergraphVersion};
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
@@ -21,8 +18,6 @@ pub enum InstallSupergraphError {
         /// The error while attempting to find the dependency
         err: String,
     },
-    #[error(transparent)]
-    SupergraphVersion(#[from] SupergraphVersionError),
 }
 
 /// The installer for the supergraph binary. It implements [`InstallSupergraph`] and has an
@@ -70,7 +65,7 @@ impl InstallBinary for InstallSupergraph {
             elv2_license_accepter,
         };
 
-        let exe = install_command
+        let provenance = install_command
             .get_versioned_plugin(
                 override_install_path,
                 self.studio_client_config.clone(),
@@ -81,10 +76,11 @@ impl InstallBinary for InstallSupergraph {
                 err: err.to_string(),
             })?;
 
-        let version = SupergraphVersion::try_from(&exe)?;
+        let version = SupergraphVersion::new(provenance.version.clone());
         let binary = SupergraphBinary::builder()
-            .exe(exe)
+            .exe(provenance.path.clone())
             .version(version)
+            .provenance(provenance)
             .build();
 
         Ok(binary)
