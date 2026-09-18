@@ -86,7 +86,11 @@ impl RunConnector {
                 self.variables.clone(),
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorRunOutput(result))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorRunOutput {
+            output: result,
+            // The only plugin a connector subcommand resolves (FR57).
+            plugins: vec![supergraph_binary.provenance().clone()],
+        })))
     }
 
     pub fn format_output(output: &RunConnectorOutput) -> String {

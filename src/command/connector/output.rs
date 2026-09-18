@@ -31,19 +31,24 @@ use serde_json::{Value, json};
 use crate::command::{
     CliOutput,
     connector::run::{RunConnector, RunConnectorOutput},
+    install::PluginProvenance,
 };
 
 /// What `rover connector run` captured from a single connector invocation.
 #[derive(Debug)]
-pub struct ConnectorRunOutput(pub RunConnectorOutput);
+pub struct ConnectorRunOutput {
+    pub output: RunConnectorOutput,
+    /// The plugins this run resolved (FR57).
+    pub plugins: Vec<PluginProvenance>,
+}
 
 impl CliOutput for ConnectorRunOutput {
     fn text(&self) -> String {
-        RunConnector::format_output(&self.0)
+        RunConnector::format_output(&self.output)
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(json!({ "output": self.0 }))
+        Ok(json!({ "output": self.output, "plugins": self.plugins }))
     }
 
     /// Empty is a payload here, not an absence — see the module docs.
@@ -55,15 +60,19 @@ impl CliOutput for ConnectorRunOutput {
 /// What `rover connector test` reported: empty, since the run writes straight
 /// to the terminal.
 #[derive(Debug)]
-pub struct ConnectorTestOutput(pub String);
+pub struct ConnectorTestOutput {
+    pub output: String,
+    /// The plugins this run resolved (FR57).
+    pub plugins: Vec<PluginProvenance>,
+}
 
 impl CliOutput for ConnectorTestOutput {
     fn text(&self) -> String {
-        self.0.clone()
+        self.output.clone()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(json!({ "output": self.0 }))
+        Ok(json!({ "output": self.output, "plugins": self.plugins }))
     }
 
     /// Empty is a payload here, not an absence — see the module docs.
@@ -74,15 +83,19 @@ impl CliOutput for ConnectorTestOutput {
 
 /// The connectors `rover connector list` found in a schema.
 #[derive(Debug)]
-pub struct ConnectorListOutput(pub String);
+pub struct ConnectorListOutput {
+    pub output: String,
+    /// The plugins this run resolved (FR57).
+    pub plugins: Vec<PluginProvenance>,
+}
 
 impl CliOutput for ConnectorListOutput {
     fn text(&self) -> String {
-        self.0.clone()
+        self.output.clone()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(json!({ "output": self.0 }))
+        Ok(json!({ "output": self.output, "plugins": self.plugins }))
     }
 
     /// Empty is a payload here, not an absence — see the module docs.
@@ -95,16 +108,20 @@ impl CliOutput for ConnectorListOutput {
 /// [`ConnectorTestOutput`].
 #[cfg(target_os = "macos")]
 #[derive(Debug)]
-pub struct ConnectorGenerateOutput(pub String);
+pub struct ConnectorGenerateOutput {
+    pub output: String,
+    /// The plugins this run resolved (FR57).
+    pub plugins: Vec<PluginProvenance>,
+}
 
 #[cfg(target_os = "macos")]
 impl CliOutput for ConnectorGenerateOutput {
     fn text(&self) -> String {
-        self.0.clone()
+        self.output.clone()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(json!({ "output": self.0 }))
+        Ok(json!({ "output": self.output, "plugins": self.plugins }))
     }
 
     /// Empty is a payload here, not an absence — see the module docs.
@@ -117,16 +134,20 @@ impl CliOutput for ConnectorGenerateOutput {
 /// which writes straight to the terminal.
 #[cfg(target_os = "macos")]
 #[derive(Debug)]
-pub struct ConnectorAnalyzeOutput(pub String);
+pub struct ConnectorAnalyzeOutput {
+    pub output: String,
+    /// The plugins this run resolved (FR57).
+    pub plugins: Vec<PluginProvenance>,
+}
 
 #[cfg(target_os = "macos")]
 impl CliOutput for ConnectorAnalyzeOutput {
     fn text(&self) -> String {
-        self.0.clone()
+        self.output.clone()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(json!({ "output": self.0 }))
+        Ok(json!({ "output": self.output, "plugins": self.plugins }))
     }
 
     /// Empty is a payload here, not an absence — see the module docs.
@@ -137,11 +158,26 @@ impl CliOutput for ConnectorAnalyzeOutput {
 
 #[cfg(test)]
 mod tests {
+    use camino::Utf8PathBuf;
+    use semver::Version;
     use serde_json::json;
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::RoverOutput;
+    use crate::{
+        RoverOutput,
+        command::install::{PluginLevel, PluginSource},
+    };
+
+    fn supergraph_plugin() -> PluginProvenance {
+        PluginProvenance::new(
+            "supergraph",
+            Version::new(2, 12, 0),
+            PluginSource::Installed,
+            PluginLevel::Global,
+            Utf8PathBuf::from("/home/me/.rover/bin/supergraph-v2.12.0"),
+        )
+    }
 
     /// Whatever the subprocess wrote is reproduced exactly, including the
     /// empty string the inherit-stdout subcommands produce.
@@ -149,28 +185,78 @@ mod tests {
     #[case::empty("")]
     #[case::content("connector-a\nconnector-b")]
     fn passthrough_reports_its_output_verbatim(#[case] output: &str) {
-        let subject = ConnectorListOutput(output.to_string());
+        let subject = ConnectorListOutput {
+            output: output.to_string(),
+            plugins: vec![],
+        };
 
         assert_that!(subject.text()).is_equal_to(output.to_string());
-        assert_that!(subject.json().unwrap()).is_equal_to(json!({ "output": output }));
+        assert_that!(subject.json().unwrap())
+            .is_equal_to(json!({ "output": output, "plugins": [] }));
+    }
+
+    #[test]
+    fn json_reports_the_plugin_the_subcommand_ran_on() {
+        let subject = ConnectorListOutput {
+            output: String::from("connector-a"),
+            plugins: vec![supergraph_plugin()],
+        };
+
+        assert_that!(subject.json().unwrap()).is_equal_to(json!({
+            "output": "connector-a",
+            "plugins": [{
+                "name": "supergraph",
+                "version": "2.12.0",
+                "source": "installed",
+                "level": "global",
+                "path": "/home/me/.rover/bin/supergraph-v2.12.0",
+            }],
+        }));
     }
 
     /// Each subcommand keeps the `{"output": ...}` shape it had while they all
-    /// shared one variant, so nothing reading this has to change.
-    #[test]
-    fn every_passthrough_keeps_the_shared_json_shape() {
-        let shapes = vec![
-            ConnectorTestOutput(String::from("x")).json().unwrap(),
-            ConnectorListOutput(String::from("x")).json().unwrap(),
-            #[cfg(target_os = "macos")]
-            ConnectorGenerateOutput(String::from("x")).json().unwrap(),
-            #[cfg(target_os = "macos")]
-            ConnectorAnalyzeOutput(String::from("x")).json().unwrap(),
-        ];
-
-        for shape in shapes {
-            assert_that!(shape).is_equal_to(json!({ "output": "x" }));
-        }
+    /// shared one variant, so nothing reading that field has to change.
+    ///
+    /// A case per subcommand rather than one test looping over all of them: a
+    /// loop stops at the first mismatch and prints the value without naming the
+    /// subcommand that produced it.
+    ///
+    /// Non-empty `plugins` on purpose: an empty array serialises the same
+    /// whatever the element type does, so `vec![]` here would pass for every
+    /// one of these hand-written `json!` bodies without proving that any of
+    /// them renders a provenance correctly.
+    ///
+    /// The first case is `test_subcommand`, not `test`: naming a case `test`
+    /// makes `rstest` generate nothing at all for the function it is on, taking
+    /// the other cases with it and compiling clean while it does.
+    #[rstest::rstest]
+    #[case::test_subcommand(Box::new(ConnectorTestOutput {
+        output: String::from("x"),
+        plugins: vec![supergraph_plugin()],
+    }))]
+    #[case::list(Box::new(ConnectorListOutput {
+        output: String::from("x"),
+        plugins: vec![supergraph_plugin()],
+    }))]
+    #[cfg_attr(target_os = "macos", case::generate(Box::new(ConnectorGenerateOutput {
+        output: String::from("x"),
+        plugins: vec![supergraph_plugin()],
+    })))]
+    #[cfg_attr(target_os = "macos", case::analyze(Box::new(ConnectorAnalyzeOutput {
+        output: String::from("x"),
+        plugins: vec![supergraph_plugin()],
+    })))]
+    fn every_passthrough_keeps_the_shared_json_shape(#[case] subject: Box<dyn CliOutput>) {
+        assert_that!(subject.json().unwrap()).is_equal_to(json!({
+            "output": "x",
+            "plugins": [{
+                "name": "supergraph",
+                "version": "2.12.0",
+                "source": "installed",
+                "level": "global",
+                "path": "/home/me/.rover/bin/supergraph-v2.12.0",
+            }],
+        }));
     }
 
     /// The regression this guards: the shared `RoverOutput::CliOutput` arm
@@ -182,7 +268,10 @@ mod tests {
     #[case::empty("")]
     #[case::content("some output")]
     fn empty_output_still_reaches_the_printer(#[case] output: &str) {
-        let subject = RoverOutput::CliOutput(Box::new(ConnectorTestOutput(output.to_string())));
+        let subject = RoverOutput::CliOutput(Box::new(ConnectorTestOutput {
+            output: output.to_string(),
+            plugins: vec![supergraph_plugin()],
+        }));
 
         assert_that!(subject.get_stdout().unwrap()).is_equal_to(Some(output.to_string()));
     }
@@ -200,7 +289,10 @@ mod tests {
         // empty, the case it guards has gone away rather than been fixed.
         assert_that!(RunConnector::format_output(&response)).is_equal_to(String::new());
 
-        let subject = RoverOutput::CliOutput(Box::new(ConnectorRunOutput(response)));
+        let subject = RoverOutput::CliOutput(Box::new(ConnectorRunOutput {
+            output: response,
+            plugins: vec![supergraph_plugin()],
+        }));
 
         assert_that!(subject.get_stdout().unwrap()).is_equal_to(Some(String::new()));
     }
@@ -210,10 +302,25 @@ mod tests {
         let response: RunConnectorOutput =
             serde_json::from_str(r#"{"request":null,"response":null,"error":"boom"}"#).unwrap();
 
-        let actual = ConnectorRunOutput(response).json().unwrap();
+        // A real plugin, not `vec![]`: this is the fifth hand-written `json!`
+        // body and the only one the shared-shape loop can't reach, and an empty
+        // array serialises identically whatever the element type does.
+        let actual = ConnectorRunOutput {
+            output: response,
+            plugins: vec![supergraph_plugin()],
+        }
+        .json()
+        .unwrap();
 
         assert_that!(actual).is_equal_to(json!({
             "output": { "request": null, "response": null, "error": "boom" },
+            "plugins": [{
+                "name": "supergraph",
+                "version": "2.12.0",
+                "source": "installed",
+                "level": "global",
+                "path": "/home/me/.rover/bin/supergraph-v2.12.0",
+            }],
         }));
     }
 }

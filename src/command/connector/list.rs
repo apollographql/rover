@@ -35,8 +35,10 @@ impl ListConnector {
                 camino::Utf8PathBuf::from_path_buf(schema_path).unwrap_or_default(),
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorListOutput(
-            result,
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorListOutput {
+            output: result,
+            // The only plugin a connector subcommand resolves (FR57).
+            plugins: vec![supergraph_binary.provenance().clone()],
+        })))
     }
 }

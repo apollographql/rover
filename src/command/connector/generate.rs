@@ -56,8 +56,10 @@ impl GenerateConnector {
                 self.quiet,
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorGenerateOutput(
-            result,
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorGenerateOutput {
+            output: result,
+            // The only plugin a connector subcommand resolves (FR57).
+            plugins: vec![supergraph_binary.provenance().clone()],
+        })))
     }
 }
