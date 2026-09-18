@@ -162,10 +162,16 @@ impl Dev {
             )
             .await?;
 
+        // Everything this session resolves, for FR57's `data.plugins`. Collected
+        // as they are resolved rather than asked for at the end, because the
+        // MCP server is optional and the router is several states along.
+        let mut plugins = Vec::new();
+
         // The chain above only succeeds once the supergraph binary is resolved, so this is
         // always `Ok` here (FR54).
         if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
+            plugins.push(binary.provenance().clone());
         }
 
         let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
@@ -268,6 +274,7 @@ impl Dev {
         stderr.print(&StyledText::plain(
             run_router.state.binary.provenance().to_string(),
         ));
+        plugins.push(run_router.state.binary.provenance().clone());
         let run_router = run_router
             .load_config(&read_file_impl, router_address, router_config_path)
             .await?
@@ -337,6 +344,7 @@ impl Dev {
             stderr.print(&StyledText::plain(
                 run_mcp_server.state.binary.provenance().to_string(),
             ));
+            plugins.push(run_mcp_server.state.binary.provenance().clone());
 
             let mut run_mcp_server = run_mcp_server
                 .run(
@@ -476,6 +484,6 @@ impl Dev {
                 }
             }
         };
-        Ok(RoverOutput::CliOutput(Box::new(DevOutput)))
+        Ok(RoverOutput::CliOutput(Box::new(DevOutput { plugins })))
     }
 }

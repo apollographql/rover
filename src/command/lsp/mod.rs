@@ -1,7 +1,14 @@
 mod errors;
 mod output;
 
-use std::{collections::HashMap, env::temp_dir, fmt::Debug, io::stdin, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env::temp_dir,
+    fmt::Debug,
+    io::stdin,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
@@ -86,12 +93,27 @@ impl Lsp {
             .elv2_license_accepter
             .require_elv2_license(&client_config)?;
 
-        run_lsp(client_config, self.opts.clone()).await?;
-        Ok(RoverOutput::CliOutput(Box::new(LspOutput)))
+        // The tracker is filled by a task that outlives this call, so the
+        // session shares it rather than owning it; this is the only way the
+        // plugins it resolved can be reported once the server stops.
+        let plugins = Arc::new(Mutex::new(PluginProvenanceTracker::new()));
+
+        run_lsp(client_config, self.opts.clone(), Arc::clone(&plugins)).await?;
+
+        let plugins = plugins
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .recorded();
+
+        Ok(RoverOutput::CliOutput(Box::new(LspOutput { plugins })))
     }
 }
 
-async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverResult<()> {
+async fn run_lsp(
+    client_config: StudioClientConfig,
+    lsp_opts: LspOpts,
+    plugin_provenance: Arc<Mutex<PluginProvenanceTracker>>,
+) -> RoverResult<()> {
     let supergraph_yaml_path = lsp_opts.supergraph_yaml.as_ref().and_then(|path| {
         if path.is_relative() {
             Some(
@@ -134,14 +156,13 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             let lookup_supergraph_yaml_path = supergraph_yaml_path.clone();
             let lookup_plugin_opts = lsp_opts.plugin_opts.clone();
             tokio::spawn(async move {
-                let mut plugin_provenance = PluginProvenanceTracker::new();
                 while let Some((path, response)) = spec_lookup_receiver.next().await {
                     let spec = load_spec_for_path(
                         path,
                         lookup_client_config.clone(),
                         lookup_supergraph_yaml_path.clone(),
                         lookup_plugin_opts.clone(),
-                        &mut plugin_provenance,
+                        &plugin_provenance,
                     )
                     .await;
                     response.send(spec).ok();
@@ -201,7 +222,7 @@ async fn load_spec_for_path(
     client_config: StudioClientConfig,
     supergraph_yaml_path: Utf8PathBuf,
     plugin_opts: PluginOpts,
-    plugin_provenance: &mut PluginProvenanceTracker,
+    plugin_provenance: &Arc<Mutex<PluginProvenanceTracker>>,
 ) -> Option<String> {
     let supergraph_binary = get_supergraph_binary(
         None,
@@ -218,7 +239,11 @@ async fn load_spec_for_path(
     .supergraph_binary
     .ok()?;
     // Every path lookup re-resolves the plugin; only print when it's new or changed (FR56).
-    if plugin_provenance.record(supergraph_binary.provenance().clone()) {
+    let newly_reported = plugin_provenance
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .record(supergraph_binary.provenance().clone());
+    if newly_reported {
         rover_print::print::stderr::default().print(&StyledText::plain(
             supergraph_binary.provenance().to_string(),
         ));

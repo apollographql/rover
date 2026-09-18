@@ -107,6 +107,15 @@ impl PluginProvenanceTracker {
             }
         }
     }
+
+    /// Every plugin recorded so far, at the version last recorded for it, for
+    /// FR57's `data.plugins`. Sorted by name so a caller's output does not
+    /// depend on the order a session happened to resolve things in.
+    pub fn recorded(&self) -> Vec<PluginProvenance> {
+        let mut recorded: Vec<PluginProvenance> = self.last_reported.values().cloned().collect();
+        recorded.sort_by(|left, right| left.name.cmp(&right.name));
+        recorded
+    }
 }
 
 #[cfg(test)]

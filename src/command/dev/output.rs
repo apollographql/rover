@@ -1,8 +1,8 @@
 //! What `rover dev` reports when a session ends.
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use crate::command::CliOutput;
+use crate::command::{CliOutput, install::PluginProvenance};
 
 /// What a finished `rover dev` session reports.
 ///
@@ -12,7 +12,11 @@ use crate::command::CliOutput;
 /// somewhere to go (FR57), and because `EmptySuccess` is shared with a few
 /// dozen unrelated commands that must not grow that field.
 #[derive(Debug, Default)]
-pub struct DevOutput;
+pub struct DevOutput {
+    /// Everything the session resolved, in the order it resolved them:
+    /// the supergraph binary, the router, and the MCP server when one ran.
+    pub plugins: Vec<PluginProvenance>,
+}
 
 impl CliOutput for DevOutput {
     fn text(&self) -> String {
@@ -20,26 +24,82 @@ impl CliOutput for DevOutput {
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
-        Ok(Value::Null)
+        Ok(json!({ "plugins": self.plugins }))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use camino::Utf8PathBuf;
+    use semver::Version;
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::{RoverOutput, options::JsonOutput};
+    use crate::{
+        RoverOutput,
+        command::install::{PluginLevel, PluginSource},
+        options::JsonOutput,
+    };
 
-    /// This command printed nothing and serialized to a bare success envelope
-    /// before it had an output type, and moving onto the trait must not change
-    /// either.
+    fn plugin(name: &str, version: Version) -> PluginProvenance {
+        PluginProvenance::new(
+            name,
+            version.clone(),
+            PluginSource::Downloaded,
+            PluginLevel::Global,
+            Utf8PathBuf::from(format!("/home/me/.rover/bin/{name}-v{version}")),
+        )
+    }
+
+    /// A session's stdout stays empty however many plugins it resolved: the
+    /// plugins are a JSON field, not something to print at the end.
     #[test]
-    fn matches_what_empty_success_produced() {
-        let output = RoverOutput::CliOutput(Box::new(DevOutput));
+    fn prints_nothing_on_stdout() {
+        let output = RoverOutput::CliOutput(Box::new(DevOutput {
+            plugins: vec![plugin("supergraph", Version::new(2, 9, 3))],
+        }));
 
         assert_that!(output.get_stdout().unwrap()).is_equal_to(None);
-        assert_that!(JsonOutput::from(&output).to_string())
-            .is_equal_to(JsonOutput::from(&RoverOutput::EmptySuccess).to_string());
+    }
+
+    #[test]
+    fn json_reports_every_plugin_the_session_resolved() {
+        let output = DevOutput {
+            plugins: vec![
+                plugin("supergraph", Version::new(2, 9, 3)),
+                plugin("router", Version::new(2, 0, 1)),
+            ],
+        };
+
+        assert_that!(output.json().unwrap()).is_equal_to(json!({
+            "plugins": [
+                {
+                    "name": "supergraph",
+                    "version": "2.9.3",
+                    "source": "downloaded",
+                    "level": "global",
+                    "path": "/home/me/.rover/bin/supergraph-v2.9.3",
+                },
+                {
+                    "name": "router",
+                    "version": "2.0.1",
+                    "source": "downloaded",
+                    "level": "global",
+                    "path": "/home/me/.rover/bin/router-v2.0.1",
+                },
+            ],
+        }));
+    }
+
+    /// A session that resolved nothing still reports the field, so a consumer
+    /// never has to tell "no plugins" apart from "this Rover is too old".
+    #[test]
+    fn json_reports_an_empty_list_rather_than_omitting_it() {
+        let envelope =
+            JsonOutput::from(&RoverOutput::CliOutput(Box::new(DevOutput::default()))).to_string();
+
+        assert_that!(envelope).is_equal_to(String::from(
+            r#"{"json_version":"1","data":{"plugins":[],"success":true},"error":null}"#,
+        ));
     }
 }

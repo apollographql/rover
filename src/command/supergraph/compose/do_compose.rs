@@ -90,8 +90,10 @@ impl Compose {
 
         // The compose above only succeeds once the supergraph binary is resolved, so this is
         // always `Ok` here (FR54).
+        let mut plugins = Vec::new();
         if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
+            plugins.push(binary.provenance().clone());
         }
 
         if let Some(output_file) = output_file {
@@ -106,8 +108,9 @@ impl Compose {
                 .await?;
         }
 
-        Ok(RoverOutput::CliOutput(Box::new(ComposeOutput(
-            composition_success.into(),
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ComposeOutput {
+            composition: composition_success.into(),
+            plugins,
+        })))
     }
 }

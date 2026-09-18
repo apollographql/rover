@@ -1,30 +1,39 @@
 use rover_std::Style;
 use serde_json::{Value, json};
 
-use crate::command::{CliOutput, supergraph::compose::CompositionOutput};
+use crate::command::{
+    CliOutput, install::PluginProvenance, supergraph::compose::CompositionOutput,
+};
 
 /// What `rover supergraph compose` prints: the composed schema on stdout, and
 /// the hints the composer raised beside it on stderr.
 #[derive(Debug)]
-pub struct ComposeOutput(pub CompositionOutput);
+pub struct ComposeOutput {
+    pub composition: CompositionOutput,
+    /// The plugins this run resolved (FR57). Reported in JSON only; the plain
+    /// output already names them on stderr as they are resolved.
+    pub plugins: Vec<PluginProvenance>,
+}
 
 impl CliOutput for ComposeOutput {
     fn text(&self) -> String {
-        self.0.supergraph_sdl.clone()
+        self.composition.supergraph_sdl.clone()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
         // `federation_version` is left out rather than null when unknown,
         // which is the shape this command has always emitted.
-        Ok(match &self.0.federation_version {
+        Ok(match &self.composition.federation_version {
             Some(federation_version) => json!({
-                "core_schema": self.0.supergraph_sdl,
-                "hints": self.0.hints,
+                "core_schema": self.composition.supergraph_sdl,
+                "hints": self.composition.hints,
                 "federation_version": federation_version,
+                "plugins": self.plugins,
             }),
             None => json!({
-                "core_schema": self.0.supergraph_sdl,
-                "hints": self.0.hints,
+                "core_schema": self.composition.supergraph_sdl,
+                "hints": self.composition.hints,
+                "plugins": self.plugins,
             }),
         })
     }
@@ -36,14 +45,14 @@ impl CliOutput for ComposeOutput {
     /// Hints go beside the schema, never into it: whatever `text()` returns is
     /// the SDL a caller redirects into a file.
     fn stderr(&self) -> Option<String> {
-        if self.0.hints.is_empty() {
+        if self.composition.hints.is_empty() {
             return None;
         }
 
         let prefix = Style::HintPrefix.paint("HINT:");
 
         Some(
-            self.0
+            self.composition
                 .hints
                 .iter()
                 .map(|hint| format!("{} {}", prefix, hint.message))
@@ -72,11 +81,37 @@ mod tests {
     }
 
     fn output(federation_version: Option<&str>, hints: Vec<BuildHint>) -> ComposeOutput {
-        ComposeOutput(CompositionOutput {
-            supergraph_sdl: String::from("type Query { hello: String }"),
-            hints,
-            federation_version: federation_version.map(String::from),
-        })
+        output_with_plugins(federation_version, hints, Vec::new())
+    }
+
+    fn output_with_plugins(
+        federation_version: Option<&str>,
+        hints: Vec<BuildHint>,
+        plugins: Vec<PluginProvenance>,
+    ) -> ComposeOutput {
+        ComposeOutput {
+            composition: CompositionOutput {
+                supergraph_sdl: String::from("type Query { hello: String }"),
+                hints,
+                federation_version: federation_version.map(String::from),
+            },
+            plugins,
+        }
+    }
+
+    fn supergraph_plugin() -> PluginProvenance {
+        use camino::Utf8PathBuf;
+        use semver::Version;
+
+        use crate::command::install::{PluginLevel, PluginSource};
+
+        PluginProvenance::new(
+            "supergraph",
+            Version::new(2, 9, 3),
+            PluginSource::Downloaded,
+            PluginLevel::Global,
+            Utf8PathBuf::from("/home/me/.rover/bin/supergraph-v2.9.3"),
+        )
     }
 
     #[test]
@@ -92,6 +127,7 @@ mod tests {
                 "omittedNodesCount": null,
             }],
             "federation_version": "2.9.3",
+            "plugins": [],
         }));
     }
 
@@ -104,6 +140,26 @@ mod tests {
         assert_that!(actual).is_equal_to(json!({
             "core_schema": "type Query { hello: String }",
             "hints": [],
+            "plugins": [],
+        }));
+    }
+
+    #[test]
+    fn json_reports_the_plugins_the_run_resolved() {
+        let actual = output_with_plugins(None, vec![], vec![supergraph_plugin()])
+            .json()
+            .unwrap();
+
+        assert_that!(actual).is_equal_to(json!({
+            "core_schema": "type Query { hello: String }",
+            "hints": [],
+            "plugins": [{
+                "name": "supergraph",
+                "version": "2.9.3",
+                "source": "downloaded",
+                "level": "global",
+                "path": "/home/me/.rover/bin/supergraph-v2.9.3",
+            }],
         }));
     }
 
