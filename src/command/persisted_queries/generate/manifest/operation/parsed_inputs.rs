@@ -37,7 +37,11 @@ impl ParsedInputs {
             })?;
 
         let mut parsed = Self::default();
+        let mut previous_definition_end = 0;
         for definition in document.definitions {
+            let definition_end = definition
+                .location()
+                .map_or(previous_definition_end, |location| location.end_offset());
             match definition {
                 ast::Definition::OperationDefinition(operation) => {
                     let name = operation
@@ -64,7 +68,11 @@ impl ParsedInputs {
                     }
                     let leading_comments = if preserve_comments {
                         operation.location().and_then(|location| {
-                            extract_leading_comments(&contents, location.offset())
+                            extract_leading_comments(
+                                &contents,
+                                location.offset(),
+                                previous_definition_end,
+                            )
                         })
                     } else {
                         None
@@ -102,6 +110,7 @@ impl ParsedInputs {
                 }
                 _ => {}
             }
+            previous_definition_end = definition_end;
         }
         Ok(parsed)
     }

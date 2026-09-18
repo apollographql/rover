@@ -10,9 +10,27 @@ pub(super) use persisted_query_operation::PersistedQueryOperation;
 #[cfg(test)]
 mod tests {
     use camino::Utf8PathBuf;
+    use rstest::rstest;
     use speculoos::prelude::*;
 
     use super::*;
+
+    fn assert_operation_bodies_and_ids(
+        operations: &[PersistedQueryOperation],
+        expected: &[(&str, &str, &str)],
+    ) {
+        let actual: Vec<_> = operations
+            .iter()
+            .map(|operation| {
+                (
+                    operation.name.as_str(),
+                    operation.body.as_str(),
+                    operation.id.as_str(),
+                )
+            })
+            .collect();
+        assert_that!(actual).is_equal_to(expected.to_vec());
+    }
 
     fn parsed_inputs(source: &str) -> ParsedInputs {
         parsed_inputs_from_files(&[("ops.graphql", source)])
@@ -105,19 +123,233 @@ mod tests {
             .generate_operations()
             .unwrap();
 
-        let id_of = |ops: &[super::PersistedQueryOperation], name: &str| {
-            ops.iter()
-                .find(|op| op.name == name)
-                .expect("operation present")
-                .id
-                .clone()
-        };
+        assert_operation_bodies_and_ids(
+            &dropped,
+            &[
+                (
+                    "Annotated",
+                    "query Annotated {\n  id\n}",
+                    "374b850ff56be132ad7387455a0ad55edc339ce9d282dfc824c1a9cf11378126",
+                ),
+                (
+                    "Bare",
+                    "query Bare {\n  id\n}",
+                    "134756411986eda7c8dfe928886208381ba772e16d277de127c136f133d1d5c5",
+                ),
+            ],
+        );
+        assert_operation_bodies_and_ids(
+            &preserved,
+            &[
+                (
+                    "Annotated",
+                    "# @meta fci_tier: TIER_1\nquery Annotated {\n  id\n}",
+                    "27670d8decfe42cf4e3923d86f50cc4680e3ce4967a83e5cf515f66863f5bd56",
+                ),
+                (
+                    "Bare",
+                    "query Bare {\n  id\n}",
+                    "134756411986eda7c8dfe928886208381ba772e16d277de127c136f133d1d5c5",
+                ),
+            ],
+        );
+    }
 
-        // The annotated operation hashes differently, because its body changed.
-        assert_that!(id_of(&preserved, "Annotated") != id_of(&dropped, "Annotated")).is_true();
-        // An operation with no preceding comment is untouched either way.
-        assert_that!(id_of(&preserved, "Bare").as_str())
-            .is_equal_to(id_of(&dropped, "Bare").as_str());
+    #[rstest]
+    #[case::same_line("# A metadata\nquery A { a } query B { b }")]
+    #[case::trailing_comment("# A metadata\nquery A { a } # trailing\nquery B { b }")]
+    fn operation_comments_stay_with_their_owner(
+        #[case] source: &str,
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let operations =
+            parsed_inputs_from_files_with_comments(&[("ops.graphql", source)], preserve_comments)
+                .generate_operations()
+                .unwrap();
+        let (body_a, id_a) = if preserve_comments {
+            (
+                "# A metadata\nquery A {\n  a\n}",
+                "38743c67180c36fdc6a22ce573b3ade9b8859f6942abf324cf8f57ae6927e5d3",
+            )
+        } else {
+            (
+                "query A {\n  a\n}",
+                "a2e93ae31651942b495db72b919ced0636a2450954bffd338df4c1578380b9fc",
+            )
+        };
+        assert_operation_bodies_and_ids(
+            &operations,
+            &[
+                ("A", body_a, id_a),
+                (
+                    "B",
+                    "query B {\n  b\n}",
+                    "967c6a00169d201fe04191715aa8f83cd6170b22f5c748ec0d8ccd39bfdb3b35",
+                ),
+            ],
+        );
+    }
+
+    #[rstest]
+    fn same_line_fragment_comments_do_not_become_operation_comments(
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let operations = parsed_inputs_from_files_with_comments(
+            &[(
+                "ops.graphql",
+                "# Fragment metadata\nfragment F on X { x } query Q { ...F }",
+            )],
+            preserve_comments,
+        )
+        .generate_operations()
+        .unwrap();
+        assert_operation_bodies_and_ids(
+            &operations,
+            &[(
+                "Q",
+                "query Q {\n  ...F\n}\n\nfragment F on X {\n  x\n}",
+                "b0a98ab77022a1d79aa720917423dbb419f71a245ef6a6136294939b3f761cc7",
+            )],
+        );
+    }
+
+    #[rstest]
+    fn block_string_text_does_not_become_another_operations_comment(
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let operations = parsed_inputs_from_files_with_comments(
+            &[(
+                "ops.graphql",
+                "query A { f(arg: \"\"\"\n# string content\n\"\"\") } query B { b }",
+            )],
+            preserve_comments,
+        )
+        .generate_operations()
+        .unwrap();
+        assert_operation_bodies_and_ids(
+            &operations,
+            &[
+                (
+                    "A",
+                    "query A {\n  f(arg: \"# string content\")\n}",
+                    "701a34768698fd540db186c1790bda8dc494d9bc303d0a4e1f416a42e09725f0",
+                ),
+                (
+                    "B",
+                    "query B {\n  b\n}",
+                    "967c6a00169d201fe04191715aa8f83cd6170b22f5c748ec0d8ccd39bfdb3b35",
+                ),
+            ],
+        );
+    }
+
+    #[rstest]
+    #[case::operation("query A { f(arg: \"\"\"\n# string content\"\"\") }", true)]
+    #[case::input_default("input I { value: String = \"\"\"\n# string content\"\"\" }", false)]
+    #[case::type_description("\"\"\"\n# description\"\"\" type T { x: String }", false)]
+    fn preceding_block_strings_do_not_become_operation_comments(
+        #[case] preceding_definition: &str,
+        #[case] has_operation: bool,
+        #[values(false, true)] annotated: bool,
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let comment = if annotated { "# B metadata\n" } else { "" };
+        let source = format!("{preceding_definition}\n{comment}query B {{ b }}");
+        let operations =
+            parsed_inputs_from_files_with_comments(&[("ops.graphql", &source)], preserve_comments)
+                .generate_operations()
+                .unwrap();
+        let mut expected = Vec::new();
+        if has_operation {
+            expected.push((
+                "A",
+                "query A {\n  f(arg: \"# string content\")\n}",
+                "701a34768698fd540db186c1790bda8dc494d9bc303d0a4e1f416a42e09725f0",
+            ));
+        }
+        let (body_b, id_b) = if annotated && preserve_comments {
+            (
+                "# B metadata\nquery B {\n  b\n}",
+                "f46fa13b6d262385dc829fdc847d25fee4b6a6e27e630b4032e4dddaece63a20",
+            )
+        } else {
+            (
+                "query B {\n  b\n}",
+                "967c6a00169d201fe04191715aa8f83cd6170b22f5c748ec0d8ccd39bfdb3b35",
+            )
+        };
+        expected.push(("B", body_b, id_b));
+        assert_operation_bodies_and_ids(&operations, &expected);
+    }
+
+    #[rstest]
+    #[case::lf("# metadata\nquery Q { x }")]
+    #[case::cr("# metadata\rquery Q { x }")]
+    #[case::crlf("# metadata\r\nquery Q { x }")]
+    #[case::bom_before_comment("\u{feff}# metadata\nquery Q { x }")]
+    #[case::bom_before_operation("# metadata\n \t\u{feff}query Q { x }")]
+    #[case::comma_before_operation("# metadata\n, \u{feff}query Q { x }")]
+    fn comment_body_and_id_are_stable_across_ignored_source_characters(
+        #[case] source: &str,
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let operations =
+            parsed_inputs_from_files_with_comments(&[("ops.graphql", source)], preserve_comments)
+                .generate_operations()
+                .unwrap();
+        let (body, id) = if preserve_comments {
+            (
+                "# metadata\nquery Q {\n  x\n}",
+                "779e5e3b0fdf321abd8932bcae41c6fea1b29feb4c63bfd80d29e746ed2b8f06",
+            )
+        } else {
+            (
+                "query Q {\n  x\n}",
+                "8e0b02444ba4ea82e7e226c93c607666ac71e2a020ed2ecfe09c747b03bfb40e",
+            )
+        };
+        assert_operation_bodies_and_ids(&operations, &[("Q", body, id)]);
+    }
+
+    #[rstest]
+    fn shared_fragments_do_not_transfer_comments_across_files(
+        #[values(false, true)] preserve_comments: bool,
+    ) {
+        let operations = parsed_inputs_from_files_with_comments(
+            &[
+                ("a.graphql", "\u{feff}# A metadata\rquery A { ...F }"),
+                ("b.graphql", "query B { ...F }"),
+                (
+                    "fragment.graphql",
+                    "# Fragment metadata\nfragment F on X { x }",
+                ),
+            ],
+            preserve_comments,
+        )
+        .generate_operations()
+        .unwrap();
+        let (body_a, id_a) = if preserve_comments {
+            (
+                "# A metadata\nquery A {\n  ...F\n}\n\nfragment F on X {\n  x\n}",
+                "3c9344a1b2bce628df4cb5f21eba05aa09729859aea12ecf1ef3f5e8575178b4",
+            )
+        } else {
+            (
+                "query A {\n  ...F\n}\n\nfragment F on X {\n  x\n}",
+                "f289e745b67abd7a2eabda194dcc8ce870449a74a7ba8d6bd0f753e802ecfb90",
+            )
+        };
+        assert_operation_bodies_and_ids(
+            &operations,
+            &[
+                ("A", body_a, id_a),
+                (
+                    "B",
+                    "query B {\n  ...F\n}\n\nfragment F on X {\n  x\n}",
+                    "af9c1b115c7474911deaeadf903552afe7f47dd5ce72556726ae91801463a3df",
+                ),
+            ],
+        );
     }
 
     #[test]
