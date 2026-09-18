@@ -56,6 +56,6 @@ impl GenerateConnector {
                 self.quiet,
             )
             .await?;
-        Ok(result)
+        Ok(RoverOutput::ConnectorTestResponse { output: result })
     }
 }
