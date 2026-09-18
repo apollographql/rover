@@ -85,7 +85,7 @@ impl RunConnector {
                 self.variables.clone(),
             )
             .await?;
-        Ok(result)
+        Ok(RoverOutput::ConnectorRunResponse { output: result })
     }
 
     pub fn format_output(output: &RunConnectorOutput) -> String {

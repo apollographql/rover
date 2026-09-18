@@ -194,7 +194,7 @@ impl AnalyzeCurl {
                     .await?
             }
         };
-        Ok(result)
+        Ok(RoverOutput::ConnectorTestResponse { output: result })
     }
 }
 
