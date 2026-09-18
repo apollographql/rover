@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use rover_print::print::Print;
 use serde::Serialize;
 
 use crate::{
@@ -27,6 +28,7 @@ impl Compose {
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,
         _output_file: Option<Utf8PathBuf>,
+        _stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."

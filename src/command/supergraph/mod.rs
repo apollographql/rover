@@ -37,7 +37,12 @@ impl Supergraph {
             Command::Fetch(command) => command.run(client_config).await,
             Command::Compose(command) => {
                 command
-                    .run(override_install_path, client_config, output_file)
+                    .run(
+                        override_install_path,
+                        client_config,
+                        output_file,
+                        &rover_print::print::stderr::default(),
+                    )
                     .await
             }
             Command::Config(command) => command.run(),

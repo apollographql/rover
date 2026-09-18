@@ -4,6 +4,7 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
 use derive_getters::Getters;
+use rover_print::{print::Print, style::StyledText};
 use rover_studio::types::GraphRef;
 use serde::Serialize;
 
@@ -67,6 +68,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let write_file_impl = FsWriteFile::default();
         let exec_command_impl = TokioCommand::default();
@@ -84,6 +86,12 @@ impl Compose {
         let composition_success = composition_pipeline
             .compose(&exec_command_impl, &write_file_impl)
             .await?;
+
+        // The compose above only succeeds once the supergraph binary is resolved, so this is
+        // always `Ok` here (FR54).
+        if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
+            stderr.print(&StyledText::plain(binary.provenance().to_string()));
+        }
 
         if let Some(output_file) = output_file {
             let parent = output_file.parent();

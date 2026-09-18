@@ -78,6 +78,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover subgraph publish` now reports which contract variants had a downstream launch triggered by the publish, with a link, in text (printed to stderr) and JSON. Fails the publish if the launch itself or any downstream launch didn't complete successfully.
 
+- **`rover supergraph compose` and `rover connector` report which plugin they used - @SharkBaitDLS**
+
+  Every run now prints one stderr line per plugin it resolved — name, exact version, and whether it was downloaded, already installed, or a fallback — even on cached runs, which previously printed nothing, e.g. `` Using the `supergraph` plugin v2.9.3 (downloaded). ``. `rover dev` and `rover lsp` will report the same information in a following change in this stack.
+
 ## 🐛 Fixes
 
 - **Stop warning that a floating `federation_version` will become an error - @SharkBaitDLS**
