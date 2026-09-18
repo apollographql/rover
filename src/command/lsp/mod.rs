@@ -1,4 +1,5 @@
 mod errors;
+mod output;
 
 use std::{collections::HashMap, env::temp_dir, fmt::Debug, io::stdin, path::PathBuf};
 
@@ -21,8 +22,11 @@ use crate::{
     RoverOutput, RoverResult,
     command::{
         install::PluginProvenanceTracker,
-        lsp::errors::{
-            StartCompositionError, StartCompositionError::SupergraphYamlUrlConversionFailed,
+        lsp::{
+            errors::{
+                StartCompositionError, StartCompositionError::SupergraphYamlUrlConversionFailed,
+            },
+            output::LspOutput,
         },
     },
     composition::{
@@ -83,7 +87,7 @@ impl Lsp {
             .require_elv2_license(&client_config)?;
 
         run_lsp(client_config, self.opts.clone()).await?;
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::CliOutput(Box::new(LspOutput)))
     }
 }
 

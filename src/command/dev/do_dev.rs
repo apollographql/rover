@@ -19,6 +19,7 @@ use crate::{
         dev::{
             OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION,
             mcp::{binary::RunMcpServerBinaryError, run::RunMcpServer},
+            output::DevOutput,
             router::{
                 binary::RunRouterBinaryError,
                 config::{RouterAddress, RouterHost, RouterPort},
@@ -475,6 +476,6 @@ impl Dev {
                 }
             }
         };
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::CliOutput(Box::new(DevOutput)))
     }
 }
