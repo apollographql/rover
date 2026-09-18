@@ -10,8 +10,8 @@ use serde::{
 use serde_json::Value;
 
 use crate::{
-    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
-    utils::effect::exec::TokioCommand,
+    RoverOutput, RoverResult, command::connector::output::ConnectorAnalyzeOutput,
+    composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
 /// Failure modes of Loading Test data from a file or command line input
@@ -194,7 +194,9 @@ impl AnalyzeCurl {
                     .await?
             }
         };
-        Ok(RoverOutput::ConnectorTestResponse { output: result })
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorAnalyzeOutput(
+            result,
+        ))))
     }
 }
 

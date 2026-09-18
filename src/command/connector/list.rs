@@ -5,8 +5,8 @@ use clap::Parser;
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult, composition::supergraph::binary::SupergraphBinary,
-    utils::effect::exec::TokioCommand,
+    RoverOutput, RoverResult, command::connector::output::ConnectorListOutput,
+    composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
 #[derive(Debug, Parser, Clone, Serialize)]
@@ -35,6 +35,8 @@ impl ListConnector {
                 camino::Utf8PathBuf::from_path_buf(schema_path).unwrap_or_default(),
             )
             .await?;
-        Ok(RoverOutput::ConnectorTestResponse { output: result })
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorListOutput(
+            result,
+        ))))
     }
 }
