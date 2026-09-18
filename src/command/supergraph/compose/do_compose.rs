@@ -10,6 +10,7 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
+    command::supergraph::compose::output::ComposeOutput,
     composition::get_supergraph_binary,
     options::PluginOpts,
     utils::{
@@ -105,6 +106,8 @@ impl Compose {
                 .await?;
         }
 
-        Ok(RoverOutput::CompositionResult(composition_success.into()))
+        Ok(RoverOutput::CliOutput(Box::new(ComposeOutput(
+            composition_success.into(),
+        ))))
     }
 }
