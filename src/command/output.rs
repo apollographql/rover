@@ -65,6 +65,23 @@ pub trait CliOutput: Debug + Send {
     fn exit_code(&self) -> i32 {
         0
     }
+
+    /// Names what this output *is*, for the heading printed above it on a TTY
+    /// and for the `--output <file>` confirmation ("Supergraph Schema was
+    /// printed to ..."). `None` prints neither, which suits output that needs
+    /// no introduction.
+    fn descriptor(&self) -> Option<&str> {
+        None
+    }
+
+    /// Commentary to print to stderr beside the output, in plain mode only.
+    ///
+    /// Composition hints are the motivating case: they belong next to the
+    /// schema, not inside it, and `--format json` already carries them as a
+    /// field, so repeating them on stderr there would be noise.
+    fn stderr(&self) -> Option<String> {
+        None
+    }
 }
 
 /// RoverOutput defines all of the different types of data that are printed
@@ -687,7 +704,17 @@ impl RoverOutput {
 
                 Some(output)
             }
-            RoverOutput::CliOutput(cli_output) => Some(cli_output.text()),
+            RoverOutput::CliOutput(cli_output) => {
+                if let Some(stderr) = cli_output.stderr() {
+                    stderrln!("{}", stderr)?;
+                }
+
+                // Empty means nothing to print, not a blank line: commands
+                // whose whole result is "it worked" have no stdout payload,
+                // and `EmptySuccess` gives them none today.
+                let text = cli_output.text();
+                (!text.is_empty()).then_some(text)
+            }
         })
     }
 
@@ -928,7 +955,7 @@ impl RoverOutput {
         }
         Ok(())
     }
-    pub(crate) const fn descriptor(&self) -> Option<&str> {
+    pub(crate) fn descriptor(&self) -> Option<&str> {
         match &self {
             RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
             RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
@@ -948,6 +975,7 @@ impl RoverOutput {
             }
             RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
             RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
+            RoverOutput::CliOutput(cli_output) => cli_output.descriptor(),
             _ => None,
         }
     }
@@ -978,6 +1006,7 @@ mod tests {
             RelatedProposal, SchemaChange, Sdl, SdlType, Violation,
         },
     };
+    use speculoos::prelude::*;
 
     use super::*;
     use crate::options::JsonOutput;
@@ -2395,5 +2424,96 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
         });
 
         assert_json_eq!(actual_json, expected_json);
+    }
+    /// Minimal `CliOutput` impls for the delegation tests below: one that names
+    /// itself and one that does not, since the difference decides whether a
+    /// heading is printed at all.
+    #[derive(Debug)]
+    struct NamedOutput;
+
+    impl CliOutput for NamedOutput {
+        fn text(&self) -> String {
+            String::from("named")
+        }
+
+        fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
+            Ok(json!({ "named": true }))
+        }
+
+        fn descriptor(&self) -> Option<&str> {
+            Some("Supergraph Schema")
+        }
+
+        fn stderr(&self) -> Option<String> {
+            Some(String::from("HINT: something worth saying"))
+        }
+    }
+
+    #[derive(Debug)]
+    struct AnonymousOutput;
+
+    impl CliOutput for AnonymousOutput {
+        fn text(&self) -> String {
+            String::from("anonymous")
+        }
+
+        fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
+            Ok(json!({ "anonymous": true }))
+        }
+    }
+
+    #[test]
+    fn cli_output_descriptor_reaches_rover_output() {
+        let output = RoverOutput::CliOutput(Box::new(NamedOutput));
+
+        assert_that!(output.descriptor()).is_equal_to(Some("Supergraph Schema"));
+    }
+
+    #[test]
+    fn cli_output_descriptor_defaults_to_none() {
+        let output = RoverOutput::CliOutput(Box::new(AnonymousOutput));
+
+        assert_that!(output.descriptor()).is_equal_to(None);
+    }
+
+    /// The stderr commentary must not end up in the stdout payload — that is
+    /// the whole reason it is a separate method rather than part of `text()`.
+    #[test]
+    fn cli_output_stderr_stays_out_of_stdout() {
+        let output = RoverOutput::CliOutput(Box::new(NamedOutput));
+
+        assert_that!(output.get_stdout().unwrap()).is_equal_to(Some(String::from("named")));
+    }
+
+    /// `EmptySuccess` prints nothing at all, and a command moving onto the
+    /// trait with no payload has to keep doing that rather than emit a blank
+    /// line.
+    #[test]
+    fn cli_output_with_empty_text_prints_nothing() {
+        #[derive(Debug)]
+        struct SilentOutput;
+
+        impl CliOutput for SilentOutput {
+            fn text(&self) -> String {
+                String::new()
+            }
+
+            fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
+                Ok(Value::Null)
+            }
+        }
+
+        let output = RoverOutput::CliOutput(Box::new(SilentOutput));
+
+        assert_that!(output.get_stdout().unwrap()).is_equal_to(None);
+        assert_that!(JsonOutput::from(&output).to_string())
+            .is_equal_to(JsonOutput::from(&RoverOutput::EmptySuccess).to_string());
+    }
+
+    #[test]
+    fn cli_output_without_stderr_still_prints_its_text() {
+        let output = RoverOutput::CliOutput(Box::new(AnonymousOutput));
+
+        assert_that!(output.get_stdout().unwrap()).is_equal_to(Some(String::from("anonymous")));
     }
 }
