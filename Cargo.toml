@@ -355,6 +355,7 @@ rand_regex = "0.19"
 reqwest = { workspace = true, features = ["rustls"] }
 rover-client = { workspace = true, features = ["testing"] }
 rover-http = { workspace = true, features = ["test"] }
+rover-print = { workspace = true, features = ["testing"] }
 rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 sealed_test = { workspace = true }
