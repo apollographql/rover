@@ -15,11 +15,9 @@ use crate::{
 };
 
 mod plugin;
-// No consumers outside `plugin` itself yet; wired up once `dev`/`lsp` need the dedupe
-// (a later branch of this stack).
-#[expect(unused_imports)]
-pub(crate) use plugin::PluginProvenanceTracker;
-pub(crate) use plugin::{McpServerVersion, Plugin, PluginInstaller, PluginProvenance};
+pub(crate) use plugin::{
+    McpServerVersion, Plugin, PluginInstaller, PluginProvenance, PluginProvenanceTracker,
+};
 // Other modules only ever construct these in their own #[cfg(test)] fixtures, never
 // from production code, so this re-export is test-only rather than merely unused.
 #[cfg(test)]

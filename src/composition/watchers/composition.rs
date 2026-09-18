@@ -4,6 +4,7 @@ use apollo_federation_types::config::FederationVersion;
 use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use futures::stream::BoxStream;
+use rover_print::{print::Print, style::StyledText};
 use rover_std::{errln, infoln, warnln};
 use tap::TapFallible;
 use tokio::sync::mpsc::UnboundedSender;
@@ -215,6 +216,12 @@ where
                                     Ok(supergraph_binary) => {
                                         tracing::info!("Supergraph version changed to {:?}", supergraph_binary.version());
                                         infoln!("Supergraph version changed to {}", supergraph_binary.version().to_string());
+                                        // A changed version is, by construction, new information worth
+                                        // reprinting (FR56) — this arm only runs when the version actually
+                                        // changed.
+                                        rover_print::print::stderr::default().print(&StyledText::plain(
+                                            supergraph_binary.provenance().to_string(),
+                                        ));
                                         self.supergraph_binary = Ok(supergraph_binary)
                                     }
                                     Err(err) => {

@@ -84,16 +84,12 @@ impl fmt::Display for PluginProvenance {
 /// invocation, so a long-running command (`rover dev`, `rover lsp`) prints the
 /// FR54 line once per plugin and only reprints when the plugin actually changes
 /// (FR56).
-// Only the tests below construct this so far; no non-test consumers until
-// `dev`/`lsp` need the dedupe (a later branch of this stack).
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug, Default)]
 pub struct PluginProvenanceTracker {
     last_reported: HashMap<String, PluginProvenance>,
 }
 
 impl PluginProvenanceTracker {
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn new() -> Self {
         Self::default()
     }
@@ -101,7 +97,6 @@ impl PluginProvenanceTracker {
     /// Returns `true` (print the FR54 line) the first time a plugin name is
     /// recorded or when its version changed since last recorded; `false` if
     /// the same version was already reported.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn record(&mut self, provenance: PluginProvenance) -> bool {
         match self.last_reported.get(&provenance.name) {
             Some(previous) if previous.version == provenance.version => false,
