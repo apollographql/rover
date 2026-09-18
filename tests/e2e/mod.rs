@@ -344,6 +344,10 @@ fn remote_supergraph_graphref() -> String {
         .unwrap_or_else(|_| String::from("rover-e2e-tests@current"))
 }
 
+/// Names the graph the subgraph publish e2e tests work on. Those tests no
+/// longer publish into this variant — each run creates one of its own — but the
+/// graph half of this ref is where they create it, and the variant half is kept
+/// so the override below still reads the way it always has.
 #[fixture]
 fn remote_supergraph_publish_test_variant_graphref() -> String {
     env::var("APOLLO_E2E_SUPERGRAPH_PUBLISH_TEST_GRAPHREF")
