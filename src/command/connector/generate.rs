@@ -42,6 +42,9 @@ pub struct GenerateConnector {
 impl GenerateConnector {
     pub async fn run(&self, supergraph_binary: SupergraphBinary) -> RoverResult<RoverOutput> {
         let exec_command_impl = TokioCommand::default();
+        // Captured before the binary is consumed below (FR57).
+        let plugins = vec![supergraph_binary.provenance().clone()];
+
         let result = supergraph_binary
             .generate_connector(
                 &exec_command_impl,
@@ -56,8 +59,9 @@ impl GenerateConnector {
                 self.quiet,
             )
             .await?;
-        Ok(RoverOutput::CliOutput(Box::new(ConnectorGenerateOutput(
-            result,
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ConnectorGenerateOutput {
+            output: result,
+            plugins,
+        })))
     }
 }
