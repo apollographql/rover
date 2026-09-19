@@ -35,6 +35,6 @@ impl ListConnector {
                 camino::Utf8PathBuf::from_path_buf(schema_path).unwrap_or_default(),
             )
             .await?;
-        Ok(result)
+        Ok(RoverOutput::ConnectorTestResponse { output: result })
     }
 }
