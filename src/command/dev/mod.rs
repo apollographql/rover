@@ -10,6 +10,8 @@ mod mcp;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 #[cfg(feature = "composition-js")]
+mod output;
+#[cfg(feature = "composition-js")]
 mod router;
 
 use std::net::IpAddr;
