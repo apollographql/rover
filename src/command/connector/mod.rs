@@ -28,6 +28,7 @@ pub mod analyze;
 #[cfg(target_os = "macos")]
 pub mod generate;
 pub mod list;
+pub mod output;
 pub mod run;
 pub mod test;
 
