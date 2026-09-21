@@ -613,6 +613,10 @@ mod test {
             target_url: None,
             variants,
         };
-        assert_that!(&downstream_msg(&response)).is_equal_to(expected.to_string());
+        // `downstream_msg` styles the variant names, and `console` emits colour whenever it
+        // detects a terminal — so without stripping, this passes under a piped CI run and
+        // fails for anyone running `cargo test` from a terminal.
+        assert_that!(&strip_ansi_codes(&downstream_msg(&response)).to_string())
+            .is_equal_to(expected.to_string());
     }
 }
