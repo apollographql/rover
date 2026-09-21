@@ -395,7 +395,9 @@ mod tests {
     fn rover_looks_for_plugins_in_the_level_this_fixture_builds(two_levels: TwoLevels) {
         // The fixture is only worth anything if Rover agrees with it about
         // where plugins live. `--skip-update` makes Rover look and report,
-        // without reaching the network for anything.
+        // without reaching the network for the plugin itself; `--skip-update-check`
+        // is needed too, since it's a separate flag that gates Rover's own
+        // self-update check.
         std::fs::write(
             two_levels.working_dir().join("supergraph.yaml"),
             "federation_version: \"2\"\nsubgraphs:\n  users:\n    routing_url: http://localhost:4002\n    schema:\n      file: ./users.graphql\n",
@@ -416,6 +418,7 @@ mod tests {
                 "--config",
                 "supergraph.yaml",
                 "--skip-update",
+                "--skip-update-check",
             ])
             .output()
             .expect("could not run rover");
@@ -424,8 +427,12 @@ mod tests {
         // is usually because Rover stopped somewhere earlier for an unrelated
         // reason, and the message is the only thing that says where.
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let expected_stderr = format!(
+            "merging supergraph schema files\nwarning: federation_version isn't pinned to an exact version, so each run composes with the latest release available at the time. A new federation release can change your supergraph schema, or need a newer router than you're running. Pin an exact version (e.g. federation_version: =2.x.y) and update your router before raising it. See https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version for more information.\nerror: Error when updating Federation Version\n\nCaused by:\n    unable to find dependency: \"error: You do not have any 'supergraph' plugins installed in '{bin_dir}'.\n            Re-run this command without the `--skip-update` flag to install the proper plugin.\n    \"\n",
+            bin_dir = two_levels.global.bin_dir(),
+        );
 
-        assert_that!(stderr).contains(two_levels.global.bin_dir().as_str());
+        assert_that!(stderr).is_equal_to(expected_stderr);
     }
 
     #[rstest]
