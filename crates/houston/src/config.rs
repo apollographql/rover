@@ -98,7 +98,7 @@ impl Config {
             .map_err(|_| HoustonProblem::NoConfigFound(self.home.to_string()))
     }
 
-    /// Writes elv2 = "accept" to self.home.join("elv2.toml")
+    /// Writes elv2 = "accept" to self.home.join("elv2_license.toml")
     pub fn remember_elv2_license_accept(&self) -> Result<(), HoustonProblem> {
         let toml_path = self.get_elv2_toml_path();
         let elv2_toml = Elv2Toml { did_accept: true };
@@ -107,7 +107,7 @@ impl Config {
         Ok(())
     }
 
-    /// Retrieves the value of self.home.join("elv2.toml")
+    /// Retrieves the value of self.home.join("elv2_license.toml")
     pub fn did_accept_elv2_license(&self) -> bool {
         let toml_path = self.get_elv2_toml_path();
         if let Ok(contents) = Fs::read_file(toml_path) {
