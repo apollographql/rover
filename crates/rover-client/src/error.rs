@@ -364,7 +364,7 @@ pub enum RoverClientError {
     #[error("Service failed to become ready")]
     ServiceReady(Box<dyn std::error::Error + Send + Sync>),
 
-    #[error("{}", .source)]
+    #[error("Service error")]
     Service {
         source: Box<dyn std::error::Error + Send + Sync>,
         endpoint_kind: EndpointKind,

@@ -13,7 +13,7 @@ pub enum StartCompositionError {
     SupergraphYamlUrlConversionFailed(Utf8PathBuf),
     #[error("Could not create HTTP service")]
     HttpServiceCreationFailed(#[from] Error),
-    #[error("Could not initialise the composition pipeline: {}", .0)]
+    #[error("Could not initialise the composition pipeline")]
     InitialisingCompositionPipelineFailed(#[from] CompositionPipelineError),
     #[error("Could not run initial composition")]
     InitialCompositionFailed(#[from] CompositionError),

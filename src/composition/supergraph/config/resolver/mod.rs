@@ -139,7 +139,7 @@ pub enum LoadSupergraphConfigError {
     #[error("Failed to read file descriptor. Error: {0}")]
     ReadFileDescriptor(RoverError),
     /// Occurs when a supergraph cannot be deserialised, ready for expansion
-    #[error("Failed to deserialise the supergraph config. Error: {0}")]
+    #[error("Failed to deserialise the supergraph config")]
     DeserializationError(#[from] serde_yaml::Error),
     /// Occurs when a supergraph cannot be expanded correctly
     #[error("Failed to expand supergraph config. Error: {0}")]

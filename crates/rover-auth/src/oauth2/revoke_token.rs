@@ -18,7 +18,7 @@ pub enum RevokeTokenError {
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
     /// Invalid oauth2 client configuration for revocation.
-    #[error("Failed to configure revoke token request. {}", .0)]
+    #[error("Failed to configure revoke token request.")]
     OauthConfiguration(#[from] oauth2::ConfigurationError),
 }
 

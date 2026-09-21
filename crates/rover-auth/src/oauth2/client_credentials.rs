@@ -22,7 +22,7 @@ pub enum ClientCredentialsError {
     #[error("{0}")]
     OAuth(BasicErrorResponse),
     /// The token endpoint response could not be parsed.
-    #[error("failed to parse token endpoint response: {source}")]
+    #[error("failed to parse token endpoint response")]
     Parse {
         /// The underlying parse error.
         #[source]

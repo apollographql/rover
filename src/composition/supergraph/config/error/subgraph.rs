@@ -38,7 +38,7 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when a introspection against a subgraph fails
-    #[error("Failed to introspect the subgraph \"{subgraph_name}\": {source}")]
+    #[error("Failed to introspect the subgraph \"{subgraph_name}\"")]
     IntrospectionError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
@@ -54,7 +54,7 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when fetching a remote subgraph fails
-    #[error("Failed to fetch the sdl for subgraph `{}` from remote.\n {}", .subgraph_name, .source)]
+    #[error("Failed to fetch the sdl for subgraph `{}` from remote.", .subgraph_name)]
     FetchRemoteSdlError {
         /// The name of the subgraph that failed to be resolved
         subgraph_name: String,

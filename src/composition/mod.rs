@@ -150,15 +150,15 @@ pub enum CompositionError {
         source: BuildErrors,
         federation_version: FederationVersion,
     },
-    #[error("Serialization error.\n{}", .0)]
+    #[error("Serialization error")]
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("{}", .0)]
     InvalidSupergraphConfig(String),
-    #[error("Error when updating Federation Version:\n{}", .0)]
+    #[error("Error when updating Federation Version")]
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
-    #[error("Error resolving subgraphs:\n{}", .0)]
+    #[error("Error resolving subgraphs")]
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
-    #[error("Could not install supergraph binary:\n{}", .source)]
+    #[error("Could not install supergraph binary")]
     InstallSupergraphBinaryError { source: InstallSupergraphError },
     #[error(transparent)]
     FederationOneUnsupported(#[from] FederationOneUnsupported),

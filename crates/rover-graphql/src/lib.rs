@@ -115,13 +115,13 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
         status_code: StatusCode,
     },
     /// [`http`]-related error, probably from header-related tasks
-    #[error("HTTP error: {:?}", .0)]
+    #[error("HTTP error")]
     Http(#[from] http::Error),
     /// Error that occurs from a failure to parse a [`Uri`] from a [`Url`]
     #[error("Unable to convert URL to URI.")]
     InvalidUri(#[from] InvalidUri),
     /// Errors that occur as a result of the underlying [`HttpService`] failing
-    #[error("Upstream service error: {:?}", .0)]
+    #[error("Upstream service error")]
     UpstreamService(#[from] Box<dyn std::error::Error + Send + Sync>),
     /// This shouldn't ever happen
     #[error(transparent)]

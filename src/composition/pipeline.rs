@@ -51,22 +51,22 @@ use crate::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionPipelineError {
-    #[error("Failed to load remote subgraphs.\n{}", .0)]
+    #[error("Failed to load remote subgraphs")]
     LoadRemoteSubgraphs(#[from] LoadRemoteSubgraphsError),
-    #[error("Failed to load the supergraph config.\n{}", .0)]
+    #[error("Failed to load the supergraph config")]
     LoadSupergraphConfig(#[from] LoadSupergraphConfigError),
-    #[error("Failed to resolve the supergraph config.\n{}", .0)]
+    #[error("Failed to resolve the supergraph config")]
     ResolveSupergraphConfig(#[from] ResolveSupergraphConfigError),
-    #[error("IO error.\n{}", .0)]
+    #[error("IO error")]
     Io(#[from] std::io::Error),
-    #[error("Serialization error.\n{}", .0)]
+    #[error("Serialization error")]
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("Error writing file: {}.\n{}", .path, .err)]
     WriteFile {
         path: Utf8PathBuf,
         err: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Failed to install the supergraph binary.\n{}", .0)]
+    #[error("Failed to install the supergraph binary")]
     InstallSupergraph(#[from] InstallSupergraphError),
     #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{name}: {err}")), "\n"))]
     ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),

@@ -10,7 +10,7 @@ use super::{RouterAddress, RouterHost, RouterPort};
 
 #[derive(Error, Debug)]
 pub enum ParseRouterConfigError {
-    #[error("Invalid SocketAddr at {}. Error: {:?}", .path, .source)]
+    #[error("Invalid SocketAddr at {}.", .path)]
     ParseAddress {
         path: &'static str,
         source: std::io::Error,

@@ -18,7 +18,7 @@ pub enum HttpServiceError {
     },
     /// Errors that may occur from the [`http`] crate. This is generally relegated to
     /// parsing of things like [`Uri`]s or header names/values
-    #[error("HTTP Error: {:?}", .0)]
+    #[error("HTTP Error")]
     Http(#[from] http::Error),
     /// The request was cancelled
     #[error("Request was cancelled.")]
