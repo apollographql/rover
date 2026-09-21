@@ -162,20 +162,20 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       - name: Install strace
         run: sudo apt-get install --yes --no-install-recommends strace
-      - name: Build rover and the integration tests
+      - name: Build rover and the network-denied tests
         run: |
           cargo build --locked -p rover
-          cargo test --locked -p rover --test main --no-run
+          cargo test --locked -p rover --test network_denied --no-run
       - name: Run the offline tests with no route out
         run: |
           set -euo pipefail
 
-          BIN="$(cargo test --locked -p rover --test main --no-run --message-format=json \
-            | jq -r 'select(.profile.test == true and .target.name == "main") | .executable' \
+          BIN="$(cargo test --locked -p rover --test network_denied --no-run --message-format=json \
+            | jq -r 'select(.profile.test == true and .target.name == "network_denied") | .executable' \
             | tail -1)"
 
           if [ -z "$BIN" ] || [ "$BIN" = "null" ]; then
-            echo '::error::Could not find the built integration test binary, so the offline tests did not run.'
+            echo '::error::Could not find the built network-denied test binary, so the offline tests did not run.'
             exit 1
           fi
 
@@ -183,7 +183,7 @@ jobs:
           # down. Nothing inside it can reach out, which is the whole point:
           # these tests refuse to pass anywhere a connection could succeed.
           sudo unshare --net -- bash -c \
-            "ip link set lo up && ROVER_TEST_NETWORK_DENIED=1 '$BIN' support::network --ignored --nocapture"
+            "ip link set lo up && ROVER_TEST_NETWORK_DENIED=1 '$BIN' --ignored --nocapture"
 
 
   test_minimal_glibc:
