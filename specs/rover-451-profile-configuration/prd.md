@@ -54,6 +54,7 @@ This produces three concrete problems:
 ## 3. Shared definitions
 
 - **Setting.** A named, typed, non-secret configuration value. Settings are named by their env var name verbatim (`APOLLO_REGISTRY_URL`) in `rover config`, in the project file, and in the inspection verb. Settings that have no env var today (the OAuth endpoints) gain an `APOLLO_OAUTH_*` env var in the Prerequisite slice, so by the time Part A ships every setting has an env var name.
+- **Project file.** Shorthand throughout Part B for the `settings:` section of Rover's project manifest, `.rover/rover.yaml`, whose location and discovery the plugin system (ROVER-420) defines. Where this PRD says "the project file supplies a value," it means a key under `settings:` in the discovered manifest; the manifest's other sections are not settings.
 - **Network-destination setting.** A setting whose value is a host or URL that Rover sends requests to or downloads code from: `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, `APOLLO_ROVER_DOWNLOAD_HOST`, `APOLLO_TEMPLATES_API`, and the OAuth endpoint settings.
 - **Explicitly selected profile.** A profile named by `--profile <name>` on the command line, including `--profile default` typed literally. Omitting `--profile` selects the default profile implicitly. There is deliberately no env var for this (P2).
 - **Profile-eligible.** A setting belongs in a profile if switching GraphOS org or environment would plausibly require changing it. Settings that don't vary by org (update-check opt-out, npm wrapper paths, color output, ELv2 acceptance) are not eligible.
@@ -173,7 +174,7 @@ Names below are the proposal; the spec confirms them.
 - Deprecating or removing any existing `APOLLO_*` environment variable or flag.
 - Moving `APOLLO_CONFIG_HOME` or `APOLLO_HOME` into profile storage. Both are bootstrap-time (they determine where profile data itself lives, or where Rover installs itself), so they can't depend on a profile being loaded.
 - Changing the order in which the API key, OAuth client credentials, and stored profile credential are tried when resolving a credential.
-- A global (non-profile) user settings file for machine-level preferences. Settings that fail the eligibility test are simply out of scope, not moved somewhere else.
+- A global (non-profile) user settings file for machine-level preferences. Settings that fail the eligibility test are simply out of scope, not moved somewhere else. The plugin system's user-level manifest is not that file either (see B2).
 - The on-disk format of the profile settings file.
 
 ## A4. Open questions (resolve in the Part A specs)
@@ -200,7 +201,7 @@ Depends on Part A. Introduces a committable artifact and a trust gate, and exten
 
 ## B1. Goals
 
-1. **Project-scoped settings.** A repository can carry a committable, non-secret configuration file that supplies any profile-eligible setting for anyone running Rover in that working tree. The repo, not the pipeline definition or each developer's shell, says how it talks to GraphOS. A credential key in the project file is an error, not a warning. Project files are hand-edited; there is no `rover config` verb that writes them.
+1. **Project-scoped settings.** A repository can carry committable, non-secret configuration that supplies any profile-eligible setting for anyone running Rover in that working tree. It lives under a `settings:` top-level key in Rover's project manifest, `.rover/rover.yaml`, the same file the plugin system (ROVER-420) uses for its `plugins:` section. That spec named the file for Rover rather than for plugins precisely so it could carry other project configuration, and requires unknown top-level keys to be ignored, so a `settings:` section slots in without breaking older Rover versions. Keys inside `settings:` are the setting names from §3. The repo, not the pipeline definition or each developer's shell, says how it talks to GraphOS. A credential key in `settings:` is an error, not a warning. The `settings:` section is hand-edited; there is no `rover config` verb that writes it.
 2. **Extended precedence.** Part A's rule becomes:
 
    **explicit CLI flag > environment variable > explicitly selected profile > project file > default profile > built-in default**
@@ -220,20 +221,24 @@ Depends on Part A. Introduces a committable artifact and a trust gate, and exten
 - **The trust store shares the settings file's threat model.** It's a plaintext file in the user's config directory. An attacker with local write access could pre-trust a value set, exactly as they could edit a profile setting. That attacker is out of scope for this PRD; the trust gate defends against the remote attacker who controls a repository, not the local one who controls the home directory.
 - **Honest CI accounting.** For a CI pipeline that today sets several `APOLLO_*` env vars, the project file replaces them with one: the trust env var. That is a real reduction but not zero; the pipeline still opts in.
 - **Non-interactive detection.** A run is interactive if and only if both standard input and standard error are attached to a terminal. Everything else (CI, pre-commit hooks, process managers, piped invocations) is non-interactive and follows the env var rule.
-- **Discovery.** Rover looks for the project file in the current directory, then each ancestor, stopping at the first file found, at a repository root, or at the filesystem root. The nearest file wins; files are never merged. Commands that take a configuration file in another directory still discover from the current directory.
-- **Unknown and invalid values.** Same as Part A: unknown keys warn, invalid values for known keys fail the command with a message naming the file and key. A committed typo breaks loudly with a clear repair path rather than silently changing behavior.
+- **Discovery is the manifest's, not this PRD's.** Because settings share the plugin manifest, they are found by the plugin system's discovery rule, as ROVER-420 defines it: the nearest ancestor of the working directory containing a `.rover/` directory, searching up to the filesystem root, never treating the user-level `~/.rover/` as a project, and overridden by `--manifest-path` where a command accepts it. The nearest manifest wins; manifests are never merged. Per-command file flags such as `--supergraph-config` do not affect discovery. One file cannot have two discovery rules, so Part B does not define its own.
+- **One file, two owners.** The manifest's plugin keys (`plugins:`, `install_root`) belong to ROVER-420; `settings:` belongs to this PRD. Each owner's rules apply only to its own section: the trust gate (B1.3) covers `settings:` network-destination keys and nothing else, while the plugin section is protected by that spec's checksum and install-root rules. Any Rover command that writes the manifest (today, `rover plugin install` recording what it installed) must preserve the other owner's section exactly as the author left it. The two precedence chains, plugin version resolution and settings resolution, stay independent; the sections are disjoint, so there is nothing to unify. One interaction is worth naming: `APOLLO_ROVER_DOWNLOAD_HOST` in `settings:` redirects where plugin binaries come from, which is exactly the case the trust gate exists for.
+- **The global manifest does not carry settings.** ROVER-420 also reads a user-level `~/.rover/rover.yaml`. A `settings:` key there is ignored with a stderr warning pointing at `rover config`. Profiles are the user-level settings store; honoring a second one would reintroduce Problem 1 at the machine level.
+- **Unknown and invalid values.** Two rules, by level. Unknown *top-level* keys in the manifest follow the plugin spec: ignored without error, so a manifest written for a newer Rover does not break an older one. Unknown keys *inside* `settings:` warn, as in Part A. Invalid values for known settings fail the command with a message naming the file and key. A committed typo breaks loudly with a clear repair path rather than silently changing behavior.
 - **Child-process forwarding.** Same as Part A: a setting resolved from a project file is forwarded to spawned processes exactly where its env var is today.
 
 ## B3. Non-goals
 
 - Storing credentials of any kind in the project file.
 - A project file selecting a profile (see B2).
-- Merging multiple project files.
-- The name and format of the project file, with one constraint: it must not live under a path Apollo tooling already tells users to ignore (`.apollo/`), or "committable" is defeated by common ignore templates.
+- Merging multiple project manifests.
+- Defining the manifest's path, discovery rule, or plugin sections. ROVER-420 owns them; this PRD adds a `settings:` section and nothing else.
+- Honoring `settings:` in the user-level manifest (see B2).
 
 ## B4. Open questions (resolve in the Part B spec)
 
-- **Discovery corner cases.** Nested project files in a monorepo (nearest wins is the rule; the spec confirms behavior for commands run from a subdirectory with a file at the root and another in the subdirectory), symlinked directories, and git worktrees.
+- **Discovery corner cases.** Symlinked directories and git worktrees, to the extent the plugin spec's discovery rule leaves them open. Nested manifests in a monorepo are already settled by that rule (nearest `.rover/` wins).
+- **Sequencing against ROVER-420.** Project-level `.rover/` discovery is scheduled for the plugin system's Rover 1.0 phase. Whether Part B ships alongside it, waits for it, or lands the shared discovery first with only a `settings:` section in use.
 - **Trust prompt answers.** Whether a "this run only" answer is offered in addition to yes/no.
 - **Refusal in CI.** Whether the trust env var distinguishes "refuse" from "unset," or whether unset simply means refuse.
 
@@ -251,5 +256,5 @@ Depends on Part A. Introduces a committable artifact and a trust gate, and exten
 - **Prerequisite slice.** Flag / env var parity for every global setting (P1 through P4), `--profile` as a global flag, the shared boolean env convention, and documentation of every pair. Ships before Part A slice one. It is a user-visible change in its own right and stands alone even if Part A were never built.
 - **Slice one (Part A).** Settings storage alongside the profile credential, the inspection verb, the notices and their suppression, and the registry/telemetry/OAuth-endpoint setting group. With the Prerequisite in place, this slice only adds the profile tier between env var and built-in default. Includes the docs correction to the precedence statement, since the current statement is already inaccurate.
 - **Later Part A slices.** VCS context, graph ref (after its semantics question is settled), checks timeout, download host, templates API. Each confirms its own eligibility subset.
-- **Part B.** Its own spec and its own slice, after Part A's settings storage has shipped. Introduces the committable file, discovery, two precedence tiers, the trust prompt, trust storage, and the trust verbs together; they don't decompose usefully.
+- **Part B.** Its own spec and its own slice, after Part A's settings storage has shipped. Introduces the `settings:` section of the project manifest, two precedence tiers, the trust prompt, trust storage, and the trust verbs together; they don't decompose usefully. It shares the manifest and its discovery with ROVER-420's project-level plugin work, so it either ships alongside that or the two agree on which lands the shared discovery first (B4). Both sections of the manifest must be found by one rule.
 - Each shipped slice is a user-visible change and gets a changelog entry.
