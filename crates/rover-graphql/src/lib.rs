@@ -654,4 +654,25 @@ mod tests {
             _ => false,
         });
     }
+
+    #[test]
+    fn http_cause_is_not_duplicated() {
+        let invalid_uri = "".parse::<http::Uri>().unwrap_err();
+        let marker = invalid_uri.to_string();
+        let outer = GraphQLServiceError::<()>::Http(invalid_uri.into());
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches(&marker).count()).is_equal_to(1);
+    }
+
+    #[test]
+    fn upstream_service_cause_is_not_duplicated() {
+        let inner = Box::<dyn std::error::Error + Send + Sync>::from("upstream-service-marker");
+        let outer = GraphQLServiceError::<()>::UpstreamService(inner);
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches("upstream-service-marker").count()).is_equal_to(1);
+    }
 }

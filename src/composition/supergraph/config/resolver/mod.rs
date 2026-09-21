@@ -502,8 +502,8 @@ mod tests {
     use tower_test::mock::Handle;
 
     use super::{
-        DefaultSubgraphDefinition, MockPrompt, ResolveSupergraphConfigError,
-        SupergraphConfigResolver,
+        DefaultSubgraphDefinition, LoadSupergraphConfigError, MockPrompt,
+        ResolveSupergraphConfigError, SupergraphConfigResolver,
         fetch_remote_subgraph::{
             FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
             MakeFetchRemoteSubgraphError, RemoteSubgraph,
@@ -524,6 +524,17 @@ mod tests {
         config::SupergraphConfigYaml,
         utils::effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
     };
+
+    #[test]
+    fn deserialization_error_cause_is_not_duplicated() {
+        let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let marker = inner.to_string();
+        let outer = LoadSupergraphConfigError::DeserializationError(inner);
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches(&marker).count()).is_equal_to(1);
+    }
 
     /// Test showing that federation version is selected from the local supergraph config fed version
     /// over remote composition version, or version inferred from resolved SDLs

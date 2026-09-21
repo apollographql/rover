@@ -6093,6 +6093,7 @@ dependencies = [
 name = "rover-storage"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apple-native-keyring-store",
  "bon",
  "fs-mistrust",

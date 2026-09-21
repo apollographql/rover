@@ -25,3 +25,43 @@ impl From<keyring_core::Error> for StoreError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
+    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
+    /// each link in the source chain. A variant that both embeds its cause's text inline and
+    /// registers that cause as its `source` would show `marker` here twice.
+    fn caused_by_count(err: StoreError, marker: &str) -> usize {
+        format!("{:?}", anyhow::Error::new(err))
+            .matches(marker)
+            .count()
+    }
+
+    #[test]
+    fn serialize_cause_is_not_duplicated() {
+        let inner = serde_json::from_str::<()>("not json").unwrap_err();
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(StoreError::Serialize(inner), &marker)).is_equal_to(1);
+    }
+
+    #[test]
+    fn deserialize_cause_is_not_duplicated() {
+        let inner = serde_json::from_str::<()>("not json").unwrap_err();
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(StoreError::Deserialize(inner), &marker)).is_equal_to(1);
+    }
+
+    #[test]
+    fn store_cause_is_not_duplicated() {
+        let inner = Box::<dyn std::error::Error + Send + Sync>::from("store-marker");
+
+        assert_that!(caused_by_count(StoreError::Store(inner), "store-marker")).is_equal_to(1);
+    }
+}

@@ -102,3 +102,40 @@ pub enum ResolveSubgraphError {
     #[error(transparent)]
     ParsingUt8FilePathError(#[from] camino::FromPathBufError),
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
+    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
+    /// each link in the source chain. A variant that both embeds its cause's text inline and
+    /// registers that cause as its `source` would show `marker` here twice.
+    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
+        format!("{:?}", anyhow::Error::new(err))
+            .matches(marker)
+            .count()
+    }
+
+    #[test]
+    fn introspection_error_cause_is_not_duplicated() {
+        let outer = ResolveSubgraphError::IntrospectionError {
+            subgraph_name: "subgraph-name".to_string(),
+            source: Arc::new(Box::from("introspection-marker")),
+        };
+
+        assert_that!(caused_by_count(outer, "introspection-marker")).is_equal_to(1);
+    }
+
+    #[test]
+    fn fetch_remote_sdl_error_cause_is_not_duplicated() {
+        let outer = ResolveSubgraphError::FetchRemoteSdlError {
+            subgraph_name: "subgraph-name".to_string(),
+            source: Arc::new(Box::from("fetch-remote-sdl-marker")),
+        };
+
+        assert_that!(caused_by_count(outer, "fetch-remote-sdl-marker")).is_equal_to(1);
+    }
+}

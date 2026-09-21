@@ -465,8 +465,96 @@ pub(crate) mod state {
 
 #[cfg(test)]
 mod tests {
+    use speculoos::prelude::*;
+
     use super::*;
     use crate::composition::supergraph::config::scenario::fed_one_pin_with_fed_two_subgraph_resolver;
+
+    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
+    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
+    /// each link in the source chain. A variant that both embeds its cause's text inline and
+    /// registers that cause as its `source` would show `marker` here twice.
+    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
+        format!("{:?}", anyhow::Error::new(err))
+            .matches(marker)
+            .count()
+    }
+
+    #[test]
+    fn load_remote_subgraphs_cause_is_not_duplicated() {
+        let inner = LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::<
+            dyn std::error::Error + Send + Sync,
+        >::from(
+            "load-remote-subgraphs-marker",
+        ));
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            "load-remote-subgraphs-marker"
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn load_supergraph_config_cause_is_not_duplicated() {
+        let deserialize_err = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let marker = deserialize_err.to_string();
+        let inner = LoadSupergraphConfigError::DeserializationError(deserialize_err);
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            &marker
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn resolve_supergraph_config_cause_is_not_duplicated() {
+        let inner = ResolveSupergraphConfigError::NoSource;
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            &marker
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn io_cause_is_not_duplicated() {
+        let inner = std::io::Error::other("io-marker");
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            "io-marker"
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn serde_yaml_cause_is_not_duplicated() {
+        let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            &marker
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn install_supergraph_cause_is_not_duplicated() {
+        let inner = InstallSupergraphError::MissingDependency {
+            err: "install-supergraph-marker".to_string(),
+        };
+
+        assert_that!(caused_by_count(
+            CompositionPipelineError::from(inner),
+            "install-supergraph-marker"
+        ))
+        .is_equal_to(1);
+    }
 
     /// This pins the regression the up-front `target_federation_version()` check in
     /// `resolve_federation_version` guards against: without it, a `federation_version: 1` pin

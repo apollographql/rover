@@ -70,3 +70,21 @@ impl HttpServiceError {
         matches!(self, HttpServiceError::BadStatusCode { .. })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn http_cause_is_not_duplicated() {
+        let invalid_uri = "".parse::<http::Uri>().unwrap_err();
+        let marker = invalid_uri.to_string();
+        let outer = HttpServiceError::Http(invalid_uri.into());
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches(&marker).count()).is_equal_to(1);
+    }
+}

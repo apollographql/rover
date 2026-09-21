@@ -68,6 +68,7 @@ reqwest = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 bytes = { workspace = true }
 indoc = { workspace = true }
 mockall = { workspace = true }

@@ -143,7 +143,7 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
 
-    use super::RouterConfigParser;
+    use super::{ParseRouterConfigError, RouterConfigParser};
     use crate::command::dev::router::config::{
         DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT, RouterAddress, RouterHost, RouterPort,
     };
@@ -339,5 +339,17 @@ supergraph:
             .is_some()
             .is_equal_to("/custom-path".to_string());
         Ok(())
+    }
+
+    #[test]
+    fn parse_address_cause_is_not_duplicated() {
+        let outer = ParseRouterConfigError::ParseAddress {
+            path: "supergraph.listen",
+            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "parse-address-marker"),
+        };
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches("parse-address-marker").count()).is_equal_to(1);
     }
 }

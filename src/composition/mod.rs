@@ -187,3 +187,59 @@ pub enum SupergraphConfigResolutionError {
     #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
     ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
+    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
+    /// each link in the source chain. A variant that both embeds its cause's text inline and
+    /// registers that cause as its `source` would show `marker` here twice.
+    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
+        format!("{:?}", anyhow::Error::new(err))
+            .matches(marker)
+            .count()
+    }
+
+    #[test]
+    fn serde_yaml_cause_is_not_duplicated() {
+        let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(CompositionError::from(inner), &marker)).is_equal_to(1);
+    }
+
+    #[test]
+    fn error_updating_federation_version_cause_is_not_duplicated() {
+        let inner = InstallSupergraphError::MissingDependency {
+            err: "federation-version-marker".to_string(),
+        };
+
+        assert_that!(caused_by_count(
+            CompositionError::from(inner),
+            "federation-version-marker"
+        ))
+        .is_equal_to(1);
+    }
+
+    #[test]
+    fn resolving_subgraphs_error_cause_is_not_duplicated() {
+        let inner = ResolveSupergraphConfigError::NoSource;
+        let marker = inner.to_string();
+
+        assert_that!(caused_by_count(CompositionError::from(inner), &marker)).is_equal_to(1);
+    }
+
+    #[test]
+    fn install_supergraph_binary_error_cause_is_not_duplicated() {
+        let source = InstallSupergraphError::MissingDependency {
+            err: "install-binary-marker".to_string(),
+        };
+        let outer = CompositionError::InstallSupergraphBinaryError { source };
+
+        assert_that!(caused_by_count(outer, "install-binary-marker")).is_equal_to(1);
+    }
+}

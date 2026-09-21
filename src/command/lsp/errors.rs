@@ -24,3 +24,22 @@ pub enum StartCompositionError {
     #[error("Could not establish temporary directory")]
     TemporaryDirectoryCouldNotBeEstablished(#[from] FromPathBufError),
 }
+
+#[cfg(test)]
+mod tests {
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn initialising_composition_pipeline_failed_cause_is_not_duplicated() {
+        let inner = CompositionPipelineError::from(InstallSupergraphError::MissingDependency {
+            err: "lsp-pipeline-marker".to_string(),
+        });
+        let outer = StartCompositionError::from(inner);
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches("lsp-pipeline-marker").count()).is_equal_to(1);
+    }
+}

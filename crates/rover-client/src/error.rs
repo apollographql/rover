@@ -552,6 +552,7 @@ impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
 #[cfg(test)]
 mod tests {
     use rover_studio::service::rejected_credential::RejectedCredential;
+    use speculoos::prelude::*;
 
     use super::*;
 
@@ -598,6 +599,19 @@ mod tests {
         assert!(matches!(malformed, RoverClientError::MalformedKey));
         assert!(matches!(invalid, RoverClientError::InvalidKey));
         assert!(matches!(body_level, RoverClientError::InvalidKey));
+    }
+
+    #[test]
+    fn service_cause_is_not_duplicated() {
+        let inner = Box::<dyn std::error::Error + Send + Sync>::from("service-marker");
+        let outer = RoverClientError::Service {
+            source: inner,
+            endpoint_kind: EndpointKind::ApolloStudio,
+        };
+
+        let rendered = format!("{:?}", anyhow::Error::new(outer));
+
+        assert_that!(rendered.matches("service-marker").count()).is_equal_to(1);
     }
 
     // Everything else keeps the wrapper the operations already relied on, so this doesn't
