@@ -656,23 +656,30 @@ mod tests {
     }
 
     #[test]
-    fn http_cause_is_not_duplicated() {
+    fn http_message_excludes_its_cause() {
         let invalid_uri = "".parse::<http::Uri>().unwrap_err();
-        let marker = invalid_uri.to_string();
-        let outer = GraphQLServiceError::<()>::Http(invalid_uri.into());
+        let cause = invalid_uri.to_string();
+        let err = GraphQLServiceError::<()>::Http(invalid_uri.into());
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
-
-        assert_that!(rendered.matches(&marker).count()).is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to("HTTP error".to_string());
+        assert_that!(std::error::Error::source(&err)
+            .expect("cause is still linked")
+            .to_string())
+        .is_equal_to(cause);
     }
 
     #[test]
-    fn upstream_service_cause_is_not_duplicated() {
-        let inner = Box::<dyn std::error::Error + Send + Sync>::from("upstream-service-marker");
-        let outer = GraphQLServiceError::<()>::UpstreamService(inner);
+    fn upstream_service_message_excludes_its_cause() {
+        let err = GraphQLServiceError::<()>::UpstreamService(Box::<
+            dyn std::error::Error + Send + Sync,
+        >::from(
+            "the upstream service refused the request",
+        ));
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
-
-        assert_that!(rendered.matches("upstream-service-marker").count()).is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to("Upstream service error".to_string());
+        assert_that!(std::error::Error::source(&err)
+            .expect("cause is still linked")
+            .to_string())
+        .is_equal_to("the upstream service refused the request".to_string());
     }
 }

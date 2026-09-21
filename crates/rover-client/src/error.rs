@@ -542,8 +542,10 @@ impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
                     msg: format!("Response returned with errors:\n{errors}"),
                 }
             }
+            // `ClientError` carries only a message, so the chain stops here — render it in full
+            // rather than dropping every cause below the outermost one.
             _ => RoverClientError::ClientError {
-                msg: value.to_string(),
+                msg: rover_std::format_error_chain(&value),
             },
         }
     }
@@ -602,16 +604,31 @@ mod tests {
     }
 
     #[test]
-    fn service_cause_is_not_duplicated() {
-        let inner = Box::<dyn std::error::Error + Send + Sync>::from("service-marker");
-        let outer = RoverClientError::Service {
-            source: inner,
+    fn service_message_excludes_its_cause() {
+        let err = RoverClientError::Service {
+            source: Box::<dyn std::error::Error + Send + Sync>::from(
+                "the upstream service refused the request",
+            ),
             endpoint_kind: EndpointKind::ApolloStudio,
         };
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
+        assert_that!(err.to_string()).is_equal_to("Service error".to_string());
+        assert_that!(rover_std::format_error_chain(&err))
+            .is_equal_to("Service error: the upstream service refused the request".to_string());
+    }
 
-        assert_that!(rendered.matches("service-marker").count()).is_equal_to(1);
+    /// `ClientError` carries only a message, so the conversion has to render the whole chain
+    /// into it — there is no `source` left for anything downstream to walk.
+    #[test]
+    fn converting_an_upstream_service_error_keeps_the_whole_chain_in_the_message() {
+        let err = RoverClientError::from(GraphQLServiceError::<()>::UpstreamService(Box::new(
+            HttpServiceError::TimedOut,
+        )));
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Unable to get a response from an endpoint. Client returned an error.\n\nUpstream service error: Request timed out"
+                .to_string(),
+        );
     }
 
     // Everything else keeps the wrapper the operations already relied on, so this doesn't

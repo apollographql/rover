@@ -190,56 +190,58 @@ pub enum SupergraphConfigResolutionError {
 
 #[cfg(test)]
 mod tests {
+    use rover_std::format_error_chain;
     use speculoos::prelude::*;
 
     use super::*;
 
-    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
-    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
-    /// each link in the source chain. A variant that both embeds its cause's text inline and
-    /// registers that cause as its `source` would show `marker` here twice.
-    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
-        format!("{:?}", anyhow::Error::new(err))
-            .matches(marker)
-            .count()
-    }
-
     #[test]
-    fn serde_yaml_cause_is_not_duplicated() {
+    fn serde_yaml_message_excludes_its_cause() {
         let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
-        let marker = inner.to_string();
+        let cause = inner.to_string();
+        let err = CompositionError::from(inner);
 
-        assert_that!(caused_by_count(CompositionError::from(inner), &marker)).is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to("Serialization error".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(format!("Serialization error: {cause}"));
     }
 
     #[test]
-    fn error_updating_federation_version_cause_is_not_duplicated() {
-        let inner = InstallSupergraphError::MissingDependency {
-            err: "federation-version-marker".to_string(),
+    fn error_updating_federation_version_message_excludes_its_cause() {
+        let err = CompositionError::from(InstallSupergraphError::MissingDependency {
+            err: "the plugin was not installed".to_string(),
+        });
+
+        assert_that!(err.to_string())
+            .is_equal_to("Error when updating Federation Version".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Error when updating Federation Version: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
+    }
+
+    #[test]
+    fn resolving_subgraphs_error_message_excludes_its_cause() {
+        let err = CompositionError::from(ResolveSupergraphConfigError::NoSource);
+
+        assert_that!(err.to_string()).is_equal_to("Error resolving subgraphs".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Error resolving subgraphs: No source found for supergraph config".to_string(),
+        );
+    }
+
+    #[test]
+    fn install_supergraph_binary_error_message_excludes_its_cause() {
+        let err = CompositionError::InstallSupergraphBinaryError {
+            source: InstallSupergraphError::MissingDependency {
+                err: "the plugin was not installed".to_string(),
+            },
         };
 
-        assert_that!(caused_by_count(
-            CompositionError::from(inner),
-            "federation-version-marker"
-        ))
-        .is_equal_to(1);
-    }
-
-    #[test]
-    fn resolving_subgraphs_error_cause_is_not_duplicated() {
-        let inner = ResolveSupergraphConfigError::NoSource;
-        let marker = inner.to_string();
-
-        assert_that!(caused_by_count(CompositionError::from(inner), &marker)).is_equal_to(1);
-    }
-
-    #[test]
-    fn install_supergraph_binary_error_cause_is_not_duplicated() {
-        let source = InstallSupergraphError::MissingDependency {
-            err: "install-binary-marker".to_string(),
-        };
-        let outer = CompositionError::InstallSupergraphBinaryError { source };
-
-        assert_that!(caused_by_count(outer, "install-binary-marker")).is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Could not install supergraph binary".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Could not install supergraph binary: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
     }
 }

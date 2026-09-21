@@ -105,37 +105,38 @@ pub enum ResolveSubgraphError {
 
 #[cfg(test)]
 mod tests {
+    use rover_std::format_error_chain;
     use speculoos::prelude::*;
 
     use super::*;
 
-    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
-    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
-    /// each link in the source chain. A variant that both embeds its cause's text inline and
-    /// registers that cause as its `source` would show `marker` here twice.
-    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
-        format!("{:?}", anyhow::Error::new(err))
-            .matches(marker)
-            .count()
+    #[test]
+    fn introspection_error_message_excludes_its_cause() {
+        let err = ResolveSubgraphError::IntrospectionError {
+            subgraph_name: "products".to_string(),
+            source: Arc::new(Box::from("connection refused")),
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to introspect the subgraph \"products\"".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to introspect the subgraph \"products\": connection refused".to_string(),
+        );
     }
 
     #[test]
-    fn introspection_error_cause_is_not_duplicated() {
-        let outer = ResolveSubgraphError::IntrospectionError {
-            subgraph_name: "subgraph-name".to_string(),
-            source: Arc::new(Box::from("introspection-marker")),
+    fn fetch_remote_sdl_error_message_excludes_its_cause() {
+        let err = ResolveSubgraphError::FetchRemoteSdlError {
+            subgraph_name: "products".to_string(),
+            source: Arc::new(Box::from("the registry refused the request")),
         };
 
-        assert_that!(caused_by_count(outer, "introspection-marker")).is_equal_to(1);
-    }
-
-    #[test]
-    fn fetch_remote_sdl_error_cause_is_not_duplicated() {
-        let outer = ResolveSubgraphError::FetchRemoteSdlError {
-            subgraph_name: "subgraph-name".to_string(),
-            source: Arc::new(Box::from("fetch-remote-sdl-marker")),
-        };
-
-        assert_that!(caused_by_count(outer, "fetch-remote-sdl-marker")).is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to(
+            "Failed to fetch the sdl for subgraph `products` from remote.".to_string(),
+        );
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to fetch the sdl for subgraph `products` from remote.: the registry refused the request"
+                .to_string(),
+        );
     }
 }

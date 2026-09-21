@@ -284,7 +284,7 @@ pub enum ResolveSupergraphConfigError {
     /// of the subgraphs described in the supergraph config
     #[error(
         "Unable to resolve subgraphs.\n{}",
-        ::itertools::join(.0.iter().map(|(n, e)| format!("{n}: {e}")), "\n")
+        ::itertools::join(.0.iter().map(|(n, e)| format!("{n}: {}", ::rover_std::format_error_chain(e))), "\n")
     )]
     ResolveSubgraphs(BTreeMap<String, ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the
@@ -526,14 +526,34 @@ mod tests {
     };
 
     #[test]
-    fn deserialization_error_cause_is_not_duplicated() {
+    fn deserialization_error_message_excludes_its_cause() {
         let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
-        let marker = inner.to_string();
-        let outer = LoadSupergraphConfigError::DeserializationError(inner);
+        let cause = inner.to_string();
+        let err = LoadSupergraphConfigError::DeserializationError(inner);
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to deserialise the supergraph config".to_string());
+        assert_that!(rover_std::format_error_chain(&err)).is_equal_to(format!(
+            "Failed to deserialise the supergraph config: {cause}"
+        ));
+    }
 
-        assert_that!(rendered.matches(&marker).count()).is_equal_to(1);
+    /// The map is not a `source`, so nothing downstream walks into these errors — this variant's
+    /// own message is the only place a subgraph's reason can appear.
+    #[test]
+    fn resolve_subgraphs_renders_each_entrys_cause() {
+        let err = ResolveSupergraphConfigError::ResolveSubgraphs(BTreeMap::from([(
+            "products".to_string(),
+            ResolveSubgraphError::IntrospectionError {
+                subgraph_name: "products".to_string(),
+                source: std::sync::Arc::new(Box::from("connection refused")),
+            },
+        )]));
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Unable to resolve subgraphs.\nproducts: Failed to introspect the subgraph \"products\": connection refused"
+                .to_string(),
+        );
     }
 
     /// Test showing that federation version is selected from the local supergraph config fed version

@@ -342,14 +342,19 @@ supergraph:
     }
 
     #[test]
-    fn parse_address_cause_is_not_duplicated() {
-        let outer = ParseRouterConfigError::ParseAddress {
+    fn parse_address_message_excludes_its_cause() {
+        let err = ParseRouterConfigError::ParseAddress {
             path: "supergraph.listen",
-            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "parse-address-marker"),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid socket address syntax",
+            ),
         };
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
-
-        assert_that!(rendered.matches("parse-address-marker").count()).is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Invalid SocketAddr at supergraph.listen.".to_string());
+        assert_that!(rover_std::format_error_chain(&err)).is_equal_to(
+            "Invalid SocketAddr at supergraph.listen.: invalid socket address syntax".to_string(),
+        );
     }
 }

@@ -89,7 +89,8 @@ impl Config {
             if let Err(error) = profile::delete_credential(&profile_name, self) {
                 stderr.warnln(format!(
                     "failed to remove credential for profile '{profile_name}' from the secret \
-                    store while clearing config: {error}"
+                    store while clearing config: {}",
+                    rover_std::format_error_chain(&error)
                 ));
             }
         }

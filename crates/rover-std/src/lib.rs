@@ -7,7 +7,7 @@ pub mod url;
 
 pub mod print;
 pub mod prompt;
-pub use error::RoverStdError;
+pub use error::{format_error_chain, RoverStdError};
 pub use fs::{FileSearch, Fs};
 pub use hash::sha256_hex;
 pub use spinner::Spinner;

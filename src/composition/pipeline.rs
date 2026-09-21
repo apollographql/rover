@@ -68,9 +68,9 @@ pub enum CompositionPipelineError {
     },
     #[error("Failed to install the supergraph binary")]
     InstallSupergraph(#[from] InstallSupergraphError),
-    #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{name}: {err}")), "\n"))]
+    #[error("Failed to resolve subgraphs:\n{}", ::itertools::join(.0.iter().map(|(name, err)| format!("{name}: {}", ::rover_std::format_error_chain(err))), "\n"))]
     ResolveSubgraphs(HashMap<String, ResolveSubgraphError>),
-    #[error("Failed to resolve subgraph from prompt:\n{}", .0)]
+    #[error("Failed to resolve subgraph from prompt:\n{}", ::rover_std::format_error_chain(.0))]
     ResolveSubgraphFromPrompt(ResolveSubgraphError),
     #[error(transparent)]
     FederationOneUnsupported(#[from] FederationOneUnsupported),
@@ -465,95 +465,120 @@ pub(crate) mod state {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use rover_std::format_error_chain;
     use speculoos::prelude::*;
 
     use super::*;
     use crate::composition::supergraph::config::scenario::fed_one_pin_with_fed_two_subgraph_resolver;
 
-    /// How many times `marker` shows up in the way `RoverError`/`anyhow` actually render an
-    /// error: `{:?}` on the wrapping `anyhow::Error`, which appends a "Caused by:" section for
-    /// each link in the source chain. A variant that both embeds its cause's text inline and
-    /// registers that cause as its `source` would show `marker` here twice.
-    fn caused_by_count(err: impl std::error::Error + Send + Sync + 'static, marker: &str) -> usize {
-        format!("{:?}", anyhow::Error::new(err))
-            .matches(marker)
-            .count()
+    #[test]
+    fn load_remote_subgraphs_message_excludes_its_cause() {
+        let err =
+            CompositionPipelineError::from(LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(
+                Box::<dyn std::error::Error + Send + Sync>::from(
+                    "the registry refused the request",
+                ),
+            ));
+
+        assert_that!(err.to_string()).is_equal_to("Failed to load remote subgraphs".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to load remote subgraphs: the registry refused the request".to_string(),
+        );
     }
 
     #[test]
-    fn load_remote_subgraphs_cause_is_not_duplicated() {
-        let inner = LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::<
-            dyn std::error::Error + Send + Sync,
-        >::from(
-            "load-remote-subgraphs-marker",
+    fn load_supergraph_config_message_excludes_its_cause() {
+        let deserialize_err = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let cause = deserialize_err.to_string();
+        let err = CompositionPipelineError::from(LoadSupergraphConfigError::DeserializationError(
+            deserialize_err,
         ));
 
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            "load-remote-subgraphs-marker"
-        ))
-        .is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to load the supergraph config".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(format!(
+            "Failed to load the supergraph config: Failed to deserialise the supergraph config: {cause}"
+        ));
     }
 
     #[test]
-    fn load_supergraph_config_cause_is_not_duplicated() {
-        let deserialize_err = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
-        let marker = deserialize_err.to_string();
-        let inner = LoadSupergraphConfigError::DeserializationError(deserialize_err);
+    fn resolve_supergraph_config_message_excludes_its_cause() {
+        let err = CompositionPipelineError::from(ResolveSupergraphConfigError::NoSource);
 
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            &marker
-        ))
-        .is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to resolve the supergraph config".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to resolve the supergraph config: No source found for supergraph config"
+                .to_string(),
+        );
     }
 
     #[test]
-    fn resolve_supergraph_config_cause_is_not_duplicated() {
-        let inner = ResolveSupergraphConfigError::NoSource;
-        let marker = inner.to_string();
+    fn io_message_excludes_its_cause() {
+        let err = CompositionPipelineError::from(std::io::Error::other("the disk went away"));
 
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            &marker
-        ))
-        .is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to("IO error".to_string());
+        assert_that!(format_error_chain(&err))
+            .is_equal_to("IO error: the disk went away".to_string());
     }
 
     #[test]
-    fn io_cause_is_not_duplicated() {
-        let inner = std::io::Error::other("io-marker");
-
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            "io-marker"
-        ))
-        .is_equal_to(1);
-    }
-
-    #[test]
-    fn serde_yaml_cause_is_not_duplicated() {
+    fn serde_yaml_message_excludes_its_cause() {
         let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
-        let marker = inner.to_string();
+        let cause = inner.to_string();
+        let err = CompositionPipelineError::from(inner);
 
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            &marker
-        ))
-        .is_equal_to(1);
+        assert_that!(err.to_string()).is_equal_to("Serialization error".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(format!("Serialization error: {cause}"));
     }
 
     #[test]
-    fn install_supergraph_cause_is_not_duplicated() {
-        let inner = InstallSupergraphError::MissingDependency {
-            err: "install-supergraph-marker".to_string(),
-        };
+    fn install_supergraph_message_excludes_its_cause() {
+        let err = CompositionPipelineError::from(InstallSupergraphError::MissingDependency {
+            err: "the plugin was not installed".to_string(),
+        });
 
-        assert_that!(caused_by_count(
-            CompositionPipelineError::from(inner),
-            "install-supergraph-marker"
-        ))
-        .is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to install the supergraph binary".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to install the supergraph binary: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
+    }
+
+    /// The map is not a `source`, so nothing downstream walks into these errors — this variant's
+    /// own message is the only place a subgraph's reason can appear.
+    #[test]
+    fn resolve_subgraphs_renders_each_entrys_cause() {
+        let err = CompositionPipelineError::ResolveSubgraphs(HashMap::from([(
+            "products".to_string(),
+            ResolveSubgraphError::IntrospectionError {
+                subgraph_name: "products".to_string(),
+                source: Arc::new(Box::from("connection refused")),
+            },
+        )]));
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Failed to resolve subgraphs:\nproducts: Failed to introspect the subgraph \"products\": connection refused"
+                .to_string(),
+        );
+    }
+
+    #[test]
+    fn resolve_subgraph_from_prompt_renders_its_cause() {
+        let err = CompositionPipelineError::ResolveSubgraphFromPrompt(
+            ResolveSubgraphError::FetchRemoteSdlError {
+                subgraph_name: "products".to_string(),
+                source: Arc::new(Box::from("the registry refused the request")),
+            },
+        );
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Failed to resolve subgraph from prompt:\nFailed to fetch the sdl for subgraph `products` from remote.: the registry refused the request"
+                .to_string(),
+        );
     }
 
     /// This pins the regression the up-front `target_federation_version()` check in

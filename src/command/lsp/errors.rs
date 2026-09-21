@@ -27,19 +27,24 @@ pub enum StartCompositionError {
 
 #[cfg(test)]
 mod tests {
+    use rover_std::format_error_chain;
     use speculoos::prelude::*;
 
     use super::*;
 
     #[test]
-    fn initialising_composition_pipeline_failed_cause_is_not_duplicated() {
-        let inner = CompositionPipelineError::from(InstallSupergraphError::MissingDependency {
-            err: "lsp-pipeline-marker".to_string(),
-        });
-        let outer = StartCompositionError::from(inner);
+    fn initialising_composition_pipeline_failed_message_excludes_its_cause() {
+        let err = StartCompositionError::from(CompositionPipelineError::from(
+            InstallSupergraphError::MissingDependency {
+                err: "the plugin was not installed".to_string(),
+            },
+        ));
 
-        let rendered = format!("{:?}", anyhow::Error::new(outer));
-
-        assert_that!(rendered.matches("lsp-pipeline-marker").count()).is_equal_to(1);
+        assert_that!(err.to_string())
+            .is_equal_to("Could not initialise the composition pipeline".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Could not initialise the composition pipeline: Failed to install the supergraph binary: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
     }
 }
