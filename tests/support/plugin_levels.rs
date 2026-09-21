@@ -427,16 +427,23 @@ mod tests {
             .output()
             .expect("could not run rover");
 
-        // Asserting on the whole of stderr, not a boolean: when this breaks it
-        // is usually because Rover stopped somewhere earlier for an unrelated
-        // reason, and the message is the only thing that says where.
+        // Asserting on the whole error, not a boolean: when this breaks it is
+        // usually because Rover stopped somewhere earlier for an unrelated
+        // reason, and the message is the only thing that says where. What comes
+        // before the error — the progress line, and composition's warning about
+        // an unpinned federation_version — belongs to composition rather than to
+        // where plugins are looked for, so it is left out rather than pinned here.
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let expected_stderr = format!(
-            "merging supergraph schema files\nwarning: federation_version isn't pinned to an exact version, so each run composes with the latest release available at the time. A new federation release can change your supergraph schema, or need a newer router than you're running. Pin an exact version (e.g. federation_version: =2.x.y) and update your router before raising it. See https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version for more information.\nerror: Error when updating Federation Version\n\nCaused by:\n    unable to find dependency: \"error: You do not have any 'supergraph' plugins installed in '{bin_dir}'.\n            Re-run this command without the `--skip-update` flag to install the proper plugin.\n    \"\n",
+        let error = stderr
+            .find("error:")
+            .map(|start| &stderr[start..])
+            .expect("rover printed no error");
+        let expected_error = format!(
+            "error: Error when updating Federation Version\n\nCaused by:\n    unable to find dependency: \"error: You do not have any 'supergraph' plugins installed in '{bin_dir}'.\n            Re-run this command without the `--skip-update` flag to install the proper plugin.\n    \"\n",
             bin_dir = two_levels.global.bin_dir(),
         );
 
-        assert_that!(stderr).is_equal_to(expected_stderr);
+        assert_that!(error).is_equal_to(expected_error.as_str());
     }
 
     #[rstest]
