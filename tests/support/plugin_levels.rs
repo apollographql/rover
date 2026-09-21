@@ -420,6 +420,10 @@ mod tests {
                 "--skip-update",
                 "--skip-update-check",
             ])
+            // Without this, an ambient RUST_BACKTRACE in the environment (some CI
+            // runners set it for better diagnostics) makes anyhow append a full
+            // stack backtrace to stderr, breaking the exact-match assertion below.
+            .env("RUST_BACKTRACE", "0")
             .output()
             .expect("could not run rover");
 
