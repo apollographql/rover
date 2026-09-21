@@ -144,7 +144,7 @@ mod tests {
         // Rover records the accepted ELv2 licence here. Pointed at the real
         // configuration home, a plugin test would edit the developer's machine.
         assert_that!(global_level.config_dir().is_dir()).is_true();
-        assert_that!(global_level.config_dir().join("elv2.toml").exists()).is_false();
+        assert_that!(global_level.config_dir().join("elv2_license.toml").exists()).is_false();
         assert_that!(global_level.config_dir().starts_with(global_level.home())).is_true();
     }
 
