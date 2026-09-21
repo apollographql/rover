@@ -6,7 +6,7 @@ mod config;
 mod error;
 pub mod federation;
 mod options;
-mod plugin;
+pub mod plugin;
 mod subtask;
 pub mod utils;
 mod watch;
