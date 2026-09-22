@@ -170,6 +170,25 @@ mod tests {
         ClientCredentials, ClientCredentialsError, ClientCredentialsRequest,
     };
 
+    /// `cli.rs` flattens this into an `anyhow!` message, so the message must not repeat the
+    /// cause — and the cause must stay reachable as a `source` for the chain to render it.
+    #[test]
+    fn parse_message_excludes_its_cause() {
+        let err = ClientCredentialsError::Parse {
+            source: Box::from("unexpected end of JSON"),
+            body: b"{".to_vec(),
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("failed to parse token endpoint response".to_string());
+        assert_that!(
+            std::error::Error::source(&err)
+                .expect("cause is still linked")
+                .to_string()
+        )
+        .is_equal_to("unexpected end of JSON".to_string());
+    }
+
     #[fixture]
     fn client_id() -> String {
         "client_id".to_string()

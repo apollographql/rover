@@ -576,7 +576,7 @@ mod tests {
         );
 
         assert_that!(err.to_string()).is_equal_to(
-            "Failed to resolve subgraph from prompt:\nFailed to fetch the sdl for subgraph `products` from remote.: the registry refused the request"
+            "Failed to resolve subgraph from prompt:\nFailed to fetch the sdl for subgraph `products` from remote: the registry refused the request"
                 .to_string(),
         );
     }

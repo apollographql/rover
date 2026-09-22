@@ -54,7 +54,7 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when fetching a remote subgraph fails
-    #[error("Failed to fetch the sdl for subgraph `{}` from remote.", .subgraph_name)]
+    #[error("Failed to fetch the sdl for subgraph `{}` from remote", .subgraph_name)]
     FetchRemoteSdlError {
         /// The name of the subgraph that failed to be resolved
         subgraph_name: String,
@@ -131,11 +131,10 @@ mod tests {
             source: Arc::new(Box::from("the registry refused the request")),
         };
 
-        assert_that!(err.to_string()).is_equal_to(
-            "Failed to fetch the sdl for subgraph `products` from remote.".to_string(),
-        );
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to fetch the sdl for subgraph `products` from remote".to_string());
         assert_that!(format_error_chain(&err)).is_equal_to(
-            "Failed to fetch the sdl for subgraph `products` from remote.: the registry refused the request"
+            "Failed to fetch the sdl for subgraph `products` from remote: the registry refused the request"
                 .to_string(),
         );
     }

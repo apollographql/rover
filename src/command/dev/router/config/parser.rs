@@ -10,7 +10,7 @@ use super::{RouterAddress, RouterHost, RouterPort};
 
 #[derive(Error, Debug)]
 pub enum ParseRouterConfigError {
-    #[error("Invalid SocketAddr at {}.", .path)]
+    #[error("Invalid SocketAddr at {}", .path)]
     ParseAddress {
         path: &'static str,
         source: std::io::Error,
@@ -352,9 +352,9 @@ supergraph:
         };
 
         assert_that!(err.to_string())
-            .is_equal_to("Invalid SocketAddr at supergraph.listen.".to_string());
+            .is_equal_to("Invalid SocketAddr at supergraph.listen".to_string());
         assert_that!(rover_std::format_error_chain(&err)).is_equal_to(
-            "Invalid SocketAddr at supergraph.listen.: invalid socket address syntax".to_string(),
+            "Invalid SocketAddr at supergraph.listen: invalid socket address syntax".to_string(),
         );
     }
 }

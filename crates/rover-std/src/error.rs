@@ -5,6 +5,10 @@ use thiserror::Error;
 /// `RoverError` renders the chain itself, via anyhow's `Debug` impl. Call sites that print an
 /// error directly — `errln!`, an LSP diagnostic, a message flattened into a `String` field —
 /// get only the outermost message, so they need this to keep the cause.
+///
+/// This is what `anyhow::Error`'s alternate `Display` (`{:#}`) produces, but it takes a plain
+/// `std::error::Error` — most of these call sites hold a concrete error rather than an
+/// `anyhow::Error`, and some of them hold one that isn't `Sync` and so can't become one.
 pub fn format_error_chain(err: &dyn std::error::Error) -> String {
     let mut rendered = err.to_string();
     let mut source = err.source();
