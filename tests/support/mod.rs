@@ -6,4 +6,5 @@
 //! than a sign of dead code.
 #![allow(dead_code)]
 
+pub mod network;
 pub mod plugin_levels;

@@ -150,6 +150,42 @@ jobs:
           path: ${{ matrix.binary_path }}
 
 
+  test_network_denied:
+    name: Test with the network denied
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      - name: Install strace
+        run: sudo apt-get install --yes --no-install-recommends strace
+      - name: Build rover and the network-denied tests
+        run: |
+          cargo build --locked -p rover
+          cargo test --locked -p rover --test network_denied --no-run
+      - name: Run the offline tests with no route out
+        run: |
+          set -euo pipefail
+
+          BIN="$(cargo test --locked -p rover --test network_denied --no-run --message-format=json \
+            | jq -r 'select(.profile.test == true and .target.name == "network_denied") | .executable' \
+            | tail -1)"
+
+          if [ -z "$BIN" ] || [ "$BIN" = "null" ]; then
+            echo '::error::Could not find the built network-denied test binary, so the offline tests did not run.'
+            exit 1
+          fi
+
+          # A network namespace with no interface but loopback, which starts
+          # down. Nothing inside it can reach out, which is the whole point:
+          # these tests refuse to pass anywhere a connection could succeed.
+          sudo unshare --net -- bash -c \
+            "ip link set lo up && ROVER_TEST_NETWORK_DENIED=1 '$BIN' --ignored --nocapture"
+
+
   test_minimal_glibc:
     name: Test with minimal glibc versions
     needs: changes
@@ -208,6 +244,7 @@ jobs:
       - test
       - test_installers
       - test_minimal_glibc
+      - test_network_denied
     runs-on: ubuntu-latest
     steps:
       # Every gate in this workflow keys on `code`, so if that output breaks —
@@ -252,6 +289,7 @@ jobs:
               || needs.test.result == 'skipped'
               || needs.test_installers.result == 'skipped'
               || needs.test_minimal_glibc.result == 'skipped'
+              || needs.test_network_denied.result == 'skipped'
             )
           }}
         run: |
