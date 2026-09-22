@@ -18,7 +18,7 @@ pub enum RevokeTokenError {
     #[error(transparent)]
     Http(Box<dyn std::error::Error + Send>),
     /// Invalid oauth2 client configuration for revocation.
-    #[error("Failed to configure revoke token request. {}", .0)]
+    #[error("Failed to configure revoke token request")]
     OauthConfiguration(#[from] oauth2::ConfigurationError),
 }
 
@@ -138,6 +138,24 @@ mod tests {
     use url::Url;
 
     use crate::oauth2::revoke_token::{RevokeToken, RevokeTokenError, RevokeTokenRequest};
+
+    /// `logout` renders this with `Display` alone, so the message must not repeat the cause
+    /// — and the cause must stay reachable as a `source` for the chain to render it.
+    #[test]
+    fn oauth_configuration_message_excludes_its_cause() {
+        let cause = oauth2::ConfigurationError::MissingUrl("revocation");
+        let expected_cause = cause.to_string();
+        let err = RevokeTokenError::OauthConfiguration(cause);
+
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to configure revoke token request".to_string());
+        assert_that!(
+            std::error::Error::source(&err)
+                .expect("cause is still linked")
+                .to_string()
+        )
+        .is_equal_to(expected_cause);
+    }
 
     #[fixture]
     fn client_id() -> String {

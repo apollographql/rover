@@ -10,7 +10,7 @@ use super::{RouterAddress, RouterHost, RouterPort};
 
 #[derive(Error, Debug)]
 pub enum ParseRouterConfigError {
-    #[error("Invalid SocketAddr at {}. Error: {:?}", .path, .source)]
+    #[error("Invalid SocketAddr at {}", .path)]
     ParseAddress {
         path: &'static str,
         source: std::io::Error,
@@ -143,7 +143,7 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
 
-    use super::RouterConfigParser;
+    use super::{ParseRouterConfigError, RouterConfigParser};
     use crate::command::dev::router::config::{
         DEFAULT_ROUTER_IP_ADDR, DEFAULT_ROUTER_PORT, RouterAddress, RouterHost, RouterPort,
     };
@@ -339,5 +339,22 @@ supergraph:
             .is_some()
             .is_equal_to("/custom-path".to_string());
         Ok(())
+    }
+
+    #[test]
+    fn parse_address_message_excludes_its_cause() {
+        let err = ParseRouterConfigError::ParseAddress {
+            path: "supergraph.listen",
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid socket address syntax",
+            ),
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("Invalid SocketAddr at supergraph.listen".to_string());
+        assert_that!(rover_std::format_error_chain(&err)).is_equal_to(
+            "Invalid SocketAddr at supergraph.listen: invalid socket address syntax".to_string(),
+        );
     }
 }

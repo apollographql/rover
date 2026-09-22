@@ -150,15 +150,15 @@ pub enum CompositionError {
         source: BuildErrors,
         federation_version: FederationVersion,
     },
-    #[error("Serialization error.\n{}", .0)]
+    #[error("Serialization error")]
     SerdeYaml(#[from] serde_yaml::Error),
     #[error("{}", .0)]
     InvalidSupergraphConfig(String),
-    #[error("Error when updating Federation Version:\n{}", .0)]
+    #[error("Error when updating Federation Version")]
     ErrorUpdatingFederationVersion(#[from] InstallSupergraphError),
-    #[error("Error resolving subgraphs:\n{}", .0)]
+    #[error("Error resolving subgraphs")]
     ResolvingSubgraphsError(#[from] ResolveSupergraphConfigError),
-    #[error("Could not install supergraph binary:\n{}", .source)]
+    #[error("Could not install supergraph binary")]
     InstallSupergraphBinaryError { source: InstallSupergraphError },
     #[error(transparent)]
     FederationOneUnsupported(#[from] FederationOneUnsupported),
@@ -186,4 +186,62 @@ pub enum SupergraphConfigResolutionError {
     LoadLocalSupergraphConfigFailed(#[from] LoadSupergraphConfigError),
     #[error("Could not resolve local and remote elements into complete SupergraphConfig")]
     ResolveSupergraphConfigFailed(#[from] ResolveSupergraphConfigError),
+}
+
+#[cfg(test)]
+mod tests {
+    use rover_std::format_error_chain;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn serde_yaml_message_excludes_its_cause() {
+        let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let cause = inner.to_string();
+        let err = CompositionError::from(inner);
+
+        assert_that!(err.to_string()).is_equal_to("Serialization error".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(format!("Serialization error: {cause}"));
+    }
+
+    #[test]
+    fn error_updating_federation_version_message_excludes_its_cause() {
+        let err = CompositionError::from(InstallSupergraphError::MissingDependency {
+            err: "the plugin was not installed".to_string(),
+        });
+
+        assert_that!(err.to_string())
+            .is_equal_to("Error when updating Federation Version".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Error when updating Federation Version: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
+    }
+
+    #[test]
+    fn resolving_subgraphs_error_message_excludes_its_cause() {
+        let err = CompositionError::from(ResolveSupergraphConfigError::NoSource);
+
+        assert_that!(err.to_string()).is_equal_to("Error resolving subgraphs".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Error resolving subgraphs: No source found for supergraph config".to_string(),
+        );
+    }
+
+    #[test]
+    fn install_supergraph_binary_error_message_excludes_its_cause() {
+        let err = CompositionError::InstallSupergraphBinaryError {
+            source: InstallSupergraphError::MissingDependency {
+                err: "the plugin was not installed".to_string(),
+            },
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("Could not install supergraph binary".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Could not install supergraph binary: unable to find dependency: \"the plugin was not installed\""
+                .to_string(),
+        );
+    }
 }

@@ -322,7 +322,10 @@ async fn start_composition(
                             "Composition failed to run due to subgraph resolution issues"
                                 .to_string()
                         }
-                        _ => format!("Composition failed to run: {err}"),
+                        _ => format!(
+                            "Composition failed to run: {}",
+                            rover_std::format_error_chain(&err)
+                        ),
                     };
                     let diagnostic = Diagnostic::new_simple(Range::default(), message);
                     let mut diagnostics_to_publish: Vec<Diagnostic> =
@@ -376,7 +379,10 @@ async fn start_composition(
 }
 
 fn create_subgraph_resolution_error(name: &str, error: ResolveSubgraphError) -> Diagnostic {
-    let message = format!("Subgraph '{name}' could not be resolved: {error}");
+    let message = format!(
+        "Subgraph '{name}' could not be resolved: {}",
+        rover_std::format_error_chain(&error)
+    );
     Diagnostic::new_simple(Range::default(), message)
 }
 
@@ -447,4 +453,31 @@ async fn create_composition_runner(
             }),
         )
         .await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    /// The diagnostic is the only place this reason reaches the editor — nothing downstream
+    /// walks the error's chain.
+    #[test]
+    fn a_subgraph_resolution_diagnostic_includes_the_reason() {
+        let diagnostic = create_subgraph_resolution_error(
+            "products",
+            ResolveSubgraphError::IntrospectionError {
+                subgraph_name: "products".to_string(),
+                source: Arc::new(Box::from("connection refused")),
+            },
+        );
+
+        assert_that!(diagnostic.message).is_equal_to(
+            "Subgraph 'products' could not be resolved: Failed to introspect the subgraph \"products\": connection refused"
+                .to_string(),
+        );
+    }
 }

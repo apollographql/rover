@@ -18,7 +18,7 @@ pub enum HttpServiceError {
     },
     /// Errors that may occur from the [`http`] crate. This is generally relegated to
     /// parsing of things like [`Uri`]s or header names/values
-    #[error("HTTP Error: {:?}", .0)]
+    #[error("HTTP Error")]
     Http(#[from] http::Error),
     /// The request was cancelled
     #[error("Request was cancelled.")]
@@ -68,5 +68,24 @@ impl HttpServiceError {
     /// The error is because of a bad [`StatusCode`]
     pub const fn is_status(&self) -> bool {
         matches!(self, HttpServiceError::BadStatusCode { .. })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn http_message_excludes_its_cause() {
+        let invalid_uri = "".parse::<http::Uri>().unwrap_err();
+        let cause = invalid_uri.to_string();
+        let err = HttpServiceError::Http(invalid_uri.into());
+
+        assert_that!(err.to_string()).is_equal_to("HTTP Error".to_string());
+        assert_that!(err.source().expect("cause is still linked").to_string()).is_equal_to(cause);
     }
 }

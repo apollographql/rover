@@ -230,7 +230,10 @@ impl Dev {
                     eprintln!("{error_to_output}")
                 }
                 Some(CompositionEvent::Error(err)) => {
-                    errln!("Error occurred when composing supergraph\n{}", err)
+                    errln!(
+                        "Error occurred when composing supergraph\n{}",
+                        rover_std::format_error_chain(&err)
+                    )
                 }
                 Some(_) => {}
                 None => {

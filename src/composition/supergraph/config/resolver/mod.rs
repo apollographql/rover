@@ -139,7 +139,7 @@ pub enum LoadSupergraphConfigError {
     #[error("Failed to read file descriptor. Error: {0}")]
     ReadFileDescriptor(RoverError),
     /// Occurs when a supergraph cannot be deserialised, ready for expansion
-    #[error("Failed to deserialise the supergraph config. Error: {0}")]
+    #[error("Failed to deserialise the supergraph config")]
     DeserializationError(#[from] serde_yaml::Error),
     /// Occurs when a supergraph cannot be expanded correctly
     #[error("Failed to expand supergraph config. Error: {0}")]
@@ -284,7 +284,7 @@ pub enum ResolveSupergraphConfigError {
     /// of the subgraphs described in the supergraph config
     #[error(
         "Unable to resolve subgraphs.\n{}",
-        ::itertools::join(.0.iter().map(|(n, e)| format!("{n}: {e}")), "\n")
+        ::itertools::join(.0.iter().map(|(n, e)| format!("{n}: {}", ::rover_std::format_error_chain(e))), "\n")
     )]
     ResolveSubgraphs(BTreeMap<String, ResolveSubgraphError>),
     /// Occurs when the user-selected `FederationVersion` is within Federation 1 boundaries, but the
@@ -502,8 +502,8 @@ mod tests {
     use tower_test::mock::Handle;
 
     use super::{
-        DefaultSubgraphDefinition, MockPrompt, ResolveSupergraphConfigError,
-        SupergraphConfigResolver,
+        DefaultSubgraphDefinition, LoadSupergraphConfigError, MockPrompt,
+        ResolveSupergraphConfigError, SupergraphConfigResolver,
         fetch_remote_subgraph::{
             FetchRemoteSubgraphError, FetchRemoteSubgraphFactory, FetchRemoteSubgraphRequest,
             MakeFetchRemoteSubgraphError, RemoteSubgraph,
@@ -524,6 +524,37 @@ mod tests {
         config::SupergraphConfigYaml,
         utils::effect::{introspect::MockIntrospectSubgraph, read_stdin::MockReadStdin},
     };
+
+    #[test]
+    fn deserialization_error_message_excludes_its_cause() {
+        let inner = serde_yaml::from_str::<serde_yaml::Value>("[1, 2").unwrap_err();
+        let cause = inner.to_string();
+        let err = LoadSupergraphConfigError::DeserializationError(inner);
+
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to deserialise the supergraph config".to_string());
+        assert_that!(rover_std::format_error_chain(&err)).is_equal_to(format!(
+            "Failed to deserialise the supergraph config: {cause}"
+        ));
+    }
+
+    /// The map is not a `source`, so nothing downstream walks into these errors — this variant's
+    /// own message is the only place a subgraph's reason can appear.
+    #[test]
+    fn resolve_subgraphs_renders_each_entrys_cause() {
+        let err = ResolveSupergraphConfigError::ResolveSubgraphs(BTreeMap::from([(
+            "products".to_string(),
+            ResolveSubgraphError::IntrospectionError {
+                subgraph_name: "products".to_string(),
+                source: std::sync::Arc::new(Box::from("connection refused")),
+            },
+        )]));
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Unable to resolve subgraphs.\nproducts: Failed to introspect the subgraph \"products\": connection refused"
+                .to_string(),
+        );
+    }
 
     /// Test showing that federation version is selected from the local supergraph config fed version
     /// over remote composition version, or version inferred from resolved SDLs

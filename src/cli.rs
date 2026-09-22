@@ -432,7 +432,12 @@ impl Rover {
 
         let service: ClientCredentials<_, Full<Bytes>> = ClientCredentials::new(http_service);
         let response = service.oneshot(request).await.map_err(|e| {
-            anyhow::anyhow!("failed to exchange client credentials for an access token: {e}")
+            // `anyhow!` builds a new error with no source, so the chain stops here and the
+            // cause has to be rendered into the message to survive at all.
+            anyhow::anyhow!(
+                "failed to exchange client credentials for an access token: {}",
+                rover_std::format_error_chain(&e)
+            )
         })?;
 
         Ok(Some(response.access_token.secret().to_string()))

@@ -118,9 +118,10 @@ impl Sensitive {
             },
             Err(error) => {
                 stderr.warnln(format!(
-                    "failed to migrate credential for profile '{profile_name}' into the secret store: {error}. \
+                    "failed to migrate credential for profile '{profile_name}' into the secret store: {}. \
                     Using the legacy credential for now; will retry automatically. If this persists, run \
-                    `rover config auth --profile {profile_name}` to re-save it."
+                    `rover config auth --profile {profile_name}` to re-save it.",
+                    rover_std::format_error_chain(&error)
                 ));
             }
         }

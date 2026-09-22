@@ -115,13 +115,13 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
         status_code: StatusCode,
     },
     /// [`http`]-related error, probably from header-related tasks
-    #[error("HTTP error: {:?}", .0)]
+    #[error("HTTP error")]
     Http(#[from] http::Error),
     /// Error that occurs from a failure to parse a [`Uri`] from a [`Url`]
     #[error("Unable to convert URL to URI.")]
     InvalidUri(#[from] InvalidUri),
     /// Errors that occur as a result of the underlying [`HttpService`] failing
-    #[error("Upstream service error: {:?}", .0)]
+    #[error("Upstream service error")]
     UpstreamService(#[from] Box<dyn std::error::Error + Send + Sync>),
     /// This shouldn't ever happen
     #[error(transparent)]
@@ -653,5 +653,33 @@ mod tests {
             }
             _ => false,
         });
+    }
+
+    #[test]
+    fn http_message_excludes_its_cause() {
+        let invalid_uri = "".parse::<http::Uri>().unwrap_err();
+        let cause = invalid_uri.to_string();
+        let err = GraphQLServiceError::<()>::Http(invalid_uri.into());
+
+        assert_that!(err.to_string()).is_equal_to("HTTP error".to_string());
+        assert_that!(std::error::Error::source(&err)
+            .expect("cause is still linked")
+            .to_string())
+        .is_equal_to(cause);
+    }
+
+    #[test]
+    fn upstream_service_message_excludes_its_cause() {
+        let err = GraphQLServiceError::<()>::UpstreamService(Box::<
+            dyn std::error::Error + Send + Sync,
+        >::from(
+            "the upstream service refused the request",
+        ));
+
+        assert_that!(err.to_string()).is_equal_to("Upstream service error".to_string());
+        assert_that!(std::error::Error::source(&err)
+            .expect("cause is still linked")
+            .to_string())
+        .is_equal_to("the upstream service refused the request".to_string());
     }
 }

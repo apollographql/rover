@@ -449,7 +449,10 @@ impl RunRouter<state::Watch> {
                 }
                 CompositionEvent::Error(err) => {
                     tracing::error!("Composition error {:?}", err);
-                    errln!("Error occurred when composing supergraph\n{}", err);
+                    errln!(
+                        "Error occurred when composing supergraph\n{}",
+                        rover_std::format_error_chain(&err)
+                    );
                     None
                 }
                 CompositionEvent::Success(success) => Some(RouterUpdateEvent::SchemaChanged {

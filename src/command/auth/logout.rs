@@ -102,7 +102,8 @@ impl Logout {
             };
             if let Err(e) = result {
                 stderr.warnln(format!(
-                    "failed to revoke a token with the OAuth server: {e}. Continuing to remove it locally."
+                    "failed to revoke a token with the OAuth server: {}. Continuing to remove it locally.",
+                    rover_std::format_error_chain(&e)
                 ));
             }
         }

@@ -38,7 +38,7 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when a introspection against a subgraph fails
-    #[error("Failed to introspect the subgraph \"{subgraph_name}\": {source}")]
+    #[error("Failed to introspect the subgraph \"{subgraph_name}\"")]
     IntrospectionError {
         /// The subgraph name that failed to be resolved
         subgraph_name: String,
@@ -54,7 +54,7 @@ pub enum ResolveSubgraphError {
         source: Arc<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// Occurs when fetching a remote subgraph fails
-    #[error("Failed to fetch the sdl for subgraph `{}` from remote.\n {}", .subgraph_name, .source)]
+    #[error("Failed to fetch the sdl for subgraph `{}` from remote", .subgraph_name)]
     FetchRemoteSdlError {
         /// The name of the subgraph that failed to be resolved
         subgraph_name: String,
@@ -101,4 +101,41 @@ pub enum ResolveSubgraphError {
     /// Error encountered if we can't parse a PathBuf into a Utf8PathBuf
     #[error(transparent)]
     ParsingUt8FilePathError(#[from] camino::FromPathBufError),
+}
+
+#[cfg(test)]
+mod tests {
+    use rover_std::format_error_chain;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn introspection_error_message_excludes_its_cause() {
+        let err = ResolveSubgraphError::IntrospectionError {
+            subgraph_name: "products".to_string(),
+            source: Arc::new(Box::from("connection refused")),
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to introspect the subgraph \"products\"".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to introspect the subgraph \"products\": connection refused".to_string(),
+        );
+    }
+
+    #[test]
+    fn fetch_remote_sdl_error_message_excludes_its_cause() {
+        let err = ResolveSubgraphError::FetchRemoteSdlError {
+            subgraph_name: "products".to_string(),
+            source: Arc::new(Box::from("the registry refused the request")),
+        };
+
+        assert_that!(err.to_string())
+            .is_equal_to("Failed to fetch the sdl for subgraph `products` from remote".to_string());
+        assert_that!(format_error_chain(&err)).is_equal_to(
+            "Failed to fetch the sdl for subgraph `products` from remote: the registry refused the request"
+                .to_string(),
+        );
+    }
 }
