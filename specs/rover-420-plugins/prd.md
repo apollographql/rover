@@ -69,7 +69,7 @@ What we are **revising** is the management around the architecture. Customers ar
 
 - **Reproducibility.** Two clean machines installing from the same committed manifest and lockfile end up with identical plugin versions, and `rover supergraph compose --format json` on both reports the same composition version.
 - **Offline guarantee.** With the never-download setting and pre-seeded plugins, every plugin-using command completes with zero outbound connections. With a plugin missing, it fails within one second with an error code naming the plugin.
-- **Transparency.** Every plugin-using run prints plugin, exact version, and source, in text and JSON, covering the downloaded, cached, and fallback paths.
+- **Transparency.** Every plugin-using run prints plugin, exact version, and source, covering the downloaded, cached, and fallback paths; commands that finish with a result also report them in `--format json`.
 - **Support signal.** No new tickets of the shape "Rover wanted version X, I had Y, nothing told me" in the two quarters after Phases 1 and 2 ship. #1638 and #1253 are closable with a documented path.
 - **Mirror adoption.** An enterprise whose approved mirror serves the GitHub release layout can install plugins through it without pinning versions via environment variables.
 - **Docs honesty.** Nothing documented for plugins is rejected by the code.
