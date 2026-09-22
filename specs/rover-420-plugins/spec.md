@@ -227,7 +227,7 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 
 - **FR55**: The reported version must always be the exact version that ran, never the request. A run that asked for `2` reports the resolved `2.9.3`.
 - **FR56**: The line must be printed once per plugin per invocation. A long-running session (`rover dev`, `lsp`) must not reprint it on recomposition or hot reload, unless the plugin actually changes — a mid-session `federation_version` change that swaps the binary prints a new line for the new version.
-- **FR57**: The same facts must appear in `--format json` output, under `data`, for every plugin-using command:
+- **FR57**: The same facts must appear in `--format json` output, under `data`, for every plugin-using command except the long-running sessions (`rover dev`, `rover lsp`):
 
   ```json
   {
@@ -241,7 +241,11 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   }
   ```
 
-  `source` is exactly one of `downloaded`, `installed`, `fallback`; `level` is exactly one of `project`, `global`. Both fields must be present on success and on failure, listing the plugins resolved before the failure.
+  `source` is exactly one of `downloaded`, `installed`, `fallback`; `level` is exactly one of `project`, `global`; both must be present on every entry. Where the field is reported it is always present — empty rather than absent when a run resolved no plugin — so a consumer can tell "resolved nothing" from a Rover that predates the field.
+
+  A long-running session is excluded because its JSON is a single document emitted when the session ends, which is no moment a consumer is reading; FR54 and FR56 report each plugin as it is resolved and again when it changes, which is the report for these commands. FR58 is unaffected: the stderr lines are printed for every command, in every format.
+
+  A run that fails reports under `data` the plugins it had already used — a composition that fails must name the binary that produced the errors, which is the first question asked of one. A plugin that failed to resolve is not reported there: `plugins` records what a run used, and a plugin that never resolved has no source, level, or path. It is identified through the error contract instead (FR87). Section 6 records why each exclusion was made.
 - **FR58**: The stderr lines must be printed regardless of output format. stderr is not the machine-readable channel, and CI logs are where the fallback case needs to be visible.
 - **FR59**: The existing fallback warning must continue to be printed in addition to the FR54 line, since it tells the user something the provenance line does not: that the version may be stale.
 
@@ -262,6 +266,7 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 
 - **FR62**: Every one of these errors must carry a suggestion that names the plugin and a concrete next step — not a generic "submit an issue." An unsupported architecture keeps its existing dedicated error rather than being folded into class 2.
 - **FR63**: Error codes must be documented in the generated error reference, with the same page-per-code treatment every other Rover error code gets.
+- **FR87**: A plugin failure must identify the plugin structurally, not only in its message. The plugin name and the version as requested must appear as fields in `--format json` output alongside `error.code`, so that a consumer never has to parse prose to learn which plugin failed or what was asked of it. This applies to every failure class in FR60, including those that fail before any plugin is resolved and so report nothing under FR57.
 
 ### 3.11 Network behavior (R13, R10)
 
@@ -402,6 +407,12 @@ Given three declared plugins where the second's artifact is unavailable, when `r
 **Fallback provenance**
 Given `supergraph` 2.9.2 installed and the registry unreachable, when `rover supergraph compose` runs without `--skip-update`, then composition succeeds using 2.9.2, both the existing staleness warning and `Using the supergraph plugin v2.9.2 (fallback: couldn't reach the plugin registry).` are printed, and `--format json` reports `"source": "fallback"`.
 
+**Provenance on a failed run**
+Given `supergraph` v2.9.3 resolved and subgraphs that do not compose, when `rover supergraph compose` runs, then `Using the supergraph plugin v2.9.3 (downloaded).` is printed before the composition errors, the command exits non-zero, and `--format json` reports the composition errors with `data.plugins` naming v2.9.3.
+
+**A plugin that never resolved**
+Given `supergraph@=2.9.9` requested and no such release, when `rover supergraph compose --format json` runs, then the command fails with the resolution error code, `data` reports no plugins, and the plugin name and the requested version appear as fields of the error rather than only inside its message.
+
 **Provenance in a long-running session**
 Given `rover dev` running with `supergraph` v2.9.3, when a subgraph schema changes and recomposition occurs, then no new provenance line is printed. When `supergraph.yaml`'s `federation_version` changes to `=2.8.0` mid-session, then a new provenance line is printed for `2.8.0`.
 
@@ -490,6 +501,7 @@ Decisions taken while drafting and their reasoning are provided here.
 - **Project-local installs, global when no project is in scope** (FR23), over Cargo's global-first default and over npm's "invent a project in the working directory." Rover never creates a project root on its own (FR22), which is what keeps the change non-breaking (FR74).
 - **Yanked versions get their own error code** (FR61), over folding them into general resolution failure, so a script can distinguish a version that never existed from one withdrawn.
 - **Version flags per command follow the plugin chain** (FR7), over giving every command all three flags or defining flags only for `rover dev`. `compose`, `connector`, and `lsp` run only `supergraph`, so they get only `--federation-version`; `dev` runs all three plugins and gets all three flags. Raised in spec review.
+- **`data.plugins` reports what a run used, not everything it attempted** (FR57), over every plugin-using run in every outcome. Two exclusions, for different reasons. A long-running session emits its JSON as a single document when the session ends, so the only moment it could report is one no consumer is reading; the stderr lines already report each plugin as it resolves and when it changes, and a summary at exit would be a worse copy of a better channel. A plugin that failed to resolve is excluded because `plugins` describes what ran: a plugin that never resolved has no source, level, or path, and admitting it would mean nullable fields or a status discriminator on every entry to describe the rare case. Neither exclusion loses the facts. FR54 and FR58 hold in both, and FR87 carries the identity of a plugin that failed.
 - **The `_DEV_` environment variable names are kept and extended to every command** (FR7, FR86), over introducing un-prefixed names with the old ones as deprecated aliases. The misleading prefix is a papercut worth carrying for compatibility, provided the docs say plainly that the variables are not limited to `rover dev`.
 
 ---
@@ -501,4 +513,4 @@ This contract cannot be verified by unit tests alone. Four gaps must be closed a
 - **End-to-end coverage of the `dev` and `compose` plugin paths**, which does not exist today. Every acceptance criterion above that names a plugin-using command needs one.
 - **Two-level fixtures.** Project-versus-global precedence, lookup order, and `rover plugin list` cannot be exercised without tests that control both a temporary project root and a temporary global level, on every supported platform.
 - **A network-denied environment** in CI, since FR53's "zero outbound connections" and FR51's fail-fast are not observable in a test that merely points at an unreachable host.
-- **Snapshot coverage of the JSON provenance envelope** (FR57) for each plugin-using command, so the `data.plugins` shape cannot regress unnoticed.
+- **Snapshot coverage of the JSON provenance envelope** (FR57) for each command that reports it, on both the success and the failure path, so the `data.plugins` shape cannot regress unnoticed.
