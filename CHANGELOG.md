@@ -78,9 +78,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover subgraph publish` now reports which contract variants had a downstream launch triggered by the publish, with a link, in text (printed to stderr) and JSON. Fails the publish if the launch itself or any downstream launch didn't complete successfully.
 
-- **`rover supergraph compose` and `rover connector` report which plugin they used - @SharkBaitDLS**
+- **`rover supergraph compose`, `rover connector`, `rover dev`, and `rover lsp` report which plugin they used - @SharkBaitDLS**
 
-  Every run now prints one stderr line per plugin it resolved — name, exact version, and whether it was downloaded, already installed, or a fallback — even on cached runs, which previously printed nothing, e.g. `` Using the `supergraph` plugin v2.9.3 (downloaded). ``. `rover dev` and `rover lsp` will report the same information in a following change in this stack.
+  Every run now prints one stderr line per plugin it resolved — name, exact version, and whether it was downloaded, already installed, or a fallback — even on cached runs, which previously printed nothing, e.g. `` Using the `supergraph` plugin v2.9.3 (downloaded). ``. `rover dev` and `rover lsp` print it too, once per plugin as they resolve it and again whenever it changes.
+
+- **`--format json` reports the plugins a run used, for `rover supergraph compose` - @SharkBaitDLS**
+
+  `data` gains a `plugins` array, one entry per plugin the run resolved, each with `name`, `version`, `source` (`downloaded`, `installed`, or `fallback`), `level` (always `global` until project-level install roots exist), and the `path` it ran from — the same information the stderr line carries, in a form a script can read. The array is always present, so nothing has to tell "no plugins" apart from an older Rover. `rover connector`'s subcommands don't report this yet. `rover dev` and `rover lsp` report each plugin on stderr as they resolve it, and again when it changes, rather than in JSON — their envelope is only rendered when the session exits, which is no moment a consumer is waiting on.
 
 ## 🐛 Fixes
 

@@ -84,15 +84,24 @@ impl Compose {
             true,
         )
         .await?;
+        // Reported before the binary is used rather than after, so a composition that
+        // fails still says which plugin produced the errors (FR54, FR58) — "which
+        // federation version rejected this" being the first question asked of one. It
+        // also means a slow composition names its binary while you wait.
+        //
+        // `Err` is reachable here: resolution itself can have failed, and the run
+        // then ends in an error either way — this one, or whatever `compose` hits
+        // first on its way back to it. Reporting no plugin is accurate in both
+        // cases rather than a gap, since nothing resolved.
+        let mut plugins = Vec::new();
+        if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
+            stderr.print(&StyledText::plain(binary.provenance().to_string()));
+            plugins.push(binary.provenance().clone());
+        }
+
         let composition_success = composition_pipeline
             .compose(&exec_command_impl, &write_file_impl)
             .await?;
-
-        // The compose above only succeeds once the supergraph binary is resolved, so this is
-        // always `Ok` here (FR54).
-        if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
-            stderr.print(&StyledText::plain(binary.provenance().to_string()));
-        }
 
         if let Some(output_file) = output_file {
             let parent = output_file.parent();
@@ -106,8 +115,9 @@ impl Compose {
                 .await?;
         }
 
-        Ok(RoverOutput::CliOutput(Box::new(ComposeOutput(
-            composition_success.into(),
-        ))))
+        Ok(RoverOutput::CliOutput(Box::new(ComposeOutput {
+            composition: composition_success.into(),
+            plugins,
+        })))
     }
 }
