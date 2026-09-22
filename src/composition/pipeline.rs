@@ -270,9 +270,28 @@ impl CompositionPipeline<state::Run> {
         exec_command_impl: &impl ExecCommand,
         write_file_impl: &impl WriteFile,
     ) -> Result<CompositionSuccess, CompositionError> {
-        let supergraph_config_filepath =
-            Utf8PathBuf::from_path_buf(tempdir()?.path().join("supergraph.yaml"))
-                .expect("Unable to parse path");
+        // Everything below this line runs with the plugin already resolved and
+        // its FR54 line already on stderr, so every failure here names it
+        // (FR57). `None` only when resolution itself failed — which is the
+        // error `supergraph_binary.clone()?` surfaces at the end.
+        let provenance = || {
+            self.state
+                .supergraph_binary
+                .as_ref()
+                .ok()
+                .map(|binary| binary.provenance().boxed())
+        };
+
+        let supergraph_config_filepath = Utf8PathBuf::from_path_buf(
+            tempdir()
+                .map_err(|source| CompositionError::TempDir {
+                    source,
+                    provenance: provenance(),
+                })?
+                .path()
+                .join("supergraph.yaml"),
+        )
+        .expect("Unable to parse path");
 
         let (fully_resolved_supergraph_config, errors) = self
             .state
@@ -282,12 +301,17 @@ impl CompositionPipeline<state::Run> {
                 self.state.fetch_remote_subgraph_factory.clone(),
                 &self.state.supergraph_root,
             )
-            .await?;
+            .await
+            .map_err(|source| CompositionError::ResolvingSubgraphsError {
+                source,
+                provenance: provenance(),
+            })?;
 
         if !errors.is_empty() {
-            return Err(CompositionError::ResolvingSubgraphsError(
-                ResolveSupergraphConfigError::ResolveSubgraphs(errors),
-            ));
+            return Err(CompositionError::ResolvingSubgraphsError {
+                source: ResolveSupergraphConfigError::ResolveSubgraphs(errors),
+                provenance: provenance(),
+            });
         }
 
         write_file_impl
@@ -295,13 +319,18 @@ impl CompositionPipeline<state::Run> {
                 &supergraph_config_filepath,
                 serde_yaml::to_string(&SupergraphConfigYaml::from(
                     fully_resolved_supergraph_config,
-                ))?
+                ))
+                .map_err(|source| CompositionError::SerdeYaml {
+                    source,
+                    provenance: provenance(),
+                })?
                 .as_bytes(),
             )
             .await
             .map_err(|err| CompositionError::WriteFile {
                 path: supergraph_config_filepath.clone(),
                 error: Box::new(err),
+                provenance: provenance(),
             })?;
 
         self.state

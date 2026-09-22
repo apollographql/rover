@@ -20,14 +20,6 @@ use crate::{
     utils::effect::exec::{ExecCommand, ExecCommandConfig, ExecCommandOutput},
 };
 
-impl From<std::io::Error> for CompositionError {
-    fn from(error: std::io::Error) -> Self {
-        CompositionError::Binary {
-            error: error.to_string(),
-        }
-    }
-}
-
 #[derive(Builder, Debug, Clone, derive_getters::Getters)]
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
@@ -55,6 +47,7 @@ impl SupergraphBinary {
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
                 error: format!("{err:?}"),
+                provenance: self.provenance.boxed(),
             })?;
 
         let exit_code = output.status.code();
@@ -63,12 +56,13 @@ impl SupergraphBinary {
                 exit_code,
                 stdout: String::from_utf8(output.stdout).unwrap(),
                 stderr: String::from_utf8(output.stderr).unwrap(),
+                provenance: self.provenance.boxed(),
             });
         }
 
         let output = std::str::from_utf8(&output.stdout)
             .map_err(|err| CompositionError::InvalidOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })?
             .to_string();
@@ -84,7 +78,7 @@ impl SupergraphBinary {
     ) -> Result<Result<BuildOutput, BuildErrors>, CompositionError> {
         if output.trim().is_empty() {
             return Err(CompositionError::EmptyOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
             });
         }
 
@@ -92,7 +86,7 @@ impl SupergraphBinary {
         // well-formed composition. This doesn't necessarily mean we don't have build errors, but
         // we handle those below
         serde_json::from_str::<BuildResult>(output).map_err(|err| CompositionError::InvalidOutput {
-            binary: self.exe.clone(),
+            provenance: self.provenance.boxed(),
             error: format!("{err:?}"),
         })
     }
@@ -115,6 +109,7 @@ impl SupergraphBinary {
             .map_err(|build_errors| CompositionError::Build {
                 source: build_errors,
                 federation_version,
+                provenance: self.provenance.boxed(),
             })
     }
 
@@ -127,7 +122,7 @@ impl SupergraphBinary {
             .clone()
             .try_into()
             .map_err(|err| CompositionError::InvalidInput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })
     }
@@ -159,7 +154,7 @@ impl SupergraphBinary {
 
         let output: RunConnectorOutput =
             serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })?;
 
@@ -446,6 +441,7 @@ impl SupergraphBinary {
             return Err(BinaryError::UnsupportedVersion {
                 minimum: minimum_version,
                 current: current_version.clone(),
+                provenance: self.provenance.boxed(),
             });
         }
 
@@ -468,12 +464,12 @@ impl SupergraphBinary {
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
         let parsed: serde_json::Value =
             serde_json::from_str(&output).map_err(|err| BinaryError::InvalidOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })?;
         let diff = parsed.get("diff").and_then(|d| d.as_str()).ok_or_else(|| {
             BinaryError::InvalidOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: "Missing 'diff' field in output".to_string(),
             }
         })?;
@@ -491,14 +487,14 @@ impl SupergraphBinary {
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| BinaryError::Run {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })?;
 
         let exit_code = output.status.code();
         if !exit_code.is_some_and(|code| allowed_exit_codes.contains(&code)) {
             return Err(BinaryError::Exit {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 exit_code,
                 stdout: String::from_utf8(output.stdout).unwrap(),
                 stderr: String::from_utf8(output.stderr).unwrap(),
@@ -507,7 +503,7 @@ impl SupergraphBinary {
 
         let output = std::str::from_utf8(&output.stdout)
             .map_err(|err| BinaryError::InvalidOutput {
-                binary: self.exe.clone(),
+                provenance: self.provenance.boxed(),
                 error: format!("{err:?}"),
             })?
             .to_string();
@@ -517,19 +513,25 @@ impl SupergraphBinary {
 
 #[derive(thiserror::Error, Debug)]
 pub enum BinaryError {
-    #[error("Failed to run `{binary}`")]
-    Run { binary: Utf8PathBuf, error: String },
+    #[error("Failed to run `{}`", .provenance.path)]
+    Run {
+        provenance: Box<PluginProvenance>,
+        error: String,
+    },
 
-    #[error("`{binary}` exited with errors.\nStdout: {}\nStderr: {}", .stdout, .stderr)]
+    #[error("`{}` exited with errors.\nStdout: {}\nStderr: {}", .provenance.path, .stdout, .stderr)]
     Exit {
-        binary: Utf8PathBuf,
+        provenance: Box<PluginProvenance>,
         exit_code: Option<i32>,
         stdout: String,
         stderr: String,
     },
 
-    #[error("Failed to parse output of `{binary}`\n{error}")]
-    InvalidOutput { binary: Utf8PathBuf, error: String },
+    #[error("Failed to parse output of `{}`\n{error}", .provenance.path)]
+    InvalidOutput {
+        provenance: Box<PluginProvenance>,
+        error: String,
+    },
 
     #[error(
         "This command requires at least version {minimum} of the supergraph binary, but the current version is {current}.\
@@ -538,7 +540,22 @@ pub enum BinaryError {
     UnsupportedVersion {
         minimum: Version,
         current: SupergraphVersion,
+        provenance: Box<PluginProvenance>,
     },
+}
+
+impl BinaryError {
+    /// The plugin this error came from. Every variant is raised by the binary
+    /// itself, so a failed `rover connector` run reports the plugin it used
+    /// under `data` just as a successful one does (FR57).
+    pub fn provenance(&self) -> &PluginProvenance {
+        match self {
+            BinaryError::Run { provenance, .. }
+            | BinaryError::Exit { provenance, .. }
+            | BinaryError::InvalidOutput { provenance, .. }
+            | BinaryError::UnsupportedVersion { provenance, .. } => provenance,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -700,8 +717,8 @@ mod tests {
             .await;
 
         match result {
-            Err(CompositionError::EmptyOutput { binary }) => {
-                assert_that!(binary).is_equal_to(binary_path);
+            Err(CompositionError::EmptyOutput { provenance }) => {
+                assert_that!(provenance.path).is_equal_to(binary_path);
             }
             other => panic!("expected CompositionError::EmptyOutput, got {other:?}"),
         }

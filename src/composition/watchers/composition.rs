@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 use crate::{
+    command::install::PluginProvenance,
     composition::{
         CompositionError,
         CompositionError::ResolvingSubgraphsError,
@@ -170,11 +171,12 @@ where
                 }
                 (false, _) => {
                     let _ = sender
-                        .send(CompositionEvent::Error(ResolvingSubgraphsError(
-                            ResolveSupergraphConfigError::ResolveSubgraphs(
+                        .send(CompositionEvent::Error(ResolvingSubgraphsError {
+                            source: ResolveSupergraphConfigError::ResolveSubgraphs(
                                 self.initial_resolution_errors.clone(),
                             ),
-                        )))
+                            provenance: self.resolved_provenance(),
+                        }))
                         .tap_err(|err| error!("{:?}", err));
                 }
                 (true, false) => {}
@@ -284,6 +286,16 @@ where
     ExecC: 'static + ExecCommand + Send + Sync,
     WriteF: 'static + Send + Sync + WriteFile,
 {
+    /// The plugin this session currently has, if it has one. A session that has
+    /// not resolved one reports no plugin (FR57); one that has says so on every
+    /// error, matching the FR54 line it has already printed.
+    fn resolved_provenance(&self) -> Option<Box<PluginProvenance>> {
+        self.supergraph_binary
+            .as_ref()
+            .ok()
+            .map(|binary| binary.provenance().boxed())
+    }
+
     async fn setup_temporary_supergraph_yaml(
         &self,
         supergraph_config: &FullyResolvedSupergraphConfig,
@@ -297,7 +309,10 @@ where
             Err(err) => {
                 errln!("Failed to serialize supergraph config into yaml");
                 error!("{:?}", err);
-                return Err(CompositionError::SerdeYaml(err));
+                return Err(CompositionError::SerdeYaml {
+                    source: err,
+                    provenance: self.resolved_provenance(),
+                });
             }
         };
 
@@ -312,6 +327,7 @@ where
             Err(CompositionError::WriteFile {
                 path: target_file.clone(),
                 error: Box::new(err),
+                provenance: self.resolved_provenance(),
             })
         } else {
             Ok(())

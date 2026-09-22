@@ -279,6 +279,7 @@ async fn start_composition(
                 CompositionEvent::Error(CompositionError::Build {
                     source: errors,
                     federation_version,
+                    ..
                 }) => {
                     debug!(
                         ?errors,
@@ -309,9 +310,10 @@ async fn start_composition(
                         CompositionError::ErrorUpdatingFederationVersion(
                             InstallSupergraphError::MissingDependency { err },
                         ) => format!("Supergraph Version could not be updated: {err}"),
-                        CompositionError::ResolvingSubgraphsError(
-                            ResolveSupergraphConfigError::ResolveSubgraphs(errors),
-                        ) => {
+                        CompositionError::ResolvingSubgraphsError {
+                            source: ResolveSupergraphConfigError::ResolveSubgraphs(errors),
+                            ..
+                        } => {
                             let new_errors = errors
                                 .into_iter()
                                 .map(|(name, error)| {

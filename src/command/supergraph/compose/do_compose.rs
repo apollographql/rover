@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::{
     RoverOutput, RoverResult,
     command::supergraph::compose::output::ComposeOutput,
-    composition::get_supergraph_binary,
+    composition::{CompositionError, get_supergraph_binary},
     options::PluginOpts,
     utils::{
         client::StudioClientConfig,
@@ -104,15 +104,28 @@ impl Compose {
             .await?;
 
         if let Some(output_file) = output_file {
+            // Reported as a composition error carrying the plugin, not as a bare
+            // io error. By here the plugin has not merely resolved — it has run
+            // and produced the schema — so a failure to write that schema out is
+            // the last place `data.plugins` should go quiet (FR57). It also
+            // names the file, which the bare error did not.
+            let write_error =
+                |err: Box<dyn std::error::Error + Send + Sync>| CompositionError::WriteFile {
+                    path: output_file.clone(),
+                    error: err,
+                    provenance: plugins.first().cloned().map(Box::new),
+                };
+
             let parent = output_file.parent();
             if let Some(parent) = parent
                 && !parent.exists()
             {
-                fs::create_dir_all(parent)?;
+                fs::create_dir_all(parent).map_err(|err| write_error(Box::new(err)))?;
             }
             write_file_impl
                 .write_file(&output_file, composition_success.supergraph_sdl.as_bytes())
-                .await?;
+                .await
+                .map_err(|err| write_error(Box::new(err)))?;
         }
 
         Ok(RoverOutput::CliOutput(Box::new(ComposeOutput {
