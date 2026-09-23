@@ -92,6 +92,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover config whoami` no longer rejects a valid client-credentials identity - @briangeorge**
+
+  `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` authenticates as a service account, but `rover config whoami` only ever recognized `User`/`Graph` actor types and rejected everything else — including a fully valid, successfully-authenticated service account — with "The key provided is invalid. Rover only accepts personal and graph API keys". `Actor` (and the platform API response mapping that produces it) now has a `SERVICE_ACCOUNT` variant, so a service-account identity passes through cleanly, reporting `Key Type: Service Account` and its id under `User ID` (there's no dedicated field for it yet, and it's the closest existing fit).
+
 - **Plugin version lookups honor the global HTTP settings and retry transient failures - @SharkBaitDLS**
 
   Resolving a floating plugin version (`latest-2`, `latest`) — the lookup `rover supergraph compose`, `rover dev`, `rover connector`, `rover lsp`, and `rover install --plugin` make before downloading — used its own HTTP client. It ignored `--client-timeout` and `--insecure-accept-invalid-certs`/`--insecure-accept-invalid-hostnames`, had no timeout at all (a hung registry connection could stall a run indefinitely), and failed on the first transient error. It now uses Rover's configured client, bounds each attempt at 10 seconds, and retries connection failures, timeouts, and 5xx/408/425/429 responses for up to 10 seconds (or `--client-timeout`, if shorter) before falling back to an already-installed plugin or failing.
