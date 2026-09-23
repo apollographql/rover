@@ -255,6 +255,37 @@ impl TwoLevels {
         binary
     }
 
+    /// Put a plugin at `level` that runs, printing `stdout` and exiting 0.
+    ///
+    /// [`Self::seed_plugin`]'s placeholder is enough for Rover to find a plugin
+    /// and name it; this one is enough for Rover to *use* it, so a test can
+    /// drive a command past resolution and into what it does with the plugin's
+    /// output. A stub means no network and no real composition, at the cost of
+    /// a shell script — so tests using it are Unix-only.
+    #[cfg(unix)]
+    pub fn seed_runnable_plugin(
+        &self,
+        level: Level,
+        plugin: &str,
+        version: &str,
+        stdout: &str,
+    ) -> Utf8PathBuf {
+        let binary = self.seed_plugin(level, plugin, version);
+
+        // A quoted heredoc, so nothing in `stdout` is expanded by the shell.
+        std::fs::write(
+            &binary,
+            format!("#!/bin/sh\ncat <<'ROVER_TEST_PLUGIN_EOF'\n{stdout}\nROVER_TEST_PLUGIN_EOF\n"),
+        )
+        .expect("could not write the plugin");
+
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755))
+            .expect("could not make the plugin executable");
+
+        binary
+    }
+
     /// Point a Rover command at both levels, and at the working directory.
     pub fn apply(&self, command: &mut Command) -> &Self {
         self.global.apply(command);

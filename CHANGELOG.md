@@ -94,6 +94,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Some of these errors also reach users through call sites that print an error directly rather than walking its chain — `rover dev`'s composition output, the language server's diagnostics, and a couple of credential-store warnings. Those now render the full chain explicitly, so the cause is still shown there rather than being dropped along with the duplicate.
 
+- **`rover supergraph compose` no longer prints a blank line to stderr when composition raises no hints - @SharkBaitDLS**
+
+  Composition hints were rendered with a trailing newline and then printed with another, and an empty hint list still printed the empty string — so a run with nothing to say emitted a bare blank line to stderr, and a run that did raise hints ended them with a doubled newline. Hints now print without the extra newline, and produce no stderr output at all when there are none. stdout is unchanged, so a redirected supergraph schema is unaffected.
+
 - **Stop warning that a floating `federation_version` will become an error - @SharkBaitDLS**
 
   `rover supergraph compose` warned that "future versions ... will fail without an exact federation version". It now describes the actual risk of leaving the version floating: each run composes with whatever released most recently, which can change your supergraph schema or outrun your router. The nudge to pin is unchanged, and `rover dev` and the language server stay silent as before.

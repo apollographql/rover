@@ -35,10 +35,7 @@ use serde_json::{Value, json};
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
 #[cfg(feature = "composition-js")]
-use crate::command::{
-    connector::run::{RunConnector, RunConnectorOutput},
-    supergraph::compose::CompositionOutput,
-};
+use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::{
     RoverError,
     command::{
@@ -135,8 +132,6 @@ pub enum RoverOutput {
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
     JsonSchema(String),
-    #[cfg(feature = "composition-js")]
-    CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckWorkflowResponse(CheckWorkflowResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
@@ -443,23 +438,6 @@ impl RoverOutput {
             }
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::JsonSchema(schema) => Some(schema.clone()),
-            #[cfg(feature = "composition-js")]
-            RoverOutput::CompositionResult(composition_output) => {
-                let warn_prefix = Style::HintPrefix.paint("HINT:");
-
-                let hints_string =
-                    composition_output
-                        .hints
-                        .iter()
-                        .fold(String::new(), |mut output, hint| {
-                            let _ = writeln!(output, "{} {}", warn_prefix, hint.message);
-                            output
-                        });
-
-                stderrln!("{}", hints_string)?;
-
-                Some((composition_output.supergraph_sdl).to_string())
-            }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
 
@@ -790,21 +768,6 @@ impl RoverOutput {
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::JsonSchema(schema) => Value::String(schema.clone()),
-            #[cfg(feature = "composition-js")]
-            RoverOutput::CompositionResult(composition_output) => {
-                if let Some(federation_version) = &composition_output.federation_version {
-                    json!({
-                      "core_schema": composition_output.supergraph_sdl,
-                      "hints": composition_output.hints,
-                      "federation_version": federation_version
-                    })
-                } else {
-                    json!({
-                        "core_schema": composition_output.supergraph_sdl,
-                        "hints": composition_output.hints
-                    })
-                }
-            }
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
                 publish_response,
@@ -993,10 +956,7 @@ impl RoverOutput {
                 SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
                 SdlType::Supergraph => Some("Supergraph Schema"),
             },
-            #[cfg(feature = "composition-js")]
-            RoverOutput::CompositionResult(_) | RoverOutput::SupergraphSchema(_) => {
-                Some("Supergraph Schema")
-            }
+            RoverOutput::SupergraphSchema(_) => Some("Supergraph Schema"),
             RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
