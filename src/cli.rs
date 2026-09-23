@@ -367,12 +367,12 @@ impl Rover {
             Scope,
             client_credentials::{ClientCredentials, ClientCredentialsRequest},
         };
-        use rover_http::{Full, ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
-        use tower::{ServiceBuilder, ServiceExt, retry::RetryLayer};
+        use rover_http::{Full, ReqwestService, retry::retry_with_attempt_timeout};
+        use tower::{ServiceBuilder, ServiceExt};
 
         // Bounds a single token-endpoint attempt, independent of the overall
         // retry budget below - mirrors `WHOAMI_ATTEMPT_TIMEOUT` in
-        // `command::auth::whoami`, which this same layering is copied from.
+        // `command::auth::whoami`, which uses the same layering.
         const CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
         let client_id = self.get_env_var(RoverEnvKey::ClientId)?;
@@ -424,10 +424,10 @@ impl Rover {
         // first authenticated request outright. Same layering as the OAuth
         // whoami lookup in `command::auth::whoami`.
         let http_service = ServiceBuilder::new()
-            .layer(RetryLayer::new(RetryPolicy::new(
+            .layer(retry_with_attempt_timeout(
                 self.client_timeout.unwrap_or_default().get_duration(),
-            )))
-            .layer(TimeoutLayer::new(CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT))
+                CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT,
+            ))
             .service(raw_service);
 
         let service: ClientCredentials<_, Full<Bytes>> = ClientCredentials::new(http_service);

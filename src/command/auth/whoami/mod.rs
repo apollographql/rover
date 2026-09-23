@@ -9,9 +9,9 @@ use rover_auth::oauth2::{
     AccessToken,
     status::{Whoami as OauthWhoami, WhoamiError, WhoamiRequest},
 };
-use rover_http::{ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
+use rover_http::{ReqwestService, retry::retry_with_attempt_timeout};
 use serde::Serialize;
-use tower::{ServiceBuilder, retry::RetryLayer};
+use tower::ServiceBuilder;
 
 use self::output::AuthWhoAmIOutput;
 use super::OauthConfig;
@@ -91,10 +91,10 @@ impl WhoAmI {
         // this REST call didn't have either before, so a hung connection or a
         // flaky IdP could leave `rover auth whoami` stuck indefinitely.
         let http_service = ServiceBuilder::new()
-            .layer(RetryLayer::new(RetryPolicy::new(
+            .layer(retry_with_attempt_timeout(
                 client_config.retry_period(),
-            )))
-            .layer(TimeoutLayer::new(WHOAMI_ATTEMPT_TIMEOUT))
+                WHOAMI_ATTEMPT_TIMEOUT,
+            ))
             .service(raw_service);
 
         let response = OauthWhoami::fetch(
