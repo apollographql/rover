@@ -2,7 +2,8 @@ use std::io;
 
 use rover_std::RoverStdError;
 use thiserror::Error;
-use tower::BoxError;
+
+use crate::download::gz_decode::GzDecodeError;
 
 /// InstallerError is the type of Error that occurred while installing.
 #[derive(Error, Debug)]
@@ -54,10 +55,35 @@ pub enum InstallerError {
     #[error(transparent)]
     RoverStdError(#[from] RoverStdError),
 
-    #[error(transparent)]
-    FileDownloadError(BoxError),
+    /// The downloaded plugin archive couldn't be decompressed or unpacked
+    #[error("Couldn't unpack the downloaded plugin archive")]
+    UnpackArchive(#[source] io::Error),
+
+    /// The plugin artifact couldn't be downloaded
+    #[error("Couldn't download the plugin artifact")]
+    FileDownloadError(#[source] Box<GzDecodeError>),
 
     #[cfg(windows)]
     #[error(transparent)]
     WindowsError(#[from] windows_result::Error),
+}
+
+impl InstallerError {
+    /// The HTTP status the plugin registry refused a download with, if that's why it failed
+    pub fn download_status(&self) -> Option<http::StatusCode> {
+        let Self::FileDownloadError(err) = self else {
+            return None;
+        };
+        let http_error = match &**err {
+            GzDecodeError::Http(err) => Some(err),
+            GzDecodeError::Upstream(err) => err.downcast_ref::<rover_http::HttpServiceError>(),
+            _ => None,
+        };
+        match http_error {
+            Some(rover_http::HttpServiceError::BadStatusCode { status_code, .. }) => {
+                Some(*status_code)
+            }
+            _ => None,
+        }
+    }
 }
