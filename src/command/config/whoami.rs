@@ -111,7 +111,10 @@ impl LegacyWhoami {
     }
 
     const fn is_valid_actor_type(&self, identity: &RegistryIdentity) -> bool {
-        matches!(identity.key_actor_type, Actor::USER | Actor::GRAPH)
+        matches!(
+            identity.key_actor_type,
+            Actor::USER | Actor::GRAPH | Actor::SERVICE_ACCOUNT
+        )
     }
 
     fn get_origin(&self, client: &StudioClient) -> String {
@@ -147,7 +150,7 @@ impl LegacyWhoami {
 
     fn get_user_id(&self, identity: &RegistryIdentity) -> Option<String> {
         match identity.key_actor_type {
-            Actor::USER => Some(identity.id.clone()),
+            Actor::USER | Actor::SERVICE_ACCOUNT => Some(identity.id.clone()),
             _ => None,
         }
     }
@@ -225,10 +228,12 @@ mod tests {
         let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
+        let service_account_identity = get_identity(Actor::SERVICE_ACCOUNT);
         let other_identity = get_identity(Actor::OTHER);
 
         assert!(legacy_whoami.is_valid_actor_type(&user_identity));
         assert!(legacy_whoami.is_valid_actor_type(&graph_identity));
+        assert!(legacy_whoami.is_valid_actor_type(&service_account_identity));
         assert!(!legacy_whoami.is_valid_actor_type(&other_identity));
     }
 
@@ -287,6 +292,7 @@ mod tests {
         let legacy_whoami = get_legacy_whoami(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
+        let service_account_identity = get_identity(Actor::SERVICE_ACCOUNT);
         let other_identity = get_identity(Actor::OTHER);
 
         assert_eq!(
@@ -294,6 +300,10 @@ mod tests {
             Some(user_identity.id)
         );
         assert_eq!(legacy_whoami.get_user_id(&graph_identity), None);
+        assert_eq!(
+            legacy_whoami.get_user_id(&service_account_identity),
+            Some(service_account_identity.id)
+        );
         assert_eq!(legacy_whoami.get_user_id(&other_identity), None);
     }
 }

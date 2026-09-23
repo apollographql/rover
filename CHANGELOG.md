@@ -84,6 +84,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover config whoami` no longer rejects a valid client-credentials identity - @briangeorge**
+
+  `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` authenticates as a service account, but `rover config whoami` only ever recognized `User`/`Graph` actor types and rejected everything else — including a fully valid, successfully-authenticated service account — with "The key provided is invalid. Rover only accepts personal and graph API keys". `Actor` (and the platform API response mapping that produces it) now has a `SERVICE_ACCOUNT` variant, so a service-account identity passes through cleanly, reporting `Key Type: Service Account` and its id under `User ID` (there's no dedicated field for it yet, and it's the closest existing fit).
+
 - **Composition and related errors no longer print their cause twice - @SharkBaitDLS**
 
   A number of error types (`supergraph compose`'s Federation Version/binary-install/subgraph-resolution errors, the LSP's composition-pipeline error, the router config address parser, and several errors in `rover-client`, `rover-http`, `rover-graphql`, and `rover-storage`) embedded their underlying cause's message directly in their own text while also registering that same cause as the error's `source`. When such an error surfaced through Rover's normal error-chain rendering, this produced the same message twice — once inline, once again under "Caused by:". These errors now describe only their own context; the cause still renders, exactly once, in the "Caused by:" section.

@@ -14,10 +14,13 @@ pub struct RegistryIdentity {
     pub credential_origin: CredentialOrigin,
 }
 
+// Variant names deliberately mirror the platform API's `ActorType` enum values.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Eq, PartialEq)]
 pub enum Actor {
     GRAPH,
     USER,
+    SERVICE_ACCOUNT,
     OTHER,
 }
 
@@ -26,6 +29,7 @@ impl Display for Actor {
         match self {
             Actor::GRAPH => write!(f, "Graph"),
             Actor::USER => write!(f, "User"),
+            Actor::SERVICE_ACCOUNT => write!(f, "Service Account"),
             Actor::OTHER => write!(f, "Other"),
         }
     }

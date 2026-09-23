@@ -111,13 +111,17 @@ where
                 .map_err(WhoAmIError::from)
                 .and_then(|response_data: config_who_am_i_query::ResponseData| {
                     if let Some(me) = response_data.me {
-                        // I believe for the purposes of the CLI, we only care about users and
-                        // graphs as api key actors, since that's all we _should_ get.
-                        // I think it's safe to only include those two kinds of actors in the enum
-
+                        // GRAPH/USER are legacy API key actors; SERVICE_ACCOUNT is the actor
+                        // type behind an OAuth client-credentials identity. Every other
+                        // `ActorType` variant (ANONYMOUS_USER, BACKFILL, CRON,
+                        // INTERNAL_IDENTITY, SYNCHRONIZATION, SYSTEM) isn't a credential rover
+                        // itself authenticates as, so it falls into `Actor::OTHER`.
                         let key_actor_type = match me.as_actor.type_ {
                             config_who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
                             config_who_am_i_query::ActorType::USER => Actor::USER,
+                            config_who_am_i_query::ActorType::SERVICE_ACCOUNT => {
+                                Actor::SERVICE_ACCOUNT
+                            }
                             _ => Actor::OTHER,
                         };
 
@@ -241,6 +245,51 @@ mod tests {
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);
+        resp_task.await.unwrap()
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn get_identity_from_response_data_works_for_service_accounts() {
+        let (service, mut handle) =
+            mock::spawn::<GraphQLRequest<ConfigWhoAmIQuery>, config_who_am_i_query::ResponseData>();
+
+        let inner = ServiceBuilder::new()
+            .map_err(GraphQLServiceError::UpstreamService)
+            .service(service.into_inner());
+        let mut who_am_i = WhoAmI::new(inner);
+        let who_am_i = who_am_i.ready().await.unwrap();
+
+        let response = who_am_i.call(WhoAmIRequest::new(CredentialOrigin::OauthClientCredentials));
+
+        let json_response = json!({
+            "me": {
+              "__typename": "ServiceAccount",
+              "id": "service_account:babeb892-45d4-4466-91f6-01292db178cc",
+              "asActor": {
+                "type": "SERVICE_ACCOUNT"
+              },
+            }
+        });
+
+        let response_data: config_who_am_i_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+
+        let resp_task = task::spawn(async move {
+            let (req, send_response) = handle.next_request().await.unwrap();
+            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
+            send_response.send_response(response_data);
+        });
+
+        let output = response.await;
+
+        let expected_identity = RegistryIdentity {
+            id: "service_account:babeb892-45d4-4466-91f6-01292db178cc".to_string(),
+            graph_title: None,
+            key_actor_type: Actor::SERVICE_ACCOUNT,
+            credential_origin: CredentialOrigin::OauthClientCredentials,
+        };
+        assert_that!(output).is_ok().is_equal_to(expected_identity);
         resp_task.await.unwrap()
     }
 }
