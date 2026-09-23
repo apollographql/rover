@@ -8,15 +8,31 @@ use std::{
 use http::StatusCode;
 use tap::TapFallible;
 use tower::{
+    layer::util::Stack,
     retry::{
         backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
-        Policy,
+        Policy, RetryLayer,
     },
     util::rng::HasherRng,
 };
 
 use super::HttpServiceError;
-use crate::{HttpRequest, HttpResponse};
+use crate::{timeout::TimeoutLayer, HttpRequest, HttpResponse};
+
+/// Retries a request for up to `retry_budget`, bounding each attempt by `attempt_timeout`.
+///
+/// The timeout sits inside the retry, so a hung attempt times out and is retried rather than
+/// consuming the whole budget. Pass the result to [`tower::ServiceBuilder::layer`]; the inner
+/// service must be `Clone`, since every attempt is a fresh call.
+pub fn retry_with_attempt_timeout(
+    retry_budget: Duration,
+    attempt_timeout: Duration,
+) -> Stack<TimeoutLayer, RetryLayer<RetryPolicy>> {
+    Stack::new(
+        TimeoutLayer::new(attempt_timeout),
+        RetryLayer::new(RetryPolicy::new(retry_budget)),
+    )
+}
 
 /// [`Policy`] implementation that describes whetheer to retry a request
 #[derive(Clone, Debug)]
@@ -110,8 +126,8 @@ mod tests {
     use speculoos::prelude::*;
     use tower::{Service, ServiceBuilder, ServiceExt};
 
-    use super::RetryPolicy;
-    use crate::{HttpService, ReqwestService};
+    use super::{retry_with_attempt_timeout, RetryPolicy};
+    use crate::{HttpService, HttpServiceError, ReqwestService};
 
     #[fixture]
     pub fn raw_service() -> HttpService {
@@ -224,6 +240,71 @@ mod tests {
         assert_that!(resp)
             .is_ok()
             .matches(|resp| resp.status() == status);
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    pub async fn hung_attempt_times_out_and_is_retried(raw_service: HttpService) -> Result<()> {
+        let server = MockServer::start();
+        let uri = format!("http://{}/", server.address());
+
+        // Every attempt hangs well past the per-attempt timeout.
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/");
+            then.status(200).delay(Duration::from_secs(5));
+        });
+
+        let mut service = ServiceBuilder::new()
+            .layer(retry_with_attempt_timeout(
+                Duration::from_millis(1500),
+                Duration::from_millis(200),
+            ))
+            .service(raw_service);
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = service.ready().await?.call(request).await;
+
+        // Without the inner timeout, the first attempt would hang for the full 5s delay and
+        // the budget would allow no second one.
+        assert_that!(mock.calls()).is_greater_than(1);
+        assert_that!(matches!(resp, Err(HttpServiceError::TimedOut))).is_true();
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    pub async fn prompt_success_is_attempted_once(raw_service: HttpService) -> Result<()> {
+        let server = MockServer::start();
+        let uri = format!("http://{}/", server.address());
+
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/");
+            then.status(200).body("ok");
+        });
+
+        let mut service = ServiceBuilder::new()
+            .layer(retry_with_attempt_timeout(
+                Duration::from_millis(1500),
+                Duration::from_millis(200),
+            ))
+            .service(raw_service);
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = service.ready().await?.call(request).await;
+
+        mock.assert_calls(1);
+        assert_that!(resp)
+            .is_ok()
+            .matches(|resp| resp.status() == StatusCode::OK);
         Ok(())
     }
 }
