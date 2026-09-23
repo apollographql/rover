@@ -291,11 +291,8 @@ impl PluginInstaller {
     }
 
     /// Records where the version request came from.
-    pub fn requested_by(self, origin: RequestOrigin) -> Self {
-        Self {
-            origin: Some(origin),
-            ..self
-        }
+    pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
+        Self { origin, ..self }
     }
 
     pub async fn install(
@@ -1224,12 +1221,8 @@ mod tests {
                     ("APOLLO_NODE_MODULES_BIN_DIR", None),
                 ],
                 async {
-                    let plugin_installer = PluginInstaller::new(client_config, installer, false);
-                    let plugin_installer = match origin {
-                        Some(origin) => plugin_installer.requested_by(origin),
-                        None => plugin_installer,
-                    };
-                    plugin_installer
+                    PluginInstaller::new(client_config, installer, false)
+                        .requested_by(origin)
                         .install(&plugin, false)
                         .await
                         .expect_err("the registry serves no such artifact")

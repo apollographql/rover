@@ -13,6 +13,7 @@ use super::{
 use crate::{
     command::{dev::router::config::RouterAddress, install::McpServerVersion},
     options::LicenseAccepter,
+    plugin::error::RequestOrigin,
     subtask::{Subtask, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
@@ -36,12 +37,14 @@ impl RunMcpServer<state::Install> {
     pub async fn install(
         self,
         mcp_server_version: McpServerVersion,
+        origin: Option<RequestOrigin>,
         studio_client_config: StudioClientConfig,
         override_install_path: Option<Utf8PathBuf>,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
     ) -> Result<RunMcpServer<state::Run>, InstallMcpServerError> {
-        let install_binary = InstallMcpServer::new(mcp_server_version, studio_client_config);
+        let install_binary =
+            InstallMcpServer::new(mcp_server_version, studio_client_config).requested_by(origin);
         let binary = install_binary
             .install(override_install_path, elv2_license_accepter, skip_update)
             .await?;

@@ -30,6 +30,7 @@ use crate::{
     },
     federation::FederationOneUnsupported,
     options::{LicenseAccepter, PluginOpts},
+    plugin::error::RequestOrigin,
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -84,7 +85,8 @@ pub(crate) async fn get_supergraph_binary(
         .resolve_federation_version(
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
-            federation_version,
+            federation_version
+                .map(|version| (version, RequestOrigin::Flag("--federation-version"))),
             warn_on_floating_version,
         )
         .await?

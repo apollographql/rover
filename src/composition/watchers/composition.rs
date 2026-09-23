@@ -37,6 +37,7 @@ use crate::{
     },
     config::SupergraphConfigYaml,
     federation::reject_federation_one,
+    plugin::error::RequestOrigin,
     subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, install::InstallBinary, write_file::WriteFile},
 };
@@ -212,6 +213,7 @@ where
                                 infoln!("Attempting to change supergraph version to {}", fed_version);
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
+                                        .requested_by(Some(RequestOrigin::SupergraphConfig(supergraph_config.origin_path().clone())))
                                         .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
                                         .await;
                                 match install_res {
