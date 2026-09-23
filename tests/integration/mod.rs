@@ -9,7 +9,6 @@ mod graph;
 mod info;
 mod installers;
 mod output;
-#[cfg(not(target_env = "musl"))]
 mod plugin;
 mod schema;
 mod subgraph;
