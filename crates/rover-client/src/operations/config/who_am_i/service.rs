@@ -145,31 +145,32 @@ where
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+
+    use super::{config_who_am_i_query, ConfigWhoAmIQuery};
+
+    pub type WhoAmIReq = GraphQLRequest<ConfigWhoAmIQuery>;
+    pub type WhoAmIResp = config_who_am_i_query::ResponseData;
+    pub type WhoAmIErr = GraphQLServiceError<config_who_am_i_query::ResponseData>;
+
+    rover_tower::mock_service!(WhoAmIInner, WhoAmIReq, WhoAmIResp, WhoAmIErr);
+}
+
 #[cfg(test)]
 mod tests {
+    use futures::future;
+    use rover_tower::test::{expect_poll_ready, MockCloneService};
     use serde_json::json;
     use speculoos::prelude::*;
-    use tokio::task;
-    use tower::{ServiceBuilder, ServiceExt};
-    use tower_test::mock;
-    use tracing_test::traced_test;
+    use tower::ServiceExt;
 
-    use super::*;
+    use super::{mock::MockWhoAmIInnerService, *};
 
     #[tokio::test]
     async fn get_identity_from_response_data_works_for_users() {
-        let (service, mut handle) =
-            mock::spawn::<GraphQLRequest<ConfigWhoAmIQuery>, config_who_am_i_query::ResponseData>();
-
-        let inner = ServiceBuilder::new()
-            .map_err(GraphQLServiceError::UpstreamService)
-            .service(service.into_inner());
-        let mut who_am_i = WhoAmI::new(inner);
-        let who_am_i = who_am_i.ready().await.unwrap();
-
-        let response = who_am_i.call(WhoAmIRequest::new(CredentialOrigin::EnvVar));
-
-        let json_response = json!({
+        let response_data: config_who_am_i_query::ResponseData = serde_json::from_value(json!({
             "me": {
               "__typename": "User",
               "title": "SearchForTunaService",
@@ -178,18 +179,17 @@ mod tests {
                 "type": "USER"
               },
             }
-        });
+        }))
+        .unwrap();
 
-        let response_data: config_who_am_i_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let mut mock = MockWhoAmIInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .return_once(move |_| future::ready(Ok(response_data)));
 
-        let resp_task = task::spawn(async move {
-            let (req, send_response) = handle.next_request().await.unwrap();
-            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
-            send_response.send_response(response_data);
-        });
-
-        let output = response.await;
+        let output = WhoAmI::new(MockCloneService::new(mock))
+            .oneshot(WhoAmIRequest::new(CredentialOrigin::EnvVar))
+            .await;
 
         let expected_identity = RegistryIdentity {
             id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
@@ -198,24 +198,11 @@ mod tests {
             credential_origin: CredentialOrigin::EnvVar,
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
-        resp_task.await.unwrap()
     }
 
     #[tokio::test]
-    #[traced_test]
     async fn get_identity_from_response_data_works_for_services() {
-        let (service, mut handle) =
-            mock::spawn::<GraphQLRequest<ConfigWhoAmIQuery>, config_who_am_i_query::ResponseData>();
-
-        let inner = ServiceBuilder::new()
-            .map_err(GraphQLServiceError::UpstreamService)
-            .service(service.into_inner());
-        let mut who_am_i = WhoAmI::new(inner);
-        let who_am_i = who_am_i.ready().await.unwrap();
-
-        let response = who_am_i.call(WhoAmIRequest::new(CredentialOrigin::EnvVar));
-
-        let json_response = json!({
+        let response_data: config_who_am_i_query::ResponseData = serde_json::from_value(json!({
             "me": {
               "__typename": "Graph",
               "title": "GraphKeyService",
@@ -224,18 +211,17 @@ mod tests {
                 "type": "GRAPH"
               },
             }
-        });
+        }))
+        .unwrap();
 
-        let response_data: config_who_am_i_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let mut mock = MockWhoAmIInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .return_once(move |_| future::ready(Ok(response_data)));
 
-        let resp_task = task::spawn(async move {
-            let (req, send_response) = handle.next_request().await.unwrap();
-            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
-            send_response.send_response(response_data);
-        });
-
-        let output = response.await;
+        let output = WhoAmI::new(MockCloneService::new(mock))
+            .oneshot(WhoAmIRequest::new(CredentialOrigin::EnvVar))
+            .await;
 
         let expected_identity = RegistryIdentity {
             id: "big-ol-graph-key-lolol".to_string(),
@@ -243,26 +229,12 @@ mod tests {
             key_actor_type: Actor::GRAPH,
             credential_origin: CredentialOrigin::EnvVar,
         };
-        assert!(output.is_ok());
-        assert_eq!(output.unwrap(), expected_identity);
-        resp_task.await.unwrap()
+        assert_that!(output).is_ok().is_equal_to(expected_identity);
     }
 
     #[tokio::test]
-    #[traced_test]
     async fn get_identity_from_response_data_works_for_service_accounts() {
-        let (service, mut handle) =
-            mock::spawn::<GraphQLRequest<ConfigWhoAmIQuery>, config_who_am_i_query::ResponseData>();
-
-        let inner = ServiceBuilder::new()
-            .map_err(GraphQLServiceError::UpstreamService)
-            .service(service.into_inner());
-        let mut who_am_i = WhoAmI::new(inner);
-        let who_am_i = who_am_i.ready().await.unwrap();
-
-        let response = who_am_i.call(WhoAmIRequest::new(CredentialOrigin::OauthClientCredentials));
-
-        let json_response = json!({
+        let response_data: config_who_am_i_query::ResponseData = serde_json::from_value(json!({
             "me": {
               "__typename": "ServiceAccount",
               "id": "service_account:babeb892-45d4-4466-91f6-01292db178cc",
@@ -270,18 +242,17 @@ mod tests {
                 "type": "SERVICE_ACCOUNT"
               },
             }
-        });
+        }))
+        .unwrap();
 
-        let response_data: config_who_am_i_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let mut mock = MockWhoAmIInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .return_once(move |_| future::ready(Ok(response_data)));
 
-        let resp_task = task::spawn(async move {
-            let (req, send_response) = handle.next_request().await.unwrap();
-            assert_that!(req).is_equal_to(GraphQLRequest::new(config_who_am_i_query::Variables {}));
-            send_response.send_response(response_data);
-        });
-
-        let output = response.await;
+        let output = WhoAmI::new(MockCloneService::new(mock))
+            .oneshot(WhoAmIRequest::new(CredentialOrigin::OauthClientCredentials))
+            .await;
 
         let expected_identity = RegistryIdentity {
             id: "service_account:babeb892-45d4-4466-91f6-01292db178cc".to_string(),
@@ -290,6 +261,5 @@ mod tests {
             credential_origin: CredentialOrigin::OauthClientCredentials,
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
-        resp_task.await.unwrap()
     }
 }
