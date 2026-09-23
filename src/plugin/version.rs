@@ -13,7 +13,7 @@ use serde_with::SerializeDisplay;
 /// The forms a version request may take, as they appear in an error that has
 /// to list them. A `major.minor` build track joins this list in a later
 /// release; see [`VersionRequest`].
-const ACCEPTED_FORMS: &str =
+pub(crate) const ACCEPTED_FORMS: &str =
     "`latest`, a major version such as `2`, or an exact version such as `=2.9.0`";
 
 /// One of exactly three binaries Rover delegates to. No other name is valid

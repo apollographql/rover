@@ -1,0 +1,56 @@
+---
+source: src/plugin/manifest.rs
+expression: schema_for!(RoverManifest)
+---
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoverManifest",
+  "description": "The contents of one `rover.yaml`, at either the global or the project level. Unknown top-level keys are ignored.",
+  "type": "object",
+  "properties": {
+    "plugins": {
+      "description": "The plugins this level declares, each with the version it asks for.",
+      "$ref": "#/$defs/PluginDeclarations"
+    },
+    "install_root": {
+      "description": "Where this level's plugin binaries live, in place of the directory holding this manifest. A relative path resolves against that directory. Not supported yet.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    }
+  },
+  "$defs": {
+    "PluginDeclarations": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "supergraph": {
+          "description": "Accepted forms are `latest`, a major version such as `2`, or an exact version such as `=2.9.0`.",
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "router": {
+          "description": "Accepted forms are `latest`, a major version such as `2`, or an exact version such as `=2.9.0`.",
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "apollo-mcp-server": {
+          "description": "Accepted forms are `latest`, a major version such as `2`, or an exact version such as `=2.9.0`.",
+          "type": [
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
