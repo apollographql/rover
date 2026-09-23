@@ -1,12 +1,13 @@
 //! The error contract for plugin failures.
 //!
 //! Each class of plugin failure has its own variant of [`PluginFailure`]:
-//! resolution, download, installation, and a withdrawn release so far, with
-//! the never-download, checksum, and manifest classes to follow. Every variant
-//! has its own stable [`RoverErrorCode`] and a [`PluginNextStep`] naming the
-//! plugin and what to do about it. A [`PluginFailure`] anywhere in an error's
-//! cause chain decides that error's code and suggestion, so a caller that
-//! wraps one keeps both.
+//! resolution, download, installation, a withdrawn release, and a manifest
+//! that can't be used so far, with the never-download and checksum classes to
+//! follow. Every variant has its own stable [`RoverErrorCode`] and a
+//! [`PluginNextStep`] naming the plugin, or for a manifest the file to change,
+//! and what to do about it. A [`PluginFailure`] anywhere in an error's cause
+//! chain decides that error's code and suggestion, so a caller that wraps one
+//! keeps both.
 //!
 //! Wrap a [`PluginFailure`] with `anyhow` context or as a `thiserror`
 //! `#[source]`, never `#[error(transparent)]`: a transparent wrapper hands
@@ -79,6 +80,28 @@ pub enum PluginFailure {
         /// say. Ignored unless it is in that major and is not `version`.
         newest_in_major: Option<Version>,
     },
+
+    /// A plugin manifest exists but cannot be used. It names no single
+    /// plugin, even when one entry is what is wrong: the problem is the file,
+    /// and fixing the file is the next step.
+    Manifest {
+        path: Utf8PathBuf,
+        problem: ManifestProblem,
+    },
+}
+
+/// Why a manifest cannot be used.
+#[derive(Debug, Clone)]
+pub enum ManifestProblem {
+    /// The file is there but could not be read.
+    Unreadable(PluginFailureCause),
+    /// The file is not valid YAML, does not have a manifest's shape, or
+    /// is not text at all; the cause says which.
+    Malformed(PluginFailureCause),
+    /// The file sets `install_root`, which this version of Rover does not
+    /// honor. Ignoring it would install binaries somewhere the manifest did
+    /// not ask for, and move them once a later version starts honoring it.
+    UnsupportedInstallRoot,
 }
 
 impl fmt::Display for PluginFailure {
@@ -117,6 +140,14 @@ impl fmt::Display for PluginFailure {
                 }
                 Ok(())
             }
+            Self::Manifest { path, problem } => match problem {
+                ManifestProblem::Unreadable(_) => write!(f, "Couldn't read the manifest `{path}`."),
+                ManifestProblem::Malformed(_) => write!(f, "`{path}` is not a valid manifest."),
+                ManifestProblem::UnsupportedInstallRoot => write!(
+                    f,
+                    "`{path}` sets `install_root`, which this version of Rover doesn't support."
+                ),
+            },
         }
     }
 }
@@ -129,8 +160,16 @@ impl Error for PluginFailure {
         match self {
             Self::Resolution { source, .. }
             | Self::Download { source, .. }
-            | Self::Installation { source, .. } => Some(&**source),
-            Self::NoLongerServed { .. } => None,
+            | Self::Installation { source, .. }
+            | Self::Manifest {
+                problem: ManifestProblem::Unreadable(source) | ManifestProblem::Malformed(source),
+                ..
+            } => Some(&**source),
+            Self::NoLongerServed { .. }
+            | Self::Manifest {
+                problem: ManifestProblem::UnsupportedInstallRoot,
+                ..
+            } => None,
         }
     }
 }
@@ -139,26 +178,28 @@ impl PluginFailure {
     /// The plugin that could not be obtained.
     ///
     /// `None` for a failure that names no single plugin, such as a malformed
-    /// manifest; every class so far names one.
+    /// manifest, which is about a file rather than any one plugin.
     pub const fn plugin(&self) -> Option<PluginName> {
         match self {
             Self::Resolution { plugin, .. }
             | Self::Download { plugin, .. }
             | Self::Installation { plugin, .. }
             | Self::NoLongerServed { plugin, .. } => Some(*plugin),
+            Self::Manifest { .. } => None,
         }
     }
 
     /// The version as it was asked for, before any resolution.
     ///
     /// `None` for a failure that names no request, such as a malformed
-    /// manifest; every class so far names one.
+    /// manifest, which is about a file rather than any one plugin.
     pub fn requested(&self) -> Option<VersionRequest> {
         match self {
             Self::Resolution { requested, .. }
             | Self::Download { requested, .. }
             | Self::Installation { requested, .. } => Some(requested.clone()),
             Self::NoLongerServed { version, .. } => Some(VersionRequest::Exact(version.clone())),
+            Self::Manifest { .. } => None,
         }
     }
 
@@ -169,6 +210,7 @@ impl PluginFailure {
             Self::Download { .. } => RoverErrorCode::E049,
             Self::Installation { .. } => RoverErrorCode::E050,
             Self::NoLongerServed { .. } => RoverErrorCode::E051,
+            Self::Manifest { .. } => RoverErrorCode::E052,
         }
     }
 
@@ -210,6 +252,16 @@ impl PluginFailure {
                     |replacement| Some(VersionRequest::Exact(replacement.clone())),
                 ),
             },
+            Self::Manifest { path, problem } => {
+                let path = path.clone();
+                match problem {
+                    ManifestProblem::Unreadable(_) => PluginNextStep::MakeManifestReadable { path },
+                    ManifestProblem::Malformed(_) => PluginNextStep::FixManifest { path },
+                    ManifestProblem::UnsupportedInstallRoot => {
+                        PluginNextStep::RemoveInstallRoot { path }
+                    }
+                }
+            }
         }
     }
 }
@@ -288,7 +340,8 @@ impl fmt::Display for RequestOrigin {
     }
 }
 
-/// The concrete next step a [`PluginFailure`] suggests. Each names the plugin.
+/// The concrete next step a [`PluginFailure`] suggests. Each names the plugin,
+/// or for a manifest that can't be used, the file to change.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum PluginNextStep {
     CheckRegistry {
@@ -311,6 +364,15 @@ pub enum PluginNextStep {
         /// one, otherwise the newest release in the withdrawn one's major, or
         /// `None` when there's no form today's parsers accept for that.
         request: Option<VersionRequest>,
+    },
+    MakeManifestReadable {
+        path: Utf8PathBuf,
+    },
+    FixManifest {
+        path: Utf8PathBuf,
+    },
+    RemoveInstallRoot {
+        path: Utf8PathBuf,
     },
 }
 
@@ -382,8 +444,44 @@ impl fmt::Display for PluginNextStep {
                     ),
                 }
             }
+            Self::MakeManifestReadable { path } => write!(
+                f,
+                "Make sure `{path}` is a file you can read, then re-run the command."
+            ),
+            Self::FixManifest { path } => {
+                write!(f, "Fix `{path}`, or remove it, then re-run the command.")
+            }
+            Self::RemoveInstallRoot { path } => write!(
+                f,
+                "Remove `install_root` from `{path}`. Plugins install into the `bin` directory next to it."
+            ),
         }
     }
+}
+
+/// The error exactly as `rover` prints it, uncoloured.
+///
+/// With `RUST_BACKTRACE` set, as it is in CI, anyhow appends a
+/// `Stack backtrace:` block after the causes. That comes from the
+/// environment, not the failure, so it's cut out here. The block runs up to
+/// the first suggestion, which is the only line indented by exactly eight
+/// spaces: frame lines are indented less, and their `at` lines more.
+#[cfg(test)]
+pub(crate) fn printed(error: impl Into<anyhow::Error>) -> String {
+    let printed =
+        console::strip_ansi_codes(&crate::RoverError::new(error).to_string()).into_owned();
+    let Some(start) = printed.find("\n\nStack backtrace:\n") else {
+        return printed;
+    };
+    let is_suggestion = |line: &&str| {
+        line.strip_prefix("        ")
+            .is_some_and(|text| !text.starts_with(' '))
+    };
+    let suggestions = printed[start + 2..]
+        .split_inclusive('\n')
+        .skip_while(|line| !is_suggestion(line))
+        .collect::<String>();
+    format!("{}\n{suggestions}", &printed[..start])
 }
 
 #[cfg(test)]
@@ -440,27 +538,23 @@ mod tests {
         }
     }
 
-    /// The error exactly as `rover` prints it, uncoloured.
-    ///
-    /// With `RUST_BACKTRACE` set, as it is in CI, anyhow appends a
-    /// `Stack backtrace:` block after the causes. That comes from the
-    /// environment, not the failure, so it's cut out here. The block runs up to
-    /// the first suggestion, which is the only line indented by exactly eight
-    /// spaces: frame lines are indented less, and their `at` lines more.
-    fn printed(failure: PluginFailure) -> String {
-        let printed = console::strip_ansi_codes(&RoverError::new(failure).to_string()).into_owned();
-        let Some(start) = printed.find("\n\nStack backtrace:\n") else {
-            return printed;
-        };
-        let is_suggestion = |line: &&str| {
-            line.strip_prefix("        ")
-                .is_some_and(|text| !text.starts_with(' '))
-        };
-        let suggestions = printed[start + 2..]
-            .split_inclusive('\n')
-            .skip_while(|line| !is_suggestion(line))
-            .collect::<String>();
-        format!("{}\n{suggestions}", &printed[..start])
+    fn manifest(problem: ManifestProblem) -> PluginFailure {
+        PluginFailure::Manifest {
+            path: Utf8PathBuf::from("/work/app/.rover/rover.yaml"),
+            problem,
+        }
+    }
+
+    fn malformed_manifest() -> PluginFailure {
+        manifest(ManifestProblem::Malformed(cause(
+            "plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 column 3",
+        )))
+    }
+
+    fn unreadable_manifest() -> PluginFailure {
+        manifest(ManifestProblem::Unreadable(cause(
+            "Permission denied (os error 13)",
+        )))
     }
 
     #[rstest]
@@ -492,6 +586,27 @@ mod tests {
         no_longer_served(RequestOrigin::PluginArgument, Some("2.9.5")),
         "error[E051]: The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.\n        \
          Run `rover install --plugin supergraph@=2.9.5`.\n"
+    )]
+    #[case::malformed_manifest(
+        malformed_manifest(),
+        "error[E052]: `/work/app/.rover/rover.yaml` is not a valid manifest.\n\
+         \n\
+         Caused by:\n    \
+         plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 column 3\n        \
+         Fix `/work/app/.rover/rover.yaml`, or remove it, then re-run the command.\n"
+    )]
+    #[case::unreadable_manifest(
+        unreadable_manifest(),
+        "error[E052]: Couldn't read the manifest `/work/app/.rover/rover.yaml`.\n\
+         \n\
+         Caused by:\n    \
+         Permission denied (os error 13)\n        \
+         Make sure `/work/app/.rover/rover.yaml` is a file you can read, then re-run the command.\n"
+    )]
+    #[case::unsupported_install_root(
+        manifest(ManifestProblem::UnsupportedInstallRoot),
+        "error[E052]: `/work/app/.rover/rover.yaml` sets `install_root`, which this version of Rover doesn't support.\n        \
+         Remove `install_root` from `/work/app/.rover/rover.yaml`. Plugins install into the `bin` directory next to it.\n"
     )]
     fn each_failure_prints_its_code_message_cause_and_next_step(
         #[case] failure: PluginFailure,
@@ -532,6 +647,29 @@ mod tests {
             "code": "E051",
         })
     )]
+    #[case::malformed_manifest(
+        malformed_manifest(),
+        serde_json::json!({
+            "message": "`/work/app/.rover/rover.yaml` is not a valid manifest.",
+            "causes": ["plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 column 3"],
+            "code": "E052",
+        })
+    )]
+    #[case::unreadable_manifest(
+        unreadable_manifest(),
+        serde_json::json!({
+            "message": "Couldn't read the manifest `/work/app/.rover/rover.yaml`.",
+            "causes": ["Permission denied (os error 13)"],
+            "code": "E052",
+        })
+    )]
+    #[case::unsupported_install_root(
+        manifest(ManifestProblem::UnsupportedInstallRoot),
+        serde_json::json!({
+            "message": "`/work/app/.rover/rover.yaml` sets `install_root`, which this version of Rover doesn't support.",
+            "code": "E052",
+        })
+    )]
     fn each_failure_is_reported_under_its_own_code_in_json(
         #[case] failure: PluginFailure,
         #[case] expected: serde_json::Value,
@@ -551,6 +689,7 @@ mod tests {
         no_longer_served(RequestOrigin::PluginArgument, None),
         include_str!("../error/metadata/codes/E051.md")
     )]
+    #[case::manifest(malformed_manifest(), include_str!("../error/metadata/codes/E052.md"))]
     fn every_code_is_explained(#[case] failure: PluginFailure, #[case] explanation: &str) {
         let code = failure.code();
 
@@ -746,5 +885,15 @@ mod tests {
             failure.requested().map(|request| request.to_string())
         ))
         .is_equal_to((Some(plugin), Some(requested.to_string())));
+    }
+
+    /// A manifest failure is about a file, not a plugin, so it names neither a
+    /// plugin nor a request, even when the file's one bad entry names both.
+    #[rstest]
+    #[case::malformed(malformed_manifest())]
+    #[case::unreadable(unreadable_manifest())]
+    #[case::unsupported_install_root(manifest(ManifestProblem::UnsupportedInstallRoot))]
+    fn a_manifest_failure_names_no_plugin_or_request(#[case] failure: PluginFailure) {
+        assert_that!((failure.plugin(), failure.requested())).is_equal_to((None, None));
     }
 }
