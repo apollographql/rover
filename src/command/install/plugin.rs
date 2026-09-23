@@ -423,7 +423,10 @@ impl PluginInstaller {
     ) -> RoverResult<Option<(Utf8PathBuf, PluginSource)>> {
         let latest_version = self
             .installer
-            .get_plugin_version(&plugin.get_tarball_url()?, true)
+            .get_latest_plugin_version(
+                self.client_config.plugin_version_service()?,
+                &plugin.get_tarball_url()?,
+            )
             .await?;
 
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version)
@@ -433,7 +436,7 @@ impl PluginInstaller {
             return Ok(Some((exe, PluginSource::Installed)));
         }
         // do the install.
-        self.do_install(plugin, true).await?;
+        self.do_install(plugin, &latest_version).await?;
         Ok(self
             .find_existing_exact(plugin, &latest_version)?
             .map(|exe| (exe, PluginSource::Downloaded)))
@@ -460,17 +463,16 @@ impl PluginInstaller {
             tracing::debug!("{} exists, skipping install", &exe);
             return Ok(Some((exe, PluginSource::Installed)));
         }
+        let version = self
+            .installer
+            .get_plugin_version_from_url(&plugin.get_tarball_url()?)?;
         Ok(self
-            .do_install(plugin, false)
+            .do_install(plugin, &version)
             .await?
             .map(|exe| (exe, PluginSource::Downloaded)))
     }
 
-    async fn do_install(
-        &self,
-        plugin: &Plugin,
-        is_latest: bool,
-    ) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn do_install(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         // only print the download message if the username and password have been stripped from the URL
@@ -491,7 +493,7 @@ impl PluginInstaller {
                 &plugin_name,
                 &plugin_tarball_url,
                 file_download_service,
-                is_latest,
+                version,
             )
             .await?)
     }

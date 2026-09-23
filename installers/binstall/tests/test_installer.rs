@@ -74,10 +74,6 @@ pub async fn test_install_plugin() {
         let gzipped_tar = gzipped_plugin_tarball(plugin_contents, plugin_name);
         then.status(200).body(&gzipped_tar[..]);
     });
-    let _version_mock = server.mock(|when, then| {
-        when.method(Method::HEAD).path(format!("/{}", plugin_name));
-        then.status(200).header("x-version", "v1.0.0");
-    });
 
     let tarball_url = format!("http://{}/{}", address, plugin_name);
 
@@ -115,7 +111,7 @@ pub async fn test_install_plugin() {
         .build();
 
     let result = installer
-        .install_plugin(plugin_name, &tarball_url, service, true)
+        .install_plugin(plugin_name, &tarball_url, service, plugin_version)
         .await;
 
     assert_that!(result)

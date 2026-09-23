@@ -21,6 +21,14 @@ pub enum InstallerError {
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
 
+    /// The registry couldn't be asked, or wouldn't say, which version a floating URL points at
+    #[error("Couldn't resolve the plugin version from {url}")]
+    VersionResolution {
+        url: String,
+        #[source]
+        source: Box<rover_http::HttpServiceError>,
+    },
+
     /// Couldn't find a valid install location on Unix
     #[error("Could not find the home directory of the current user")]
     NoHomeUnix,
