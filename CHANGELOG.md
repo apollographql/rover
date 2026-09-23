@@ -90,6 +90,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover dev` and `rover lsp` report each plugin on stderr as they resolve it, and again when it changes, rather than in JSON — their envelope is only rendered when the session exits, which is no moment a consumer is waiting on.
 
+- **Plugin install failures report their own error codes - @SharkBaitDLS**
+
+  When Rover can't obtain a plugin — for `rover install --plugin`, or on the fly for `rover supergraph compose`, `rover dev`, `rover connector`, and `rover lsp` — the error now carries a stable code under `error.code`, so a script can tell the failures apart: `E048` when the requested version can't be resolved against the plugin registry, `E049` when the artifact can't be downloaded, and `E050` when it can't be unpacked or written into the install directory. Each comes with a suggestion naming the plugin and what to do next, in place of the previous generic ones. Run `rover explain <CODE>` for details.
+
 ## 🐛 Fixes
 
 - **`rover config whoami` no longer rejects a valid client-credentials identity - @briangeorge**

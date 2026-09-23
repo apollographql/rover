@@ -6,6 +6,7 @@ use super::{binary::SupergraphBinary, version::SupergraphVersion};
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
+    plugin::error::PluginFailure,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -18,6 +19,9 @@ pub enum InstallSupergraphError {
         /// The error while attempting to find the dependency
         err: String,
     },
+    /// The plugin couldn't be obtained, for a reason with its own error code.
+    #[error("Couldn't obtain the `supergraph` plugin")]
+    Plugin(#[source] Box<PluginFailure>),
 }
 
 /// The installer for the supergraph binary. It implements [`InstallSupergraph`] and has an
@@ -72,8 +76,11 @@ impl InstallBinary for InstallSupergraph {
                 skip_update,
             )
             .await
-            .map_err(|err| InstallSupergraphError::MissingDependency {
-                err: err.to_string(),
+            .map_err(|err| match err.plugin_failure() {
+                Some(failure) => InstallSupergraphError::Plugin(Box::new(failure.clone())),
+                None => InstallSupergraphError::MissingDependency {
+                    err: err.to_string(),
+                },
             })?;
 
         let version = SupergraphVersion::new(provenance.version.clone());
@@ -106,8 +113,16 @@ mod tests {
 
     use super::InstallSupergraph;
     use crate::{
-        composition::supergraph::version::SupergraphVersion,
+        RoverError, RoverErrorCode,
+        composition::{
+            CompositionError, pipeline::CompositionPipelineError,
+            supergraph::version::SupergraphVersion,
+        },
         options::LicenseAccepter,
+        plugin::{
+            error::PluginFailure,
+            version::{PluginName, VersionRequest},
+        },
         utils::{
             client::{ClientBuilder, ClientTimeout, StudioClientConfig},
             effect::install::InstallBinary,
@@ -404,5 +419,134 @@ mod tests {
         // The decisive check: opting out meant the registry was never contacted.
         assert_that!(registry.calls()).is_equal_to(0);
         Ok(())
+    }
+
+    enum RegistryFault {
+        /// The registry can't resolve the floating request.
+        Resolution,
+        /// The registry resolves the request, but won't serve the artifact.
+        Download,
+        /// The registry serves an artifact that isn't a gzipped tarball.
+        CorruptArchive,
+    }
+
+    /// Each way the registry can fail maps onto its own error code and next
+    /// step, and survives being wrapped by the on-the-fly installer.
+    #[tokio::test]
+    #[rstest]
+    #[case::resolution(RegistryFault::Resolution)]
+    #[case::download(RegistryFault::Download)]
+    #[case::corrupt_archive(RegistryFault::CorruptArchive)]
+    #[timeout(Duration::from_secs(15))]
+    async fn a_failed_install_reports_its_failure_class(
+        #[case] fault: RegistryFault,
+    ) -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        let install_root = override_install_path.join(".rover").join("bin");
+
+        http_server.mock(|when, then| {
+            when.method(Method::HEAD).path_prefix("/tar/supergraph");
+            match fault {
+                RegistryFault::Resolution => then.status(404),
+                _ => then.status(302).header("X-Version", "v2.9.0"),
+            };
+        });
+        http_server.mock(|when, then| {
+            when.method(Method::GET).path_prefix("/tar/supergraph");
+            match fault {
+                RegistryFault::CorruptArchive => then.status(200).body("not a tarball"),
+                _ => then.status(404),
+            };
+        });
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::new(1),
+        );
+        let install_supergraph =
+            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+
+        let result = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
+                // Would move the install root the corrupt-archive case names.
+                ("APOLLO_NODE_MODULES_BIN_DIR", None),
+            ],
+            async {
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        let error = RoverError::new(result.expect_err("the install should fail"));
+        let reported = (
+            error.code(),
+            error.plugin_failure().map(ToString::to_string),
+            error
+                .suggestions()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        );
+
+        let expected = match fault {
+            RegistryFault::Resolution => (
+                Some(RoverErrorCode::E048),
+                "Couldn't resolve a release of the `supergraph` plugin matching `2` from the plugin registry.".to_string(),
+                "Make sure the plugin registry is reachable and that `supergraph` has a release matching `2`, then re-run the command. If you use a registry other than Apollo's, check that `APOLLO_ROVER_DOWNLOAD_HOST` points at it.".to_string(),
+            ),
+            RegistryFault::Download => (
+                Some(RoverErrorCode::E049),
+                "Couldn't download the `supergraph` plugin v2.9.0.".to_string(),
+                "Re-run the command to retry downloading `supergraph` v2.9.0. If the download keeps failing or timing out, check your connection to the plugin registry, or allow it longer by passing `--client-timeout` a value above the 300-second default for plugin downloads.".to_string(),
+            ),
+            RegistryFault::CorruptArchive => (
+                Some(RoverErrorCode::E050),
+                format!("Couldn't install the `supergraph` plugin v2.9.0 into `{install_root}`."),
+                format!("Make sure `{install_root}` is writable and has free space, then run `rover install --plugin supergraph@=2.9.0 --force --elv2-license accept` to reinstall it."),
+            ),
+        };
+        assert_that!(reported).is_equal_to((expected.0, Some(expected.1), vec![expected.2]));
+        Ok(())
+    }
+
+    fn resolution_failure() -> super::InstallSupergraphError {
+        super::InstallSupergraphError::Plugin(Box::new(PluginFailure::Resolution {
+            plugin: PluginName::Supergraph,
+            requested: VersionRequest::Major(2),
+            source: std::sync::Arc::new(std::io::Error::other("Connect error")),
+        }))
+    }
+
+    /// The composition errors wrap the installer's; none of them may hide the
+    /// plugin failure from the chain, or `compose`, `dev`, and `lsp` lose the
+    /// code.
+    #[rstest]
+    #[case::pipeline(anyhow::Error::new(CompositionPipelineError::from(resolution_failure())))]
+    #[case::binary(anyhow::Error::new(CompositionError::InstallSupergraphBinaryError {
+        source: resolution_failure(),
+    }))]
+    #[case::federation_version_change(anyhow::Error::new(
+        CompositionError::ErrorUpdatingFederationVersion(resolution_failure())
+    ))]
+    fn a_plugin_failure_keeps_its_code_through_the_composition_errors(
+        #[case] error: anyhow::Error,
+    ) {
+        assert_that!(RoverError::new(error).code()).is_equal_to(Some(RoverErrorCode::E048));
     }
 }
