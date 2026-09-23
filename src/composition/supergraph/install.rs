@@ -243,7 +243,9 @@ mod tests {
             },
             false,
             ClientBuilder::default(),
-            ClientTimeout::default(),
+            // The failing registry is retried until this runs out; keep it short, since
+            // this test is about what happens after resolution gives up.
+            ClientTimeout::new(1),
         );
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
@@ -302,7 +304,9 @@ mod tests {
             },
             false,
             ClientBuilder::default(),
-            ClientTimeout::default(),
+            // The failing registry is retried until this runs out; keep it short, since
+            // this test is about what happens after resolution gives up.
+            ClientTimeout::new(1),
         );
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),

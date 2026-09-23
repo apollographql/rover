@@ -11,11 +11,11 @@ use assert_fs::TempDir;
 use binstall::Installer;
 use camino::Utf8PathBuf;
 use regex::Regex;
-use rover_tower::retry::ExponentialBackoffPolicy;
+use rover_http::{ReqwestService, retry::retry_with_attempt_timeout};
 use rstest::{fixture, rstest};
 use serial_test::serial;
 use speculoos::prelude::*;
-use tower::{Service, ServiceBuilder, service_fn};
+use tower::ServiceBuilder;
 use tracing_test::traced_test;
 
 /// Runs a rover install command with retries to handle transient network failures in CI.
@@ -211,7 +211,7 @@ async fn e2e_test_rover_install_plugins_from_latest_version(
 
     // orbiter owns the `latest-*` alias -> concrete version mapping (rover no longer keeps a
     // local copy). Ask orbiter directly via the same redirect-disabled-HEAD/X-Version contract
-    // Installer::get_plugin_version already relies on in production, rather than reading a file
+    // Installer::get_latest_plugin_version relies on in production, rather than reading a file
     // it owns. The target triple doesn't affect which version is resolved, so any triple that's
     // reliably released works here.
     let tarball_version_segment = match binary_name {
@@ -237,19 +237,26 @@ async fn e2e_test_rover_install_plugins_from_latest_version(
         executable_location: temp_dir.clone(),
         override_install_path: None,
     };
-    let installer_ref = &installer;
-    let tarball_url_ref = tarball_url.as_str();
-    let mut resolve_latest_version = ServiceBuilder::new()
-        // Roughly matches the overall retry budget `run_with_retries` gives the subsequent
-        // `rover install` call below (3 attempts x 5s sleep).
-        .retry(ExponentialBackoffPolicy::new(Duration::from_secs(15)))
-        .service(service_fn(move |_: ()| async move {
-            installer_ref
-                .get_plugin_version(tarball_url_ref, true)
-                .await
-        }));
-    let latest_version_from_orbiter = resolve_latest_version
-        .call(())
+    // Roughly matches the overall retry budget `run_with_retries` gives the subsequent
+    // `rover install` call below (3 attempts x 5s sleep).
+    let resolve_latest_version = ServiceBuilder::new()
+        .layer(retry_with_attempt_timeout(
+            Duration::from_secs(15),
+            Duration::from_secs(5),
+        ))
+        .service(
+            ReqwestService::builder()
+                .client(
+                    reqwest::Client::builder()
+                        .redirect(reqwest::redirect::Policy::none())
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap(),
+        );
+    let latest_version_from_orbiter = installer
+        .get_latest_plugin_version(resolve_latest_version, &tarball_url)
         .await
         .expect("failed to resolve latest version from orbiter");
 

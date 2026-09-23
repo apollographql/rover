@@ -7,7 +7,9 @@ use bytes::Bytes;
 use camino::Utf8PathBuf;
 use download::{gz_decode::GzDecodeLayer, FileDownloadService};
 use http::Request;
-use rover_http::Full;
+use rover_http::{
+    error_on_status::ErrorOnStatusLayer, Full, HttpRequest, HttpResponse, HttpServiceError,
+};
 use rover_std::Fs;
 use tower::{Service, ServiceBuilder, ServiceExt};
 use url::Url;
@@ -54,23 +56,23 @@ impl Installer {
     /// Checks if a binary already exists, and if it does not,
     /// downloads a plugin tarball from a URL, extracts the binary,
     /// and puts it in the `bin` directory for the main tool
+    ///
+    /// `version` is the exact version the tarball holds, which names the installed binary. The
+    /// caller resolves it — with [`Self::get_latest_plugin_version`] for a floating URL, or
+    /// [`Self::get_plugin_version_from_url`] for an exact one — so it isn't resolved twice.
     pub async fn install_plugin(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
         file_download_service: FileDownloadService,
-        is_latest: bool,
+        version: &str,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let version = self
-            .get_plugin_version(plugin_tarball_url, is_latest)
-            .await?;
-
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
             Fs::create_dir_all(bin_dir_path)?;
         }
 
-        let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
+        let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, version)?;
         if !self.force_install
             && plugin_bin_destination.exists()
             && !self.should_overwrite(&plugin_bin_destination, plugin_name)?
@@ -82,7 +84,7 @@ impl Installer {
         let (_download_dir, plugin_bin_path) = self
             .extract_plugin_tarball(plugin_name, plugin_tarball_url, file_download_service)
             .await?;
-        self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
+        self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, version)?;
 
         eprintln!(
             "the '{}' plugin was successfully installed to {}",
@@ -92,51 +94,72 @@ impl Installer {
         Ok(Some(plugin_bin_destination))
     }
 
-    pub async fn get_plugin_version(
+    /// Resolves the exact version a floating plugin tarball URL currently points at.
+    ///
+    /// The registry answers a `HEAD` on a floating URL with a redirect whose `X-Version` header
+    /// names the release it resolves to. `version_service` must not follow redirects, or that
+    /// header is lost; the caller owns retry and timeout policy by layering it onto the service.
+    pub async fn get_latest_plugin_version<S>(
+        &self,
+        version_service: S,
+        plugin_tarball_url: &str,
+    ) -> Result<String, InstallerError>
+    where
+        S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError>,
+        S::Future: Send + 'static,
+    {
+        let request = Request::head(plugin_tarball_url)
+            .body(Full::default())
+            .map_err(HttpServiceError::from)
+            .map_err(|source| InstallerError::VersionResolution {
+                url: plugin_tarball_url.to_string(),
+                source: Box::new(source),
+            })?;
+        let response = ServiceBuilder::new()
+            .layer(ErrorOnStatusLayer::default())
+            .service(version_service)
+            .oneshot(request)
+            .await
+            .map_err(|source| InstallerError::VersionResolution {
+                url: plugin_tarball_url.to_string(),
+                source: Box::new(source),
+            })?;
+
+        if let Some(version) = response.headers().get("x-version") {
+            Ok(version
+                .to_str()
+                .map_err(|e| InstallerError::IoError(io::Error::other(e)))?
+                .to_string())
+        } else {
+            Err(InstallerError::IoError(io::Error::other(format!(
+                "{plugin_tarball_url} did not respond with an X-Version header, which is required to determine the latest version"
+            ))))
+        }
+    }
+
+    /// Reads the version out of an exact plugin tarball URL, whose last path segment names it.
+    pub fn get_plugin_version_from_url(
         &self,
         plugin_tarball_url: &str,
-        is_latest: bool,
     ) -> Result<String, InstallerError> {
-        if is_latest {
-            let no_redirect_client = reqwest::Client::builder()
-                .redirect(reqwest::redirect::Policy::none())
-                .build()?;
-            let response = no_redirect_client
-                .head(plugin_tarball_url)
-                .send()
-                .await?
-                .error_for_status()?;
-
-            if let Some(version) = response.headers().get("x-version") {
-                Ok(version
-                    .to_str()
-                    .map_err(|e| InstallerError::IoError(io::Error::other(e)))?
-                    .to_string())
+        let url = Url::parse(plugin_tarball_url).map_err(|e| {
+            // this should be unreachable
+            InstallerError::IoError(io::Error::new(io::ErrorKind::InvalidData, e))
+        })?;
+        if let Some(version) = url.path_segments().and_then(|mut s| s.next_back()) {
+            if version.starts_with('v') {
+                Ok(version.to_string())
             } else {
-                Err(InstallerError::IoError(io::Error::other(format!(
-                    "{plugin_tarball_url} did not respond with an X-Version header, which is required to determine the latest version"
-                ))))
+                Ok(format!("v{version}"))
             }
         } else {
-            let url = Url::parse(plugin_tarball_url).map_err(|e| {
-                // this should be unreachable
-                InstallerError::IoError(io::Error::new(io::ErrorKind::InvalidData, e))
-            })?;
-            if let Some(version) = url.path_segments().and_then(|mut s| s.next_back()) {
-                if version.starts_with('v') {
-                    Ok(version.to_string())
-                } else {
-                    Ok(format!("v{version}"))
-                }
-            } else {
-                // this should be unreachable
-                Err(InstallerError::IoError(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "The tarball url for the plugin ({plugin_tarball_url}) cannot be a base URL"
-                    ),
-                )))
-            }
+            // this should be unreachable
+            Err(InstallerError::IoError(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "The tarball url for the plugin ({plugin_tarball_url}) cannot be a base URL"
+                ),
+            )))
         }
     }
 
@@ -317,11 +340,12 @@ mod test {
     use http::{HeaderValue, Response, Uri};
     use httpmock::prelude::*;
     use reqwest::header::{ACCEPT, USER_AGENT};
-    use rover_http::{test::MockHttpService, Full, HttpServiceError};
+    use rover_http::{test::MockHttpService, Full, HttpService, HttpServiceError, ReqwestService};
     use rover_tower::{expect_poll_ready, test::MockCloneService};
     use rstest::{fixture, rstest};
     use sealed_test::prelude::*;
     use speculoos::prelude::*;
+    use tower::ServiceExt;
 
     use super::Installer;
     use crate::{download::FileDownloadService, InstallerError};
@@ -483,20 +507,42 @@ mod test {
         assert_that!(bin_contents).is_equal_to("test contents".to_string());
     }
 
+    /// The registry answers with a redirect, so resolution must not follow it.
+    #[fixture]
+    fn version_service() -> HttpService {
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        ReqwestService::builder()
+            .client(client)
+            .build()
+            .unwrap()
+            .boxed_clone()
+    }
+
     #[rstest]
+    #[case::ok(200)]
+    #[case::registry_redirect(302)]
     #[tokio::test]
-    async fn test_get_plugin_version_latest_with_valid_version(
+    async fn test_get_latest_plugin_version_with_valid_version(
         binary_name: &str,
         installer: Installer,
+        version_service: HttpService,
+        #[case] status: u16,
     ) {
         let server = MockServer::start();
         let address = server.address();
         let mock = server.mock(|when, then| {
             when.method(Method::HEAD).path(format!("/{}", binary_name));
-            then.status(200).header("x-version", "1.0.0");
+            then.status(status)
+                .header("x-version", "1.0.0")
+                .header("location", "/elsewhere");
         });
         let tarball_url = format!("http://{}/{}", address, binary_name);
-        let result = installer.get_plugin_version(&tarball_url, true).await;
+        let result = installer
+            .get_latest_plugin_version(version_service, &tarball_url)
+            .await;
         mock.assert_calls(1);
         assert_that!(result)
             .is_ok()
@@ -505,9 +551,42 @@ mod test {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_plugin_version_latest_with_invalid_version(
+    async fn test_get_latest_plugin_version_with_error_status(
         binary_name: &str,
         installer: Installer,
+        version_service: HttpService,
+    ) {
+        let server = MockServer::start();
+        let address = server.address();
+        let mock = server.mock(|when, then| {
+            when.method(Method::HEAD).path(format!("/{}", binary_name));
+            then.status(404);
+        });
+        let tarball_url = format!("http://{}/{}", address, binary_name);
+        let result = installer
+            .get_latest_plugin_version(version_service, &tarball_url)
+            .await;
+        mock.assert_calls(1);
+        assert_that!(result).is_err().matches(|err| {
+            matches!(
+                err,
+                InstallerError::VersionResolution {
+                    url,
+                    source,
+                } if *url == tarball_url && matches!(
+                    **source,
+                    HttpServiceError::BadStatusCode { status_code, .. } if status_code.as_u16() == 404
+                )
+            )
+        });
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_latest_plugin_version_with_invalid_version(
+        binary_name: &str,
+        installer: Installer,
+        version_service: HttpService,
     ) {
         let server = MockServer::start();
         let address = server.address();
@@ -516,7 +595,9 @@ mod test {
             then.status(200);
         });
         let tarball_url = format!("http://{}/{}", address, binary_name);
-        let result = installer.get_plugin_version(&tarball_url, true).await;
+        let result = installer
+            .get_latest_plugin_version(version_service, &tarball_url)
+            .await;
         mock.assert_calls(1);
         assert_that!(result)
             .is_err()
@@ -528,15 +609,14 @@ mod test {
     #[rstest]
     #[case::with_v_prefix("v1.0.0", "v1.0.0")]
     #[case::without_v_prefix("1.0.0", "v1.0.0")]
-    #[tokio::test]
-    async fn test_get_plugin_version_with_valid_version(
+    fn test_get_plugin_version_from_url_with_valid_version(
         binary_name: &str,
         installer: Installer,
         #[case] tarball_version_str: &str,
         #[case] expected_version: &str,
     ) {
         let tarball_url = format!("http://example.com/{}/{}", binary_name, tarball_version_str);
-        let result = installer.get_plugin_version(&tarball_url, false).await;
+        let result = installer.get_plugin_version_from_url(&tarball_url);
         assert_that!(result)
             .is_ok()
             .is_equal_to(expected_version.to_string());
