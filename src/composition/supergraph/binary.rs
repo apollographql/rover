@@ -15,7 +15,6 @@ use tap::TapFallible;
 
 use super::version::SupergraphVersion;
 use crate::{
-    RoverOutput,
     command::{connector::run::RunConnectorOutput, install::PluginProvenance},
     composition::{CompositionError, CompositionSuccess},
     utils::effect::exec::{ExecCommand, ExecCommandConfig, ExecCommandOutput},
@@ -139,7 +138,7 @@ impl SupergraphBinary {
         schema_path: PathBuf,
         connector_id: String,
         variables: String,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<RunConnectorOutput, BinaryError> {
         let args = vec![
             "run-connector".to_string(),
             "--schema".to_string(),
@@ -164,7 +163,7 @@ impl SupergraphBinary {
                 error: format!("{err:?}"),
             })?;
 
-        Ok(RoverOutput::ConnectorRunResponse { output })
+        Ok(output)
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -178,7 +177,7 @@ impl SupergraphBinary {
         output_file: Option<Utf8PathBuf>,
         verbose: bool,
         quiet: bool,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<String, BinaryError> {
         let mut args = vec!["test-connectors".to_string()];
 
         if no_fail {
@@ -231,7 +230,7 @@ impl SupergraphBinary {
         // error, or `--format json` would report success on a failed run.
         let output = self.execute(exec_impl, config, &[0]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     #[cfg(target_os = "macos")]
@@ -243,7 +242,7 @@ impl SupergraphBinary {
         output_dir: Option<Utf8PathBuf>,
         verbose: bool,
         quiet: bool,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<String, BinaryError> {
         let mut args = vec!["generate-connector-schema".to_string()];
 
         if let Some(name) = name {
@@ -282,14 +281,14 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     pub async fn list_connector(
         &self,
         exec_impl: &impl ExecCommand,
         schema_path: Utf8PathBuf,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<String, BinaryError> {
         let mut args = vec!["list-connectors".to_string()];
 
         args.push("--schema".to_string());
@@ -308,14 +307,11 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     #[cfg(target_os = "macos")]
-    pub async fn analyze_clean(
-        &self,
-        exec_impl: &impl ExecCommand,
-    ) -> Result<RoverOutput, BinaryError> {
+    pub async fn analyze_clean(&self, exec_impl: &impl ExecCommand) -> Result<String, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("clean".to_string());
@@ -333,7 +329,7 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     #[cfg(target_os = "macos")]
@@ -341,7 +337,7 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         port: Option<u16>,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<String, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("interactive".to_string());
@@ -366,7 +362,7 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     #[cfg(target_os = "macos")]
@@ -382,7 +378,7 @@ impl SupergraphBinary {
         analysis_dir: Option<Utf8PathBuf>,
         quiet: bool,
         verbose: bool,
-    ) -> Result<RoverOutput, BinaryError> {
+    ) -> Result<String, BinaryError> {
         let mut args = vec!["analyze-for-connector".to_string()];
 
         args.push("curl".to_string());
@@ -435,7 +431,7 @@ impl SupergraphBinary {
 
         let output = self.execute(exec_impl, config, &[0, 1]).await?;
 
-        Ok(RoverOutput::ConnectorTestResponse { output })
+        Ok(output)
     }
 
     pub(crate) async fn load_spec_for_file(
@@ -756,7 +752,12 @@ mod tests {
             .test_connector(&mock_exec, None, None, false, None, None, false, false)
             .await;
 
-        assert_that!(result).is_ok();
+        // `test-connectors` inherits stdout, so there is nothing for Rover to
+        // capture and the empty string is the whole result. Asserting it rather
+        // than `is_ok()` is what makes the test notice if that ever stops being
+        // true — which is exactly the case the subcommand's output type opts
+        // into `prints_empty_output` for.
+        assert_that!(result.map_err(|err| err.to_string())).is_equal_to(Ok(String::new()));
 
         Ok(())
     }
