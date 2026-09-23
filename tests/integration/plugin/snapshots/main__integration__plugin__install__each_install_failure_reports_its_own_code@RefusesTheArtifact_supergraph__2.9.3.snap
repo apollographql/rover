@@ -1,0 +1,17 @@
+---
+source: tests/integration/plugin/install.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "Couldn't download the `supergraph` plugin v2.9.3.",
+    "causes": [
+      "Bad Status code: 403 Forbidden"
+    ],
+    "code": "E049"
+  }
+}
