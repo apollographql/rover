@@ -8,7 +8,7 @@ use rover_std::Style;
 use rover_studio::types::GraphRef;
 use serde::Serialize;
 
-use crate::utils::env::RoverEnvKey;
+use crate::{plugin::error::PluginNextStep, utils::env::RoverEnvKey};
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
 #[derive(Clone, Serialize, Debug)]
@@ -101,6 +101,8 @@ pub enum RoverErrorSuggestion {
         launch_id: String,
     },
     CheckOrganizationId,
+    /// The next step for a plugin failure, which names the plugin.
+    Plugin(PluginNextStep),
 }
 
 impl Display for RoverErrorSuggestion {
@@ -220,6 +222,7 @@ impl Display for RoverErrorSuggestion {
                 )
             }
             Adhoc(msg) => msg.to_string(),
+            Plugin(step) => step.to_string(),
             CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
             ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
