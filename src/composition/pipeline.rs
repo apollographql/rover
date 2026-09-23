@@ -40,6 +40,7 @@ use crate::{
     config::SupergraphConfigYaml,
     federation::{FederationOneUnsupported, reject_federation_one},
     options::LicenseAccepter,
+    plugin::error::RequestOrigin,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -158,7 +159,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         self,
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
-        passed_in_fed_version: Option<FederationVersion>,
+        passed_in_fed_version: Option<(FederationVersion, RequestOrigin)>,
         warn_on_floating_version: bool,
     ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
         // Reject an explicit Federation 1 pin (from the CLI flag, or from `supergraph.yaml`)
@@ -168,12 +169,13 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         // `reject_federation_one` check further down uncontested.
         if let Some(user_specified_fed_version) = passed_in_fed_version
             .clone()
+            .map(|(version, _)| version)
             .or_else(|| self.state.resolver.target_federation_version())
         {
             reject_federation_one(&user_specified_fed_version)?;
         }
 
-        let resolved_federation_version = match self
+        let (resolved_federation_version, config_path) = match self
             .state
             .resolver
             .fully_resolve_subgraphs(
@@ -183,24 +185,25 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             )
             .await
         {
-            Ok((fully_resolved_supergraph_config, _)) => {
-                fully_resolved_supergraph_config.federation_version
-            }
+            Ok((fully_resolved_supergraph_config, _)) => (
+                fully_resolved_supergraph_config.federation_version,
+                fully_resolved_supergraph_config.origin_path,
+            ),
             Err(err) => {
                 warn!(
                     "Could not fully resolve SupergraphConfig to discover Federation Version: {err}"
                 );
                 warn!("Defaulting to Federation Version: {LatestFedTwo}");
                 warnln!("Federation Version could not be detected, defaulting to: {LatestFedTwo}");
-                LatestFedTwo
+                (LatestFedTwo, None)
             }
         };
 
-        let federation_version = if let Some(fed_version) = passed_in_fed_version {
-            fed_version
-        } else {
-            resolved_federation_version
-        };
+        let (federation_version, federation_version_origin) = version_and_origin(
+            passed_in_fed_version,
+            resolved_federation_version,
+            config_path,
+        );
 
         // Backstop, not currently reachable: `federation_version` here is always Fed 2 already --
         // either it's `passed_in_fed_version` (already rejected above) or
@@ -233,9 +236,29 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 supergraph_root: self.state.supergraph_root,
                 fetch_remote_subgraph_factory,
                 federation_version,
+                federation_version_origin,
                 resolve_introspect_subgraph_factory,
             },
         })
+    }
+}
+
+/// The version to compose with, and where it came from. Only an exact
+/// version can turn out to have been withdrawn, and one that didn't come from
+/// an override came from the supergraph config at `config_path`.
+fn version_and_origin(
+    passed_in: Option<(FederationVersion, RequestOrigin)>,
+    resolved: FederationVersion,
+    config_path: Option<Utf8PathBuf>,
+) -> (FederationVersion, Option<RequestOrigin>) {
+    match passed_in {
+        Some((version, origin)) => (version, Some(origin)),
+        None => {
+            let origin = resolved
+                .get_exact()
+                .map(|_| RequestOrigin::SupergraphConfig(config_path));
+            (resolved, origin)
+        }
     }
 }
 
@@ -249,6 +272,7 @@ impl CompositionPipeline<state::InstallSupergraph> {
     ) -> Result<CompositionPipeline<state::Run>, CompositionPipelineError> {
         let supergraph_binary =
             InstallSupergraph::new(self.state.federation_version, studio_client_config)
+                .requested_by(self.state.federation_version_origin)
                 .install(override_install_path, elv2_license_accepter, skip_update)
                 .await;
 
@@ -467,6 +491,7 @@ pub(crate) mod state {
             },
             install::InstallSupergraphError,
         },
+        plugin::error::RequestOrigin,
         utils::parsers::FileDescriptorType,
     };
 
@@ -480,6 +505,7 @@ pub(crate) mod state {
         pub resolver: InitializedSupergraphConfigResolver,
         pub supergraph_root: Utf8PathBuf,
         pub federation_version: FederationVersion,
+        pub federation_version_origin: Option<RequestOrigin>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
     }
@@ -501,6 +527,32 @@ mod tests {
 
     use super::*;
     use crate::composition::supergraph::config::scenario::fed_one_pin_with_fed_two_subgraph_resolver;
+
+    #[rstest::rstest]
+    #[case::an_override(
+        Some((FederationVersion::ExactFedTwo(semver::Version::new(2, 9, 3)), RequestOrigin::Flag("--federation-version"))),
+        FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)),
+        (FederationVersion::ExactFedTwo(semver::Version::new(2, 9, 3)), Some(RequestOrigin::Flag("--federation-version")))
+    )]
+    #[case::an_exact_pin_in_the_config(
+        None,
+        FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)),
+        (FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)), Some(RequestOrigin::SupergraphConfig(Some(Utf8PathBuf::from("graphs/prod.yaml")))))
+    )]
+    #[case::a_floating_version(
+        None,
+        FederationVersion::LatestFedTwo,
+        (FederationVersion::LatestFedTwo, None)
+    )]
+    fn the_version_names_where_it_came_from(
+        #[case] passed_in: Option<(FederationVersion, RequestOrigin)>,
+        #[case] resolved: FederationVersion,
+        #[case] expected: (FederationVersion, Option<RequestOrigin>),
+    ) {
+        let config_path = Some(Utf8PathBuf::from("graphs/prod.yaml"));
+
+        assert_that!(version_and_origin(passed_in, resolved, config_path)).is_equal_to(expected);
+    }
 
     #[test]
     fn load_remote_subgraphs_message_excludes_its_cause() {

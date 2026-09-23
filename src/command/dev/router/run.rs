@@ -31,6 +31,7 @@ use crate::{
     command::dev::router::watchers::file::FileWatcher,
     composition::{CompositionError, events::CompositionEvent},
     options::{DEFAULT_PROFILE, LicenseAccepter, ProfileOpt},
+    plugin::error::RequestOrigin,
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
@@ -64,12 +65,14 @@ impl RunRouter<state::Install> {
     pub async fn install(
         self,
         router_version: RouterVersion,
+        origin: Option<RequestOrigin>,
         studio_client_config: StudioClientConfig,
         override_install_path: Option<Utf8PathBuf>,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
     ) -> Result<RunRouter<state::LoadLocalConfig>, InstallRouterError> {
-        let install_binary = InstallRouter::new(router_version, studio_client_config);
+        let install_binary =
+            InstallRouter::new(router_version, studio_client_config).requested_by(origin);
         let binary = install_binary
             .install(override_install_path, elv2_license_accepter, skip_update)
             .await?;

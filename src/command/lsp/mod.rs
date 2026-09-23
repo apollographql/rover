@@ -2,7 +2,6 @@ mod errors;
 
 use std::{collections::HashMap, env::temp_dir, fmt::Debug, io::stdin, path::PathBuf};
 
-use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -155,14 +154,9 @@ async fn run_lsp(
             });
             // Create a composition runner first, so that we can use that to drive the initial
             // set of subgraphs that get reported to the LSP
-            let composition_runner = create_composition_runner(
-                supergraph_yaml_path,
-                None,
-                client_config,
-                lsp_opts,
-                profile,
-            )
-            .await?;
+            let composition_runner =
+                create_composition_runner(supergraph_yaml_path, client_config, lsp_opts, profile)
+                    .await?;
             let initial_subgraphs = composition_runner
                 .state
                 .initial_supergraph_config
@@ -414,7 +408,6 @@ fn create_subgraph_resolution_error(name: &str, error: ResolveSubgraphError) -> 
 
 async fn create_composition_runner(
     supergraph_config_path: Utf8PathBuf,
-    federation_version: Option<FederationVersion>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
     profile: ProfileOpt,
@@ -443,7 +436,8 @@ async fn create_composition_runner(
         .resolve_federation_version(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
-            federation_version,
+            // `rover lsp` has no version override; `supergraph.yaml` decides.
+            None,
             false,
         )
         .await?
