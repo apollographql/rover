@@ -151,6 +151,28 @@ fn json_reports_the_whole_envelope_for_a_successful_run(two_levels: TwoLevels) {
     assert_that!(stderr.contains(PROVENANCE_LINE)).is_true();
 }
 
+/// The failure half of FR57, through the whole command. The unit tests build
+/// the error by hand; only this proves the provenance survives `?`, the blanket
+/// `From` into `RoverError`, the downcast, and the envelope.
+#[rstest]
+fn json_reports_the_plugin_a_failed_run_used(two_levels: TwoLevels) {
+    let binary = two_levels.seed_runnable_plugin(Level::Global, "supergraph", "2.9.0", "");
+    write_config(&two_levels);
+
+    let output = compose(&two_levels, &["--format", "json"]);
+    let envelope: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("rover printed no JSON");
+
+    assert_that!(output.status.success()).is_false();
+    assert_that!(envelope["data"]["plugins"]).is_equal_to(serde_json::json!([{
+        "name": "supergraph",
+        "version": "2.9.0",
+        "source": "installed",
+        "level": "global",
+        "path": binary.to_string(),
+    }]));
+}
+
 /// The blank line the legacy path emitted: a run with nothing to hint about
 /// still printed one. Asserted on the real channel, since the guard that drops
 /// it lives in the dispatcher rather than in `ComposeOutput`.

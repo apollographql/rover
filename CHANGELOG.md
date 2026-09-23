@@ -84,7 +84,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`--format json` reports the plugins a run used - @SharkBaitDLS**
 
-  `data` gains a `plugins` array, one entry per plugin the run resolved, each with `name`, `version`, `source` (`downloaded`, `installed`, or `fallback`), `level` (always `global` until project-level install roots exist), and the `path` it ran from — the same information the stderr line carries, in a form a script can read. `rover supergraph compose` and every `rover connector` subcommand report the supergraph binary they ran on. The array is always present, so nothing has to tell "no plugins" apart from an older Rover. `rover dev` and `rover lsp` report each plugin on stderr as they resolve it, and again when it changes, rather than in JSON — their envelope is only rendered when the session exits, which is no moment a consumer is waiting on.
+  `data` gains a `plugins` array, one entry per plugin the run resolved, each with `name`, `version`, `source` (`downloaded`, `installed`, or `fallback`), `level` (always `global` until project-level install roots exist), and the `path` it ran from — the same information the stderr line carries, in a form a script can read. `rover supergraph compose` and every `rover connector` subcommand report the supergraph binary they ran on. The array is present whenever the run reached the composition stack at all, empty rather than missing, so nothing has to tell "no plugins" apart from an older Rover.
+
+  A run that fails reports it too, in the same place and the same shape, so a failed composition still answers which federation version rejected the schema — as does a run that resolved a plugin and then failed for some other reason. A run that never resolved one reports an empty array rather than a placeholder entry: the array describes what a run used, and a plugin that never resolved has no source, level, or path.
+
+  `rover dev` and `rover lsp` report each plugin on stderr as they resolve it, and again when it changes, rather than in JSON — their envelope is only rendered when the session exits, which is no moment a consumer is waiting on.
 
 ## 🐛 Fixes
 
@@ -101,6 +105,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`rover supergraph compose` no longer prints a blank line to stderr when composition raises no hints - @SharkBaitDLS**
 
   Composition hints were rendered with a trailing newline and then printed with another, and an empty hint list still printed the empty string — so a run with nothing to say emitted a bare blank line to stderr, and a run that did raise hints ended them with a doubled newline. Hints now print without the extra newline, and produce no stderr output at all when there are none. stdout is unchanged, so a redirected supergraph schema is unaffected.
+
+- **`rover supergraph compose` no longer mislabels a failure to create its temporary directory - @SharkBaitDLS**
+
+  If Rover couldn't create the temporary directory it writes the resolved supergraph config into, it reported "Failed to run the composition binary" and dropped the underlying cause entirely — describing a step it had not reached, and saying nothing about the one that failed. It now names the real step and shows the cause.
 
 - **Stop warning that a floating `federation_version` will become an error - @SharkBaitDLS**
 

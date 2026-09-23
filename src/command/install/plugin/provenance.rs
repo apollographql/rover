@@ -66,6 +66,16 @@ impl PluginProvenance {
             path,
         }
     }
+
+    /// A heap copy, in the form the error types carry.
+    ///
+    /// Boxed because an inline `PluginProvenance` pushes `CompositionError` and
+    /// `BinaryError` past clippy's `result_large_err` threshold, which would
+    /// make every `Result` carrying one a lint. One place to change if that
+    /// decision is revisited.
+    pub fn boxed(&self) -> Box<Self> {
+        Box::new(self.clone())
+    }
 }
 
 impl fmt::Display for PluginProvenance {
