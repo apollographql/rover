@@ -4,10 +4,10 @@ use bon::bon;
 use bytes::Bytes;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use rover_http::{
-    error_on_status::ErrorOnStatusLayer, extend_headers::ExtendHeadersLayer, retry::RetryPolicy,
-    timeout::TimeoutLayer, Full, HttpRequest, HttpResponse, HttpServiceError,
+    error_on_status::ErrorOnStatusLayer, extend_headers::ExtendHeadersLayer,
+    retry::retry_with_attempt_timeout, Full, HttpRequest, HttpResponse, HttpServiceError,
 };
-use tower::{retry::RetryLayer, util::BoxService, Service, ServiceBuilder};
+use tower::{util::BoxService, Service, ServiceBuilder};
 use tower_http::decompression::{DecompressionBody, DecompressionLayer};
 
 pub mod gz_decode;
@@ -39,13 +39,15 @@ impl FileDownloadService {
             .layer(DecompressionLayer::default()) // explicit stand-in for reqwest's brotli/gzip decompression options
             .layer(ErrorOnStatusLayer::default()) // short-circuit errors so that we don't attempt to decompress error bodies
             .layer(file_download_layer())
-            .layer(RetryLayer::new(RetryPolicy::new(
+            // Deliberately longer than other requests' budgets: plugin tarballs are large, and
+            // shorter limits failed slow CI downloads (#3358, #3386). Don't align these with
+            // `--client-timeout`'s defaults.
+            .layer(retry_with_attempt_timeout(
                 max_elapsed_duration
                     .unwrap_or_else(|| Duration::from_secs(DEFAULT_ELAPSED_DURATION_SECONDS)),
-            )))
-            .layer(TimeoutLayer::new(timeout_duration.unwrap_or_else(|| {
-                Duration::from_secs(DEFAULT_TIMEOUT_DURATION_SECONDS)
-            })))
+                timeout_duration
+                    .unwrap_or_else(|| Duration::from_secs(DEFAULT_TIMEOUT_DURATION_SECONDS)),
+            ))
             .service(http_service);
         FileDownloadService { inner: service }
     }

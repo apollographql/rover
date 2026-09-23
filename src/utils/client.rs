@@ -6,7 +6,7 @@ use derive_getters::Getters;
 use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
-use rover_http::{HttpService, ReqwestService};
+use rover_http::{HttpService, ReqwestService, retry::retry_with_attempt_timeout};
 use rover_studio::service::{HttpStudioServiceLayer, rejected_credential::RejectedCredentialLayer};
 use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
@@ -23,12 +23,23 @@ const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// Bounds a single plugin version lookup: a bodiless `HEAD` to the plugin registry. There's no
+/// observed latency data for this request, so this is a conservative ceiling rather than a
+/// measured one.
+const PLUGIN_VERSION_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The longest a plugin version lookup keeps retrying. A failed lookup falls back to an
+/// installed plugin where one exists, so an offline run shouldn't spend all of
+/// `--client-timeout` retrying before it gets there. A shorter `--client-timeout` still wins.
+const PLUGIN_VERSION_RETRY_BUDGET: Duration = Duration::from_secs(10);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
     timeout: Option<std::time::Duration>,
     connect_timeout: Option<std::time::Duration>,
+    follow_redirects: bool,
 }
 
 impl Default for ClientBuilder {
@@ -44,6 +55,7 @@ impl ClientBuilder {
             accept_invalid_hostnames: false,
             timeout: None,
             connect_timeout: None,
+            follow_redirects: true,
         }
     }
 
@@ -82,6 +94,13 @@ impl ClientBuilder {
         }
     }
 
+    const fn without_redirects(self) -> Self {
+        Self {
+            follow_redirects: false,
+            ..self
+        }
+    }
+
     pub(crate) fn build(self) -> Result<Client> {
         let mut builder = Client::builder()
             .gzip(true)
@@ -95,6 +114,10 @@ impl ClientBuilder {
 
         if let Some(connect_timeout) = self.connect_timeout {
             builder = builder.connect_timeout(connect_timeout);
+        }
+
+        if !self.follow_redirects {
+            builder = builder.redirect(reqwest::redirect::Policy::none());
         }
 
         let client = builder
@@ -226,6 +249,24 @@ impl StudioClientConfig {
             .boxed_clone())
     }
 
+    /// A service for resolving a floating plugin version (`latest`, a bare major) against the
+    /// plugin registry. It carries the global HTTP settings — `--client-timeout` and the
+    /// certificate flags — and retries within [`Self::plugin_version_retry_budget`], bounding
+    /// each attempt.
+    ///
+    /// It doesn't follow redirects: the registry answers with one, and the `X-Version` header
+    /// on that redirect is the answer.
+    pub fn plugin_version_service(&self) -> Result<HttpService> {
+        let client = self.client_builder.without_redirects().build()?;
+        Ok(ServiceBuilder::new()
+            .layer(retry_with_attempt_timeout(
+                self.plugin_version_retry_budget(),
+                PLUGIN_VERSION_ATTEMPT_TIMEOUT,
+            ))
+            .service(ReqwestService::builder().client(client).build()?)
+            .boxed_clone())
+    }
+
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
         let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
         Ok(StudioClient::new(
@@ -261,6 +302,12 @@ impl StudioClientConfig {
     pub const fn retry_period(&self) -> Duration {
         self.client_timeout.get_duration()
     }
+
+    /// How long a plugin version lookup retries: `--client-timeout`, capped so an offline run
+    /// reaches its installed-plugin fallback promptly.
+    pub fn plugin_version_retry_budget(&self) -> Duration {
+        self.retry_period().min(PLUGIN_VERSION_RETRY_BUDGET)
+    }
 }
 
 #[cfg(test)]
@@ -286,6 +333,12 @@ mod tests {
     }
 
     fn test_client_config() -> super::StudioClientConfig {
+        test_client_config_with_timeout(super::ClientTimeout::default())
+    }
+
+    fn test_client_config_with_timeout(
+        client_timeout: super::ClientTimeout,
+    ) -> super::StudioClientConfig {
         super::StudioClientConfig::new(
             None,
             houston::Config {
@@ -294,9 +347,95 @@ mod tests {
                 override_client_credentials_token: None,
             },
             false,
-            ClientBuilder::default(),
-            super::ClientTimeout::default(),
+            ClientBuilder::default().with_timeout(client_timeout.get_duration()),
+            client_timeout,
         )
+    }
+
+    fn head(uri: String) -> rover_http::HttpRequest {
+        http::Request::head(uri)
+            .body(rover_http::Full::default())
+            .unwrap()
+    }
+
+    #[test]
+    fn plugin_version_retry_budget_is_the_client_timeout_capped() {
+        let default = test_client_config_with_timeout(super::ClientTimeout::new(30));
+        assert_eq!(
+            default.plugin_version_retry_budget(),
+            super::PLUGIN_VERSION_RETRY_BUDGET
+        );
+        let shorter = test_client_config_with_timeout(super::ClientTimeout::new(2));
+        assert_eq!(
+            shorter.plugin_version_retry_budget(),
+            Duration::from_secs(2)
+        );
+    }
+
+    #[test]
+    fn redirects_are_followed_unless_disabled() {
+        assert!(ClientBuilder::new().follow_redirects);
+        assert!(!ClientBuilder::new().without_redirects().follow_redirects);
+    }
+
+    /// The registry answers a floating version with a redirect whose `X-Version` header is the
+    /// resolved version; following it would lose the header.
+    #[tokio::test]
+    async fn plugin_version_service_reads_the_registry_redirect_instead_of_following_it() {
+        use tower::ServiceExt;
+
+        let server = httpmock::MockServer::start();
+        let redirect = server.mock(|when, then| {
+            when.method(httpmock::Method::HEAD)
+                .path("/tar/supergraph/latest-2");
+            then.status(302)
+                .header("location", "/tar/supergraph/v2.9.3")
+                .header("x-version", "v2.9.3");
+        });
+        let target = server.mock(|when, then| {
+            when.path("/tar/supergraph/v2.9.3");
+            then.status(200);
+        });
+
+        let response = test_client_config()
+            .plugin_version_service()
+            .unwrap()
+            .oneshot(head(server.url("/tar/supergraph/latest-2")))
+            .await
+            .unwrap();
+
+        redirect.assert_calls(1);
+        target.assert_calls(0);
+        assert_eq!(response.status(), http::StatusCode::FOUND);
+        assert_eq!(response.headers()["x-version"], "v2.9.3");
+    }
+
+    /// A registry that keeps failing is retried until `--client-timeout` runs out, rather than
+    /// failing the run on its first transient error.
+    #[tokio::test]
+    async fn plugin_version_service_retries_within_the_client_timeout() {
+        use tower::ServiceExt;
+
+        let server = httpmock::MockServer::start();
+        let unavailable = server.mock(|when, then| {
+            when.method(httpmock::Method::HEAD)
+                .path("/tar/supergraph/latest-2");
+            then.status(503);
+        });
+
+        let response = test_client_config_with_timeout(super::ClientTimeout::new(2))
+            .plugin_version_service()
+            .unwrap()
+            .oneshot(head(server.url("/tar/supergraph/latest-2")))
+            .await
+            .unwrap();
+
+        assert!(
+            unavailable.calls() > 1,
+            "expected a retry, got {} attempt(s)",
+            unavailable.calls()
+        );
+        assert_eq!(response.status(), http::StatusCode::SERVICE_UNAVAILABLE);
     }
 
     /// Plugin downloads default to the generous timeout, and an explicit
