@@ -25,6 +25,18 @@ use serde::Serialize;
 use super::version::{PluginName, VersionRequest};
 use crate::{RoverErrorCode, utils::client::DOWNLOAD_REQUEST_TIMEOUT};
 
+/// The [`PluginFailure`] behind `error`, found anywhere in its cause chain,
+/// boxed or not: an error type that carries one boxes it to stay small.
+pub fn find_in_chain(error: &anyhow::Error) -> Option<&PluginFailure> {
+    error.chain().find_map(|cause| {
+        cause.downcast_ref::<PluginFailure>().or_else(|| {
+            cause
+                .downcast_ref::<Box<PluginFailure>>()
+                .map(|boxed| &**boxed)
+        })
+    })
+}
+
 /// What caused a [`PluginFailure`]. Shared rather than owned so that the
 /// failure can be cloned into the error types that carry it.
 pub type PluginFailureCause = Arc<dyn Error + Send + Sync + 'static>;

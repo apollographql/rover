@@ -6,6 +6,7 @@ use super::binary::RouterBinary;
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
+    plugin::error::PluginFailure,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -17,6 +18,9 @@ pub enum InstallRouterError {
         /// The error while attempting to find the dependency
         err: String,
     },
+    /// The plugin couldn't be obtained, for a reason with its own error code.
+    #[error("Couldn't obtain the `router` plugin")]
+    Plugin(#[source] Box<PluginFailure>),
 }
 
 pub struct InstallRouter {
@@ -59,8 +63,11 @@ impl InstallBinary for InstallRouter {
                 skip_update,
             )
             .await
-            .map_err(|err| InstallRouterError::MissingDependency {
-                err: err.to_string(),
+            .map_err(|err| match err.plugin_failure() {
+                Some(failure) => InstallRouterError::Plugin(Box::new(failure.clone())),
+                None => InstallRouterError::MissingDependency {
+                    err: err.to_string(),
+                },
             })?;
         let binary = RouterBinary::new(provenance.path.clone(), provenance);
         Ok(binary)

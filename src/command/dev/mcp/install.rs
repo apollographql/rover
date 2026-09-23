@@ -8,6 +8,7 @@ use crate::{
         install::{McpServerVersion, Plugin},
     },
     options::LicenseAccepter,
+    plugin::error::PluginFailure,
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -19,6 +20,9 @@ pub enum InstallMcpServerError {
         /// The error while attempting to find the dependency
         err: String,
     },
+    /// The plugin couldn't be obtained, for a reason with its own error code.
+    #[error("Couldn't obtain the `apollo-mcp-server` plugin")]
+    Plugin(#[source] Box<PluginFailure>),
 }
 
 pub struct InstallMcpServer {
@@ -62,8 +66,11 @@ impl InstallBinary for InstallMcpServer {
                 skip_update,
             )
             .await
-            .map_err(|err| InstallMcpServerError::MissingDependency {
-                err: err.to_string(),
+            .map_err(|err| match err.plugin_failure() {
+                Some(failure) => InstallMcpServerError::Plugin(Box::new(failure.clone())),
+                None => InstallMcpServerError::MissingDependency {
+                    err: err.to_string(),
+                },
             })?;
         let binary = McpServerBinary::new(provenance.path.clone(), provenance);
         Ok(binary)
