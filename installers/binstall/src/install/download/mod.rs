@@ -39,6 +39,9 @@ impl FileDownloadService {
             .layer(DecompressionLayer::default()) // explicit stand-in for reqwest's brotli/gzip decompression options
             .layer(ErrorOnStatusLayer::default()) // short-circuit errors so that we don't attempt to decompress error bodies
             .layer(file_download_layer())
+            // Deliberately longer than other requests' budgets: plugin tarballs are large, and
+            // shorter limits failed slow CI downloads (#3358, #3386). Don't align these with
+            // `--client-timeout`'s defaults.
             .layer(retry_with_attempt_timeout(
                 max_elapsed_duration
                     .unwrap_or_else(|| Duration::from_secs(DEFAULT_ELAPSED_DURATION_SECONDS)),
