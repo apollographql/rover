@@ -34,8 +34,6 @@ use rover_studio::types::GraphRef;
 use serde_json::{Value, json};
 use termimad::{MadSkin, crossterm::style::Attribute::Underlined};
 
-#[cfg(feature = "composition-js")]
-use crate::command::connector::run::{RunConnector, RunConnectorOutput};
 use crate::{
     RoverError,
     command::{
@@ -181,14 +179,6 @@ pub enum RoverOutput {
     EmptySuccess,
     MessageResponse {
         msg: String,
-    },
-    #[cfg(feature = "composition-js")]
-    ConnectorRunResponse {
-        output: RunConnectorOutput,
-    },
-    #[cfg(feature = "composition-js")]
-    ConnectorTestResponse {
-        output: String,
     },
     CreateKeyResponse {
         api_key: String,
@@ -606,12 +596,6 @@ impl RoverOutput {
             }
             RoverOutput::EmptySuccess => None,
             RoverOutput::MessageResponse { msg } => Some(msg.into()),
-            #[cfg(feature = "composition-js")]
-            RoverOutput::ConnectorRunResponse { output } => {
-                Some(RunConnector::format_output(output))
-            }
-            #[cfg(feature = "composition-js")]
-            RoverOutput::ConnectorTestResponse { output } => Some(output.into()),
             RoverOutput::CreateKeyResponse {
                 api_key,
                 key_type,
@@ -847,12 +831,6 @@ impl RoverOutput {
             RoverOutput::MessageResponse { msg } => {
                 json!({ "message": msg })
             }
-            #[cfg(feature = "composition-js")]
-            RoverOutput::ConnectorRunResponse { output } => {
-                json!({ "output": output })
-            }
-            #[cfg(feature = "composition-js")]
-            RoverOutput::ConnectorTestResponse { output } => json!({ "output": output }),
             RoverOutput::CreateKeyResponse {
                 api_key,
                 key_type,
