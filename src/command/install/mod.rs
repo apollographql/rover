@@ -11,6 +11,7 @@ use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::docs::shortlinks,
     options::LicenseAccepter,
+    plugin::error::RequestOrigin,
     utils::{client::StudioClientConfig, env::RoverEnvKey},
 };
 
@@ -52,7 +53,8 @@ impl Install {
                 self.elv2_license_accepter
                     .require_elv2_license(&client_config)?;
             }
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
+                .requested_by(RequestOrigin::PluginArgument);
             plugin_installer.install(plugin, false).await?;
 
             Ok(RoverOutput::EmptySuccess)
