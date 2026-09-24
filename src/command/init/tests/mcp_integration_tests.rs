@@ -35,6 +35,7 @@ fn test_mcp_flag_bypasses_directory_validation() {
             mcp: true, // This is the key - MCP flag enabled
         },
         graph_id: Default::default(),
+        templates_api: Default::default(),
         path: Some(temp_path.clone().into_std_path_buf()),
     };
 
@@ -53,6 +54,7 @@ fn test_mcp_flag_bypasses_directory_validation() {
             mcp: false, // MCP flag disabled
         },
         graph_id: Default::default(),
+        templates_api: Default::default(),
         path: Some(temp_path.into_std_path_buf()),
     };
 
@@ -121,6 +123,7 @@ fn test_regular_init_still_validates_empty_directory() {
             mcp: false, // Regular init
         },
         graph_id: Default::default(),
+        templates_api: Default::default(),
         path: Some(temp_path.into_std_path_buf()),
     };
 

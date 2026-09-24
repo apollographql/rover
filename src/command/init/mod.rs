@@ -47,7 +47,11 @@ use crate::command::init::options::{
 use crate::command::init::transitions::DEFAULT_VARIANT;
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
-use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{ProfileOpt, TemplatesApiOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[cfg(feature = "composition-js")]
 #[derive(Clone, Debug)]
@@ -160,6 +164,10 @@ pub struct Init {
     #[cfg(feature = "composition-js")]
     graph_id: GraphIdOpt,
 
+    #[clap(flatten)]
+    #[cfg(feature = "composition-js")]
+    templates_api: TemplatesApiOpt,
+
     #[clap(long, hide(true))]
     path: Option<PathBuf>,
 }
@@ -176,6 +184,8 @@ impl Init {
         use camino::Utf8PathBuf;
 
         use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
+
+        self.templates_api.apply_override();
 
         let welcome = UserAuthenticated::new()
             .check_authentication(&client_config, profile)

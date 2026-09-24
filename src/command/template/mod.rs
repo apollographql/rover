@@ -9,12 +9,15 @@ pub use list::List;
 use serde::Serialize;
 pub use r#use::Use;
 
-use crate::{RoverOutput, RoverResult};
+use crate::{RoverOutput, RoverResult, options::TemplatesApiOpt};
 
 #[derive(Debug, Clone, Parser, Serialize)]
 pub struct Template {
     #[clap(subcommand)]
     command: Command,
+
+    #[clap(flatten)]
+    templates_api: TemplatesApiOpt,
 }
 
 #[derive(Clone, Debug, Parser, Serialize)]
@@ -28,6 +31,7 @@ enum Command {
 
 impl Template {
     pub(crate) async fn run(&self) -> RoverResult<RoverOutput> {
+        self.templates_api.apply_override();
         match &self.command {
             Command::Use(use_template) => use_template.run().await,
             Command::List(list) => list.run().await,

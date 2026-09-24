@@ -14,6 +14,7 @@ mod profile;
 mod schema;
 mod subgraph;
 pub(crate) mod template;
+mod templates_api;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;
@@ -30,3 +31,4 @@ pub(crate) use profile::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
+pub(crate) use templates_api::*;

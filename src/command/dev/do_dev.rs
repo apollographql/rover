@@ -17,7 +17,6 @@ use crate::{
     command::{
         Dev,
         dev::{
-            OVERRIDE_DEV_COMPOSITION_VERSION, OVERRIDE_DEV_ROUTER_VERSION,
             mcp::{binary::RunMcpServerBinaryError, run::RunMcpServer},
             router::{
                 binary::RunRouterBinaryError,
@@ -103,7 +102,10 @@ impl Dev {
             .federation_version
             .clone()
             .or_else(|| {
-                let version = &OVERRIDE_DEV_COMPOSITION_VERSION
+                let version = &self
+                    .opts
+                    .supergraph_opts
+                    .composition_version
                     .clone()
                     .and_then(|version| {
                         match FederationVersion::from_str(&format!("={version}")) {
@@ -168,7 +170,7 @@ impl Dev {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
         }
 
-        let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
+        let router_version = match &self.opts.supergraph_opts.router_version {
             Some(version) => RouterVersion::Exact(Version::parse(version)?),
             None => RouterVersion::LatestTwo,
         };
