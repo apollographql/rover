@@ -759,7 +759,6 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::RoverErrorCode;
 
     mod plugin_from_str {
         use super::*;
@@ -1168,7 +1167,10 @@ mod tests {
         use rstest::rstest;
 
         use super::*;
-        use crate::utils::client::{ClientBuilder, ClientTimeout};
+        use crate::{
+            RoverErrorCode,
+            utils::client::{ClientBuilder, ClientTimeout},
+        };
 
         /// What the registry answers for the exact artifact, and what it says
         /// is the newest release in the major (`None`: it can't say).
