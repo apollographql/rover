@@ -111,6 +111,38 @@ pub struct Rover {
     #[arg(long = "client-timeout", global = true, env = "APOLLO_CLIENT_TIMEOUT")]
     client_timeout: Option<ClientTimeout>,
 
+    /// Override the GraphOS registry endpoint.
+    #[arg(long = "registry-url", global = true, env = "APOLLO_REGISTRY_URL")]
+    registry_url: Option<String>,
+
+    /// Override the endpoint anonymous usage telemetry is reported to.
+    #[arg(long = "telemetry-url", global = true, env = "APOLLO_TELEMETRY_URL")]
+    telemetry_url: Option<String>,
+
+    /// Opt out of anonymous usage telemetry.
+    ///
+    /// The `APOLLO_TELEMETRY_DISABLED` environment variable disables
+    /// telemetry on any value it's set to, including `false` - this flag
+    /// doesn't change that, it's just an additional way to opt out.
+    #[arg(long = "telemetry-disabled", global = true)]
+    telemetry_disabled: bool,
+
+    /// Override how long check/launch polling waits (in whole seconds) before giving up.
+    #[arg(
+        long = "checks-timeout",
+        global = true,
+        env = "APOLLO_CHECKS_TIMEOUT_SECONDS"
+    )]
+    checks_timeout: Option<u64>,
+
+    /// Override the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from.
+    #[arg(
+        long = "download-host",
+        global = true,
+        env = "APOLLO_ROVER_DOWNLOAD_HOST"
+    )]
+    download_host: Option<String>,
+
     /// Skip checking for newer versions of rover.
     ///
     /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
@@ -145,6 +177,8 @@ impl Rover {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
+
+        self.apply_download_host_override();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -371,6 +405,38 @@ impl Rover {
         }
     }
 
+    /// `Plugin::get_host()` (`src/command/install/plugin.rs`) reads
+    /// `APOLLO_ROVER_DOWNLOAD_HOST` directly, since it has no access to
+    /// `Rover`. Exporting the flag's resolved value here - only when the
+    /// flag or its env var actually supplied one - lets that existing read
+    /// pick up the override without threading it through every
+    /// plugin-install call site, mirroring `OutputOpts::set_no_color`'s use
+    /// of the same technique for `NO_COLOR`.
+    pub(crate) fn apply_download_host_override(&self) {
+        if let Some(download_host) = &self.download_host {
+            unsafe {
+                // SAFETY: called once at startup, before any command runs -
+                // single-threaded at this point.
+                std::env::set_var("APOLLO_ROVER_DOWNLOAD_HOST", download_host);
+            }
+        }
+    }
+
+    /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
+    /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
+    /// module, so it can't reach the private field directly.
+    pub(crate) fn telemetry_url_override(&self) -> Option<String> {
+        self.telemetry_url.clone()
+    }
+
+    /// The resolved `--telemetry-disabled` flag, for `impl Report for Rover`
+    /// (`src/utils/telemetry.rs`). `APOLLO_TELEMETRY_DISABLED` keeps its own,
+    /// separate presence-only check (`RoverEnvKey::TelemetryDisabled`) -
+    /// this is only the flag half of the pair.
+    pub(crate) const fn telemetry_disabled_flag(&self) -> bool {
+        self.telemetry_disabled
+    }
+
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
         let override_home: Option<Utf8PathBuf> = self
             .get_env_var(RoverEnvKey::ConfigHome)?
@@ -392,7 +458,7 @@ impl Rover {
     }
 
     pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
-        let override_endpoint = self.get_env_var(RoverEnvKey::RegistryUrl)?;
+        let override_endpoint = self.registry_url.clone();
         let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
             fire_flower == "true" || fire_flower == "1"
@@ -563,12 +629,8 @@ impl Rover {
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
-        if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
-            Ok(seconds.parse::<u64>()?)
-        } else {
-            // default to 5 minutes
-            Ok(300)
-        }
+        // default to 5 minutes
+        Ok(self.checks_timeout.unwrap_or(300))
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
@@ -706,4 +768,67 @@ impl Display for RoverOutputFormatKind {
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::Rover;
+    use crate::PKG_NAME;
+
+    #[test]
+    fn checks_timeout_defaults_to_five_minutes() {
+        // Wrapped in `temp_env` too, even though it doesn't set anything -
+        // `temp_env`'s lock only serializes against *other* `temp_env` calls,
+        // and a bare `std::env::var` read here would otherwise race the
+        // process-global env var set by the sibling tests below.
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 300);
+    }
+
+    #[test]
+    fn checks_timeout_flag_wins_over_env_var() {
+        let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("999"), || {
+            Rover::parse_from([PKG_NAME, "config", "list", "--checks-timeout", "42"])
+        });
+        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 42);
+    }
+
+    #[test]
+    fn checks_timeout_env_var_applies_alone() {
+        let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("99"), || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 99);
+    }
+
+    #[test]
+    fn download_host_flag_is_exported_for_plugin_get_host() {
+        temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "config",
+                "list",
+                "--download-host",
+                "https://mirror.example.com",
+            ]);
+            rover.apply_download_host_override();
+            assert_eq!(
+                std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").unwrap(),
+                "https://mirror.example.com"
+            );
+        });
+    }
+
+    #[test]
+    fn download_host_is_untouched_when_neither_flag_nor_env_is_set() {
+        temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+            rover.apply_download_host_override();
+            assert!(std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").is_err());
+        });
+    }
 }
