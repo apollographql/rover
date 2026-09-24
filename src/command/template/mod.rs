@@ -31,10 +31,10 @@ enum Command {
 
 impl Template {
     pub(crate) async fn run(&self) -> RoverResult<RoverOutput> {
-        self.templates_api.apply_override();
+        let templates_api = self.templates_api.templates_api.as_deref();
         match &self.command {
-            Command::Use(use_template) => use_template.run().await,
-            Command::List(list) => list.run().await,
+            Command::Use(use_template) => use_template.run(templates_api).await,
+            Command::List(list) => list.run(templates_api).await,
         }
     }
 }

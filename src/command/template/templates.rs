@@ -1,5 +1,3 @@
-use std::env;
-
 use anyhow::anyhow;
 use dialoguer::{Select, console::Term};
 use graphql_client::{GraphQLQuery, Response};
@@ -13,9 +11,13 @@ use super::queries::{
 };
 use crate::{RoverError, RoverErrorSuggestion, RoverResult, options::ProjectLanguage};
 
-async fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverResult<Data> {
-    let uri = env::var("APOLLO_TEMPLATES_API")
-        .unwrap_or_else(|_| "https://rover.apollo.dev/templates".to_string());
+const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
+
+async fn request<Body: Serialize, Data: DeserializeOwned>(
+    body: &Body,
+    templates_api: Option<&str>,
+) -> RoverResult<Data> {
+    let uri = templates_api.unwrap_or(DEFAULT_TEMPLATES_API);
     let resp = Client::new()
         .post(uri)
         .json(body)
@@ -32,34 +34,39 @@ async fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverR
 }
 
 /// Get a template by ID
-pub async fn get_template(template_id: &str) -> RoverResult<Option<GetTemplateByIdTemplate>> {
+pub async fn get_template(
+    template_id: &str,
+    templates_api: Option<&str>,
+) -> RoverResult<Option<GetTemplateByIdTemplate>> {
     use super::queries::get_template_by_id::*;
     let query = GetTemplateById::build_query(Variables {
         id: template_id.to_string(),
     });
-    let resp: ResponseData = request(&query).await?;
+    let resp: ResponseData = request(&query, templates_api).await?;
     Ok(resp.template)
 }
 
 pub async fn get_templates_for_language(
     language: ProjectLanguage,
+    templates_api: Option<&str>,
 ) -> RoverResult<Vec<GetTemplatesForLanguageTemplates>> {
     use super::queries::get_templates_for_language::*;
     let query = GetTemplatesForLanguage::build_query(Variables {
         language: Some(language.into()),
     });
-    let resp: ResponseData = request(&query).await?;
+    let resp: ResponseData = request(&query, templates_api).await?;
     error_if_empty(resp.templates)
 }
 
 pub async fn list_templates(
     language: Option<ProjectLanguage>,
+    templates_api: Option<&str>,
 ) -> RoverResult<Vec<ListTemplatesForLanguageTemplates>> {
     use super::queries::list_templates_for_language::*;
     let query = ListTemplatesForLanguage::build_query(Variables {
         language: language.map(Into::into),
     });
-    let resp: ResponseData = request(&query).await?;
+    let resp: ResponseData = request(&query, templates_api).await?;
     error_if_empty(resp.templates)
 }
 
