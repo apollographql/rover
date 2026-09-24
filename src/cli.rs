@@ -414,7 +414,7 @@ impl Rover {
     /// (`src/utils/telemetry.rs`). `APOLLO_TELEMETRY_DISABLED` keeps its own,
     /// separate presence-only check (`RoverEnvKey::TelemetryDisabled`) -
     /// this is only the flag half of the pair.
-    pub(crate) const fn telemetry_disabled_flag(&self) -> bool {
+    pub(crate) const fn is_telemetry_disabled(&self) -> bool {
         self.telemetry_disabled
     }
 

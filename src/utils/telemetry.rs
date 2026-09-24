@@ -81,7 +81,7 @@ impl Report for Rover {
 
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError> {
         let value = self.get_env_var(RoverEnvKey::TelemetryDisabled)?;
-        let is_telemetry_disabled = self.telemetry_disabled_flag() || value.is_some();
+        let is_telemetry_disabled = self.is_telemetry_disabled() || value.is_some();
         if is_telemetry_disabled {
             tracing::info!("Telemetry has been disabled.");
         } else {
