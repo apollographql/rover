@@ -412,7 +412,7 @@ This is separate from [API key resolution](#2-provide-the-api-key-to-rover), whi
 | `APOLLO_CHECKS_TIMEOUT_SECONDS` | `--checks-timeout` | Overrides how long, in whole seconds, `check`/`publish` polling waits before giving up. Defaults to `300`. |
 | `APOLLO_CLIENT_TIMEOUT` | `--client-timeout` | Overrides the timeout (in seconds) for HTTP(S) requests. See [Increasing request timeouts](#increasing-request-timeouts). |
 | `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | Overrides the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from. |
-| `APOLLO_TEMPLATES_API` | `--templates-api` (`rover init`/`rover template` only) | Overrides where `rover init`/`rover template` fetch project templates from. |
+| `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
 | `APOLLO_ROVER_DEV_ROUTER_VERSION` | `--router-version` (`rover dev` only) | Overrides the version of the GraphOS Router `rover dev` runs. |
 | `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` (`rover dev` only) | Overrides the version of Apollo Federation `rover dev` uses for composition. `--federation-version` takes precedence over both. |
 | `APOLLO_VCS_REMOTE_URL` | `--vcs-remote-url` | The URL of your project's remote repository. See [Git context](#git-context). |
