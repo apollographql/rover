@@ -16,10 +16,6 @@ pub struct Compose {
     #[serde(skip_serializing)]
     #[allow(unused)]
     config_path: Option<Utf8PathBuf>,
-
-    #[clap(flatten)]
-    #[allow(unused)]
-    profile: ProfileOpt,
 }
 
 impl Compose {
@@ -28,6 +24,7 @@ impl Compose {
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,
         _output_file: Option<Utf8PathBuf>,
+        _profile: &ProfileOpt,
         _stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let mut err = RoverError::new(anyhow!(

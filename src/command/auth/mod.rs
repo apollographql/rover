@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 use serde::Serialize;
 
 pub use self::config::OauthConfig;
-use crate::{RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Auth {
@@ -30,11 +30,20 @@ impl Auth {
         &self,
         client_config: StudioClientConfig,
         oauth_config: OauthConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<crate::RoverOutput> {
         match &self.command {
-            AuthCommand::Login(command) => command.run(client_config.config, oauth_config).await,
-            AuthCommand::Logout(command) => command.run(client_config.config, oauth_config).await,
-            AuthCommand::Whoami(command) => command.run(client_config, oauth_config).await,
+            AuthCommand::Login(command) => {
+                command
+                    .run(client_config.config, oauth_config, profile)
+                    .await
+            }
+            AuthCommand::Logout(command) => {
+                command
+                    .run(client_config.config, oauth_config, profile)
+                    .await
+            }
+            AuthCommand::Whoami(command) => command.run(client_config, oauth_config, profile).await,
         }
     }
 }

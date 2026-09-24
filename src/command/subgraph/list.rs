@@ -13,19 +13,20 @@ use crate::{
 pub struct List {
     #[clap(flatten)]
     graph: GraphRefOpt,
-
-    #[clap(flatten)]
-    profile: ProfileOpt,
 }
 
 impl List {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         eprintln!(
             "Listing subgraphs for {} using credentials from the {} profile.",
             Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Link.paint(&self.profile.profile_name)
+            Style::Link.paint(&profile.profile_name)
         );
 
         let list_details = list::run(

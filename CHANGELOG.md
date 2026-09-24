@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`--profile` is now a global flag, accepted by every command - @dotdat**
+
+  Previously `--profile` was only defined on commands that talk to GraphOS; commands with no use for a credential (`rover template`, `rover docs`, `rover completion`, `rover update`, `rover install`, `rover info`, `rover explain`) rejected it as an unrecognized argument. It's now resolved once, globally, and every command accepts it — commands that don't use a credential simply ignore it. Omitting `--profile` still resolves to the `default` profile exactly as before; this is the first step of ROVER-451's configuration-precedence work and does not change behavior for anyone who doesn't pass `--profile` today.
+
 - **Add `--no-browser` to `rover auth login`, gated behind the experimental `oauth` feature flag - @dotdat**
 
   `rover auth login --no-browser` uses the OAuth 2.0 Device Authorization Grant (RFC 8628) instead of the local browser/redirect-server flow: it prints a verification URL and code to enter from any device, then polls until you approve the request, for headless or browser-less environments. Ignores `--no-open`, since there's no local browser step to skip. The device authorization endpoint can be overridden with `--oauth-device-authorization-url`, matching the other OAuth endpoint overrides.

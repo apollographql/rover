@@ -18,9 +18,6 @@ use crate::{
 
 #[derive(Debug, Serialize, Parser)]
 pub struct WhoAmI {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Unmask the API key that will be sent to Apollo Studio
     ///
     /// You should think very carefully before using this flag.
@@ -34,6 +31,7 @@ impl WhoAmI {
     pub async fn run(
         &self,
         client_config: StudioClientConfig,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         #[cfg(feature = "oauth")]
@@ -42,7 +40,7 @@ impl WhoAmI {
         ));
 
         LegacyWhoami {
-            profile: self.profile.clone(),
+            profile: profile.clone(),
             insecure_unmask_key: self.insecure_unmask_key,
         }
         .run(&client_config, stderr)

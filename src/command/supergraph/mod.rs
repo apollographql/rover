@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 pub(crate) mod compose;
 mod config;
@@ -32,15 +32,17 @@ impl Supergraph {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(command) => command.run(client_config).await,
+            Command::Fetch(command) => command.run(client_config, profile).await,
             Command::Compose(command) => {
                 command
                     .run(
                         override_install_path,
                         client_config,
                         output_file,
+                        profile,
                         &rover_print::print::stderr::default(),
                     )
                     .await

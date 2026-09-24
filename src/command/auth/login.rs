@@ -46,9 +46,6 @@ const TOKEN_POLL_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Pass `--no-browser` to use the device authorization grant instead, for
 /// headless/browser-less environments.
 pub struct Login {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Don't attempt to open a browser automatically; the authorization URL
     /// is always printed, so pass this if you'd rather open it yourself.
     #[arg(long)]
@@ -80,7 +77,12 @@ impl OpenUrl for BrowserOpener {
 }
 
 impl Login {
-    pub async fn run(&self, config: Config, oauth_config: OauthConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        config: Config,
+        oauth_config: OauthConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         let http_service = ReqwestService::builder()
             .client(reqwest::Client::new())
             .build()
@@ -137,7 +139,7 @@ impl Login {
         };
 
         Profile::set_oauth_tokens(
-            &self.profile.profile_name,
+            &profile.profile_name,
             &config,
             tokens.access_token.secret().to_string(),
             tokens.refresh_token.map(|t| t.secret().to_string()),

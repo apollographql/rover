@@ -23,7 +23,7 @@ use crate::options::OauthOpts;
 use crate::{
     RoverResult,
     command::{self, RoverOutput},
-    options::OutputOpts,
+    options::{DEFAULT_PROFILE, OutputOpts, ProfileOpt},
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
@@ -75,6 +75,13 @@ pub struct Rover {
     #[arg(long = "log", short = 'l', global = true)]
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
+
+    /// Name of configuration profile to use
+    // `Option` rather than defaulted here, so `--profile default` typed
+    // literally can be told apart from omitting the flag.
+    #[arg(long = "profile", global = true)]
+    #[serde(skip_serializing)]
+    profile_name: Option<String>,
 
     #[clap(flatten)]
     output_opts: OutputOpts,
@@ -198,14 +205,28 @@ impl Rover {
             }
         }
 
+        let profile_opt = self.get_profile_opt();
+
         match &self.command {
-            Command::Init(command) => command.run(self.get_client_config().await?).await,
+            Command::Init(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
             Command::Completion(command) => command.run(),
-            Command::Config(command) => command.run(self.get_client_config().await?).await,
+            Command::Config(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
-                    .run(self.get_client_config().await?, self.get_oauth_config())
+                    .run(
+                        self.get_client_config().await?,
+                        self.get_oauth_config(),
+                        &profile_opt,
+                    )
                     .await
             }
             #[cfg(feature = "composition-js")]
@@ -214,6 +235,7 @@ impl Rover {
                     .run(
                         self.get_install_override_path()?,
                         self.get_client_config().await?,
+                        &profile_opt,
                         &rover_print::print::stderr::default(),
                     )
                     .await
@@ -223,6 +245,7 @@ impl Rover {
                     .run(
                         self.get_client_config().await?,
                         self.get_checks_timeout_seconds()?,
+                        &profile_opt,
                     )
                     .await
             }
@@ -233,6 +256,7 @@ impl Rover {
                         self.get_install_override_path()?,
                         self.get_client_config().await?,
                         self.log_level,
+                        &profile_opt,
                         &rover_print::print::stderr::default(),
                     )
                     .await
@@ -243,6 +267,7 @@ impl Rover {
                         self.get_install_override_path()?,
                         self.get_client_config().await?,
                         self.output_opts.output_file.clone(),
+                        &profile_opt,
                     )
                     .await
             }
@@ -254,11 +279,16 @@ impl Rover {
                         self.get_git_context()?,
                         self.get_checks_timeout_seconds()?,
                         &self.output_opts,
+                        &profile_opt,
                     )
                     .await
             }
             Command::Template(command) => command.run().await,
-            Command::Readme(command) => command.run(self.get_client_config().await?).await,
+            Command::Readme(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
             Command::Subgraph(command) => {
                 command
                     .run(
@@ -266,6 +296,7 @@ impl Rover {
                         self.get_git_context()?,
                         self.get_checks_timeout_seconds()?,
                         &self.output_opts,
+                        &profile_opt,
                     )
                     .await
             }
@@ -291,19 +322,52 @@ impl Rover {
                     None
                 };
                 command
-                    .run(client_config, &rover_print::stderr::default())
+                    .run(client_config, &profile_opt, &rover_print::stderr::default())
                     .await
             }
-            Command::License(command) => command.run(self.get_client_config().await?).await,
+            Command::License(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
             #[cfg(feature = "composition-js")]
-            Command::Lsp(command) => command.run(self.get_client_config().await?).await,
-            Command::ApiKeys(command) => command.run(self.get_client_config().await?).await,
+            Command::Lsp(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
+            Command::ApiKeys(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
             Command::Client(command) => {
                 command
-                    .run(self.get_client_config().await?, self.get_git_context()?)
+                    .run(
+                        self.get_client_config().await?,
+                        self.get_git_context()?,
+                        &profile_opt,
+                    )
                     .await
             }
-            Command::GraphArtifact(command) => command.run(self.get_client_config().await?).await,
+            Command::GraphArtifact(command) => {
+                command
+                    .run(self.get_client_config().await?, &profile_opt)
+                    .await
+            }
+        }
+    }
+
+    /// Resolves the active profile from the global `--profile` flag, exactly
+    /// once, the same way for every command - including commands that have
+    /// no use for a credential (they accept the flag via `global = true` and
+    /// simply don't call this).
+    pub(crate) fn get_profile_opt(&self) -> ProfileOpt {
+        ProfileOpt {
+            profile_name: self
+                .profile_name
+                .clone()
+                .unwrap_or_else(|| DEFAULT_PROFILE.to_string()),
         }
     }
 

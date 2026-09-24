@@ -24,9 +24,6 @@ pub struct Check {
     subgraph: SubgraphOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 
@@ -40,8 +37,9 @@ impl Check {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+        let client = client_config.get_authenticated_client(profile)?;
 
         let proposed_schema = self
             .schema

@@ -8,8 +8,6 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::Studio
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {
-    #[clap(flatten)]
-    profile: ProfileOpt,
     #[arg(long)]
     graph_id: String,
     #[clap(flatten)]
@@ -31,8 +29,12 @@ struct Identifier {
 }
 
 impl Fetch {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         // The argument group guarantees exactly one of these is set.
         let identifier = if let Some(tag) = &self.identifier.tag_name {

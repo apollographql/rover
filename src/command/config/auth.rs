@@ -21,22 +21,24 @@ use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options:
 /// a profile named "default".
 ///
 /// Run `rover docs open api-key` for more details on Apollo's API keys.
-pub struct Auth {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-}
+pub struct Auth {}
 
 impl Auth {
     #[cfg_attr(not(feature = "oauth"), allow(unused_variables))]
-    pub fn run(&self, config: config::Config, stderr: &impl Print) -> RoverResult<RoverOutput> {
+    pub fn run(
+        &self,
+        config: config::Config,
+        profile: &ProfileOpt,
+        stderr: &impl Print,
+    ) -> RoverResult<RoverOutput> {
         #[cfg(feature = "oauth")]
         stderr.warnln(
             "OAuth authentication is now available - consider running `rover auth login` instead of storing a Personal API Key.",
         );
 
         let api_key = api_key_prompt()?;
-        Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;
-        Profile::get_credential(&self.profile.profile_name, &config).map(|_| {
+        Profile::set_api_key(&profile.profile_name, &config, &api_key)?;
+        Profile::get_credential(&profile.profile_name, &config).map(|_| {
             eprintln!("Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.");
         })?;
         Ok(RoverOutput::EmptySuccess)

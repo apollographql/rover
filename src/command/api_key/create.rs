@@ -17,8 +17,6 @@ use crate::{
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct Create {
     #[clap(flatten)]
-    profile: ProfileOpt,
-    #[clap(flatten)]
     organization_opt: OrganizationOpt,
     #[clap(name = "TYPE", value_enum, help = "The type of the API key")]
     key_type: ApiKeyType,
@@ -29,8 +27,12 @@ pub(crate) struct Create {
 }
 
 impl Create {
-    pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub(crate) async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let resources = match self.key_type {
             ApiKeyType::Operator => None,
             ApiKeyType::Subgraph => {

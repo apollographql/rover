@@ -4,7 +4,8 @@ use rover_print::print::Print;
 use timber::Level;
 
 use crate::{
-    RoverError, RoverOutput, RoverResult, command::dev::Dev, utils::client::StudioClientConfig,
+    RoverError, RoverOutput, RoverResult, command::dev::Dev, options::ProfileOpt,
+    utils::client::StudioClientConfig,
 };
 
 impl Dev {
@@ -13,6 +14,7 @@ impl Dev {
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,
         _log_level: Option<Level>,
+        _profile: &ProfileOpt,
         _stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         Err(RoverError::new(anyhow!(

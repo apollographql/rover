@@ -19,7 +19,7 @@ use crate::{
         pipeline::{CompositionPipeline, state::Run},
         supergraph::config::lazy::LazilyResolvedSubgraph,
     },
-    options::PluginOpts,
+    options::{PluginOpts, ProfileOpt},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -83,6 +83,7 @@ impl Connector {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use Command::*;
@@ -99,6 +100,7 @@ impl Connector {
             self.federation_version.clone(),
             client_config,
             override_install_path,
+            profile.clone(),
             self.plugin_opts.clone(),
             supergraph_yaml.clone(),
             self.graph_ref.clone(),

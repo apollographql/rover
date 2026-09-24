@@ -37,9 +37,6 @@ pub struct Publish {
     subgraph: SubgraphOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: OptionalSchemaOpt,
 
@@ -84,9 +81,10 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+        let client = client_config.get_authenticated_client(profile)?;
 
         let (url, schema) = if self.schema.is_using_example_schema() {
             (
@@ -192,7 +190,7 @@ impl Publish {
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             stderr.paint(Style::Link, self.graph.graph_ref.to_string()),
             stderr.paint(Style::Link, &self.subgraph.subgraph_name),
-            stderr.paint(Style::Command, &self.profile.profile_name)
+            stderr.paint(Style::Command, &profile.profile_name)
         )));
 
         tracing::debug!("Publishing \n{}", &schema);

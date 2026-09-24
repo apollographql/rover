@@ -14,9 +14,6 @@ pub struct Publish {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// The file upload as the README. You can pass `-` to use stdin instead of a file.
     #[arg(long, short = 's')]
     #[serde(skip_serializing)]
@@ -24,13 +21,17 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Publishing README for {} using credentials from the {} profile.",
             Style::Link.paint(graph_ref),
-            Style::Command.paint(&self.profile.profile_name)
+            Style::Command.paint(&profile.profile_name)
         );
 
         let new_readme = self

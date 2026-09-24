@@ -34,9 +34,6 @@ const WHOAMI_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 /// (via `rover config auth` or the `APOLLO_KEY` env var), this falls back to
 /// the same Apollo Studio lookup `rover config whoami` uses.
 pub struct WhoAmI {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Unmask the credential that will be sent to authenticate this request
     ///
     /// You should think very carefully before using this flag.
@@ -51,9 +48,9 @@ impl WhoAmI {
         &self,
         client_config: StudioClientConfig,
         oauth_config: OauthConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
-        let credential =
-            Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
+        let credential = Profile::get_credential(&profile.profile_name, &client_config.config)?;
 
         match &credential.origin {
             CredentialOrigin::OauthAuthorizationPkce(profile_name) => {
@@ -64,7 +61,7 @@ impl WhoAmI {
             | CredentialOrigin::ConfigFile(_)
             | CredentialOrigin::OauthClientCredentials => {
                 LegacyWhoami {
-                    profile: self.profile.clone(),
+                    profile: profile.clone(),
                     insecure_unmask_key: self.insecure_unmask_key,
                 }
                 .run(&client_config, &rover_print::print::stderr::default())

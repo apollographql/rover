@@ -47,9 +47,7 @@ use crate::command::init::options::{
 use crate::command::init::transitions::DEFAULT_VARIANT;
 #[cfg(feature = "composition-js")]
 use crate::error::RoverErrorSuggestion;
-#[cfg(feature = "composition-js")]
-use crate::options::ProfileOpt;
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[cfg(feature = "composition-js")]
 #[derive(Clone, Debug)]
@@ -162,17 +160,17 @@ pub struct Init {
     #[cfg(feature = "composition-js")]
     graph_id: GraphIdOpt,
 
-    #[clap(flatten)]
-    #[cfg(feature = "composition-js")]
-    profile: ProfileOpt,
-
     #[clap(long, hide(true))]
     path: Option<PathBuf>,
 }
 
 impl Init {
     #[cfg(feature = "composition-js")]
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         use std::env;
 
         use camino::Utf8PathBuf;
@@ -180,7 +178,7 @@ impl Init {
         use crate::command::init::states::{ProjectTypeSelected, UserAuthenticated};
 
         let welcome = UserAuthenticated::new()
-            .check_authentication(&client_config, &self.profile)
+            .check_authentication(&client_config, profile)
             .await?;
 
         // Branch to MCP flow BEFORE directory validation
@@ -198,7 +196,7 @@ impl Init {
             };
 
             return self
-                .handle_mcp_flow(project_type_selected, &client_config)
+                .handle_mcp_flow(project_type_selected, &client_config, profile)
                 .await;
         }
 
@@ -206,7 +204,7 @@ impl Init {
 
         // Handle new project creation flow
         let use_case_selected = match project_type_selected
-            .select_organization(&self.organization, &self.profile, &client_config)
+            .select_organization(&self.organization, profile, &client_config)
             .await?
             .select_use_case(&self.project_use_case)?
         {
@@ -227,7 +225,7 @@ impl Init {
         };
 
         let project_created = creation_confirmed
-            .create_project(&client_config, &self.profile)
+            .create_project(&client_config, profile)
             .await?;
 
         // Handle project creation result
@@ -265,7 +263,7 @@ impl Init {
                     };
 
                 match creation_confirmed
-                    .create_project(&client_config, &self.profile)
+                    .create_project(&client_config, profile)
                     .await?
                 {
                     CreateProjectResult::Created(project) => {
@@ -278,7 +276,7 @@ impl Init {
                     } => match reason {
                         RestartReason::FullRestart => {
                             let welcome = UserAuthenticated::new()
-                                .check_authentication(&client_config, &self.profile)
+                                .check_authentication(&client_config, profile)
                                 .await?;
                             welcome.select_project_type(&self.path)?;
                             return Ok(RoverOutput::EmptySuccess);
@@ -301,6 +299,7 @@ impl Init {
         &self,
         project_type_selected: crate::command::init::states::ProjectTypeSelected,
         client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         use crate::command::init::states::*;
 
@@ -318,7 +317,7 @@ impl Init {
 
                 // Step 3: Continue with organization selection
                 let mcp_org_selected = mcp_data_source_selected
-                    .select_organization(&self.organization, &self.profile, client_config)
+                    .select_organization(&self.organization, profile, client_config)
                     .await?;
 
                 // Step 4: Template composition based on data source
@@ -344,7 +343,7 @@ impl Init {
 
                 // Step 9: Follow the MCP-specific project creation flow
                 let project_created = mcp_creation_confirmed
-                    .create_project(client_config, &self.profile)
+                    .create_project(client_config, profile)
                     .await?;
 
                 // Handle project creation result
@@ -358,8 +357,9 @@ impl Init {
             }
             MCPSetupType::ExistingGraph => {
                 // Handle existing graph MCP flow directly
-                let client = client_config.get_authenticated_client(&self.profile)?;
-                self.handle_existing_graph_mcp(&client, client_config).await
+                let client = client_config.get_authenticated_client(profile)?;
+                self.handle_existing_graph_mcp(&client, client_config, profile)
+                    .await
             }
         }
     }
@@ -376,6 +376,7 @@ impl Init {
     async fn _deprecated_handle_mcp_augmentation(
         &self,
         client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         use std::env;
 
@@ -414,7 +415,7 @@ impl Init {
         }
 
         // Authenticate first
-        let client = match client_config.get_authenticated_client(&self.profile) {
+        let client = match client_config.get_authenticated_client(profile) {
             Ok(client) => client,
             Err(_) => {
                 return Err(auth_error_to_rover_error(
@@ -428,9 +429,13 @@ impl Init {
 
         match setup_type {
             MCPSetupType::ExistingGraph => {
-                self.handle_existing_graph_mcp(&client, client_config).await
+                self.handle_existing_graph_mcp(&client, client_config, profile)
+                    .await
             }
-            MCPSetupType::NewProject => self.handle_new_project_mcp(&client, client_config).await,
+            MCPSetupType::NewProject => {
+                self.handle_new_project_mcp(&client, client_config, profile)
+                    .await
+            }
         }
     }
 
@@ -582,6 +587,7 @@ impl Init {
         &self,
         client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         // Query GraphOS for user's organizations and their graphs
@@ -873,7 +879,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 use crate::command::init::operations::create_api_key;
                 create_api_key(
                     client_config,
-                    &self.profile,
+                    profile,
                     selected_graph.graph_id.clone(),
                     format!("{}-mcp-server", selected_graph.graph_name),
                 )
@@ -886,7 +892,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             use crate::command::init::operations::create_api_key;
             create_api_key(
                 client_config,
-                &self.profile,
+                profile,
                 selected_graph.graph_id.clone(),
                 format!("{}-mcp-server", selected_graph.graph_name),
             )
@@ -1255,6 +1261,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         &self,
         _client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         use rover_studio::types::GraphRef;
@@ -1270,7 +1277,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Authenticate
         let _welcome = UserAuthenticated::new()
-            .check_authentication(client_config, &self.profile)
+            .check_authentication(client_config, profile)
             .await?;
 
         // Skip project type selection since we know this is a new project
@@ -1285,7 +1292,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
 
         // Go through organization selection
         let organization_selected = project_type_selected
-            .select_organization(&self.organization, &self.profile, client_config)
+            .select_organization(&self.organization, profile, client_config)
             .await?;
 
         // Create use case selected state based on data source type
@@ -1557,7 +1564,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         }
 
         let project_created = creation_confirmed
-            .create_project(client_config, &self.profile)
+            .create_project(client_config, profile)
             .await?;
 
         // Handle the project creation result
@@ -1606,7 +1613,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
     }
 
     #[cfg(not(feature = "composition-js"))]
-    pub async fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        _client_config: StudioClientConfig,
+        _profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         use rover_std::hyperlink;
 

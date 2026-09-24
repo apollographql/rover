@@ -11,18 +11,19 @@ pub struct Fetch {
     #[serde(skip_serializing)]
     #[arg(long)]
     graph_id: String,
-
-    #[clap(flatten)]
-    profile: ProfileOpt,
 }
 
 impl Fetch {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         eprintln!(
             "Fetching license for {} using credentials from the {} profile.",
             Style::Link.paint(&self.graph_id),
-            Style::Command.paint(&self.profile.profile_name)
+            Style::Command.paint(&profile.profile_name)
         );
         let jwt = rover_client::operations::license::fetch::run(
             LicenseFetchInput {

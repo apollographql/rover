@@ -11,7 +11,11 @@ use clap::Parser;
 use rover_client::shared::GitContext;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, options::OutputOpts, utils::client::StudioClientConfig};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{OutputOpts, ProfileOpt},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Subgraph {
@@ -59,14 +63,19 @@ impl Subgraph {
         git_context: GitContext,
         checks_timeout_seconds: u64,
         output_opts: &OutputOpts,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
                 command
-                    .run(client_config, git_context, checks_timeout_seconds)
+                    .run(client_config, git_context, checks_timeout_seconds, profile)
                     .await
             }
-            Command::Delete(command) => command.run(client_config, checks_timeout_seconds).await,
+            Command::Delete(command) => {
+                command
+                    .run(client_config, checks_timeout_seconds, profile)
+                    .await
+            }
             Command::Introspect(command) => {
                 command
                     .run(
@@ -76,14 +85,15 @@ impl Subgraph {
                     )
                     .await
             }
-            Command::Fetch(command) => command.run(client_config).await,
-            Command::Lint(command) => command.run(client_config).await,
-            Command::List(command) => command.run(client_config).await,
+            Command::Fetch(command) => command.run(client_config, profile).await,
+            Command::Lint(command) => command.run(client_config, profile).await,
+            Command::List(command) => command.run(client_config, profile).await,
             Command::Preview(command) => {
                 command
                     .run(
                         client_config,
                         checks_timeout_seconds,
+                        profile,
                         &rover_print::print::stderr::default(),
                     )
                     .await
@@ -94,6 +104,7 @@ impl Subgraph {
                         client_config,
                         git_context,
                         checks_timeout_seconds,
+                        profile,
                         &rover_print::print::stderr::default(),
                     )
                     .await

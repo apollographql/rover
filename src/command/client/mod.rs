@@ -6,7 +6,7 @@ use clap::Parser;
 use rover_client::shared::GitContext;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Client {
@@ -28,9 +28,10 @@ impl Client {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Check(command) => command.run(client_config, git_context).await,
+            Command::Check(command) => command.run(client_config, git_context, profile).await,
             Command::Extract(command) => command.run().await,
         }
     }

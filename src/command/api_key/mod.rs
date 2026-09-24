@@ -12,6 +12,7 @@ use serde::Serialize;
 use crate::{
     RoverOutput, RoverResult,
     command::api_key::{create::Create, delete::Delete, list::List, rename::Rename},
+    options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
 
@@ -34,12 +35,16 @@ pub enum Command {
 }
 
 impl ApiKeys {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Create(command) => command.run(client_config).await,
-            Command::Delete(command) => command.run(client_config).await,
-            Command::List(command) => command.run(client_config).await,
-            Command::Rename(command) => command.run(client_config).await,
+            Command::Create(command) => command.run(client_config, profile).await,
+            Command::Delete(command) => command.run(client_config, profile).await,
+            Command::List(command) => command.run(client_config, profile).await,
+            Command::Rename(command) => command.run(client_config, profile).await,
         }
     }
 }

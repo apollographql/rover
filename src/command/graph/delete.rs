@@ -14,9 +14,6 @@ pub struct Delete {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Skips the step where the command asks for user confirmation before
     /// deleting the graph.
     #[arg(long)]
@@ -24,14 +21,18 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 
         eprintln!(
             "Deleting {} using credentials from the {} profile.",
             Style::Link.paint(&graph_ref),
-            Style::Command.paint(&self.profile.profile_name)
+            Style::Command.paint(&profile.profile_name)
         );
 
         if !self.confirm && !prompt::confirm_delete()? {
