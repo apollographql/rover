@@ -143,6 +143,34 @@ pub struct Rover {
     )]
     download_host: Option<String>,
 
+    /// Override the Git remote URL reported to GraphOS on check/publish.
+    ///
+    /// Defaults to the remote URL inferred from the current directory's Git
+    /// repository.
+    #[arg(long = "vcs-remote-url", global = true, env = "APOLLO_VCS_REMOTE_URL")]
+    vcs_remote_url: Option<String>,
+
+    /// Override the Git branch reported to GraphOS on check/publish.
+    ///
+    /// Defaults to the branch inferred from the current directory's Git
+    /// repository.
+    #[arg(long = "vcs-branch", global = true, env = "APOLLO_VCS_BRANCH")]
+    vcs_branch: Option<String>,
+
+    /// Override the Git commit reported to GraphOS on check/publish.
+    ///
+    /// Defaults to the commit inferred from the current directory's Git
+    /// repository.
+    #[arg(long = "vcs-commit", global = true, env = "APOLLO_VCS_COMMIT")]
+    vcs_commit: Option<String>,
+
+    /// Override the Git commit author reported to GraphOS on check/publish.
+    ///
+    /// Defaults to the author inferred from the current directory's Git
+    /// repository.
+    #[arg(long = "vcs-author", global = true, env = "APOLLO_VCS_AUTHOR")]
+    vcs_author: Option<String>,
+
     /// Skip checking for newer versions of rover.
     ///
     /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
@@ -570,12 +598,12 @@ impl Rover {
     }
 
     pub(crate) fn get_git_context(&self) -> RoverResult<GitContext> {
-        // constructing GitContext with a set of overrides from env vars
+        // constructing GitContext with a set of overrides from --vcs-* flags/env vars
         let override_git_context = GitContext {
-            branch: self.get_env_var(RoverEnvKey::VcsBranch)?,
-            commit: self.get_env_var(RoverEnvKey::VcsCommit)?,
-            author: self.get_env_var(RoverEnvKey::VcsAuthor)?,
-            remote_url: self.get_env_var(RoverEnvKey::VcsRemoteUrl)?,
+            branch: self.vcs_branch.clone(),
+            commit: self.vcs_commit.clone(),
+            author: self.vcs_author.clone(),
+            remote_url: self.vcs_remote_url.clone(),
         };
 
         let git_context = GitContext::new_with_override(override_git_context);
@@ -868,5 +896,39 @@ mod tests {
         // importable here (private to that module).
         assert_that!(client_config.uri())
             .is_equal_to(&"https://api.apollographql.com/graphql".to_string());
+    }
+
+    #[test]
+    fn vcs_branch_flag_wins_over_env_var() {
+        let rover = temp_env::with_var("APOLLO_VCS_BRANCH", Some("env-branch"), || {
+            Rover::parse_from([PKG_NAME, "config", "list", "--vcs-branch", "flag-branch"])
+        });
+        assert_eq!(
+            rover.get_git_context().unwrap().branch,
+            Some("flag-branch".to_string())
+        );
+    }
+
+    #[test]
+    fn vcs_branch_env_var_applies_alone() {
+        let rover = temp_env::with_var("APOLLO_VCS_BRANCH", Some("env-branch"), || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_eq!(
+            rover.get_git_context().unwrap().branch,
+            Some("env-branch".to_string())
+        );
+    }
+
+    #[test]
+    fn vcs_branch_falls_back_to_git_inference_when_unset() {
+        let rover = temp_env::with_var_unset("APOLLO_VCS_BRANCH", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        // `override_git_context.branch` is `None`, so `GitContext::new_with_override`
+        // falls through to its own Git inference - just confirming this doesn't
+        // panic and the override itself is absent is enough here; the inference
+        // logic is `rover-client`'s to test.
+        assert_eq!(rover.vcs_branch, None);
     }
 }

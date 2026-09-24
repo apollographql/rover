@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`--vcs-remote-url`, `--vcs-branch`, `--vcs-commit`, and `--vcs-author` are new global flags, paired with the existing `APOLLO_VCS_*` environment variables - @dotdat**
+
+  These override the Git context (remote URL, branch, commit, author) reported to GraphOS on check/publish. Previously env-var-only; the flag wins when both are set, and omitting both still falls back to the value inferred from the current directory's Git repository exactly as before.
+
 - **`--registry-url`, `--telemetry-url`, `--telemetry-disabled`, `--checks-timeout`, and `--download-host` are new global flags, each paired with their existing environment variable - @dotdat**
 
   `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, `APOLLO_CHECKS_TIMEOUT_SECONDS`, and `APOLLO_ROVER_DOWNLOAD_HOST` were previously env-var-only and undocumented; they now have flag equivalents (`--registry-url`, `--telemetry-url`, `--checks-timeout`, `--download-host`), and the flag wins when both are set. `--telemetry-disabled` is a new flag alongside the existing `APOLLO_TELEMETRY_DISABLED` env var, which keeps its current presence-only behavior (any value, including `false`, disables telemetry) unchanged. Part of ROVER-451's Prerequisite slice; no existing behavior changes for anyone who doesn't pass these flags.
