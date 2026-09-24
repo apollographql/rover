@@ -261,9 +261,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation"
-version = "2.16.2"
+version = "2.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e189197329d8225150100212971dfe546e51f9a823be83a7c146b7fe6ea489b"
+checksum = "b196d6c2afc089764ca9037fcae529998c52df58f907edcb0d3b520dd26bdfe8"
 dependencies = [
  "ahash 0.8.12",
  "apollo-compiler",
@@ -301,9 +301,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation-types"
-version = "0.17.8"
+version = "0.17.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a513a72555caa8be123af025dd7ca921d302be6b3ff1c0adb3fdf185cf1f43"
+checksum = "b1ab545555d32a9b22d659886d487561c8ae2f34ac16b8614f80d14a37058b88"
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
@@ -5307,7 +5307,7 @@ dependencies = [
  "derive-deftly",
  "libc",
  "paste",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
