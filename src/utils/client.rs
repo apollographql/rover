@@ -183,6 +183,7 @@ pub struct StudioClientConfig {
     client: Option<Client>,
     client_timeout: ClientTimeout,
     download_timeout: Duration,
+    download_host: Option<String>,
 }
 
 impl StudioClientConfig {
@@ -208,11 +209,20 @@ impl StudioClientConfig {
             client: None,
             client_timeout,
             download_timeout: DOWNLOAD_REQUEST_TIMEOUT,
+            download_host: None,
         }
     }
 
     pub const fn with_download_timeout(mut self, download_timeout: Duration) -> Self {
         self.download_timeout = download_timeout;
+        self
+    }
+
+    /// Overrides the host plugin binaries (the `router` and `supergraph`
+    /// composition plugins) are downloaded from. Read by
+    /// [`crate::command::install::plugin::Plugin::get_tarball_url`].
+    pub fn with_download_host(mut self, download_host: String) -> Self {
+        self.download_host = Some(download_host);
         self
     }
 

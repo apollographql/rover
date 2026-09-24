@@ -178,8 +178,6 @@ impl Rover {
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
 
-        self.apply_download_host_override();
-
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
             // if successful, report the usage data in the background
@@ -405,23 +403,6 @@ impl Rover {
         }
     }
 
-    /// `Plugin::get_host()` (`src/command/install/plugin.rs`) reads
-    /// `APOLLO_ROVER_DOWNLOAD_HOST` directly, since it has no access to
-    /// `Rover`. Exporting the flag's resolved value here - only when the
-    /// flag or its env var actually supplied one - lets that existing read
-    /// pick up the override without threading it through every
-    /// plugin-install call site, mirroring `OutputOpts::set_no_color`'s use
-    /// of the same technique for `NO_COLOR`.
-    pub(crate) fn apply_download_host_override(&self) {
-        if let Some(download_host) = &self.download_host {
-            unsafe {
-                // SAFETY: called once at startup, before any command runs -
-                // single-threaded at this point.
-                std::env::set_var("APOLLO_ROVER_DOWNLOAD_HOST", download_host);
-            }
-        }
-    }
-
     /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
     /// module, so it can't reach the private field directly.
@@ -478,8 +459,12 @@ impl Rover {
             self.client_timeout.unwrap_or_default(),
         );
         // Downloads should honor the client timeout if set despite having a different default
-        Ok(match self.client_timeout {
+        let client_config = match self.client_timeout {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
+            None => client_config,
+        };
+        Ok(match self.download_host.clone() {
+            Some(download_host) => client_config.with_download_host(download_host),
             None => client_config,
         })
     }
@@ -805,30 +790,44 @@ mod tests {
         assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 99);
     }
 
-    #[test]
-    fn download_host_flag_is_exported_for_plugin_get_host() {
-        temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
-            let rover = Rover::parse_from([
+    #[tokio::test]
+    async fn download_host_flag_is_threaded_into_client_config() {
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([
                 PKG_NAME,
                 "config",
                 "list",
                 "--download-host",
                 "https://mirror.example.com",
-            ]);
-            rover.apply_download_host_override();
-            assert_eq!(
-                std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").unwrap(),
-                "https://mirror.example.com"
-            );
+            ])
         });
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_eq!(
+            client_config.download_host().as_deref(),
+            Some("https://mirror.example.com")
+        );
     }
 
-    #[test]
-    fn download_host_is_untouched_when_neither_flag_nor_env_is_set() {
-        temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
-            let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
-            rover.apply_download_host_override();
-            assert!(std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").is_err());
+    #[tokio::test]
+    async fn download_host_env_var_is_threaded_into_client_config() {
+        let rover = temp_env::with_var(
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            Some("https://env-mirror.example.com"),
+            || Rover::parse_from([PKG_NAME, "config", "list"]),
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_eq!(
+            client_config.download_host().as_deref(),
+            Some("https://env-mirror.example.com")
+        );
+    }
+
+    #[tokio::test]
+    async fn download_host_is_none_when_neither_flag_nor_env_is_set() {
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
         });
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_eq!(client_config.download_host().as_deref(), None);
     }
 }

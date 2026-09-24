@@ -101,6 +101,7 @@ mod tests {
     use httpmock::{Method, MockServer};
     use rstest::rstest;
     use semver::Version;
+    use serial_test::serial;
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
@@ -118,6 +119,7 @@ mod tests {
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
+    #[serial]
     async fn test_install() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
@@ -131,7 +133,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::default(),
-        );
+        )
+        .with_download_host(mock_server_endpoint.clone());
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -178,19 +181,13 @@ mod tests {
                 .header("Content-Type", "application/octet-stream")
                 .body(&finished_archive_bytes);
         });
-        let binary = temp_env::async_with_vars(
-            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
-            async {
-                install_supergraph
-                    .install(
-                        Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
-                        license_accepter,
-                        false,
-                    )
-                    .await
-            },
-        )
-        .await;
+        let binary = install_supergraph
+            .install(
+                Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
+                license_accepter,
+                false,
+            )
+            .await;
         let subject = assert_that!(binary).is_ok().subject;
         assert_that!(subject.version())
             .is_equal_to(&SupergraphVersion::new(Version::from_str("2.9.0")?));
@@ -217,6 +214,7 @@ mod tests {
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
+    #[serial]
     async fn install_falls_back_to_installed_plugin_when_registry_unreachable() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
@@ -246,7 +244,8 @@ mod tests {
             // The failing registry is retried until this runs out; keep it short, since
             // this test is about what happens after resolution gives up.
             ClientTimeout::new(1),
-        );
+        )
+        .with_download_host(mock_server_endpoint);
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -263,15 +262,9 @@ mod tests {
             then.status(500);
         });
 
-        let binary = temp_env::async_with_vars(
-            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
-            async {
-                install_supergraph
-                    .install(Some(override_install_path), license_accepter, false)
-                    .await
-            },
-        )
-        .await;
+        let binary = install_supergraph
+            .install(Some(override_install_path), license_accepter, false)
+            .await;
 
         // Despite the failed download, we fall back to the already-installed plugin
         // rather than erroring.
@@ -287,6 +280,7 @@ mod tests {
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
+    #[serial]
     async fn install_fails_when_registry_unreachable_and_no_fallback_available() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
@@ -307,7 +301,8 @@ mod tests {
             // The failing registry is retried until this runs out; keep it short, since
             // this test is about what happens after resolution gives up.
             ClientTimeout::new(1),
-        );
+        )
+        .with_download_host(mock_server_endpoint);
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -324,15 +319,9 @@ mod tests {
             then.status(500);
         });
 
-        let binary = temp_env::async_with_vars(
-            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
-            async {
-                install_supergraph
-                    .install(Some(override_install_path), license_accepter, false)
-                    .await
-            },
-        )
-        .await;
+        let binary = install_supergraph
+            .install(Some(override_install_path), license_accepter, false)
+            .await;
 
         assert_that!(binary).is_err();
         Ok(())
@@ -345,6 +334,7 @@ mod tests {
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
+    #[serial]
     async fn skip_update_env_uses_installed_plugin_without_contacting_registry() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
@@ -377,7 +367,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::default(),
-        );
+        )
+        .with_download_host(mock_server_endpoint);
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -385,10 +376,7 @@ mod tests {
             InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
 
         let binary = temp_env::async_with_vars(
-            [
-                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
-                ("APOLLO_ROVER_SKIP_UPDATE", Some("true".to_string())),
-            ],
+            [("APOLLO_ROVER_SKIP_UPDATE", Some("true".to_string()))],
             async {
                 // `skip_update` is false here; the env var is what forces the opt-out.
                 install_supergraph

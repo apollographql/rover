@@ -118,7 +118,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::default(),
-        );
+        )
+        .with_download_host(mock_server_endpoint.clone());
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_mcp_server =
             InstallMcpServer::new(McpServerVersion::Latest, studio_client_config);
@@ -165,19 +166,13 @@ mod tests {
                 .header("Content-Type", "application/octet-stream")
                 .body(&finished_archive_bytes);
         });
-        let binary = temp_env::async_with_vars(
-            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
-            async {
-                install_mcp_server
-                    .install(
-                        Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
-                        license_accepter,
-                        false,
-                    )
-                    .await
-            },
-        )
-        .await;
+        let binary = install_mcp_server
+            .install(
+                Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
+                license_accepter,
+                false,
+            )
+            .await;
         let subject = assert_that!(binary).is_ok().subject;
         assert_that!(subject.version()).is_equal_to(&Version::from_str("0.1.0")?);
 

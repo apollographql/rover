@@ -157,19 +157,18 @@ impl Plugin {
         .map(|s| s.to_string())
     }
 
-    pub fn get_tarball_url(&self) -> RoverResult<String> {
+    pub fn get_tarball_url(&self, download_host: Option<&str>) -> RoverResult<String> {
         Ok(format!(
             "{host}/tar/{name}/{target_arch}/{version}",
-            host = self.get_host(),
+            host = Self::get_host(download_host),
             name = self.get_name(),
             target_arch = self.get_target_arch()?,
             version = self.get_tarball_version()
         ))
     }
 
-    fn get_host(&self) -> String {
-        std::env::var("APOLLO_ROVER_DOWNLOAD_HOST")
-            .unwrap_or_else(|_| "https://rover.apollo.dev".to_string())
+    fn get_host(download_host: Option<&str>) -> &str {
+        download_host.unwrap_or("https://rover.apollo.dev")
     }
 }
 
@@ -425,7 +424,7 @@ impl PluginInstaller {
             .installer
             .get_latest_plugin_version(
                 self.client_config.plugin_version_service()?,
-                &plugin.get_tarball_url()?,
+                &plugin.get_tarball_url(self.client_config.download_host().as_deref())?,
             )
             .await?;
 
@@ -463,9 +462,9 @@ impl PluginInstaller {
             tracing::debug!("{} exists, skipping install", &exe);
             return Ok(Some((exe, PluginSource::Installed)));
         }
-        let version = self
-            .installer
-            .get_plugin_version_from_url(&plugin.get_tarball_url()?)?;
+        let version = self.installer.get_plugin_version_from_url(
+            &plugin.get_tarball_url(self.client_config.download_host().as_deref())?,
+        )?;
         Ok(self
             .do_install(plugin, &version)
             .await?
@@ -474,7 +473,8 @@ impl PluginInstaller {
 
     async fn do_install(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
-        let plugin_tarball_url = plugin.get_tarball_url()?;
+        let plugin_tarball_url =
+            plugin.get_tarball_url(self.client_config.download_host().as_deref())?;
         // only print the download message if the username and password have been stripped from the URL
         if let Some(sanitized_url) = sanitize_url(&plugin_tarball_url) {
             eprintln!("downloading the '{plugin_name}' plugin from {sanitized_url}");
