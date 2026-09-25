@@ -1047,7 +1047,7 @@ mod tests {
             ])
         });
         let config = rover.get_rover_config().unwrap();
-        assert_eq!(config.home.as_str(), flag_home_path.as_str());
+        assert_that!(config.home.as_str()).is_equal_to(flag_home_path.as_str());
     }
 
     #[test]
@@ -1055,9 +1055,7 @@ mod tests {
         let rover = temp_env::with_var("APOLLO_HOME", Some("/env/rover-home"), || {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
-        assert_eq!(
-            rover.get_install_override_path().unwrap(),
-            Some(camino::Utf8PathBuf::from("/env/rover-home"))
-        );
+        assert_that!(rover.get_install_override_path().unwrap())
+            .is_equal_to(Some(camino::Utf8PathBuf::from("/env/rover-home")));
     }
 }
