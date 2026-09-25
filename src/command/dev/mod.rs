@@ -107,22 +107,31 @@ pub struct SupergraphOpts {
     /// Path to write the composed supergraph schema to, (re)writing it on every successful composition.
     #[arg(long = "supergraph-output")]
     supergraph_output: Option<Utf8PathBuf>,
-}
 
-lazy_static::lazy_static! {
-    pub(crate) static ref OVERRIDE_DEV_ROUTER_VERSION: Option<String> =
-      std::env::var("APOLLO_ROVER_DEV_ROUTER_VERSION").ok();
+    /// The version of the GraphOS Router to use.
+    ///
+    /// You can also use the `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variable.
+    #[arg(long = "router-version", env = "APOLLO_ROVER_DEV_ROUTER_VERSION")]
+    pub(crate) router_version: Option<String>,
 
+    /// The version of Apollo Federation to use for composition.
+    ///
+    /// You can also use the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment
+    /// variable. `--federation-version` takes precedence over both.
     // this number should be mapped to the federation version used by the router
     // https://www.apollographql.com/docs/router/federation-version-support/#support-table
-    pub(crate) static ref OVERRIDE_DEV_COMPOSITION_VERSION: Option<String> =
-        std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").ok();
+    #[arg(
+        long = "composition-version",
+        env = "APOLLO_ROVER_DEV_COMPOSITION_VERSION"
+    )]
+    pub(crate) composition_version: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
     use camino::Utf8PathBuf;
     use clap::Parser;
+    use speculoos::prelude::*;
 
     use super::DevOpts;
 
@@ -141,5 +150,47 @@ mod tests {
     fn supergraph_output_defaults_to_none() {
         let opts = DevOpts::try_parse_from(["dev"]).unwrap();
         assert_eq!(opts.supergraph_opts.supergraph_output, None);
+    }
+
+    #[test]
+    fn router_version_flag_wins_over_env_var() {
+        let opts = temp_env::with_var("APOLLO_ROVER_DEV_ROUTER_VERSION", Some("1.2.3"), || {
+            DevOpts::try_parse_from(["dev", "--router-version", "4.5.6"])
+        })
+        .unwrap();
+        assert_that!(opts.supergraph_opts.router_version).is_equal_to(Some("4.5.6".to_string()));
+    }
+
+    #[test]
+    fn router_version_env_var_applies_alone() {
+        let opts = temp_env::with_var("APOLLO_ROVER_DEV_ROUTER_VERSION", Some("1.2.3"), || {
+            DevOpts::try_parse_from(["dev"])
+        })
+        .unwrap();
+        assert_that!(opts.supergraph_opts.router_version).is_equal_to(Some("1.2.3".to_string()));
+    }
+
+    #[test]
+    fn composition_version_flag_wins_over_env_var() {
+        let opts = temp_env::with_var(
+            "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+            Some("2.7.0"),
+            || DevOpts::try_parse_from(["dev", "--composition-version", "2.9.0"]),
+        )
+        .unwrap();
+        assert_that!(opts.supergraph_opts.composition_version)
+            .is_equal_to(Some("2.9.0".to_string()));
+    }
+
+    #[test]
+    fn composition_version_env_var_applies_alone() {
+        let opts = temp_env::with_var(
+            "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+            Some("2.7.0"),
+            || DevOpts::try_parse_from(["dev"]),
+        )
+        .unwrap();
+        assert_that!(opts.supergraph_opts.composition_version)
+            .is_equal_to(Some("2.7.0".to_string()));
     }
 }
