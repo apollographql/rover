@@ -111,7 +111,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::default(),
-        );
+        )
+        .with_download_host(mock_server_endpoint.clone());
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -151,19 +152,13 @@ mod tests {
                 .header("Content-Type", "application/octet-stream")
                 .body(&finished_archive_bytes);
         });
-        let binary = temp_env::async_with_vars(
-            [("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint))],
-            async {
-                install_router
-                    .install(
-                        Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
-                        license_accepter,
-                        false,
-                    )
-                    .await
-            },
-        )
-        .await;
+        let binary = install_router
+            .install(
+                Utf8PathBuf::from_path_buf(override_install_path.to_path_buf()).ok(),
+                license_accepter,
+                false,
+            )
+            .await;
         let subject = assert_that!(binary).is_ok().subject;
         assert_that!(subject.version()).is_equal_to(&Version::from_str("1.57.1")?);
 

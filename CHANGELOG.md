@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`--registry-url`, `--telemetry-url`, `--telemetry-disabled`, `--checks-timeout`, and `--download-host` are new global flags, each paired with their existing environment variable - @dotdat**
+
+  `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, `APOLLO_CHECKS_TIMEOUT_SECONDS`, and `APOLLO_ROVER_DOWNLOAD_HOST` were previously env-var-only and undocumented; they now have flag equivalents (`--registry-url`, `--telemetry-url`, `--checks-timeout`, `--download-host`), and the flag wins when both are set. `--telemetry-disabled` is a new flag alongside the existing `APOLLO_TELEMETRY_DISABLED` env var, which keeps its current presence-only behavior (any value, including `false`, disables telemetry) unchanged. Part of ROVER-451's Prerequisite slice; no existing behavior changes for anyone who doesn't pass these flags.
+
 - **`--log`, `--format`, `--client-timeout`, and the six `--oauth-*` flags now accept an environment variable equivalent - @dotdat**
 
   `--log`/`APOLLO_LOG_LEVEL`, `--format`/`APOLLO_FORMAT`, `--client-timeout`/`APOLLO_CLIENT_TIMEOUT`, `--oauth-authorization-url`/`APOLLO_OAUTH_AUTHORIZATION_URL`, `--oauth-token-url`/`APOLLO_OAUTH_TOKEN_URL`, `--oauth-whoami-url`/`APOLLO_OAUTH_WHOAMI_URL`, `--oauth-revocation-url`/`APOLLO_OAUTH_REVOCATION_URL`, `--oauth-device-authorization-url`/`APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL`, and `--oauth-client-id`/`APOLLO_OAUTH_CLIENT_ID` were previously flag-only. The flag wins when both are set; each flag's `--help` text now names its environment variable. No existing behavior changes: this is purely additive, part of ROVER-451's Prerequisite slice giving every global setting both a flag and an environment variable.

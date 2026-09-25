@@ -111,6 +111,38 @@ pub struct Rover {
     #[arg(long = "client-timeout", global = true, env = "APOLLO_CLIENT_TIMEOUT")]
     client_timeout: Option<ClientTimeout>,
 
+    /// Override the GraphOS registry endpoint.
+    #[arg(long = "registry-url", global = true, env = "APOLLO_REGISTRY_URL")]
+    registry_url: Option<String>,
+
+    /// Override the endpoint anonymous usage telemetry is reported to.
+    #[arg(long = "telemetry-url", global = true, env = "APOLLO_TELEMETRY_URL")]
+    telemetry_url: Option<String>,
+
+    /// Opt out of anonymous usage telemetry.
+    ///
+    /// The `APOLLO_TELEMETRY_DISABLED` environment variable disables
+    /// telemetry on any value it's set to, including `false` - this flag
+    /// doesn't change that, it's just an additional way to opt out.
+    #[arg(long = "telemetry-disabled", global = true)]
+    telemetry_disabled: bool,
+
+    /// Override how long check/launch polling waits (in whole seconds) before giving up.
+    #[arg(
+        long = "checks-timeout",
+        global = true,
+        env = "APOLLO_CHECKS_TIMEOUT_SECONDS"
+    )]
+    checks_timeout: Option<u64>,
+
+    /// Override the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from.
+    #[arg(
+        long = "download-host",
+        global = true,
+        env = "APOLLO_ROVER_DOWNLOAD_HOST"
+    )]
+    download_host: Option<String>,
+
     /// Skip checking for newer versions of rover.
     ///
     /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
@@ -371,6 +403,21 @@ impl Rover {
         }
     }
 
+    /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
+    /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
+    /// module, so it can't reach the private field directly.
+    pub(crate) fn telemetry_url_override(&self) -> Option<String> {
+        self.telemetry_url.clone()
+    }
+
+    /// The resolved `--telemetry-disabled` flag, for `impl Report for Rover`
+    /// (`src/utils/telemetry.rs`). `APOLLO_TELEMETRY_DISABLED` keeps its own,
+    /// separate presence-only check (`RoverEnvKey::TelemetryDisabled`) -
+    /// this is only the flag half of the pair.
+    pub(crate) const fn is_telemetry_disabled(&self) -> bool {
+        self.telemetry_disabled
+    }
+
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
         let override_home: Option<Utf8PathBuf> = self
             .get_env_var(RoverEnvKey::ConfigHome)?
@@ -392,7 +439,7 @@ impl Rover {
     }
 
     pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
-        let override_endpoint = self.get_env_var(RoverEnvKey::RegistryUrl)?;
+        let override_endpoint = self.registry_url.clone();
         let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
             fire_flower == "true" || fire_flower == "1"
@@ -412,8 +459,12 @@ impl Rover {
             self.client_timeout.unwrap_or_default(),
         );
         // Downloads should honor the client timeout if set despite having a different default
-        Ok(match self.client_timeout {
+        let client_config = match self.client_timeout {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
+            None => client_config,
+        };
+        Ok(match self.download_host.clone() {
+            Some(download_host) => client_config.with_download_host(download_host),
             None => client_config,
         })
     }
@@ -563,12 +614,8 @@ impl Rover {
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
-        if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
-            Ok(seconds.parse::<u64>()?)
-        } else {
-            // default to 5 minutes
-            Ok(300)
-        }
+        // default to 5 minutes
+        Ok(self.checks_timeout.unwrap_or(300))
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
@@ -706,4 +753,120 @@ impl Display for RoverOutputFormatKind {
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use speculoos::prelude::*;
+
+    use super::Rover;
+    use crate::PKG_NAME;
+
+    #[test]
+    fn checks_timeout_defaults_to_five_minutes() {
+        // Wrapped in `temp_env` too, even though it doesn't set anything -
+        // `temp_env`'s lock only serializes against *other* `temp_env` calls,
+        // and a bare `std::env::var` read here would otherwise race the
+        // process-global env var set by the sibling tests below.
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(300);
+    }
+
+    #[test]
+    fn checks_timeout_flag_wins_over_env_var() {
+        let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("999"), || {
+            Rover::parse_from([PKG_NAME, "config", "list", "--checks-timeout", "42"])
+        });
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(42);
+    }
+
+    #[test]
+    fn checks_timeout_env_var_applies_alone() {
+        let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("99"), || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(99);
+    }
+
+    #[tokio::test]
+    async fn download_host_flag_is_threaded_into_client_config() {
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "config",
+                "list",
+                "--download-host",
+                "https://mirror.example.com",
+            ])
+        });
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://mirror.example.com"));
+    }
+
+    #[tokio::test]
+    async fn download_host_env_var_is_threaded_into_client_config() {
+        let rover = temp_env::with_var(
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            Some("https://env-mirror.example.com"),
+            || Rover::parse_from([PKG_NAME, "config", "list"]),
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://env-mirror.example.com"));
+    }
+
+    #[tokio::test]
+    async fn download_host_is_none_when_neither_flag_nor_env_is_set() {
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_that!(client_config.download_host().as_deref()).is_equal_to(None);
+    }
+
+    #[tokio::test]
+    async fn registry_url_flag_wins_over_env_var() {
+        let rover = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "config",
+                    "list",
+                    "--registry-url",
+                    "https://flag.example.com",
+                ])
+            },
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_that!(client_config.uri()).is_equal_to(&"https://flag.example.com".to_string());
+    }
+
+    #[tokio::test]
+    async fn registry_url_env_var_applies_alone() {
+        let rover = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || Rover::parse_from([PKG_NAME, "config", "list"]),
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_that!(client_config.uri()).is_equal_to(&"https://env.example.com".to_string());
+    }
+
+    #[tokio::test]
+    async fn registry_url_defaults_to_studio_prod_when_unset() {
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        let client_config = rover.get_client_config().await.unwrap();
+        // Mirrors `STUDIO_PROD_API_ENDPOINT` (src/utils/client.rs), which isn't
+        // importable here (private to that module).
+        assert_that!(client_config.uri())
+            .is_equal_to(&"https://api.apollographql.com/graphql".to_string());
+    }
 }

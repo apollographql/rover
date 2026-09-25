@@ -81,7 +81,7 @@ impl Report for Rover {
 
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError> {
         let value = self.get_env_var(RoverEnvKey::TelemetryDisabled)?;
-        let is_telemetry_disabled = value.is_some();
+        let is_telemetry_disabled = self.is_telemetry_disabled() || value.is_some();
         if is_telemetry_disabled {
             tracing::info!("Telemetry has been disabled.");
         } else {
@@ -95,7 +95,7 @@ impl Report for Rover {
 
     fn endpoint(&self) -> Result<Url, SputnikError> {
         let url = self
-            .get_env_var(RoverEnvKey::TelemetryUrl)?
+            .telemetry_url_override()
             .unwrap_or_else(|| TELEMETRY_URL.to_string());
         Ok(Url::parse(&url)?)
     }
@@ -126,6 +126,7 @@ mod tests {
 
     use clap::Parser;
     use serde_json::json;
+    use speculoos::prelude::*;
     use sputnik::Command;
 
     use crate::{
@@ -168,10 +169,15 @@ mod tests {
     fn it_respects_apollo_telemetry_url() {
         let apollo_telemetry_url = "https://example.com/telemetry";
         let args = vec![PKG_NAME, "config", "list"];
-        let mut rover = Rover::parse_from(args);
-        rover
-            .insert_env_var(RoverEnvKey::TelemetryUrl, apollo_telemetry_url)
-            .unwrap();
+        // `--telemetry-url`/`APOLLO_TELEMETRY_URL` is now a clap-native
+        // env-bound flag, resolved at parse time - so the env var has to be
+        // set before `Rover::parse_from` runs, not after via the
+        // `RoverEnv` test cache `insert_env_var` uses.
+        let rover = temp_env::with_var(
+            RoverEnvKey::TelemetryUrl.to_string(),
+            Some(apollo_telemetry_url),
+            || Rover::parse_from(&args),
+        );
         let actual_endpoint = rover
             .endpoint()
             .expect("could not parse telemetry URL")
@@ -199,6 +205,15 @@ mod tests {
         is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
         assert_eq!(is_telemetry_enabled, expect_enabled);
+    }
+
+    #[test]
+    fn it_can_be_disabled_via_flag() {
+        let args = vec![PKG_NAME, "config", "list", "--telemetry-disabled"];
+        let rover = Rover::parse_from(args);
+        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+
+        assert_that!(is_telemetry_enabled).is_false();
     }
 
     #[test]
