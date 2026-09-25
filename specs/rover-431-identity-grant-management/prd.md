@@ -128,10 +128,11 @@ Extends `rover auth`, the home of the interactive OAuth flows, with a `grants` n
 
 1. **List.** `rover auth grants list --org <ORGANIZATION_ID>` shows every active grant in the organization across every member and every client-credential pair, with the same per-grant fields as B2 plus the principal (user or client) each grant belongs to. This is a first-class capability, not a filter on the self-service list, because "who or what had an active grant during the breach window" is the incident-response question.
 2. **Revoke one, any member's.** `rover auth grants revoke --org <ORGANIZATION_ID> <GRANT_ID>` revokes one specific grant belonging to any member of the organization (one suspicious login), leaving every other grant untouched.
-3. **Revoke all of one user's.** `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes every grant that user established **through Rover** — browser login or device code, regardless of which machine (offboarding). This is a first step toward a fully cross-client revoke, not the end state: today it only reaches Rover's own OAuth client, because the shipped `revokeUserOAuthTokens(clientId, userId)` mutation is scoped to one client per call and Rover passes its own client ID (§9). It does not touch Studio web-login sessions (a different resource, §5) or grants from any other OAuth client. `--all` is only valid together with `--user`; it is the widest revocation Rover offers today.
+3. **Revoke all of one user's, across every OAuth client.** `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes that user's grants under every OAuth client Rover can see: its own static client (personal browser/device-code logins) and every client-credential pair in the organization, discovered by paging through `oauthClients(first, after)` (§9) the same way A1.2's list does. Rover calls the shipped `revokeUserOAuthTokens(clientId, userId)` once per client; a call against a client the user never had a grant under is a harmless no-op. This still does not touch Studio web-login sessions, a different resource with its own revocation (§5), and it only reaches clients registered under the target organization — a user's grants under a *different* organization's client-credential pairs are untouched. `--all` is only valid together with `--user`; it is the widest revocation Rover offers.
 4. **Confirmation for the per-user case.** Revoking one grant needs no prompt. Revoking all of a user's grants prints the grants that will be revoked and asks for a yes/no confirmation that defaults to no; declining prints a cancellation notice and exits successfully without revoking anything. Passing `--confirm` skips the prompt for scripted offboarding. This is the same shape `rover graph delete` and `rover subgraph delete` use today for their irreversible actions, and the flag name is reused deliberately. Rover must never treat `--user` without `--all` as "revoke everything for this user"; the flag is required so the wider action is always spelled out on the command line.
-5. **No org-wide revoke.** There is no flag or argument combination that revokes every grant in an organization. `--all` without `--user` is an error.
-6. **Separate permission.** Org-wide list and revoke require the admin/security-lead permission on the Platform API side. A member without it gets a clear permission error, not an empty list.
+5. **Report per-client outcome.** Because the per-user sweep (B3.3) is one `revokeUserOAuthTokens` call per OAuth client rather than a single atomic mutation, the output must say which clients were revoked successfully and which failed, by name/ID, rather than a single pass/fail for the whole command. A partial failure (e.g. the API call for one client-credential pair errors) must exit non-zero and name exactly which client(s) still need a retry, so an offboarding runbook never reports success while a grant is still live.
+6. **No org-wide revoke.** There is no flag or argument combination that revokes every grant in an organization. `--all` without `--user` is an error.
+7. **Separate permission.** Org-wide list and revoke require the admin/security-lead permission on the Platform API side. A member without it gets a clear permission error, not an empty list.
 
 ### B4. Key decisions and rationale
 
@@ -140,6 +141,7 @@ Extends `rover auth`, the home of the interactive OAuth flows, with a `grants` n
 - **Grant, not token.** The unit a user lists and revokes is the grant (the authorization that produced the tokens), not an individual access or refresh token. Revoking a grant invalidates everything derived from it.
 - **`rover auth logout` stays as-is.** It remains the fast path for "revoke my current grant on this machine." `grants revoke` is the general path.
 - **`--confirm`, not a new flag.** Rover already has one convention for "skip the prompt before an irreversible action," on graph and subgraph delete. Offboarding scripts should learn one flag, and the docs can describe it once.
+- **Enumerate clients and loop, rather than wait on a server-side fan-out mutation.** `revokeUserOAuthTokens` only ever revokes one client at a time, and there is no Platform API mutation that revokes a user across every client in one call. Rover already has everything it needs to approximate that itself: `oauthClients(first, after)` (shipped, used by A1.2) enumerates every client-credential pair in the organization, and Rover knows its own static client ID. Looping — Rover's client, then every paginated result from `oauthClients` — ships B3.3 now instead of behind a new Platform API dependency, at the cost of N sequential calls instead of one atomic one, which is why B3.5 requires per-client outcome reporting.
 
 ## 8. Cross-cutting requirements
 
@@ -163,7 +165,7 @@ Rover is the consumer. Part A's fields exist today; Part B's mostly do not. Fiel
 | B2.3 revoke own grant | `revokeGrant(grantId)` | Proposed |
 | B3.1 list org grants | `grants(accountId)` | Proposed |
 | B3.2 revoke any member's grant | `revokeGrant(grantId)` with org permission | Proposed |
-| B3.3 revoke all of one user's grants | `revokeUserOAuthTokens(clientId, userId)` | Shipped, per client; Rover passes its own client ID today (see cross-client gap below) |
+| B3.3 revoke all of one user's grants | `oauthClients(first, after)` to enumerate, then `revokeUserOAuthTokens(clientId, userId)` per client | Shipped |
 
 Remaining gaps Rover needs resolved before the corresponding requirement can be met in full:
 
@@ -172,7 +174,6 @@ Remaining gaps Rover needs resolved before the corresponding requirement can be 
 - **Grant enumeration and single-grant revoke** (B2, B3.1, B3.2): the refresh-token store records the identifiers needed but nothing reads them yet. This is the central gap behind Part B.
 - **Grant type on a grant** (B1, B2.2): the grant record must expose whether it came from an authorization-code, device-code, or client-credentials exchange. The API already has the enum for this on the client record.
 - **No org-wide revoke on the API either.** The shipped `revokeUserOAuthTokens` requires a user, and any new grant-revocation mutation should be equally explicit, never treating an omitted target as "everything in the org," so no client of the API can wipe an org by omitting an argument.
-- **Cross-client user revoke.** `revokeUserOAuthTokens` takes one `clientId` per call, so B3.3 only reaches grants established through Rover's own client today. A mutation that revokes a user's grants across every OAuth client in the org in one call — the identity server doing the fan-out instead of Rover looping over a self-maintained client list — would make B3.3 genuinely cross-cutting, matching the incident-response/offboarding intent behind it. Not blocking: B3.3 ships now scoped to Rover's own client and would adopt the wider mutation later with no change to the CLI surface.
 
 ## 10. Success metrics
 
