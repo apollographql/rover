@@ -310,6 +310,13 @@ async fn start_composition(
                         CompositionError::ErrorUpdatingFederationVersion(
                             InstallSupergraphError::MissingDependency { err },
                         ) => format!("Supergraph Version could not be updated: {err}"),
+                        CompositionError::ErrorUpdatingFederationVersion(
+                            InstallSupergraphError::Plugin(failure),
+                        ) => format!(
+                            "Supergraph Version could not be updated: {} {}",
+                            rover_std::format_error_chain(&*failure),
+                            failure.next_step()
+                        ),
                         CompositionError::ResolvingSubgraphsError {
                             source: ResolveSupergraphConfigError::ResolveSubgraphs(errors),
                             ..

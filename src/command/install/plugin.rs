@@ -1,15 +1,20 @@
-use std::{env::consts, str::FromStr};
+use std::{env::consts, str::FromStr, sync::Arc};
 
 use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
-use binstall::{Installer, download::FileDownloadService};
+use binstall::{Installer, InstallerError, download::FileDownloadService};
 use camino::Utf8PathBuf;
 use rover_std::{Fs, sanitize_url, warnln};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    RoverError, RoverErrorSuggestion, RoverResult, federation::reject_federation_one,
+    RoverError, RoverErrorSuggestion, RoverResult,
+    federation::reject_federation_one,
+    plugin::{
+        error::PluginFailure,
+        version::{PluginName, VersionRequest},
+    },
     utils::client::StudioClientConfig,
 };
 
@@ -33,10 +38,30 @@ pub enum Plugin {
 
 impl Plugin {
     pub fn get_name(&self) -> String {
+        self.name().to_string()
+    }
+
+    pub const fn name(&self) -> PluginName {
         match self {
-            Self::Supergraph(_) => "supergraph".to_string(),
-            Self::Router(_) => "router".to_string(),
-            Self::McpServer(_) => "apollo-mcp-server".to_string(),
+            Self::Supergraph(_) => PluginName::Supergraph,
+            Self::Router(_) => PluginName::Router,
+            Self::McpServer(_) => PluginName::ApolloMcpServer,
+        }
+    }
+
+    /// The version as it was asked for, in the shared plugin grammar.
+    pub fn request(&self) -> VersionRequest {
+        match self {
+            Self::Supergraph(
+                FederationVersion::ExactFedOne(v) | FederationVersion::ExactFedTwo(v),
+            )
+            | Self::Router(RouterVersion::Exact(v))
+            | Self::McpServer(mcp::Version::Exact(v)) => VersionRequest::Exact(v.clone()),
+            Self::Supergraph(FederationVersion::LatestFedOne) => VersionRequest::Major(0),
+            Self::Supergraph(FederationVersion::LatestFedTwo)
+            | Self::Router(RouterVersion::LatestTwo) => VersionRequest::Major(2),
+            Self::Router(RouterVersion::LatestOne) => VersionRequest::Major(1),
+            Self::McpServer(mcp::Version::Latest) => VersionRequest::Latest,
         }
     }
 
@@ -421,13 +446,27 @@ impl PluginInstaller {
         &self,
         plugin: &Plugin,
     ) -> RoverResult<Option<(Utf8PathBuf, PluginSource)>> {
+        let resolution_failed = |source: tower::BoxError| PluginFailure::Resolution {
+            plugin: plugin.name(),
+            requested: plugin.request(),
+            source: source.into(),
+        };
         let latest_version = self
             .installer
             .get_latest_plugin_version(
                 self.client_config.plugin_version_service()?,
                 &plugin.get_tarball_url()?,
             )
-            .await?;
+            .await
+            .map_err(|err| resolution_failed(Box::new(err)))?;
+        // Parsed here so that a registry answer that isn't a version is a
+        // resolution failure, not something the install trips over later.
+        let resolved = parse_resolved_version(&latest_version).map_err(|err| {
+            resolution_failed(
+                format!("the registry named `{latest_version}` as the release, which isn't a version: {err}")
+                    .into(),
+            )
+        })?;
 
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version)
             && !self.force
@@ -436,7 +475,7 @@ impl PluginInstaller {
             return Ok(Some((exe, PluginSource::Installed)));
         }
         // do the install.
-        self.do_install(plugin, &latest_version).await?;
+        self.do_install(plugin, &resolved).await?;
         Ok(self
             .find_existing_exact(plugin, &latest_version)?
             .map(|exe| (exe, PluginSource::Downloaded)))
@@ -463,16 +502,50 @@ impl PluginInstaller {
             tracing::debug!("{} exists, skipping install", &exe);
             return Ok(Some((exe, PluginSource::Installed)));
         }
-        let version = self
-            .installer
-            .get_plugin_version_from_url(&plugin.get_tarball_url()?)?;
+        let Some(version) = plugin.request().exact().cloned() else {
+            return Err(could_not_install_plugin(&plugin.get_name(), version));
+        };
         Ok(self
             .do_install(plugin, &version)
             .await?
             .map(|exe| (exe, PluginSource::Downloaded)))
     }
 
-    async fn do_install(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
+    /// Sorts an installer error into the download or installation failure it is.
+    fn install_failure(
+        &self,
+        plugin: &Plugin,
+        version: &Version,
+        err: InstallerError,
+    ) -> RoverError {
+        match err {
+            // The download error itself, not the installer's wrapper around it,
+            // which would only repeat that the download failed.
+            InstallerError::FileDownloadError(source) => RoverError::new(PluginFailure::Download {
+                plugin: plugin.name(),
+                requested: plugin.request(),
+                version: version.clone(),
+                source: Arc::new(*source),
+            }),
+            // Without a root to name, there's no installation failure to report.
+            err => match self.installer.bin_dir_location() {
+                Ok(install_root) => RoverError::new(PluginFailure::Installation {
+                    plugin: plugin.name(),
+                    requested: plugin.request(),
+                    version: version.clone(),
+                    install_root,
+                    source: Arc::new(err),
+                }),
+                Err(_) => RoverError::new(err),
+            },
+        }
+    }
+
+    async fn do_install(
+        &self,
+        plugin: &Plugin,
+        version: &Version,
+    ) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         // only print the download message if the username and password have been stripped from the URL
@@ -487,16 +560,21 @@ impl PluginInstaller {
             // isn't capped by FileDownloadService's shorter default.
             .timeout_duration(*self.client_config.download_timeout())
             .build();
-        Ok(self
-            .installer
+        self.installer
             .install_plugin(
                 &plugin_name,
                 &plugin_tarball_url,
                 file_download_service,
-                version,
+                &format!("v{version}"),
             )
-            .await?)
+            .await
+            .map_err(|err| self.install_failure(plugin, version, err))
     }
+}
+
+/// A registry-reported or URL-derived version, which may carry a `v` prefix.
+fn parse_resolved_version(version: &str) -> Result<Version, semver::Error> {
+    Version::parse(version.strip_prefix('v').unwrap_or(version))
 }
 
 fn find_installed_plugins(

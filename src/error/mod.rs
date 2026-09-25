@@ -17,7 +17,7 @@ use rover_std::Style;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::{Value, json};
 
-use crate::{command::CliOutput, options::JsonVersion};
+use crate::{command::CliOutput, options::JsonVersion, plugin::error::PluginFailure};
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -96,6 +96,12 @@ impl RoverError {
 
     pub fn code(&self) -> Option<RoverErrorCode> {
         self.metadata.code.clone()
+    }
+
+    /// The plugin failure behind this error, if there is one, so that a
+    /// caller converting it into its own error type can keep it.
+    pub(crate) fn plugin_failure(&self) -> Option<&PluginFailure> {
+        crate::plugin::error::find_in_chain(&self.error)
     }
 
     pub fn print(&self) -> RoverResult<()> {
