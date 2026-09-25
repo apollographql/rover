@@ -758,6 +758,7 @@ pub enum RoverOutputKind {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use speculoos::prelude::*;
 
     use super::Rover;
     use crate::PKG_NAME;
@@ -771,7 +772,7 @@ mod tests {
         let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
-        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 300);
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(300);
     }
 
     #[test]
@@ -779,7 +780,7 @@ mod tests {
         let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("999"), || {
             Rover::parse_from([PKG_NAME, "config", "list", "--checks-timeout", "42"])
         });
-        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 42);
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(42);
     }
 
     #[test]
@@ -787,7 +788,7 @@ mod tests {
         let rover = temp_env::with_var("APOLLO_CHECKS_TIMEOUT_SECONDS", Some("99"), || {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
-        assert_eq!(rover.get_checks_timeout_seconds().unwrap(), 99);
+        assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(99);
     }
 
     #[tokio::test]
@@ -802,10 +803,8 @@ mod tests {
             ])
         });
         let client_config = rover.get_client_config().await.unwrap();
-        assert_eq!(
-            client_config.download_host().as_deref(),
-            Some("https://mirror.example.com")
-        );
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://mirror.example.com"));
     }
 
     #[tokio::test]
@@ -816,10 +815,8 @@ mod tests {
             || Rover::parse_from([PKG_NAME, "config", "list"]),
         );
         let client_config = rover.get_client_config().await.unwrap();
-        assert_eq!(
-            client_config.download_host().as_deref(),
-            Some("https://env-mirror.example.com")
-        );
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://env-mirror.example.com"));
     }
 
     #[tokio::test]
@@ -828,7 +825,7 @@ mod tests {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
         let client_config = rover.get_client_config().await.unwrap();
-        assert_eq!(client_config.download_host().as_deref(), None);
+        assert_that!(client_config.download_host().as_deref()).is_equal_to(None);
     }
 
     #[tokio::test]
@@ -847,7 +844,7 @@ mod tests {
             },
         );
         let client_config = rover.get_client_config().await.unwrap();
-        assert_eq!(client_config.uri(), "https://flag.example.com");
+        assert_that!(client_config.uri()).is_equal_to(&"https://flag.example.com".to_string());
     }
 
     #[tokio::test]
@@ -858,7 +855,7 @@ mod tests {
             || Rover::parse_from([PKG_NAME, "config", "list"]),
         );
         let client_config = rover.get_client_config().await.unwrap();
-        assert_eq!(client_config.uri(), "https://env.example.com");
+        assert_that!(client_config.uri()).is_equal_to(&"https://env.example.com".to_string());
     }
 
     #[tokio::test]
@@ -869,6 +866,7 @@ mod tests {
         let client_config = rover.get_client_config().await.unwrap();
         // Mirrors `STUDIO_PROD_API_ENDPOINT` (src/utils/client.rs), which isn't
         // importable here (private to that module).
-        assert_eq!(client_config.uri(), "https://api.apollographql.com/graphql");
+        assert_that!(client_config.uri())
+            .is_equal_to(&"https://api.apollographql.com/graphql".to_string());
     }
 }

@@ -126,6 +126,7 @@ mod tests {
 
     use clap::Parser;
     use serde_json::json;
+    use speculoos::prelude::*;
     use sputnik::Command;
 
     use crate::{
@@ -212,7 +213,7 @@ mod tests {
         let rover = Rover::parse_from(args);
         let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
-        assert!(!is_telemetry_enabled);
+        assert_that!(is_telemetry_enabled).is_false();
     }
 
     #[test]
