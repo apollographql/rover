@@ -4,6 +4,7 @@ use anyhow::{Context, anyhow};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use binstall::{Installer, InstallerError, download::FileDownloadService};
 use camino::Utf8PathBuf;
+use http::StatusCode;
 use rover_std::{Fs, sanitize_url, warnln};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
     federation::reject_federation_one,
     plugin::{
-        error::PluginFailure,
+        error::{PluginFailure, RequestOrigin},
         version::{PluginName, VersionRequest},
     },
     utils::client::StudioClientConfig,
@@ -248,6 +249,9 @@ pub struct PluginInstaller {
     installer: Installer,
     /// Whether to overwrite the plugin if it already exists
     force: bool,
+    /// Where the version request came from, to name when an exact release
+    /// turns out to have been withdrawn. `None` until a caller says.
+    origin: Option<RequestOrigin>,
 }
 
 fn skip_update_error(plugin_name: &str, version: &str) -> RoverError {
@@ -282,6 +286,15 @@ impl PluginInstaller {
             client_config,
             installer,
             force,
+            origin: None,
+        }
+    }
+
+    /// Records where the version request came from.
+    pub fn requested_by(self, origin: RequestOrigin) -> Self {
+        Self {
+            origin: Some(origin),
+            ..self
         }
     }
 
@@ -446,27 +459,7 @@ impl PluginInstaller {
         &self,
         plugin: &Plugin,
     ) -> RoverResult<Option<(Utf8PathBuf, PluginSource)>> {
-        let resolution_failed = |source: tower::BoxError| PluginFailure::Resolution {
-            plugin: plugin.name(),
-            requested: plugin.request(),
-            source: source.into(),
-        };
-        let latest_version = self
-            .installer
-            .get_latest_plugin_version(
-                self.client_config.plugin_version_service()?,
-                &plugin.get_tarball_url()?,
-            )
-            .await
-            .map_err(|err| resolution_failed(Box::new(err)))?;
-        // Parsed here so that a registry answer that isn't a version is a
-        // resolution failure, not something the install trips over later.
-        let resolved = parse_resolved_version(&latest_version).map_err(|err| {
-            resolution_failed(
-                format!("the registry named `{latest_version}` as the release, which isn't a version: {err}")
-                    .into(),
-            )
-        })?;
+        let (latest_version, resolved) = self.resolve_floating(plugin).await?;
 
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version)
             && !self.force
@@ -479,6 +472,36 @@ impl PluginInstaller {
         Ok(self
             .find_existing_exact(plugin, &latest_version)?
             .map(|exe| (exe, PluginSource::Downloaded)))
+    }
+
+    /// Asks the registry which release a floating request means, as it named
+    /// it and parsed. A registry answer that isn't a version is a resolution
+    /// failure here, not something the install trips over later.
+    async fn resolve_floating(&self, plugin: &Plugin) -> RoverResult<(String, Version)> {
+        let resolution_failed = |source: tower::BoxError| {
+            RoverError::new(PluginFailure::Resolution {
+                plugin: plugin.name(),
+                requested: plugin.request(),
+                source: source.into(),
+            })
+        };
+        let named = self
+            .installer
+            .get_latest_plugin_version(
+                self.client_config.plugin_version_service()?,
+                &plugin.get_tarball_url()?,
+            )
+            .await
+            .map_err(|err| resolution_failed(Box::new(err)))?;
+        let parsed = parse_resolved_version(&named).map_err(|err| {
+            resolution_failed(
+                format!(
+                    "the registry named `{named}` as the release, which isn't a version: {err}"
+                )
+                .into(),
+            )
+        })?;
+        Ok((named, parsed))
     }
 
     fn find_existing_exact(
@@ -560,16 +583,72 @@ impl PluginInstaller {
             // isn't capped by FileDownloadService's shorter default.
             .timeout_duration(*self.client_config.download_timeout())
             .build();
-        self.installer
+        let result = self
+            .installer
             .install_plugin(
                 &plugin_name,
                 &plugin_tarball_url,
                 file_download_service,
                 &format!("v{version}"),
             )
-            .await
-            .map_err(|err| self.install_failure(plugin, version, err))
+            .await;
+        match result {
+            Ok(installed) => Ok(installed),
+            Err(err) if plugin.request().exact().is_some() && is_not_served(&err) => {
+                Err(self.not_served(plugin, version, err).await)
+            }
+            Err(err) => Err(self.install_failure(plugin, version, err)),
+        }
     }
+
+    /// An exact release the registry has no artifact for either never existed
+    /// or was withdrawn, and only the registry knows which: it answers
+    /// `410 Gone` for a withdrawn release and `404 Not Found` for one it never
+    /// published. A 404 isn't second-guessed, since a release missing for
+    /// this platform, or skipped in a sequence, looks the same from here.
+    async fn not_served(
+        &self,
+        plugin: &Plugin,
+        version: &Version,
+        err: InstallerError,
+    ) -> RoverError {
+        let withdrawn = err.download_status() == Some(StatusCode::GONE);
+        match &self.origin {
+            Some(origin) if withdrawn => RoverError::new(PluginFailure::NoLongerServed {
+                plugin: plugin.name(),
+                version: version.clone(),
+                origin: origin.clone(),
+                newest_in_major: self.newest_in_major(plugin, version.major).await,
+            }),
+            _ => RoverError::new(PluginFailure::Resolution {
+                plugin: plugin.name(),
+                requested: plugin.request(),
+                source: Arc::new(err),
+            }),
+        }
+    }
+
+    /// The newest release in `major`, or `None` when the registry can't say.
+    async fn newest_in_major(&self, plugin: &Plugin, major: u64) -> Option<Version> {
+        let floating = match (plugin, major) {
+            (Plugin::Supergraph(_), 2) => Plugin::Supergraph(FederationVersion::LatestFedTwo),
+            (Plugin::Router(_), 1) => Plugin::Router(RouterVersion::LatestOne),
+            (Plugin::Router(_), 2) => Plugin::Router(RouterVersion::LatestTwo),
+            // The registry's only `apollo-mcp-server` alias spans majors.
+            (Plugin::McpServer(_), _) => Plugin::McpServer(mcp::Version::Latest),
+            _ => return None,
+        };
+        let (_, newest) = self.resolve_floating(&floating).await.ok()?;
+        Some(newest).filter(|newest| newest.major == major)
+    }
+}
+
+/// Whether the registry refused the artifact as missing or withdrawn.
+fn is_not_served(err: &InstallerError) -> bool {
+    matches!(
+        err.download_status(),
+        Some(StatusCode::NOT_FOUND | StatusCode::GONE)
+    )
 }
 
 /// A registry-reported or URL-derived version, which may carry a `v` prefix.
@@ -1077,5 +1156,171 @@ mod tests {
         Plugin::Router(RouterVersion::LatestTwo)
             .get_arch_for_env("", "")
             .unwrap_err();
+    }
+
+    #[cfg(not(target_env = "musl"))]
+    mod a_release_the_registry_does_not_serve {
+        use std::time::Duration;
+
+        use houston::Config;
+        use httpmock::{Method, MockServer};
+        use rstest::rstest;
+
+        use super::*;
+        use crate::{
+            RoverErrorCode,
+            utils::client::{ClientBuilder, ClientTimeout},
+        };
+
+        /// What the registry answers for the exact artifact, and what it says
+        /// is the newest release in the major (`None`: it can't say).
+        async fn install_exact(
+            version: &str,
+            artifact_status: u16,
+            newest_in_major: Option<&str>,
+            origin: Option<RequestOrigin>,
+        ) -> RoverError {
+            let server = MockServer::start();
+            let host = format!("http://{}", server.address());
+            server.mock(|when, then| {
+                when.method(Method::GET)
+                    .path_includes(format!("/v{version}"));
+                then.status(artifact_status);
+            });
+            server.mock(|when, then| {
+                when.method(Method::HEAD).path_includes("/latest-2");
+                match newest_in_major {
+                    Some(newest) => then.status(302).header("X-Version", format!("v{newest}")),
+                    None => then.status(404),
+                };
+            });
+
+            let home_dir = tempfile::tempdir().unwrap();
+            let home = Utf8PathBuf::from_path_buf(home_dir.path().to_path_buf()).unwrap();
+            let client_config = StudioClientConfig::new(
+                None,
+                Config {
+                    home: home.join("config"),
+                    override_api_key: None,
+                    override_client_credentials_token: None,
+                },
+                false,
+                ClientBuilder::default(),
+                ClientTimeout::new(1),
+            );
+            let installer = Installer {
+                binary_name: "rover".to_string(),
+                force_install: false,
+                executable_location: home.join("rover"),
+                override_install_path: Some(home),
+            };
+            let plugin = Plugin::Supergraph(FederationVersion::ExactFedTwo(
+                Version::parse(version).unwrap(),
+            ));
+
+            temp_env::async_with_vars(
+                [
+                    ("APOLLO_ROVER_DOWNLOAD_HOST", Some(host)),
+                    ("APOLLO_NODE_MODULES_BIN_DIR", None),
+                ],
+                async {
+                    let plugin_installer = PluginInstaller::new(client_config, installer, false);
+                    let plugin_installer = match origin {
+                        Some(origin) => plugin_installer.requested_by(origin),
+                        None => plugin_installer,
+                    };
+                    plugin_installer
+                        .install(&plugin, false)
+                        .await
+                        .expect_err("the registry serves no such artifact")
+                },
+            )
+            .await
+        }
+
+        fn reported(error: &RoverError) -> (Option<RoverErrorCode>, String, Vec<String>) {
+            (
+                error.code(),
+                error.message(),
+                error
+                    .suggestions()
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
+            )
+        }
+
+        #[rstest]
+        #[case::gone_with_a_newer_release(
+            410,
+            Some("2.9.5"),
+            "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.",
+            "Run `rover install --plugin supergraph@=2.9.5`."
+        )]
+        #[case::gone_with_no_listing(
+            410,
+            None,
+            "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry.",
+            "Run `rover install --plugin supergraph@2` to use the newest available 2.x."
+        )]
+        #[tokio::test]
+        #[timeout(Duration::from_secs(15))]
+        async fn a_withdrawn_release_is_reported_as_no_longer_served(
+            #[case] artifact_status: u16,
+            #[case] newest_in_major: Option<&str>,
+            #[case] message: &str,
+            #[case] next_step: &str,
+        ) {
+            let error = install_exact(
+                "2.9.3",
+                artifact_status,
+                newest_in_major,
+                Some(RequestOrigin::PluginArgument),
+            )
+            .await;
+
+            assert_that!(reported(&error)).is_equal_to((
+                Some(RoverErrorCode::E051),
+                message.to_string(),
+                vec![next_step.to_string()],
+            ));
+        }
+
+        /// A 404 is the registry saying it never published the release, which
+        /// is class 1's "no release matches", not a withdrawal — wherever the
+        /// version falls relative to what it has published. A withdrawal with
+        /// no recorded origin can't be reported as one yet, so it's class 1
+        /// too.
+        #[rstest]
+        #[case::above_the_newest_release(
+            "2.9.9",
+            404,
+            Some("2.9.5"),
+            Some(RequestOrigin::PluginArgument)
+        )]
+        #[case::below_the_newest_release(
+            "2.9.9",
+            404,
+            Some("2.10.0"),
+            Some(RequestOrigin::PluginArgument)
+        )]
+        #[case::with_no_listing("2.9.9", 404, None, Some(RequestOrigin::PluginArgument))]
+        #[case::withdrawn_with_no_origin("2.9.9", 410, Some("2.10.0"), None)]
+        #[tokio::test]
+        #[timeout(Duration::from_secs(15))]
+        async fn a_release_that_never_existed_is_a_resolution_failure(
+            #[case] version: &str,
+            #[case] artifact_status: u16,
+            #[case] newest_in_major: Option<&str>,
+            #[case] origin: Option<RequestOrigin>,
+        ) {
+            let error = install_exact(version, artifact_status, newest_in_major, origin).await;
+
+            assert_that!(reported(&error)).is_equal_to((
+                Some(RoverErrorCode::E048),
+                "Couldn't resolve a release of the `supergraph` plugin matching `=2.9.9` from the plugin registry.".to_string(),
+                vec!["Make sure the plugin registry is reachable and that `supergraph` has a release matching `=2.9.9`, then re-run the command. If you use a registry other than Apollo's, check that `APOLLO_ROVER_DOWNLOAD_HOST` points at it.".to_string()],
+            ));
+        }
     }
 }
