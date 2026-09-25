@@ -830,4 +830,45 @@ mod tests {
         let client_config = rover.get_client_config().await.unwrap();
         assert_eq!(client_config.download_host().as_deref(), None);
     }
+
+    #[tokio::test]
+    async fn registry_url_flag_wins_over_env_var() {
+        let rover = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "config",
+                    "list",
+                    "--registry-url",
+                    "https://flag.example.com",
+                ])
+            },
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_eq!(client_config.uri(), "https://flag.example.com");
+    }
+
+    #[tokio::test]
+    async fn registry_url_env_var_applies_alone() {
+        let rover = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || Rover::parse_from([PKG_NAME, "config", "list"]),
+        );
+        let client_config = rover.get_client_config().await.unwrap();
+        assert_eq!(client_config.uri(), "https://env.example.com");
+    }
+
+    #[tokio::test]
+    async fn registry_url_defaults_to_studio_prod_when_unset() {
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        let client_config = rover.get_client_config().await.unwrap();
+        // Mirrors `STUDIO_PROD_API_ENDPOINT` (src/utils/client.rs), which isn't
+        // importable here (private to that module).
+        assert_eq!(client_config.uri(), "https://api.apollographql.com/graphql");
+    }
 }

@@ -207,6 +207,15 @@ mod tests {
     }
 
     #[test]
+    fn it_can_be_disabled_via_flag() {
+        let args = vec![PKG_NAME, "config", "list", "--telemetry-disabled"];
+        let rover = Rover::parse_from(args);
+        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+
+        assert!(!is_telemetry_enabled);
+    }
+
+    #[test]
     fn it_is_enabled_by_default() {
         let args = vec![PKG_NAME, "config", "list"];
         let rover = Rover::parse_from(args);
