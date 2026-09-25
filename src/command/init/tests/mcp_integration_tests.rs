@@ -22,7 +22,6 @@ fn test_mcp_flag_bypasses_directory_validation() {
 
     // Create Init command with MCP flag enabled
     let init_with_mcp = Init {
-        profile: Default::default(),
         project_type: ProjectTypeOpt {
             project_type: Some(ProjectType::CreateNew),
         },
@@ -41,7 +40,6 @@ fn test_mcp_flag_bypasses_directory_validation() {
 
     // Create Init command with MCP flag disabled
     let init_without_mcp = Init {
-        profile: Default::default(),
         project_type: ProjectTypeOpt {
             project_type: Some(ProjectType::CreateNew),
         },
@@ -110,7 +108,6 @@ fn test_regular_init_still_validates_empty_directory() {
     fs::write(&dummy_file, "content").unwrap();
 
     let init_without_mcp = Init {
-        profile: Default::default(),
         project_type: ProjectTypeOpt {
             project_type: Some(ProjectType::CreateNew),
         },

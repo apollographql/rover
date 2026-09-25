@@ -40,6 +40,7 @@ use crate::{
             },
         },
     },
+    options::ProfileOpt,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -58,6 +59,7 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         log_level: Option<Level>,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         dotenv().ok();
@@ -72,7 +74,6 @@ impl Dev {
 
         let router_config_path = self.opts.supergraph_opts.router_config_path.clone();
 
-        let profile = &self.opts.plugin_opts.profile;
         let graph_ref = &self.opts.supergraph_opts.graph_ref;
         if let Some(graph_ref) = graph_ref {
             eprintln!("retrieving subgraphs remotely from {graph_ref}")
@@ -275,7 +276,7 @@ impl Dev {
             .await?
             .load_remote_config(
                 client_config.clone(),
-                self.opts.plugin_opts.profile.clone(),
+                profile.clone(),
                 graph_ref.clone(),
                 home_override.clone(),
                 api_key_override.clone(),
@@ -307,7 +308,7 @@ impl Dev {
                 &tmp_config_dir_path,
                 client_config.clone(),
                 &supergraph_schema,
-                self.opts.plugin_opts.profile.clone(),
+                profile.clone(),
                 home_override,
                 api_key_override,
                 log_level,

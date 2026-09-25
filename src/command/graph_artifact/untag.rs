@@ -6,16 +6,18 @@ use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::Studio
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Untag {
-    #[clap(flatten)]
-    profile: ProfileOpt,
     #[arg(long)]
     graph_id: String,
     tag: String,
 }
 
 impl Untag {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         let input = DeleteGraphArtifactTagInput {
             graph_id: self.graph_id.clone(),

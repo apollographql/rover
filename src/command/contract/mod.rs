@@ -5,7 +5,7 @@ mod publish;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Contract {
@@ -30,19 +30,21 @@ impl Contract {
         &self,
         client_config: StudioClientConfig,
         checks_timeout_seconds: u64,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Describe(command) => command.run(client_config).await,
+            Command::Describe(command) => command.run(client_config, profile).await,
             Command::Preview(command) => {
                 command
                     .run(
                         client_config,
                         checks_timeout_seconds,
+                        profile,
                         &rover_print::print::stderr::default(),
                     )
                     .await
             }
-            Command::Publish(command) => command.run(client_config).await,
+            Command::Publish(command) => command.run(client_config, profile).await,
         }
     }
 }

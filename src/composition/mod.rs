@@ -29,7 +29,7 @@ use crate::{
         },
     },
     federation::FederationOneUnsupported,
-    options::{LicenseAccepter, PluginOpts},
+    options::{LicenseAccepter, PluginOpts, ProfileOpt},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -46,10 +46,12 @@ mod watchers;
 
 /// A reusable, shareable, canonical way to get a supergraph binary from the common options
 /// used around Rover.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn get_supergraph_binary(
     federation_version: Option<FederationVersion>,
     client_config: StudioClientConfig,
     override_install_path: Option<Utf8PathBuf>,
+    profile: ProfileOpt,
     plugin_opts: PluginOpts,
     supergraph_yaml: Option<FileDescriptorType>,
     graph_ref: Option<GraphRef>,
@@ -57,8 +59,6 @@ pub(crate) async fn get_supergraph_binary(
     // `connector` and the LSP share this helper but shouldn't warn.
     warn_on_floating_version: bool,
 ) -> Result<CompositionPipeline<Run>, RoverError> {
-    let profile = plugin_opts.profile;
-
     let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
         .studio_client_config(client_config.clone())
         .profile(profile.clone())

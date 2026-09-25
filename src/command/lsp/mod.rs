@@ -44,7 +44,7 @@ use crate::{
             install::InstallSupergraphError,
         },
     },
-    options::PluginOpts,
+    options::{PluginOpts, ProfileOpt},
     utils::{
         client::StudioClientConfig,
         effect::{exec::TokioCommand, write_file::FsWriteFile},
@@ -76,18 +76,26 @@ pub struct LspOpts {
 }
 
 impl Lsp {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         self.opts
             .plugin_opts
             .elv2_license_accepter
             .require_elv2_license(&client_config)?;
 
-        run_lsp(client_config, self.opts.clone()).await?;
+        run_lsp(client_config, self.opts.clone(), profile.clone()).await?;
         Ok(RoverOutput::EmptySuccess)
     }
 }
 
-async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverResult<()> {
+async fn run_lsp(
+    client_config: StudioClientConfig,
+    lsp_opts: LspOpts,
+    profile: ProfileOpt,
+) -> RoverResult<()> {
     let supergraph_yaml_path = lsp_opts.supergraph_yaml.as_ref().and_then(|path| {
         if path.is_relative() {
             Some(
@@ -129,6 +137,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             let lookup_client_config = client_config.clone();
             let lookup_supergraph_yaml_path = supergraph_yaml_path.clone();
             let lookup_plugin_opts = lsp_opts.plugin_opts.clone();
+            let lookup_profile = profile.clone();
             tokio::spawn(async move {
                 let mut plugin_provenance = PluginProvenanceTracker::new();
                 while let Some((path, response)) = spec_lookup_receiver.next().await {
@@ -136,6 +145,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
                         path,
                         lookup_client_config.clone(),
                         lookup_supergraph_yaml_path.clone(),
+                        lookup_profile.clone(),
                         lookup_plugin_opts.clone(),
                         &mut plugin_provenance,
                     )
@@ -145,9 +155,14 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: LspOpts) -> RoverR
             });
             // Create a composition runner first, so that we can use that to drive the initial
             // set of subgraphs that get reported to the LSP
-            let composition_runner =
-                create_composition_runner(supergraph_yaml_path, None, client_config, lsp_opts)
-                    .await?;
+            let composition_runner = create_composition_runner(
+                supergraph_yaml_path,
+                None,
+                client_config,
+                lsp_opts,
+                profile,
+            )
+            .await?;
             let initial_subgraphs = composition_runner
                 .state
                 .initial_supergraph_config
@@ -196,6 +211,7 @@ async fn load_spec_for_path(
     path: PathBuf,
     client_config: StudioClientConfig,
     supergraph_yaml_path: Utf8PathBuf,
+    profile: ProfileOpt,
     plugin_opts: PluginOpts,
     plugin_provenance: &mut PluginProvenanceTracker,
 ) -> Option<String> {
@@ -203,6 +219,7 @@ async fn load_spec_for_path(
         None,
         client_config,
         None,
+        profile,
         plugin_opts,
         Some(FileDescriptorType::File(supergraph_yaml_path)),
         None,
@@ -393,14 +410,15 @@ async fn create_composition_runner(
     federation_version: Option<FederationVersion>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
+    profile: ProfileOpt,
 ) -> Result<CompositionRunner<TokioCommand, FsWriteFile>, StartCompositionError> {
     let fetch_remote_subgraphs_factory = MakeFetchRemoteSubgraphs::builder()
         .studio_client_config(client_config.clone())
-        .profile(lsp_opts.plugin_opts.profile.clone())
+        .profile(profile.clone())
         .build();
     let fetch_remote_subgraph_factory = MakeFetchRemoteSubgraph::builder()
         .studio_client_config(client_config.clone())
-        .profile(lsp_opts.plugin_opts.profile.clone())
+        .profile(profile.clone())
         .build()
         .boxed_clone();
     let resolve_introspect_subgraph_factory =

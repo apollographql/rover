@@ -45,14 +45,15 @@ pub struct Publish {
     /// the manifest file.
     #[arg(long)]
     for_client_name: Option<String>,
-
-    #[clap(flatten)]
-    profile: ProfileOpt,
 }
 
 impl Publish {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         let raw_manifest = self
             .manifest
@@ -107,7 +108,7 @@ impl Publish {
             "Publishing operations to list {} for {} using credentials from the {} profile.",
             Style::Link.paint(list_name),
             Style::Link.paint(&graph_id),
-            Style::Command.paint(&self.profile.profile_name)
+            Style::Command.paint(&profile.profile_name)
         );
 
         let result = publish::run(

@@ -37,9 +37,6 @@ pub struct Preview {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Preview with these subgraphs hypothetically changed or removed first,
     /// as described by a YAML file (or `-` for stdin).
     ///
@@ -194,9 +191,10 @@ impl Preview {
         &self,
         client_config: StudioClientConfig,
         checks_timeout_seconds: u64,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+        let client = client_config.get_authenticated_client(profile)?;
         let graph_ref = self.graph.graph_ref.clone();
 
         if let Some(build_id) = &self.build_id {
@@ -204,7 +202,7 @@ impl Preview {
                 "Checking status of subgraph preview job {} on {} using credentials from the {} profile.",
                 stderr.paint(Style::Link, build_id),
                 stderr.paint(Style::Link, graph_ref.to_string()),
-                stderr.paint(Style::Command, &self.profile.profile_name)
+                stderr.paint(Style::Command, &profile.profile_name)
             )));
             let preview_response = preview::result(
                 ComposeAndFilterPreviewStatusInput {
@@ -222,7 +220,7 @@ impl Preview {
         stderr.print(&StyledText::plain(format!(
             "Previewing composed schema for {} using credentials from the {} profile.",
             stderr.paint(Style::Link, graph_ref.to_string()),
-            stderr.paint(Style::Command, &self.profile.profile_name)
+            stderr.paint(Style::Command, &profile.profile_name)
         )));
 
         let input = ComposeAndFilterPreviewInput {
@@ -339,7 +337,6 @@ mod tests {
             graph: GraphRefOpt {
                 graph_ref: "test-graph@current".parse().unwrap(),
             },
-            profile: ProfileOpt::default(),
             subgraph_changes_file: None,
             include_tag: Vec::new(),
             no_include_tags: false,

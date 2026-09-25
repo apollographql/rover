@@ -12,16 +12,18 @@ use crate::{
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct Delete {
     #[clap(flatten)]
-    profile: ProfileOpt,
-    #[clap(flatten)]
     organisation_opt: OrganizationOpt,
     #[clap(flatten)]
     id_opt: IdOpt,
 }
 
 impl Delete {
-    pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub(crate) async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let resp = run(
             DeleteKeyInput {
                 organization_id: self.organisation_opt.organization_id.clone(),

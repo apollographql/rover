@@ -10,14 +10,16 @@ use crate::{
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct List {
     #[clap(flatten)]
-    profile: ProfileOpt,
-    #[clap(flatten)]
     organization_opt: OrganizationOpt,
 }
 
 impl List {
-    pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub(crate) async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let resp = run(
             ListKeysInput {
                 organization_id: self.organization_opt.organization_id.clone(),

@@ -7,7 +7,7 @@ pub(crate) mod whoami;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Config {
@@ -34,17 +34,27 @@ pub enum Command {
 }
 
 impl Config {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Auth(command) => {
-                command.run(client_config.config, &rover_print::print::stderr::default())
-            }
+            Command::Auth(command) => command.run(
+                client_config.config,
+                profile,
+                &rover_print::print::stderr::default(),
+            ),
             Command::List(command) => command.run(client_config.config),
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
             Command::Whoami(command) => {
                 command
-                    .run(client_config, &rover_print::print::stderr::default())
+                    .run(
+                        client_config,
+                        profile,
+                        &rover_print::print::stderr::default(),
+                    )
                     .await
             }
         }

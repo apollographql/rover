@@ -41,14 +41,16 @@ impl From<std::convert::Infallible> for RevokeHttpError {
 ///
 /// Revokes the access/refresh tokens stored for the given `--profile` (or
 /// "default") with the OAuth server, then removes them from local storage.
-pub struct Logout {
-    #[clap(flatten)]
-    profile: ProfileOpt,
-}
+pub struct Logout {}
 
 impl Logout {
-    pub async fn run(&self, config: Config, oauth_config: OauthConfig) -> RoverResult<RoverOutput> {
-        let profile_name = &self.profile.profile_name;
+    pub async fn run(
+        &self,
+        config: Config,
+        oauth_config: OauthConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let profile_name = &profile.profile_name;
 
         let Some(session) = Profile::get_oauth_session(profile_name, &config)? else {
             return Err(RoverError::new(anyhow::anyhow!(
@@ -150,11 +152,13 @@ mod tests {
         (Config::new(Some(&tmp_home_path), None).unwrap(), tmp_home)
     }
 
-    fn logout(profile_name: &str) -> Logout {
-        Logout {
-            profile: ProfileOpt {
-                profile_name: profile_name.to_string(),
-            },
+    fn logout() -> Logout {
+        Logout {}
+    }
+
+    fn profile_opt(profile_name: &str) -> ProfileOpt {
+        ProfileOpt {
+            profile_name: profile_name.to_string(),
         }
     }
 
@@ -265,8 +269,12 @@ mod tests {
         let (config, _tmp_home) = test_config();
         Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
 
-        let error = logout("missing-profile")
-            .run(config, OauthConfig::default())
+        let error = logout()
+            .run(
+                config,
+                OauthConfig::default(),
+                &profile_opt("missing-profile"),
+            )
             .await
             .expect_err("expected logging out of a nonexistent profile to fail");
 
@@ -279,8 +287,12 @@ mod tests {
         let (config, _tmp_home) = test_config();
         Profile::set_api_key("legacy-profile", &config, "some-key").unwrap();
 
-        let error = logout("legacy-profile")
-            .run(config, OauthConfig::default())
+        let error = logout()
+            .run(
+                config,
+                OauthConfig::default(),
+                &profile_opt("legacy-profile"),
+            )
             .await
             .expect_err("expected logging out of a legacy API-key profile to fail");
 

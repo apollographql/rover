@@ -15,8 +15,6 @@ use crate::{
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct Rename {
     #[clap(flatten)]
-    profile: ProfileOpt,
-    #[clap(flatten)]
     organization_opt: OrganizationOpt,
     #[clap(flatten)]
     id_opt: IdOpt,
@@ -25,8 +23,12 @@ pub(crate) struct Rename {
 }
 
 impl Rename {
-    pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub(crate) async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         let old_key_resp = run_get(
             GetKeyInput {

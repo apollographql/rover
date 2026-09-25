@@ -8,7 +8,8 @@ use rover_print::print::Print;
 use serde::Serialize;
 
 use crate::{
-    RoverOutput, RoverResult, command::persisted_queries, utils::client::StudioClientConfig,
+    RoverOutput, RoverResult, command::persisted_queries, options::ProfileOpt,
+    utils::client::StudioClientConfig,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -33,13 +34,17 @@ impl PersistedQueries {
     pub async fn run<P: Print>(
         &self,
         client_config: Option<StudioClientConfig>,
+        profile: &ProfileOpt,
         stderr: &P,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Generate(command) => command.run(stderr).await,
             Command::Publish(command) => {
                 command
-                    .run(client_config.expect("publish requires client config"))
+                    .run(
+                        client_config.expect("publish requires client config"),
+                        profile,
+                    )
                     .await
             }
         }

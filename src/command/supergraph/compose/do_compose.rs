@@ -12,7 +12,7 @@ use crate::{
     RoverOutput, RoverResult,
     command::supergraph::compose::output::ComposeOutput,
     composition::{CompositionError, get_supergraph_binary},
-    options::PluginOpts,
+    options::{PluginOpts, ProfileOpt},
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -69,6 +69,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
+        profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         let write_file_impl = FsWriteFile::default();
@@ -78,6 +79,7 @@ impl Compose {
             self.opts.federation_version.clone(),
             client_config,
             override_install_path,
+            profile.clone(),
             self.opts.plugin_opts.clone(),
             self.opts.supergraph_config_source.supergraph_yaml().clone(),
             self.opts.supergraph_config_source.graph_ref().clone(),

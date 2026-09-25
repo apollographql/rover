@@ -4,7 +4,7 @@ use clap::Parser;
 pub use fetch::Fetch;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
+use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct License {
@@ -19,9 +19,13 @@ pub enum Command {
 }
 
 impl License {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(command) => command.run(client_config).await,
+            Command::Fetch(command) => command.run(client_config, profile).await,
         }
     }
 }

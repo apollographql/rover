@@ -36,9 +36,6 @@ pub struct Check {
     graph: OptionalGraphRefOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    #[clap(flatten)]
     #[serde(flatten)]
     file_discovery: FileDiscoveryOpt,
 }
@@ -96,6 +93,7 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: rover_client::shared::GitContext,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         let parsed_files = self.find_and_parse_files()?;
         let (operations, extensions) = gather_inputs(&parsed_files)?;
@@ -105,7 +103,7 @@ impl Check {
         }
 
         let graph_ref = self.require_graph_ref()?;
-        let service = self.build_graphql_service(&client_config)?;
+        let service = self.build_graphql_service(&client_config, profile)?;
 
         let extension_failures =
             fetch_and_validate_extensions(&extensions, &graph_ref, service.clone()).await?;
@@ -147,8 +145,9 @@ impl Check {
     fn build_graphql_service(
         &self,
         client_config: &StudioClientConfig,
+        profile: &ProfileOpt,
     ) -> RoverResult<GraphQlService> {
-        let http_service = client_config.authenticated_service(&self.profile)?;
+        let http_service = client_config.authenticated_service(profile)?;
         Ok(ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .service(http_service))

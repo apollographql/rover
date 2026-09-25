@@ -20,9 +20,6 @@ pub struct Delete {
     #[clap(flatten)]
     subgraph: SubgraphOpt,
 
-    #[clap(flatten)]
-    profile: ProfileOpt,
-
     /// Skips the step where the command asks for user confirmation before
     /// deleting the subgraph. Also skips preview of build errors that
     /// might occur
@@ -35,13 +32,14 @@ impl Delete {
         &self,
         client_config: StudioClientConfig,
         checks_timeout_seconds: u64,
+        profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+        let client = client_config.get_authenticated_client(profile)?;
         eprintln!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Style::Link.paint(&self.subgraph.subgraph_name),
             Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Command.paint(&self.profile.profile_name)
+            Style::Command.paint(&profile.profile_name)
         );
 
         // this is probably the normal path -- preview a subgraph delete

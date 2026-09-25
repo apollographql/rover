@@ -14,9 +14,6 @@ pub struct Lint {
     graph: GraphRefOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 
@@ -25,8 +22,12 @@ pub struct Lint {
 }
 
 impl Lint {
-    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile)?;
+    pub async fn run(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
 
         let file_with_metadata = self
             .schema
