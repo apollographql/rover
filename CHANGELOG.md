@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`--config-home`, `--rover-home`, and `--no-color` are new global flags - @dotdat**
+
+  `--config-home`/`APOLLO_CONFIG_HOME` overrides where Rover's config directory (profiles) lives; `--rover-home`/`APOLLO_HOME` overrides where Rover installs its binary and plugins. Both were previously env-var-only. `--no-color` is a new flag alongside the existing `NO_COLOR`/`APOLLO_NO_COLOR` environment variables, which keep their current deny-list parsing (unset, empty, `0`, and `false` count as unset; anything else disables color) unchanged.
+
 - **`--vcs-remote-url`, `--vcs-branch`, `--vcs-commit`, and `--vcs-author` are new global flags, paired with the existing `APOLLO_VCS_*` environment variables - @dotdat**
 
   These override the Git context (remote URL, branch, commit, author) reported to GraphOS on check/publish. Previously env-var-only; the flag wins when both are set, and omitting both still falls back to the value inferred from the current directory's Git repository exactly as before.

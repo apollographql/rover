@@ -171,6 +171,14 @@ pub struct Rover {
     #[arg(long = "vcs-author", global = true, env = "APOLLO_VCS_AUTHOR")]
     vcs_author: Option<String>,
 
+    /// Override the location of Rover's config directory, where profiles live.
+    #[arg(long = "config-home", global = true, env = "APOLLO_CONFIG_HOME")]
+    config_home: Option<Utf8PathBuf>,
+
+    /// Override the location Rover installs its binary and plugins to.
+    #[arg(long = "rover-home", global = true, env = "APOLLO_HOME")]
+    rover_home: Option<Utf8PathBuf>,
+
     /// Skip checking for newer versions of rover.
     ///
     /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
@@ -447,11 +455,8 @@ impl Rover {
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
-        let override_home: Option<Utf8PathBuf> = self
-            .get_env_var(RoverEnvKey::ConfigHome)?
-            .map(|p| Utf8PathBuf::from(&p));
         let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
-        Ok(Config::new(override_home.as_ref(), override_api_key)?)
+        Ok(Config::new(self.config_home.as_ref(), override_api_key)?)
     }
 
     #[cfg(feature = "oauth")]
@@ -592,9 +597,7 @@ impl Rover {
     }
 
     pub(crate) fn get_install_override_path(&self) -> RoverResult<Option<Utf8PathBuf>> {
-        Ok(self
-            .get_env_var(RoverEnvKey::Home)?
-            .map(|p| Utf8PathBuf::from(&p)))
+        Ok(self.rover_home.clone())
     }
 
     pub(crate) fn get_git_context(&self) -> RoverResult<GitContext> {
@@ -1028,5 +1031,31 @@ mod tests {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
         assert_that!(rover.vcs_author).is_equal_to(None);
+    }
+
+    #[test]
+    fn config_home_flag_wins_over_env_var() {
+        let flag_home = tempfile::tempdir().unwrap();
+        let flag_home_path = camino::Utf8Path::from_path(flag_home.path()).unwrap();
+        let rover = temp_env::with_var("APOLLO_CONFIG_HOME", Some("/env/home"), || {
+            Rover::parse_from([
+                PKG_NAME,
+                "config",
+                "list",
+                "--config-home",
+                flag_home_path.as_str(),
+            ])
+        });
+        let config = rover.get_rover_config().unwrap();
+        assert_that!(config.home.as_str()).is_equal_to(flag_home_path.as_str());
+    }
+
+    #[test]
+    fn rover_home_env_var_applies_alone() {
+        let rover = temp_env::with_var("APOLLO_HOME", Some("/env/rover-home"), || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_that!(rover.get_install_override_path().unwrap())
+            .is_equal_to(Some(camino::Utf8PathBuf::from("/env/rover-home")));
     }
 }

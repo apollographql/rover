@@ -93,15 +93,25 @@ pub struct OutputOpts {
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
     pub output_file: Option<Utf8PathBuf>,
 
+    /// Disable colored output.
+    ///
+    /// `NO_COLOR`/`APOLLO_NO_COLOR` already disable it too, on any value
+    /// other than an empty string, `0`, or `false` (case-insensitive) - this
+    /// flag doesn't change that convention, it's just an additional way to
+    /// opt out.
+    #[arg(long = "no-color", global = true)]
+    pub no_color: bool,
+
     #[arg(skip)]
     #[serde(skip_serializing)]
     pub channel: Option<UnboundedSender<OutputChannelKind>>,
 }
 
 impl OutputOpts {
-    /// Sets the `NO_COLOR` env var if the output is not a terminal or if the output is a file.
+    /// Sets the `NO_COLOR` env var if `--no-color` was passed, if the output is not a
+    /// terminal, or if the output is a file.
     pub fn set_no_color(&self) {
-        if !io::stdout().is_terminal() || self.output_file.is_some() {
+        if self.no_color || !io::stdout().is_terminal() || self.output_file.is_some() {
             unsafe {
                 // SAFETY: This code runs in a single-threaded context, so no other threads
                 // can read or modify environment variables concurrently.
