@@ -61,7 +61,7 @@ Three rules follow:
 
 - **OAuth grants support only Read and Delete.** A grant is a side effect of authenticating; there is no "create a grant" or "edit a grant" action. Client credential pairs support create, read, update (rotate), and delete.
 - **Self-service and org-wide are separate capabilities, not one capability with a wider filter.** Org-wide visibility carries meaningfully higher blast radius and is what the security-lead persona needs for incident response. It gets its own permission on the Platform API side and its own explicit flag on the Rover side, so a user can never widen scope by accident.
-- **There is no org-wide bulk revoke.** The widest revocation any tier has is "every grant belonging to one user." Revoking everything in an organization at once is not a capability this PRD asks for, from Rover or from the Platform API.
+- **There is no org-wide bulk revoke** (§5).
 
 ## 4. Goals
 
@@ -81,6 +81,7 @@ Three rules follow:
 - **Studio web-login session management.** Existing bulk revocation of Studio browser sessions is a different resource and is not touched.
 - **The identity-server storage and Platform API design itself.** §9 records what Rover depends on, at the level of capability and proposed field, so the dependency is legible. The design of those fields, their permissions, and their storage is owned by the Platform API team.
 - **Deprecating API keys or `rover config`.** Nothing here removes or discourages existing credential types beyond the advisory `rover config whoami` already prints.
+- **Rotating `operator`/`subgraph` API keys.** `rotate` is introduced only for client-credential pairs in this PRD; extending it to other key types is a natural follow-on but not addressed here.
 
 ## 6. Part A: Client credential management
 
@@ -91,9 +92,9 @@ Extends `rover api-key`, which already models an org-scoped, named credential wi
 1. **Create.** `rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID>...` registers a new pair under the organization and prints the `client_id` and `client_secret`.
    - The secret is shown **exactly once**, at creation. No later command can retrieve it. The output must say so, and must show when the secret expires.
    - **Scope is a set of graphs.** `--graph-id` is required and repeatable, naming between one and fifty graphs that belong to the organization. The pair's permissions over those graphs are fixed by the `rover:cli` scope (§2.2): read, check, and publish, which is what a Rover pipeline needs. Rover always requests that scope and exposes no scope or role selector, because the API accepts nothing else today. If the API later admits more scopes, Rover adds a flag then.
-   - `--secret-lifetime-days <N>` optionally shortens the secret's lifetime below the two-year default, up to the API maximum of 730 days.
+   - `--secret-lifetime-days <N>` optionally shortens the secret's lifetime. The API's default is already its 730-day (two-year) maximum, so this flag can only ever shorten it, never lengthen it. The API does not document a minimum; Rover does not enforce one client-side and surfaces whatever validation error the API returns for an out-of-range value.
    - JSON output carries `client_id`, `client_secret`, `secret_expires_at`, and the graph list as distinct fields so CI setup can be scripted without parsing prose.
-2. **List.** `rover api-key list <ORGANIZATION_ID>` includes client-credential pairs alongside other key types, showing at minimum name, type, `client_id`, graphs, creation time, and who created it. Secrets never appear in list output. Rover pages through the API's forward-only cursor so the user sees the whole set. A `--type` filter is desirable so an admin can audit machine identities alone. Last-used time is shown once the API exposes it (§9).
+2. **List.** `rover api-key list <ORGANIZATION_ID>` includes client-credential pairs alongside other key types, showing at minimum name, type, `client_id`, graphs, creation time, and who created it. Secrets never appear in list output. Rover pages through the API's forward-only cursor so the user sees the whole set. `rover api-key list` must accept an optional `--type` filter so an admin can audit machine identities alone. Last-used time is shown once the API exposes it (§9).
 3. **Rotate.** `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID> [--grace-period-days <N>]` mints a new secret, prints it once with its expiry, and expires every other secret the pair holds after the grace period. **Rover mirrors the API default: with no flag, the old secret stops working immediately.** The output states when the old secret expires so a hard cutover is never silent, and the docs recommend a grace period for zero-downtime rotation. The maximum grace period is thirty days. Name and graphs carry over unchanged.
 4. **Delete.** `rover api-key delete <ORGANIZATION_ID> <CLIENT_ID>` deletes the pair. The pair can no longer obtain tokens, but an access token already issued keeps working until it expires, up to fifteen minutes; the output says so. Existing delete semantics (irreversible, confirm the ID) carry over. This is the response to a leaked pair.
 5. **No rename.** The API has no rename for OAuth clients, so `rover api-key rename` rejects a client-credentials ID with a clear message until one exists (§9).
@@ -102,8 +103,8 @@ Extends `rover api-key`, which already models an org-scoped, named credential wi
 ### A2. Key decisions and rationale
 
 - **`rover api-key`, not a new noun.** The verbs (create/list/delete), the addressing (organization ID, then a per-key ID), and the audience already exist. Adding a key type is the smallest change that gives the capability a discoverable home, and it keeps "things an org admin issues to machines" in one place. The costs are that a pair has two values where an API key has one, and that the API models OAuth clients as a separate resource from API keys, so `list` merges two queries. Both are Rover's problem to hide, not the user's.
-- **Graph set plus fixed scope, not one graph plus a role.** This follows the shipped API rather than the graph API key model. A pipeline that touches several graphs gets one pair instead of several, and the permission set is the one Rover's own commands need. The trade is that there is no read-only or narrower pair today; that arrives when the API admits more scopes, and Rover will follow.
-- **`rotate` is a new verb, introduced for client credentials first.** No key type has it in Rover today, although the API already supports it for organization keys. Extending it to `operator`/`subgraph` keys is a natural follow-on, not in scope here.
+- **Graph set plus fixed scope.** This follows the shipped API rather than the graph API key model. A pipeline that touches several graphs gets one pair instead of several, and the permission set is the one Rover's own commands need. The trade is that there is no read-only or narrower pair today; that arrives when the API admits more scopes, and Rover will follow.
+- **`rotate` is a new verb, introduced for client credentials first.** No key type has it in Rover today, although the API already supports it for organization keys.
 - **Mirror the API's immediate-by-default rotation.** Studio and any other Platform API client will get the same default, so a Rover-specific overlap default would make the same action behave differently by surface. Rover compensates by always printing the old secret's expiry and by documenting `--grace-period-days` as the zero-downtime path.
 - **Show-once secrets.** Matches the precedent of every comparable CLI and the API's own contract.
 - **Audit trail needs no Rover work.** Every create, rotate, and delete is already recorded server-side with the acting identity and exported through the organization's existing audit export (§2.2). Rover's job is to pass through the caller's identity, which it does by authenticating normally.
@@ -127,7 +128,7 @@ Extends `rover auth`, the home of the interactive OAuth flows, with a `grants` n
 
 1. **List.** `rover auth grants list --org <ORGANIZATION_ID>` shows every active grant in the organization across every member and every client-credential pair, with the same per-grant fields as B2 plus the principal (user or client) each grant belongs to. This is a first-class capability, not a filter on the self-service list, because "who or what had an active grant during the breach window" is the incident-response question.
 2. **Revoke one, any member's.** `rover auth grants revoke --org <ORGANIZATION_ID> <GRANT_ID>` revokes one specific grant belonging to any member of the organization (one suspicious login), leaving every other grant untouched.
-3. **Revoke all of one user's.** `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes every grant belonging to that user, regardless of device or login method (offboarding). `--all` is only valid together with `--user`; it is the widest revocation Rover offers.
+3. **Revoke all of one user's.** `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes every grant that user established **through Rover** — browser login or device code, regardless of which machine (offboarding). This is a first step toward a fully cross-client revoke, not the end state: today it only reaches Rover's own OAuth client, because the shipped `revokeUserOAuthTokens(clientId, userId)` mutation is scoped to one client per call and Rover passes its own client ID (§9). It does not touch Studio web-login sessions (a different resource, §5) or grants from any other OAuth client. `--all` is only valid together with `--user`; it is the widest revocation Rover offers today.
 4. **Confirmation for the per-user case.** Revoking one grant needs no prompt. Revoking all of a user's grants prints the grants that will be revoked and asks for a yes/no confirmation that defaults to no; declining prints a cancellation notice and exits successfully without revoking anything. Passing `--confirm` skips the prompt for scripted offboarding. This is the same shape `rover graph delete` and `rover subgraph delete` use today for their irreversible actions, and the flag name is reused deliberately. Rover must never treat `--user` without `--all` as "revoke everything for this user"; the flag is required so the wider action is always spelled out on the command line.
 5. **No org-wide revoke.** There is no flag or argument combination that revokes every grant in an organization. `--all` without `--user` is an error.
 6. **Separate permission.** Org-wide list and revoke require the admin/security-lead permission on the Platform API side. A member without it gets a clear permission error, not an empty list.
@@ -162,7 +163,7 @@ Rover is the consumer. Part A's fields exist today; Part B's mostly do not. Fiel
 | B2.3 revoke own grant | `revokeGrant(grantId)` | Proposed |
 | B3.1 list org grants | `grants(accountId)` | Proposed |
 | B3.2 revoke any member's grant | `revokeGrant(grantId)` with org permission | Proposed |
-| B3.3 revoke all of one user's grants | `revokeUserOAuthTokens(clientId, userId)` | Shipped, per client; Rover passes its own client ID |
+| B3.3 revoke all of one user's grants | `revokeUserOAuthTokens(clientId, userId)` | Shipped, per client; Rover passes its own client ID today (see cross-client gap below) |
 
 Remaining gaps Rover needs resolved before the corresponding requirement can be met in full:
 
@@ -171,6 +172,7 @@ Remaining gaps Rover needs resolved before the corresponding requirement can be 
 - **Grant enumeration and single-grant revoke** (B2, B3.1, B3.2): the refresh-token store records the identifiers needed but nothing reads them yet. This is the central gap behind Part B.
 - **Grant type on a grant** (B1, B2.2): the grant record must expose whether it came from an authorization-code, device-code, or client-credentials exchange. The API already has the enum for this on the client record.
 - **No org-wide revoke on the API either.** The shipped `revokeUserOAuthTokens` requires a user, and any new grant-revocation mutation should be equally explicit, never treating an omitted target as "everything in the org," so no client of the API can wipe an org by omitting an argument.
+- **Cross-client user revoke.** `revokeUserOAuthTokens` takes one `clientId` per call, so B3.3 only reaches grants established through Rover's own client today. A mutation that revokes a user's grants across every OAuth client in the org in one call — the identity server doing the fan-out instead of Rover looping over a self-maintained client list — would make B3.3 genuinely cross-cutting, matching the incident-response/offboarding intent behind it. Not blocking: B3.3 ships now scoped to Rover's own client and would adopt the wider mutation later with no change to the CLI surface.
 
 ## 10. Success metrics
 
