@@ -188,4 +188,18 @@ mod tests {
             Some("2.9.0".to_string())
         );
     }
+
+    #[test]
+    fn composition_version_env_var_applies_alone() {
+        let opts = temp_env::with_var(
+            "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+            Some("2.7.0"),
+            || DevOpts::try_parse_from(["dev"]),
+        )
+        .unwrap();
+        assert_eq!(
+            opts.supergraph_opts.composition_version,
+            Some("2.7.0".to_string())
+        );
+    }
 }
