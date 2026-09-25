@@ -8,6 +8,7 @@
 use std::{fmt, str::FromStr};
 
 use semver::Version;
+use serde_with::SerializeDisplay;
 
 /// The forms a version request may take, as they appear in an error that has
 /// to list them. A `major.minor` build track joins this list in a later
@@ -17,7 +18,7 @@ const ACCEPTED_FORMS: &str =
 
 /// One of exactly three binaries Rover delegates to. No other name is valid
 /// anywhere in the plugin contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, SerializeDisplay)]
 pub enum PluginName {
     Supergraph,
     Router,
@@ -83,7 +84,7 @@ impl FromStr for PluginName {
 /// [`major`]: VersionRequest::major
 /// [`exact`]: VersionRequest::exact
 /// [`is_floating`]: VersionRequest::is_floating
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, SerializeDisplay)]
 pub enum VersionRequest {
     /// The newest release of the plugin, any major.
     Latest,
