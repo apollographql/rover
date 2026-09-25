@@ -1,16 +1,12 @@
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use clap::Parser;
-use rover_client::operations::persisted_queries::{
-    name::{self, PersistedQueryListNameInput},
-    publish::{
-        self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
-        RelayPersistedQueryManifest,
-    },
-    resolve::{self, ResolvePersistedQueryListInput},
+use rover_client::operations::persisted_queries::publish::{
+    self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput, RelayPersistedQueryManifest,
 };
 use rover_std::Style;
 use serde::Serialize;
 
+use super::identify::identify_persisted_query_list;
 use crate::{
     RoverOutput, RoverResult,
     options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt},
@@ -82,26 +78,14 @@ impl Publish {
             }
         }
 
-        let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
-            (Some(graph_ref), None, None) => {
-                let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client).await?;
-                (graph_ref.graph_id().to_string(), persisted_query_list.id, persisted_query_list.name)
-            },
-            (None, Some(graph_id), Some(list_id)) => {
-                let list_name = name::run(PersistedQueryListNameInput { graph_id: graph_id.clone(), list_id: list_id.clone() }, &client).await?.name;
-                (graph_id.to_string(), list_id.to_string(), list_name)
-            },
-            (None, Some(graph_id), None) => {
-                return Err(anyhow!("You must specify a --list-id <LIST_ID> when publishing operations to --graph-id {graph_id}, or, if a list is linked to a specific variant, you can leave --graph-id unspecified, and pass a full graph ref as a positional argument.").into())
-            }
-            (None, None, Some(list_id)) => {
-                return Err(anyhow!("You must specify a --graph-id <GRAPH_ID> when publishing operations to --list-id {list_id}, or, if {list_id} is linked to a specific variant, you can leave --list-id unspecified, and pass a full graph ref as a positional argument.").into())
-            }
-            (None, None, None) => {
-                return Err(anyhow!("You must either specify a <GRAPH_REF> that has a linked persisted query list OR both a --graph_id <GRAPH_ID> and --list_id <LIST_ID>").into())
-            },
-            (Some(_), Some(_), Some(_)) | (Some(_), Some(_), None) | (Some(_), None, Some(_)) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
-        };
+        let (graph_id, list_id, list_name) = identify_persisted_query_list(
+            &self.graph,
+            &self.graph_id,
+            &self.list_id,
+            "publishing operations to",
+            &client,
+        )
+        .await?;
 
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
