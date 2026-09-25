@@ -6,7 +6,7 @@ use super::{binary::SupergraphBinary, version::SupergraphVersion};
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
-    plugin::error::PluginFailure,
+    plugin::error::{PluginFailure, RequestOrigin},
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -30,6 +30,7 @@ pub enum InstallSupergraphError {
 pub struct InstallSupergraph {
     federation_version: FederationVersion,
     studio_client_config: StudioClientConfig,
+    origin: Option<RequestOrigin>,
 }
 
 impl InstallSupergraph {
@@ -40,7 +41,14 @@ impl InstallSupergraph {
         InstallSupergraph {
             federation_version,
             studio_client_config,
+            origin: None,
         }
+    }
+
+    /// Records where the federation version came from, to name if the
+    /// release it asks for has been withdrawn.
+    pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
+        Self { origin, ..self }
     }
 }
 
@@ -74,6 +82,7 @@ impl InstallBinary for InstallSupergraph {
                 override_install_path,
                 self.studio_client_config.clone(),
                 skip_update,
+                self.origin.clone(),
             )
             .await
             .map_err(|err| match err.plugin_failure() {
@@ -120,7 +129,7 @@ mod tests {
         },
         options::LicenseAccepter,
         plugin::{
-            error::PluginFailure,
+            error::{PluginFailure, RequestOrigin},
             version::{PluginName, VersionRequest},
         },
         utils::{
@@ -548,5 +557,72 @@ mod tests {
         #[case] error: anyhow::Error,
     ) {
         assert_that!(RoverError::new(error).code()).is_equal_to(Some(RoverErrorCode::E048));
+    }
+
+    /// The on-the-fly installer names where its version came from, so a
+    /// withdrawn release points the user at the line to change.
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    async fn a_withdrawn_release_names_supergraph_yaml() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        http_server.mock(|when, then| {
+            when.method(Method::GET).path_includes("/v2.9.3");
+            then.status(410);
+        });
+        http_server.mock(|when, then| {
+            when.method(Method::HEAD).path_includes("/latest-2");
+            then.status(302).header("X-Version", "v2.9.5");
+        });
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::new(1),
+        );
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
+            studio_client_config,
+        )
+        .requested_by(Some(RequestOrigin::SupergraphConfig(Some(
+            Utf8PathBuf::from("supergraph.yaml"),
+        ))));
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+
+        let result = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
+                ("APOLLO_NODE_MODULES_BIN_DIR", None),
+            ],
+            async {
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        let error = RoverError::new(result.expect_err("the release was withdrawn"));
+        assert_that!((
+            error.code(),
+            error.plugin_failure().map(ToString::to_string),
+            error.suggestions().iter().map(ToString::to_string).collect::<Vec<_>>(),
+        ))
+        .is_equal_to((
+            Some(RoverErrorCode::E051),
+            Some("The `supergraph` plugin v2.9.3, set by `federation_version` in `supergraph.yaml`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.".to_string()),
+            vec!["Set `federation_version: =2.9.5` in `supergraph.yaml`.".to_string()],
+        ));
+        Ok(())
     }
 }

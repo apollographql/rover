@@ -40,6 +40,7 @@ use crate::{
             },
         },
     },
+    plugin::error::RequestOrigin,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -101,12 +102,16 @@ impl Dev {
             .supergraph_opts
             .federation_version
             .clone()
+            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
             .or_else(|| {
                 let version = &OVERRIDE_DEV_COMPOSITION_VERSION
                     .clone()
                     .and_then(|version| {
                         match FederationVersion::from_str(&format!("={version}")) {
-                            Ok(version) => Some(version),
+                            Ok(version) => Some((
+                                version,
+                                RequestOrigin::EnvVar("APOLLO_ROVER_DEV_COMPOSITION_VERSION"),
+                            )),
                             Err(err) => {
                                 errln!("{err}");
                                 tracing::error!("{:?}", err);
@@ -167,9 +172,12 @@ impl Dev {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
         }
 
-        let router_version = match &*OVERRIDE_DEV_ROUTER_VERSION {
-            Some(version) => RouterVersion::Exact(Version::parse(version)?),
-            None => RouterVersion::LatestTwo,
+        let (router_version, router_version_origin) = match &*OVERRIDE_DEV_ROUTER_VERSION {
+            Some(version) => (
+                RouterVersion::Exact(Version::parse(version)?),
+                Some(RequestOrigin::EnvVar("APOLLO_ROVER_DEV_ROUTER_VERSION")),
+            ),
+            None => (RouterVersion::LatestTwo, None),
         };
 
         let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
@@ -261,6 +269,7 @@ impl Dev {
         let run_router = RunRouter::default()
             .install(
                 router_version,
+                router_version_origin,
                 client_config.clone(),
                 override_install_path.clone(),
                 elv2_license_accepter,
@@ -326,10 +335,12 @@ impl Dev {
                 .version
                 .clone()
                 .unwrap_or(McpServerVersion::Latest);
+            let mcp_version_origin = self.opts.mcp.version_origin();
 
             let run_mcp_server = RunMcpServer::default()
                 .install(
                     mcp_version,
+                    mcp_version_origin,
                     client_config.clone(),
                     override_install_path,
                     elv2_license_accepter,

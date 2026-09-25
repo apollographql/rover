@@ -244,8 +244,19 @@ pub enum RequestOrigin {
     Flag(&'static str),
     /// An environment variable such as `APOLLO_ROVER_DEV_ROUTER_VERSION`.
     EnvVar(&'static str),
-    /// `federation_version` in `supergraph.yaml`.
-    SupergraphConfig,
+    /// `federation_version` in the supergraph config, at this path when it
+    /// was read from a file.
+    SupergraphConfig(Option<Utf8PathBuf>),
+}
+
+impl RequestOrigin {
+    /// The supergraph config, as a sentence names it.
+    fn supergraph_config(path: Option<&Utf8PathBuf>) -> String {
+        path.map_or_else(
+            || "the supergraph config".to_string(),
+            |path| format!("`{path}`"),
+        )
+    }
 }
 
 impl fmt::Display for RequestOrigin {
@@ -254,9 +265,11 @@ impl fmt::Display for RequestOrigin {
             Self::PluginArgument => f.write_str("requested by `rover install --plugin`"),
             Self::Flag(flag) => write!(f, "requested by `{flag}`"),
             Self::EnvVar(var) => write!(f, "set by `{var}`"),
-            Self::SupergraphConfig => {
-                f.write_str("set by `federation_version` in `supergraph.yaml`")
-            }
+            Self::SupergraphConfig(path) => write!(
+                f,
+                "set by `federation_version` in {}",
+                Self::supergraph_config(path.as_ref())
+            ),
         }
     }
 }
@@ -348,9 +361,10 @@ impl fmt::Display for PluginNextStep {
                             "Unset `{var}`, or set it to an exact version the plugin registry still serves."
                         ),
                     },
-                    RequestOrigin::SupergraphConfig => write!(
+                    RequestOrigin::SupergraphConfig(path) => write!(
                         f,
-                        "Set `federation_version: {request}` in `supergraph.yaml`{newest}."
+                        "Set `federation_version: {request}` in {}{newest}.",
+                        RequestOrigin::supergraph_config(path.as_ref())
                     ),
                 }
             }
@@ -604,9 +618,14 @@ mod tests {
         "Set `APOLLO_ROVER_DEV_ROUTER_VERSION` to `2.9.5`."
     )]
     #[case::supergraph_config(
-        RequestOrigin::SupergraphConfig,
+        RequestOrigin::SupergraphConfig(Some(Utf8PathBuf::from("graphs/prod.yaml"))),
         Some("2.9.5"),
-        "Set `federation_version: =2.9.5` in `supergraph.yaml`."
+        "Set `federation_version: =2.9.5` in `graphs/prod.yaml`."
+    )]
+    #[case::supergraph_config_from_stdin(
+        RequestOrigin::SupergraphConfig(None),
+        Some("2.9.5"),
+        "Set `federation_version: =2.9.5` in the supergraph config."
     )]
     fn a_withdrawn_version_suggests_changing_the_request_where_it_was_made(
         #[case] origin: RequestOrigin,
@@ -680,8 +699,12 @@ mod tests {
         "The `supergraph` plugin v2.9.3, set by `APOLLO_ROVER_DEV_ROUTER_VERSION`, is no longer available from the plugin registry."
     )]
     #[case::supergraph_config(
-        RequestOrigin::SupergraphConfig,
-        "The `supergraph` plugin v2.9.3, set by `federation_version` in `supergraph.yaml`, is no longer available from the plugin registry."
+        RequestOrigin::SupergraphConfig(Some(Utf8PathBuf::from("graphs/prod.yaml"))),
+        "The `supergraph` plugin v2.9.3, set by `federation_version` in `graphs/prod.yaml`, is no longer available from the plugin registry."
+    )]
+    #[case::supergraph_config_from_stdin(
+        RequestOrigin::SupergraphConfig(None),
+        "The `supergraph` plugin v2.9.3, set by `federation_version` in the supergraph config, is no longer available from the plugin registry."
     )]
     fn a_withdrawn_version_names_where_the_request_came_from(
         #[case] origin: RequestOrigin,
@@ -695,7 +718,7 @@ mod tests {
     #[case::download(download(), PluginName::Router, "2")]
     #[case::installation(installation(), PluginName::ApolloMcpServer, "latest")]
     #[case::no_longer_served(
-        no_longer_served(RequestOrigin::SupergraphConfig, None),
+        no_longer_served(RequestOrigin::SupergraphConfig(None), None),
         PluginName::Supergraph,
         "=2.9.3"
     )]
