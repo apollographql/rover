@@ -131,6 +131,7 @@ pub struct SupergraphOpts {
 mod tests {
     use camino::Utf8PathBuf;
     use clap::Parser;
+    use speculoos::prelude::*;
 
     use super::DevOpts;
 
@@ -157,10 +158,7 @@ mod tests {
             DevOpts::try_parse_from(["dev", "--router-version", "4.5.6"])
         })
         .unwrap();
-        assert_eq!(
-            opts.supergraph_opts.router_version,
-            Some("4.5.6".to_string())
-        );
+        assert_that!(opts.supergraph_opts.router_version).is_equal_to(Some("4.5.6".to_string()));
     }
 
     #[test]
@@ -169,10 +167,7 @@ mod tests {
             DevOpts::try_parse_from(["dev"])
         })
         .unwrap();
-        assert_eq!(
-            opts.supergraph_opts.router_version,
-            Some("1.2.3".to_string())
-        );
+        assert_that!(opts.supergraph_opts.router_version).is_equal_to(Some("1.2.3".to_string()));
     }
 
     #[test]
@@ -183,10 +178,8 @@ mod tests {
             || DevOpts::try_parse_from(["dev", "--composition-version", "2.9.0"]),
         )
         .unwrap();
-        assert_eq!(
-            opts.supergraph_opts.composition_version,
-            Some("2.9.0".to_string())
-        );
+        assert_that!(opts.supergraph_opts.composition_version)
+            .is_equal_to(Some("2.9.0".to_string()));
     }
 
     #[test]
@@ -197,9 +190,7 @@ mod tests {
             || DevOpts::try_parse_from(["dev"]),
         )
         .unwrap();
-        assert_eq!(
-            opts.supergraph_opts.composition_version,
-            Some("2.7.0".to_string())
-        );
+        assert_that!(opts.supergraph_opts.composition_version)
+            .is_equal_to(Some("2.7.0".to_string()));
     }
 }

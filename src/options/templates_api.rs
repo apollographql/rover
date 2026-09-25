@@ -15,6 +15,7 @@ pub struct TemplatesApiOpt {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use speculoos::prelude::*;
 
     use super::TemplatesApiOpt;
 
@@ -32,10 +33,8 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(
-            opts.templates_api.as_deref(),
-            Some("https://flag.example.com/templates")
-        );
+        assert_that!(opts.templates_api.as_deref())
+            .is_equal_to(Some("https://flag.example.com/templates"));
     }
 
     #[test]
@@ -46,10 +45,8 @@ mod tests {
             || TemplatesApiOpt::try_parse_from(["templates_api"]),
         )
         .unwrap();
-        assert_eq!(
-            opts.templates_api.as_deref(),
-            Some("https://env.example.com/templates")
-        );
+        assert_that!(opts.templates_api.as_deref())
+            .is_equal_to(Some("https://env.example.com/templates"));
     }
 
     #[test]
@@ -58,6 +55,6 @@ mod tests {
             TemplatesApiOpt::try_parse_from(["templates_api"])
         })
         .unwrap();
-        assert_eq!(opts.templates_api, None);
+        assert_that!(opts.templates_api).is_equal_to(None);
     }
 }
