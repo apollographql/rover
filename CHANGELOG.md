@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`--log`, `--format`, `--client-timeout`, and the six `--oauth-*` flags now accept an environment variable equivalent - @dotdat**
+
+  `--log`/`APOLLO_LOG_LEVEL`, `--format`/`APOLLO_FORMAT`, `--client-timeout`/`APOLLO_CLIENT_TIMEOUT`, `--oauth-authorization-url`/`APOLLO_OAUTH_AUTHORIZATION_URL`, `--oauth-token-url`/`APOLLO_OAUTH_TOKEN_URL`, `--oauth-whoami-url`/`APOLLO_OAUTH_WHOAMI_URL`, `--oauth-revocation-url`/`APOLLO_OAUTH_REVOCATION_URL`, `--oauth-device-authorization-url`/`APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL`, and `--oauth-client-id`/`APOLLO_OAUTH_CLIENT_ID` were previously flag-only. The flag wins when both are set; each flag's `--help` text now names its environment variable. No existing behavior changes: this is purely additive, part of ROVER-451's Prerequisite slice giving every global setting both a flag and an environment variable.
+
 - **`--profile` is now a global flag, accepted by every command - @dotdat**
 
   Previously `--profile` was only defined on commands that talk to GraphOS; commands with no use for a credential (`rover template`, `rover docs`, `rover completion`, `rover update`, `rover install`, `rover info`, `rover explain`) rejected it as an unrecognized argument. It's now resolved once, globally, and every command accepts it — commands that don't use a credential simply ignore it. Omitting `--profile` still resolves to the `default` profile exactly as before; this is the first step of ROVER-451's configuration-precedence work and does not change behavior for anyone who doesn't pass `--profile` today.

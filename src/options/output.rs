@@ -86,7 +86,7 @@ pub enum OutputChannelKind {
 #[derive(Debug, Parser, Serialize, Default)]
 pub struct OutputOpts {
     /// Specify Rover's format type
-    #[arg(long = "format", global = true, default_value_t)]
+    #[arg(long = "format", global = true, env = "APOLLO_FORMAT", default_value_t)]
     pub format_kind: RoverOutputFormatKind,
 
     /// Specify a file to write Rover's console output to instead of stdout

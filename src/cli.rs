@@ -72,7 +72,7 @@ pub struct Rover {
     command: Command,
 
     /// Specify Rover's log level
-    #[arg(long = "log", short = 'l', global = true)]
+    #[arg(long = "log", short = 'l', global = true, env = "APOLLO_LOG_LEVEL")]
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
@@ -108,7 +108,7 @@ pub struct Rover {
     /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
     ///
     /// Defaults to 30s for standard operations and 300s for plugin downloads.
-    #[arg(long = "client-timeout", global = true)]
+    #[arg(long = "client-timeout", global = true, env = "APOLLO_CLIENT_TIMEOUT")]
     client_timeout: Option<ClientTimeout>,
 
     /// Skip checking for newer versions of rover.

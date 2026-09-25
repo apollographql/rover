@@ -38,6 +38,7 @@ pub struct OauthOpts {
     #[arg(
         long = "oauth-authorization-url",
         global = true,
+        env = "APOLLO_OAUTH_AUTHORIZATION_URL",
         default_value = DEFAULT_AUTHORIZATION_URL.as_str()
     )]
     pub(crate) authorization_url: Url,
@@ -46,6 +47,7 @@ pub struct OauthOpts {
     #[arg(
         long = "oauth-token-url",
         global = true,
+        env = "APOLLO_OAUTH_TOKEN_URL",
         default_value = DEFAULT_TOKEN_URL.as_str()
     )]
     pub(crate) token_url: Url,
@@ -54,18 +56,25 @@ pub struct OauthOpts {
     #[arg(
         long = "oauth-whoami-url",
         global = true,
+        env = "APOLLO_OAUTH_WHOAMI_URL",
         default_value = DEFAULT_WHOAMI_URL.as_str()
     )]
     pub(crate) whoami_url: Url,
 
     /// Override the OAuth client ID `rover auth login` uses.
-    #[arg(long = "oauth-client-id", global = true, default_value = DEFAULT_CLIENT_ID)]
+    #[arg(
+        long = "oauth-client-id",
+        global = true,
+        env = "APOLLO_OAUTH_CLIENT_ID",
+        default_value = DEFAULT_CLIENT_ID
+    )]
     pub(crate) client_id: String,
 
     /// Override the OAuth revocation endpoint `rover auth logout` uses.
     #[arg(
         long = "oauth-revocation-url",
         global = true,
+        env = "APOLLO_OAUTH_REVOCATION_URL",
         default_value = DEFAULT_REVOCATION_URL.as_str()
     )]
     pub(crate) revocation_url: Url,
@@ -75,6 +84,7 @@ pub struct OauthOpts {
     #[arg(
         long = "oauth-device-authorization-url",
         global = true,
+        env = "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
         default_value = DEFAULT_DEVICE_AUTHORIZATION_URL.as_str()
     )]
     pub(crate) device_authorization_url: Url,
