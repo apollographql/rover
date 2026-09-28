@@ -1,4 +1,3 @@
-# DEV BUILD for async preview; this file will get overwritten by a `cargo xtask prep` later.
 """
 An organization in Apollo Studio. Can have multiple members and graphs.
 """
@@ -25,8 +24,25 @@ type Organization {
   """The user memberships belonging to an Organization"""
   memberships: [AccountMembership!]
 
-  """Name of the organization, which can change over time and isn't unique."""
+  """
+  Name of the organization, which can change over time and isn't unique. If the organization has no company
+  name set, this falls back to the organization's ID.
+  """
   name: String!
+
+  """
+  Fetches one of the organization's `client_credentials` OAuth clients by its `client_id`. Returns null if no such client.
+  """
+  oauthClient(clientId: ID!): OAuthClient
+
+  """The organization's `client_credentials` OAuth clients."""
+  oauthClients(
+    """The cursor to start the page after."""
+    after: String
+
+    """The maximum number of clients to return."""
+    first: Int
+  ): OAuthClientConnection!
 
   """The session length in seconds for a user in this org"""
   sessionDurationInSeconds: Int
@@ -88,11 +104,54 @@ type OrganizationMutation {
   """Create an ApiKey"""
   createKey(name: String!, resources: ApiKeyResourceInput, type: GraphOsKeyType!): GraphOsKey!
 
+  """
+  Create an OAuth client that authenticates as itself with the `client_credentials` grant. The returned secret is shown only once.
+  """
+  createOAuthClient(
+    """A name for the client, for distinguishing it from other clients."""
+    clientName: String!
+
+    """The resources to restrict the client to."""
+    resources: OAuthClientResourceInput!
+
+    """The scopes tokens issued to this client may carry."""
+    scopes: [String!]!
+
+    """
+    Days until the returned secret expires, at most 730. Defaults to the standard secret lifetime if not specified.
+    """
+    secretLifetimeDays: Int
+  ): OAuthClient!
+
   """Delete an ApiKey"""
   deleteKey(keyId: ID!): ID!
 
+  """
+  Deletes a `client_credentials` OAuth client: a soft delete that also removes its secrets, service account, and principal
+  """
+  deleteOAuthClient(clientId: ID!): Void
+
   """Send an invitation to join the organization by E-mail"""
   invite(email: String!, role: UserPermission): AccountInvitation
+
+  """
+  Superseded by `createOAuthClient`, which returns the same client as `OAuthClient`. Registers an OAuth client that authenticates as itself with the `client_credentials` grant. The returned secret is shown only once.
+  """
+  registerOAuthClientCredentials(
+    """A name for the client, for distinguishing it from other clients."""
+    clientName: String!
+
+    """The resources to restrict the client to."""
+    resources: OAuthClientResourceInput!
+
+    """The scopes tokens issued to this client may carry."""
+    scopes: [String!]!
+
+    """
+    Days until the returned secret expires, at most 730. Defaults to the standard secret lifetime if not specified.
+    """
+    secretLifetimeDays: Int
+  ): OAuthClientCredentials! @deprecated(reason: "Use createOAuthClient instead")
 
   """Updates the name of an ApiKey"""
   renameKey(keyId: ID!, name: String!): GraphOsKey!
@@ -101,9 +160,19 @@ type OrganizationMutation {
   revokeKey(keyId: ID!): ID!
 
   """
+  Revoke all of a user's refresh tokens for an OAuth client. The outstanding access token will naturally expire after a TTL. This operation does not prevent the user from re-authenticating.
+  """
+  revokeUserOAuthTokens(clientId: String!, userId: ID!): Void
+
+  """
   Rotate an ApiKey by creating a new key and expiring the old one. Returns the new key
   """
   rotateKey(expireOldKeyAt: Timestamp, keyId: ID!, newKeyName: String): GraphOsKey!
+
+  """
+  Rotates an OAuth client's secret: creates a new secret and expires every other secret the client has, active or not yet active, after `gracePeriodDays` days (immediately by default)
+  """
+  rotateOAuthClientSecret(clientId: ID!, gracePeriodDays: Int): OAuthClient!
 
   """Create or update a custom session length for an org"""
   setCustomSessionLength(sessionDurationInSeconds: Int!): Int!
@@ -123,7 +192,18 @@ type OrganizationMutation {
 Represents an actor that performs actions in Apollo Studio. Most actors are either a `USER` or a `GRAPH` (based on a request's provided API key), and they have the corresponding `ActorType`.
 """
 type Actor {
+  """
+  The bare GraphOS actor id — no `user:`/`service:`/`identity:` prefix
+  (that story is gone; see migration 0037). Named `actorId`, matching
+  the shared supergraph type's field name exactly (not `id`).
+  """
   actorId: ID!
+
+  """
+  The kind of actor `actor_id` names. `r#type` renders as `type` on the
+  wire — async-graphql strips the raw-identifier escape — matching this
+  repo's existing convention (see e.g. `PolicyRuleScope.r#type`).
+  """
   type: ActorType!
 }
 
@@ -135,6 +215,32 @@ input ActorInput {
   type: ActorType!
 }
 
+"""
+The GraphQL-facing counterpart of migration 0037's `actor_type` Postgres
+enum (`crate::models::actor::StoredActorType`) — see
+`docs/developer/2026-08-19-A-actor-identity-refactor/design.md` §7.
+
+This deliberately redeclares the supergraph-wide shared `ActorType`
+enum — seven other subgraphs (constellation-registry included makes
+eight: custom-checks, identity, kotlin, operationcollections, proposals,
+registry, technical-support) already define a type of this exact name,
+and `ActorType` is also used as an *input* type elsewhere in the
+supergraph (`ActorInput.type`). Composition's `ENUM_VALUE_MISMATCH` rule
+requires every subgraph defining an enum used as an input to match its
+value set byte-for-byte. An earlier draft of this design added a tenth,
+locally-invented `UNKNOWN` member (for the domain enum's `Unknown(String)`
+forward-compat arm — see `crate::auth::actor::ActorType`) and Studio
+composition rejected it outright: `ENUM_VALUE_MISMATCH` because the other
+seven subgraphs don't define `UNKNOWN`, and (on `Actor` itself)
+`INVALID_FIELD_SHARING` because this subgraph marked `Actor.type`
+non-shareable while the other seven mark it shareable. So there is no
+`UNKNOWN` here: exactly the 9 values the shared enum has, no more. An
+actor type this build doesn't recognize is refused at the attribution
+write path instead of being rendered — see
+`crate::models::actor::UnrecognizedActorType` and the `TryFrom` call
+sites in `graphql::types::account_mutation` /
+`graphql::types::service_mutation`.
+"""
 enum ActorType {
   ANONYMOUS_USER
   BACKFILL
@@ -302,6 +408,9 @@ input ApiKeyResourceInput {
 
   """One or more subgraphs that a key has access to"""
   subgraphs: [SubgraphIdentifierInput!]
+
+  """One or more variants that a key has access to"""
+  variants: [GraphVariantIdentifierInput!]
 }
 
 """Filter API keys by their status"""
@@ -334,6 +443,9 @@ enum ApiKeyTypeFilter {
 
   """Filter for Subgraph keys"""
   SUBGRAPH
+
+  """Filter for Variant keys"""
+  VARIANT
 }
 
 """The payload from adding a tag to a graph artifact."""
@@ -1179,7 +1291,9 @@ type ComposeAndFilterPreviewFilterFailure {
   filterErrors: [ComposeAndFilterPreviewFilterError!]!
 }
 
-"""Returned by composeAndFilterPreviewStatus while the async preview build is still in progress."""
+"""
+Returned by composeAndFilterPreviewStatus while the async preview build is still in progress.
+"""
 type ComposeAndFilterPreviewPending {
   """The ID of the in-flight preview build."""
   buildID: ID!
@@ -1188,7 +1302,9 @@ type ComposeAndFilterPreviewPending {
   status: ComposeAndFilterPreviewPendingStatus!
 }
 
-"""Whether an in-flight async composeAndFilterPreview build is queued or actively executing."""
+"""
+Whether an in-flight async composeAndFilterPreview build is queued or actively executing.
+"""
 enum ComposeAndFilterPreviewPendingStatus {
   """The build is queued and has not yet started executing."""
   PENDING
@@ -1414,11 +1530,15 @@ input ContractConfigInput {
 The result of starting an async contractPreviewAsync build. Use the buildID to poll contractPreviewStatus for the outcome.
 """
 type ContractPreviewAsyncBuild {
-  """The ID of the started preview build. Poll contractPreviewStatus with this ID for results."""
+  """
+  The ID of the started preview build. Poll contractPreviewStatus with this ID for results.
+  """
   buildID: ID!
 }
 
-"""Returned by contractPreviewStatus while the async preview build is still in progress."""
+"""
+Returned by contractPreviewStatus while the async preview build is still in progress.
+"""
 type ContractPreviewAsyncPending {
   """The ID of the in-flight preview build."""
   buildID: ID!
@@ -1427,7 +1547,9 @@ type ContractPreviewAsyncPending {
   status: ContractPreviewAsyncPendingStatus!
 }
 
-"""Whether an in-flight async contractPreviewAsync build is queued or actively executing."""
+"""
+Whether an in-flight async contractPreviewAsync build is queued or actively executing.
+"""
 enum ContractPreviewAsyncPendingStatus {
   """The build is queued and has not yet started executing."""
   PENDING
@@ -1436,7 +1558,9 @@ enum ContractPreviewAsyncPendingStatus {
   RUNNING
 }
 
-"""The result of polling an async contractPreviewAsync build: still pending/running, or the terminal filter outcome."""
+"""
+The result of polling an async contractPreviewAsync build: still pending/running, or the terminal filter outcome.
+"""
 union ContractPreviewAsyncStatus = ContractPreviewAsyncPending | ContractPreviewErrors | ContractPreviewSuccess
 
 type ContractPreviewErrors {
@@ -1830,6 +1954,29 @@ type FalsePositiveFlag {
   '#@!api!@#' for api schema, '#@!supergraph!@#' for supergraph schema, subgraph otherwise
   """
   schemaScope: String!
+}
+
+"""
+A single diff element being reported as a false positive. beforeText and afterText are SDL captured at report time. Newer Studio clients send a coordinate-level snippet (the changed member with its parent type header); older clients send the full type.
+"""
+input FalsePositiveFlagElementInput {
+  """
+  SDL for the after state: a coordinate-level snippet or the full type, depending on the client. Empty string when there is no after state.
+  """
+  afterText: String!
+
+  """
+  SDL for the before state: a coordinate-level snippet or the full type, depending on the client. Empty string when there is no before state.
+  """
+  beforeText: String!
+
+  """The type of diff change being flagged."""
+  diffItemType: FlatDiffType!
+
+  """
+  The schema coordinate being flagged, e.g. "User.name" or "Query.users".
+  """
+  schemaCoordinate: String!
 }
 
 """
@@ -2288,6 +2435,11 @@ type FlatDiffTypeSummary {
 input GatewayIdentifierInput {
   """The gateway id"""
   gatewayId: String!
+
+  """
+  Optional graph id associated with this gateway key. When omitted, gatewayId is used.
+  """
+  graphId: String
 }
 
 interface GeneralProposalComment implements ProposalComment {
@@ -2323,50 +2475,6 @@ input GitContextInput {
 
   """The Git repository's remote URL."""
   remoteUrl: String
-}
-
-"""
-A single diff element being reported as a false positive. beforeText and afterText are the full type-level SDL blocks (oldType.printed / newType.printed from the diff view) captured at report time.
-"""
-input GQLFalsePositiveFlagElementInput {
-  """
-  Full type-level SDL for the after state. Empty string when the type was fully removed.
-  """
-  afterText: String!
-
-  """
-  Full type-level SDL for the before state. Empty string when the type had no before state.
-  """
-  beforeText: String!
-
-  """The type of diff change being flagged."""
-  diffItemType: FlatDiffType!
-
-  """
-  The schema coordinate being flagged, e.g. "User.name" or "Query.users".
-  """
-  schemaCoordinate: String!
-}
-
-"""
-Input for reporting one or more diff items as false positives on a proposal revision.
-"""
-input GQLReportFalsePositiveDiffItemsInput {
-  """
-  The individual diff elements being flagged. May be empty when submitting a note-only report.
-  """
-  elements: [GQLFalsePositiveFlagElementInput!]!
-
-  """Optional free-text note that applies to all elements in this batch."""
-  notes: String
-
-  """The revision whose diff contains the suspected false positives."""
-  revisionId: ID!
-
-  """
-  '#@!api!@#' for api schema, '#@!supergraph!@#' for supergraph schema, subgraph otherwise
-  """
-  schemaScope: String!
 }
 
 """
@@ -2670,6 +2778,12 @@ type GraphCreationError {
 
 union GraphCreationResult = GraphCreationError | Graph
 
+"""Details to identify a graph"""
+input GraphIdentifierInput {
+  """The graph id"""
+  graphId: String!
+}
+
 """
 A union of all containers that can comprise the components of a Studio graph
 """
@@ -2777,6 +2891,9 @@ enum GraphOsKeyType {
 
   """A key with one or more subgraphs as its target resource(s)"""
   SUBGRAPH
+
+  """A key with one or more variants as its target resource(s)"""
+  VARIANT
 }
 
 type GraphQLDoc {
@@ -2924,7 +3041,7 @@ type GraphVariant {
     Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
     """
     subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!]
-  ): ComposeAndFilterPreviewResult
+  ): ComposeAndFilterPreviewResult @deprecated(reason: "Use the composeAndFilterPreviewAsync mutation and poll composeAndFilterPreviewStatus instead.")
 
   """
   Poll the status and result of an async composeAndFilterPreview build started on this variant. Null if no such build exists.
@@ -3039,6 +3156,15 @@ type GraphVariant {
   routerConfig: String
 }
 
+"""Details to identify a graph variant"""
+input GraphVariantIdentifierInput {
+  """The graph id"""
+  graphId: String!
+
+  """The variant name"""
+  variantName: String!
+}
+
 """Result of looking up a variant by ref"""
 union GraphVariantLookup = GraphVariant | InvalidRefFormat
 
@@ -3076,10 +3202,9 @@ type GraphVariantMutation {
 
   """
   _Asynchronously_ previews a Contract schema built from this source variant.
-
+  
   Enqueues a Temporal workflow and returns immediately with a `ContractPreviewAsyncBuild`
-  containing a build ID, instead of blocking until the build completes. See `contractPreview`
-  for the synchronous equivalent.
+  containing a build ID. Poll `contractPreviewStatus` with that ID for the result.
   """
   contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewAsyncBuild!
 
@@ -4195,6 +4320,163 @@ type NotFoundError implements Error {
   message: String!
 }
 
+"""
+An OAuth client registered to an organization. `clientSecret` is returned only on the response that mints a secret, by client creation or secret rotation.
+"""
+type OAuthClient {
+  """The client's `client_id`, presented at the token endpoint."""
+  clientId: ID!
+
+  """The client's name, for distinguishing it from other clients."""
+  clientName: String
+
+  """
+  The client's `client_secret`. **This is a secret credential!** Non-null only on the response that mints it, from client creation or secret rotation; a client read back never carries it.
+  """
+  clientSecret: String
+
+  """When this client was registered."""
+  createdAt: Timestamp!
+
+  """The actor that registered this client."""
+  createdBy: Actor!
+
+  """The grant types this client may use. A client may hold more than one."""
+  grantTypes: [OAuthGrantKind!]!
+
+  """The resources this client is restricted to."""
+  resources: [OAuthClientResource!]!
+
+  """The scopes that tokens issued to this client may carry."""
+  scopes: [String!]!
+
+  """
+  When the secret in `clientSecret` expires. Non-null only alongside that secret.
+  """
+  secretExpiresAt: Timestamp
+}
+
+"""A page of an organization's `client_credentials` OAuth clients."""
+type OAuthClientConnection {
+  """
+  The edges of this page, each pairing a node with the cursor to fetch after it.
+  """
+  edges: [OAuthClientEdge!]!
+
+  """The OAuth clients in this page, in the same order as `edges`."""
+  nodes: [OAuthClient!]!
+
+  """Pagination state for this connection."""
+  pageInfo: OAuthClientPageInfo!
+
+  """
+  The total number of OAuth clients in the connection, regardless of pagination.
+  """
+  totalCount: Int
+}
+
+"""
+An OAuth client that authenticates as itself using the `client_credentials` grant, together with the secret it was issued.
+"""
+type OAuthClientCredentials {
+  """The client's `client_id`, presented at the token endpoint."""
+  clientId: String!
+
+  """The client's name, for distinguishing it from other clients."""
+  clientName: String!
+
+  """
+  The client's `client_secret`. **This is a secret credential!** It is returned only when the client is registered and cannot be retrieved afterwards, only replaced.
+  """
+  clientSecret: String!
+
+  """The resources this client is restricted to."""
+  resources: [OAuthClientResource!]!
+
+  """The scopes that tokens issued to this client will carry."""
+  scopes: [String!]!
+
+  """When the client secret expires."""
+  secretExpiresAt: Timestamp!
+}
+
+"""One OAuth client and the cursor for fetching the page after it."""
+type OAuthClientEdge {
+  """
+  The cursor for this edge, for use as the `after` argument to fetch subsequent pages.
+  """
+  cursor: String!
+
+  """The OAuth client at this position in the connection."""
+  node: OAuthClient!
+}
+
+"""
+Pagination state for a page of OAuth clients. Pagination is forward-only: only `first` and `after` are supported.
+"""
+type OAuthClientPageInfo {
+  """
+  The cursor to pass as `after` for the next page. Usually the cursor of the last edge; for an empty page, the position the read reached, if any. Null when there is nothing to resume from.
+  """
+  endCursor: String
+
+  """Whether another page exists after this one."""
+  hasNextPage: Boolean!
+
+  """
+  Always `false`. Pagination over this connection is forward-only, so there is never a previous page to report.
+  """
+  hasPreviousPage: Boolean!
+
+  """
+  The cursor of the first edge in this page, or null if the page is empty.
+  """
+  startCursor: String
+}
+
+"""A resource an OAuth client is restricted to."""
+type OAuthClientResource {
+  """The identifier of the resource the client is restricted to."""
+  resourceId: String!
+
+  """The type of resource the client is restricted to, such as `GRAPH`."""
+  resourceType: String!
+}
+
+"""Resources to restrict an OAuth client to."""
+input OAuthClientResourceInput {
+  """One or more graphs to restrict the client to."""
+  graphs: [GraphIdentifierInput!]!
+}
+
+"""An OAuth 2.1 grant type a client may use."""
+enum OAuthGrantKind {
+  """
+  The authorization code grant, in which a user authorizes the client through a browser redirect.
+  """
+  AUTHORIZATION_CODE
+
+  """
+  The client credentials grant, in which the client authenticates as itself with no user present.
+  """
+  CLIENT_CREDENTIALS
+
+  """
+  The device authorization grant, for clients on devices that cannot open a browser.
+  """
+  DEVICE_CODE
+
+  """
+  The refresh token grant, which exchanges a refresh token for a new access token.
+  """
+  REFRESH_TOKEN
+
+  """
+  A grant type this service does not name, including the extension grant types RFC 7591 permits.
+  """
+  UNKNOWN
+}
+
 """A list of saved GraphQL operations."""
 type OperationCollection {
   """The timestamp when the collection was created."""
@@ -4487,7 +4769,7 @@ input OperationInsightsTimeseriesReportFilterInInput {
 """The filters available when using the operation timeseries report."""
 input OperationInsightsTimeseriesReportFilterInput {
   """
-  Exclude operations that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', an REQUEST_INVALID error will be returned.
+  Exclude operations that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', a REQUEST_INVALID error will be returned.
   """
   exclude: OperationInsightsTimeseriesReportFilterInInput
 
@@ -5335,9 +5617,14 @@ type ProposalMutation {
   publishSubgraphs(input: PublishProposalSubgraphsInput!): PublishProposalSubgraphResult!
 
   """
+  Re-runs schema checks for the specified proposal revision and associates the resulting check workflow with that revision. If the revision has no existing check workflow, a new one is created. This field accepts up to 500 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  reRunCheckForRevision(input: ReRunCheckForRevisionInput!): ReRunCheckForRevisionResult!
+
+  """
   Report one or more diff items as suspected false positives on a proposal revision.
   """
-  reportFalsePositiveDiffItems(input: GQLReportFalsePositiveDiffItemsInput!): ReportFalsePositiveDiffItemsResult!
+  reportFalsePositiveDiffItems(input: ReportFalsePositiveDiffItemsInput!): ReportFalsePositiveDiffItemsResult!
 
   """
   Updates the description of this Proposal variant. Returns ValidationError if description exceeds max length of 10k characters.
@@ -5416,6 +5703,9 @@ type ProposalReview {
   decision: ReviewDecision!
   id: ID!
   isDismissed: Boolean!
+
+  """The revision this review was submitted against."""
+  revision: ProposalRevision
   updatedAt: Timestamp
   updatedBy: Identity
 }
@@ -5825,6 +6115,27 @@ type ReplyGeneralProposalComment implements GeneralProposalComment & ProposalCom
 }
 
 """
+Input for reporting one or more diff items as false positives on a proposal revision.
+"""
+input ReportFalsePositiveDiffItemsInput {
+  """
+  The individual diff elements being flagged. May be empty when submitting a note-only report.
+  """
+  elements: [FalsePositiveFlagElementInput!]!
+
+  """Optional free-text note that applies to all elements in this batch."""
+  notes: String
+
+  """The revision whose diff contains the suspected false positives."""
+  revisionId: ID!
+
+  """
+  '#@!api!@#' for api schema, '#@!supergraph!@#' for supergraph schema, subgraph otherwise
+  """
+  schemaScope: String!
+}
+
+"""
 The result of reporting one or more diff items as false positives on a proposal revision.
 """
 union ReportFalsePositiveDiffItemsResult = NotFoundError | PermissionError | ReportFalsePositiveDiffItemsSuccess | ValidationError
@@ -5840,6 +6151,15 @@ type ReportFalsePositiveDiffItemsSuccess {
 input RerunAsyncInput {
   sourceVariant: String
 }
+
+"""Input for re-running schema checks on a proposal revision."""
+input ReRunCheckForRevisionInput {
+  """The ID of the proposal revision whose schema checks should be re-run."""
+  revisionId: ID!
+}
+
+"""The result of re-running schema checks for a proposal revision."""
+union ReRunCheckForRevisionResult = NotFoundError | PermissionError | Proposal | ValidationError
 
 enum ReviewDecision {
   APPROVED
@@ -6204,7 +6524,7 @@ input SchemaCoordinateInsightsTimeseriesReportFilterInput {
   coordinateKinds: [CoordinateKind!]
 
   """
-  Exclude schema coordinates that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', an REQUEST_INVALID error will be returned.
+  Exclude schema coordinates that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', a REQUEST_INVALID error will be returned.
   """
   exclude: SchemaCoordinateInsightsTimeseriesReportFilterInInput
 
@@ -6516,14 +6836,14 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
+  """The graph's globally unique identifier."""
+  id: ID!
+
   """The organization that this graph belongs to."""
   account: Organization
 
   """Provides a view of the graph as an `Actor` type."""
   asActor: Actor!
-
-  """The graph's globally unique identifier."""
-  id: ID!
   name: String!
 
   """Describes the permissions that the active user has for this graph."""
@@ -6618,8 +6938,8 @@ type Graph implements Identity {
     'to' timestamps:
     - For the MINUTE resolution, the total time between 'from' and 'to' must be no more than 1 day, and the 'from' time must be no earlier than 30 days ago.
     - For the HOUR resolution, the total time between 'from' and 'to' must be no more than 7 days, and the 'from' time must be no earlier than 90 days ago.
-    - For the DAY and MONTH resolution, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
-    If these criteria are not met, this will return an REQUEST_INVALID error.
+    - For the DAY, MONTH, and ENTIRE_RANGE resolutions, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
+    If these criteria are not met, this will return a REQUEST_INVALID error.
     """
     resolution: TimeseriesReportResolution!
 
@@ -6665,8 +6985,8 @@ type Graph implements Identity {
     'to' timestamps:
     - The MINUTE resolution is not supported for schema coordinate insights.
     - For the HOUR resolution, the total time between 'from' and 'to' must be no more than 7 days, and the 'from' time must be no earlier than 90 days ago.
-    - For the DAY and MONTH resolution, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
-    If these criteria are not met, this will return an REQUEST_INVALID error.
+    - For the DAY, MONTH, and ENTIRE_RANGE resolutions, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
+    If these criteria are not met, this will return a REQUEST_INVALID error.
     """
     resolution: TimeseriesReportResolution
 
@@ -6715,8 +7035,8 @@ type Graph implements Identity {
     'to' timestamps:
     - For the MINUTE resolution, the total time between 'from' and 'to' must be no more than 1 day, and the 'from' time must be no earlier than 30 days ago.
     - For the HOUR resolution, the total time between 'from' and 'to' must be no more than 7 days, and the 'from' time must be no earlier than 90 days ago.
-    - For the DAY and MONTH resolution, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
-    If these criteria are not met, this will return an REQUEST_INVALID error.
+    - For the DAY, MONTH, and ENTIRE_RANGE resolutions, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
+    If these criteria are not met, this will return a REQUEST_INVALID error.
     """
     resolution: TimeseriesReportResolution!
 
@@ -6809,6 +7129,11 @@ type ServiceAccount implements Identity {
   """The organization this service account belongs to."""
   organization: Organization
 
+  """
+  Internal, immutable ID of the organization this service account belongs to.
+  """
+  organizationInternalID: ID!
+
   """The type of service account, indicating its intended use case."""
   type: ServiceAccountKind!
 }
@@ -6817,6 +7142,9 @@ type ServiceAccount implements Identity {
 enum ServiceAccountKind {
   """A gateway service account used for gateway operations"""
   GATEWAY
+
+  """The identity of an OAuth client using the `client_credentials` grant"""
+  OAUTH_CLIENT_CREDENTIALS
 
   """An operator service account used for administrative operations"""
   OPERATOR
@@ -6832,6 +7160,9 @@ enum ServiceAccountKind {
 
   """An unknown or unspecified service account type"""
   UNKNOWN
+
+  """A variant service account used for variant operations"""
+  VARIANT
 }
 
 """
@@ -7454,7 +7785,7 @@ The filters available when using the subgraph and connector timeseries report.
 """
 input SubgraphInsightsTimeseriesReportFilterInput {
   """
-  Exclude subgraph or connector fetches that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', an REQUEST_INVALID error will be returned.
+  Exclude subgraph or connector fetches that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', a REQUEST_INVALID error will be returned.
   """
   exclude: SubgraphInsightsTimeseriesReportFilterInInput
 
@@ -7548,7 +7879,7 @@ type SubgraphInsightsTimeseriesReportRow {
 
 input SubgraphSdlCheckInput {
   name: String!
-  sdl: GraphQLDocument!
+  sdl: GraphQLDocument
 }
 
 type TaskError {
@@ -7559,6 +7890,9 @@ type TaskError {
 enum TimeseriesReportResolution {
   """One-day buckets."""
   DAY
+
+  """Single bucket containing the entire time range."""
+  ENTIRE_RANGE
 
   """One-hour buckets."""
   HOUR
