@@ -40,6 +40,7 @@ use crate::{
         },
     },
     options::ProfileOpt,
+    plugin::error::RequestOrigin,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -93,14 +94,15 @@ impl Dev {
 
         // We resolve supergraph binary overrides (ie, composition version) in this order:
         //
-        // 1) cli option
-        // 2) env var override
+        // 1) --federation-version
+        // 2) --composition-version, or its env var
         // 3) what's in the supergraph config (represented here as None)
         let federation_version = self
             .opts
             .supergraph_opts
             .federation_version
             .clone()
+            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
             .or_else(|| {
                 let version = &self
                     .opts
@@ -109,7 +111,13 @@ impl Dev {
                     .clone()
                     .and_then(|version| {
                         match FederationVersion::from_str(&format!("={version}")) {
-                            Ok(version) => Some(version),
+                            Ok(version) => Some((
+                                version,
+                                RequestOrigin::flag_or_env(
+                                    "--composition-version",
+                                    "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+                                ),
+                            )),
                             Err(err) => {
                                 errln!("{err}");
                                 tracing::error!("{:?}", err);
@@ -170,10 +178,17 @@ impl Dev {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
         }
 
-        let router_version = match &self.opts.supergraph_opts.router_version {
-            Some(version) => RouterVersion::Exact(Version::parse(version)?),
-            None => RouterVersion::LatestTwo,
-        };
+        let (router_version, router_version_origin) =
+            match &self.opts.supergraph_opts.router_version {
+                Some(version) => (
+                    RouterVersion::Exact(Version::parse(version)?),
+                    Some(RequestOrigin::flag_or_env(
+                        "--router-version",
+                        "APOLLO_ROVER_DEV_ROUTER_VERSION",
+                    )),
+                ),
+                None => (RouterVersion::LatestTwo, None),
+            };
 
         let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
         let home_override = std::env::var(RoverEnvKey::Home.to_string()).ok();
@@ -264,6 +279,7 @@ impl Dev {
         let run_router = RunRouter::default()
             .install(
                 router_version,
+                router_version_origin,
                 client_config.clone(),
                 override_install_path.clone(),
                 elv2_license_accepter,
@@ -329,10 +345,12 @@ impl Dev {
                 .version
                 .clone()
                 .unwrap_or(McpServerVersion::Latest);
+            let mcp_version_origin = self.opts.mcp.version_origin();
 
             let run_mcp_server = RunMcpServer::default()
                 .install(
                     mcp_version,
+                    mcp_version_origin,
                     client_config.clone(),
                     override_install_path,
                     elv2_license_accepter,

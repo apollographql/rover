@@ -6,7 +6,7 @@ use super::binary::RouterBinary;
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
-    plugin::error::PluginFailure,
+    plugin::error::{PluginFailure, RequestOrigin},
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -26,6 +26,7 @@ pub enum InstallRouterError {
 pub struct InstallRouter {
     studio_client_config: StudioClientConfig,
     router_version: RouterVersion,
+    origin: Option<RequestOrigin>,
 }
 
 impl InstallRouter {
@@ -36,7 +37,14 @@ impl InstallRouter {
         InstallRouter {
             router_version,
             studio_client_config,
+            origin: None,
         }
+    }
+
+    /// Records where the router version came from, to name if the release
+    /// it asks for has been withdrawn.
+    pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
+        Self { origin, ..self }
     }
 }
 
@@ -61,6 +69,7 @@ impl InstallBinary for InstallRouter {
                 override_install_path,
                 self.studio_client_config.clone(),
                 skip_update,
+                self.origin.clone(),
             )
             .await
             .map_err(|err| match err.plugin_failure() {

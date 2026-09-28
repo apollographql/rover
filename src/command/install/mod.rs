@@ -54,7 +54,7 @@ impl Install {
                     .require_elv2_license(&client_config)?;
             }
             let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
-                .requested_by(RequestOrigin::PluginArgument);
+                .requested_by(Some(RequestOrigin::PluginArgument));
             plugin_installer.install(plugin, false).await?;
 
             Ok(RoverOutput::EmptySuccess)
@@ -119,6 +119,7 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         skip_update: bool,
+        origin: Option<RequestOrigin>,
     ) -> RoverResult<PluginProvenance> {
         // `APOLLO_ROVER_SKIP_UPDATE` opts out of all auto-updating; honor it here so
         // every command that resolves a plugin on the fly (compose, dev, lsp) uses
@@ -128,7 +129,8 @@ impl Install {
         let skip_update = skip_update || crate::utils::skip_all_updates();
         let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
+                .requested_by(origin);
             plugin_installer.install(plugin, skip_update).await
         } else {
             let mut err =

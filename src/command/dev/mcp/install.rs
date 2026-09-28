@@ -8,7 +8,7 @@ use crate::{
         install::{McpServerVersion, Plugin},
     },
     options::LicenseAccepter,
-    plugin::error::PluginFailure,
+    plugin::error::{PluginFailure, RequestOrigin},
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -28,6 +28,7 @@ pub enum InstallMcpServerError {
 pub struct InstallMcpServer {
     studio_client_config: StudioClientConfig,
     mcp_server_version: McpServerVersion,
+    origin: Option<RequestOrigin>,
 }
 
 impl InstallMcpServer {
@@ -39,7 +40,14 @@ impl InstallMcpServer {
         InstallMcpServer {
             mcp_server_version,
             studio_client_config,
+            origin: None,
         }
+    }
+
+    /// Records where the MCP server version came from, to name if the
+    /// release it asks for has been withdrawn.
+    pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
+        Self { origin, ..self }
     }
 }
 
@@ -64,6 +72,7 @@ impl InstallBinary for InstallMcpServer {
                 override_install_path,
                 self.studio_client_config.clone(),
                 skip_update,
+                self.origin.clone(),
             )
             .await
             .map_err(|err| match err.plugin_failure() {
