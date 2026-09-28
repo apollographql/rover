@@ -573,7 +573,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::new(1),
-        );
+        )
+        .with_download_host(mock_server_endpoint);
         let install_supergraph = InstallSupergraph::new(
             FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
             studio_client_config,
@@ -585,18 +586,13 @@ mod tests {
             elv2_license_accepted: Some(true),
         };
 
-        let result = temp_env::async_with_vars(
-            [
-                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
-                ("APOLLO_NODE_MODULES_BIN_DIR", None),
-            ],
-            async {
+        let result =
+            temp_env::async_with_vars([("APOLLO_NODE_MODULES_BIN_DIR", None::<&str>)], async {
                 install_supergraph
                     .install(Some(override_install_path), license_accepter, false)
                     .await
-            },
-        )
-        .await;
+            })
+            .await;
 
         let error = RoverError::new(result.expect_err("the release was withdrawn"));
         assert_that!((
