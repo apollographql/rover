@@ -108,7 +108,7 @@ impl From<RemoteActor> for PairActor {
     fn from(value: RemoteActor) -> Self {
         Self {
             id: value.actor_id,
-            kind: actor_kind(value.type_),
+            kind: value.type_.to_string(),
         }
     }
 }
@@ -122,21 +122,23 @@ impl From<RemoteResource> for PairResource {
     }
 }
 
-fn actor_kind(actor_type: RemoteActorType) -> String {
-    match actor_type {
-        RemoteActorType::ANONYMOUS_USER => "anonymous_user",
-        RemoteActorType::BACKFILL => "backfill",
-        RemoteActorType::CRON => "cron",
-        RemoteActorType::GRAPH => "graph",
-        RemoteActorType::INTERNAL_IDENTITY => "internal_identity",
-        RemoteActorType::SERVICE_ACCOUNT => "service_account",
-        RemoteActorType::SYNCHRONIZATION => "synchronization",
-        RemoteActorType::SYSTEM => "system",
-        RemoteActorType::USER => "user",
-        // Forward-compatible: a variant this build doesn't know about yet, rather than a panic.
-        RemoteActorType::Other(ref other) => return other.to_lowercase(),
+impl std::fmt::Display for RemoteActorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            RemoteActorType::ANONYMOUS_USER => "anonymous_user",
+            RemoteActorType::BACKFILL => "backfill",
+            RemoteActorType::CRON => "cron",
+            RemoteActorType::GRAPH => "graph",
+            RemoteActorType::INTERNAL_IDENTITY => "internal_identity",
+            RemoteActorType::SERVICE_ACCOUNT => "service_account",
+            RemoteActorType::SYNCHRONIZATION => "synchronization",
+            RemoteActorType::SYSTEM => "system",
+            RemoteActorType::USER => "user",
+            // Forward-compatible: a variant this build doesn't know about yet, rather than a panic.
+            RemoteActorType::Other(other) => return write!(f, "{}", other.to_lowercase()),
+        };
+        write!(f, "{s}")
     }
-    .to_string()
 }
 
 #[cfg(test)]
@@ -160,10 +162,10 @@ mod tests {
         RemoteActorType::Other("FUTURE_KIND".to_string()),
         "future_kind"
     )]
-    fn actor_kind_lowercases_every_known_variant_and_falls_back_for_unknown_ones(
+    fn display_lowercases_every_known_variant_and_falls_back_for_unknown_ones(
         #[case] actor_type: RemoteActorType,
         #[case] expected: &str,
     ) {
-        assert_that!(actor_kind(actor_type)).is_equal_to(expected.to_string());
+        assert_that!(actor_type.to_string()).is_equal_to(expected.to_string());
     }
 }
