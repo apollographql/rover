@@ -442,6 +442,64 @@ mod tests {
             .is_equal_to("https://registry.staging.example.com".to_string());
     }
 
+    // Flag beats both environment and profile at once - `overridden` must
+    // report both losers, not just whichever one `resolve_string_setting`
+    // happens to check first.
+    #[test]
+    fn a_flag_wins_over_both_environment_and_profile_and_reports_both_as_overridden() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://profile.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = temp_env::with_vars(
+            [
+                ("APOLLO_REGISTRY_URL", Some("https://env.example.com")),
+                ("APOLLO_TELEMETRY_URL", None),
+            ],
+            || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "--registry-url",
+                    "https://flag.example.com",
+                    "config",
+                    "show",
+                ])
+            },
+        );
+        rover
+            .insert_env_var(RoverEnvKey::RegistryUrl, "https://env.example.com")
+            .unwrap();
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let registry = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_REGISTRY_URL")
+            .unwrap();
+        assert_that!(&registry.value).is_equal_to("https://flag.example.com".to_string());
+        assert_that!(registry.source).is_equal_to(Source::Flag);
+        assert_that!(registry.overridden.len()).is_equal_to(2);
+        assert_that!(
+            registry
+                .overridden
+                .iter()
+                .any(|o| o.source == Source::Environment && o.value == "https://env.example.com")
+        )
+        .is_true();
+        assert_that!(registry.overridden.iter().any(
+            |o| o.source == Source::ExplicitProfile && o.value == "https://profile.example.com"
+        ))
+        .is_true();
+    }
+
     #[test]
     fn an_environment_variable_wins_and_reports_the_profile_value_as_overridden() {
         let home = config_home_with_setting(
