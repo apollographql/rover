@@ -460,7 +460,8 @@ mod tests {
             false,
             ClientBuilder::default(),
             ClientTimeout::new(1),
-        );
+        )
+        .with_download_host(mock_server_endpoint);
         let install_supergraph =
             InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
         let license_accepter = LicenseAccepter {
@@ -468,11 +469,8 @@ mod tests {
         };
 
         let result = temp_env::async_with_vars(
-            [
-                ("APOLLO_ROVER_DOWNLOAD_HOST", Some(mock_server_endpoint)),
-                // Would move the install root the corrupt-archive case names.
-                ("APOLLO_NODE_MODULES_BIN_DIR", None),
-            ],
+            // Would move the install root the corrupt-archive case names.
+            [("APOLLO_NODE_MODULES_BIN_DIR", None::<&str>)],
             async {
                 install_supergraph
                     .install(Some(override_install_path), license_accepter, false)
