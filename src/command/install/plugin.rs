@@ -1314,7 +1314,7 @@ mod tests {
             assert_that!(reported(&error)).is_equal_to((
                 Some(RoverErrorCode::E048),
                 "Couldn't resolve a release of the `supergraph` plugin matching `=2.9.9` from the plugin registry.".to_string(),
-                vec!["Make sure the plugin registry is reachable and that `supergraph` has a release matching `=2.9.9`, then re-run the command. If you use a registry other than Apollo's, check that `APOLLO_ROVER_DOWNLOAD_HOST` points at it.".to_string()],
+                vec!["Make sure the plugin registry is reachable and that `supergraph` has a release matching `=2.9.9`, then re-run the command. If you use a registry other than Apollo's, check that `--download-host` (or `APOLLO_ROVER_DOWNLOAD_HOST`) points at it.".to_string()],
             ));
         }
     }
