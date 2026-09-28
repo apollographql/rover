@@ -28,7 +28,7 @@ impl Set {
             .validate(&self.value)
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
 
-        Profile::set_setting(&profile.profile_name, &config, name.as_str(), &self.value)?;
+        Profile::new(&profile.profile_name, &config).set_setting(name.as_str(), &self.value)?;
 
         Ok(RoverOutput::CliOutput(Box::new(SetOutput {
             setting: name.as_str(),
@@ -109,8 +109,12 @@ mod tests {
 
         let output = set.run(config.clone(), &profile_opt("staging")).unwrap();
 
-        assert_that!(Profile::get_setting("staging", &config, "APOLLO_REGISTRY_URL").unwrap())
-            .is_equal_to(Some("https://registry.staging.example.com".to_string()));
+        assert_that!(
+            Profile::new("staging", &config)
+                .get_setting("APOLLO_REGISTRY_URL")
+                .unwrap()
+        )
+        .is_equal_to(Some("https://registry.staging.example.com".to_string()));
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
         assert_that!(text.unwrap()).contains(
             "Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile `staging`",
@@ -143,8 +147,12 @@ mod tests {
             .expect_err("expected an invalid URL to be rejected");
 
         assert_that!(error.to_string()).contains("isn't a valid URL");
-        assert_that!(Profile::get_setting("staging", &config, "APOLLO_REGISTRY_URL").unwrap())
-            .is_none();
+        assert_that!(
+            Profile::new("staging", &config)
+                .get_setting("APOLLO_REGISTRY_URL")
+                .unwrap()
+        )
+        .is_none();
     }
 
     #[test]

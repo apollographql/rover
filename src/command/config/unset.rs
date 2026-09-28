@@ -22,7 +22,7 @@ impl Unset {
         let name = SettingName::try_from(self.setting.as_str())
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
 
-        let removed = Profile::unset_setting(&profile.profile_name, &config, name.as_str())?;
+        let removed = Profile::new(&profile.profile_name, &config).unset_setting(name.as_str())?;
 
         Ok(RoverOutput::CliOutput(Box::new(UnsetOutput {
             setting: name.as_str(),
@@ -103,21 +103,17 @@ mod tests {
     #[test]
     fn unset_removes_a_stored_value_and_confirms_it() {
         let (config, _tmp_home) = test_config();
-        Profile::set_setting(
-            "staging",
-            &config,
-            "APOLLO_REGISTRY_URL",
-            "https://registry.example.com",
-        )
-        .unwrap();
+        let profile = Profile::new("staging", &config);
+        profile
+            .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+            .unwrap();
         let unset = Unset {
             setting: "APOLLO_REGISTRY_URL".to_string(),
         };
 
-        let output = unset.run(config.clone(), &profile_opt("staging")).unwrap();
+        let output = unset.run(config, &profile_opt("staging")).unwrap();
 
-        assert_that!(Profile::get_setting("staging", &config, "APOLLO_REGISTRY_URL").unwrap())
-            .is_none();
+        assert_that!(profile.get_setting("APOLLO_REGISTRY_URL").unwrap()).is_none();
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
         assert_that!(text.unwrap())
             .contains("Removed `APOLLO_REGISTRY_URL` from profile `staging`");
