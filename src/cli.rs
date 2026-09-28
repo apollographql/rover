@@ -840,7 +840,7 @@ impl Rover {
         let Ok(houston_config) = self.get_rover_config() else {
             return Vec::new();
         };
-        let Ok(settings) = Profile::settings(&profile.profile_name, &houston_config) else {
+        let Ok(settings) = Profile::new(&profile.profile_name, &houston_config).settings() else {
             return Vec::new();
         };
         settings
@@ -2264,13 +2264,9 @@ mod tests {
         );
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
-        houston::Profile::set_setting(
-            "staging",
-            &houston_config,
-            "APOLLO_FUTURE_SETTING",
-            "anything",
-        )
-        .unwrap();
+        houston::Profile::new("staging", &houston_config)
+            .set_setting("APOLLO_FUTURE_SETTING", "anything")
+            .unwrap();
         let rover = Rover::parse_from([
             PKG_NAME,
             "--config-home",
