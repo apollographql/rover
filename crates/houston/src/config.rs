@@ -164,7 +164,9 @@ mod tests {
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         let config = Config::new(Some(&tmp_path), None).unwrap();
         let profile = "clear-broken-credential";
-        Profile::set_api_key(profile, &config, "some-key").unwrap();
+        Profile::new(profile, &config)
+            .set_api_key("some-key")
+            .unwrap();
 
         // corrupt the shared credentials file directly so this profile's
         // secret-store delete fails genuinely (not just "unavailable"). A

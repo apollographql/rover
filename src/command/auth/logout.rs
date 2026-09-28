@@ -52,7 +52,7 @@ impl Logout {
     ) -> RoverResult<RoverOutput> {
         let profile_name = &profile.profile_name;
 
-        let Some(session) = Profile::get_oauth_session(profile_name, &config)? else {
+        let Some(session) = Profile::new(profile_name, &config).get_oauth_session()? else {
             return Err(RoverError::new(anyhow::anyhow!(
                 "profile \"{profile_name}\" isn't logged in via `rover auth login`"
             ))
@@ -110,7 +110,7 @@ impl Logout {
             }
         }
 
-        Profile::delete(profile_name, config)?;
+        Profile::new(profile_name, config).delete()?;
 
         Ok(RoverOutput::MessageResponse {
             msg: format!("Successfully logged out of profile \"{profile_name}\"."),
@@ -179,16 +179,17 @@ mod tests {
         // A second profile so the deleted one's absence is unambiguous
         // (`ProfileNotFound`) rather than "no profiles left at all"
         // (`NoConfigProfiles`), which would also be true but less precise.
-        Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
+        Profile::new("some-other-profile", &config)
+            .set_api_key("some-key")
+            .unwrap();
         let profile_name = "revoke-and-delete-success";
-        Profile::set_oauth_tokens(
-            profile_name,
-            &config,
-            "access-token".to_string(),
-            Some("refresh-token".to_string()),
-            None,
-        )
-        .unwrap();
+        Profile::new(profile_name, &config)
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                None,
+            )
+            .unwrap();
         let session = OAuthSession {
             access_token: "access-token".to_string(),
             refresh_token: Some("refresh-token".to_string()),
@@ -212,7 +213,8 @@ mod tests {
         .await;
 
         assert_that!(result).is_ok();
-        let error = Profile::get_oauth_session(profile_name, &config)
+        let error = Profile::new(profile_name, &config)
+            .get_oauth_session()
             .expect_err("expected the profile to be fully deleted");
         assert_that!(error).matches(|e| matches!(e, HoustonProblem::ProfileNotFound(_)));
     }
@@ -221,16 +223,17 @@ mod tests {
     #[serial]
     async fn revoke_and_delete_still_deletes_the_local_credential_when_revocation_fails() {
         let (config, _tmp_home) = test_config();
-        Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
+        Profile::new("some-other-profile", &config)
+            .set_api_key("some-key")
+            .unwrap();
         let profile_name = "revoke-and-delete-failure";
-        Profile::set_oauth_tokens(
-            profile_name,
-            &config,
-            "access-token".to_string(),
-            Some("refresh-token".to_string()),
-            None,
-        )
-        .unwrap();
+        Profile::new(profile_name, &config)
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                None,
+            )
+            .unwrap();
         let session = OAuthSession {
             access_token: "access-token".to_string(),
             refresh_token: Some("refresh-token".to_string()),
@@ -254,7 +257,8 @@ mod tests {
         .await;
 
         assert_that!(result).is_ok();
-        let error = Profile::get_oauth_session(profile_name, &config)
+        let error = Profile::new(profile_name, &config)
+            .get_oauth_session()
             .expect_err("expected the profile to be fully deleted even though revocation failed");
         assert_that!(error).matches(|e| matches!(e, HoustonProblem::ProfileNotFound(_)));
     }
@@ -267,7 +271,9 @@ mod tests {
     #[serial]
     async fn run_reports_no_profile_named_when_the_profile_does_not_exist() {
         let (config, _tmp_home) = test_config();
-        Profile::set_api_key("some-other-profile", &config, "some-key").unwrap();
+        Profile::new("some-other-profile", &config)
+            .set_api_key("some-key")
+            .unwrap();
 
         let error = logout()
             .run(
@@ -285,7 +291,9 @@ mod tests {
     #[serial]
     async fn run_reports_not_logged_in_for_a_legacy_api_key_profile() {
         let (config, _tmp_home) = test_config();
-        Profile::set_api_key("legacy-profile", &config, "some-key").unwrap();
+        Profile::new("legacy-profile", &config)
+            .set_api_key("some-key")
+            .unwrap();
 
         let error = logout()
             .run(

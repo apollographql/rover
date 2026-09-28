@@ -85,8 +85,8 @@ impl LegacyWhoami {
             )));
         }
 
-        let credential =
-            config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
+        let credential = config::Profile::new(&self.profile.profile_name, &client_config.config)
+            .get_credential()?;
 
         #[cfg(feature = "oauth")]
         if !matches!(

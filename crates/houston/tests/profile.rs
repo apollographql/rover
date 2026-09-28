@@ -11,13 +11,15 @@ fn it_lists_many_profiles() {
     let cprofile_name = "corporate";
     let cprofile_pass = "corporatepassword";
 
-    config::Profile::set_api_key(cprofile_name, &config, cprofile_pass)
+    config::Profile::new(cprofile_name, &config)
+        .set_api_key(cprofile_pass)
         .expect("setting api key failed");
 
     let pprofile_name = "personal";
     let pprofile_pass = "personalpassword";
 
-    config::Profile::set_api_key(pprofile_name, &config, pprofile_pass)
+    config::Profile::new(pprofile_name, &config)
+        .set_api_key(pprofile_pass)
         .expect("setting api key failed");
 
     let profiles = config::Profile::list(&config).expect("listing profiles failed");
@@ -29,13 +31,15 @@ fn it_lists_many_profiles() {
     // each profile's credential must resolve independently, not just be
     // listed - guards against the two profiles' secrets being cross-wired.
     assert_eq!(
-        config::Profile::get_credential(cprofile_name, &config)
+        config::Profile::new(cprofile_name, &config)
+            .get_credential()
             .expect("getting corporate credential failed")
             .api_key,
         cprofile_pass
     );
     assert_eq!(
-        config::Profile::get_credential(pprofile_name, &config)
+        config::Profile::new(pprofile_name, &config)
+            .get_credential()
             .expect("getting personal credential failed")
             .api_key,
         pprofile_pass

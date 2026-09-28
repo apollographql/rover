@@ -93,7 +93,8 @@ impl UserAuthenticated {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<bool> {
-        let credential = Profile::get_credential(&profile.profile_name, &client_config.config)?;
+        let credential =
+            Profile::new(&profile.profile_name, &client_config.config).get_credential()?;
 
         Ok(matches!(
             credential.api_key(),

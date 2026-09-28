@@ -29,7 +29,9 @@ fn e2e_test_rover_config_list_empty() {
 fn e2e_test_rover_config_list_one_profile() {
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let config = Config::new(Some(temp_dir.clone()).as_ref(), None).unwrap();
-    Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_API_KEY).unwrap();
+    Profile::new(CUSTOM_PROFILE, &config)
+        .set_api_key(CUSTOM_API_KEY)
+        .unwrap();
 
     let mut cmd = cargo_bin_cmd!("rover");
     let result = cmd

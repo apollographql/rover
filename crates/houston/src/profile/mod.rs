@@ -1,18 +1,19 @@
 mod sensitive;
 
-use std::fmt;
-
 use camino::Utf8PathBuf as PathBuf;
 use rover_std::Fs;
 use sensitive::Sensitive;
-use serde::{Deserialize, Serialize};
 
 use crate::{ApiKey, Config, HoustonProblem, MalformedApiKey};
 
-/// Collects configuration related to a profile.
-#[derive(Debug, Serialize, Deserialize)]
+/// A handle to a named profile in a given [`Config`]'s home directory.
+/// `name` and `config` together identify the profile every method here
+/// acts on, so they're carried once on construction rather than repeated
+/// as parameters on every call.
+#[derive(Debug, Clone)]
 pub struct Profile {
-    sensitive: Sensitive,
+    name: String,
+    config: Config,
 }
 
 /// Represents all possible options in loading configuration
@@ -93,6 +94,22 @@ pub enum CredentialOrigin {
 }
 
 impl Profile {
+    /// Builds a handle to the profile named `name` in `config`'s home
+    /// directory. Constructing a handle does no I/O and doesn't require the
+    /// profile to already exist - it's just the name/config pair every
+    /// other method needs.
+    pub fn new(name: impl Into<String>, config: &Config) -> Self {
+        Self {
+            name: name.into(),
+            config: config.clone(),
+        }
+    }
+
+    /// The profile's name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     fn base_dir(config: &Config) -> PathBuf {
         config.home.join("profiles")
     }
@@ -102,19 +119,17 @@ impl Profile {
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
-    pub fn set_api_key(name: &str, config: &Config, api_key: &str) -> Result<(), HoustonProblem> {
+    pub fn set_api_key(&self, api_key: &str) -> Result<(), HoustonProblem> {
         let data = ProfileData {
             api_key: Some(api_key.to_string()),
         };
-        Profile::save(name, config, data)?;
-        Ok(())
+        self.save(data)
     }
 
     /// Writes an OAuth token, obtained via `rover auth login`, to the secret store.
     /// Overwrites any credential (API key or OAuth) previously stored for this profile.
     pub fn set_oauth_tokens(
-        name: &str,
-        config: &Config,
+        &self,
         access_token: String,
         refresh_token: Option<String>,
         expires_at: Option<i64>,
@@ -124,7 +139,7 @@ impl Profile {
             refresh_token,
             expires_at,
         }
-        .save(name, config)
+        .save(&self.name, &self.config)
     }
 
     /// Returns the profile's stored OAuth session, or `None` if the profile's
@@ -136,13 +151,10 @@ impl Profile {
     /// `config.override_api_key` (the `APOLLO_KEY` env var) — logout always
     /// acts on the profile's own stored credential, regardless of any
     /// runtime override.
-    pub fn get_oauth_session(
-        name: &str,
-        config: &Config,
-    ) -> Result<Option<OAuthSession>, HoustonProblem> {
+    pub fn get_oauth_session(&self) -> Result<Option<OAuthSession>, HoustonProblem> {
         let opts = LoadOpts { sensitive: true };
-        let profile = Profile::load(name, config, opts)?;
-        Ok(match profile.sensitive {
+        let sensitive = self.load(opts)?;
+        Ok(match sensitive {
             Sensitive::OAuth {
                 access_token,
                 refresh_token,
@@ -163,12 +175,10 @@ impl Profile {
     /// looks for a credential on the file system: an OAuth token from `rover auth
     /// login`, or a legacy pasted-in API key from `rover config auth` — whichever
     /// is currently stored for the profile.
-    ///
-    /// Takes an optional `profile` argument. Defaults to `"default"`.
-    pub fn get_credential(name: &str, config: &Config) -> Result<Credential, HoustonProblem> {
+    pub fn get_credential(&self) -> Result<Credential, HoustonProblem> {
         let credential = match (
-            &config.override_api_key,
-            &config.override_client_credentials_token,
+            &self.config.override_api_key,
+            &self.config.override_client_credentials_token,
         ) {
             (Some(api_key), _) => Credential {
                 api_key: api_key.to_string(),
@@ -182,20 +192,20 @@ impl Profile {
             },
             (None, None) => {
                 let opts = LoadOpts { sensitive: true };
-                let profile = Profile::load(name, config, opts)?;
-                match profile.sensitive {
+                let sensitive = self.load(opts)?;
+                match sensitive {
                     Sensitive::OAuth {
                         access_token,
                         expires_at,
                         ..
                     } => Credential {
                         api_key: access_token,
-                        origin: CredentialOrigin::OauthAuthorizationPkce(name.to_string()),
+                        origin: CredentialOrigin::OauthAuthorizationPkce(self.name.clone()),
                         expires_at,
                     },
                     Sensitive::ApiKey { api_key } => Credential {
                         api_key,
-                        origin: CredentialOrigin::ConfigFile(name.to_string()),
+                        origin: CredentialOrigin::ConfigFile(self.name.clone()),
                         expires_at: None,
                     },
                 }
@@ -207,50 +217,43 @@ impl Profile {
         Ok(credential)
     }
 
-    /// Saves configuration options for a specific profile to the file system,
+    /// Saves configuration options for this profile to the file system,
     /// splitting sensitive information into a separate file.
-    pub fn save(name: &str, config: &Config, data: ProfileData) -> Result<(), HoustonProblem> {
+    fn save(&self, data: ProfileData) -> Result<(), HoustonProblem> {
         if let Some(api_key) = data.api_key {
-            Sensitive::ApiKey { api_key }.save(name, config)?;
+            Sensitive::ApiKey { api_key }.save(&self.name, &self.config)?;
         }
         Ok(())
     }
 
-    /// Loads and deserializes configuration from the file system for a
-    /// specific profile.
-    fn load(
-        profile_name: &str,
-        config: &Config,
-        opts: LoadOpts,
-    ) -> Result<Profile, HoustonProblem> {
-        if Profile::dir(profile_name, config).exists() {
+    /// Loads and deserializes this profile's stored credential from the
+    /// file system.
+    fn load(&self, opts: LoadOpts) -> Result<Sensitive, HoustonProblem> {
+        if Profile::dir(&self.name, &self.config).exists() {
             if opts.sensitive {
                 let stderr = rover_print::print::stderr::default();
-                let sensitive = Sensitive::load(profile_name, config, &stderr)?;
-                return Ok(Profile { sensitive });
+                return Sensitive::load(&self.name, &self.config, &stderr);
             }
-            Err(HoustonProblem::NoNonSensitiveConfigFound(
-                profile_name.to_string(),
-            ))
+            Err(HoustonProblem::NoNonSensitiveConfigFound(self.name.clone()))
         } else {
-            let profiles_base_dir = Profile::base_dir(config);
+            let profiles_base_dir = Profile::base_dir(&self.config);
             let mut base_dir_contents = Fs::get_dir_entries(profiles_base_dir)
                 .map_err(|_| HoustonProblem::NoConfigProfiles)?;
             if base_dir_contents.next().is_none() {
                 return Err(HoustonProblem::NoConfigProfiles);
             }
-            Err(HoustonProblem::ProfileNotFound(profile_name.to_string()))
+            Err(HoustonProblem::ProfileNotFound(self.name.clone()))
         }
     }
 
     /// Deletes profile data from the file system and removes its credential
     /// from the secret store.
-    pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
+    pub fn delete(&self) -> Result<(), HoustonProblem> {
         // delete the credential before the index directory: if this fails, the
         // profile stays visible in `list` (and deletable again) instead of
         // silently disappearing while its secret is still orphaned.
-        delete_credential(name, config)?;
-        let dir = Profile::dir(name, config);
+        delete_credential(&self.name, &self.config)?;
+        let dir = Profile::dir(&self.name, &self.config);
         tracing::debug!(dir = ?dir);
         Fs::remove_dir_all(dir)?;
         Ok(())
@@ -283,12 +286,6 @@ impl Profile {
 /// needs to purge secrets for every known profile before wiping the config directory.
 pub(crate) fn delete_credential(name: &str, config: &Config) -> Result<(), HoustonProblem> {
     Sensitive::delete(name, config)
-}
-
-impl fmt::Display for Profile {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sensitive)
-    }
 }
 
 /// Masks all but the first 4 and last 4 chars of a key with a set number of *
@@ -416,17 +413,16 @@ mod tests {
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "prefers-env-over-oauth";
-        Profile::set_oauth_tokens(
-            profile,
-            &config,
-            "access-token".to_string(),
-            Some("refresh-token".to_string()),
-            Some(1_700_000_000),
-        )
-        .unwrap();
+        let profile = Profile::new("prefers-env-over-oauth", &config);
+        profile
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                Some(1_700_000_000),
+            )
+            .unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
@@ -440,10 +436,10 @@ mod tests {
         #[with(Some("env-key".to_string()))] test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "prefers-env-over-legacy";
-        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+        let profile = Profile::new("prefers-env-over-legacy", &config);
+        profile.set_api_key("profile-key").unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
@@ -460,10 +456,10 @@ mod tests {
     ) {
         let (mut config, _tmp_home) = test_config;
         config.override_client_credentials_token = Some("cc-token".to_string());
-        let profile = "prefers-client-credentials-over-stored-profile";
-        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+        let profile = Profile::new("prefers-client-credentials-over-stored-profile", &config);
+        profile.set_api_key("profile-key").unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("cc-token".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthClientCredentials);
@@ -480,8 +476,9 @@ mod tests {
         let (mut config, _tmp_home) = test_config;
         config.override_client_credentials_token = Some("cc-token".to_string());
 
-        let credential =
-            Profile::get_credential("prefers-env-over-client-credentials", &config).unwrap();
+        let credential = Profile::new("prefers-env-over-client-credentials", &config)
+            .get_credential()
+            .unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("env-key".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::EnvVar);
@@ -494,21 +491,20 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "returns-stored-oauth";
-        Profile::set_oauth_tokens(
-            profile,
-            &config,
-            "access-token".to_string(),
-            Some("refresh-token".to_string()),
-            Some(1_700_000_000),
-        )
-        .unwrap();
+        let profile = Profile::new("returns-stored-oauth", &config);
+        profile
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                Some(1_700_000_000),
+            )
+            .unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthAuthorizationPkce(
-            profile.to_string(),
+            profile.name().to_string(),
         ));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
     }
@@ -520,14 +516,14 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "falls-back-to-legacy";
-        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+        let profile = Profile::new("falls-back-to-legacy", &config);
+        profile.set_api_key("profile-key").unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
         assert_that!(credential.origin)
-            .is_equal_to(CredentialOrigin::ConfigFile(profile.to_string()));
+            .is_equal_to(CredentialOrigin::ConfigFile(profile.name().to_string()));
         assert_that!(credential.expires_at).is_none();
     }
 
@@ -538,16 +534,17 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "oauth-overwrites-legacy";
-        Profile::set_api_key(profile, &config, "profile-key").unwrap();
-        Profile::set_oauth_tokens(profile, &config, "access-token".to_string(), None, None)
+        let profile = Profile::new("oauth-overwrites-legacy", &config);
+        profile.set_api_key("profile-key").unwrap();
+        profile
+            .set_oauth_tokens("access-token".to_string(), None, None)
             .unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("access-token".to_string());
         assert_that!(credential.origin).is_equal_to(CredentialOrigin::OauthAuthorizationPkce(
-            profile.to_string(),
+            profile.name().to_string(),
         ));
     }
 
@@ -556,22 +553,21 @@ mod tests {
     #[serial]
     fn set_api_key_overwrites_a_previously_stored_oauth_token(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
-        let profile = "api-key-overwrites-oauth";
-        Profile::set_oauth_tokens(
-            profile,
-            &config,
-            "access-token".to_string(),
-            Some("refresh-token".to_string()),
-            Some(1_700_000_000),
-        )
-        .unwrap();
-        Profile::set_api_key(profile, &config, "profile-key").unwrap();
+        let profile = Profile::new("api-key-overwrites-oauth", &config);
+        profile
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                Some(1_700_000_000),
+            )
+            .unwrap();
+        profile.set_api_key("profile-key").unwrap();
 
-        let credential = Profile::get_credential(profile, &config).unwrap();
+        let credential = profile.get_credential().unwrap();
 
         assert_that!(&credential.api_key).is_equal_to("profile-key".to_string());
         assert_that!(credential.origin)
-            .is_equal_to(CredentialOrigin::ConfigFile(profile.to_string()));
+            .is_equal_to(CredentialOrigin::ConfigFile(profile.name().to_string()));
         assert_that!(credential.expires_at).is_none();
     }
 }

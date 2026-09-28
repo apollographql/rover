@@ -68,12 +68,13 @@ impl ProjectAuthenticationOpt {
             }
         };
 
-        Profile::set_api_key(&profile.profile_name, &client_config.config, &api_key).map_err(
-            |e| auth_error_to_rover_error(AuthenticationError::SystemError(e.to_string())),
-        )?;
+        let profile_handle = Profile::new(&profile.profile_name, &client_config.config);
+        profile_handle.set_api_key(&api_key).map_err(|e| {
+            auth_error_to_rover_error(AuthenticationError::SystemError(e.to_string()))
+        })?;
 
         // Validate key was stored successfully
-        match Profile::get_credential(&profile.profile_name, &client_config.config) {
+        match profile_handle.get_credential() {
             Ok(credential) => {
                 if credential.api_key.is_empty() || credential.api_key != api_key {
                     return Err(auth_error_to_rover_error(AuthenticationError::SystemError(
@@ -88,12 +89,11 @@ impl ProjectAuthenticationOpt {
                     }
                     Err(e) => {
                         // If authentication fails, remove the key
-                        Profile::set_api_key(&profile.profile_name, &client_config.config, "")
-                            .map_err(|e| {
-                                auth_error_to_rover_error(AuthenticationError::SystemError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                        profile_handle.set_api_key("").map_err(|e| {
+                            auth_error_to_rover_error(AuthenticationError::SystemError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                         Err(auth_error_to_rover_error(
                             AuthenticationError::AuthenticationFailed(e.to_string()),
