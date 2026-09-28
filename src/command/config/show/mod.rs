@@ -272,6 +272,7 @@ fn resolve_credential(
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use speculoos::prelude::*;
 
     use super::*;
@@ -511,6 +512,140 @@ mod tests {
         // *meaning* is "disabled", so the reported value is the typed "true".
         assert_that!(&telemetry_disabled.value).is_equal_to("true".to_string());
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Environment);
+    }
+
+    #[test]
+    fn telemetry_disabled_flag_wins_and_reports_environment_and_profile_as_overridden() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "false");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--telemetry-disabled",
+                "config",
+                "show",
+            ],
+        );
+        rover
+            .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
+            .unwrap();
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let telemetry_disabled = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_TELEMETRY_DISABLED")
+            .unwrap();
+        assert_that!(&telemetry_disabled.value).is_equal_to("true".to_string());
+        assert_that!(telemetry_disabled.source).is_equal_to(Source::Flag);
+        assert_that!(telemetry_disabled.overridden.len()).is_equal_to(2);
+        assert_that!(
+            telemetry_disabled
+                .overridden
+                .iter()
+                .map(|o| o.source)
+                .collect::<Vec<_>>()
+        )
+        .is_equal_to(vec![Source::Environment, Source::ExplicitProfile]);
+    }
+
+    #[rstest]
+    #[case::stored_true("true", "true")]
+    #[case::stored_false("false", "false")]
+    fn telemetry_disabled_profile_setting_wins_when_no_flag_or_env(
+        #[case] stored: &str,
+        #[case] expected: &str,
+    ) {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", stored);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "show",
+            ],
+        );
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let telemetry_disabled = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_TELEMETRY_DISABLED")
+            .unwrap();
+        assert_that!(&telemetry_disabled.value).is_equal_to(expected.to_string());
+        assert_that!(telemetry_disabled.source).is_equal_to(Source::ExplicitProfile);
+        assert_that!(&telemetry_disabled.overridden).is_empty();
+    }
+
+    // Uses the *default* profile (no `--profile` flag) so a winning profile
+    // value reports `Source::DefaultProfile` rather than `ExplicitProfile`.
+    #[test]
+    fn a_setting_stored_on_the_default_profile_reports_default_profile_as_its_source() {
+        let home = config_home_with_setting(
+            "default",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.default.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let registry = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_REGISTRY_URL")
+            .unwrap();
+        assert_that!(registry.source).is_equal_to(Source::DefaultProfile);
+    }
+
+    #[test]
+    fn credential_is_reported_present_from_the_apollo_key_env_var() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover
+            .insert_env_var(RoverEnvKey::Key, "an-api-key")
+            .unwrap();
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        assert_that!(output.credential.present).is_true();
+        assert_that!(output.credential.origin).is_equal_to(Some("environment"));
     }
 
     // `#[serial]`: writes a real credential to the OS keychain (or its

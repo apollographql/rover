@@ -13,7 +13,10 @@ pub(super) enum Source {
     Flag,
     Environment,
     ExplicitProfile,
-    #[expect(dead_code, reason = "not produced until Part B adds the project file")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "not produced until Part B adds the project file")
+    )]
     ProjectFile,
     DefaultProfile,
     Builtin,
@@ -129,6 +132,25 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn every_source_has_a_distinct_text_label() {
+        let labels: Vec<&str> = [
+            Source::Flag,
+            Source::Environment,
+            Source::ExplicitProfile,
+            Source::ProjectFile,
+            Source::DefaultProfile,
+            Source::Builtin,
+        ]
+        .map(Source::text_label)
+        .to_vec();
+
+        let mut unique = labels.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_that!(unique.len()).is_equal_to(labels.len());
     }
 
     #[test]
