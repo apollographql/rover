@@ -40,6 +40,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover plugin install <name>@<version>` does exactly what `rover install --plugin <name>@<version>` does, including `--force` and `--elv2-license`. `rover install --plugin` keeps working, but is now deprecated and prints a warning naming the `rover plugin install` command to use instead. With `--format json`, both report the plugin they installed under `data.plugins`, in the same shape `rover supergraph compose` uses. Plugin install errors now suggest `rover plugin install` too.
 
+- **New `rover config show` command reports every setting's effective value and which source supplied it - @dotdat**
+
+  `rover config show [--profile] [--format json]` reports, for `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, and `APOLLO_TELEMETRY_DISABLED`, the effective value and which of an explicit flag, an environment variable, the active profile, or Rover's built-in default supplied it - along with any lower-precedence source it overrode. It also reports whether the active profile has a credential and where it came from, without ever printing the credential's value. Nothing can be stored on a profile yet in this release - that's `rover config set`, landing separately - so for now every setting reports its built-in default unless a flag or environment variable overrides it.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.
