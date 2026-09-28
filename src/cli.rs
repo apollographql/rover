@@ -592,7 +592,7 @@ impl Rover {
         }
         let houston_config = self.get_rover_config()?;
         let profile_raw =
-            Profile::get_setting(&profile.profile_name, &houston_config, name.as_str())?;
+            Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
         Ok(profile_raw.map(|_| {
             format!(
                 "`{name}` from the environment overrides the value set in profile \
@@ -724,7 +724,7 @@ impl Rover {
         let profile_is_explicit = matches!(profile.selection, ProfileSelection::Explicit);
         let houston_config = self.get_rover_config()?;
         let profile_raw =
-            Profile::get_setting(&profile.profile_name, &houston_config, name.as_str())?;
+            Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
 
         let message = if let Some(explicit_value) = explicit {
             if profile_is_explicit && raw_env == Some(explicit_value) {
