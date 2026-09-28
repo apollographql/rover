@@ -110,7 +110,7 @@ fn resolve_string_setting(
             });
         }
         if let Some(profile_value) =
-            Profile::get_setting(&profile.profile_name, houston_config, name.as_str())?
+            Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?
         {
             overridden.push(Overridden {
                 source: profile_source(profile_is_explicit),
@@ -155,7 +155,8 @@ fn resolve_telemetry_disabled(
 ) -> RoverResult<SettingReport> {
     let name = SettingName::TelemetryDisabled;
     let raw_env = rover.get_env_var(RoverEnvKey::TelemetryDisabled)?;
-    let profile_raw = Profile::get_setting(&profile.profile_name, houston_config, name.as_str())?;
+    let profile_raw =
+        Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?;
 
     if rover.telemetry_disabled_flag() {
         let mut overridden = Vec::new();
@@ -250,7 +251,7 @@ fn resolve_credential(
     }
 
     Ok(
-        match Profile::get_credential(profile_name, houston_config) {
+        match Profile::new(profile_name, houston_config).get_credential() {
             Ok(credential) => CredentialReport {
                 present: true,
                 origin: Some(match credential.origin {
@@ -301,7 +302,9 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
-        Profile::set_setting(profile, &houston_config, key, value).unwrap();
+        Profile::new(profile, &houston_config)
+            .set_setting(key, value)
+            .unwrap();
         home
     }
 
@@ -658,7 +661,9 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
-        Profile::set_api_key("staging", &houston_config, "a-key").unwrap();
+        Profile::new("staging", &houston_config)
+            .set_api_key("a-key")
+            .unwrap();
         let rover = parse_with_env_locked(
             NO_REGISTRY_OR_TELEMETRY_ENV,
             &[
