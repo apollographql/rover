@@ -6,7 +6,7 @@ use rover_client::{EndpointKind, RoverClientError};
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
-use crate::{options::JsonVersion, utils::env::RoverEnvKey};
+use crate::{options::JsonVersion, plugin::error::PluginFailure, utils::env::RoverEnvKey};
 
 mod code;
 mod suggestion;
@@ -35,6 +35,20 @@ pub struct RoverErrorMetadata {
 /// and creating `Suggestion`s and `Code`s where applicable
 impl From<&mut anyhow::Error> for RoverErrorMetadata {
     fn from(error: &mut anyhow::Error) -> Self {
+        // A plugin failure is the most specific explanation an error can have,
+        // so it decides the code even when a caller has wrapped it.
+        if let Some(plugin_failure) = error
+            .chain()
+            .find_map(|cause| cause.downcast_ref::<PluginFailure>())
+        {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![RoverErrorSuggestion::Plugin(plugin_failure.next_step())],
+                code: Some(plugin_failure.code()),
+                skip_printing_cause: false,
+            };
+        }
+
         let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {

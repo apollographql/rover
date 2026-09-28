@@ -21,7 +21,7 @@ const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 /// before giving up. If the connection succesfully establishes we allow a much longer
 /// period for the actual request.
 const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
-const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+pub(crate) const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Bounds a single plugin version lookup: a bodiless `HEAD` to the plugin registry. There's no
 /// observed latency data for this request, so this is a conservative ceiling rather than a
