@@ -84,6 +84,23 @@ mod tests {
     }
 
     #[test]
+    fn json_matches_the_expected_shape_when_removed() {
+        let output = UnsetOutput {
+            setting: "APOLLO_REGISTRY_URL",
+            profile: "staging".to_string(),
+            removed: true,
+        };
+
+        assert_that!(output.json())
+            .is_ok()
+            .is_equal_to(serde_json::json!({
+                "setting": "APOLLO_REGISTRY_URL",
+                "profile": "staging",
+                "removed": true,
+            }));
+    }
+
+    #[test]
     fn unset_removes_a_stored_value_and_confirms_it() {
         let (config, _tmp_home) = test_config();
         Profile::set_setting(

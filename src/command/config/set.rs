@@ -83,6 +83,23 @@ mod tests {
     }
 
     #[test]
+    fn json_matches_the_expected_shape() {
+        let output = SetOutput {
+            setting: "APOLLO_REGISTRY_URL",
+            value: "https://registry.staging.example.com".to_string(),
+            profile: "staging".to_string(),
+        };
+
+        assert_that!(output.json())
+            .is_ok()
+            .is_equal_to(serde_json::json!({
+                "setting": "APOLLO_REGISTRY_URL",
+                "value": "https://registry.staging.example.com",
+                "profile": "staging",
+            }));
+    }
+
+    #[test]
     fn set_stores_a_valid_value_and_confirms_it() {
         let (config, _tmp_home) = test_config();
         let set = Set {
