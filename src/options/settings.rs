@@ -366,6 +366,24 @@ mod tests {
     }
 
     #[test]
+    fn invalid_url_message_names_the_input_and_a_correction() {
+        let error = SettingType::Url
+            .validate("registry.example.com")
+            .unwrap_err();
+
+        assert_that!(error.to_string()).contains("registry.example.com");
+        assert_that!(error.to_string()).contains("must include a scheme");
+    }
+
+    #[test]
+    fn invalid_bool_message_names_the_input_and_the_accepted_values() {
+        let error = SettingType::Bool.validate("sure").unwrap_err();
+
+        assert_that!(error.to_string()).contains("sure");
+        assert_that!(error.to_string()).contains("`true` or `false`");
+    }
+
+    #[test]
     fn string_type_accepts_anything() {
         assert_that!(SettingType::String.validate("")).is_ok();
         assert_that!(SettingType::String.validate("anything at all")).is_ok();
