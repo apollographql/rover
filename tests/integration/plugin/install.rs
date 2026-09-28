@@ -64,11 +64,11 @@ fn install(level: &GlobalLevel, registry: Registry, request: &str) -> Value {
     let output = Command::cargo_bin("rover")
         .unwrap()
         .args(["install", "--plugin", request])
-        .args(["--client-timeout", "1", "--skip-update-check"])
+        .args(["--download-host", &host, "--client-timeout", "1"])
+        .args(["--skip-update-check", "--telemetry-disabled"])
         .args(["--format", "json"])
         .envs(level.env())
-        .env("APOLLO_ROVER_DOWNLOAD_HOST", &host)
-        .env("APOLLO_TELEMETRY_DISABLED", "true")
+        // binstall reads this directly, and it would move the install root.
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .output()
         .unwrap();
