@@ -5,7 +5,10 @@ use std::{
 
 use bytes::Bytes;
 use camino::Utf8PathBuf;
-use download::{gz_decode::GzDecodeLayer, FileDownloadService};
+use download::{
+    gz_decode::{GzDecodeError, GzDecodeLayer},
+    FileDownloadService,
+};
 use http::Request;
 use rover_http::{
     error_on_status::ErrorOnStatusLayer, Full, HttpRequest, HttpResponse, HttpServiceError,
@@ -163,17 +166,29 @@ impl Installer {
         }
     }
 
-    /// Gets the location the executable will be installed to
+    /// Gets the location the executable will be installed to, creating it if needed
     pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        // TODO: loop this up better with rover's environment variable management
-        let bin_dir = if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
-            node_modules_bin.into()
-        } else {
-            let bin_dir = self.get_base_dir_path()?.join("bin");
+        let (bin_dir, is_node_modules) = self.locate_bin_dir()?;
+        if !is_node_modules {
             std::fs::create_dir_all(&bin_dir)?;
-            bin_dir
-        };
+        }
         Ok(bin_dir)
+    }
+
+    /// Gets the location the executable will be installed to, without touching the filesystem,
+    /// so that it can be named in an error even when it can't be created
+    pub fn bin_dir_location(&self) -> Result<Utf8PathBuf, InstallerError> {
+        Ok(self.locate_bin_dir()?.0)
+    }
+
+    /// The bin directory, and whether it's npm's `node_modules/.bin`, which Rover never creates.
+    fn locate_bin_dir(&self) -> Result<(Utf8PathBuf, bool), InstallerError> {
+        // TODO: loop this up better with rover's environment variable management
+        if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
+            Ok((node_modules_bin.into(), true))
+        } else {
+            Ok((self.get_base_dir_path()?.join("bin"), false))
+        }
     }
 
     pub(crate) fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
@@ -290,20 +305,24 @@ impl Installer {
             .uri(plugin_tarball_url)
             .body(Full::new(Bytes::default()))
             .map_err(|err| anyhow::anyhow!(err))?;
-        let mut file_download_service = ServiceBuilder::new()
-            .boxed()
+        // Kept apart from the extraction errors below, so a caller can tell a
+        // download that failed from an archive that did. A gzip stream that
+        // ends early is a truncated transfer, so it counts as a download failure.
+        let body_bytes = ServiceBuilder::new()
             .layer(GzDecodeLayer::default())
-            .service(file_download_service.into_inner());
-        let file_download_service = file_download_service
-            .ready()
+            .service(file_download_service.into_inner())
+            .oneshot(http_request)
             .await
-            .map_err(|err| anyhow::anyhow!(err))?;
-        let body_bytes = file_download_service
-            .call(http_request)
-            .await
-            .map_err(|err| anyhow::anyhow!(err))?;
+            .map_err(|err| match err {
+                GzDecodeError::Decode(err) if err.kind() != io::ErrorKind::UnexpectedEof => {
+                    InstallerError::UnpackArchive(err)
+                }
+                err => InstallerError::FileDownloadError(Box::new(err)),
+            })?;
         let mut archive = tar::Archive::new(&body_bytes[..]);
-        archive.unpack(&download_dir_path)?;
+        archive
+            .unpack(&download_dir_path)
+            .map_err(InstallerError::UnpackArchive)?;
         let path = download_dir_path.join("dist").join(format!(
             "{}{}",
             plugin_name,
@@ -765,11 +784,143 @@ mod test {
             .extract_plugin_tarball(binary_name, &tarball_url, service)
             .await
             .expect_err("a 401 response must produce an error");
-        let rendered = format!("{err:?}");
+        let rendered = rover_std::format_error_chain(&err);
 
-        assert_that!(rendered.as_str()).contains("Bad Status code");
-        assert_that!(rendered.as_str()).contains("401");
-        assert_that!(rendered.as_str()).does_not_contain("invalid gzip header");
+        // A download failure, reported as one — not as the gzip decode of the
+        // error body that a bad status would otherwise run into.
+        assert_that!((rendered, err.download_status())).is_equal_to((
+            "Couldn't download the plugin artifact: Bad Status code: 401 Unauthorized".to_string(),
+            Some(http::StatusCode::UNAUTHORIZED),
+        ));
+    }
+
+    /// An artifact that downloads fine but isn't a gzipped tarball is an
+    /// unpacking failure, not a download one: retrying the download can't fix
+    /// what the registry served.
+    #[rstest]
+    #[case::not_gzip(
+        Bytes::from_static(b"<html>not a tarball</html>"),
+        "invalid gzip header"
+    )]
+    #[case::gzip_but_not_tar(
+        gzipped(b"not a tar archive"),
+        "failed to iterate over archive: failed to read entire block"
+    )]
+    #[tokio::test]
+    async fn test_extract_plugin_tarball_reports_an_unreadable_archive_as_unpacking(
+        binary_name: &str,
+        installer: Installer,
+        override_path: Utf8PathBuf,
+        #[case] body: Bytes,
+        #[case] cause: &str,
+    ) {
+        let installer = Installer {
+            override_install_path: Some(override_path),
+            ..installer
+        };
+
+        let tarball_url = format!("http://example.com/{}", binary_name);
+        let mut mock_http_service = MockHttpService::new();
+        expect_poll_ready!(mock_http_service);
+        mock_http_service
+            .expect_call()
+            .times(1)
+            .returning(move |_| {
+                future::ready(
+                    Response::builder()
+                        .status(200)
+                        .body(Full::new(body.clone()))
+                        .map_err(HttpServiceError::from),
+                )
+            });
+        let service = FileDownloadService::builder()
+            .http_service(MockCloneService::new(mock_http_service))
+            .max_elapsed_duration(Duration::from_secs(5))
+            .timeout_duration(Duration::from_secs(1))
+            .build();
+
+        let err = installer
+            .extract_plugin_tarball(binary_name, &tarball_url, service)
+            .await
+            .expect_err("an unreadable archive must produce an error");
+
+        assert_that!(rover_std::format_error_chain(&err)).is_equal_to(format!(
+            "Couldn't unpack the downloaded plugin archive: {cause}"
+        ));
+    }
+
+    /// A gzip stream that stops early is a transfer that was cut off, which a
+    /// retried download can fix, so it's reported as a download failure.
+    #[rstest]
+    #[tokio::test]
+    async fn test_extract_plugin_tarball_reports_a_truncated_download_as_downloading(
+        binary_name: &str,
+        installer: Installer,
+        override_path: Utf8PathBuf,
+    ) {
+        let installer = Installer {
+            override_install_path: Some(override_path),
+            ..installer
+        };
+        let whole = gzipped(b"a tarball that the transfer cuts off partway through");
+        let truncated = whole.slice(..whole.len() / 2);
+
+        let mut mock_http_service = MockHttpService::new();
+        expect_poll_ready!(mock_http_service);
+        mock_http_service
+            .expect_call()
+            .times(1)
+            .returning(move |_| {
+                future::ready(
+                    Response::builder()
+                        .status(200)
+                        .body(Full::new(truncated.clone()))
+                        .map_err(HttpServiceError::from),
+                )
+            });
+        let service = FileDownloadService::builder()
+            .http_service(MockCloneService::new(mock_http_service))
+            .max_elapsed_duration(Duration::from_secs(5))
+            .timeout_duration(Duration::from_secs(1))
+            .build();
+
+        let err = installer
+            .extract_plugin_tarball(binary_name, "http://example.com/test", service)
+            .await
+            .expect_err("a truncated archive must produce an error");
+
+        assert_that!((rover_std::format_error_chain(&err), err.download_status())).is_equal_to((
+            "Couldn't download the plugin artifact: Failed to decode file: incomplete deflate stream: incomplete deflate stream"
+                .to_string(),
+            None,
+        ));
+    }
+
+    /// Naming the install root must not create it: a caller names it in the
+    /// error for a root that couldn't be created.
+    #[rstest]
+    fn test_bin_dir_location_does_not_create_it(
+        binary_name: &str,
+        installer: Installer,
+        override_path: Utf8PathBuf,
+    ) {
+        let installer = Installer {
+            override_install_path: Some(override_path.clone()),
+            ..installer
+        };
+
+        let location = installer.bin_dir_location().unwrap();
+
+        assert_that!((location.clone(), location.exists())).is_equal_to((
+            override_path.join(format!(".{binary_name}")).join("bin"),
+            false,
+        ));
+    }
+
+    fn gzipped(contents: &[u8]) -> Bytes {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(contents).unwrap();
+        Bytes::from(encoder.finish().unwrap())
     }
 
     #[rstest]
