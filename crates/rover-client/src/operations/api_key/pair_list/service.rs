@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+use rover_tower::service::replace_ready_service;
 use tower::Service;
 
 use crate::{
@@ -67,8 +68,7 @@ where
     }
 
     fn call(&mut self, input: ListOAuthClientsInput) -> Self::Future {
-        let cloned = self.inner.clone();
-        let mut inner = std::mem::replace(&mut self.inner, cloned);
+        let mut inner = replace_ready_service(&mut self.inner);
         Box::pin(async move {
             let organization_id = input.organization_id;
             let mut pairs = Vec::new();
