@@ -23,7 +23,7 @@ use crate::options::OauthOpts;
 use crate::{
     RoverResult,
     command::{self, RoverOutput},
-    options::{DEFAULT_PROFILE, OutputOpts, ProfileOpt},
+    options::{DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection},
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
@@ -445,6 +445,11 @@ impl Rover {
                 .profile_name
                 .clone()
                 .unwrap_or_else(|| DEFAULT_PROFILE.to_string()),
+            selection: if self.profile_name.is_some() {
+                ProfileSelection::Explicit
+            } else {
+                ProfileSelection::Default
+            },
         }
     }
 
