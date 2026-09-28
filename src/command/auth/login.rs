@@ -138,9 +138,7 @@ impl Login {
                 .map_err(|e| anyhow::anyhow!("failed to exchange the authorization code: {e}"))?
         };
 
-        Profile::set_oauth_tokens(
-            &profile.profile_name,
-            &config,
+        Profile::new(&profile.profile_name, &config).set_oauth_tokens(
             tokens.access_token.secret().to_string(),
             tokens.refresh_token.map(|t| t.secret().to_string()),
             expires_at(tokens.expires_in),

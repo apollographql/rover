@@ -94,9 +94,10 @@ impl RemoteRouterConfig {
         home_override: Option<String>,
         api_key_override: Option<String>,
     ) -> Result<Credential, HoustonProblem> {
-        Profile::get_credential(
+        Profile::new(
             &profile.profile_name,
             &Config::new(home_override.as_ref(), api_key_override)?,
         )
+        .get_credential()
     }
 }

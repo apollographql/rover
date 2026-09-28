@@ -30,7 +30,9 @@ fn it_can_write_files_correctly_no_matter_the_input_path(
     let temp_config_dir = TempDir::new().expect("Could not create temporary directory");
     let temp_config_dir_path = Utf8PathBuf::from_path_buf(temp_config_dir.keep()).unwrap();
     let config = Config::new(Some(&temp_config_dir_path).as_ref(), None).unwrap();
-    Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_API_KEY).unwrap();
+    Profile::new(CUSTOM_PROFILE, &config)
+        .set_api_key(CUSTOM_API_KEY)
+        .unwrap();
 
     let temp_output_dir = TempDir::new().expect("Could not create temporary directory");
     let temp_output_dir_path = Utf8PathBuf::from_path_buf(temp_output_dir.keep()).unwrap();

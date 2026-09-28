@@ -50,7 +50,8 @@ impl WhoAmI {
         oauth_config: OauthConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
-        let credential = Profile::get_credential(&profile.profile_name, &client_config.config)?;
+        let credential =
+            Profile::new(&profile.profile_name, &client_config.config).get_credential()?;
 
         match &credential.origin {
             CredentialOrigin::OauthAuthorizationPkce(profile_name) => {

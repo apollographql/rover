@@ -309,9 +309,9 @@ impl RunRouter<state::Run> {
                 );
             }
             None => {
-                match Config::new(home_override.as_ref(), api_key_override)
-                    .and_then(|config| Profile::get_credential(&profile.profile_name, &config))
-                {
+                match Config::new(home_override.as_ref(), api_key_override).and_then(|config| {
+                    Profile::new(&profile.profile_name, &config).get_credential()
+                }) {
                     Ok(credential) => {
                         env.insert("APOLLO_KEY".to_string(), credential.api_key);
                     }

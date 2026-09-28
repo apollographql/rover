@@ -35,7 +35,9 @@ fn e2e_test_rover_auth_logout_help() {
 fn e2e_test_rover_auth_logout_fails_when_profile_does_not_exist() {
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let config = Config::new(Some(temp_dir.clone()).as_ref(), None).unwrap();
-    Profile::set_api_key(OTHER_PROFILE, &config, "some-key").unwrap();
+    Profile::new(OTHER_PROFILE, &config)
+        .set_api_key("some-key")
+        .unwrap();
 
     let mut cmd = cargo_bin_cmd!("rover");
     let result = cmd
@@ -54,7 +56,9 @@ fn e2e_test_rover_auth_logout_fails_when_profile_does_not_exist() {
 fn e2e_test_rover_auth_logout_fails_when_not_logged_in() {
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let config = Config::new(Some(temp_dir.clone()).as_ref(), None).unwrap();
-    Profile::set_api_key(LEGACY_PROFILE, &config, "some-key").unwrap();
+    Profile::new(LEGACY_PROFILE, &config)
+        .set_api_key("some-key")
+        .unwrap();
 
     let mut cmd = cargo_bin_cmd!("rover");
     let result = cmd

@@ -22,14 +22,16 @@ fn it_can_set_and_get_an_api_key() {
     let profiles_home = config.home.join("profiles");
     let profile_home = profiles_home.join(profile);
 
-    assert!(config::Profile::set_api_key(profile, &config, api_key).is_ok());
+    let profile_handle = config::Profile::new(profile, &config);
+    assert!(profile_handle.set_api_key(api_key).is_ok());
 
     // the profile directory still exists as an index of known profile names,
     // even though the credential itself now lives in the secret store.
     assert!(profile_home.exists());
     assert!(!profile_home.join(".sensitive").exists());
 
-    let credential = config::Profile::get_credential(profile, &config)
+    let credential = profile_handle
+        .get_credential()
         .expect("retreiving api key for default profile failed");
     assert_eq!(credential.api_key, String::from(api_key));
     assert_eq!(
@@ -37,7 +39,9 @@ fn it_can_set_and_get_an_api_key() {
         config::CredentialOrigin::ConfigFile(profile.to_string())
     );
 
-    config::Profile::delete(profile, &config).expect("deleting default profile failed");
+    profile_handle
+        .delete()
+        .expect("deleting default profile failed");
 
     assert!(!profile_home.exists());
 
@@ -67,8 +71,10 @@ fn it_migrates_a_legacy_plaintext_credential() {
     )
     .unwrap();
 
+    let profile_handle = config::Profile::new(profile, &config);
     assert_eq!(
-        config::Profile::get_credential(profile, &config)
+        profile_handle
+            .get_credential()
             .expect("retreiving api key for default profile failed")
             .api_key,
         String::from(api_key)
@@ -78,7 +84,8 @@ fn it_migrates_a_legacy_plaintext_credential() {
     assert!(!sensitive_file.exists());
     // ...and subsequent reads still succeed from the secret store.
     assert_eq!(
-        config::Profile::get_credential(profile, &config)
+        profile_handle
+            .get_credential()
             .expect("retreiving api key for default profile failed")
             .api_key,
         String::from(api_key)
@@ -90,17 +97,18 @@ fn it_migrates_a_legacy_plaintext_credential() {
 fn it_can_set_and_get_an_oauth_session() {
     let config = get_config(None);
     let profile = "oauth-session-roundtrip";
+    let profile_handle = config::Profile::new(profile, &config);
 
-    config::Profile::set_oauth_tokens(
-        profile,
-        &config,
-        "access-token".to_string(),
-        Some("refresh-token".to_string()),
-        Some(1_700_000_000),
-    )
-    .expect("storing oauth tokens failed");
+    profile_handle
+        .set_oauth_tokens(
+            "access-token".to_string(),
+            Some("refresh-token".to_string()),
+            Some(1_700_000_000),
+        )
+        .expect("storing oauth tokens failed");
 
-    let session = config::Profile::get_oauth_session(profile, &config)
+    let session = profile_handle
+        .get_oauth_session()
         .expect("retrieving oauth session failed")
         .expect("expected a stored oauth session");
     assert_that!(session.access_token).is_equal_to("access-token".to_string());
@@ -112,10 +120,14 @@ fn it_can_set_and_get_an_oauth_session() {
 fn it_returns_no_oauth_session_for_a_legacy_api_key_profile() {
     let config = get_config(None);
     let profile = "legacy-api-key-has-no-oauth-session";
+    let profile_handle = config::Profile::new(profile, &config);
 
-    config::Profile::set_api_key(profile, &config, "some-key").expect("setting api key failed");
+    profile_handle
+        .set_api_key("some-key")
+        .expect("setting api key failed");
 
-    let session = config::Profile::get_oauth_session(profile, &config)
+    let session = profile_handle
+        .get_oauth_session()
         .expect("retrieving oauth session failed");
     assert_that!(session).is_none();
 }
@@ -127,7 +139,8 @@ fn it_can_get_an_api_key_via_env_var() {
     let config = get_config(Some(api_key.to_string()));
 
     assert_eq!(
-        config::Profile::get_credential(profile, &config)
+        config::Profile::new(profile, &config)
+            .get_credential()
             .expect("retreiving api key for default profile failed")
             .api_key,
         String::from(api_key)
@@ -145,12 +158,14 @@ fn it_prioritizes_env_var_override_even_when_a_profile_credential_exists() {
     let tmp_home_path = Utf8Path::from_path(tmp_home.path()).unwrap().to_owned();
 
     let setup_config = Config::new(Some(&tmp_home_path), None).unwrap();
-    config::Profile::set_api_key(profile, &setup_config, profile_key)
+    config::Profile::new(profile, &setup_config)
+        .set_api_key(profile_key)
         .expect("setting api key failed");
 
     let config = Config::new(Some(&tmp_home_path), Some(override_key.to_string())).unwrap();
-    let credential =
-        config::Profile::get_credential(profile, &config).expect("retreiving api key failed");
+    let credential = config::Profile::new(profile, &config)
+        .get_credential()
+        .expect("retreiving api key failed");
 
     assert_eq!(credential.api_key, override_key);
     assert_eq!(credential.origin, config::CredentialOrigin::EnvVar);
@@ -160,10 +175,12 @@ fn it_prioritizes_env_var_override_even_when_a_profile_credential_exists() {
 #[serial]
 fn it_returns_profile_not_found_for_missing_profile_when_others_exist() {
     let config = get_config(None);
-    config::Profile::set_api_key("existing-profile", &config, "some-key")
+    config::Profile::new("existing-profile", &config)
+        .set_api_key("some-key")
         .expect("setting api key failed");
 
-    let error = config::Profile::get_credential("missing-profile", &config)
+    let error = config::Profile::new("missing-profile", &config)
+        .get_credential()
         .expect_err("expected a missing profile to error");
 
     assert!(matches!(error, config::HoustonProblem::ProfileNotFound(_)));
@@ -173,7 +190,8 @@ fn it_returns_profile_not_found_for_missing_profile_when_others_exist() {
 fn it_returns_no_config_profiles_when_none_exist() {
     let config = get_config(None);
 
-    let error = config::Profile::get_credential("anything", &config)
+    let error = config::Profile::new("anything", &config)
+        .get_credential()
         .expect_err("expected an empty config to error");
 
     assert!(matches!(error, config::HoustonProblem::NoConfigProfiles));
@@ -186,7 +204,7 @@ fn it_rejects_a_corrupted_legacy_credential() {
     let profile = "corrupted-legacy";
 
     // historical Windows/PowerShell bug: older Rover versions could write a
-    // profile's api_key as the single raw byte 22 (`` in TOML).
+    // profile's api_key as the single raw byte 22 (`` in TOML).
     let profile_home = config.home.join("profiles").join(profile);
     std::fs::create_dir_all(profile_home.as_std_path()).unwrap();
     std::fs::write(
@@ -195,7 +213,8 @@ fn it_rejects_a_corrupted_legacy_credential() {
     )
     .unwrap();
 
-    let error = config::Profile::get_credential(profile, &config)
+    let error = config::Profile::new(profile, &config)
+        .get_credential()
         .expect_err("expected a corrupted legacy credential to error");
 
     assert!(matches!(error, config::HoustonProblem::CorruptedProfile(_)));
@@ -206,10 +225,14 @@ fn it_rejects_a_corrupted_legacy_credential() {
 fn it_rejects_a_corrupted_credential_via_current_api() {
     let config = get_config(None);
     let profile = "corrupted-current";
+    let profile_handle = config::Profile::new(profile, &config);
 
-    config::Profile::set_api_key(profile, &config, "\u{16}").expect("setting api key failed");
+    profile_handle
+        .set_api_key("\u{16}")
+        .expect("setting api key failed");
 
-    let error = config::Profile::get_credential(profile, &config)
+    let error = profile_handle
+        .get_credential()
         .expect_err("expected a corrupted credential to error");
 
     assert!(matches!(error, config::HoustonProblem::CorruptedProfile(_)));
@@ -229,7 +252,8 @@ fn it_surfaces_malformed_legacy_toml_as_a_deserialization_error() {
     )
     .unwrap();
 
-    let error = config::Profile::get_credential(profile, &config)
+    let error = config::Profile::new(profile, &config)
+        .get_credential()
         .expect_err("expected malformed legacy toml to error");
 
     assert!(matches!(
@@ -243,9 +267,12 @@ fn it_surfaces_malformed_legacy_toml_as_a_deserialization_error() {
 fn it_does_not_leak_an_orphaned_secret_after_delete() {
     let config = get_config(None);
     let profile = "delete-then-recreate-dir";
+    let profile_handle = config::Profile::new(profile, &config);
 
-    config::Profile::set_api_key(profile, &config, "some-key").expect("setting api key failed");
-    config::Profile::delete(profile, &config).expect("deleting profile failed");
+    profile_handle
+        .set_api_key("some-key")
+        .expect("setting api key failed");
+    profile_handle.delete().expect("deleting profile failed");
 
     // recreate only the profile's index directory, without writing a new
     // secret, to confirm the old secret wasn't left behind (orphaned) in the
@@ -253,7 +280,8 @@ fn it_does_not_leak_an_orphaned_secret_after_delete() {
     let profile_home = config.home.join("profiles").join(profile);
     std::fs::create_dir_all(profile_home.as_std_path()).unwrap();
 
-    let error = config::Profile::get_credential(profile, &config)
+    let error = profile_handle
+        .get_credential()
         .expect_err("expected no credential to be found after delete");
 
     // no secret and no legacy `.sensitive` file means the read falls through
@@ -266,7 +294,8 @@ fn it_does_not_leak_an_orphaned_secret_after_delete() {
 fn it_errors_cleanly_when_deleting_a_profile_that_does_not_exist() {
     let config = get_config(None);
 
-    let error = config::Profile::delete("never-created", &config)
+    let error = config::Profile::new("never-created", &config)
+        .delete()
         .expect_err("expected deleting a nonexistent profile to error");
 
     assert!(matches!(error, config::HoustonProblem::RoverStdError(_)));
@@ -292,7 +321,8 @@ fn it_rejects_a_non_directory_override_home() {
 #[serial]
 fn it_errors_when_clearing_an_already_cleared_config() {
     let config = get_config(None);
-    config::Profile::set_api_key("clear-twice", &config, "some-key")
+    config::Profile::new("clear-twice", &config)
+        .set_api_key("some-key")
         .expect("setting api key failed");
 
     config

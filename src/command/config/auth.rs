@@ -37,8 +37,9 @@ impl Auth {
         );
 
         let api_key = api_key_prompt()?;
-        Profile::set_api_key(&profile.profile_name, &config, &api_key)?;
-        Profile::get_credential(&profile.profile_name, &config).map(|_| {
+        let profile_handle = Profile::new(&profile.profile_name, &config);
+        profile_handle.set_api_key(&api_key)?;
+        profile_handle.get_credential().map(|_| {
             eprintln!("Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.");
         })?;
         Ok(RoverOutput::EmptySuccess)
@@ -88,10 +89,9 @@ mod tests {
     fn it_can_set_default_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY).unwrap();
-        let result = Profile::get_credential(DEFAULT_PROFILE, &config)
-            .unwrap()
-            .api_key;
+        let profile_handle = Profile::new(DEFAULT_PROFILE, &config);
+        profile_handle.set_api_key(DEFAULT_KEY).unwrap();
+        let result = profile_handle.get_credential().unwrap().api_key;
         assert_eq!(result, DEFAULT_KEY);
     }
 
@@ -100,10 +100,9 @@ mod tests {
     fn it_can_set_custom_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY).unwrap();
-        let result = Profile::get_credential(CUSTOM_PROFILE, &config)
-            .unwrap()
-            .api_key;
+        let profile_handle = Profile::new(CUSTOM_PROFILE, &config);
+        profile_handle.set_api_key(CUSTOM_KEY).unwrap();
+        let result = profile_handle.get_credential().unwrap().api_key;
         assert_eq!(result, CUSTOM_KEY);
     }
 

@@ -278,7 +278,8 @@ impl StudioClientConfig {
     }
 
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
-        let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
+        let credential =
+            config::Profile::new(&profile_opt.profile_name, &self.config).get_credential()?;
         Ok(StudioClient::new(
             credential,
             &self.uri,
@@ -291,7 +292,8 @@ impl StudioClientConfig {
 
     pub fn authenticated_service(&self, profile_opt: &ProfileOpt) -> Result<HttpService> {
         let client = self.get_reqwest_client()?;
-        let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
+        let credential =
+            config::Profile::new(&profile_opt.profile_name, &self.config).get_credential()?;
         let service = ServiceBuilder::new()
             .layer(HttpStudioServiceLayer::new(
                 Url::from_str(&self.uri)?,
