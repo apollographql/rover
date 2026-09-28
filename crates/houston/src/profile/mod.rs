@@ -216,8 +216,10 @@ impl Profile {
                 // `rover config set`) with no credential in either the
                 // secret store or the legacy file gets its own message
                 // (FR37) instead of `Profile::load`'s generic load failure.
-                if Profile::dir(name, config).exists() && !Sensitive::exists(name, config)? {
-                    return Err(HoustonProblem::NoCredential(name.to_string()));
+                if Profile::dir(&self.name, &self.config).exists()
+                    && !Sensitive::exists(&self.name, &self.config)?
+                {
+                    return Err(HoustonProblem::NoCredential(self.name.clone()));
                 }
                 let opts = LoadOpts { sensitive: true };
                 let sensitive = self.load(opts)?;
@@ -583,20 +585,18 @@ mod tests {
         test_config: (Config, TempDir),
     ) {
         let (config, _tmp_home) = test_config;
-        let profile = "settings-only";
-        Profile::set_setting(
-            profile,
-            &config,
-            "APOLLO_REGISTRY_URL",
-            "https://registry.example.com",
-        )
-        .unwrap();
+        let profile = Profile::new("settings-only", &config);
+        profile
+            .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+            .unwrap();
 
-        let error = Profile::get_credential(profile, &config)
+        let error = profile
+            .get_credential()
             .expect_err("expected a settings-only profile to have no credential");
 
-        assert_that!(error.to_string()).contains(format!("Profile `{profile}`"));
-        assert_that!(error.to_string()).contains(format!("rover auth login --profile {profile}"));
+        assert_that!(error.to_string()).contains(format!("Profile `{}`", profile.name()));
+        assert_that!(error.to_string())
+            .contains(format!("rover auth login --profile {}", profile.name()));
         assert_that!(error.to_string()).contains("APOLLO_KEY");
         assert!(matches!(error, HoustonProblem::NoCredential(_)));
     }
