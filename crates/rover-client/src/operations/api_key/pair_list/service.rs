@@ -167,14 +167,28 @@ pub mod mock {
 mod tests {
     use std::sync::{Arc, Mutex};
 
+    use chrono::DateTime;
     use futures::future;
     use rover_graphql::GraphQLServiceError;
     use rover_tower::test::{expect_poll_ready, MockCloneService};
+    use rstest::{fixture, rstest};
     use serde_json::json;
+    use speculoos::prelude::*;
     use tower::ServiceExt;
 
     use super::{mock::MockListPairsInnerService, *};
-    use crate::operations::api_key::pair_list::ListOAuthClientsInput;
+    use crate::operations::api_key::pair_list::{
+        ListOAuthClientsInput, OAuthClientPair, PairActor, PairResource,
+    };
+
+    /// The default input this module's tests build against: organization `acme`, starting from
+    /// the first page, at the default limit.
+    #[fixture]
+    fn input() -> ListOAuthClientsInput {
+        ListOAuthClientsInput::builder()
+            .organization_id("acme")
+            .build()
+    }
 
     fn page(
         has_next: bool,
@@ -204,11 +218,30 @@ mod tests {
         .unwrap()
     }
 
-    /// A single page, with no further pages, is mapped end to end: identifiers, the lowercased
-    /// actor kind (FR15), and resources/scopes all carry through. `next_after` is `None`
+    /// The pair `page(_, _, client_id)` describes, once mapped (FR15's lowercased actor kind
+    /// included).
+    fn expected_pair(client_id: &str) -> OAuthClientPair {
+        OAuthClientPair {
+            client_id: client_id.to_string(),
+            name: Some("ci-deploy".to_string()),
+            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
+            created_by: PairActor {
+                id: "user-123".to_string(),
+                kind: "user".to_string(),
+            },
+            resources: vec![PairResource {
+                resource_id: "inventory".to_string(),
+                resource_type: "GRAPH".to_string(),
+            }],
+            scopes: vec!["rover:cli".to_string()],
+        }
+    }
+
+    /// A single page, with no further pages, is mapped end to end. `next_after` is `None`
     /// because the server said there was nothing left, well under the default limit.
+    #[rstest]
     #[tokio::test]
-    async fn call_returns_a_single_page() {
+    async fn call_returns_a_single_page(input: ListOAuthClientsInput) {
         let mut mock = MockListPairsInnerService::new();
         expect_poll_ready!(mock);
         mock.expect_call()
@@ -216,27 +249,18 @@ mod tests {
             .return_once(move |_| future::ready(Ok(page(false, None, "c_1"))));
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(
-                ListOAuthClientsInput::builder()
-                    .organization_id("acme")
-                    .build(),
-            )
+            .oneshot(input)
             .await
             .unwrap();
 
-        assert_eq!(response.pairs.len(), 1);
-        assert_eq!(response.pairs[0].client_id, "c_1");
-        assert_eq!(response.pairs[0].name.as_deref(), Some("ci-deploy"));
-        assert_eq!(response.pairs[0].created_by.id, "user-123");
-        assert_eq!(response.pairs[0].created_by.kind, "user");
-        assert_eq!(response.pairs[0].resources[0].resource_id, "inventory");
-        assert_eq!(response.pairs[0].scopes, vec!["rover:cli".to_string()]);
-        assert_eq!(response.next_after, None);
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1")]);
+        assert_that!(response.next_after).is_equal_to(None);
     }
 
     /// FR10/FR56: while under the limit, every page is drained before the caller sees anything.
+    #[rstest]
     #[tokio::test]
-    async fn call_pages_through_every_page_before_returning() {
+    async fn call_pages_through_every_page_before_returning(input: ListOAuthClientsInput) {
         let responses = Arc::new(Mutex::new(vec![
             page(true, Some("cursor-1"), "c_1"),
             page(false, None, "c_2"),
@@ -250,23 +274,12 @@ mod tests {
         });
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(
-                ListOAuthClientsInput::builder()
-                    .organization_id("acme")
-                    .build(),
-            )
+            .oneshot(input)
             .await
             .unwrap();
 
-        assert_eq!(
-            response
-                .pairs
-                .iter()
-                .map(|p| p.client_id.clone())
-                .collect::<Vec<_>>(),
-            vec!["c_1".to_string(), "c_2".to_string()]
-        );
-        assert_eq!(response.next_after, None);
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1"), expected_pair("c_2")]);
+        assert_that!(response.next_after).is_equal_to(None);
     }
 
     /// Hitting `limit` stops the call short and reports where to resume, rather than draining
@@ -289,8 +302,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.pairs.len(), 1);
-        assert_eq!(response.next_after.as_deref(), Some("cursor-1"));
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1")]);
+        assert_that!(response.next_after).is_equal_to(Some("cursor-1".to_string()));
     }
 
     /// A second call passing back the first call's `next_after` resumes from that cursor
@@ -314,14 +327,15 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.pairs[0].client_id, "c_2");
-        assert_eq!(response.next_after, None);
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_2")]);
+        assert_that!(response.next_after).is_equal_to(None);
     }
 
     /// The safety net trips rather than looping forever against a server that keeps claiming
     /// more pages exist while never returning any pairs.
+    #[rstest]
     #[tokio::test]
-    async fn call_gives_up_after_too_many_empty_pages() {
+    async fn call_gives_up_after_too_many_empty_pages(input: ListOAuthClientsInput) {
         let empty_page = json!({
             "organization": {
                 "oauthClients": {
@@ -340,25 +354,21 @@ mod tests {
             });
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(
-                ListOAuthClientsInput::builder()
-                    .organization_id("acme")
-                    .build(),
-            )
+            .oneshot(input)
             .await
             .unwrap_err();
 
-        assert!(matches!(
-            err,
-            ListOAuthClientsError::NoProgress(n) if n == MAX_PAGES_WITHOUT_PROGRESS
-        ));
+        assert_that!(err).matches(|err| {
+            matches!(err, ListOAuthClientsError::NoProgress(n) if *n == MAX_PAGES_WITHOUT_PROGRESS)
+        });
     }
 
     /// This operation deliberately does not classify permission/enrollment failures from any
     /// other failure (see the `ListOAuthClientsError` doc comment) — it just preserves the raw
     /// errors for a caller that needs to.
+    #[rstest]
     #[tokio::test]
-    async fn call_surfaces_graphql_errors_without_classifying_them() {
+    async fn call_surfaces_graphql_errors_without_classifying_them(input: ListOAuthClientsInput) {
         let mut mock = MockListPairsInnerService::new();
         expect_poll_ready!(mock);
         mock.expect_call().times(1).return_once(|_| {
@@ -373,25 +383,22 @@ mod tests {
         });
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(
-                ListOAuthClientsInput::builder()
-                    .organization_id("acme")
-                    .build(),
-            )
+            .oneshot(input)
             .await
             .unwrap_err();
 
         match err {
             ListOAuthClientsError::GraphQl(errors) => {
-                assert_eq!(errors.len(), 1);
-                assert_eq!(errors[0].message, "not enrolled");
+                assert_that!(errors).has_length(1);
+                assert_that!(errors[0].message.as_str()).is_equal_to("not enrolled");
             }
             other => panic!("expected GraphQl, got {other:?}"),
         }
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn call_reports_an_unknown_organization() {
+    async fn call_reports_an_unknown_organization(input: ListOAuthClientsInput) {
         let data: list_pairs_query::ResponseData =
             serde_json::from_value(json!({ "organization": null })).unwrap();
 
@@ -402,17 +409,15 @@ mod tests {
             .return_once(move |_| future::ready(Ok(data)));
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(
-                ListOAuthClientsInput::builder()
-                    .organization_id("acme")
-                    .build(),
-            )
+            .oneshot(input)
             .await
             .unwrap_err();
 
-        assert!(matches!(
-            err,
-            ListOAuthClientsError::Other(RoverClientError::OrganizationIDNotFound { .. })
-        ));
+        assert_that!(err).matches(|err| {
+            matches!(
+                err,
+                ListOAuthClientsError::Other(RoverClientError::OrganizationIDNotFound { .. })
+            )
+        });
     }
 }
