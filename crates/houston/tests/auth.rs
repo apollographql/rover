@@ -290,9 +290,10 @@ fn it_does_not_leak_an_orphaned_secret_after_delete() {
         .get_credential()
         .expect_err("expected no credential to be found after delete");
 
-    // no secret and no legacy `.sensitive` file means the read falls through
-    // to a filesystem error trying to open the (nonexistent) legacy file.
-    assert!(matches!(error, config::HoustonProblem::RoverStdError(_)));
+    // a known profile (it has an index directory) with no secret and no
+    // legacy `.sensitive` file is a settings-only profile with no
+    // credential of its own (spec.md FR37), not a filesystem error.
+    assert!(matches!(error, config::HoustonProblem::NoCredential(_)));
 }
 
 #[test]

@@ -212,6 +212,13 @@ impl Profile {
                 expires_at: None,
             },
             (None, None) => {
+                // A known profile (it has an index directory - e.g. from
+                // `rover config set`) with no credential in either the
+                // secret store or the legacy file gets its own message
+                // (FR37) instead of `Profile::load`'s generic load failure.
+                if Profile::dir(name, config).exists() && !Sensitive::exists(name, config)? {
+                    return Err(HoustonProblem::NoCredential(name.to_string()));
+                }
                 let opts = LoadOpts { sensitive: true };
                 let sensitive = self.load(opts)?;
                 match sensitive {
@@ -566,6 +573,32 @@ mod tests {
         profile.set_api_key("profile-key").unwrap();
 
         assert_that!(profile.oauth_grant_type()).is_ok().is_none();
+    }
+
+    // FR37: a known profile (it has stored settings) with no credential of
+    // its own gets its own message, not a generic load failure.
+    #[rstest]
+    #[serial]
+    fn get_credential_names_a_settings_only_profile_with_no_credential(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        let profile = "settings-only";
+        Profile::set_setting(
+            profile,
+            &config,
+            "APOLLO_REGISTRY_URL",
+            "https://registry.example.com",
+        )
+        .unwrap();
+
+        let error = Profile::get_credential(profile, &config)
+            .expect_err("expected a settings-only profile to have no credential");
+
+        assert_that!(error.to_string()).contains(format!("Profile `{profile}`"));
+        assert_that!(error.to_string()).contains(format!("rover auth login --profile {profile}"));
+        assert_that!(error.to_string()).contains("APOLLO_KEY");
+        assert!(matches!(error, HoustonProblem::NoCredential(_)));
     }
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
