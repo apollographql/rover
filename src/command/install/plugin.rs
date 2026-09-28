@@ -1207,7 +1207,8 @@ mod tests {
                 false,
                 ClientBuilder::default(),
                 ClientTimeout::new(1),
-            );
+            )
+            .with_download_host(host);
             let installer = Installer {
                 binary_name: "rover".to_string(),
                 force_install: false,
@@ -1218,23 +1219,17 @@ mod tests {
                 Version::parse(version).unwrap(),
             ));
 
-            temp_env::async_with_vars(
-                [
-                    ("APOLLO_ROVER_DOWNLOAD_HOST", Some(host)),
-                    ("APOLLO_NODE_MODULES_BIN_DIR", None),
-                ],
-                async {
-                    let plugin_installer = PluginInstaller::new(client_config, installer, false);
-                    let plugin_installer = match origin {
-                        Some(origin) => plugin_installer.requested_by(origin),
-                        None => plugin_installer,
-                    };
-                    plugin_installer
-                        .install(&plugin, false)
-                        .await
-                        .expect_err("the registry serves no such artifact")
-                },
-            )
+            temp_env::async_with_vars([("APOLLO_NODE_MODULES_BIN_DIR", None::<&str>)], async {
+                let plugin_installer = PluginInstaller::new(client_config, installer, false);
+                let plugin_installer = match origin {
+                    Some(origin) => plugin_installer.requested_by(origin),
+                    None => plugin_installer,
+                };
+                plugin_installer
+                    .install(&plugin, false)
+                    .await
+                    .expect_err("the registry serves no such artifact")
+            })
             .await
         }
 
