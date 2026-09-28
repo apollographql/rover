@@ -74,9 +74,9 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 ### 3.2 Listing (A1.2)
 
-- **FR10**: `rover api-key list <ORGANIZATION_ID>` must report the organization's pairs in addition to its API keys. It must page through every page of both sets before printing anything, so the output is always the complete set.
-- **FR11**: `rover api-key list` must accept `--type <TYPE>`, where `<TYPE>` is `operator`, `subgraph`, or `client-credentials`, repeatable. When given, only keys and pairs of the named types are reported. When omitted, every type is reported.
-- **FR12**: For each pair, the list must report at least: name, client ID, graphs, creation time, and who created it. Once the Platform API reports a last-used time for pairs, the list must report it too (§3.11).
+- **FR10**: `rover api-key list <ORGANIZATION_ID>` must report the organization's pairs in addition to its API keys. It must page through every page of both sets before printing anything, so the output is always the complete set. A failure listing the organization's API keys — the resource this command has always fetched — fails the whole command with no output, exactly as it does today (§3.12), regardless of whether pairs would have listed successfully. A failure listing pairs is handled separately; see FR16.
+- **FR11**: `rover api-key list` must accept `--type <TYPE>`, where `<TYPE>` is `operator`, `subgraph`, or `client-credentials`, repeatable. When given, only keys and pairs of the named types are reported. When omitted, every type is reported. A `--type` set that excludes `keys` or `client_credentials` entirely must omit that field from the JSON payload, not report it as `[]`: `[]` means the type was in scope and none exist, and omission means it wasn't requested.
+- **FR12**: For each pair, the list must report at least: name, client ID, graphs, creation time, and who created it. Once the Platform API reports a last-used time for pairs, the list must report it too (§3.11). This is how the list surfaces the PRD's "type" column (A1.2): the `Client-credential pairs` table's title and each JSON entry's own `key_type: "ClientCredentials"` (FR15) are the type, rather than a repeated per-row column in the text table.
 - **FR13**: No secret, and no part of a secret, may appear in list output in any format.
 - **FR14**: The text output for API keys must be unchanged when the organization has no pairs, or when pairs are filtered out by `--type`. When pairs are reported, they appear in a separate table after the API key table, titled `Client-credential pairs`.
 - **FR15**: The JSON payload must keep the existing `keys` array with every field it carries today, add a `key_type` field to each entry in it, and add a sibling `client_credentials` array:
@@ -113,8 +113,19 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   ```
 
   `created_by` carries the creating actor's ID and kind (`"user"`, `"service_account"`, ...), never a resolved display name: the Platform API returns the actor as an ID and a type only, with nothing else on it, and there is no lookup that resolves it to a name without an extra request per pair. `created_by.type` is Rover's lowercased rendering of the Platform API's actor-kind value. `key_type` on a `keys` entry may itself be `null` — the underlying field is nullable at the source for any key, not only pairs. Once last-used time is available, each pair entry gains `last_used_at`, which is `null` only for a pair that has never obtained a token.
-- **FR16**: If the caller cannot list the organization's pairs — because they lack the permission, or because the organization is not enrolled in client-credential support — and `--type` was not given, Rover must report the API keys exactly as it does today and set `client_credentials` to `null`. It must print nothing about the pairs it could not list. `null` means "not available to this caller"; `[]` means "there are none."
-- **FR17**: If `--type client-credentials` was given and the caller cannot list pairs, the command must fail with the permission error of §3.10.
+- **FR16**: When pairs are in scope — `--type` was not given, or its set includes `client-credentials` — and the pairs query fails, Rover must still report the API keys it fetched, best-effort, and always set `client_credentials` to `null`. Which else happens depends on why the pairs query failed:
+  - **Lack of permission, or the organization isn't enrolled in client-credential support.** This is the common case during rollout, not a Rover error: the command succeeds (`data.success` is `true`, `error` is `null`, exit 0), exactly as FR83 requires when `--type` wasn't given. In text mode only, Rover must print one line to stderr so the absence of a `Client-credential pairs` table is never mistaken for "this organization has none," without stating which of the two reasons applies (that distinction is what `--type client-credentials` is for, per the second bullet below).
+
+    Required text (stderr):
+    > Client-credential pairs aren't shown here. Run `rover api-key list acme --type client-credentials` to see whether that's a permission issue.
+
+  - **Any other failure** (a timeout, a 5xx, anything that isn't the specific permission-denied or not-enrolled response above). This is a real failure and must not be folded into the silent case: `data.success` is `false`, the command exits non-zero, and `error` carries its own code (§3.10) and a message naming the underlying Platform API error, alongside the best-effort `data.keys`.
+
+    Required text (stderr):
+    > Rover couldn't list client-credential pairs in organization `acme`: <the Platform API's error message>. API keys are shown below.
+
+  `null` means "not available to this caller for this call, for whatever reason"; `[]` means "there are none."
+- **FR17**: If `--type`'s set includes `client-credentials` and excludes both API key types, and the pairs query fails, the command must fail outright with no output — the caller explicitly asked for pairs only, so there is nothing left to show best-effort. It fails with the permission error of §3.10 when the cause is lack of permission or non-enrollment, and with FR16's other-failure error code otherwise.
 
 ### 3.3 Addressing a pair by ID (A1.3, A1.4, A1.5)
 
@@ -349,6 +360,7 @@ Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an ad
   4. The credential does not belong to a user, for self-service grant verbs (FR41).
   5. Confirmation is required and no terminal is available (FR59).
   6. The per-user sweep failed under one or more clients (FR63).
+  7. Client-credential pairs could not be listed, for a reason other than permission or non-enrollment (FR16, FR17).
 - **FR75**: Every code in FR74 must be documented in the generated error reference, with the same page-per-code treatment every other Rover error code gets.
 - **FR76**: Usage errors (FR2–FR4, FR11, FR23, FR47–FR48) are reported the same way Rover reports any invalid argument today, and are always detected before any request is made.
 - **FR77**: Every verb in this spec must support `--format json` through Rover's standard `{"json_version", "data", "error"}` envelope. Every timestamp in `data` is an RFC 3339 string in UTC. Every field in `data` is a typed value, never prose that a consumer would have to parse.
@@ -390,11 +402,14 @@ Given a pair created in text mode, then stdout carries the secret and stderr car
 **List keeps the API key output intact**
 Given an organization with API keys and no pairs, when `rover api-key list acme` runs, then its text output is identical to today's. Given pairs as well, then the API key table is unchanged and a `Client-credential pairs` table follows it.
 
-**A caller who can't see pairs sees today's list**
-Given a caller who may list API keys but not pairs, when `rover api-key list acme --format json` runs, then `data.keys` matches today's output plus `key_type`, `data.client_credentials` is `null`, and nothing about pairs is printed. When `rover api-key list acme --type client-credentials` runs, then it fails with the permission-denied code.
+**A caller who can't see pairs sees today's list, with a note**
+Given a caller who may list API keys but not pairs, when `rover api-key list acme --format json` runs, then `data.keys` matches today's output plus `key_type`, `data.client_credentials` is `null`, `data.success` is `true`, `error` is `null`, and stdout/JSON carry nothing about pairs, but the FR16 advisory line is printed to stderr in text mode. When `rover api-key list acme --type client-credentials` runs, then it fails with the permission-denied code.
+
+**A genuine failure listing pairs still shows the API keys**
+Given a caller who may list pairs, but the Platform API's pairs query fails for a reason other than permission or non-enrollment, when `rover api-key list acme --format json` runs, then `data.keys` is populated as usual, `data.client_credentials` is `null`, `data.success` is `false`, the command exits non-zero, and `error.message` names the underlying Platform API error. When the organization's API-key query itself fails instead, then the command fails entirely with no output, exactly as it does today.
 
 **Filtering by type**
-Given API keys of both types and two pairs, when `rover api-key list acme --type client-credentials --format json` runs, then `data.keys` is `[]` and `data.client_credentials` has two entries.
+Given API keys of both types and two pairs, when `rover api-key list acme --type client-credentials --format json` runs, then `data.keys` is absent from the payload (not `[]`) and `data.client_credentials` has two entries. When `rover api-key list acme --type operator --format json` runs, then `data.client_credentials` is absent and `data.keys` reports only the operator keys.
 
 **Rotation is immediate by default, and says so**
 Given a pair, when `rover api-key rotate acme c_8f2a…` runs, then a new secret is printed, the zero-grace FR25 text is printed, and `data.previous_secrets_expire_at` is the time of rotation. A job that then authenticates with the old secret fails with an authentication error.
@@ -419,6 +434,9 @@ Given a profile logged in with `rover auth login` and another logged in with `ro
 
 **An older Rover still reads the new credential**
 Given a profile logged in by this version of Rover, when an earlier OAuth-capable version of Rover runs `rover auth whoami` against it, then it succeeds.
+
+**`whoami` reports the client-credentials grant type**
+Given a pair's `client_id`/`client_secret` exported as `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`, when `rover auth whoami --format json` runs, then `data.grant_type` is `"client_credentials"`.
 
 **Two grants, told apart**
 Given a user logged in from a browser on one machine and with `--no-browser` on another, when `rover auth grants list` runs on the first, then two grants are listed, labeled `Browser login` and `Device code (--no-browser)`, with the first marked current. There is no `rover auth grants` verb that revokes only the second: `rover auth logout` on that machine revokes its own current grant and leaves the first machine's grant valid (§5, §6).
@@ -484,7 +502,9 @@ Decisions taken while drafting, and their reasoning.
 
 - **List output keeps `keys` and adds `client_credentials` beside it** (FR15), over merging pairs into `keys`. A pair has a different field set — two identifiers, graphs, no expiry of its own — and a script that iterates `data.keys[].id` today would start receiving client IDs it can pass to nothing but `delete`. A sibling array is additive; a merged one is a silent change of meaning. The PRD's "list merges two queries" is honored in the text output, where both appear in one command.
 
-- **`client_credentials: null` means "not available to you," `[]` means "none"** (FR16). Without the distinction, an operator-key holder in an unenrolled organization and an admin in an organization with no pairs would see identical output, and the first would conclude there is nothing to clean up. The distinction costs nothing and keeps FR83 intact, because the error is not raised unless the caller asked for pairs specifically.
+- **`client_credentials: null` means "not available to you," `[]` means "none"** (FR16). Without the distinction, an operator-key holder in an unenrolled organization and an admin in an organization with no pairs would see identical output, and the first would conclude there is nothing to clean up. The distinction costs nothing and keeps FR83 intact for the permission/enrollment branch, since no hard error is raised there unless the caller asked for pairs specifically (FR17).
+
+- **A failure listing pairs is a silent, successful degrade only when the cause is permission or non-enrollment; any other cause is a loud, exit-non-zero failure, with `data.keys` still shown best-effort either way** (FR10, FR16). During the initial rollout, nearly every organization will hit the permission/enrollment branch on every plain `list` call — treating that as a command failure would regress FR83's promise for the common case and break scripts that only check exit code. But folding a genuine, unexpected failure (a timeout, a 5xx) into that same silent path would hide a real problem behind the same `null` a caller already learns to expect during rollout. Splitting the two, and adding a stderr note to the silent branch so `null` is never mistaken for "confirmed zero pairs," addresses both without conflating them. The note deliberately doesn't say which of "no permission" or "not enrolled" applies — `--type client-credentials` (FR17) already gives an exact answer to a caller who asks for it, at the cost of a hard failure that's fine to accept once the caller has opted into asking specifically about pairs.
 
 - **The create/rotate payload for a pair has no `api_key` field** (FR8, FR26), unlike `operator`/`subgraph` keys, whose secret is carried as `data.api_key` today. A pair's secret is a `client_secret`, not an API key, and aliasing it under the field name a script might already read as "the credential" would invite the secret being used somewhere an API key is expected. `id` is kept dual-purpose (FR8); `api_key` deliberately is not.
 
@@ -530,5 +550,6 @@ This contract cannot be verified by unit tests alone. The following must be clos
 - **A no-regression snapshot of today's `rover api-key` output.** FR14 and FR83 promise that text output for API keys is unchanged. That needs the current output captured before the first slice lands, so the promise is checked against a fixed baseline rather than against itself.
 - **Secret-leak assertions at trace log level.** FR69–FR71 need a test that runs create and rotate with maximum log verbosity and fails if the secret appears anywhere but stdout, including in the failure path of FR71.
 - **Per-client failure injection for the sweep.** FR61–FR64 require a fixture in which revocation fails under one client and succeeds under the rest, and in which enumeration fails partway through (FR56), so that "attempts every client," "exits non-zero," "names the failures," and "revokes nothing if enumeration fails" are each observable.
+- **Pair-listing failure injection for `list`.** FR16's two branches need separate fixtures: one where the pairs query returns the permission-denied/not-enrolled response (silent degrade, exit 0, stderr note only), and one where it fails for any other reason (exit non-zero, `error` populated) — with `data.keys` still populated in both, so the two are distinguishable from each other and from a fixture where the API-key query itself fails (FR10, no output at all).
 - **Non-terminal stdin.** FR59 needs a test that runs the sweep with stdin redirected and no `--confirm`, on every supported platform, because what counts as a terminal differs between Unix and Windows.
 - **Cross-version credential compatibility.** FR36 needs a test that writes a credential with this version of Rover and reads it with the most recent release that did not record grant type.
