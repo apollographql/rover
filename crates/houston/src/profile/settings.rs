@@ -119,6 +119,38 @@ mod tests {
     }
 
     #[test]
+    fn malformed_settings_toml_is_a_deserialization_error() {
+        let (config, _tmp_home) = test_config();
+        let profile_dir = Profile::dir("staging", &config);
+        std::fs::create_dir_all(profile_dir.as_std_path()).unwrap();
+        std::fs::write(
+            Profile::settings_path("staging", &config).as_std_path(),
+            "this is not valid toml {{{",
+        )
+        .unwrap();
+
+        let error = Profile::settings("staging", &config)
+            .expect_err("expected malformed settings toml to error");
+
+        assert!(matches!(error, HoustonProblem::TomlDeserialization(_)));
+    }
+
+    // `write_settings` is only ever called with an empty map after a key was
+    // just found and removed from a file that therefore exists - but the
+    // no-file case is worth covering directly, since it's the one place
+    // `remove_file`'s `NotFound` arm (rather than an actual removal) runs.
+    #[test]
+    fn write_settings_with_an_empty_map_and_no_existing_file_is_a_no_op() {
+        let (config, _tmp_home) = test_config();
+
+        Profile::write_settings("nonexistent", &config, &BTreeMap::new()).unwrap();
+
+        assert_that!(Profile::settings("nonexistent", &config).unwrap())
+            .is_equal_to(BTreeMap::new());
+        assert_that!(Profile::dir("nonexistent", &config).exists()).is_false();
+    }
+
+    #[test]
     fn a_profile_with_no_settings_file_reports_no_settings_and_creates_nothing() {
         let (config, _tmp_home) = test_config();
 
