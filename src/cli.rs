@@ -294,6 +294,9 @@ impl Rover {
         }
 
         let profile_opt = self.get_profile_opt();
+        for message in self.unrecognized_setting_warnings(&profile_opt) {
+            self.print_unrecognized_setting_warning(message);
+        }
 
         match &self.command {
             Command::Init(command) => {
@@ -809,6 +812,48 @@ impl Rover {
         use rover_print::{print::Print, style::StyledText};
 
         rover_print::print::stderr::default().print(&StyledText::plain(format!("Note: {message}")));
+    }
+
+    /// Prints the FR38 warning text a call to `warn_about_unrecognized_settings`
+    /// decided on.
+    fn print_unrecognized_setting_warning(&self, message: String) {
+        use rover_print::{print::Print, style::StyledText};
+
+        rover_print::print::stderr::default().print(&StyledText::plain(message));
+    }
+
+    /// Decides the FR38 warning text for any setting `profile` carries that
+    /// this version of Rover doesn't recognize - so a config directory
+    /// shared between Rover versions doesn't break the older one. The
+    /// decision is split from printing so it can be unit tested without
+    /// depending on `rover-print`'s real terminal writer; the caller must
+    /// print every message this returns.
+    ///
+    /// Meant to run once per invocation, for every command, regardless of
+    /// whether it goes on to use any setting - the same "every part of the
+    /// invocation" scope as the active profile resolution this rides
+    /// alongside (FR15). Best-effort: a config-home or read failure here is
+    /// either reported elsewhere (when the command that follows also needs
+    /// the profile) or harmless to skip (a command that doesn't touch
+    /// settings at all).
+    fn unrecognized_setting_warnings(&self, profile: &ProfileOpt) -> Vec<String> {
+        let Ok(houston_config) = self.get_rover_config() else {
+            return Vec::new();
+        };
+        let Ok(settings) = Profile::settings(&profile.profile_name, &houston_config) else {
+            return Vec::new();
+        };
+        settings
+            .keys()
+            .filter(|key| SettingName::try_from(key.as_str()).is_err())
+            .map(|key| {
+                format!(
+                    "Warning: profile `{profile_name}` sets `{key}`, which this version of \
+                    Rover doesn't recognize. It will be ignored.",
+                    profile_name = profile.profile_name,
+                )
+            })
+            .collect()
     }
 
     #[cfg(feature = "oauth")]
@@ -2140,6 +2185,106 @@ mod tests {
         .unwrap();
 
         assert_that!(message).is_none();
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_is_empty_when_nothing_is_stored() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_empty();
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_is_empty_for_only_recognized_settings() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_empty();
+    }
+
+    // FR38: a profile carrying a setting this version of Rover doesn't
+    // recognize gets one warning naming it, and is otherwise ignored.
+    #[test]
+    fn unrecognized_setting_warnings_names_an_unrecognized_key() {
+        let home = config_home_with_setting("staging", "APOLLO_FUTURE_SETTING", "anything");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings.len()).is_equal_to(1);
+        assert_that!(&warnings[0]).contains("Warning:");
+        assert_that!(&warnings[0]).contains("profile `staging`");
+        assert_that!(&warnings[0]).contains("APOLLO_FUTURE_SETTING");
+        assert_that!(&warnings[0]).contains("doesn't recognize");
+        assert_that!(&warnings[0]).contains("will be ignored");
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_ignores_recognized_settings_alongside_an_unrecognized_one() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        houston::Profile::set_setting(
+            "staging",
+            &houston_config,
+            "APOLLO_FUTURE_SETTING",
+            "anything",
+        )
+        .unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings.len()).is_equal_to(1);
+        assert_that!(&warnings[0]).contains("APOLLO_FUTURE_SETTING");
     }
 
     #[test]
