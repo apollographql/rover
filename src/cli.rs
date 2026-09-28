@@ -8,7 +8,7 @@ use clap::{
         styling::{AnsiColor, Effects},
     },
 };
-use config::Config;
+use config::{Config, Profile};
 use houston as config;
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
@@ -21,9 +21,11 @@ use timber::Level;
 #[cfg(feature = "oauth")]
 use crate::options::OauthOpts;
 use crate::{
-    RoverResult,
+    RoverError, RoverResult,
     command::{self, RoverOutput},
-    options::{DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection},
+    options::{
+        DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection, SettingName, SettingValueError,
+    },
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
@@ -456,21 +458,95 @@ impl Rover {
     /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
     /// module, so it can't reach the private field directly.
+    ///
+    /// Telemetry reporting is already best-effort and fully isolated from
+    /// the invocation's own exit code (see `run`'s `report_thread`), so an
+    /// invalid profile-stored value here is logged and skipped rather than
+    /// failing a command telemetry has nothing to do with - unlike
+    /// `resolve_profile_setting`'s normal contract, this never fails.
     pub(crate) fn telemetry_url_override(&self) -> Option<String> {
-        self.telemetry_url.clone()
+        if self.telemetry_url.is_some() {
+            return self.telemetry_url.clone();
+        }
+        match self.resolve_profile_setting(SettingName::TelemetryUrl) {
+            Ok(value) => value,
+            Err(error) => {
+                tracing::debug!(
+                    ?error,
+                    "ignoring invalid profile-stored APOLLO_TELEMETRY_URL"
+                );
+                None
+            }
+        }
     }
 
-    /// The resolved `--telemetry-disabled` flag, for `impl Report for Rover`
-    /// (`src/utils/telemetry.rs`). `APOLLO_TELEMETRY_DISABLED` keeps its own,
-    /// separate presence-only check (`RoverEnvKey::TelemetryDisabled`) -
-    /// this is only the flag half of the pair.
-    pub(crate) const fn is_telemetry_disabled(&self) -> bool {
-        self.telemetry_disabled
+    /// The resolved `--telemetry-disabled` flag plus its profile tier, for
+    /// `impl Report for Rover` (`src/utils/telemetry.rs`).
+    /// `APOLLO_TELEMETRY_DISABLED` keeps its own, separate presence-only
+    /// check (`RoverEnvKey::TelemetryDisabled`) as its *environment
+    /// variable's* parsing (FR21) - this only adds the profile tier
+    /// beneath it, where a stored value is a typed boolean (FR24). Errors
+    /// are swallowed the same way and for the same reason as
+    /// `telemetry_url_override`.
+    pub(crate) fn is_telemetry_disabled(&self) -> bool {
+        if self.telemetry_disabled {
+            return true;
+        }
+        match self.resolve_profile_setting(SettingName::TelemetryDisabled) {
+            Ok(Some(value)) => value.eq_ignore_ascii_case("true"),
+            Ok(None) => false,
+            Err(error) => {
+                tracing::debug!(
+                    ?error,
+                    "ignoring invalid profile-stored APOLLO_TELEMETRY_DISABLED"
+                );
+                false
+            }
+        }
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
         let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
         Ok(Config::new(self.config_home.as_ref(), override_api_key)?)
+    }
+
+    /// Resolves one setting's effective raw value, adding the profile tier
+    /// beneath an already-resolved explicit flag/environment-variable value
+    /// (FR25, collapsed to four tiers per FR29 - there's no project file
+    /// yet). `Ok(None)` means neither `explicit` nor the active profile
+    /// supplied a value, so the caller falls through to its own built-in
+    /// default. A stored profile value that fails validation fails the
+    /// command outright (FR39/FR83) rather than falling through.
+    fn resolve_setting(
+        &self,
+        explicit: Option<String>,
+        name: SettingName,
+    ) -> RoverResult<Option<String>> {
+        if explicit.is_some() {
+            return Ok(explicit);
+        }
+        self.resolve_profile_setting(name)
+    }
+
+    /// The active profile's stored value for `name`, validated against its
+    /// type. See `resolve_setting` for the tier this fits into.
+    fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
+        let profile = self.get_profile_opt();
+        let houston_config = self.get_rover_config()?;
+        let Some(raw) =
+            Profile::get_setting(&profile.profile_name, &houston_config, name.as_str())?
+        else {
+            return Ok(None);
+        };
+        if let Err(error) = name.setting_type().validate(&raw) {
+            return Err(RoverError::new(anyhow::anyhow!(
+                "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
+                `rover config set {name} <value> --profile {profile_name}` to correct it.",
+                profile_name = profile.profile_name,
+                reason = describe_invalid_value(&error),
+            )));
+        }
+        Ok(Some(raw))
     }
 
     #[cfg(feature = "oauth")]
@@ -486,7 +562,8 @@ impl Rover {
     }
 
     pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
-        let override_endpoint = self.registry_url.clone();
+        let override_endpoint =
+            self.resolve_setting(self.registry_url.clone(), SettingName::RegistryUrl)?;
         let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
             fire_flower == "true" || fire_flower == "1"
@@ -803,6 +880,22 @@ pub enum RoverOutputKind {
     RoverError,
 }
 
+/// The FR84 "which {reason}" tail of a stored setting's validation-failure
+/// message, for the type this repo's slice-one settings actually use.
+/// Deliberately doesn't reuse `SettingValueError`'s own `Display` impl,
+/// which is written for `rover config set`'s write-time framing ("`{input}`
+/// isn't a valid ...") rather than this read-time one ("... is set to
+/// `{value}`, which isn't a valid ...").
+const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
+    match error {
+        SettingValueError::InvalidUrl { .. } => {
+            "isn't a valid URL. URLs must include a scheme, for example \
+            `https://registry.example.com`."
+        }
+        SettingValueError::InvalidBool { .. } => "isn't a valid boolean. Use `true` or `false`.",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;
@@ -916,6 +1009,229 @@ mod tests {
         // importable here (private to that module).
         assert_that!(client_config.uri())
             .is_equal_to(&"https://api.apollographql.com/graphql".to_string());
+    }
+
+    /// Builds a fresh config home and stores one setting on `profile`,
+    /// returning the temp dir (keep it alive for the caller's `--config-home`).
+    fn config_home_with_setting(profile: &str, key: &str, value: &str) -> tempfile::TempDir {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        houston::Profile::set_setting(profile, &houston_config, key, value).unwrap();
+        home
+    }
+
+    #[tokio::test]
+    async fn registry_url_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://profile.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://profile.example.com".to_string());
+    }
+
+    #[tokio::test]
+    async fn registry_url_flag_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://profile.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--registry-url",
+                "https://flag.example.com",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://flag.example.com".to_string());
+    }
+
+    #[tokio::test]
+    async fn registry_url_env_var_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://profile.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            },
+        );
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://env.example.com".to_string());
+    }
+
+    // FR19: a `--profile` that has no stored settings, or doesn't exist on
+    // disk at all, isn't an error - every setting falls through.
+    #[tokio::test]
+    async fn a_missing_profile_falls_through_to_the_builtin_default() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "nonexistent",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri())
+            .is_equal_to(&"https://api.apollographql.com/graphql".to_string());
+    }
+
+    // FR39/FR83: a *recognized* setting whose stored value fails validation
+    // fails the command; it must not fall back to the default.
+    #[tokio::test]
+    async fn an_invalid_profile_registry_url_fails_the_command() {
+        let home =
+            config_home_with_setting("staging", "APOLLO_REGISTRY_URL", "registry.example.com");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let error = rover
+            .get_client_config()
+            .await
+            .expect_err("expected an invalid stored registry URL to fail the command");
+
+        let message = error.to_string();
+        assert_that!(message).contains("APOLLO_REGISTRY_URL");
+        assert_that!(message).contains("profile `staging`");
+        assert_that!(message).contains("registry.example.com");
+        assert_that!(message).contains("isn't a valid URL");
+        assert_that!(message).contains("rover config set APOLLO_REGISTRY_URL");
+    }
+
+    #[test]
+    fn telemetry_url_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TELEMETRY_URL",
+            "https://telemetry.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_TELEMETRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.telemetry_url_override())
+            .is_equal_to(Some("https://telemetry.example.com".to_string()));
+    }
+
+    #[test]
+    fn telemetry_disabled_profile_setting_true_disables_telemetry() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "true");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.is_telemetry_disabled()).is_true();
+    }
+
+    #[test]
+    fn telemetry_disabled_profile_setting_false_does_not_disable_telemetry() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "false");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.is_telemetry_disabled()).is_false();
+    }
+
+    #[test]
+    fn telemetry_disabled_flag_wins_over_a_stored_false() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "false");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "--telemetry-disabled",
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.is_telemetry_disabled()).is_true();
     }
 
     #[test]
