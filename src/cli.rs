@@ -533,9 +533,8 @@ impl Rover {
     fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
         let profile = self.get_profile_opt();
         let houston_config = self.get_rover_config()?;
-        let Some(raw) =
-            Profile::get_setting(&profile.profile_name, &houston_config, name.as_str())?
-        else {
+        let profile_handle = Profile::new(&profile.profile_name, &houston_config);
+        let Some(raw) = profile_handle.get_setting(name.as_str())? else {
             return Ok(None);
         };
         if let Err(error) = name.setting_type().validate(&raw) {
@@ -1017,7 +1016,9 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
-        houston::Profile::set_setting(profile, &houston_config, key, value).unwrap();
+        houston::Profile::new(profile, &houston_config)
+            .set_setting(key, value)
+            .unwrap();
         home
     }
 
