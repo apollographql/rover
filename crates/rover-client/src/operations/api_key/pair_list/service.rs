@@ -420,4 +420,39 @@ mod tests {
             )
         });
     }
+
+    /// Partial data alongside errors is still a `GraphQl` failure - the data is discarded, not
+    /// treated as a (possibly misleading) success.
+    #[test]
+    fn map_page_error_treats_partial_data_as_a_graphql_failure() {
+        let errors = vec![graphql_client::Error {
+            message: "degraded".to_string(),
+            locations: None,
+            path: None,
+            extensions: None,
+        }];
+
+        let result = map_page_error(GraphQLServiceError::PartialError {
+            data: page(false, None, "c_1"),
+            errors,
+            friendly_errors_detail: vec!["degraded".to_string()],
+        });
+
+        match result {
+            ListOAuthClientsError::GraphQl(got) => {
+                assert_that!(got).has_length(1);
+                assert_that!(got[0].message.as_str()).is_equal_to("degraded");
+            }
+            other => panic!("expected GraphQl, got {other:?}"),
+        }
+    }
+
+    /// Any failure that isn't a GraphQL-response-level error (a rejected credential, in this
+    /// case) is wrapped as `Other` rather than misreported as `GraphQl`.
+    #[test]
+    fn map_page_error_wraps_any_other_failure_as_other() {
+        let result = map_page_error(GraphQLServiceError::InvalidCredentials());
+
+        assert_that!(result).matches(|err| matches!(err, ListOAuthClientsError::Other(_)));
+    }
 }

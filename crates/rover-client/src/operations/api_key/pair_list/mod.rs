@@ -138,3 +138,32 @@ fn actor_kind(actor_type: RemoteActorType) -> String {
     }
     .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[rstest]
+    #[case::anonymous_user(RemoteActorType::ANONYMOUS_USER, "anonymous_user")]
+    #[case::backfill(RemoteActorType::BACKFILL, "backfill")]
+    #[case::cron(RemoteActorType::CRON, "cron")]
+    #[case::graph(RemoteActorType::GRAPH, "graph")]
+    #[case::internal_identity(RemoteActorType::INTERNAL_IDENTITY, "internal_identity")]
+    #[case::service_account(RemoteActorType::SERVICE_ACCOUNT, "service_account")]
+    #[case::synchronization(RemoteActorType::SYNCHRONIZATION, "synchronization")]
+    #[case::system(RemoteActorType::SYSTEM, "system")]
+    #[case::user(RemoteActorType::USER, "user")]
+    #[case::forward_compatible_unknown_variant(
+        RemoteActorType::Other("FUTURE_KIND".to_string()),
+        "future_kind"
+    )]
+    fn actor_kind_lowercases_every_known_variant_and_falls_back_for_unknown_ones(
+        #[case] actor_type: RemoteActorType,
+        #[case] expected: &str,
+    ) {
+        assert_that!(actor_kind(actor_type)).is_equal_to(expected.to_string());
+    }
+}
