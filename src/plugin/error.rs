@@ -280,7 +280,7 @@ impl fmt::Display for PluginNextStep {
         match self {
             Self::CheckRegistry { plugin, requested } => write!(
                 f,
-                "Make sure the plugin registry is reachable and that `{plugin}` has a release matching `{requested}`, then re-run the command. If you use a registry other than Apollo's, check that `APOLLO_ROVER_DOWNLOAD_HOST` points at it."
+                "Make sure the plugin registry is reachable and that `{plugin}` has a release matching `{requested}`, then re-run the command. If you use a registry other than Apollo's, check that `--download-host` (or `APOLLO_ROVER_DOWNLOAD_HOST`) points at it."
             ),
             Self::RetryDownload { plugin, version } => write!(
                 f,
@@ -430,7 +430,7 @@ mod tests {
          \n\
          Caused by:\n    \
          Bad Status code: 404 Not Found\n        \
-         Make sure the plugin registry is reachable and that `supergraph` has a release matching `=2.9.9`, then re-run the command. If you use a registry other than Apollo's, check that `APOLLO_ROVER_DOWNLOAD_HOST` points at it.\n"
+         Make sure the plugin registry is reachable and that `supergraph` has a release matching `=2.9.9`, then re-run the command. If you use a registry other than Apollo's, check that `--download-host` (or `APOLLO_ROVER_DOWNLOAD_HOST`) points at it.\n"
     )]
     #[case::download(
         download(),
