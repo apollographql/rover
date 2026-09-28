@@ -1,4 +1,5 @@
 mod sensitive;
+mod settings;
 
 use camino::Utf8PathBuf as PathBuf;
 use rover_std::Fs;
