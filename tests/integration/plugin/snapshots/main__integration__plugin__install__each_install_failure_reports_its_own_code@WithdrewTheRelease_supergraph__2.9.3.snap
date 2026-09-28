@@ -1,0 +1,14 @@
+---
+source: tests/integration/plugin/install.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.",
+    "code": "E051"
+  }
+}

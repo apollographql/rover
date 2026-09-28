@@ -1,0 +1,18 @@
+---
+source: tests/integration/plugin/install.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "Couldn't resolve a release of the `supergraph` plugin matching `2` from the plugin registry.",
+    "causes": [
+      "Couldn't resolve the plugin version from [registry]/tar/supergraph/[target]/latest-2",
+      "Bad Status code: 404 Not Found"
+    ],
+    "code": "E048"
+  }
+}
