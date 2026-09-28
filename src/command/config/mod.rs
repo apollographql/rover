@@ -2,7 +2,9 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
+mod set;
 mod show;
+mod unset;
 pub(crate) mod whoami;
 
 use clap::Parser;
@@ -30,8 +32,14 @@ pub enum Command {
     /// List all configuration profiles
     List(list::List),
 
+    /// Store a value for a setting on a profile
+    Set(set::Set),
+
     /// Show every setting's effective value and which source supplied it
     Show(show::Show),
+
+    /// Remove a stored setting from a profile
+    Unset(unset::Unset),
 
     /// View the identity of a user/api key
     Whoami(whoami::WhoAmI),
@@ -52,9 +60,11 @@ impl Config {
             Command::List(command) => command.run(rover.get_client_config().await?.config),
             Command::Delete(command) => command.run(rover.get_client_config().await?.config),
             Command::Clear(command) => command.run(rover.get_client_config().await?.config),
+            Command::Set(command) => command.run(rover.get_client_config().await?.config, profile),
             Command::Show(command) => Ok(RoverOutput::CliOutput(Box::new(
                 command.run(rover, profile)?,
             ))),
+            Command::Unset(command) => command.run(rover.get_client_config().await?.config, profile),
             Command::Whoami(command) => {
                 command
                     .run(
