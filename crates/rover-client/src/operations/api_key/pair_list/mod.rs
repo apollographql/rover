@@ -10,9 +10,16 @@ pub use service::{ListOAuthClients, ListOAuthClientsError};
 
 type Timestamp = String;
 
-/// Enumerates every `client_credentials` OAuth client (client-credential pair) registered
-/// under an organization. Shared by `rover api-key list` (PRD A1.2) and the per-user grant
-/// sweep's enumeration step (PRD B3.3, FR56) — see `specs/rover-431-identity-grant-management`.
+/// How many pairs [`ListOAuthClients`](service::ListOAuthClients) collects per call when
+/// [`ListOAuthClientsInput::limit`] isn't overridden. A caller that needs the complete set
+/// regardless of size (e.g. the per-user sweep's enumeration, spec FR56) must page explicitly
+/// via [`ListOAuthClientsResponse::next_after`] rather than raise this without bound.
+pub const DEFAULT_PAIR_LIST_LIMIT: usize = 50;
+
+/// Lists an organization's `client_credentials` OAuth clients (client-credential pairs), one page
+/// at a time, up to [`ListOAuthClientsInput::limit`] per call. Shared by `rover api-key list`
+/// (PRD A1.2) and the per-user grant sweep's enumeration step (PRD B3.3, FR56) — see
+/// `specs/rover-431-identity-grant-management`.
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
     query_path = "src/operations/api_key/pair_list/list_pairs_query.graphql",
@@ -25,6 +32,33 @@ pub struct ListPairsQuery;
 #[derive(Clone, Debug)]
 pub struct ListOAuthClientsInput {
     pub organization_id: String,
+    /// Resume from this cursor (a previous call's [`ListOAuthClientsResponse::next_after`]).
+    /// `None` starts from the first page.
+    pub after: Option<String>,
+    /// Collect at most this many pairs before returning, across as many pages as it takes.
+    /// See [`DEFAULT_PAIR_LIST_LIMIT`].
+    pub limit: usize,
+}
+
+impl ListOAuthClientsInput {
+    /// An input that starts from the beginning and stops at [`DEFAULT_PAIR_LIST_LIMIT`].
+    pub fn new(organization_id: impl Into<String>) -> Self {
+        Self {
+            organization_id: organization_id.into(),
+            after: None,
+            limit: DEFAULT_PAIR_LIST_LIMIT,
+        }
+    }
+}
+
+/// The result of one [`ListOAuthClients`] call: the pairs it collected, plus where to resume if
+/// the organization holds more than `limit`.
+#[derive(Clone, PartialEq, Debug)]
+pub struct ListOAuthClientsResponse {
+    pub pairs: Vec<OAuthClientPair>,
+    /// `Some` when more pairs exist beyond `limit` — pass this back as the next call's `after`
+    /// to continue. `None` means every remaining pair was returned.
+    pub next_after: Option<String>,
 }
 
 /// One `client_credentials` OAuth client (client-credential pair), as reported by

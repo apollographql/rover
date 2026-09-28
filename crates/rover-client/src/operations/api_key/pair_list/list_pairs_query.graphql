@@ -1,6 +1,6 @@
-query ListPairsQuery($organizationId: ID!, $after: String) {
+query ListPairsQuery($organizationId: ID!, $after: String, $first: Int) {
     organization(id: $organizationId) {
-        oauthClients(after: $after) {
+        oauthClients(after: $after, first: $first) {
             pageInfo {
                 endCursor
                 hasNextPage
