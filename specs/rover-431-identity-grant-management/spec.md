@@ -420,8 +420,8 @@ Given a pair, when `rover api-key rotate acme c_8f2a… --grace-period-days 1` r
 **Rotate refuses an API key**
 Given an `operator` key `key-123`, when `rover api-key rotate acme key-123` runs, then it fails with the FR27 text and the not-a-pair code, and the key is unchanged.
 
-**Rotate reports a permission error, not "not a pair," when the pair lookup is refused**
-Given a real pair `c_8f2a…` and a caller without permission to list the organization's pairs, when `rover api-key rotate acme c_8f2a…` runs, then it fails with the FR73 permission-denied error, not the FR27 not-a-pair error.
+**Rotate reports a permission error when the pair lookup is refused**
+Given a real pair `c_8f2a…` and a caller without permission to list the organization's pairs, when `rover api-key rotate acme c_8f2a…` runs, then it fails with the FR73 permission-denied error.
 
 **Delete finds the pair by its client ID**
 Given a pair, when `rover api-key delete acme c_8f2a…` runs, then the pair is deleted without a prompt and the FR29 text is printed. Given an API key instead, then `rover api-key delete acme key-123` behaves exactly as today.
