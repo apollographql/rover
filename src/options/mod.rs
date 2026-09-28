@@ -10,6 +10,7 @@ mod oauth;
 mod output;
 mod persisted_queries;
 mod profile;
+mod settings;
 
 mod schema;
 mod subgraph;
@@ -29,6 +30,9 @@ pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
 pub(crate) use schema::*;
+// Unused until the settings-resolution slice consumes it - see settings.rs.
+#[allow(unused_imports)]
+pub(crate) use settings::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
 pub(crate) use templates_api::*;
