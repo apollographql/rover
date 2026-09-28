@@ -55,6 +55,78 @@ By default, your configuration profile is saved with the name `default`. You can
 rover config auth --profile sso
 ```
 
+## Managing settings
+
+A configuration profile can also store non-secret settings alongside its API key, such as the registry URL or request timeouts. See [Settings in a profile](/rover/configuring#settings-in-a-profile) for which settings can be stored and how they rank against flags, environment variables, and the [project file](/rover/configuring#project-settings).
+
+### `config show`
+
+The `config show` command reports every setting's effective value and which source supplied it: `flag`, `environment`, `profile (explicit)` for a profile named with `--profile`, `project file`, `profile (default)`, or `built-in default`. Run it inside a project to include the project's `rover.yaml`:
+
+```
+rover config show --profile staging
+
+Profile: staging (explicit)
+Credential: none
+
+Setting                        Value                                  Source
+APOLLO_REGISTRY_URL            https://registry.staging.example.com   profile (explicit)
+APOLLO_TELEMETRY_URL           https://rover.apollo.dev/telemetry     built-in default
+APOLLO_TELEMETRY_DISABLED      false                                  built-in default
+APOLLO_CHECKS_TIMEOUT_SECONDS  600                                    project file
+APOLLO_CLIENT_TIMEOUT          30                                     built-in default
+APOLLO_ROVER_DOWNLOAD_HOST     https://rover.apollo.dev               built-in default
+APOLLO_TEMPLATES_API           https://rover.apollo.dev/templates     built-in default
+APOLLO_GRAPH_REF               none                                   built-in default
+```
+
+`config show` never prints an API key or other credential value, only whether one is present and where it came from. It doesn't create a profile or a configuration directory that isn't already there.
+
+Pass `--format json` for a machine-readable version. Each setting also lists, under `overridden`, every lower-precedence source that set it too, highest first:
+
+```json
+{
+  "name": "APOLLO_REGISTRY_URL",
+  "value": "https://registry.staging.example.com",
+  "source": "explicit_profile",
+  "overridden": [
+    { "source": "project_file", "value": "https://registry.example.com" }
+  ]
+}
+```
+
+The `source` values in JSON output are `flag`, `environment`, `explicit_profile`, `project_file`, `default_profile`, and `builtin`.
+
+### `config set`
+
+The `config set` command stores a value for one setting on a profile:
+
+```
+rover config set APOLLO_REGISTRY_URL https://registry.staging.example.com --profile staging
+
+Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile `staging`.
+```
+
+`<SETTING>` is the setting's environment variable name, spelled exactly, such as `APOLLO_REGISTRY_URL`. The value is validated before anything is stored. For example, an invalid URL is rejected rather than saved. If the named profile doesn't already exist, `config set` creates it without a credential. A later command that needs that profile's credential will tell you it's missing and how to add one.
+
+### `config unset`
+
+The `config unset` command removes a stored setting from a profile:
+
+```
+rover config unset APOLLO_REGISTRY_URL --profile staging
+
+Removed `APOLLO_REGISTRY_URL` from profile `staging`.
+```
+
+Unsetting a setting that isn't stored on the profile isn't an error:
+
+```
+rover config unset APOLLO_CHECKS_TIMEOUT_SECONDS --profile staging
+
+`APOLLO_CHECKS_TIMEOUT_SECONDS` isn't set in profile `staging`. Nothing to remove.
+```
+
 ## Deleting configuration profiles
 
 ### `config delete`
