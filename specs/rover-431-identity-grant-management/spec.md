@@ -4,7 +4,7 @@
 
 ## 1. Purpose and scope
 
-This spec defines the observable contract for managing client-credential pairs through `rover api-key` (PRD Part A) and OAuth grants through `rover auth` (PRD Part B). It covers every requirement in the PRD: A1.1–A1.6, B1.1, B2.1–B2.4, B3.1–B3.7, and the cross-cutting requirements of PRD §8.
+This spec defines the observable contract for managing client-credential pairs through `rover api-key` (PRD Part A) and OAuth grants through `rover auth` (PRD Part B). It covers every requirement in the PRD — A1.1–A1.6, B1.1, B2.1–B2.4, B3.1–B3.7, and the cross-cutting requirements of PRD §8 — **except B2.3 and B3.2** (revoking a single grant by ID, in self-service and organization scope). Both depend on Platform API capability (`revokeGrant`) that doesn't exist and has no committed date; this spec descopes them rather than speculatively defining a form Rover can't build. See §6.
 
 It describes what Rover must do under which conditions, and the exact user-facing surface involved: verbs, arguments, flags, message text, JSON fields, and error classes. It does not describe how any of it is built; implementation approach belongs in a separate implementation plan, one per slice.
 
@@ -103,7 +103,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
           "graphs": ["inventory", "checkout"],
           "scopes": ["rover:cli"],
           "created_at": "2026-09-25T16:00:00Z",
-          "created_by": { "id": "user-123", "name": "Grace Hopper" }
+          "created_by": { "id": "user-123", "type": "user" }
         }
       ],
       "success": true
@@ -112,7 +112,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   }
   ```
 
-  `created_by.name` is `null` when the Platform API reports no display name. Once last-used time is available, each pair entry gains `last_used_at`, which is `null` only for a pair that has never obtained a token.
+  `created_by` carries the creating actor's ID and kind (`"user"`, `"service_account"`, ...), never a resolved display name: the Platform API returns the actor as an ID and a type only, with nothing else on it, and there is no lookup that resolves it to a name without an extra request per pair. `created_by.type` is Rover's lowercased rendering of the Platform API's actor-kind value. `key_type` on a `keys` entry may itself be `null` — the underlying field is nullable at the source for any key, not only pairs. Once last-used time is available, each pair entry gains `last_used_at`, which is `null` only for a pair that has never obtained a token.
 - **FR16**: If the caller cannot list the organization's pairs — because they lack the permission, or because the organization is not enrolled in client-credential support — and `--type` was not given, Rover must report the API keys exactly as it does today and set `client_credentials` to `null`. It must print nothing about the pairs it could not list. `null` means "not available to this caller"; `[]` means "there are none."
 - **FR17**: If `--type client-credentials` was given and the caller cannot list pairs, the command must fail with the permission error of §3.10.
 
@@ -169,7 +169,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   Required text:
   > Deleted client-credential pair `ci-deploy` (`c_8f2a…`). It can no longer obtain tokens. Access tokens it already holds keep working until they expire, for up to 15 minutes.
 
-- **FR30**: The JSON payload for deleting a pair keeps the existing `id` field and adds `key_type` (`"ClientCredentials"`). The JSON payload for deleting an API key keeps every existing field and adds `key_type`.
+- **FR30**: The JSON payload for deleting a pair keeps the existing `id` field and adds `key_type` (`"ClientCredentials"`), known client-side without an extra call. The JSON payload for deleting an API key keeps every existing field; `key_type` is added only once the delete call returns more than a bare key ID. Until it does, `key_type` is absent from that payload, not `null` — Rover must not add a lookup before delete to supply it, for the same reason FR20 rejects one: it would introduce a new permission dependency on the FR83 no-regression path.
 - **FR31**: `rover api-key rename` on a pair must fail without making any change, with its own error code (§3.10), until the Platform API supports renaming a pair.
 
   Required text:
@@ -190,7 +190,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 - **FR37**: `rover auth grants list` must report every active grant belonging to the caller: grants of type `authorization_code` and `device_code`. Grants of type `client_credentials` belong to a pair, not a person, and never appear in the self-service list.
 - **FR38**: Each grant must be reported with at least: its grant ID, its grant type, when it was created, when it was last used or refreshed, and whether it is the current grant. At most one grant is ever the current grant.
-- **FR39**: A grant ID must always be printed in full, never truncated, so it can be passed back to `rover auth grants revoke`.
+- **FR39**: A grant ID must always be printed in full, never truncated. This spec's `revoke` verb doesn't accept it (§3.8): the full ID is for matching against Platform API records or an incident report, not for passing back to Rover.
 - **FR40**: Text output must label grant types as FR34 does, so a `--no-browser` grant is visibly distinct from a browser grant.
 - **FR41**: Self-service scope requires a credential that belongs to a user. With any other credential, the command must fail before making a grants request.
 
@@ -235,41 +235,20 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
   `scope` is `"self"` or `"organization"`. In self-service scope, `organization_id` is `null` and `principal` is omitted. `principal.type` is `"user"` or `"client"`. `grants` is `[]` when there are none.
 
-### 3.8 Revoking grants (B2.3, B3.2–B3.6)
+### 3.8 Revoking grants (B3.3–B3.6)
+
+Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an admin) — is not part of this spec. See §6's "Single-grant revoke is descoped, not deferred" for why. The only revoke surface this spec defines is `rover auth logout` (unchanged, the current grant on this machine) and the per-user sweep below (every grant one user holds, across every OAuth client).
 
 #### Argument rules
 
-- **FR47**: `rover auth grants revoke` accepts exactly one of these forms. Every other combination is a usage error, rejected before any request is made:
+- **FR47**: `rover auth grants revoke` accepts exactly one form. Every other invocation, including a bare grant ID in any position, is a usage error, rejected before any request is made:
 
   | Form | Scope |
   |---|---|
-  | `rover auth grants revoke <GRANT_ID>` | one of the caller's own grants |
-  | `rover auth grants revoke --org <ORGANIZATION_ID> <GRANT_ID>` | one grant in the organization |
   | `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` | every grant of one user under the organization's OAuth clients |
 
-- **FR48**: In particular, each of these must be a usage error: `--all` without `--user`; `--user` without `--all`; `--user` or `--all` without `--org`; `<GRANT_ID>` together with `--user` or `--all`; and no `<GRANT_ID>` and no `--all`. No combination of arguments revokes every grant in an organization (B3.6).
-- **FR49**: `--confirm` is accepted with every form. It has an effect only on the per-user sweep, where it skips the prompt.
-
-#### Revoking one grant
-
-- **FR50**: Revoking one grant revokes exactly that grant. Every other grant belonging to the same principal stays valid.
-- **FR51**: Revoking one grant does not prompt.
-- **FR52**: In self-service scope, a grant ID that does not name one of the caller's active grants must fail with the not-found error of §3.10, whether the grant does not exist, has already been revoked, or belongs to someone else. The message must not reveal which. In organization scope, the same holds for a grant ID that does not name an active grant in that organization.
-
-  Required text, self-service:
-  > Grant `g_4c1e…` isn't one of your active grants. Run `rover auth grants list` to see them.
-
-  Required text, organization scope:
-  > Grant `g_4c1e…` isn't an active grant in organization `acme`. Run `rover auth grants list --org acme` to see them.
-
-- **FR53**: Revoking the current grant is allowed. Once the Platform API confirms the revocation, Rover must remove the current profile's stored OAuth credential, as `rover auth logout` does. If the revocation fails, the stored credential must be left in place. This applies identically in organization scope: an admin revoking their own current grant via `--org` also has their stored credential removed, exactly as in self-service.
-- **FR54**: On success, Rover must confirm to stderr what it revoked.
-
-  Required text:
-  > Revoked grant `g_4c1e…` (Device code (--no-browser), created 2026-09-20T09:12:00Z).
-
-  Required text, additionally, when it was the current grant:
-  > That was the grant this profile was using. Profile `default` is now logged out.
+- **FR48**: In particular, each of these must be a usage error: `--all` without `--user`; `--user` without `--all`; `--user` or `--all` without `--org`; and `--org` alone with no `--user`/`--all`. No combination of arguments revokes every grant in an organization (B3.6).
+- **FR49**: `--confirm` is accepted only with the sweep form, where it skips the prompt.
 
 #### The per-user sweep
 
@@ -295,7 +274,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   Required text:
   > Revocation cancelled. Nothing was revoked.
 
-- **FR59**: When stdin is not a terminal and `--confirm` was not passed, Rover must not wait for an answer. It must revoke nothing and fail with its own error code (§3.10). In `--format json`, this failure uses the standard `{"json_version", "data", "error"}` envelope with the FR74 #6 code, the same as any other error in this spec.
+- **FR59**: When stdin is not a terminal and `--confirm` was not passed, Rover must not wait for an answer. It must revoke nothing and fail with its own error code (§3.10). In `--format json`, this failure uses the standard `{"json_version", "data", "error"}` envelope with the FR74 #5 code, the same as any other error in this spec.
 
   Required text:
   > Revoking every grant for `user-123` needs confirmation, and there's no terminal to ask on. Pass `--confirm` to proceed without a prompt.
@@ -346,8 +325,6 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   ```
 
   `outcome` is `"revoked"` or `"failed"`. `kind` is `"rover"` for Rover's OAuth client and `"client_credentials"` for a pair; `client_id` for Rover's OAuth client is the effective `APOLLO_OAUTH_CLIENT_ID`. `data` carries every client on both success and partial failure, so a runbook can read which clients to retry without parsing `error.message`. A declined prompt produces `"success": true`, `"clients": []`, and `"cancelled": true`. `cancelled` is present and `false` on every other outcome, so a consumer can tell "declined" apart from "swept, and the organization already had zero grants" without relying on an empty array.
-- **FR68**: The JSON payload for revoking one grant must report the revoked grant with the fields of FR46, plus `"logged_out_profile"`: the profile name when FR53 removed a stored credential, otherwise `null`.
-
 ### 3.9 Secrets and logging (PRD §8.2)
 
 - **FR69**: A secret may be printed only in the output of the create or rotate call that minted it. It must never appear in debug or trace logging at any level, in telemetry, in an error message, or in the output of any other command.
@@ -370,9 +347,8 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   2. The ID is not a client-credential pair, for `rotate` (FR27).
   3. A client-credential pair cannot be renamed (FR31).
   4. The credential does not belong to a user, for self-service grant verbs (FR41).
-  5. The grant was not found (FR52).
-  6. Confirmation is required and no terminal is available (FR59).
-  7. The per-user sweep failed under one or more clients (FR63).
+  5. Confirmation is required and no terminal is available (FR59).
+  6. The per-user sweep failed under one or more clients (FR63).
 - **FR75**: Every code in FR74 must be documented in the generated error reference, with the same page-per-code treatment every other Rover error code gets.
 - **FR76**: Usage errors (FR2–FR4, FR11, FR23, FR47–FR48) are reported the same way Rover reports any invalid argument today, and are always detected before any request is made.
 - **FR77**: Every verb in this spec must support `--format json` through Rover's standard `{"json_version", "data", "error"}` envelope. Every timestamp in `data` is an RFC 3339 string in UTC. Every field in `data` is a typed value, never prose that a consumer would have to parse.
@@ -380,7 +356,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 ### 3.11 Availability while Platform API capability is missing (PRD §9)
 
 - **FR78**: A Rover release must not advertise, in `--help` or published documentation, any verb, argument, flag, or output field whose backing Platform API capability is unavailable to that release.
-- **FR79**: Until the Platform API can enumerate a user's own grants, enumerate an organization's grants, and revoke a single grant, `rover auth grants list` must not exist, and `rover auth grants revoke` must accept only the per-user sweep form. Passing a `<GRANT_ID>` must be a usage error, not a runtime failure.
+- **FR79**: Until the Platform API can enumerate a user's own grants and an organization's grants, `rover auth grants list` must not exist. `rover auth grants revoke` accepts only the per-user sweep form regardless — see §3.8 and §6, this is not a capability gate.
 - **FR80**: Until the Platform API reports a pair's last-used time, the list output must not carry a last-used column or a `last_used_at` field for pairs. Its absence is not a `null`.
 - **FR81**: FR32–FR36 (grant type in `whoami`) do not depend on new Platform API capability and must not wait for it.
 - **FR82**: Until the Platform API can enumerate grants, FR57's prompt lists only the OAuth clients it will revoke under, not the user's grants.
@@ -444,14 +420,8 @@ Given a profile logged in with `rover auth login` and another logged in with `ro
 **An older Rover still reads the new credential**
 Given a profile logged in by this version of Rover, when an earlier OAuth-capable version of Rover runs `rover auth whoami` against it, then it succeeds.
 
-**Two grants, told apart, revoked one at a time**
-Given a user logged in from a browser on one machine and with `--no-browser` on another, when `rover auth grants list` runs on the first, then two grants are listed, labeled `Browser login` and `Device code (--no-browser)`, with the first marked current. When `rover auth grants revoke <device-code grant ID>` runs, then the second machine's next command fails authentication and the first machine's commands keep working.
-
-**Revoking the current grant logs the profile out**
-When `rover auth grants revoke <current grant ID>` runs, then both FR54 lines are printed, `data.logged_out_profile` is `"default"`, and the next command on that profile fails for lack of a credential.
-
-**Someone else's grant is simply not found**
-Given a grant ID belonging to another user, when `rover auth grants revoke <that ID>` runs without `--org`, then it fails with the self-service FR52 text and the not-found code, and the grant stays valid.
+**Two grants, told apart**
+Given a user logged in from a browser on one machine and with `--no-browser` on another, when `rover auth grants list` runs on the first, then two grants are listed, labeled `Browser login` and `Device code (--no-browser)`, with the first marked current. There is no `rover auth grants` verb that revokes only the second: `rover auth logout` on that machine revokes its own current grant and leaves the first machine's grant valid (§5, §6).
 
 **Self-service needs a user**
 Given only `APOLLO_KEY` set to an `operator` key, when `rover auth grants list` runs, then it fails with the FR41 text and makes no grants request.
@@ -491,6 +461,7 @@ Given a release in which the Platform API cannot enumerate grants, then `rover a
 ## 5. Non-goals
 
 - Any form of revocation wider than one user (PRD §5). No verb, flag, or argument combination revokes every grant in an organization.
+- Revoking a single grant by ID, in self-service or organization scope (PRD B2.3, B3.2). Only `rover auth logout` (the current grant, unchanged existing behavior) and the per-user sweep (every grant one user holds, across every OAuth client) are available; there is no verb between those two granularities (§6).
 - Rotating `operator` or `subgraph` API keys (FR27).
 - A scope or role selector for pairs (FR5).
 - A confirmation prompt on `rover api-key delete` for any key type (FR28).
@@ -527,9 +498,7 @@ Decisions taken while drafting, and their reasoning.
 
 - **Self-service verbs require a user credential and fail before calling the API otherwise** (FR41), over sending the request and relaying whatever the API says. "List my grants" is meaningless for an operator key or a pair, and the helpful response — log in, or pass `--org` — is Rover's to give, not the API's.
 
-- **Not-found hides whether the grant exists** (FR52). A self-service caller probing grant IDs must not learn which ones belong to other users. The same message covers "never existed," "already revoked," and "someone else's," at the cost of a slightly less specific error.
-
-- **Revoking the current grant is strict where `logout` is best-effort** (FR53). `rover auth logout` treats a failed server-side revocation as a warning and clears the local credential anyway, because its job is "stop using this here." `grants revoke` is explicitly a server-side action, so clearing the local credential after a failed revocation would leave the operator believing the grant is dead while it is live.
+- **Single-grant revoke is descoped, not deferred** (PRD B2.3, B3.2; FR47–FR49). §3.11's "ships once the capability lands" pattern (FR78–FR82) is for pieces the Platform API has already committed to, where Rover just needs to wait. `revokeGrant`/`myGrants`/`grants(accountId)` aren't that: as of the schema refresh in rover PR #3820, none exist, and nothing in the PRD or the identity team's planning docs commits to when, or whether, they will. Speccing a form around a capability with no commitment would either block this spec indefinitely or ship a `--help`-advertised verb that never becomes real. So this spec cuts B2.3 and B3.2 rather than gating them: the only revoke surface it defines is `rover auth logout` (a profile's own current grant, unchanged) and the per-user sweep (every grant one user holds, across every OAuth client). This is a real reduction from the PRD, not a wording change — "revoke this one suspicious login without a company-wide re-login" (PRD §1.3) isn't delivered by this spec; the closest available tool is the sweep, which is far blunter. If `revokeGrant` ever ships, restoring B2.3/B3.2 is a new spec, not an amendment to this one, since it adds real command surface rather than filling in a gated placeholder.
 
 - **The per-user sweep prompts with the clients, not the grants, until grants can be listed** (FR57, FR82), resolving a tension in the PRD. B3.4 asks for the prompt to "print the grants that will be revoked," but B3.3 ships on shipped API alone, and nothing shipped can list a user's grants. The client list is what Rover actually knows and actually acts on, so it is what the prompt states; the grant list is added when it becomes truthful.
 
@@ -549,9 +518,7 @@ Decisions taken while drafting, and their reasoning.
 
 ## 7. Open questions
 
-- **How does Rover learn a pair's `created_by` display name?** FR15 permits `null`; if the Platform API reports only an opaque actor ID, the text table shows the ID.
-- **Does the Platform API expose a key's type on the list and delete paths?** FR15 and FR30 add `key_type` to existing API-key entries. Today's list query and delete mutation carry no type field. If the API can't supply it without an extra call, `key_type` on these two paths should be nullable (`null` = "not determined") rather than block on a new query, and any extra lookup added for delete must not introduce a new permission dependency on the FR83 no-regression path.
-- **What happens to per-grant revoke (FR47's first two forms) if `myGrants`/`revokeGrant` never ship?** Per PRD §9, `myGrants`, `revokeGrant(grantId)`, and `grants(accountId)` are all Proposed, not Shipped; only `revokeUserOAuthTokens(clientId, userId)` — an all-or-nothing revoke of one user under one client — actually exists today. FR79 already withholds self-service and org-scoped single-grant list/revoke until enumeration and single-grant revoke both land, so this spec never promises more than the API can do. But if the Platform API commits to shipping only the bulk primitive long-term, "revoke exactly this grant, leave the others" (FR50) may never become deliverable as specified, and `rover auth grants revoke <GRANT_ID>` would need to fall back to the sweep's per-client granularity — revoking everything the target holds under one client, not one grant. That fallback is a materially blunter contract than FR50/FR52 promise and is a call for the PRD, not something this spec should presuppose.
+None currently. All three prior items were resolved: `created_by` and list/delete `key_type` against the refreshed Platform API schema (§3.2, §3.5), and single-grant revoke by descoping it (§5, §6).
 
 ---
 
@@ -559,7 +526,7 @@ Decisions taken while drafting, and their reasoning.
 
 This contract cannot be verified by unit tests alone. The following must be closed alongside the work:
 
-- **Snapshot coverage of every new JSON payload.** FR8, FR15, FR26, FR33, FR46, FR67, and FR68 are machine-readable contracts that runbooks will match on. They need snapshot coverage that fails on a renamed or retyped field, in both integration and end-to-end tests, rather than field-by-field assertions.
+- **Snapshot coverage of every new JSON payload.** FR8, FR15, FR26, FR33, FR46, and FR67 are machine-readable contracts that runbooks will match on. They need snapshot coverage that fails on a renamed or retyped field, in both integration and end-to-end tests, rather than field-by-field assertions.
 - **A no-regression snapshot of today's `rover api-key` output.** FR14 and FR83 promise that text output for API keys is unchanged. That needs the current output captured before the first slice lands, so the promise is checked against a fixed baseline rather than against itself.
 - **Secret-leak assertions at trace log level.** FR69–FR71 need a test that runs create and rotate with maximum log verbosity and fails if the secret appears anywhere but stdout, including in the failure path of FR71.
 - **Per-client failure injection for the sweep.** FR61–FR64 require a fixture in which revocation fails under one client and succeeds under the rest, and in which enumeration fails partway through (FR56), so that "attempts every client," "exits non-zero," "names the failures," and "revokes nothing if enumeration fails" are each observable.
