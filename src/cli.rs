@@ -1234,6 +1234,46 @@ mod tests {
         assert_that!(rover.is_telemetry_disabled()).is_true();
     }
 
+    // Telemetry resolution is deliberately best-effort (see
+    // `telemetry_url_override`'s doc comment): an invalid stored value is
+    // logged and ignored rather than failing a command telemetry has
+    // nothing to do with.
+    #[test]
+    fn telemetry_url_override_ignores_an_invalid_profile_setting() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_URL", "not a url");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_TELEMETRY_URL", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.telemetry_url_override()).is_none();
+    }
+
+    #[test]
+    fn telemetry_disabled_ignores_an_invalid_profile_setting() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "not-a-bool");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.is_telemetry_disabled()).is_false();
+    }
+
     #[test]
     fn vcs_branch_flag_wins_over_env_var() {
         let rover = temp_env::with_var("APOLLO_VCS_BRANCH", Some("env-branch"), || {
