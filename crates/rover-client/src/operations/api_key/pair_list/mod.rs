@@ -1,3 +1,4 @@
+use bon::Builder;
 use chrono::{DateTime, FixedOffset};
 use graphql_client::GraphQLQuery;
 use serde::Serialize;
@@ -29,26 +30,18 @@ pub const DEFAULT_PAIR_LIST_LIMIT: usize = 50;
 )]
 pub struct ListPairsQuery;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Builder)]
 pub struct ListOAuthClientsInput {
+    #[builder(into)]
     pub organization_id: String,
     /// Resume from this cursor (a previous call's [`ListOAuthClientsResponse::next_after`]).
     /// `None` starts from the first page.
+    #[builder(into)]
     pub after: Option<String>,
     /// Collect at most this many pairs before returning, across as many pages as it takes.
     /// See [`DEFAULT_PAIR_LIST_LIMIT`].
+    #[builder(default = DEFAULT_PAIR_LIST_LIMIT)]
     pub limit: usize,
-}
-
-impl ListOAuthClientsInput {
-    /// An input that starts from the beginning and stops at [`DEFAULT_PAIR_LIST_LIMIT`].
-    pub fn new(organization_id: impl Into<String>) -> Self {
-        Self {
-            organization_id: organization_id.into(),
-            after: None,
-            limit: DEFAULT_PAIR_LIST_LIMIT,
-        }
-    }
 }
 
 /// The result of one [`ListOAuthClients`] call: the pairs it collected, plus where to resume if

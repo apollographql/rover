@@ -216,7 +216,11 @@ mod tests {
             .return_once(move |_| future::ready(Ok(page(false, None, "c_1"))));
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput::new("acme"))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -246,7 +250,11 @@ mod tests {
         });
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput::new("acme"))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -272,11 +280,12 @@ mod tests {
             .return_once(|_| future::ready(Ok(page(true, Some("cursor-1"), "c_1"))));
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput {
-                organization_id: "acme".to_string(),
-                after: None,
-                limit: 1,
-            })
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .limit(1)
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -295,11 +304,13 @@ mod tests {
             .return_once(|_| future::ready(Ok(page(false, None, "c_2"))));
 
         let response = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput {
-                organization_id: "acme".to_string(),
-                after: Some("cursor-1".to_string()),
-                limit: 1,
-            })
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .after("cursor-1")
+                    .limit(1)
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -329,7 +340,11 @@ mod tests {
             });
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput::new("acme"))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .build(),
+            )
             .await
             .unwrap_err();
 
@@ -358,7 +373,11 @@ mod tests {
         });
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput::new("acme"))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .build(),
+            )
             .await
             .unwrap_err();
 
@@ -383,7 +402,11 @@ mod tests {
             .return_once(move |_| future::ready(Ok(data)));
 
         let err = ListOAuthClients::new(MockCloneService::new(mock))
-            .oneshot(ListOAuthClientsInput::new("acme"))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .build(),
+            )
             .await
             .unwrap_err();
 
