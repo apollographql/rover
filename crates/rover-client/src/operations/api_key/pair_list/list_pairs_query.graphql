@@ -1,0 +1,26 @@
+query ListPairsQuery($organizationId: ID!, $after: String) {
+    organization(id: $organizationId) {
+        oauthClients(after: $after) {
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                node {
+                    clientId
+                    clientName
+                    createdAt
+                    createdBy {
+                        actorId
+                        type
+                    }
+                    resources {
+                        resourceId
+                        resourceType
+                    }
+                    scopes
+                }
+            }
+        }
+    }
+}
