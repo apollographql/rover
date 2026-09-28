@@ -2,12 +2,15 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
+mod show;
 pub(crate) mod whoami;
 
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{
+    RoverOutput, RoverResult, cli::Rover, options::ProfileOpt, utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Config {
@@ -29,6 +32,9 @@ pub enum Command {
     /// List all configuration profiles
     List(list::List),
 
+    /// Show every setting's effective value and which source supplied it
+    Show(show::Show),
+
     /// View the identity of a user/api key
     Whoami(whoami::WhoAmI),
 }
@@ -38,6 +44,7 @@ impl Config {
         &self,
         client_config: StudioClientConfig,
         profile: &ProfileOpt,
+        rover: &Rover,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Auth(command) => command.run(
@@ -48,6 +55,9 @@ impl Config {
             Command::List(command) => command.run(client_config.config),
             Command::Delete(command) => command.run(client_config.config),
             Command::Clear(command) => command.run(client_config.config),
+            Command::Show(command) => Ok(RoverOutput::CliOutput(Box::new(
+                command.run(rover, profile)?,
+            ))),
             Command::Whoami(command) => {
                 command
                     .run(

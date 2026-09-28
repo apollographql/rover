@@ -286,7 +286,7 @@ impl Rover {
             Command::Completion(command) => command.run(),
             Command::Config(command) => {
                 command
-                    .run(self.get_client_config().await?, &profile_opt)
+                    .run(self.get_client_config().await?, &profile_opt, self)
                     .await
             }
             #[cfg(feature = "oauth")]
@@ -455,6 +455,27 @@ impl Rover {
         }
     }
 
+    /// The raw, clap-merged `--registry-url`/`APOLLO_REGISTRY_URL` value
+    /// (flag beats env, whichever supplied it) - before the profile tier
+    /// applies. `rover config show` (`src/command/config/show.rs`) uses this
+    /// to tell a flag/env source apart from a profile one; every other
+    /// caller wants `get_client_config`'s fully-resolved value instead.
+    pub(crate) fn registry_url_flag_or_env(&self) -> Option<String> {
+        self.registry_url.clone()
+    }
+
+    /// The raw, clap-merged `--telemetry-url`/`APOLLO_TELEMETRY_URL` value,
+    /// before the profile tier applies. See `registry_url_flag_or_env`.
+    pub(crate) fn telemetry_url_flag_or_env(&self) -> Option<String> {
+        self.telemetry_url.clone()
+    }
+
+    /// Whether `--telemetry-disabled` was passed, before the profile tier
+    /// applies. See `registry_url_flag_or_env`.
+    pub(crate) const fn telemetry_disabled_flag(&self) -> bool {
+        self.telemetry_disabled
+    }
+
     /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
     /// module, so it can't reach the private field directly.
@@ -530,7 +551,7 @@ impl Rover {
 
     /// The active profile's stored value for `name`, validated against its
     /// type. See `resolve_setting` for the tier this fits into.
-    fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
+    pub(crate) fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
         let profile = self.get_profile_opt();
         let houston_config = self.get_rover_config()?;
         let profile_handle = Profile::new(&profile.profile_name, &houston_config);
