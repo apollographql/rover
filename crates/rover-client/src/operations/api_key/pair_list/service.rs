@@ -36,6 +36,14 @@ pub enum ListOAuthClientsError {
          {0} empty pages in a row without reaching the end of the list"
     )]
     NoProgress(usize),
+    /// The server said another page exists (`hasNextPage: true`) but gave no cursor to fetch it
+    /// with. Treating that as "start over" would silently restart from the first page and
+    /// duplicate pairs already collected, so this is a failure instead of a guess.
+    #[error(
+        "the organization's client-credential pairs could not be listed: the server reported \
+         another page but returned no cursor to continue from"
+    )]
+    MissingCursor,
     /// Any other failure: a transport error, a malformed response, an unknown organization ID.
     #[error(transparent)]
     Other(#[from] RoverClientError),
@@ -122,7 +130,10 @@ where
                 }
 
                 if connection.page_info.has_next_page {
-                    after = connection.page_info.end_cursor;
+                    let Some(end_cursor) = connection.page_info.end_cursor else {
+                        return Err(ListOAuthClientsError::MissingCursor);
+                    };
+                    after = Some(end_cursor);
                 } else {
                     after = None;
                     break;
@@ -361,6 +372,25 @@ mod tests {
         assert_that!(err).matches(|err| {
             matches!(err, ListOAuthClientsError::NoProgress(n) if *n == MAX_PAGES_WITHOUT_PROGRESS)
         });
+    }
+
+    /// A page claiming more exist (`hasNextPage: true`) but carrying no cursor must fail loudly
+    /// rather than silently restart from the first page and duplicate pairs already collected.
+    #[rstest]
+    #[tokio::test]
+    async fn call_errors_when_a_next_page_has_no_cursor(input: ListOAuthClientsInput) {
+        let mut mock = MockListPairsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(|_| future::ready(Ok(page(true, None, "c_1"))));
+
+        let err = ListOAuthClients::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| matches!(err, ListOAuthClientsError::MissingCursor));
     }
 
     /// This operation deliberately does not classify permission/enrollment failures from any
