@@ -513,7 +513,7 @@ mod tests {
             RegistryFault::CorruptArchive => (
                 Some(RoverErrorCode::E050),
                 format!("Couldn't install the `supergraph` plugin v2.9.0 into `{install_root}`."),
-                format!("Make sure `{install_root}` is writable and has free space, then run `rover install --plugin supergraph@=2.9.0 --force --elv2-license accept` to reinstall it."),
+                format!("Make sure `{install_root}` is writable and has free space, then run `rover plugin install supergraph@=2.9.0 --force --elv2-license accept` to reinstall it."),
             ),
         };
         assert_that!(reported).is_equal_to((expected.0, Some(expected.1), vec![expected.2]));
