@@ -26,7 +26,11 @@ pub const DELETE_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 /// *after* the Platform API has already committed the mutation, and a retry after a delete that
 /// actually succeeded will likely come back as a "not found" GraphQL error - the caller sees a
 /// failure for a delete that worked. See [`DELETE_PAIR_ATTEMPT_TIMEOUT`] for this operation's
-/// own per-attempt timeout, and `pair_create::service`'s doc comment for the fuller reasoning.
+/// own per-attempt timeout, and `pair_create::service`'s doc comment for the fuller reasoning -
+/// including that hitting the timeout itself, with no retry at all, is exactly as ambiguous:
+/// the delete may have already committed server-side before the client gave up waiting. The
+/// consumer command PR should treat a timeout (or a 5xx/body error) from this operation as "the
+/// pair may or may not still exist - check with `rover api-key list`", not a plain failure.
 #[derive(Clone)]
 pub struct DeletePair<S: Clone> {
     inner: S,

@@ -13,9 +13,9 @@ use crate::{
 };
 
 /// A conservative default per-attempt timeout for this mutation. No latency data is available
-/// yet for `createOAuthClient` specifically; this matches the other short, single-round-trip
-/// mutations elsewhere in this codebase (e.g. `WHOAMI_ATTEMPT_TIMEOUT`) rather than being tuned
-/// against observed numbers.
+/// yet for `createOAuthClient` specifically; this matches the ~10s per-attempt timeout used by
+/// other command-level compositions (e.g. `whoami`, the client-credentials exchange in
+/// `cli.rs`) rather than being tuned against observed numbers for this operation.
 pub const CREATE_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A [`Service`] that creates a `client_credentials` OAuth client (client-credential pair),
@@ -30,6 +30,13 @@ pub const CREATE_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 /// a policy that only retries failures known to precede any server-side effect (e.g. a
 /// connection-establishment failure), not the general-purpose one. See
 /// [`CREATE_PAIR_ATTEMPT_TIMEOUT`] for this operation's own per-attempt timeout.
+///
+/// Note this cuts both ways: hitting [`CREATE_PAIR_ATTEMPT_TIMEOUT`] itself - with no retry at
+/// all - doesn't mean the mutation failed either. The request may already have committed
+/// server-side before the client gave up waiting for a response. A caller (the consumer command
+/// PR) that surfaces a timeout, or a 5xx/body error, from this operation should tell the user
+/// the outcome is unknown - e.g. "check with `rover api-key list`" - rather than reporting a
+/// plain failure.
 #[derive(Clone)]
 pub struct CreatePair<S: Clone> {
     inner: S,
