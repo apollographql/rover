@@ -296,7 +296,10 @@ mod tests {
     #[test]
     fn every_canonical_name_round_trips_through_from_str() {
         for name in SettingName::all() {
-            assert_that!(name.as_str().parse::<SettingName>()).is_ok_containing(name);
+            let description = format!("{name:?}");
+            assert_that!(name.as_str().parse::<SettingName>())
+                .named(&description)
+                .is_ok_containing(name);
         }
     }
 
@@ -437,15 +440,23 @@ mod tests {
             SettingName::OauthRevocationUrl,
             SettingName::OauthWhoamiUrl,
         ] {
-            assert_that!(name.setting_type()).is_equal_to(SettingType::Url);
-            assert_that!(name.is_network_destination()).is_true();
+            let description = format!("{name:?}");
+            assert_that!(name.setting_type())
+                .named(&description)
+                .is_equal_to(SettingType::Url);
+            assert_that!(name.is_network_destination())
+                .named(&description)
+                .is_true();
         }
     }
 
     #[test]
     fn every_builtin_default_is_valid_for_its_own_type() {
         for name in SettingName::all() {
-            assert_that!(name.setting_type().validate(name.builtin_default())).is_ok();
+            let description = format!("{name:?}");
+            assert_that!(name.setting_type().validate(name.builtin_default()))
+                .named(&description)
+                .is_ok();
         }
     }
 }
