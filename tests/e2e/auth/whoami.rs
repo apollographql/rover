@@ -2,7 +2,10 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use rstest::rstest;
 use serde::Deserialize;
 use serde_json::Value;
-use speculoos::{assert_that, prelude::BooleanAssertions};
+use speculoos::{
+    assert_that,
+    prelude::{BooleanAssertions, OptionAssertions},
+};
 use tempfile::Builder;
 
 #[derive(Deserialize, Debug)]
@@ -11,6 +14,7 @@ struct WhoAmIResponse {
     api_key: String,
     graph_id: Option<String>,
     graph_title: Option<String>,
+    grant_type: Option<String>,
     key_type: String,
     origin: String,
     success: bool,
@@ -49,4 +53,6 @@ fn e2e_test_rover_auth_whoami() {
         serde_json::from_value(response["data"].clone()).unwrap();
     // However we should assert on at least one just to double check that were' getting a sensible response
     assert_that!(deserialised_response.success).is_true();
+    // An APOLLO_KEY-sourced credential has no grant at all (spec `rover-431` FR33).
+    assert_that!(deserialised_response.grant_type).is_none();
 }
