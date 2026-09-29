@@ -23,7 +23,10 @@ use camino::Utf8PathBuf;
 use semver::Version;
 use serde::Serialize;
 
-use super::version::{PluginName, VersionRequest};
+use super::{
+    lockfile::LockedPlugin,
+    version::{PluginName, VersionRequest},
+};
 use crate::{RoverErrorCode, utils::client::DOWNLOAD_REQUEST_TIMEOUT};
 
 /// The [`PluginFailure`] behind `error`, found anywhere in its cause chain,
@@ -94,6 +97,17 @@ pub enum PluginFailure {
     Lockfile {
         path: Utf8PathBuf,
         problem: LockfileProblem,
+    },
+
+    /// A manifest declares a plugin that its sibling lockfile does not record
+    /// as declared. Unlike the other file failures this one is about a single
+    /// plugin, and names it.
+    LockfileDrift {
+        manifest: Utf8PathBuf,
+        plugin: PluginName,
+        declared: VersionRequest,
+        /// What the lockfile records for the plugin, if anything.
+        locked: Option<LockedPlugin>,
     },
 }
 
@@ -192,6 +206,21 @@ impl fmt::Display for PluginFailure {
                     "`{path}` was written by a newer version of Rover, in lockfile format version {format_version}."
                 ),
             },
+            Self::LockfileDrift {
+                manifest,
+                plugin,
+                declared,
+                locked,
+            } => {
+                write!(
+                    f,
+                    "The plugin lockfile is out of date with `{manifest}`: `{plugin}` is declared as `{declared}` but "
+                )?;
+                match locked {
+                    None => f.write_str("isn't locked."),
+                    Some(locked) => write!(f, "locked at `{}`.", locked.resolved),
+                }
+            }
         }
     }
 }
@@ -217,6 +246,7 @@ impl Error for PluginFailure {
                 ..
             } => Some(&**source),
             Self::NoLongerServed { .. }
+            | Self::LockfileDrift { .. }
             | Self::Manifest {
                 problem: ManifestProblem::UnsupportedInstallRoot,
                 ..
@@ -239,7 +269,8 @@ impl PluginFailure {
             Self::Resolution { plugin, .. }
             | Self::Download { plugin, .. }
             | Self::Installation { plugin, .. }
-            | Self::NoLongerServed { plugin, .. } => Some(*plugin),
+            | Self::NoLongerServed { plugin, .. }
+            | Self::LockfileDrift { plugin, .. } => Some(*plugin),
             Self::Manifest { .. } | Self::Lockfile { .. } => None,
         }
     }
@@ -254,6 +285,7 @@ impl PluginFailure {
             | Self::Download { requested, .. }
             | Self::Installation { requested, .. } => Some(requested.clone()),
             Self::NoLongerServed { version, .. } => Some(VersionRequest::Exact(version.clone())),
+            Self::LockfileDrift { declared, .. } => Some(declared.clone()),
             Self::Manifest { .. } | Self::Lockfile { .. } => None,
         }
     }
@@ -265,7 +297,9 @@ impl PluginFailure {
             Self::Download { .. } => RoverErrorCode::E049,
             Self::Installation { .. } => RoverErrorCode::E050,
             Self::NoLongerServed { .. } => RoverErrorCode::E051,
-            Self::Manifest { .. } | Self::Lockfile { .. } => RoverErrorCode::E052,
+            Self::Manifest { .. } | Self::Lockfile { .. } | Self::LockfileDrift { .. } => {
+                RoverErrorCode::E052
+            }
         }
     }
 
@@ -317,6 +351,12 @@ impl PluginFailure {
                     }
                 }
             }
+            Self::LockfileDrift {
+                plugin, declared, ..
+            } => PluginNextStep::UpdateLockfile {
+                plugin: *plugin,
+                request: install_spelling(*plugin, declared),
+            },
             Self::Lockfile { path, problem } => {
                 let path = path.clone();
                 match problem {
@@ -349,6 +389,28 @@ const fn floating_request(plugin: PluginName, major: u64) -> Option<VersionReque
             Some(VersionRequest::Major(major))
         }
         _ => None,
+    }
+}
+
+/// `declared`, spelled so `rover plugin install` accepts it and installs a
+/// release `declared` allows, or `None` when it has no such spelling.
+///
+/// The manifest takes the shared version grammar, but `rover plugin install`
+/// still parses each plugin's versions its own way: `supergraph` takes no
+/// `latest` and only the `2` major, `apollo-mcp-server` no bare major, and the
+/// `router`'s `latest` means the newest 2.x. A spelling that installs a
+/// release the declaration allows is all a lockfile needs to agree with it.
+/// `apollo-mcp-server`'s `latest` could cross out of a declared major, so a
+/// major declared for it has no spelling.
+fn install_spelling(plugin: PluginName, declared: &VersionRequest) -> Option<VersionRequest> {
+    match (plugin, declared) {
+        (_, VersionRequest::Exact(_)) => Some(declared.clone()),
+        (PluginName::ApolloMcpServer, VersionRequest::Major(_)) => None,
+        (_, VersionRequest::Major(major)) => floating_request(plugin, *major),
+        (PluginName::Supergraph, VersionRequest::Latest) => Some(VersionRequest::Major(2)),
+        (PluginName::Router | PluginName::ApolloMcpServer, VersionRequest::Latest) => {
+            Some(VersionRequest::Latest)
+        }
     }
 }
 
@@ -447,6 +509,12 @@ pub enum PluginNextStep {
     MakeWritable {
         path: Utf8PathBuf,
     },
+    UpdateLockfile {
+        plugin: PluginName,
+        /// What to install, spelled as `rover plugin install` takes it, or
+        /// `None` when only an exact version will do.
+        request: Option<VersionRequest>,
+    },
 }
 
 impl fmt::Display for PluginNextStep {
@@ -530,6 +598,20 @@ impl fmt::Display for PluginNextStep {
             Self::MakeWritable { path } => write!(
                 f,
                 "Make sure you can write to `{path}` and the directory holding it, then re-run the command."
+            ),
+            Self::UpdateLockfile {
+                plugin,
+                request: Some(request),
+            } => write!(
+                f,
+                "Run `rover plugin install {plugin}@{request}` to update it."
+            ),
+            Self::UpdateLockfile {
+                plugin,
+                request: None,
+            } => write!(
+                f,
+                "Run `rover plugin install {plugin}@=<version>`, naming an exact version `rover.yaml` allows, to update it."
             ),
             Self::UpgradeRover { path } => write!(
                 f,
@@ -636,6 +718,32 @@ mod tests {
         lockfile(LockfileProblem::WrittenByNewerRover { format_version: 2 })
     }
 
+    fn drift(declared: VersionRequest, locked: Option<LockedPlugin>) -> PluginFailure {
+        drift_of(PluginName::Router, declared, locked)
+    }
+
+    fn drift_of(
+        plugin: PluginName,
+        declared: VersionRequest,
+        locked: Option<LockedPlugin>,
+    ) -> PluginFailure {
+        PluginFailure::LockfileDrift {
+            manifest: Utf8PathBuf::from("/work/app/.rover/rover.yaml"),
+            plugin,
+            declared,
+            locked,
+        }
+    }
+
+    fn router_locked(requested: VersionRequest, resolved: &str) -> Option<LockedPlugin> {
+        Some(LockedPlugin {
+            name: PluginName::Router,
+            requested,
+            resolved: v(resolved),
+            checksum: None,
+        })
+    }
+
     fn malformed_manifest() -> PluginFailure {
         manifest(ManifestProblem::Malformed(cause(
             "plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 column 3",
@@ -714,6 +822,27 @@ mod tests {
          Caused by:\n    \
          Permission denied (os error 13)\n        \
          Make sure `/work/app/.rover/plugin-versions.lock` is a file you can read, then re-run the command.\n"
+    )]
+    #[case::an_exact_declaration_locked_at_another_release(
+        drift(
+            VersionRequest::Exact(v("2.2.0")),
+            router_locked(VersionRequest::Exact(v("2.1.0")), "2.1.0"),
+        ),
+        "error[E052]: The plugin lockfile is out of date with `/work/app/.rover/rover.yaml`: `router` is declared as `=2.2.0` but locked at `2.1.0`.\n        \
+         Run `rover plugin install router@=2.2.0` to update it.\n"
+    )]
+    #[case::a_declaration_the_lockfile_lacks(
+        drift(VersionRequest::Exact(v("2.2.0")), None),
+        "error[E052]: The plugin lockfile is out of date with `/work/app/.rover/rover.yaml`: `router` is declared as `=2.2.0` but isn't locked.\n        \
+         Run `rover plugin install router@=2.2.0` to update it.\n"
+    )]
+    #[case::a_major_declaration_locked_outside_it(
+        drift(
+            VersionRequest::Major(2),
+            router_locked(VersionRequest::Latest, "3.0.0"),
+        ),
+        "error[E052]: The plugin lockfile is out of date with `/work/app/.rover/rover.yaml`: `router` is declared as `2` but locked at `3.0.0`.\n        \
+         Run `rover plugin install router@2` to update it.\n"
     )]
     #[case::unwritable_lockfile(
         lockfile(LockfileProblem::Unwritable(cause("Read-only file system (os error 30)"))),
@@ -993,6 +1122,49 @@ mod tests {
         assert_that!(no_longer_served(origin, None).to_string()).is_equal_to(expected.to_string());
     }
 
+    /// The suggested install must be one `rover plugin install` parses, and
+    /// one that leaves the lockfile agreeing with the declaration.
+    #[rstest]
+    #[case::supergraph_latest(PluginName::Supergraph, VersionRequest::Latest, "supergraph@2")]
+    #[case::supergraph_major(PluginName::Supergraph, VersionRequest::Major(2), "supergraph@2")]
+    #[case::router_latest(PluginName::Router, VersionRequest::Latest, "router@latest")]
+    #[case::router_major(PluginName::Router, VersionRequest::Major(1), "router@1")]
+    #[case::mcp_server_latest(
+        PluginName::ApolloMcpServer,
+        VersionRequest::Latest,
+        "apollo-mcp-server@latest"
+    )]
+    #[case::an_exact_version(
+        PluginName::ApolloMcpServer,
+        VersionRequest::Exact(v("1.0.0")),
+        "apollo-mcp-server@=1.0.0"
+    )]
+    fn a_drift_suggests_an_install_that_parses(
+        #[case] plugin: PluginName,
+        #[case] declared: VersionRequest,
+        #[case] argument: &str,
+    ) {
+        let step = drift_of(plugin, declared, None).next_step().to_string();
+
+        assert_that!(step.as_str())
+            .is_equal_to(format!("Run `rover plugin install {argument}` to update it.").as_str());
+        assert_that!(argument.parse::<crate::command::install::Plugin>()).is_ok();
+    }
+
+    #[rstest]
+    #[case::a_supergraph_major_install_cannot_spell(PluginName::Supergraph, 3)]
+    #[case::a_major_mcp_server_latest_could_leave(PluginName::ApolloMcpServer, 1)]
+    fn a_drift_with_no_floating_spelling_asks_for_an_exact_version(
+        #[case] plugin: PluginName,
+        #[case] major: u64,
+    ) {
+        let step = drift_of(plugin, VersionRequest::Major(major), None).next_step();
+
+        assert_that!(step.to_string()).is_equal_to(format!(
+            "Run `rover plugin install {plugin}@=<version>`, naming an exact version `rover.yaml` allows, to update it."
+        ));
+    }
+
     #[rstest]
     #[case::resolution(resolution(), PluginName::Supergraph, "=2.9.9")]
     #[case::download(download(), PluginName::Router, "2")]
@@ -1002,6 +1174,7 @@ mod tests {
         PluginName::Supergraph,
         "=2.9.3"
     )]
+    #[case::lockfile_drift(drift(VersionRequest::Major(2), None), PluginName::Router, "2")]
     fn every_failure_identifies_the_plugin_and_the_request(
         #[case] failure: PluginFailure,
         #[case] plugin: PluginName,

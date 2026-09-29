@@ -22,8 +22,11 @@ use super::{
     version::{PluginName, VersionRequest},
 };
 
+mod drift;
 mod load;
 mod write;
+
+pub use drift::check_drift;
 
 /// A lockfile's file name, next to the manifest of the level it records.
 pub const LOCKFILE: &str = "plugin-versions.lock";
