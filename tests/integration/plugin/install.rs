@@ -1,4 +1,4 @@
-//! `rover install --plugin` reports each way a plugin can fail to install
+//! `rover plugin install` reports each way a plugin can fail to install
 //! under its own `error.code`, in the JSON envelope a script reads.
 
 use assert_cmd::Command;
@@ -63,7 +63,7 @@ fn install(level: &GlobalLevel, registry: Registry, request: &str) -> Value {
 
     let output = Command::cargo_bin("rover")
         .unwrap()
-        .args(["install", "--plugin", request])
+        .args(["plugin", "install", request])
         .args(["--download-host", &host, "--client-timeout", "1"])
         .args(["--skip-update-check", "--telemetry-disabled"])
         .args(["--format", "json"])
@@ -90,7 +90,7 @@ fn install(level: &GlobalLevel, registry: Registry, request: &str) -> Value {
 /// Replaces what differs between runs and platforms: the mock registry's
 /// address, the target triple in its URLs, the temporary home, and the path
 /// separator after it.
-fn redact(value: &mut Value, host: &str, home: &str) {
+pub(super) fn redact(value: &mut Value, host: &str, home: &str) {
     match value {
         Value::String(text) => {
             let redacted = text.replace(home, "[home]").replace(host, "[registry]");
@@ -108,7 +108,7 @@ fn redact(value: &mut Value, host: &str, home: &str) {
 
 /// A path under `[home]` written with `/`, up to the end of that path, so
 /// Windows and Unix render the same.
-fn normalize_home_separators(text: &str) -> String {
+pub(super) fn normalize_home_separators(text: &str) -> String {
     let Some(start) = text.find("[home]") else {
         return text.to_string();
     };
@@ -124,7 +124,7 @@ fn normalize_home_separators(text: &str) -> String {
 }
 
 /// `[registry]/tar/<plugin>/<target>/...` with the target replaced.
-fn redact_target(text: &str) -> String {
+pub(super) fn redact_target(text: &str) -> String {
     const PREFIX: &str = "[registry]/tar/";
     let Some(start) = text.find(PREFIX) else {
         return text.to_string();

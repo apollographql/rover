@@ -1,0 +1,17 @@
+---
+source: tests/integration/plugin/spellings.rs
+expression: own
+---
+Download and install an officially supported plugin
+
+Usage: rover plugin install [OPTIONS] <NAME@VERSION>
+
+Arguments:
+  <NAME@VERSION>
+          The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`
+
+Options:
+  -f, --force
+          Overwrite any existing binary without prompting for confirmation
+      --elv2-license <ELV2_LICENSE_ACCEPTED>
+          Accept the terms and conditions of the ELv2 License without prompting for confirmation. Expected value: `accept` [env: APOLLO_ELV2_LICENSE=]

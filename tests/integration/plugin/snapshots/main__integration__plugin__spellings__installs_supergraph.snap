@@ -1,0 +1,20 @@
+---
+source: tests/integration/plugin/spellings.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "downloaded",
+        "level": "global",
+        "path": "[home]/.rover/bin/supergraph-v2.9.3"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
