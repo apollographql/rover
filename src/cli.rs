@@ -845,7 +845,7 @@ impl Rover {
         };
         settings
             .keys()
-            .filter(|key| SettingName::try_from(key.as_str()).is_err())
+            .filter(|key| key.parse::<SettingName>().is_err())
             .map(|key| {
                 format!(
                     "Warning: profile `{profile_name}` sets `{key}`, which this version of \
