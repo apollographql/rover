@@ -3,7 +3,10 @@ use chrono::{DateTime, FixedOffset};
 use graphql_client::GraphQLQuery;
 use serde::Serialize;
 
-use crate::{operations::api_key::pair_list::PairResource, RoverClientError};
+use crate::{
+    operations::api_key::{missing_secret_data, pair_list::PairResource},
+    RoverClientError,
+};
 
 pub mod service;
 
@@ -20,6 +23,7 @@ type Timestamp = String;
     query_path = "src/operations/api_key/pair_create/create_pair_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    variables_derives = "Clone, PartialEq, Debug",
     deprecated = "warn"
 )]
 pub struct CreatePairMutation;
@@ -70,21 +74,13 @@ impl TryFrom<RemoteCreatedPair> for CreatedPair {
     }
 }
 
+// `PairResource` is defined in the sibling `pair_list` module (it's the same underlying
+// `OAuthClientResource` schema type) and reused here rather than duplicated.
 impl From<RemoteResource> for PairResource {
     fn from(value: RemoteResource) -> Self {
         Self {
             resource_id: value.resource_id,
             resource_type: value.resource_type,
         }
-    }
-}
-
-/// `client_secret`/`secret_expires_at` are nullable at the schema level (non-null only
-/// alongside a freshly minted secret, per `OAuthClient`'s doc comment) but always present on a
-/// successful create/rotate response - their absence here means something is actually wrong,
-/// not a legitimate empty state.
-fn missing_secret_data() -> RoverClientError {
-    RoverClientError::ClientError {
-        msg: "the Platform API did not return the pair's new secret and its expiry".to_string(),
     }
 }

@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, time::Duration};
 
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::service::replace_ready_service;
@@ -12,8 +12,21 @@ use crate::{
     RoverClientError,
 };
 
+/// A conservative default per-attempt timeout for this mutation. No latency data is available
+/// yet for `deleteOAuthClient` specifically; see `pair_create`'s `CREATE_PAIR_ATTEMPT_TIMEOUT`
+/// for the same reasoning.
+pub const DELETE_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// A [`Service`] that deletes a client-credential pair, layered over the studio GraphQL
 /// service.
+///
+/// **This mutation is not idempotent - do not compose it under `rover-http`'s ambient
+/// `RetryLayer`/`RetryPolicy`** (the one `StudioClient::studio_graphql_service()` adds by
+/// default). That policy retries on errors (timeouts, 5xx, a dropped connection) that can occur
+/// *after* the Platform API has already committed the mutation, and a retry after a delete that
+/// actually succeeded will likely come back as a "not found" GraphQL error - the caller sees a
+/// failure for a delete that worked. See [`DELETE_PAIR_ATTEMPT_TIMEOUT`] for this operation's
+/// own per-attempt timeout, and `pair_create::service`'s doc comment for the fuller reasoning.
 #[derive(Clone)]
 pub struct DeletePair<S: Clone> {
     inner: S,
@@ -104,7 +117,13 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn call_succeeds_on_a_successful_delete(input: DeletePairInput) {
+    async fn call_sends_the_expected_variables_and_succeeds_on_a_successful_delete(
+        input: DeletePairInput,
+    ) {
+        let expected_vars = Variables {
+            organization_id: "acme".to_string(),
+            client_id: "c_8f2a".to_string(),
+        };
         let data: delete_pair_mutation::ResponseData = serde_json::from_value(json!({
             "organization": {
                 "deleteOAuthClient": null
@@ -115,6 +134,7 @@ mod tests {
         let mut mock = MockDeletePairInnerService::new();
         expect_poll_ready!(mock);
         mock.expect_call()
+            .withf(move |req| *req == GraphQLRequest::new(expected_vars.clone()))
             .times(1)
             .return_once(move |_| future::ready(Ok(data)));
 
@@ -122,7 +142,7 @@ mod tests {
             .oneshot(input)
             .await;
 
-        assert_that!(response).is_ok();
+        assert_that!(response).is_ok().is_equal_to(());
     }
 
     #[rstest]
@@ -142,7 +162,8 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert_that!(err)
-            .matches(|err| matches!(err, RoverClientError::OrganizationIDNotFound { .. }));
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::OrganizationIDNotFound { organization_id } if organization_id == "acme")
+        });
     }
 }

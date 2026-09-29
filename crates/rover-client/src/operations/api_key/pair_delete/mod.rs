@@ -16,6 +16,7 @@ type Void = ();
     query_path = "src/operations/api_key/pair_delete/delete_pair_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    variables_derives = "Clone, PartialEq, Debug",
     deprecated = "warn"
 )]
 pub struct DeletePairMutation;

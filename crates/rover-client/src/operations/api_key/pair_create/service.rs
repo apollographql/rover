@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, time::Duration};
 
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::service::replace_ready_service;
@@ -12,8 +12,24 @@ use crate::{
     RoverClientError,
 };
 
+/// A conservative default per-attempt timeout for this mutation. No latency data is available
+/// yet for `createOAuthClient` specifically; this matches the other short, single-round-trip
+/// mutations elsewhere in this codebase (e.g. `WHOAMI_ATTEMPT_TIMEOUT`) rather than being tuned
+/// against observed numbers.
+pub const CREATE_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// A [`Service`] that creates a `client_credentials` OAuth client (client-credential pair),
 /// layered over the studio GraphQL service.
+///
+/// **This mutation is not idempotent - do not compose it under `rover-http`'s ambient
+/// `RetryLayer`/`RetryPolicy`** (the one `StudioClient::studio_graphql_service()` adds by
+/// default). That policy retries on errors (timeouts, 5xx, a dropped connection) that can occur
+/// *after* the Platform API has already committed the mutation, and a retried create leaves a
+/// second, orphaned pair behind with a live secret nobody ever saw - the opposite of FR6/FR7's
+/// "shown exactly once" promise. A caller that needs retry behavior for this operation must use
+/// a policy that only retries failures known to precede any server-side effect (e.g. a
+/// connection-establishment failure), not the general-purpose one. See
+/// [`CREATE_PAIR_ATTEMPT_TIMEOUT`] for this operation's own per-attempt timeout.
 #[derive(Clone)]
 pub struct CreatePair<S: Clone> {
     inner: S,
@@ -109,8 +125,30 @@ mod tests {
         CreatePairInput::builder()
             .organization_id("acme")
             .name("ci-deploy")
-            .graph_ids(vec!["inventory".to_string()])
+            .graph_ids(vec!["inventory".to_string(), "checkout".to_string()])
+            .secret_lifetime_days(30)
             .build()
+    }
+
+    /// The exact `Variables` [`input`] must produce - asserted against directly so a bug in the
+    /// `graph_ids` -> `resources.graphs` mapping, or a dropped `secret_lifetime_days`, fails a
+    /// test instead of only being caught by eyeballing the source.
+    fn expected_variables() -> Variables {
+        Variables {
+            organization_id: "acme".to_string(),
+            client_name: "ci-deploy".to_string(),
+            resources: OAuthClientResourceInput {
+                graphs: vec![
+                    GraphIdentifierInput {
+                        graph_id: "inventory".to_string(),
+                    },
+                    GraphIdentifierInput {
+                        graph_id: "checkout".to_string(),
+                    },
+                ],
+            },
+            secret_lifetime_days: Some(30),
+        }
     }
 
     fn success_response() -> create_pair_mutation::ResponseData {
@@ -131,10 +169,13 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn call_maps_a_successful_create(input: CreatePairInput) {
+    async fn call_sends_the_expected_variables_and_maps_a_successful_create(
+        input: CreatePairInput,
+    ) {
         let mut mock = MockCreatePairInnerService::new();
         expect_poll_ready!(mock);
         mock.expect_call()
+            .withf(|req| *req == GraphQLRequest::new(expected_variables()))
             .times(1)
             .return_once(|_| future::ready(Ok(success_response())));
 
@@ -174,20 +215,31 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert_that!(err)
-            .matches(|err| matches!(err, RoverClientError::OrganizationIDNotFound { .. }));
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::OrganizationIDNotFound { organization_id } if organization_id == "acme")
+        });
     }
 
+    /// Covers both directions: a response with only `clientSecret` null, and one with only
+    /// `secretExpiresAt` null, must both be reported the same way - not just the
+    /// both-null case.
     #[rstest]
+    #[case::secret_missing(json!(null), json!("2028-09-25T16:00:00Z"))]
+    #[case::expiry_missing(json!("s_super-secret"), json!(null))]
+    #[case::both_missing(json!(null), json!(null))]
     #[tokio::test]
-    async fn call_reports_a_missing_secret_as_a_client_error(input: CreatePairInput) {
+    async fn call_reports_missing_secret_data_as_a_client_error(
+        input: CreatePairInput,
+        #[case] client_secret: serde_json::Value,
+        #[case] secret_expires_at: serde_json::Value,
+    ) {
         let data: create_pair_mutation::ResponseData = serde_json::from_value(json!({
             "organization": {
                 "createOAuthClient": {
                     "clientId": "c_8f2a",
                     "clientName": "ci-deploy",
-                    "clientSecret": null,
-                    "secretExpiresAt": null,
+                    "clientSecret": client_secret,
+                    "secretExpiresAt": secret_expires_at,
                     "resources": [],
                     "scopes": ["rover:cli"]
                 }
@@ -206,6 +258,43 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert_that!(err).matches(|err| matches!(err, RoverClientError::ClientError { .. }));
+        assert_that!(err).matches(|err| {
+            matches!(
+                err,
+                RoverClientError::ClientError { msg }
+                    if msg == "the Platform API did not return the pair's new secret or its expiry"
+            )
+        });
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_malformed_secret_expiry(input: CreatePairInput) {
+        let data: create_pair_mutation::ResponseData = serde_json::from_value(json!({
+            "organization": {
+                "createOAuthClient": {
+                    "clientId": "c_8f2a",
+                    "clientName": "ci-deploy",
+                    "clientSecret": "s_super-secret",
+                    "secretExpiresAt": "not-a-timestamp",
+                    "resources": [],
+                    "scopes": ["rover:cli"]
+                }
+            }
+        }))
+        .unwrap();
+
+        let mut mock = MockCreatePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(move |_| future::ready(Ok(data)));
+
+        let err = CreatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| matches!(err, RoverClientError::InvalidTimestamp(_)));
     }
 }
