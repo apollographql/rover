@@ -1,0 +1,5 @@
+mutation DeletePairMutation($organizationId: ID!, $clientId: ID!) {
+    organization(id: $organizationId) {
+        deleteOAuthClient(clientId: $clientId)
+    }
+}
