@@ -1,0 +1,9 @@
+mutation RotatePairMutation($organizationId: ID!, $clientId: ID!, $gracePeriodDays: Int) {
+    organization(id: $organizationId) {
+        rotateOAuthClientSecret(clientId: $clientId, gracePeriodDays: $gracePeriodDays) {
+            clientId
+            clientSecret
+            secretExpiresAt
+        }
+    }
+}

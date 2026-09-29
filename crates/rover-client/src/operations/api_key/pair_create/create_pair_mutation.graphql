@@ -1,0 +1,25 @@
+mutation CreatePairMutation(
+    $organizationId: ID!
+    $clientName: String!
+    $resources: OAuthClientResourceInput!
+    $secretLifetimeDays: Int
+) {
+    organization(id: $organizationId) {
+        createOAuthClient(
+            clientName: $clientName
+            resources: $resources
+            scopes: ["rover:cli"]
+            secretLifetimeDays: $secretLifetimeDays
+        ) {
+            clientId
+            clientName
+            clientSecret
+            secretExpiresAt
+            resources {
+                resourceId
+                resourceType
+            }
+            scopes
+        }
+    }
+}
