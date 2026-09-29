@@ -247,28 +247,29 @@ pub(crate) enum SettingValueError {
 }
 
 impl SettingType {
-    /// Checks that `value` is syntactically valid for this type. Never
-    /// contacts a network - a URL that parses is accepted, whether or not
-    /// anything answers at it (FR44).
-    pub(crate) fn validate(self, value: &str) -> Result<(), SettingValueError> {
+    /// Checks that `value` is syntactically valid for this type, handing it
+    /// back on success so callers can use the validated value directly
+    /// instead of holding onto their own copy. Never contacts a network - a
+    /// URL that parses is accepted, whether or not anything answers at it
+    /// (FR44). Deliberately hands back `value` itself rather than a parsed
+    /// `Url`/`bool` - callers and the on-disk/wire format always want the
+    /// setting's own spelling (FR54), and round-tripping through `Url`
+    /// wouldn't reproduce it (e.g. `Url` normalizes `https://example.com` to
+    /// `https://example.com/`).
+    pub(crate) fn validate(self, value: String) -> Result<String, SettingValueError> {
         match self {
-            SettingType::Url => {
-                Url::parse(value)
-                    .map(|_| ())
-                    .map_err(|_| SettingValueError::InvalidUrl {
-                        input: value.to_string(),
-                    })
-            }
+            SettingType::Url => match Url::parse(&value) {
+                Ok(_) => Ok(value),
+                Err(_) => Err(SettingValueError::InvalidUrl { input: value }),
+            },
             SettingType::Bool => {
                 if value.eq_ignore_ascii_case("true") || value.eq_ignore_ascii_case("false") {
-                    Ok(())
+                    Ok(value)
                 } else {
-                    Err(SettingValueError::InvalidBool {
-                        input: value.to_string(),
-                    })
+                    Err(SettingValueError::InvalidBool { input: value })
                 }
             }
-            SettingType::String => Ok(()),
+            SettingType::String => Ok(value),
         }
     }
 }
@@ -323,7 +324,15 @@ mod tests {
     #[case::no_scheme("registry.example.com", false)]
     #[case::empty("", false)]
     fn url_validation(#[case] value: &str, #[case] valid: bool) {
-        assert_that!(SettingType::Url.validate(value).is_ok()).is_equal_to(valid);
+        assert_that!(SettingType::Url.validate(value.to_string()).is_ok()).is_equal_to(valid);
+    }
+
+    #[test]
+    fn a_valid_url_is_handed_back_unchanged() {
+        // deliberately not normalized through `Url` - see `validate`'s doc
+        // comment for why (a trailing slash would be added otherwise).
+        assert_that!(SettingType::Url.validate("https://registry.example.com".to_string()))
+            .is_ok_containing("https://registry.example.com".to_string());
     }
 
     #[rstest]
@@ -332,7 +341,7 @@ mod tests {
     #[case::lower_false("false")]
     #[case::upper_false("FALSE")]
     fn valid_bool_values_are_accepted(#[case] value: &str) {
-        assert_that!(SettingType::Bool.validate(value)).is_ok();
+        assert_that!(SettingType::Bool.validate(value.to_string())).is_ok();
     }
 
     #[rstest]
@@ -343,13 +352,13 @@ mod tests {
     fn other_values_are_not_a_valid_stored_boolean(#[case] value: &str) {
         // deliberately narrower than the env-var convention (FR20/FR24):
         // `1` is a set env var but not a typed boolean literal.
-        assert_that!(SettingType::Bool.validate(value)).is_err();
+        assert_that!(SettingType::Bool.validate(value.to_string())).is_err();
     }
 
     #[test]
     fn invalid_url_message_names_the_input_and_a_correction() {
         let error = SettingType::Url
-            .validate("registry.example.com")
+            .validate("registry.example.com".to_string())
             .unwrap_err();
 
         assert_that!(error.to_string()).contains("registry.example.com");
@@ -358,16 +367,17 @@ mod tests {
 
     #[test]
     fn invalid_bool_message_names_the_input_and_the_accepted_values() {
-        let error = SettingType::Bool.validate("sure").unwrap_err();
+        let error = SettingType::Bool.validate("sure".to_string()).unwrap_err();
 
         assert_that!(error.to_string()).contains("sure");
         assert_that!(error.to_string()).contains("`true` or `false`");
     }
 
     #[test]
-    fn string_type_accepts_anything() {
-        assert_that!(SettingType::String.validate("")).is_ok();
-        assert_that!(SettingType::String.validate("anything at all")).is_ok();
+    fn string_type_accepts_anything_unchanged() {
+        assert_that!(SettingType::String.validate(String::new())).is_ok_containing(String::new());
+        assert_that!(SettingType::String.validate("anything at all".to_string()))
+            .is_ok_containing("anything at all".to_string());
     }
 
     #[test]
@@ -402,7 +412,7 @@ mod tests {
     #[test]
     fn every_builtin_default_is_valid_for_its_own_type() {
         for name in SettingName::all() {
-            assert_that!(name.setting_type().validate(&name.builtin_default())).is_ok();
+            assert_that!(name.setting_type().validate(name.builtin_default())).is_ok();
         }
     }
 }
