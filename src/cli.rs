@@ -381,6 +381,14 @@ impl Rover {
                     )
                     .await
             }
+            Command::Plugin(command) => {
+                command
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                    )
+                    .await
+            }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => {
@@ -741,6 +749,9 @@ pub enum Command {
 
     /// Installs Rover
     Install(command::Install),
+
+    /// Plugin management commands
+    Plugin(command::Plugins),
 
     /// Get system information
     #[command(hide = true)]

@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`rover plugin install` installs a plugin, under a new `plugin` noun - @SharkBaitDLS**
+
+  `rover plugin install <name>@<version>` does exactly what `rover install --plugin <name>@<version>` does, including `--force` and `--elv2-license`. `rover install --plugin` keeps working.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.
