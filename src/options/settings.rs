@@ -242,6 +242,11 @@ pub(crate) enum SettingValueError {
         `https://example.com`."
     )]
     InvalidUrl { input: String },
+    #[error(
+        "`{input}` isn't a valid URL. Rover only accepts `http`/`https` URLs for this \
+        setting."
+    )]
+    UnsupportedUrlScheme { input: String },
     #[error("`{input}` isn't a valid boolean. Use `true` or `false`.")]
     InvalidBool { input: String },
 }
@@ -256,10 +261,17 @@ impl SettingType {
     /// setting's own spelling (FR54), and round-tripping through `Url`
     /// wouldn't reproduce it (e.g. `Url` normalizes `https://example.com` to
     /// `https://example.com/`).
+    ///
+    /// Every `Url`-typed setting is a network-destination setting Rover
+    /// sends real HTTP requests to, so a syntactically valid but non-http(s)
+    /// scheme (`ftp://`, `file://`, `data:`, ...) is rejected here too - it
+    /// would otherwise pass this check only to fail later, deep inside the
+    /// HTTP client, with a much less actionable error.
     pub(crate) fn validate(self, value: String) -> Result<String, SettingValueError> {
         match self {
             SettingType::Url => match Url::parse(&value) {
-                Ok(_) => Ok(value),
+                Ok(url) if url.scheme() == "http" || url.scheme() == "https" => Ok(value),
+                Ok(_) => Err(SettingValueError::UnsupportedUrlScheme { input: value }),
                 Err(_) => Err(SettingValueError::InvalidUrl { input: value }),
             },
             SettingType::Bool => {
@@ -320,9 +332,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case::with_scheme("https://registry.example.com", true)]
+    #[case::http_scheme("http://registry.example.com", true)]
+    #[case::https_scheme("https://registry.example.com", true)]
     #[case::no_scheme("registry.example.com", false)]
     #[case::empty("", false)]
+    #[case::ftp_scheme("ftp://example.com", false)]
+    #[case::file_scheme("file:///etc/passwd", false)]
+    #[case::data_scheme("data:text/plain,hi", false)]
     fn url_validation(#[case] value: &str, #[case] valid: bool) {
         assert_that!(SettingType::Url.validate(value.to_string()).is_ok()).is_equal_to(valid);
     }
@@ -363,6 +379,23 @@ mod tests {
 
         assert_that!(error.to_string()).contains("registry.example.com");
         assert_that!(error.to_string()).contains("must include a scheme");
+    }
+
+    // A URL with a non-http(s) scheme parses fine syntactically, so it needs
+    // its own rejection path (and message) distinct from "no scheme at all" -
+    // otherwise it would pass this check only to fail later, deep inside the
+    // HTTP client, with a worse error.
+    #[test]
+    fn a_non_http_scheme_is_rejected_with_its_own_message() {
+        let error = SettingType::Url
+            .validate("ftp://example.com".to_string())
+            .unwrap_err();
+
+        assert_that!(error).is_equal_to(SettingValueError::UnsupportedUrlScheme {
+            input: "ftp://example.com".to_string(),
+        });
+        assert_that!(error.to_string()).contains("ftp://example.com");
+        assert_that!(error.to_string()).contains("`http`/`https`");
     }
 
     #[test]
