@@ -184,7 +184,11 @@ impl Installer {
     /// The bin directory, and whether it's npm's `node_modules/.bin`, which Rover never creates.
     fn locate_bin_dir(&self) -> Result<(Utf8PathBuf, bool), InstallerError> {
         // TODO: loop this up better with rover's environment variable management
-        if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
+        // Empty counts as unset, as it does for the base directory.
+        if let Some(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR")
+            .ok()
+            .filter(|dir| !dir.is_empty())
+        {
             Ok((node_modules_bin.into(), true))
         } else {
             Ok((self.get_base_dir_path()?.join("bin"), false))
@@ -192,12 +196,14 @@ impl Installer {
     }
 
     pub(crate) fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        let base_dir = if let Some(base_dir) = &self.override_install_path {
-            Ok(base_dir.to_owned())
-        } else {
-            crate::get_home_dir_path()
-        }?;
-        Ok(base_dir.join(format!(".{}", self.binary_name)))
+        let override_home = self.override_install_path.as_deref();
+        // A usable override needs no home directory, so an override still
+        // works on a machine without one.
+        if let Some(dir) = crate::base_dir(&self.binary_name, override_home, None) {
+            return Ok(dir);
+        }
+        let home = crate::get_home_dir_path()?;
+        crate::base_dir(&self.binary_name, None, Some(&home)).ok_or_else(crate::no_home)
     }
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
@@ -447,6 +453,26 @@ mod test {
             .is_equal_to(override_path);
     }
 
+    /// Exported but empty, the variable is ignored rather than naming the
+    /// working directory.
+    #[rstest]
+    #[sealed_test]
+    fn test_get_bin_dir_path_with_empty_node_modules_override(
+        binary_name: &str,
+        installer: Installer,
+        override_path: Utf8PathBuf,
+    ) {
+        std::env::set_var("APOLLO_NODE_MODULES_BIN_DIR", "");
+        let installer = Installer {
+            override_install_path: Some(override_path.clone()),
+            ..installer
+        };
+        let bin_dir_path = installer.get_bin_dir_path();
+        assert_that!(bin_dir_path)
+            .is_ok()
+            .is_equal_to(override_path.join(format!(".{binary_name}")).join("bin"));
+    }
+
     #[rstest]
     fn test_get_base_dir_path(binary_name: &str, installer: Installer, home_dir: Utf8PathBuf) {
         let expected_subpath = format!(".{}", binary_name);
@@ -471,6 +497,23 @@ mod test {
         assert_that!(base_dir_path)
             .is_ok()
             .is_equal_to(override_path.join(expected_subpath));
+    }
+
+    /// An exported but empty `APOLLO_HOME` arrives as an empty override.
+    #[rstest]
+    fn test_get_base_dir_path_with_empty_override(
+        binary_name: &str,
+        installer: Installer,
+        home_dir: Utf8PathBuf,
+    ) {
+        let installer = Installer {
+            override_install_path: Some(Utf8PathBuf::new()),
+            ..installer
+        };
+        let base_dir_path = installer.get_base_dir_path();
+        assert_that!(base_dir_path)
+            .is_ok()
+            .is_equal_to(home_dir.join(format!(".{binary_name}")));
     }
 
     #[rstest]

@@ -20,7 +20,7 @@
 
 use std::convert::TryFrom;
 
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use directories_next::BaseDirs;
 
 mod error;
@@ -34,13 +34,41 @@ pub(crate) use system::unix;
 #[cfg(windows)]
 pub(crate) use system::windows;
 
+/// Where an installer keeps `binary_name`'s files: a `.{binary_name}`
+/// directory under `override_home` when that is given and not empty, and under
+/// `home` otherwise. `None` when neither is usable.
+///
+/// This is the one rule for Rover's own directory, `~/.rover` or
+/// `$APOLLO_HOME/.rover`: self-installs and plugin installs place binaries
+/// under it, and anything that needs to find them, or what sits beside them,
+/// should ask here rather than join the path itself. An empty override, as an
+/// exported but empty `APOLLO_HOME` gives, counts as no override rather than
+/// as the working directory.
+pub fn base_dir(
+    binary_name: &str,
+    override_home: Option<&Utf8Path>,
+    home: Option<&Utf8Path>,
+) -> Option<Utf8PathBuf> {
+    let usable = |dir: &&Utf8Path| !dir.as_str().is_empty();
+    override_home
+        .filter(usable)
+        .or_else(|| home.filter(usable))
+        .map(|dir| dir.join(format!(".{binary_name}")))
+}
+
 pub(crate) fn get_home_dir_path() -> Result<Utf8PathBuf, InstallerError> {
-    if let Some(base_dirs) = BaseDirs::new() {
-        Ok(Utf8PathBuf::try_from(base_dirs.home_dir().to_path_buf())?)
-    } else if cfg!(windows) {
-        Err(InstallerError::NoHomeWindows)
+    match BaseDirs::new() {
+        Some(base_dirs) => Ok(Utf8PathBuf::try_from(base_dirs.home_dir().to_path_buf())?),
+        None => Err(no_home()),
+    }
+}
+
+/// The error for a machine with no home directory to install under.
+pub(crate) fn no_home() -> InstallerError {
+    if cfg!(windows) {
+        InstallerError::NoHomeWindows
     } else {
-        Err(InstallerError::NoHomeUnix)
+        InstallerError::NoHomeUnix
     }
 }
 
@@ -52,13 +80,34 @@ mod tests {
     #[cfg(not(windows))]
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    use rstest::rstest;
     #[cfg(not(windows))]
     use serial_test::serial;
     use speculoos::prelude::*;
 
-    use super::get_home_dir_path;
     #[cfg(not(windows))]
     use super::Installer;
+    use super::{base_dir, get_home_dir_path};
+
+    #[rstest]
+    #[case::the_override_wins(Some("/opt/apollo"), Some("/home/me"), Some("/opt/apollo/.rover"))]
+    #[case::home_without_an_override(None, Some("/home/me"), Some("/home/me/.rover"))]
+    #[case::an_empty_override_is_no_override(Some(""), Some("/home/me"), Some("/home/me/.rover"))]
+    #[case::the_override_without_a_home(Some("/opt/apollo"), None, Some("/opt/apollo/.rover"))]
+    #[case::nothing_usable(Some(""), None, None)]
+    #[case::an_empty_home_is_no_home(None, Some(""), None)]
+    fn base_dir_prefers_a_usable_override_to_home(
+        #[case] override_home: Option<&str>,
+        #[case] home: Option<&str>,
+        #[case] expected: Option<&str>,
+    ) {
+        let dir = base_dir(
+            "rover",
+            override_home.map(camino::Utf8Path::new),
+            home.map(camino::Utf8Path::new),
+        );
+        assert_that!(dir).is_equal_to(expected.map(Utf8PathBuf::from));
+    }
 
     #[cfg(not(windows))]
     #[test]

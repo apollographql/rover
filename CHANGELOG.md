@@ -126,6 +126,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
+
+  An exported but empty `APOLLO_HOME` (or `--rover-home ""`) used to place `.rover/` under whatever directory you ran Rover from, so `rover install` and plugin installs scattered copies across your projects and missed the ones already in `~/.rover`. An empty value now counts as unset, and Rover uses `~/.rover` as it does when the variable isn't set at all. On a machine with no home directory, that means Rover now reports the missing home directory rather than installing into the working directory. An empty `APOLLO_NODE_MODULES_BIN_DIR` likewise counts as unset.
+
 - **`rover config whoami` no longer rejects a valid client-credentials identity - @briangeorge**
 
   `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` authenticates as a service account, but `rover config whoami` only ever recognized `User`/`Graph` actor types and rejected everything else — including a fully valid, successfully-authenticated service account — with "The key provided is invalid. Rover only accepts personal and graph API keys". `Actor` (and the platform API response mapping that produces it) now has a `SERVICE_ACCOUNT` variant, so a service-account identity passes through cleanly, reporting `Key Type: Service Account` and its id under `User ID` (there's no dedicated field for it yet, and it's the closest existing fit).
