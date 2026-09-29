@@ -26,15 +26,16 @@ impl Set {
             .setting
             .parse()
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
-        name.setting_type()
-            .validate(&self.value)
+        let value = name
+            .setting_type()
+            .validate(self.value.clone())
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
 
-        Profile::new(&profile.profile_name, &config).set_setting(name.as_str(), &self.value)?;
+        Profile::new(&profile.profile_name, &config).set_setting(name.as_str(), &value)?;
 
         Ok(RoverOutput::CliOutput(Box::new(SetOutput {
             setting: name.as_str(),
-            value: self.value.clone(),
+            value,
             profile: profile.profile_name.clone(),
         })))
     }
