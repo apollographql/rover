@@ -1242,14 +1242,14 @@ mod tests {
         #[case::gone_with_a_newer_release(
             410,
             Some("2.9.5"),
-            "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.",
-            "Run `rover install --plugin supergraph@=2.9.5`."
+            "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.",
+            "Run `rover plugin install supergraph@=2.9.5`."
         )]
         #[case::gone_with_no_listing(
             410,
             None,
-            "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry.",
-            "Run `rover install --plugin supergraph@2` to use the newest available 2.x."
+            "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry.",
+            "Run `rover plugin install supergraph@2` to use the newest available 2.x."
         )]
         #[tokio::test]
         #[timeout(Duration::from_secs(15))]

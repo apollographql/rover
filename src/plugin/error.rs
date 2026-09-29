@@ -238,7 +238,8 @@ const fn floating_request(plugin: PluginName, major: u64) -> Option<VersionReque
 /// version it produced: "the `supergraph` plugin v2.9.3, set by ...".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RequestOrigin {
-    /// `rover install --plugin <name>@<version>`.
+    /// `rover plugin install <name>@<version>`, or its deprecated alias
+    /// `rover install --plugin`.
     PluginArgument,
     /// A version flag such as `--federation-version`.
     Flag(&'static str),
@@ -276,7 +277,7 @@ impl RequestOrigin {
 impl fmt::Display for RequestOrigin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::PluginArgument => f.write_str("requested by `rover install --plugin`"),
+            Self::PluginArgument => f.write_str("requested by `rover plugin install`"),
             Self::Flag(flag) => write!(f, "requested by `{flag}`"),
             Self::EnvVar(var) => write!(f, "set by `{var}`"),
             Self::SupergraphConfig(path) => write!(
@@ -332,7 +333,7 @@ impl fmt::Display for PluginNextStep {
                 install_root,
             } => write!(
                 f,
-                "Make sure `{install_root}` is writable and has free space, then run `rover install --plugin {plugin}@={version} --force --elv2-license accept` to reinstall it."
+                "Make sure `{install_root}` is writable and has free space, then run `rover plugin install {plugin}@={version} --force --elv2-license accept` to reinstall it."
             ),
             Self::RequestAnotherVersion {
                 plugin,
@@ -356,10 +357,9 @@ impl fmt::Display for PluginNextStep {
                     }
                 };
                 match origin {
-                    RequestOrigin::PluginArgument => write!(
-                        f,
-                        "Run `rover install --plugin {plugin}@{request}`{newest}."
-                    ),
+                    RequestOrigin::PluginArgument => {
+                        write!(f, "Run `rover plugin install {plugin}@{request}`{newest}.")
+                    }
                     RequestOrigin::Flag(flag) => {
                         write!(f, "Re-run with `{flag} {request}`{newest}.")
                     }
@@ -486,12 +486,12 @@ mod tests {
          \n\
          Caused by:\n    \
          Permission denied (os error 13)\n        \
-         Make sure `/home/me/.rover/bin` is writable and has free space, then run `rover install --plugin apollo-mcp-server@=1.0.0 --force --elv2-license accept` to reinstall it.\n"
+         Make sure `/home/me/.rover/bin` is writable and has free space, then run `rover plugin install apollo-mcp-server@=1.0.0 --force --elv2-license accept` to reinstall it.\n"
     )]
     #[case::no_longer_served(
         no_longer_served(RequestOrigin::PluginArgument, Some("2.9.5")),
-        "error[E051]: The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.\n        \
-         Run `rover install --plugin supergraph@=2.9.5`.\n"
+        "error[E051]: The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry. The newest available 2.x is v2.9.5.\n        \
+         Run `rover plugin install supergraph@=2.9.5`.\n"
     )]
     fn each_failure_prints_its_code_message_cause_and_next_step(
         #[case] failure: PluginFailure,
@@ -528,7 +528,7 @@ mod tests {
     #[case::no_longer_served(
         no_longer_served(RequestOrigin::PluginArgument, None),
         serde_json::json!({
-            "message": "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry.",
+            "message": "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry.",
             "code": "E051",
         })
     )]
@@ -599,12 +599,12 @@ mod tests {
     #[case::argument_with_listing(
         RequestOrigin::PluginArgument,
         Some("2.9.5"),
-        "Run `rover install --plugin supergraph@=2.9.5`."
+        "Run `rover plugin install supergraph@=2.9.5`."
     )]
     #[case::argument_without_listing(
         RequestOrigin::PluginArgument,
         None,
-        "Run `rover install --plugin supergraph@2` to use the newest available 2.x."
+        "Run `rover plugin install supergraph@2` to use the newest available 2.x."
     )]
     #[case::flag(
         RequestOrigin::Flag("--federation-version"),
@@ -614,12 +614,12 @@ mod tests {
     #[case::the_newest_is_the_withdrawn_release(
         RequestOrigin::PluginArgument,
         Some("2.9.3"),
-        "Run `rover install --plugin supergraph@2` to use the newest available 2.x."
+        "Run `rover plugin install supergraph@2` to use the newest available 2.x."
     )]
     #[case::the_newest_is_in_another_major(
         RequestOrigin::PluginArgument,
         Some("3.0.0"),
-        "Run `rover install --plugin supergraph@2` to use the newest available 2.x."
+        "Run `rover plugin install supergraph@2` to use the newest available 2.x."
     )]
     #[case::env_var(
         RequestOrigin::EnvVar("APOLLO_ROVER_DEV_ROUTER_VERSION"),
@@ -659,7 +659,7 @@ mod tests {
     fn a_withdrawn_version_names_no_unusable_replacement(#[case] newest: &str) {
         assert_that!(no_longer_served(RequestOrigin::PluginArgument, Some(newest)).to_string())
             .is_equal_to(
-                "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry."
+                "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry."
                     .to_string(),
             );
     }
@@ -694,7 +694,7 @@ mod tests {
         .next_step();
 
         assert_that!(step.to_string()).is_equal_to(
-            "Run `rover install --plugin apollo-mcp-server@latest` to use the newest available release, which may be a newer major version."
+            "Run `rover plugin install apollo-mcp-server@latest` to use the newest available release, which may be a newer major version."
                 .to_string(),
         );
     }
@@ -702,7 +702,7 @@ mod tests {
     #[rstest]
     #[case::argument(
         RequestOrigin::PluginArgument,
-        "The `supergraph` plugin v2.9.3, requested by `rover install --plugin`, is no longer available from the plugin registry."
+        "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry."
     )]
     #[case::flag(
         RequestOrigin::Flag("--federation-version"),
