@@ -49,6 +49,15 @@ impl ProfileSelection {
             ProfileSelection::Default => "default",
         }
     }
+
+    /// Whether `--profile` was passed explicitly (see the variant docs).
+    // Unused within this commit alone - consumers (config show's
+    // Source::from(ProfileSelection), the override-notice checks in
+    // cli.rs) land in later commits in this stack.
+    #[allow(dead_code)]
+    pub(crate) const fn is_explicit(self) -> bool {
+        matches!(self, ProfileSelection::Explicit)
+    }
 }
 
 impl Display for ProfileSelection {
