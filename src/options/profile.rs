@@ -40,6 +40,23 @@ pub enum ProfileSelection {
     Default,
 }
 
+impl ProfileSelection {
+    /// The spelling `rover config show`'s `profile_selection` field reports
+    /// (FR51).
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            ProfileSelection::Explicit => "explicit",
+            ProfileSelection::Default => "default",
+        }
+    }
+}
+
+impl Display for ProfileSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 impl Display for ProfileOpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.profile_name)
