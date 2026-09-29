@@ -2,10 +2,10 @@
 //!
 //! Each class of plugin failure has its own variant of [`PluginFailure`]:
 //! resolution, download, installation, a withdrawn release, and a manifest
-//! that can't be used so far, with the never-download and checksum classes to
-//! follow. Every variant has its own stable [`RoverErrorCode`] and a
-//! [`PluginNextStep`] naming the plugin, or for a manifest the file to change,
-//! and what to do about it. A [`PluginFailure`] anywhere in an error's cause
+//! or lockfile that can't be used so far, with the never-download and
+//! checksum classes to follow. Every variant has its own stable [`RoverErrorCode`] and a
+//! [`PluginNextStep`] naming the plugin, or for a manifest or lockfile the
+//! file to change, and what to do about it. A [`PluginFailure`] anywhere in an error's cause
 //! chain decides that error's code and suggestion, so a caller that wraps one
 //! keeps both.
 //!
@@ -88,7 +88,19 @@ pub enum PluginFailure {
         path: Utf8PathBuf,
         problem: ManifestProblem,
     },
+
+    /// A plugin lockfile exists but cannot be used. Like [`Self::Manifest`],
+    /// it names the file rather than any one plugin.
+    Lockfile {
+        path: Utf8PathBuf,
+        problem: LockfileProblem,
+    },
 }
+
+/// A manifest's or lockfile's bytes that are not UTF-8 text.
+#[derive(Debug, thiserror::Error)]
+#[error("not UTF-8 text")]
+pub(crate) struct NotUtf8(#[source] pub(crate) std::string::FromUtf8Error);
 
 /// Why a manifest cannot be used.
 #[derive(Debug, Clone)]
@@ -102,6 +114,20 @@ pub enum ManifestProblem {
     /// honor. Ignoring it would install binaries somewhere the manifest did
     /// not ask for, and move them once a later version starts honoring it.
     UnsupportedInstallRoot,
+}
+
+/// Why a lockfile cannot be used.
+#[derive(Debug, Clone)]
+pub enum LockfileProblem {
+    /// The file is there but could not be read.
+    Unreadable(PluginFailureCause),
+    /// The file is not valid TOML, does not have a lockfile's shape, or is
+    /// not text at all; the cause says which.
+    Malformed(PluginFailureCause),
+    /// The file is in a newer format than this version of Rover reads.
+    /// Ignoring it would install whatever resolves today, and overwriting it
+    /// would lose what the newer Rover recorded.
+    WrittenByNewerRover { format_version: u64 },
 }
 
 impl fmt::Display for PluginFailure {
@@ -148,6 +174,18 @@ impl fmt::Display for PluginFailure {
                     "`{path}` sets `install_root`, which this version of Rover doesn't support."
                 ),
             },
+            Self::Lockfile { path, problem } => match problem {
+                LockfileProblem::Unreadable(_) => {
+                    write!(f, "Couldn't read the plugin lockfile `{path}`.")
+                }
+                LockfileProblem::Malformed(_) => {
+                    write!(f, "`{path}` is not a valid plugin lockfile.")
+                }
+                LockfileProblem::WrittenByNewerRover { format_version } => write!(
+                    f,
+                    "`{path}` was written by a newer version of Rover, in lockfile format version {format_version}."
+                ),
+            },
         }
     }
 }
@@ -164,10 +202,18 @@ impl Error for PluginFailure {
             | Self::Manifest {
                 problem: ManifestProblem::Unreadable(source) | ManifestProblem::Malformed(source),
                 ..
+            }
+            | Self::Lockfile {
+                problem: LockfileProblem::Unreadable(source) | LockfileProblem::Malformed(source),
+                ..
             } => Some(&**source),
             Self::NoLongerServed { .. }
             | Self::Manifest {
                 problem: ManifestProblem::UnsupportedInstallRoot,
+                ..
+            }
+            | Self::Lockfile {
+                problem: LockfileProblem::WrittenByNewerRover { .. },
                 ..
             } => None,
         }
@@ -185,7 +231,7 @@ impl PluginFailure {
             | Self::Download { plugin, .. }
             | Self::Installation { plugin, .. }
             | Self::NoLongerServed { plugin, .. } => Some(*plugin),
-            Self::Manifest { .. } => None,
+            Self::Manifest { .. } | Self::Lockfile { .. } => None,
         }
     }
 
@@ -199,7 +245,7 @@ impl PluginFailure {
             | Self::Download { requested, .. }
             | Self::Installation { requested, .. } => Some(requested.clone()),
             Self::NoLongerServed { version, .. } => Some(VersionRequest::Exact(version.clone())),
-            Self::Manifest { .. } => None,
+            Self::Manifest { .. } | Self::Lockfile { .. } => None,
         }
     }
 
@@ -210,7 +256,7 @@ impl PluginFailure {
             Self::Download { .. } => RoverErrorCode::E049,
             Self::Installation { .. } => RoverErrorCode::E050,
             Self::NoLongerServed { .. } => RoverErrorCode::E051,
-            Self::Manifest { .. } => RoverErrorCode::E052,
+            Self::Manifest { .. } | Self::Lockfile { .. } => RoverErrorCode::E052,
         }
     }
 
@@ -255,10 +301,20 @@ impl PluginFailure {
             Self::Manifest { path, problem } => {
                 let path = path.clone();
                 match problem {
-                    ManifestProblem::Unreadable(_) => PluginNextStep::MakeManifestReadable { path },
-                    ManifestProblem::Malformed(_) => PluginNextStep::FixManifest { path },
+                    ManifestProblem::Unreadable(_) => PluginNextStep::MakeReadable { path },
+                    ManifestProblem::Malformed(_) => PluginNextStep::FixFile { path },
                     ManifestProblem::UnsupportedInstallRoot => {
                         PluginNextStep::RemoveInstallRoot { path }
+                    }
+                }
+            }
+            Self::Lockfile { path, problem } => {
+                let path = path.clone();
+                match problem {
+                    LockfileProblem::Unreadable(_) => PluginNextStep::MakeReadable { path },
+                    LockfileProblem::Malformed(_) => PluginNextStep::FixFile { path },
+                    LockfileProblem::WrittenByNewerRover { .. } => {
+                        PluginNextStep::UpgradeRover { path }
                     }
                 }
             }
@@ -342,7 +398,7 @@ impl fmt::Display for RequestOrigin {
 }
 
 /// The concrete next step a [`PluginFailure`] suggests. Each names the plugin,
-/// or for a manifest that can't be used, the file to change.
+/// or for a manifest or lockfile that can't be used, the file to change.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum PluginNextStep {
     CheckRegistry {
@@ -366,13 +422,16 @@ pub enum PluginNextStep {
         /// `None` when there's no form today's parsers accept for that.
         request: Option<VersionRequest>,
     },
-    MakeManifestReadable {
+    MakeReadable {
         path: Utf8PathBuf,
     },
-    FixManifest {
+    FixFile {
         path: Utf8PathBuf,
     },
     RemoveInstallRoot {
+        path: Utf8PathBuf,
+    },
+    UpgradeRover {
         path: Utf8PathBuf,
     },
 }
@@ -444,16 +503,20 @@ impl fmt::Display for PluginNextStep {
                     ),
                 }
             }
-            Self::MakeManifestReadable { path } => write!(
+            Self::MakeReadable { path } => write!(
                 f,
                 "Make sure `{path}` is a file you can read, then re-run the command."
             ),
-            Self::FixManifest { path } => {
+            Self::FixFile { path } => {
                 write!(f, "Fix `{path}`, or remove it, then re-run the command.")
             }
             Self::RemoveInstallRoot { path } => write!(
                 f,
                 "Remove `install_root` from `{path}`. Plugins install into the `bin` directory next to it."
+            ),
+            Self::UpgradeRover { path } => write!(
+                f,
+                "Upgrade Rover to a version that reads `{path}`, then re-run the command. This version won't read the file or overwrite it."
             ),
         }
     }
@@ -545,6 +608,17 @@ mod tests {
         }
     }
 
+    fn lockfile(problem: LockfileProblem) -> PluginFailure {
+        PluginFailure::Lockfile {
+            path: Utf8PathBuf::from("/work/app/.rover/plugin-versions.lock"),
+            problem,
+        }
+    }
+
+    fn newer_lockfile() -> PluginFailure {
+        lockfile(LockfileProblem::WrittenByNewerRover { format_version: 2 })
+    }
+
     fn malformed_manifest() -> PluginFailure {
         manifest(ManifestProblem::Malformed(cause(
             "plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 column 3",
@@ -608,6 +682,27 @@ mod tests {
         "error[E052]: `/work/app/.rover/rover.yaml` sets `install_root`, which this version of Rover doesn't support.\n        \
          Remove `install_root` from `/work/app/.rover/rover.yaml`. Plugins install into the `bin` directory next to it.\n"
     )]
+    #[case::malformed_lockfile(
+        lockfile(LockfileProblem::Malformed(cause("missing field `version`"))),
+        "error[E052]: `/work/app/.rover/plugin-versions.lock` is not a valid plugin lockfile.\n\
+         \n\
+         Caused by:\n    \
+         missing field `version`\n        \
+         Fix `/work/app/.rover/plugin-versions.lock`, or remove it, then re-run the command.\n"
+    )]
+    #[case::unreadable_lockfile(
+        lockfile(LockfileProblem::Unreadable(cause("Permission denied (os error 13)"))),
+        "error[E052]: Couldn't read the plugin lockfile `/work/app/.rover/plugin-versions.lock`.\n\
+         \n\
+         Caused by:\n    \
+         Permission denied (os error 13)\n        \
+         Make sure `/work/app/.rover/plugin-versions.lock` is a file you can read, then re-run the command.\n"
+    )]
+    #[case::newer_lockfile(
+        newer_lockfile(),
+        "error[E052]: `/work/app/.rover/plugin-versions.lock` was written by a newer version of Rover, in lockfile format version 2.\n        \
+         Upgrade Rover to a version that reads `/work/app/.rover/plugin-versions.lock`, then re-run the command. This version won't read the file or overwrite it.\n"
+    )]
     fn each_failure_prints_its_code_message_cause_and_next_step(
         #[case] failure: PluginFailure,
         #[case] expected: &str,
@@ -667,6 +762,13 @@ mod tests {
         manifest(ManifestProblem::UnsupportedInstallRoot),
         serde_json::json!({
             "message": "`/work/app/.rover/rover.yaml` sets `install_root`, which this version of Rover doesn't support.",
+            "code": "E052",
+        })
+    )]
+    #[case::newer_lockfile(
+        newer_lockfile(),
+        serde_json::json!({
+            "message": "`/work/app/.rover/plugin-versions.lock` was written by a newer version of Rover, in lockfile format version 2.",
             "code": "E052",
         })
     )]
@@ -887,13 +989,15 @@ mod tests {
         .is_equal_to((Some(plugin), Some(requested.to_string())));
     }
 
-    /// A manifest failure is about a file, not a plugin, so it names neither a
-    /// plugin nor a request, even when the file's one bad entry names both.
+    /// A manifest or lockfile failure is about a file, not a plugin, so it
+    /// names neither a plugin nor a request, even when the file's one bad
+    /// entry names both.
     #[rstest]
     #[case::malformed(malformed_manifest())]
     #[case::unreadable(unreadable_manifest())]
     #[case::unsupported_install_root(manifest(ManifestProblem::UnsupportedInstallRoot))]
-    fn a_manifest_failure_names_no_plugin_or_request(#[case] failure: PluginFailure) {
+    #[case::newer_lockfile(newer_lockfile())]
+    fn a_file_failure_names_no_plugin_or_request(#[case] failure: PluginFailure) {
         assert_that!((failure.plugin(), failure.requested())).is_equal_to((None, None));
     }
 }

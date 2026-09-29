@@ -18,6 +18,8 @@ use serde_with::{DisplayFromStr, serde_as};
 
 use super::version::{PluginName, VersionRequest};
 
+mod load;
+
 /// A lockfile's file name, next to the manifest of the level it records.
 pub const LOCKFILE: &str = "plugin-versions.lock";
 
