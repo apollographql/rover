@@ -527,6 +527,18 @@ impl Rover {
         Ok(Config::new(self.config_home.as_ref(), override_api_key)?)
     }
 
+    /// Like [`Rover::get_rover_config`], but never creates the config home -
+    /// for read-only callers (`rover config show`, FR18) that must report
+    /// what's there without establishing anything that wasn't already
+    /// present.
+    pub(crate) fn get_rover_config_read_only(&self) -> RoverResult<Config> {
+        let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
+        Ok(Config::read_only(
+            self.config_home.as_ref(),
+            override_api_key,
+        )?)
+    }
+
     /// Resolves one setting's effective raw value, adding the profile tier
     /// beneath an already-resolved explicit flag/environment-variable value
     /// (FR25, collapsed to four tiers per FR29 - there's no project file
@@ -546,11 +558,27 @@ impl Rover {
     }
 
     /// The active profile's stored value for `name`, validated against its
-    /// type. See `resolve_setting` for the tier this fits into.
+    /// type. See `resolve_setting` for the tier this fits into. Builds its
+    /// own `Config` (creating the config home if it's missing, per
+    /// `get_rover_config`'s normal contract) - callers that must not create
+    /// anything (`rover config show`, FR18) use
+    /// [`Rover::resolve_profile_setting_with`] with their own `Config`
+    /// instead.
     pub(crate) fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
-        let profile = self.get_profile_opt();
         let houston_config = self.get_rover_config()?;
-        let profile_handle = Profile::new(&profile.profile_name, &houston_config);
+        self.resolve_profile_setting_with(&houston_config, name)
+    }
+
+    /// Like [`Rover::resolve_profile_setting`], but against a `Config` the
+    /// caller already has, rather than building one (and possibly creating
+    /// the config home) itself.
+    pub(crate) fn resolve_profile_setting_with(
+        &self,
+        houston_config: &Config,
+        name: SettingName,
+    ) -> RoverResult<Option<String>> {
+        let profile = self.get_profile_opt();
+        let profile_handle = Profile::new(&profile.profile_name, houston_config);
         let Some(raw) = profile_handle.get_setting(name.as_str())? else {
             return Ok(None);
         };

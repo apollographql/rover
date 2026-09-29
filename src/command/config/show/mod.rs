@@ -8,7 +8,7 @@ use self::output::{ConfigShowOutput, CredentialReport, Overridden, SettingReport
 use crate::{
     RoverResult,
     cli::Rover,
-    options::{ProfileOpt, ProfileSelection, SettingName},
+    options::{ProfileOpt, SettingName},
     utils::env::RoverEnvKey,
 };
 
@@ -18,14 +18,13 @@ pub struct Show {}
 
 impl Show {
     pub(crate) fn run(&self, rover: &Rover, profile: &ProfileOpt) -> RoverResult<ConfigShowOutput> {
-        let houston_config = rover.get_rover_config()?;
+        let houston_config = rover.get_rover_config_read_only()?;
 
         let settings = vec![
             resolve_string_setting(
                 rover,
                 profile,
                 &houston_config,
-                profile.selection,
                 SettingName::RegistryUrl,
                 rover.registry_url_flag_or_env(),
                 RoverEnvKey::RegistryUrl,
@@ -34,12 +33,11 @@ impl Show {
                 rover,
                 profile,
                 &houston_config,
-                profile.selection,
                 SettingName::TelemetryUrl,
                 rover.telemetry_url_flag_or_env(),
                 RoverEnvKey::TelemetryUrl,
             )?,
-            resolve_telemetry_disabled(rover, profile, &houston_config, profile.selection)?,
+            resolve_telemetry_disabled(rover, profile, &houston_config)?,
         ];
 
         Ok(ConfigShowOutput {
@@ -58,13 +56,15 @@ impl Show {
 /// it, because `config show`'s job is diagnostic reporting of what's on
 /// disk, and a losing tier's stale, invalid value shouldn't stop it from
 /// reporting the winning one. A *winning* profile value goes through
-/// `Rover::resolve_profile_setting`, which validates and fails the command
-/// on an invalid value (FR39/FR83) exactly as every other command does.
+/// `Rover::resolve_profile_setting_with`, which validates and fails the
+/// command on an invalid value (FR39/FR83) exactly as every other command
+/// does - except `APOLLO_TELEMETRY_URL`, where an invalid stored value is
+/// silently ignored, mirroring `Rover::telemetry_url_override`'s own
+/// treatment of it everywhere else in the CLI.
 fn resolve_string_setting(
     rover: &Rover,
     profile: &ProfileOpt,
     houston_config: &houston::Config,
-    profile_selection: ProfileSelection,
     name: SettingName,
     flag_or_env: Option<String>,
     env_key: RoverEnvKey,
@@ -96,7 +96,7 @@ fn resolve_string_setting(
             Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?
         {
             overridden.push(Overridden {
-                source: profile_selection.into(),
+                source: profile.selection.into(),
                 value: profile_value,
             });
         }
@@ -109,13 +109,18 @@ fn resolve_string_setting(
         });
     }
 
-    if let Some(value) = rover.resolve_profile_setting(name)? {
-        return Ok(SettingReport {
-            name: name.as_str(),
-            value,
-            source: profile_selection.into(),
-            overridden: vec![],
-        });
+    match rover.resolve_profile_setting_with(houston_config, name) {
+        Ok(Some(value)) => {
+            return Ok(SettingReport {
+                name: name.as_str(),
+                value,
+                source: profile.selection.into(),
+                overridden: vec![],
+            });
+        }
+        Ok(None) => {}
+        Err(_) if name == SettingName::TelemetryUrl => {}
+        Err(error) => return Err(error),
     }
 
     Ok(SettingReport {
@@ -129,12 +134,13 @@ fn resolve_string_setting(
 /// `APOLLO_TELEMETRY_DISABLED` doesn't fit `resolve_string_setting`'s shape:
 /// its flag is a bare bool and its environment variable is presence-only
 /// (FR21), so "value" for either is always the typed boolean `true` rather
-/// than whatever text (if any) the source happened to spell.
+/// than whatever text (if any) the source happened to spell. An invalid
+/// stored value is silently ignored, mirroring `Rover::is_telemetry_disabled`'s
+/// own treatment of it everywhere else in the CLI.
 fn resolve_telemetry_disabled(
     rover: &Rover,
     profile: &ProfileOpt,
     houston_config: &houston::Config,
-    profile_selection: ProfileSelection,
 ) -> RoverResult<SettingReport> {
     let name = SettingName::TelemetryDisabled;
     let raw_env = rover.get_env_var(RoverEnvKey::TelemetryDisabled)?;
@@ -151,7 +157,7 @@ fn resolve_telemetry_disabled(
         }
         if let Some(profile_value) = profile_raw {
             overridden.push(Overridden {
-                source: profile_selection.into(),
+                source: profile.selection.into(),
                 value: profile_value,
             });
         }
@@ -167,7 +173,7 @@ fn resolve_telemetry_disabled(
         let mut overridden = Vec::new();
         if let Some(profile_value) = profile_raw {
             overridden.push(Overridden {
-                source: profile_selection.into(),
+                source: profile.selection.into(),
                 value: profile_value,
             });
         }
@@ -179,7 +185,7 @@ fn resolve_telemetry_disabled(
         });
     }
 
-    if let Some(value) = rover.resolve_profile_setting(name)? {
+    if let Ok(Some(value)) = rover.resolve_profile_setting_with(houston_config, name) {
         let normalized = if value.eq_ignore_ascii_case("true") {
             "true"
         } else {
@@ -188,7 +194,7 @@ fn resolve_telemetry_disabled(
         return Ok(SettingReport {
             name: name.as_str(),
             value: normalized.to_string(),
-            source: profile_selection.into(),
+            source: profile.selection.into(),
             overridden: vec![],
         });
     }
@@ -807,5 +813,98 @@ mod tests {
             .expect_err("expected an invalid stored registry URL to fail the command");
 
         assert_that!(error.to_string()).contains("APOLLO_REGISTRY_URL");
+    }
+
+    // Regression test for FR57/FR18: `config show` must create nothing when
+    // no configuration is present. `tempfile::tempdir()` (used by every
+    // other test in this file) creates the directory immediately, which
+    // would mask this - the path here is never actually created.
+    #[test]
+    fn creates_nothing_on_a_fresh_config_home() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let home_path = temp_dir.path().join("nonexistent");
+        let home_path = camino::Utf8Path::from_path(&home_path).unwrap();
+        let rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        let profile = rover.get_profile_opt();
+
+        Show {}.run(&rover, &profile).unwrap();
+
+        assert_that!(home_path.exists()).is_false();
+    }
+
+    // Regression test: every other command silently ignores an invalid
+    // stored APOLLO_TELEMETRY_URL and falls back to the default
+    // (`telemetry_url_override_ignores_an_invalid_profile_setting` in
+    // cli.rs) - config show must report the same effective value instead of
+    // failing the whole command.
+    #[test]
+    fn an_invalid_stored_telemetry_url_falls_back_to_the_default_instead_of_failing() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_URL", "not a url");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "show",
+            ],
+        );
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let telemetry_url = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_TELEMETRY_URL")
+            .unwrap();
+        assert_that!(telemetry_url.source).is_equal_to(Source::Builtin);
+        assert_that!(&telemetry_url.value).is_equal_to(SettingName::TelemetryUrl.builtin_default());
+    }
+
+    // Same as above, for APOLLO_TELEMETRY_DISABLED
+    // (`telemetry_disabled_ignores_an_invalid_profile_setting`-equivalent
+    // behavior in `Rover::is_telemetry_disabled`).
+    #[test]
+    fn an_invalid_stored_telemetry_disabled_falls_back_to_the_default_instead_of_failing() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "yes");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "show",
+            ],
+        );
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let telemetry_disabled = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_TELEMETRY_DISABLED")
+            .unwrap();
+        assert_that!(telemetry_disabled.source).is_equal_to(Source::Builtin);
+        assert_that!(&telemetry_disabled.value)
+            .is_equal_to(SettingName::TelemetryDisabled.builtin_default());
     }
 }

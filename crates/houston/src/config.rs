@@ -34,10 +34,32 @@ pub struct Config {
 }
 
 impl Config {
-    /// Creates a new instance of `Config`
+    /// Creates a new instance of `Config`, creating `override_home` (or the
+    /// default config directory) if it doesn't already exist.
     pub fn new(
         override_home: Option<&impl AsRef<Utf8Path>>,
         override_api_key: Option<String>,
+    ) -> Result<Config, HoustonProblem> {
+        Self::build(override_home, override_api_key, true)
+    }
+
+    /// Like [`Config::new`], but never creates the config directory - for
+    /// read-only callers (e.g. `rover config show`) that must report what's
+    /// there without establishing anything that wasn't already present
+    /// (FR18). Every read through `Profile` already tolerates a missing
+    /// directory (an empty/absent result, not an error), so a `Config`
+    /// built this way is safe to hand to any read-only path.
+    pub fn read_only(
+        override_home: Option<&impl AsRef<Utf8Path>>,
+        override_api_key: Option<String>,
+    ) -> Result<Config, HoustonProblem> {
+        Self::build(override_home, override_api_key, false)
+    }
+
+    fn build(
+        override_home: Option<&impl AsRef<Utf8Path>>,
+        override_api_key: Option<String>,
+        create_if_missing: bool,
     ) -> Result<Config, HoustonProblem> {
         let home = match override_home {
             Some(home) => {
@@ -63,7 +85,7 @@ impl Config {
             }
         }?;
 
-        if !home.exists() {
+        if create_if_missing && !home.exists() {
             Fs::create_dir_all(&home)
                 .map_err(|_| HoustonProblem::CouldNotCreateConfigHome(home.to_string()))?;
         }
