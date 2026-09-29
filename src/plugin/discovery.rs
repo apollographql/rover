@@ -6,6 +6,8 @@ use std::{fs, io};
 
 use camino::{Utf8Path, Utf8PathBuf};
 
+use crate::PKG_NAME;
+
 /// The directory, at either level, that holds `rover.yaml` and its lockfile.
 pub const ROVER_DIR: &str = ".rover";
 
@@ -41,14 +43,12 @@ impl ManifestDirs {
 }
 
 /// The global level's `.rover/` directory: `$APOLLO_HOME/.rover` when
-/// `APOLLO_HOME` is set and not empty, `~/.rover` otherwise. This mirrors how
-/// the installer places plugin binaries, under this directory's `bin/`.
+/// `APOLLO_HOME` is set and not empty, `~/.rover` otherwise.
+///
+/// It is Rover's own directory, where the installer puts plugin binaries under
+/// `bin/`, so it comes from the installer's rule rather than a copy of it.
 pub fn global_dir(apollo_home: Option<&Utf8Path>, home: Option<&Utf8Path>) -> Option<Utf8PathBuf> {
-    let set = |dir: &&Utf8Path| !dir.as_str().is_empty();
-    apollo_home
-        .filter(set)
-        .or_else(|| home.filter(set))
-        .map(|base| base.join(ROVER_DIR))
+    binstall::base_dir(PKG_NAME, apollo_home, home)
 }
 
 /// The project level for `cwd`: the `.rover/` directory in `cwd` or its
@@ -270,6 +270,15 @@ mod tests {
             global: Some(apollo_home.join(ROVER_DIR)),
             project: expected.map(|project| root.join(project)),
         });
+    }
+
+    /// A project's `.rover/` and the global one share a name, and the search
+    /// tells them apart by path. That only works while the name discovery
+    /// looks for is the one the installer creates.
+    #[test]
+    fn projects_use_the_directory_name_the_installer_creates() {
+        let global = global_dir(None, Some(Utf8Path::new("/home/me"))).unwrap();
+        assert_that!(global.file_name()).is_equal_to(Some(ROVER_DIR));
     }
 
     #[rstest]
