@@ -19,14 +19,13 @@ pub struct Show {}
 impl Show {
     pub(crate) fn run(&self, rover: &Rover, profile: &ProfileOpt) -> RoverResult<ConfigShowOutput> {
         let houston_config = rover.get_rover_config()?;
-        let profile_is_explicit = matches!(profile.selection, ProfileSelection::Explicit);
 
         let settings = vec![
             resolve_string_setting(
                 rover,
                 profile,
                 &houston_config,
-                profile_is_explicit,
+                profile.selection,
                 SettingName::RegistryUrl,
                 rover.registry_url_flag_or_env(),
                 RoverEnvKey::RegistryUrl,
@@ -35,12 +34,12 @@ impl Show {
                 rover,
                 profile,
                 &houston_config,
-                profile_is_explicit,
+                profile.selection,
                 SettingName::TelemetryUrl,
                 rover.telemetry_url_flag_or_env(),
                 RoverEnvKey::TelemetryUrl,
             )?,
-            resolve_telemetry_disabled(rover, profile, &houston_config, profile_is_explicit)?,
+            resolve_telemetry_disabled(rover, profile, &houston_config, profile.selection)?,
         ];
 
         Ok(ConfigShowOutput {
@@ -49,14 +48,6 @@ impl Show {
             credential: resolve_credential(rover, &houston_config, &profile.profile_name)?,
             settings,
         })
-    }
-}
-
-const fn profile_source(profile_is_explicit: bool) -> Source {
-    if profile_is_explicit {
-        Source::ExplicitProfile
-    } else {
-        Source::DefaultProfile
     }
 }
 
@@ -73,7 +64,7 @@ fn resolve_string_setting(
     rover: &Rover,
     profile: &ProfileOpt,
     houston_config: &houston::Config,
-    profile_is_explicit: bool,
+    profile_selection: ProfileSelection,
     name: SettingName,
     flag_or_env: Option<String>,
     env_key: RoverEnvKey,
@@ -105,7 +96,7 @@ fn resolve_string_setting(
             Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?
         {
             overridden.push(Overridden {
-                source: profile_source(profile_is_explicit),
+                source: profile_selection.into(),
                 value: profile_value,
             });
         }
@@ -122,7 +113,7 @@ fn resolve_string_setting(
         return Ok(SettingReport {
             name: name.as_str(),
             value,
-            source: profile_source(profile_is_explicit),
+            source: profile_selection.into(),
             overridden: vec![],
         });
     }
@@ -143,7 +134,7 @@ fn resolve_telemetry_disabled(
     rover: &Rover,
     profile: &ProfileOpt,
     houston_config: &houston::Config,
-    profile_is_explicit: bool,
+    profile_selection: ProfileSelection,
 ) -> RoverResult<SettingReport> {
     let name = SettingName::TelemetryDisabled;
     let raw_env = rover.get_env_var(RoverEnvKey::TelemetryDisabled)?;
@@ -160,7 +151,7 @@ fn resolve_telemetry_disabled(
         }
         if let Some(profile_value) = profile_raw {
             overridden.push(Overridden {
-                source: profile_source(profile_is_explicit),
+                source: profile_selection.into(),
                 value: profile_value,
             });
         }
@@ -176,7 +167,7 @@ fn resolve_telemetry_disabled(
         let mut overridden = Vec::new();
         if let Some(profile_value) = profile_raw {
             overridden.push(Overridden {
-                source: profile_source(profile_is_explicit),
+                source: profile_selection.into(),
                 value: profile_value,
             });
         }
@@ -197,7 +188,7 @@ fn resolve_telemetry_disabled(
         return Ok(SettingReport {
             name: name.as_str(),
             value: normalized.to_string(),
-            source: profile_source(profile_is_explicit),
+            source: profile_selection.into(),
             overridden: vec![],
         });
     }

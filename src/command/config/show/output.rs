@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{command::CliOutput, utils::table};
+use crate::{command::CliOutput, options::ProfileSelection, utils::table};
 
 /// One of the tiers spec.md FR25 defines. Only five are ever produced by
 /// this slice - `ProjectFile` doesn't exist until Part B ships, and this
@@ -31,6 +31,18 @@ impl Source {
             Source::ProjectFile => "project file",
             Source::DefaultProfile => "profile (default)",
             Source::Builtin => "built-in default",
+        }
+    }
+}
+
+/// The tier a value stored on the active profile counts as - `ExplicitProfile`
+/// or `DefaultProfile` per FR51, depending on how the profile was selected.
+impl From<ProfileSelection> for Source {
+    fn from(selection: ProfileSelection) -> Self {
+        if selection.is_explicit() {
+            Source::ExplicitProfile
+        } else {
+            Source::DefaultProfile
         }
     }
 }
