@@ -104,6 +104,7 @@ fn it_can_set_and_get_an_oauth_session() {
             "access-token".to_string(),
             Some("refresh-token".to_string()),
             Some(1_700_000_000),
+            config::OauthGrantType::DeviceCode,
         )
         .expect("storing oauth tokens failed");
 
@@ -113,6 +114,11 @@ fn it_can_set_and_get_an_oauth_session() {
         .expect("expected a stored oauth session");
     assert_that!(session.access_token).is_equal_to("access-token".to_string());
     assert_that!(session.refresh_token).is_equal_to(Some("refresh-token".to_string()));
+
+    assert_that!(profile_handle
+        .get_oauth_grant_type()
+        .expect("retrieving oauth grant type failed"))
+    .is_equal_to(Some(config::OauthGrantType::DeviceCode));
 }
 
 #[test]
