@@ -21,39 +21,31 @@ impl Show {
         let houston_config = rover.get_rover_config()?;
         let profile_is_explicit = matches!(profile.selection, ProfileSelection::Explicit);
 
-        let mut settings = Vec::new();
-        settings.push(resolve_string_setting(
-            rover,
-            profile,
-            &houston_config,
-            profile_is_explicit,
-            SettingName::RegistryUrl,
-            rover.registry_url_flag_or_env(),
-            RoverEnvKey::RegistryUrl,
-        )?);
-        settings.push(resolve_string_setting(
-            rover,
-            profile,
-            &houston_config,
-            profile_is_explicit,
-            SettingName::TelemetryUrl,
-            rover.telemetry_url_flag_or_env(),
-            RoverEnvKey::TelemetryUrl,
-        )?);
-        settings.push(resolve_telemetry_disabled(
-            rover,
-            profile,
-            &houston_config,
-            profile_is_explicit,
-        )?);
+        let settings = vec![
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                profile_is_explicit,
+                SettingName::RegistryUrl,
+                rover.registry_url_flag_or_env(),
+                RoverEnvKey::RegistryUrl,
+            )?,
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                profile_is_explicit,
+                SettingName::TelemetryUrl,
+                rover.telemetry_url_flag_or_env(),
+                RoverEnvKey::TelemetryUrl,
+            )?,
+            resolve_telemetry_disabled(rover, profile, &houston_config, profile_is_explicit)?,
+        ];
 
         Ok(ConfigShowOutput {
             profile: profile.profile_name.clone(),
-            profile_selection: if profile_is_explicit {
-                "explicit"
-            } else {
-                "default"
-            },
+            profile_selection: profile.selection.as_str(),
             credential: resolve_credential(rover, &houston_config, &profile.profile_name)?,
             settings,
         })
