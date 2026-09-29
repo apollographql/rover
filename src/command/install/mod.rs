@@ -1,9 +1,10 @@
-use std::{convert::TryFrom, env};
+use std::{convert::TryFrom, env, fmt};
 
 use anyhow::anyhow;
 use binstall::{Installer, InstallerError};
 use camino::Utf8PathBuf;
 use clap::Parser;
+use rover_print::print::{Print, PrintExt};
 use rover_std::Style;
 use serde::Serialize;
 
@@ -31,7 +32,7 @@ pub struct Install {
     #[arg(long = "force", short = 'f')]
     pub(crate) force: bool,
 
-    /// Download and install an officially supported plugin from GitHub releases.
+    /// Deprecated: use `rover plugin install` instead.
     #[arg(long)]
     pub(crate) plugin: Option<Plugin>,
 
@@ -40,12 +41,14 @@ pub struct Install {
 }
 
 impl Install {
-    pub async fn do_install(
+    pub async fn do_install<P: Print + ?Sized>(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        stderr: &P,
     ) -> RoverResult<RoverOutput> {
         if let Some(plugin_install) = self.as_plugin_install() {
+            stderr.warnln(DeprecatedAlias(&plugin_install.plugin));
             return plugin_install
                 .run(override_install_path, client_config)
                 .await;
@@ -143,6 +146,22 @@ impl Install {
     }
 }
 
+/// FR34's warning that `rover install --plugin` is deprecated, naming the
+/// `rover plugin install` that replaces it. The request is given in its modern
+/// spelling, so the suggestion is one the user can copy as is.
+struct DeprecatedAlias<'a>(&'a Plugin);
+
+impl fmt::Display for DeprecatedAlias<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "`rover install --plugin` is deprecated. Use `rover plugin install {}@{}` instead.",
+            self.0.name(),
+            self.0.request()
+        )
+    }
+}
+
 /// The binstall installer that Rover and its plugins are installed through.
 pub(crate) fn installer(
     binary_name: &str,
@@ -168,7 +187,7 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
 
-    use super::Install;
+    use super::{DeprecatedAlias, Install};
     use crate::command::Plugins;
 
     #[rstest]
@@ -184,6 +203,19 @@ mod tests {
 
         assert_that!(serde_json::to_value(alias.as_plugin_install()).unwrap())
             .is_equal_to(serde_json::to_value(noun.install()).unwrap());
+    }
+
+    #[rstest]
+    #[case::exact("supergraph@=2.9.3", "supergraph@=2.9.3")]
+    #[case::major("router@2", "router@2")]
+    #[case::legacy_spelling("supergraph@latest-2", "supergraph@2")]
+    fn the_alias_names_its_replacement(#[case] request: &str, #[case] replacement: &str) {
+        let install = Install::try_parse_from(["install", "--plugin", request]).unwrap();
+        let plugin = install.as_plugin_install().unwrap().plugin;
+
+        assert_that!(DeprecatedAlias(&plugin).to_string()).is_equal_to(format!(
+            "`rover install --plugin` is deprecated. Use `rover plugin install {replacement}` instead."
+        ));
     }
 
     #[test]
