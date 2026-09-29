@@ -1,10 +1,9 @@
-use anyhow::anyhow;
 use clap::Parser;
 use houston::{self as config, Profile};
 use serde::Serialize;
 
 use crate::{
-    RoverError, RoverOutput, RoverResult,
+    RoverOutput, RoverResult,
     command::CliOutput,
     options::{ProfileOpt, SettingName},
 };
@@ -24,10 +23,11 @@ pub struct Set {
 impl Set {
     pub fn run(&self, config: config::Config, profile: &ProfileOpt) -> RoverResult<RoverOutput> {
         let name = self.setting;
-        let value = name
-            .setting_type()
-            .validate(self.value.clone())
-            .map_err(|error| RoverError::new(anyhow!("{error}")))?;
+        // `SettingValueError` converts via `RoverError`'s blanket
+        // `From<E: Into<anyhow::Error>>` impl, preserving its real type in
+        // the error chain - `RoverErrorMetadata` downcasts to it to assign
+        // its stable error code (FR86).
+        let value = name.setting_type().validate(self.value.clone())?;
 
         Profile::new(&profile.profile_name, &config).set_setting(name.as_str(), &value)?;
 
@@ -148,6 +148,7 @@ mod tests {
             .expect_err("expected an invalid URL to be rejected");
 
         assert_that!(error.to_string()).contains("isn't a valid URL");
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
         assert_that!(
             Profile::new("staging", &config)
                 .get_setting("APOLLO_REGISTRY_URL")
