@@ -1,10 +1,9 @@
-use anyhow::anyhow;
 use clap::Parser;
 use houston::{self as config, Profile};
 use serde::Serialize;
 
 use crate::{
-    RoverError, RoverOutput, RoverResult,
+    RoverOutput, RoverResult,
     command::CliOutput,
     options::{ProfileOpt, SettingName},
 };
@@ -14,15 +13,13 @@ use crate::{
 pub struct Unset {
     /// The setting's canonical name, spelled as its environment variable is
     /// (e.g. `APOLLO_REGISTRY_URL`)
-    setting: String,
+    #[arg(value_parser = clap::value_parser!(SettingName))]
+    setting: SettingName,
 }
 
 impl Unset {
     pub fn run(&self, config: config::Config, profile: &ProfileOpt) -> RoverResult<RoverOutput> {
-        let name: SettingName = self
-            .setting
-            .parse()
-            .map_err(|error| RoverError::new(anyhow!("{error}")))?;
+        let name = self.setting;
 
         let removed = Profile::new(&profile.profile_name, &config).unset_setting(name.as_str())?;
 
@@ -110,7 +107,7 @@ mod tests {
             .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
             .unwrap();
         let unset = Unset {
-            setting: "APOLLO_REGISTRY_URL".to_string(),
+            setting: SettingName::RegistryUrl,
         };
 
         let output = unset.run(config, &profile_opt("staging")).unwrap();
@@ -127,7 +124,7 @@ mod tests {
     fn unset_on_an_absent_key_is_a_no_op_with_the_required_text() {
         let (config, _tmp_home) = test_config();
         let unset = Unset {
-            setting: "APOLLO_REGISTRY_URL".to_string(),
+            setting: SettingName::RegistryUrl,
         };
 
         let output = unset.run(config, &profile_opt("staging")).unwrap();
@@ -138,15 +135,13 @@ mod tests {
             .contains("`APOLLO_REGISTRY_URL` isn't set in profile `staging`. Nothing to remove.");
     }
 
+    // `setting`'s clap `value_parser` (`SettingName::from_str`) rejects this before `Unset`
+    // can even be constructed, so this is a parsing-level test rather than a `run()`-level one -
+    // `SettingName::from_str`'s own behavior is already covered exhaustively in
+    // `options::settings`'s tests.
     #[test]
     fn unset_rejects_an_unrecognized_setting_name() {
-        let (config, _tmp_home) = test_config();
-        let unset = Unset {
-            setting: "APOLLO_NOT_A_SETTING".to_string(),
-        };
-
-        let error = unset
-            .run(config, &profile_opt("staging"))
+        let error = Unset::try_parse_from(["config unset", "APOLLO_NOT_A_SETTING"])
             .expect_err("expected an unrecognized setting name to be rejected");
 
         assert_that!(error.to_string()).contains("isn't a Rover setting");

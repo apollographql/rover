@@ -7,6 +7,7 @@
 
 use std::{fmt, str::FromStr};
 
+use serde::{Serialize, Serializer};
 use url::Url;
 
 #[cfg(feature = "oauth")]
@@ -182,6 +183,15 @@ impl SettingName {
 impl fmt::Display for SettingName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+/// Serializes as [`SettingName::as_str`] - the same canonical spelling `Display` renders -
+/// rather than deriving, since no `serde(rename_all = ...)` casing convention reproduces the
+/// `APOLLO_`-prefixed canonical names from the enum's own Rust variant names.
+impl Serialize for SettingName {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
     }
 }
 

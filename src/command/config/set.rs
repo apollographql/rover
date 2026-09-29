@@ -14,7 +14,8 @@ use crate::{
 pub struct Set {
     /// The setting's canonical name, spelled as its environment variable is
     /// (e.g. `APOLLO_REGISTRY_URL`)
-    setting: String,
+    #[arg(value_parser = clap::value_parser!(SettingName))]
+    setting: SettingName,
 
     /// The value to store
     value: String,
@@ -22,10 +23,7 @@ pub struct Set {
 
 impl Set {
     pub fn run(&self, config: config::Config, profile: &ProfileOpt) -> RoverResult<RoverOutput> {
-        let name: SettingName = self
-            .setting
-            .parse()
-            .map_err(|error| RoverError::new(anyhow!("{error}")))?;
+        let name = self.setting;
         let value = name
             .setting_type()
             .validate(self.value.clone())
@@ -106,7 +104,7 @@ mod tests {
     fn set_stores_a_valid_value_and_confirms_it() {
         let (config, _tmp_home) = test_config();
         let set = Set {
-            setting: "APOLLO_REGISTRY_URL".to_string(),
+            setting: SettingName::RegistryUrl,
             value: "https://registry.staging.example.com".to_string(),
         };
 
@@ -128,7 +126,7 @@ mod tests {
     fn set_creates_a_settings_only_profile() {
         let (config, _tmp_home) = test_config();
         let set = Set {
-            setting: "APOLLO_REGISTRY_URL".to_string(),
+            setting: SettingName::RegistryUrl,
             value: "https://registry.staging.example.com".to_string(),
         };
 
@@ -141,7 +139,7 @@ mod tests {
     fn set_rejects_an_invalid_value_and_stores_nothing() {
         let (config, _tmp_home) = test_config();
         let set = Set {
-            setting: "APOLLO_REGISTRY_URL".to_string(),
+            setting: SettingName::RegistryUrl,
             value: "registry.example.com".to_string(),
         };
 
@@ -158,16 +156,13 @@ mod tests {
         .is_none();
     }
 
+    // `setting`'s clap `value_parser` (`SettingName::from_str`) rejects this before `Set` can
+    // even be constructed, so this is a parsing-level test rather than a `run()`-level one -
+    // `SettingName::from_str`'s own behavior is already covered exhaustively in
+    // `options::settings`'s tests.
     #[test]
     fn set_rejects_an_unrecognized_setting_name() {
-        let (config, _tmp_home) = test_config();
-        let set = Set {
-            setting: "APOLLO_NOT_A_SETTING".to_string(),
-            value: "anything".to_string(),
-        };
-
-        let error = set
-            .run(config, &profile_opt("staging"))
+        let error = Set::try_parse_from(["config set", "APOLLO_NOT_A_SETTING", "anything"])
             .expect_err("expected an unrecognized setting name to be rejected");
 
         assert_that!(error.to_string()).contains("isn't a Rover setting");
@@ -175,15 +170,12 @@ mod tests {
 
     #[test]
     fn set_rejects_the_lowercase_project_file_alias() {
-        let (config, _tmp_home) = test_config();
-        let set = Set {
-            setting: "apollo_registry_url".to_string(),
-            value: "https://registry.example.com".to_string(),
-        };
-
-        let error = set
-            .run(config, &profile_opt("staging"))
-            .expect_err("expected the lowercase alias to be rejected here");
+        let error = Set::try_parse_from([
+            "config set",
+            "apollo_registry_url",
+            "https://registry.example.com",
+        ])
+        .expect_err("expected the lowercase alias to be rejected here");
 
         assert_that!(error.to_string()).contains("APOLLO_REGISTRY_URL");
         assert_that!(error.to_string()).contains(".rover/rover.yaml");
