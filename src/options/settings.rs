@@ -5,7 +5,7 @@
 // remove this once a consumer lands.
 #![allow(dead_code)]
 
-use std::{error::Error, fmt, str::FromStr};
+use std::{fmt, str::FromStr};
 
 use url::Url;
 
@@ -186,38 +186,27 @@ impl fmt::Display for SettingName {
 }
 
 /// Why a string couldn't be parsed as a setting's canonical name (FR42).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum SettingNameError {
     /// The input is a known setting's canonical name, spelled entirely in
     /// lowercase (FR69's project-file-only alias, typed somewhere that isn't
     /// the project file).
+    #[error(
+        "`{input}` isn't a Rover setting name. Settings are named as their environment \
+        variables are, so use `{canonical}`. The lowercase spelling is accepted in \
+        `.rover/rover.yaml` only."
+    )]
     LowercaseSpelling {
         input: String,
         canonical: SettingName,
     },
     /// The input isn't any known setting's canonical name, in any casing.
+    #[error(
+        "`{input}` isn't a Rover setting. Run `rover config show` to list the settings \
+        Rover recognizes."
+    )]
     Unrecognized { input: String },
 }
-
-impl fmt::Display for SettingNameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SettingNameError::LowercaseSpelling { input, canonical } => write!(
-                f,
-                "`{input}` isn't a Rover setting name. Settings are named as their environment \
-                variables are, so use `{canonical}`. The lowercase spelling is accepted in \
-                `.rover/rover.yaml` only."
-            ),
-            SettingNameError::Unrecognized { input } => write!(
-                f,
-                "`{input}` isn't a Rover setting. Run `rover config show` to list the settings \
-                Rover recognizes."
-            ),
-        }
-    }
-}
-
-impl Error for SettingNameError {}
 
 impl FromStr for SettingName {
     type Err = SettingNameError;
@@ -246,25 +235,15 @@ impl FromStr for SettingName {
 /// Carries no source (a profile, the project file, `config set`'s argument)
 /// and no remediation text - callers that need FR84's fuller, source-aware
 /// message wrap this rather than reimplementing the type check.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum SettingValueError {
+    #[error(
+        "`{input}` isn't a valid URL. URLs must include a scheme, for example \
+        `https://example.com`."
+    )]
     InvalidUrl { input: String },
+    #[error("`{input}` isn't a valid boolean. Use `true` or `false`.")]
     InvalidBool { input: String },
-}
-
-impl fmt::Display for SettingValueError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SettingValueError::InvalidUrl { input } => write!(
-                f,
-                "`{input}` isn't a valid URL. URLs must include a scheme, for example \
-                `https://example.com`."
-            ),
-            SettingValueError::InvalidBool { input } => {
-                write!(f, "`{input}` isn't a valid boolean. Use `true` or `false`.")
-            }
-        }
-    }
 }
 
 impl SettingType {
