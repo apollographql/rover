@@ -530,8 +530,10 @@ mod tests {
             profile.name().to_string(),
         ));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
-        assert_that!(profile.oauth_grant_type().unwrap())
-            .is_equal_to(Some(OauthGrantType::DeviceCode));
+        assert_that!(profile.oauth_grant_type())
+            .is_ok()
+            .is_some()
+            .is_equal_to(OauthGrantType::DeviceCode);
     }
 
     // A stored OAuth token from before grant type was recorded reports `None` ("unknown"),
@@ -552,7 +554,7 @@ mod tests {
         .save(profile.name(), &config)
         .unwrap();
 
-        assert_that!(profile.oauth_grant_type().unwrap()).is_none();
+        assert_that!(profile.oauth_grant_type()).is_ok().is_none();
     }
 
     // A stored legacy API key has no grant type at all - not an OAuth login, so `None`.
@@ -563,7 +565,7 @@ mod tests {
         let profile = Profile::new("grant-type-for-api-key", &config);
         profile.set_api_key("profile-key").unwrap();
 
-        assert_that!(profile.oauth_grant_type().unwrap()).is_none();
+        assert_that!(profile.oauth_grant_type()).is_ok().is_none();
     }
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
