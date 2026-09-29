@@ -7,11 +7,12 @@ use clap::Parser;
 use rover_std::Style;
 use serde::Serialize;
 
+#[cfg(feature = "composition-js")]
+use crate::plugin::error::RequestOrigin;
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
-    command::docs::shortlinks,
+    command::{docs::shortlinks, plugin::PluginInstall},
     options::LicenseAccepter,
-    plugin::error::RequestOrigin,
     utils::{client::StudioClientConfig, env::RoverEnvKey},
 };
 
@@ -44,73 +45,74 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
-        let binary_name = PKG_NAME.to_string();
-        let rover_installer = self.get_installer(binary_name.to_string(), override_install_path)?;
-
-        if let Some(plugin) = &self.plugin {
-            let requires_elv2_license = plugin.requires_elv2_license();
-            if requires_elv2_license {
-                self.elv2_license_accepter
-                    .require_elv2_license(&client_config)?;
-            }
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
-                .requested_by(Some(RequestOrigin::PluginArgument));
-            plugin_installer.install(plugin, false).await?;
-
-            Ok(RoverOutput::EmptySuccess)
-        } else {
-            // install rover
-            let install_location = rover_installer
-                .install().map_err(|e| {
-                    let mut err = RoverError::from(anyhow!("Could not install '{binary_name}' because {}", e.to_string().to_lowercase()));
-                    if matches!(e, InstallerError::NoTty) {
-                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Try re-running this command with the `--force` flag to overwrite the existing binary.".to_string()));
-                    }
-                    err
-                })?;
-
-            if install_location.is_some() {
-                let bin_dir_path = rover_installer.get_bin_dir_path()?;
-                eprintln!("{} was successfully installed. Great!", binary_name);
-
-                if !cfg!(windows)
-                    && let Some(path_var) = env::var_os("PATH")
-                    && !path_var
-                        .to_string_lossy()
-                        .to_string()
-                        .contains(bin_dir_path.as_str())
-                {
-                    eprintln!(
-                        "\nTo get started you need Rover's bin directory ({}) in your PATH environment variable. Next time you log in this will be done automatically.",
-                        bin_dir_path
-                    );
-                    if let Ok(shell_var) = env::var("SHELL") {
-                        eprintln!(
-                            "\nTo configure your current shell, you can run:\nexec {} -l",
-                            shell_var
-                        );
-                    }
-                }
-
-                // these messages are duplicated in `installers/npm/binary.js`
-                // for the npm installer.
-                eprintln!(
-                    "If you would like to disable Rover's anonymized usage collection, you can set {}=true",
-                    RoverEnvKey::TelemetryDisabled
-                );
-                eprintln!(
-                    "You can check out our documentation at {}.",
-                    Style::Link.paint(shortlinks::get_url_from_slug("docs"))
-                );
-            } else {
-                eprintln!(
-                    "{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.",
-                    binary_name
-                );
-            }
-
-            Ok(RoverOutput::EmptySuccess)
+        if let Some(plugin_install) = self.as_plugin_install() {
+            return plugin_install
+                .run(override_install_path, client_config)
+                .await;
         }
+
+        let binary_name = PKG_NAME.to_string();
+        let rover_installer = installer(&binary_name, self.force, override_install_path)?;
+        // install rover
+        let install_location = rover_installer
+            .install().map_err(|e| {
+                let mut err = RoverError::from(anyhow!("Could not install '{binary_name}' because {}", e.to_string().to_lowercase()));
+                if matches!(e, InstallerError::NoTty) {
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc("Try re-running this command with the `--force` flag to overwrite the existing binary.".to_string()));
+                }
+                err
+            })?;
+
+        if install_location.is_some() {
+            let bin_dir_path = rover_installer.get_bin_dir_path()?;
+            eprintln!("{} was successfully installed. Great!", binary_name);
+
+            if !cfg!(windows)
+                && let Some(path_var) = env::var_os("PATH")
+                && !path_var
+                    .to_string_lossy()
+                    .to_string()
+                    .contains(bin_dir_path.as_str())
+            {
+                eprintln!(
+                    "\nTo get started you need Rover's bin directory ({}) in your PATH environment variable. Next time you log in this will be done automatically.",
+                    bin_dir_path
+                );
+                if let Ok(shell_var) = env::var("SHELL") {
+                    eprintln!(
+                        "\nTo configure your current shell, you can run:\nexec {} -l",
+                        shell_var
+                    );
+                }
+            }
+
+            // these messages are duplicated in `installers/npm/binary.js`
+            // for the npm installer.
+            eprintln!(
+                "If you would like to disable Rover's anonymized usage collection, you can set {}=true",
+                RoverEnvKey::TelemetryDisabled
+            );
+            eprintln!(
+                "You can check out our documentation at {}.",
+                Style::Link.paint(shortlinks::get_url_from_slug("docs"))
+            );
+        } else {
+            eprintln!(
+                "{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.",
+                binary_name
+            );
+        }
+
+        Ok(RoverOutput::EmptySuccess)
+    }
+
+    /// `rover install --plugin` as the `rover plugin install` it stands in for.
+    fn as_plugin_install(&self) -> Option<PluginInstall> {
+        self.plugin.as_ref().map(|plugin| PluginInstall {
+            plugin: plugin.clone(),
+            force: self.force,
+            elv2_license_accepter: self.elv2_license_accepter,
+        })
     }
 
     #[cfg(feature = "composition-js")]
@@ -127,7 +129,7 @@ impl Install {
         // explicit `rover install` path doesn't go through here, so it still
         // installs as asked. See #1892.
         let skip_update = skip_update || crate::utils::skip_all_updates();
-        let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
+        let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
         if let Some(plugin) = &self.plugin {
             let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
                 .requested_by(origin);
@@ -139,22 +141,54 @@ impl Install {
             Err(err)
         }
     }
+}
 
-    fn get_installer(
-        &self,
-        binary_name: String,
-        override_install_path: Option<Utf8PathBuf>,
-    ) -> RoverResult<Installer> {
-        if let Ok(executable_location) = env::current_exe() {
-            let executable_location = Utf8PathBuf::try_from(executable_location)?;
-            Ok(Installer {
-                binary_name,
-                force_install: self.force,
-                override_install_path,
-                executable_location,
-            })
-        } else {
-            Err(anyhow!("Failed to get the current executable's path.").into())
-        }
+/// The binstall installer that Rover and its plugins are installed through.
+pub(crate) fn installer(
+    binary_name: &str,
+    force_install: bool,
+    override_install_path: Option<Utf8PathBuf>,
+) -> RoverResult<Installer> {
+    if let Ok(executable_location) = env::current_exe() {
+        let executable_location = Utf8PathBuf::try_from(executable_location)?;
+        Ok(Installer {
+            binary_name: binary_name.to_string(),
+            force_install,
+            override_install_path,
+            executable_location,
+        })
+    } else {
+        Err(anyhow!("Failed to get the current executable's path.").into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::Install;
+    use crate::command::Plugins;
+
+    #[rstest]
+    #[case::plain(&["supergraph@=2.9.3"])]
+    #[case::forced(&["router@2", "--force"])]
+    #[case::license_accepted(&["router@2", "--elv2-license", "accept"])]
+    fn the_alias_runs_what_the_plugin_noun_would(#[case] args: &[&str]) {
+        let (request, flags) = args.split_first().unwrap();
+        let alias =
+            Install::try_parse_from(["install", "--plugin", request].iter().chain(flags)).unwrap();
+        let noun =
+            Plugins::try_parse_from(["plugin", "install", request].iter().chain(flags)).unwrap();
+
+        assert_that!(serde_json::to_value(alias.as_plugin_install()).unwrap())
+            .is_equal_to(serde_json::to_value(noun.install()).unwrap());
+    }
+
+    #[test]
+    fn bare_install_is_not_a_plugin_install() {
+        let install = Install::try_parse_from(["install"]).unwrap();
+        assert_that!(install.as_plugin_install()).is_none();
     }
 }
