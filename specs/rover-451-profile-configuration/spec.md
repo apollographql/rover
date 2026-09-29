@@ -231,6 +231,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR56**: `rover config show` must emit no §3.9 notice, for any setting, under any circumstances. It reports overrides as data; a notice about the report would be noise.
 - **FR57**: With no configuration present anywhere, `rover config show` must report every setting with source `builtin`, and must create nothing (FR18).
 - **FR58**: Text output must carry the same value and source for every setting as the JSON does. It is not required to render the `overridden` detail, which is the machine-readable half of the contract.
+- **FR104**: `rover config show` validates and fails on an invalid stored value (FR39) only for the *effective* (winning) tier of each setting. A stored value that lost to a higher-precedence source is read and reported as-is, unvalidated, in `overridden`. This is a narrow, intentional exception to FR39 scoped to this one read-only verb: it exists so a stale or invalid losing value never prevents seeing the winning one, which is the opposite of what a diagnostic command should do.
 
 ### 3.9 Configuration notices (A1.5, B1.4)
 
