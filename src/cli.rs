@@ -537,15 +537,17 @@ impl Rover {
         let Some(raw) = profile_handle.get_setting(name.as_str())? else {
             return Ok(None);
         };
-        if let Err(error) = name.setting_type().validate(&raw) {
-            return Err(RoverError::new(anyhow::anyhow!(
+        let value = name.setting_type().validate(raw).map_err(|error| {
+            let (SettingValueError::InvalidUrl { input: raw }
+            | SettingValueError::InvalidBool { input: raw }) = &error;
+            RoverError::new(anyhow::anyhow!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
                 `rover config set {name} <value> --profile {profile_name}` to correct it.",
                 profile_name = profile.profile_name,
                 reason = describe_invalid_value(&error),
-            )));
-        }
-        Ok(Some(raw))
+            ))
+        })?;
+        Ok(Some(value))
     }
 
     #[cfg(feature = "oauth")]
