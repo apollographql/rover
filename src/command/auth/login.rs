@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use clap::Parser;
-use houston::{Config, Profile};
+use houston::{Config, OauthGrantType, Profile};
 use rover_auth::oauth2::{
     OauthTokens,
     authorization_flow::{AuthorizationFlow, redirect::server::AxumRedirectServer},
@@ -142,6 +142,7 @@ impl Login {
             tokens.access_token.secret().to_string(),
             tokens.refresh_token.map(|t| t.secret().to_string()),
             expires_at(tokens.expires_in),
+            login_grant_type(self.no_browser),
         )?;
 
         Ok(RoverOutput::MessageResponse {
@@ -158,6 +159,16 @@ fn expires_at(expires_in: Option<Duration>) -> Option<i64> {
             .unwrap_or_default();
         (now + expires_in).as_secs() as i64
     })
+}
+
+/// Which grant type this login established, for `rover auth whoami` to report later
+/// (spec `rover-431` FR35).
+const fn login_grant_type(no_browser: bool) -> OauthGrantType {
+    if no_browser {
+        OauthGrantType::DeviceCode
+    } else {
+        OauthGrantType::AuthorizationCode
+    }
 }
 
 // `Login::run` hardcodes its OAuth dependencies (a real browser opener, a real
@@ -191,5 +202,15 @@ mod tests {
         assert_that!(result).is_some().matches(|expires_at| {
             *expires_at > now && *expires_at <= now + 3600 + 5 // small tolerance for test runtime
         });
+    }
+
+    #[test]
+    fn login_grant_type_is_device_code_for_no_browser() {
+        assert_that!(login_grant_type(true)).is_equal_to(OauthGrantType::DeviceCode);
+    }
+
+    #[test]
+    fn login_grant_type_is_authorization_code_for_the_browser_flow() {
+        assert_that!(login_grant_type(false)).is_equal_to(OauthGrantType::AuthorizationCode);
     }
 }

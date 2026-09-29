@@ -13,7 +13,7 @@ use rover_http::{ReqwestService, retry::retry_with_attempt_timeout};
 use serde::Serialize;
 use tower::ServiceBuilder;
 
-use self::output::AuthWhoAmIOutput;
+use self::output::{AuthWhoAmILegacyOutput, AuthWhoAmIOutput, GrantTypeReport};
 use super::OauthConfig;
 use crate::{
     RoverError, RoverOutput, RoverResult, command::config::whoami::LegacyWhoami,
@@ -61,12 +61,29 @@ impl WhoAmI {
             CredentialOrigin::EnvVar
             | CredentialOrigin::ConfigFile(_)
             | CredentialOrigin::OauthClientCredentials => {
-                LegacyWhoami {
+                let identity = LegacyWhoami {
                     profile: profile.clone(),
                     insecure_unmask_key: self.insecure_unmask_key,
                 }
-                .run(&client_config, &rover_print::print::stderr::default())
-                .await
+                .identity(&client_config, &rover_print::print::stderr::default())
+                .await?;
+
+                // A client-credentials exchange never persists a profile credential (see
+                // `CredentialOrigin::OauthClientCredentials`'s own doc comment), so it's the
+                // only legacy origin with a grant at all.
+                let grant_type =
+                    matches!(credential.origin, CredentialOrigin::OauthClientCredentials)
+                        .then_some(GrantTypeReport::ClientCredentials);
+
+                Ok(RoverOutput::CliOutput(Box::new(AuthWhoAmILegacyOutput {
+                    api_key: identity.api_key,
+                    graph_id: identity.graph_id,
+                    graph_title: identity.graph_title,
+                    key_type: identity.key_type,
+                    origin: identity.origin,
+                    user_id: identity.user_id,
+                    grant_type,
+                })))
             }
         }
     }
@@ -105,12 +122,17 @@ impl WhoAmI {
         .await
         .map_err(map_whoami_error)?;
 
+        let grant_type = Profile::new(profile_name, &client_config.config)
+            .oauth_grant_type()?
+            .map_or(GrantTypeReport::Unknown, GrantTypeReport::from);
+
         Ok(RoverOutput::CliOutput(Box::new(AuthWhoAmIOutput {
             email: response.email,
             name: response.name,
             user_id: response.sub,
             origin: oauth_origin(profile_name),
             access_token: get_maybe_masked_access_token(credential, self.insecure_unmask_key),
+            grant_type: Some(grant_type),
         })))
     }
 }

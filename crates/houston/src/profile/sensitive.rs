@@ -11,6 +11,19 @@ use crate::{profile::Profile, Config, HoustonProblem};
 /// The keyring/file-store service name under which all Rover credentials are stored.
 const SECRET_STORE_SERVICE: &str = "rover";
 
+/// How an OAuth login was established. Recorded at login time so `rover auth whoami` can
+/// report it later (spec `rover-431` FR32-36). Only the two things a login can actually
+/// produce - a client-credentials exchange never persists a profile credential at all (see
+/// `CredentialOrigin::OauthClientCredentials`), so it has no variant here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OauthGrantType {
+    /// A browser login (`rover auth login`).
+    AuthorizationCode,
+    /// A device-code login (`rover auth login --no-browser`).
+    DeviceCode,
+}
+
 /// Holds sensitive information regarding authentication.
 ///
 /// `#[serde(untagged)]` lets legacy data (which only ever looked like
@@ -38,6 +51,13 @@ pub enum Sensitive {
         refresh_token: Option<String>,
         /// Unix timestamp at which `access_token` expires, if known.
         expires_at: Option<i64>,
+        /// Which login flow produced this token. `None` for a credential stored by a Rover
+        /// version that didn't record it yet ("unknown", not an error) - an `Option` field
+        /// follows `expires_at`'s own precedent for adding to this type without breaking the
+        /// `ApiKey`/`OAuth` disjointness the type-level doc comment above describes: absent on
+        /// an old payload deserializes as `None`, and present on a new payload is silently
+        /// ignored by an older Rover's `Sensitive::OAuth`, which doesn't declare the field.
+        grant_type: Option<OauthGrantType>,
     },
 }
 
@@ -297,10 +317,57 @@ mod tests {
             access_token: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
             refresh_token: Some("should-never-appear-in-output".to_string()),
             expires_at: Some(1_700_000_000),
+            grant_type: Some(OauthGrantType::AuthorizationCode),
         },
         "user**************************LOLO"
     )]
     fn display_masks_the_underlying_secret(#[case] sensitive: Sensitive, #[case] expected: &str) {
         assert_that!(sensitive.to_string()).is_equal_to(expected.to_string());
+    }
+
+    // FR36: a credential written before `grant_type` existed (no such key at all) must still
+    // deserialize - as `None` ("unknown"), not an error.
+    #[test]
+    fn oauth_without_a_grant_type_key_deserializes_as_none() {
+        let old_shaped_json = serde_json::json!({
+            "access_token": "an-access-token",
+            "refresh_token": null,
+            "expires_at": null
+        });
+
+        let sensitive: Sensitive = serde_json::from_value(old_shaped_json).unwrap();
+
+        assert_that!(sensitive).is_equal_to(Sensitive::OAuth {
+            access_token: "an-access-token".to_string(),
+            refresh_token: None,
+            expires_at: None,
+            grant_type: None,
+        });
+    }
+
+    // FR36: a credential written by this version (grant_type present) must still deserialize
+    // under an *older* Rover's `Sensitive::OAuth`, which doesn't declare the field at all - it's
+    // silently ignored, not a hard error.
+    #[test]
+    fn oauth_with_a_grant_type_key_still_deserializes_under_an_older_shape() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct OlderSensitiveOAuth {
+            access_token: String,
+            refresh_token: Option<String>,
+            expires_at: Option<i64>,
+        }
+
+        let current = Sensitive::OAuth {
+            access_token: "an-access-token".to_string(),
+            refresh_token: None,
+            expires_at: None,
+            grant_type: Some(OauthGrantType::DeviceCode),
+        };
+        let serialized = serde_json::to_value(&current).unwrap();
+
+        let older: Result<OlderSensitiveOAuth, _> = serde_json::from_value(serialized);
+
+        assert_that!(older).is_ok();
     }
 }

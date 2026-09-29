@@ -39,13 +39,38 @@ impl WhoAmI {
             "note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.",
         ));
 
-        LegacyWhoami {
+        let identity = LegacyWhoami {
             profile: profile.clone(),
             insecure_unmask_key: self.insecure_unmask_key,
         }
-        .run(&client_config, stderr)
-        .await
+        .identity(&client_config, stderr)
+        .await?;
+
+        Ok(RoverOutput::ConfigWhoAmIOutput {
+            api_key: identity.api_key,
+            graph_id: identity.graph_id,
+            graph_title: identity.graph_title,
+            key_type: identity.key_type,
+            origin: identity.origin,
+            user_id: identity.user_id,
+        })
     }
+}
+
+/// The result of a successful [`LegacyWhoami::identity`] lookup: the fields both `rover config
+/// whoami` and `rover auth whoami`'s legacy-credential branch render. `rover config whoami`
+/// must not gain a grant-type field of its own (PRD `rover-431` §2.3/§6.1), which is exactly
+/// why this stays a plain data bundle rather than a `RoverOutput`/`CliOutput` itself: each
+/// caller decides its own output shape (and, for `rover auth whoami`, its own `grant_type` -
+/// derived from the `CredentialOrigin` it already has in hand from dispatching here, not from
+/// this struct).
+pub(crate) struct LegacyIdentity {
+    pub(crate) api_key: String,
+    pub(crate) graph_id: Option<String>,
+    pub(crate) graph_title: Option<String>,
+    pub(crate) key_type: String,
+    pub(crate) origin: String,
+    pub(crate) user_id: Option<String>,
 }
 
 /// Looks up the identity of a legacy API key (from an env var or a
@@ -59,11 +84,11 @@ pub(crate) struct LegacyWhoami {
 }
 
 impl LegacyWhoami {
-    pub(crate) async fn run(
+    pub(crate) async fn identity(
         &self,
         client_config: &StudioClientConfig,
         stderr: &impl Print,
-    ) -> RoverResult<RoverOutput> {
+    ) -> RoverResult<LegacyIdentity> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         stderr.print(&StyledText::plain(
             "Checking identity of your API key against the registry.",
@@ -98,7 +123,7 @@ impl LegacyWhoami {
             ));
         }
 
-        Ok(RoverOutput::ConfigWhoAmIOutput {
+        Ok(LegacyIdentity {
             api_key: self.get_maybe_masked_api_key(&credential),
             graph_id: self.get_graph_id(&identity),
             graph_title: self.get_graph_title(&identity),

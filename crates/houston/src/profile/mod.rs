@@ -3,6 +3,7 @@ mod settings;
 
 use camino::Utf8PathBuf as PathBuf;
 use rover_std::Fs;
+pub use sensitive::OauthGrantType;
 use sensitive::Sensitive;
 
 use crate::{ApiKey, Config, HoustonProblem, MalformedApiKey};
@@ -134,11 +135,13 @@ impl Profile {
         access_token: String,
         refresh_token: Option<String>,
         expires_at: Option<i64>,
+        grant_type: OauthGrantType,
     ) -> Result<(), HoustonProblem> {
         Sensitive::OAuth {
             access_token,
             refresh_token,
             expires_at,
+            grant_type: Some(grant_type),
         }
         .save(&self.name, &self.config)
     }
@@ -164,6 +167,23 @@ impl Profile {
                 access_token,
                 refresh_token,
             }),
+            Sensitive::ApiKey { .. } => None,
+        })
+    }
+
+    /// Returns the grant type recorded for the profile's stored OAuth login, or `None` if
+    /// either the stored credential isn't OAuth, or it's an OAuth login stored by a Rover
+    /// version that didn't record grant type yet ("unknown", not an error - spec `rover-431`
+    /// FR33). Used by `rover auth whoami` to report it; like [`Profile::get_oauth_session`],
+    /// this reads the profile's own stored credential directly rather than consulting
+    /// `config.override_api_key`/`override_client_credentials_token`, since a caller only
+    /// asks this after already knowing (via `CredentialOrigin`) that the active credential is
+    /// this profile's stored OAuth login.
+    pub fn oauth_grant_type(&self) -> Result<Option<OauthGrantType>, HoustonProblem> {
+        let opts = LoadOpts { sensitive: true };
+        let sensitive = self.load(opts)?;
+        Ok(match sensitive {
+            Sensitive::OAuth { grant_type, .. } => grant_type,
             Sensitive::ApiKey { .. } => None,
         })
     }
@@ -420,6 +440,7 @@ mod tests {
                 "access-token".to_string(),
                 Some("refresh-token".to_string()),
                 Some(1_700_000_000),
+                OauthGrantType::AuthorizationCode,
             )
             .unwrap();
 
@@ -498,6 +519,7 @@ mod tests {
                 "access-token".to_string(),
                 Some("refresh-token".to_string()),
                 Some(1_700_000_000),
+                OauthGrantType::DeviceCode,
             )
             .unwrap();
 
@@ -508,6 +530,42 @@ mod tests {
             profile.name().to_string(),
         ));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
+        assert_that!(profile.oauth_grant_type())
+            .is_ok()
+            .is_some()
+            .is_equal_to(OauthGrantType::DeviceCode);
+    }
+
+    // A stored OAuth token from before grant type was recorded reports `None` ("unknown"),
+    // never an error - spec `rover-431` FR33/FR36.
+    #[rstest]
+    #[serial]
+    fn oauth_grant_type_is_none_when_not_recorded(test_config: (Config, TempDir)) {
+        let (config, _tmp_home) = test_config;
+        let profile = Profile::new("grant-type-not-recorded", &config);
+        // Bypasses `set_oauth_tokens` (which always records a grant type now) to simulate a
+        // credential stored by an older Rover version.
+        Sensitive::OAuth {
+            access_token: "access-token".to_string(),
+            refresh_token: None,
+            expires_at: None,
+            grant_type: None,
+        }
+        .save(profile.name(), &config)
+        .unwrap();
+
+        assert_that!(profile.oauth_grant_type()).is_ok().is_none();
+    }
+
+    // A stored legacy API key has no grant type at all - not an OAuth login, so `None`.
+    #[rstest]
+    #[serial]
+    fn oauth_grant_type_is_none_for_a_legacy_api_key(test_config: (Config, TempDir)) {
+        let (config, _tmp_home) = test_config;
+        let profile = Profile::new("grant-type-for-api-key", &config);
+        profile.set_api_key("profile-key").unwrap();
+
+        assert_that!(profile.oauth_grant_type()).is_ok().is_none();
     }
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
@@ -538,7 +596,12 @@ mod tests {
         let profile = Profile::new("oauth-overwrites-legacy", &config);
         profile.set_api_key("profile-key").unwrap();
         profile
-            .set_oauth_tokens("access-token".to_string(), None, None)
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                None,
+                None,
+                OauthGrantType::AuthorizationCode,
+            )
             .unwrap();
 
         let credential = profile.get_credential().unwrap();
@@ -560,6 +623,7 @@ mod tests {
                 "access-token".to_string(),
                 Some("refresh-token".to_string()),
                 Some(1_700_000_000),
+                OauthGrantType::AuthorizationCode,
             )
             .unwrap();
         profile.set_api_key("profile-key").unwrap();

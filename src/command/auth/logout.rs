@@ -138,7 +138,7 @@ mod tests {
     use assert_fs::TempDir;
     use bytes::Bytes;
     use camino::Utf8Path;
-    use houston::{HoustonProblem, Profile};
+    use houston::{HoustonProblem, OauthGrantType, Profile};
     use rover_http::{Full, HttpServiceError, test::MockHttpService};
     use rover_tower::{expect_poll_ready, test::MockCloneService};
     use serial_test::serial;
@@ -188,6 +188,7 @@ mod tests {
                 "access-token".to_string(),
                 Some("refresh-token".to_string()),
                 None,
+                OauthGrantType::AuthorizationCode,
             )
             .unwrap();
         let session = OAuthSession {
@@ -232,6 +233,7 @@ mod tests {
                 "access-token".to_string(),
                 Some("refresh-token".to_string()),
                 None,
+                OauthGrantType::AuthorizationCode,
             )
             .unwrap();
         let session = OAuthSession {
