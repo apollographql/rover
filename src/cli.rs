@@ -284,11 +284,7 @@ impl Rover {
                     .await
             }
             Command::Completion(command) => command.run(),
-            Command::Config(command) => {
-                command
-                    .run(self.get_client_config().await?, &profile_opt, self)
-                    .await
-            }
+            Command::Config(command) => command.run(&profile_opt, self).await,
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
