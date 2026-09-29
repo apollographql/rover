@@ -539,6 +539,7 @@ impl Rover {
         };
         let value = name.setting_type().validate(raw).map_err(|error| {
             let (SettingValueError::InvalidUrl { input: raw }
+            | SettingValueError::UnsupportedUrlScheme { input: raw }
             | SettingValueError::InvalidBool { input: raw }) = &error;
             RoverError::new(anyhow::anyhow!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
@@ -892,6 +893,9 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
         SettingValueError::InvalidUrl { .. } => {
             "isn't a valid URL. URLs must include a scheme, for example \
             `https://registry.example.com`."
+        }
+        SettingValueError::UnsupportedUrlScheme { .. } => {
+            "isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting."
         }
         SettingValueError::InvalidBool { .. } => "isn't a valid boolean. Use `true` or `false`.",
     }
