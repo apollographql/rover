@@ -1,7 +1,10 @@
+mod output;
+
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
+use self::output::PluginInstallOutput;
 use crate::{
     PKG_NAME, RoverOutput, RoverResult,
     command::install::{Plugin, PluginInstaller, installer},
@@ -35,11 +38,13 @@ impl PluginInstall {
                 .require_elv2_license(&client_config)?;
         }
         let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
-        PluginInstaller::new(client_config, rover_installer, self.force)
+        let installed = PluginInstaller::new(client_config, rover_installer, self.force)
             .requested_by(Some(RequestOrigin::PluginArgument))
             .install(&self.plugin, false)
             .await?;
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
+            plugins: vec![installed],
+        })))
     }
 }

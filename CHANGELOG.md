@@ -38,7 +38,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`rover plugin install` installs a plugin, under a new `plugin` noun - @SharkBaitDLS**
 
-  `rover plugin install <name>@<version>` does exactly what `rover install --plugin <name>@<version>` does, including `--force` and `--elv2-license`. `rover install --plugin` keeps working.
+  `rover plugin install <name>@<version>` does exactly what `rover install --plugin <name>@<version>` does, including `--force` and `--elv2-license`. `rover install --plugin` keeps working. With `--format json`, both report the plugin they installed under `data.plugins`, in the same shape `rover supergraph compose` uses.
 
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
