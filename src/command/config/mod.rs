@@ -124,7 +124,9 @@ mod tests {
 
         let result = config.run(&profile_opt(), &rover).await;
 
-        assert_that!(result).is_ok();
+        let output = result.expect("expected config show to succeed with only one env var set");
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
+        assert_that!(text.unwrap()).contains("Profile:");
     }
 
     #[cfg(feature = "oauth")]
@@ -155,6 +157,9 @@ mod tests {
 
         let result = config.run(&profile_opt(), &rover).await;
 
-        assert_that!(result).is_ok();
+        let output =
+            result.expect("expected config show to succeed despite an unreachable token URL");
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
+        assert_that!(text.unwrap()).contains("Profile:");
     }
 }

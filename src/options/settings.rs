@@ -378,7 +378,10 @@ mod tests {
     #[case::lower_false("false")]
     #[case::upper_false("FALSE")]
     fn valid_bool_values_are_accepted(#[case] value: &str) {
-        assert_that!(SettingType::Bool.validate(value.to_string())).is_ok();
+        // handed back unchanged, not normalized to lowercase - matches
+        // `validate`'s doc comment.
+        assert_that!(SettingType::Bool.validate(value.to_string()))
+            .is_ok_containing(value.to_string());
     }
 
     #[rstest]
@@ -389,7 +392,11 @@ mod tests {
     fn other_values_are_not_a_valid_stored_boolean(#[case] value: &str) {
         // deliberately narrower than the env-var convention (FR20/FR24):
         // `1` is a set env var but not a typed boolean literal.
-        assert_that!(SettingType::Bool.validate(value.to_string())).is_err();
+        assert_that!(SettingType::Bool.validate(value.to_string())).is_err_containing(
+            SettingValueError::InvalidBool {
+                input: value.to_string(),
+            },
+        );
     }
 
     #[test]
@@ -480,7 +487,7 @@ mod tests {
             let description = format!("{name:?}");
             assert_that!(name.setting_type().validate(name.builtin_default()))
                 .named(&description)
-                .is_ok();
+                .is_ok_containing(name.builtin_default());
         }
     }
 }
