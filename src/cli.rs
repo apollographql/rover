@@ -587,7 +587,7 @@ impl Rover {
         }
 
         let profile = self.get_profile_opt();
-        if !matches!(profile.selection, ProfileSelection::Explicit) {
+        if !profile.selection.is_explicit() {
             return Ok(None);
         }
         let houston_config = self.get_rover_config()?;
@@ -721,7 +721,7 @@ impl Rover {
         }
 
         let profile = self.get_profile_opt();
-        let profile_is_explicit = matches!(profile.selection, ProfileSelection::Explicit);
+        let profile_is_explicit = profile.selection.is_explicit();
         let houston_config = self.get_rover_config()?;
         let profile_raw =
             Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
