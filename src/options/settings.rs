@@ -5,7 +5,7 @@
 // remove this once a consumer lands.
 #![allow(dead_code)]
 
-use std::fmt;
+use std::{error::Error, fmt, str::FromStr};
 
 use url::Url;
 
@@ -33,7 +33,7 @@ const DEFAULT_TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 /// A setting from the full catalogue that isn't a variant here (VCS context,
 /// graph ref, checks timeout, download host, templates API) isn't
 /// unsupported forever - it's simply out of scope for this slice, per the
-/// PRD's delivery plan. `SettingName::try_from` can't yet distinguish "known
+/// PRD's delivery plan. `SettingName::from_str` can't yet distinguish "known
 /// to Rover but not profile-eligible" (FR42's first required-text example)
 /// from "not a Rover setting at all" for one of those - that distinction
 /// needs the full catalogue and is deferred to the slice that adds it.
@@ -217,10 +217,12 @@ impl fmt::Display for SettingNameError {
     }
 }
 
-impl TryFrom<&str> for SettingName {
-    type Error = SettingNameError;
+impl Error for SettingNameError {}
 
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+impl FromStr for SettingName {
+    type Err = SettingNameError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
         let all = SettingName::all();
         if let Some(name) = all.iter().find(|name| name.as_str() == input) {
             return Ok(*name);
@@ -300,15 +302,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_canonical_name_round_trips_through_try_from() {
+    fn every_canonical_name_round_trips_through_from_str() {
         for name in SettingName::all() {
-            assert_that!(SettingName::try_from(name.as_str())).is_ok_containing(name);
+            assert_that!(name.as_str().parse::<SettingName>()).is_ok_containing(name);
         }
     }
 
     #[test]
     fn a_lowercase_canonical_name_is_rejected_with_the_canonical_spelling() {
-        let error = SettingName::try_from("apollo_registry_url").unwrap_err();
+        let error = "apollo_registry_url".parse::<SettingName>().unwrap_err();
 
         assert_that!(error).is_equal_to(SettingNameError::LowercaseSpelling {
             input: "apollo_registry_url".to_string(),
@@ -320,7 +322,7 @@ mod tests {
 
     #[test]
     fn mixed_case_is_unrecognized_not_a_lowercase_alias() {
-        let error = SettingName::try_from("Apollo_Registry_Url").unwrap_err();
+        let error = "Apollo_Registry_Url".parse::<SettingName>().unwrap_err();
 
         assert_that!(error).is_equal_to(SettingNameError::Unrecognized {
             input: "Apollo_Registry_Url".to_string(),
@@ -329,7 +331,7 @@ mod tests {
 
     #[test]
     fn an_unknown_name_is_unrecognized() {
-        let error = SettingName::try_from("APOLLO_NOT_A_SETTING").unwrap_err();
+        let error = "APOLLO_NOT_A_SETTING".parse::<SettingName>().unwrap_err();
 
         assert_that!(error).is_equal_to(SettingNameError::Unrecognized {
             input: "APOLLO_NOT_A_SETTING".to_string(),
